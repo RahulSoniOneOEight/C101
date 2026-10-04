@@ -5,15 +5,17 @@ import { SimulatedPaymentAdapter } from "./payment/simulated-adapter.js";
 import type { Money, SimulatorOutcome } from "./payment/types.js";
 import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
+import { CorrelationStore } from "./store/correlation-store.js";
+import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
+import { CollectionResolver } from "./collections/resolver.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
 const medusa = new MedusaStoreClient(config);
 const tryton = new TrytonClient(config);
 const erp = new TrytonErp(tryton, config.trytonUsername);
-
-// Correlation registry: checkout/order reference -> owner-service references.
-const correlation = new Map<string, { orderGroup?: string; order?: string; trytonMove?: number }>();
+const correlation = new CorrelationStore(config.experienceDatabaseUrl);
+const collections = new CollectionResolver(medusa);
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -51,23 +53,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
   }
 
   if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {
-    const locale = url.searchParams.get("locale") ?? "en-IN";
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const placement = url.searchParams.get("placement");
+    const items = placement ? resolveContent(placement, locale) : appContent.filter((c) => c.locale === locale);
     return json({
       locale,
-      items: [
-        {
-          id: "content_staging_checkout_help",
-          content_type: "help",
-          placement: "checkout-help",
-          locale,
-          title: "Staging checkout help",
-          body: "This staging environment uses simulated payment and test orders.",
-          action_label: null,
-          action_uri: null,
-          version: "staging-v1",
-          test_data: true,
-        },
-      ],
+      placement: placement ?? null,
+      items,
       generated_at: new Date().toISOString(),
       source: "governed-editorial-seed",
       freshness: {
@@ -76,6 +68,27 @@ async function handle(req: Request, url: URL): Promise<Response> {
         stale: false,
       },
     });
+  }
+
+  // GET /v1/collections/{key} — resolve a dynamic collection
+  const collectionMatch = url.pathname.match(/^\/v1\/collections\/([^/]+)$/);
+  if (collectionMatch && req.method === "GET") {
+    const key = collectionMatch[1];
+    try {
+      const result = await collections.resolve(key);
+      return json({
+        collection_key: result.collection.collection_key,
+        source: result.collection.source,
+        status: result.collection.status,
+        fallback: result.fallback,
+        items: result.items,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
   }
 
   // POST /v1/checkouts/{checkoutId}/payment-sessions
@@ -182,11 +195,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
     try {
       const result = await medusa.completeCart(cartId);
       if (result.type === "order_group") {
-        const existing = correlation.get(cartId) ?? {};
-        correlation.set(cartId, {
-          ...existing,
-          orderGroup: result.order_group?.id,
-        });
+        await correlation.link(cartId, { orderGroup: result.order_group?.id });
         return json({
           type: "order_group",
           order_group: result.order_group,
@@ -287,8 +296,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
     try {
       const moveId = await erp.reserve(checkoutId, body.sku, body.quantity as number);
-      const existing = correlation.get(checkoutId) ?? {};
-      correlation.set(checkoutId, { ...existing, trytonMove: moveId });
+      await correlation.link(checkoutId, { trytonMove: moveId });
       return json({
         checkout_id: checkoutId,
         reservation_id: `tryton_move_${moveId}`,
@@ -307,15 +315,15 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const commitReservation = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/commit$/);
   if (commitReservation && req.method === "POST") {
     const checkoutId = commitReservation[1];
-    const ref = correlation.get(checkoutId);
-    if (!ref?.trytonMove) {
+    const ref = await correlation.get(checkoutId);
+    if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
     }
     try {
-      await erp.commit(ref.trytonMove);
+      await erp.commit(ref.tryton_move_id);
       return json({
         checkout_id: checkoutId,
-        reservation_id: `tryton_move_${ref.trytonMove}`,
+        reservation_id: `tryton_move_${ref.tryton_move_id}`,
         status: "committed",
         environment: config.environment,
         test_data: true,
@@ -330,15 +338,15 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const releaseReservation = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/release$/);
   if (releaseReservation && req.method === "POST") {
     const checkoutId = releaseReservation[1];
-    const ref = correlation.get(checkoutId);
-    if (!ref?.trytonMove) {
+    const ref = await correlation.get(checkoutId);
+    if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
     }
     try {
-      await erp.release(ref.trytonMove);
+      await erp.release(ref.tryton_move_id);
       return json({
         checkout_id: checkoutId,
-        reservation_id: `tryton_move_${ref.trytonMove}`,
+        reservation_id: `tryton_move_${ref.tryton_move_id}`,
         status: "released",
         environment: config.environment,
         test_data: true,
@@ -354,9 +362,10 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (reconciliation && req.method === "GET") {
     const orderId = reconciliation[1];
     const now = new Date().toISOString();
-    const ref = correlation.get(orderId);
-    const trytonMove = ref?.trytonMove;
-    const reconciled = Boolean(ref?.order && trytonMove);
+    const ref = await correlation.get(orderId);
+    const trytonMove = ref?.tryton_move_id ?? null;
+    const orderGroup = ref?.medusa_order_group_id ?? null;
+    const reconciled = Boolean(orderGroup && trytonMove);
     return json({
       order_id: orderId,
       correlation_id: cid,
@@ -364,8 +373,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
       test_data: true,
       payment_mode: "simulated",
       checkout: { system: "commerce", entity_type: "checkout-attempt", entity_id: orderId, environment: "staging", test_data: true, status: "completed", observed_at: now },
-      order: { system: "medusa", entity_type: "order", entity_id: ref?.order ?? null, environment: "staging", test_data: true, status: ref?.order ? "confirmed" : "not_started", observed_at: now },
-      allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: ref?.orderGroup ?? null, environment: "staging", test_data: true, status: ref?.orderGroup ? "confirmed" : "not_started", observed_at: now },
+      order: { system: "medusa", entity_type: "order", entity_id: null, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
+      allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: orderGroup, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
       reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: trytonMove ? "committed" : "not_started", observed_at: now },
       movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: trytonMove ? "staging-posted" : "not_started", observed_at: now },
       accounting: { system: "tryton", entity_type: "accounting-projection", entity_id: null, environment: "staging", test_data: true, status: "test-clearing-projected", observed_at: now },

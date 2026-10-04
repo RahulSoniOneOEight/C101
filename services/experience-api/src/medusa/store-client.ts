@@ -84,6 +84,13 @@ export class MedusaStoreClient {
     return data.offers;
   }
 
+  async listProducts(limit = 12): Promise<StoreProduct[]> {
+    const data = await this.getJson<{ products: StoreProduct[] }>(
+      `/store/products?limit=${limit}&fields=id,title,variants.id`,
+    );
+    return data.products;
+  }
+
   async createCart(regionId: string, currencyCode: string): Promise<StoreCart> {
     const data = await this.postJson<{ cart: StoreCart }>("/store/carts", {
       region_id: regionId,

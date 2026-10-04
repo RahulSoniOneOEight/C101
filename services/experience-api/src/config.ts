@@ -44,6 +44,7 @@ export interface Config {
   trytonDatabase: string;
   trytonUsername: string;
   trytonPassword: string;
+  experienceDatabaseUrl: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -78,5 +79,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     trytonDatabase: env.TRYTON_DATABASE ?? "buildkart_tryton",
     trytonUsername: env.TRYTON_USERNAME ?? "admin",
     trytonPassword: env.TRYTON_PASSWORD ?? "buildkart-staging-admin",
+    experienceDatabaseUrl:
+      env.EXPERIENCE_DATABASE_URL ??
+      "postgres://buildkart:buildkart@localhost:5433/buildkart_experience",
   };
 }

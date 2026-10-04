@@ -8,9 +8,12 @@
     "start": "bun run src/index.ts",
     "typecheck": "bunx tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
   "devDependencies": {
     "@types/bun": "1.2.9",
+    "@types/pg": "^8.23.1",
     "typescript": "5.9.3"
   }
 }
