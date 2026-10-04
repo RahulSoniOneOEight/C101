@@ -1,26 +1,88 @@
 contract_id: DC-client101-001
 client_id: client101
+change_contract: CHG-017
+change_contract_revision: 5
+governance_status: decision-approvals-recorded-evidence-conditions-pending
 entities:
   - name: order
     canonical_owner: commerce
-    consumers: [erp, analytics]
-    projections: [erp-sales-order, analytics-order-fact]
-    notes: [checkout-to-accounting flow]
+    implementation_boundary: medusa-with-governed-buildkart-extensions
+    consumers: [marketplace, erp, logistics-integration, analytics]
+    projections: [marketplace-order-reference, erp-sales-order, logistics-order-reference, analytics-order-fact]
+    notes:
+    - Commerce owns the commercial order aggregate and lifecycle.
+    - Customer confirmation requires the Revision 5 environment-specific confirmation prerequisites.
+    - Staging simulator orders are permanently labelled test data and cannot become production orders.
+  - name: checkout-attempt
+    canonical_owner: commerce
+    consumers: [experience, operations]
+    projections: [experience-checkout-state, operations-checkout-recovery]
+    notes:
+    - Durable and versioned; payment, allocation, inventory, shipment and accounting remain independent dimensions.
+  - name: cart
+    canonical_owner: commerce
+    consumers: [experience]
+    projections: [experience-seller-aware-cart]
+    notes:
+    - Cart-line identity is variant_id plus seller_id plus offer_id plus fulfilment_context_id.
+    - Other seller groups remain in the cart when one seller group enters checkout.
   - name: inventory
     canonical_owner: erp
     consumers: [commerce]
     projections: [commerce-availability]
-    notes: [erp is the single source of truth for availability]
-  - name: payment
-    canonical_owner: payment-integration
-    consumers: [commerce, erp]
-    projections: [commerce-payment-status]
-    notes: []
-  - name: shipment
-    canonical_owner: logistics-integration
-    consumers: [commerce, erp]
-    projections: [commerce-fulfilment-status]
-    notes: []
+    notes: [ERP is the single source of truth for ATP and stock movement.]
+  - name: inventory-reservation
+    canonical_owner: erp
+    consumers: [commerce, operations]
+    projections: [commerce-reservation-status]
+    notes:
+    - Reservation occurs before payment; commit and expiry are atomic competing transitions.
+  - name: payment-execution-evidence
+    canonical_owner: payment-provider
+    consumers: [payment-integration]
+    projections: [payment-integration-provider-evidence]
+    notes:
+    - Exact provider and version remain unselected.
+    - Signed webhook and authenticated provider query are evidence, not Commerce order state.
+  - name: commerce-payment
+    canonical_owner: commerce-payment-integration
+    consumers: [commerce, erp, operations]
+    projections: [commerce-payment-status, erp-payment-projection, operations-payment-evidence]
+    notes:
+    - Normalised state retains immutable references to provider evidence.
+    - Staging may use explicit simulated acceptance; provider/production confirmation requires captured payment.
+    - Simulated refunds are workflow evidence and not financial refunds.
+  - name: shipment-execution-evidence
+    canonical_owner: logistics-provider
+    consumers: [logistics-integration]
+    projections: [logistics-integration-provider-evidence]
+    notes: [Exact provider and version remain unselected.]
+  - name: commerce-shipment
+    canonical_owner: commerce-logistics-integration
+    consumers: [commerce, erp, operations, experience]
+    projections: [commerce-fulfilment-status, erp-shipment-projection, experience-tracking]
+    notes:
+    - One destination and shipment are permitted per checkout in this slice.
+  - name: invoice
+    canonical_owner: erp-accounting
+    consumers: [commerce, experience, finance]
+    projections: [commerce-invoice-reference, experience-invoice-read]
+    notes:
+    - Ownership, numbering, timing and jurisdiction rules remain subject to Finance/Tax and Legal approval.
+    - Issued invoices are corrected through credit or debit notes and are not overwritten.
+  - name: accounting-record
+    canonical_owner: erp-accounting
+    consumers: [commerce, finance, operations]
+    projections: [commerce-accounting-status, finance-ledger-reporting]
+    notes:
+    - Posting and reversal triggers remain subject to Finance/Tax and ERP Operations approval.
+  - name: editorial-app-content
+    canonical_owner: cms-or-governed-editorial-source
+    consumers: [experience-api, customer-apps, web]
+    projections: [experience-app-shell-content]
+    notes:
+    - Editorial content is non-transactional and cannot determine eligibility or success.
+    - CMS provider selection and DAM workflows remain outside the bounded staging order increment.
   - name: business-account
     canonical_owner: commerce
     consumers: [erp, analytics]

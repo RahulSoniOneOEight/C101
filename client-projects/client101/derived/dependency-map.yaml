@@ -1,5 +1,37 @@
 client_id: client101
+governance_note: CHG-017 Revision 5 proposes staging-payment simulation; affected-role approval and other G0 evidence remain pending.
 critical_cross_domain_flows:
+- id: editorial-content-to-app-shell
+  domains:
+  - content
+  - experience
+- id: cart-to-durable-checkout
+  domains:
+  - experience
+  - commerce
+  - marketplace
+  - integration
+  - erp
+- id: checkout-reservation-to-payment
+  domains:
+  - commerce
+  - integration
+  - erp
+  - payments
+- id: captured-payment-to-order-confirmation
+  domains:
+  - commerce
+  - marketplace
+  - integration
+  - erp
+  - payments
+- id: late-payment-to-recovery-refund
+  domains:
+  - commerce
+  - integration
+  - erp
+  - payments
+  - operations
 - id: checkout-to-accounting
   domains:
   - experience

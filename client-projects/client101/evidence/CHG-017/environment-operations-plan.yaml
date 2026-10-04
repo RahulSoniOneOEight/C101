@@ -1,0 +1,56 @@
+change_id: CHG-017
+revision: 5
+status: ownership-pending
+environments:
+- name: development
+  owner: null
+  access_owner: null
+  deployment_owner: null
+  data_classification: synthetic-only
+  status: missing
+- name: ci
+  owner: null
+  access_owner: null
+  deployment_owner: null
+  data_classification: synthetic-only
+  status: missing
+- name: integration
+  owner: null
+  access_owner: null
+  deployment_owner: null
+  data_classification: synthetic-or-approved-sandbox
+  status: missing
+- name: staging
+  owner: null
+  access_owner: null
+  deployment_owner: null
+  data_classification: synthetic-or-approved-sanitized
+  status: missing
+- name: production-readiness
+  owner: null
+  access_owner: null
+  deployment_owner: null
+  data_classification: no-production-data-without-separate-approval
+  status: missing
+operations:
+  secret_manager: {selection: null, owner: null, rotation_owner: null, status: missing, evidence_refs: []}
+  observability: {selection: null, owner: null, status: missing, evidence_refs: []}
+  security_alerts: {owner: null, escalation_owner: null, status: missing, evidence_refs: []}
+  integration_exceptions: {owner: null, escalation_owner: null, status: missing, evidence_refs: []}
+  on_call: {primary_owner: null, escalation_owner: null, status: missing, evidence_refs: []}
+  backup_restore: {owner: null, approver: null, status: missing, evidence_refs: []}
+routing_controls:
+  medusa_staging_endpoint_ref: null
+  mercur_staging_endpoint_ref: null
+  tryton_staging_endpoint_ref: null
+  payment_adapter_mode: simulated
+  production_erp_blocked: null
+  live_payment_blocked: null
+  production_logistics_blocked: null
+  production_notifications_blocked: null
+  guard_owner: null
+  status: planned
+  evidence_refs: []
+constraints:
+- Do not store secrets, signing material, customer production data or local environment files.
+- Production credentials and production release remain separately prohibited.

@@ -1,0 +1,63 @@
+{
+  "id": "prod_drill",
+  "title": "18V Drill Kit",
+  "description": "Contract fixture only",
+  "variants": [
+    {
+      "id": "variant_drill_18v",
+      "sku": "DRILL-18V-001",
+      "title": "18V / Standard Kit",
+      "recommended_offer_id": "offer_buildpro_001",
+      "offers": [
+        {
+          "id": "offer_buildpro_001",
+          "seller_id": "seller_buildpro",
+          "seller_name": "BuildPro",
+          "eligible": true,
+          "ineligible_reasons": [],
+          "requested_quantity": 1,
+          "moq": 1,
+          "case_pack": 1,
+          "unit_price": {"amount_minor": 649900, "currency_code": "INR"},
+          "item_subtotal": {"amount_minor": 649900, "currency_code": "INR"},
+          "shipping": {"amount_minor": 0, "currency_code": "INR"},
+          "tax": {"amount_minor": 0, "currency_code": "INR"},
+          "discount": {"amount_minor": 0, "currency_code": "INR"},
+          "landed_total": {"amount_minor": 649900, "currency_code": "INR"},
+          "available_quantity": 12,
+          "delivery_promise": "2026-10-08",
+          "valid_until": "2026-10-04T13:15:00Z",
+          "fulfilment_context": "warehouse_bhiwadi",
+          "ranking_reason": "lowest_eligible_landed_total"
+        },
+        {
+          "id": "offer_metro_002",
+          "seller_id": "seller_metro",
+          "seller_name": "Metro Hardware Depot",
+          "eligible": true,
+          "ineligible_reasons": [],
+          "requested_quantity": 1,
+          "moq": 1,
+          "case_pack": 1,
+          "unit_price": {"amount_minor": 635000, "currency_code": "INR"},
+          "item_subtotal": {"amount_minor": 635000, "currency_code": "INR"},
+          "shipping": {"amount_minor": 25000, "currency_code": "INR"},
+          "tax": {"amount_minor": 0, "currency_code": "INR"},
+          "discount": {"amount_minor": 0, "currency_code": "INR"},
+          "landed_total": {"amount_minor": 660000, "currency_code": "INR"},
+          "available_quantity": 8,
+          "delivery_promise": "2026-10-07",
+          "valid_until": "2026-10-04T13:15:00Z",
+          "fulfilment_context": "seller_metro_delhi",
+          "ranking_reason": "faster_but_higher_landed_total"
+        }
+      ]
+    }
+  ],
+  "generated_at": "2026-10-04T13:00:00Z",
+  "freshness": [
+    {"source": "medusa", "observed_at": "2026-10-04T12:59:55Z", "stale": false},
+    {"source": "mercur", "observed_at": "2026-10-04T12:59:56Z", "stale": false},
+    {"source": "tryton", "observed_at": "2026-10-04T12:59:50Z", "stale": false}
+  ]
+}

@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    container_name: buildkart_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: buildkart
+      POSTGRES_USER: buildkart
+      POSTGRES_PASSWORD: buildkart
+    ports:
+      - "5433:5432"
+    volumes:
+      - buildkart_pg_data:/var/lib/postgresql/data
+    networks:
+      - buildkart
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buildkart -d buildkart"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4.10-alpine
+    container_name: buildkart_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - buildkart_redis_data:/data
+    networks:
+      - buildkart
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  tryton:
+    build:
+      context: ./tryton
+    container_name: buildkart_tryton
+    restart: unless-stopped
+    environment:
+      TRYTOND_DB_NAME: buildkart_tryton
+      TRYTOND_MODULES: stock,sale,stock_supply,account,account_invoice
+      TRYTOND_ADMIN_PASSWORD: buildkart-staging-admin
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: buildkart
+      PGPASSWORD: buildkart
+    ports:
+      - "8010:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - buildkart
+
+volumes:
+  buildkart_pg_data:
+  buildkart_redis_data:
+
+networks:
+  buildkart:

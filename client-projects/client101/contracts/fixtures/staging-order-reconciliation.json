@@ -1,0 +1,65 @@
+{
+  "order_id": "order_test_01",
+  "correlation_id": "99825a1e-c66d-4707-8c99-9e4fc339fb31",
+  "environment": "staging",
+  "test_data": true,
+  "payment_mode": "simulated",
+  "checkout": {
+    "system": "commerce",
+    "entity_type": "checkout-attempt",
+    "entity_id": "checkout_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "completed",
+    "observed_at": "2026-10-04T17:30:00Z"
+  },
+  "order": {
+    "system": "medusa",
+    "entity_type": "order",
+    "entity_id": "order_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "confirmed",
+    "observed_at": "2026-10-04T17:30:01Z"
+  },
+  "allocation": {
+    "system": "mercur",
+    "entity_type": "marketplace-order-allocation",
+    "entity_id": "allocation_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "confirmed",
+    "observed_at": "2026-10-04T17:30:02Z"
+  },
+  "reservation": {
+    "system": "tryton",
+    "entity_type": "inventory-reservation",
+    "entity_id": "reservation_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "committed",
+    "observed_at": "2026-10-04T17:30:03Z"
+  },
+  "movement": {
+    "system": "tryton",
+    "entity_type": "stock-movement",
+    "entity_id": "movement_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "staging-posted",
+    "observed_at": "2026-10-04T17:30:04Z"
+  },
+  "accounting": {
+    "system": "tryton",
+    "entity_type": "accounting-projection",
+    "entity_id": "accounting_test_01",
+    "environment": "staging",
+    "test_data": true,
+    "status": "test-clearing-projected",
+    "observed_at": "2026-10-04T17:30:05Z"
+  },
+  "accounting_treatment": "staging_test_clearing",
+  "bank_receipt_claimed": false,
+  "reconciled": true,
+  "mismatch_codes": []
+}

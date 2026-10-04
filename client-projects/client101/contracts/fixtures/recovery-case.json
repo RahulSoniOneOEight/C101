@@ -1,0 +1,17 @@
+{
+  "id": "recovery_01",
+  "version": 1,
+  "checkout_id": "checkout_01",
+  "payment_id": "payment_01",
+  "order_id": null,
+  "reason_code": "SIMULATED_PAYMENT_ACCEPTED_RESERVATION_EXPIRED",
+  "status": "refund_approval_required",
+  "failure_class": "terminal",
+  "payment_mode": "simulated",
+  "test_data": true,
+  "amount_at_risk": {"amount_minor": 649900, "currency_code": "INR"},
+  "refund_id": null,
+  "required_approvals": ["operations.test-recovery.approve"],
+  "allowed_actions": ["request_simulated_refund", "open_simulation_evidence", "open_audit_timeline"],
+  "created_at": "2026-10-04T17:01:00Z"
+}

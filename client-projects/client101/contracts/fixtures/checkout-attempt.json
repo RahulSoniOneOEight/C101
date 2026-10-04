@@ -1,0 +1,48 @@
+{
+  "id": "checkout_01",
+  "cart_id": "cart_01",
+  "version": 4,
+  "status": "payment_pending",
+  "selected_seller_id": "seller_buildpro",
+  "fulfilment_context_id": "warehouse_bhiwadi",
+  "destination_fingerprint": "sha256:example-non-production",
+  "subtotal": {"amount_minor": 649900, "currency_code": "INR"},
+  "shipping": {"amount_minor": 0, "currency_code": "INR"},
+  "tax": {"amount_minor": 0, "currency_code": "INR"},
+  "discount": {"amount_minor": 0, "currency_code": "INR"},
+  "total": {"amount_minor": 649900, "currency_code": "INR"},
+  "seller_groups": [
+    {
+      "seller_id": "seller_buildpro",
+      "line_ids": ["line_01"],
+      "shipping": {"amount_minor": 0, "currency_code": "INR"},
+      "promise": "2026-10-08"
+    }
+  ],
+  "expires_at": "2026-10-04T17:00:00Z",
+  "reservation": {
+    "reservation_id": "reservation_01",
+    "version": 1,
+    "status": "reserved",
+    "expires_at": "2026-10-04T17:00:00Z",
+    "operation_key": "checkout_01:reserve:v1"
+  },
+  "payment_id": "payment_01",
+  "payment_mode": "simulated",
+  "test_data": true,
+  "payment_status": "pending",
+  "allocation_status": "pending",
+  "inventory_status": "reserved",
+  "shipment_status": "not_requested",
+  "accounting_status": "pending",
+  "confirmation_prerequisites": {
+    "canonical_order": false,
+    "allocation_confirmed": false,
+    "reservation_committed": false,
+    "payment_accepted": false,
+    "payment_acceptance_kind": null,
+    "confirmation_allowed": false,
+    "blocking_codes": ["PAYMENT_NOT_ACCEPTED", "ORDER_NOT_CREATED", "ALLOCATION_NOT_CONFIRMED", "RESERVATION_NOT_COMMITTED"]
+  },
+  "allowed_actions": ["cancel", "refresh_payment_status"]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "buildkart-experience-api",
+  "version": "0.2.0-draft",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "1.2.9",
+    "typescript": "5.9.3"
+  }
+}

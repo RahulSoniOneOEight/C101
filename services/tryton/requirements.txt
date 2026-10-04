@@ -1,0 +1,12 @@
+# BuildKart staging Tryton modules — exact pins.
+# Transitive trytond_* module versions resolve at install time and are
+# frozen into requirements-freeze.txt during image build.
+
+trytond==8.0.11
+trytond_stock==8.0.4
+trytond_sale==8.0.5
+trytond_stock_supply==8.0.0
+trytond_account==8.0.3
+trytond_account_invoice==8.0.2
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3

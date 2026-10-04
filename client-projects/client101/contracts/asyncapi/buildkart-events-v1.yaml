@@ -1,0 +1,502 @@
+asyncapi: 3.1.0
+info:
+  title: BuildKart Domain Events
+  version: 0.2.0-draft
+  description: >-
+    Revision 5 review draft for CHG-017. Delivery is at least once; consumers must deduplicate by
+    event_id and reject unsupported schema versions. Simulated payment events are test data and do
+    not establish provider evidence. No broker or environment is selected by this document.
+defaultContentType: application/json
+channels:
+  identityAuthenticated:
+    address: identity.authenticated.v1
+    messages:
+      identityAuthenticated: {$ref: '#/components/messages/IdentityAuthenticated'}
+  sellerOfferChanged:
+    address: seller-offer.changed.v1
+    messages:
+      sellerOfferChanged: {$ref: '#/components/messages/SellerOfferChanged'}
+  inventoryAvailabilityChanged:
+    address: inventory.availability-changed.v1
+    messages:
+      inventoryAvailabilityChanged: {$ref: '#/components/messages/InventoryAvailabilityChanged'}
+  inventoryReservationCreated:
+    address: inventory.reservation-created.v1
+    messages:
+      inventoryReservationCreated: {$ref: '#/components/messages/InventoryReservationCreated'}
+  inventoryReservationReleased:
+    address: inventory.reservation-released.v1
+    messages:
+      inventoryReservationReleased: {$ref: '#/components/messages/InventoryReservationReleased'}
+  inventoryReservationCommitted:
+    address: inventory.reservation-committed.v1
+    messages:
+      inventoryReservationCommitted: {$ref: '#/components/messages/InventoryReservationCommitted'}
+  inventoryReservationExpired:
+    address: inventory.reservation-expired.v1
+    messages:
+      inventoryReservationExpired: {$ref: '#/components/messages/InventoryReservationExpired'}
+  cartLineRevalidated:
+    address: cart.line-revalidated.v1
+    messages:
+      cartLineRevalidated: {$ref: '#/components/messages/CartLineRevalidated'}
+  paymentStatusChanged:
+    address: payment.status-changed.v1
+    messages:
+      paymentStatusChanged: {$ref: '#/components/messages/PaymentStatusChanged'}
+  paymentSimulationResultRecorded:
+    address: payment.simulation-result-recorded.v1
+    messages:
+      paymentSimulationResultRecorded: {$ref: '#/components/messages/PaymentSimulationResultRecorded'}
+  paymentRefundRequested:
+    address: payment.refund-requested.v1
+    messages:
+      paymentRefundRequested: {$ref: '#/components/messages/PaymentRefundRequested'}
+  paymentRefundCompleted:
+    address: payment.refund-completed.v1
+    messages:
+      paymentRefundCompleted: {$ref: '#/components/messages/PaymentRefundCompleted'}
+  checkoutAttemptCreated:
+    address: checkout.attempt-created.v1
+    messages:
+      checkoutAttemptCreated: {$ref: '#/components/messages/CheckoutAttemptCreated'}
+  checkoutRecoveryRequired:
+    address: checkout.recovery-required.v1
+    messages:
+      checkoutRecoveryRequired: {$ref: '#/components/messages/CheckoutRecoveryRequired'}
+  orderCreated:
+    address: order.created.v1
+    messages:
+      orderCreated: {$ref: '#/components/messages/OrderCreated'}
+  marketplaceAllocationCreated:
+    address: marketplace-allocation.created.v1
+    messages:
+      marketplaceAllocationCreated: {$ref: '#/components/messages/MarketplaceAllocationCreated'}
+  marketplaceAllocationConfirmed:
+    address: marketplace-allocation.confirmed.v1
+    messages:
+      marketplaceAllocationConfirmed: {$ref: '#/components/messages/MarketplaceAllocationConfirmed'}
+  shipmentCreated:
+    address: shipment.created.v1
+    messages:
+      shipmentCreated: {$ref: '#/components/messages/ShipmentCreated'}
+  shipmentStatusChanged:
+    address: shipment.status-changed.v1
+    messages:
+      shipmentStatusChanged: {$ref: '#/components/messages/ShipmentStatusChanged'}
+  integrationDeliveryFailed:
+    address: integration.delivery-failed.v1
+    messages:
+      integrationDeliveryFailed: {$ref: '#/components/messages/IntegrationDeliveryFailed'}
+  accountingProjectionRequested:
+    address: accounting.projection-requested.v1
+    messages:
+      accountingProjectionRequested: {$ref: '#/components/messages/AccountingProjectionRequested'}
+  accountingProjectionFailed:
+    address: accounting.projection-failed.v1
+    messages:
+      accountingProjectionFailed: {$ref: '#/components/messages/AccountingProjectionFailed'}
+operations:
+  receiveIdentityAuthenticated:
+    action: receive
+    channel: {$ref: '#/channels/identityAuthenticated'}
+  receiveSellerOfferChanged:
+    action: receive
+    channel: {$ref: '#/channels/sellerOfferChanged'}
+  receiveInventoryAvailabilityChanged:
+    action: receive
+    channel: {$ref: '#/channels/inventoryAvailabilityChanged'}
+  receiveInventoryReservationCreated:
+    action: receive
+    channel: {$ref: '#/channels/inventoryReservationCreated'}
+  receiveInventoryReservationReleased:
+    action: receive
+    channel: {$ref: '#/channels/inventoryReservationReleased'}
+  receiveInventoryReservationCommitted:
+    action: receive
+    channel: {$ref: '#/channels/inventoryReservationCommitted'}
+  receiveInventoryReservationExpired:
+    action: receive
+    channel: {$ref: '#/channels/inventoryReservationExpired'}
+  receiveCartLineRevalidated:
+    action: receive
+    channel: {$ref: '#/channels/cartLineRevalidated'}
+  receivePaymentStatusChanged:
+    action: receive
+    channel: {$ref: '#/channels/paymentStatusChanged'}
+  receivePaymentSimulationResultRecorded:
+    action: receive
+    channel: {$ref: '#/channels/paymentSimulationResultRecorded'}
+  receivePaymentRefundRequested:
+    action: receive
+    channel: {$ref: '#/channels/paymentRefundRequested'}
+  receivePaymentRefundCompleted:
+    action: receive
+    channel: {$ref: '#/channels/paymentRefundCompleted'}
+  receiveCheckoutAttemptCreated:
+    action: receive
+    channel: {$ref: '#/channels/checkoutAttemptCreated'}
+  receiveCheckoutRecoveryRequired:
+    action: receive
+    channel: {$ref: '#/channels/checkoutRecoveryRequired'}
+  receiveOrderCreated:
+    action: receive
+    channel: {$ref: '#/channels/orderCreated'}
+  receiveMarketplaceAllocationCreated:
+    action: receive
+    channel: {$ref: '#/channels/marketplaceAllocationCreated'}
+  receiveMarketplaceAllocationConfirmed:
+    action: receive
+    channel: {$ref: '#/channels/marketplaceAllocationConfirmed'}
+  receiveShipmentCreated:
+    action: receive
+    channel: {$ref: '#/channels/shipmentCreated'}
+  receiveShipmentStatusChanged:
+    action: receive
+    channel: {$ref: '#/channels/shipmentStatusChanged'}
+  receiveIntegrationDeliveryFailed:
+    action: receive
+    channel: {$ref: '#/channels/integrationDeliveryFailed'}
+  receiveAccountingProjectionRequested:
+    action: receive
+    channel: {$ref: '#/channels/accountingProjectionRequested'}
+  receiveAccountingProjectionFailed:
+    action: receive
+    channel: {$ref: '#/channels/accountingProjectionFailed'}
+components:
+  messages:
+    IdentityAuthenticated:
+      name: identity.authenticated
+      payload: {$ref: '#/components/schemas/IdentityAuthenticatedEvent'}
+    SellerOfferChanged:
+      name: seller-offer.changed
+      payload: {$ref: '#/components/schemas/SellerOfferChangedEvent'}
+    InventoryAvailabilityChanged:
+      name: inventory.availability-changed
+      payload: {$ref: '#/components/schemas/InventoryAvailabilityChangedEvent'}
+    InventoryReservationCreated:
+      name: inventory.reservation-created
+      payload: {$ref: '#/components/schemas/InventoryReservationEvent'}
+    InventoryReservationReleased:
+      name: inventory.reservation-released
+      payload: {$ref: '#/components/schemas/InventoryReservationEvent'}
+    InventoryReservationCommitted:
+      name: inventory.reservation-committed
+      payload: {$ref: '#/components/schemas/InventoryReservationEvent'}
+    InventoryReservationExpired:
+      name: inventory.reservation-expired
+      payload: {$ref: '#/components/schemas/InventoryReservationEvent'}
+    CartLineRevalidated:
+      name: cart.line-revalidated
+      payload: {$ref: '#/components/schemas/CartLineRevalidatedEvent'}
+    PaymentStatusChanged:
+      name: payment.status-changed
+      payload: {$ref: '#/components/schemas/PaymentStatusChangedEvent'}
+    PaymentSimulationResultRecorded:
+      name: payment.simulation-result-recorded
+      payload: {$ref: '#/components/schemas/PaymentStatusChangedEvent'}
+    PaymentRefundRequested:
+      name: payment.refund-requested
+      payload: {$ref: '#/components/schemas/PaymentRefundEvent'}
+    PaymentRefundCompleted:
+      name: payment.refund-completed
+      payload: {$ref: '#/components/schemas/PaymentRefundEvent'}
+    CheckoutAttemptCreated:
+      name: checkout.attempt-created
+      payload: {$ref: '#/components/schemas/CheckoutAttemptEvent'}
+    CheckoutRecoveryRequired:
+      name: checkout.recovery-required
+      payload: {$ref: '#/components/schemas/CheckoutRecoveryEvent'}
+    OrderCreated:
+      name: order.created
+      payload: {$ref: '#/components/schemas/OrderCreatedEvent'}
+    MarketplaceAllocationCreated:
+      name: marketplace-allocation.created
+      payload: {$ref: '#/components/schemas/MarketplaceAllocationCreatedEvent'}
+    MarketplaceAllocationConfirmed:
+      name: marketplace-allocation.confirmed
+      payload: {$ref: '#/components/schemas/MarketplaceAllocationCreatedEvent'}
+    ShipmentCreated:
+      name: shipment.created
+      payload: {$ref: '#/components/schemas/ShipmentEvent'}
+    ShipmentStatusChanged:
+      name: shipment.status-changed
+      payload: {$ref: '#/components/schemas/ShipmentEvent'}
+    IntegrationDeliveryFailed:
+      name: integration.delivery-failed
+      payload: {$ref: '#/components/schemas/IntegrationDeliveryFailedEvent'}
+    AccountingProjectionRequested:
+      name: accounting.projection-requested
+      payload: {$ref: '#/components/schemas/AccountingProjectionEvent'}
+    AccountingProjectionFailed:
+      name: accounting.projection-failed
+      payload: {$ref: '#/components/schemas/AccountingProjectionEvent'}
+  schemas:
+    EventMetadata:
+      type: object
+      required: [event_id, event_type, schema_version, occurred_at, producer, aggregate_type, aggregate_id, aggregate_version, correlation_id, environment, test_data]
+      properties:
+        event_id: {type: string, format: uuid}
+        event_type: {type: string}
+        schema_version: {type: integer, const: 1}
+        occurred_at: {type: string, format: date-time}
+        producer: {type: string}
+        aggregate_type: {type: string}
+        aggregate_id: {type: string}
+        aggregate_version: {type: integer, minimum: 1}
+        correlation_id: {type: string, format: uuid}
+        environment: {type: string, enum: [development, integration, staging, production]}
+        test_data: {type: boolean}
+        causation_id: {type: [string, 'null'], format: uuid}
+        tenant_id: {type: [string, 'null']}
+    Money:
+      type: object
+      required: [amount_minor, currency_code]
+      properties:
+        amount_minor: {type: integer}
+        currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+    IdentityAuthenticatedData:
+      type: object
+      required: [identity_id, session_id, available_context_ids]
+      properties:
+        identity_id: {type: string}
+        session_id: {type: string}
+        available_context_ids: {type: array, items: {type: string}}
+    SellerOfferChangedData:
+      type: object
+      required: [offer_id, seller_id, variant_id, status, valid_from, valid_until]
+      properties:
+        offer_id: {type: string}
+        seller_id: {type: string}
+        variant_id: {type: string}
+        status: {type: string, enum: [draft, active, suspended, expired, withdrawn]}
+        unit_price: {$ref: '#/components/schemas/Money'}
+        valid_from: {type: string, format: date-time}
+        valid_until: {type: string, format: date-time}
+    InventoryAvailabilityChangedData:
+      type: object
+      required: [variant_id, fulfilment_context, available_to_promise, observed_at]
+      properties:
+        variant_id: {type: string}
+        fulfilment_context: {type: string}
+        available_to_promise: {type: integer, minimum: 0}
+        observed_at: {type: string, format: date-time}
+    InventoryReservationData:
+      type: object
+      required: [reservation_id, checkout_id, variant_id, fulfilment_context, quantity, status, version]
+      properties:
+        reservation_id: {type: string}
+        checkout_id: {type: string}
+        order_id: {type: [string, 'null']}
+        variant_id: {type: string}
+        fulfilment_context: {type: string}
+        quantity: {type: integer, minimum: 1}
+        status: {type: string, enum: [active, committed, released, expired, exception]}
+        version: {type: integer, minimum: 1}
+        expires_at: {type: [string, 'null'], format: date-time}
+        release_reason: {type: [string, 'null']}
+    CartLineRevalidatedData:
+      type: object
+      required: [cart_id, line_id, status, validation_codes]
+      properties:
+        cart_id: {type: string}
+        line_id: {type: string}
+        status: {type: string, enum: [valid, changed, blocked]}
+        validation_codes: {type: array, items: {type: string}}
+    PaymentStatusChangedData:
+      type: object
+      required: [payment_id, checkout_id, payment_mode, test_data, status, amount, evidence_status]
+      properties:
+        payment_id: {type: string}
+        checkout_id: {type: string}
+        order_id: {type: [string, 'null']}
+        payment_mode: {type: string, enum: [simulated, provider]}
+        test_data: {type: boolean}
+        provider: {type: [string, 'null']}
+        provider_reference: {type: [string, 'null']}
+        status: {type: string, enum: [pending, simulated_accepted, simulated_refund_pending, simulated_refunded, authorised, captured, failed, unknown, cancelled, refund_pending, refunded]}
+        amount: {$ref: '#/components/schemas/Money'}
+        evidence_status: {type: string, enum: [simulated_result, verified_webhook, verified_query, conflicting, pending]}
+    PaymentRefundData:
+      type: object
+      required: [refund_id, payment_id, checkout_id, payment_mode, test_data, status, amount]
+      properties:
+        refund_id: {type: string}
+        payment_id: {type: string}
+        checkout_id: {type: string}
+        payment_mode: {type: string, enum: [simulated, provider]}
+        test_data: {type: boolean}
+        recovery_case_id: {type: string}
+        status: {type: string, enum: [approval_required, simulated_requested, simulated_pending, simulated_completed, requested, pending, completed, failed, unknown]}
+        amount: {$ref: '#/components/schemas/Money'}
+        provider_reference: {type: [string, 'null']}
+    CheckoutAttemptData:
+      type: object
+      required: [checkout_id, cart_id, seller_id, fulfilment_context_id, status]
+      properties:
+        checkout_id: {type: string}
+        cart_id: {type: string}
+        seller_id: {type: string}
+        fulfilment_context_id: {type: string}
+        status: {type: string, enum: [validating, awaiting_acceptance, reserved, payment_pending, finalising, completed, recovery_required, expired, cancelled]}
+    CheckoutRecoveryData:
+      type: object
+      required: [recovery_case_id, checkout_id, payment_id, reason_code, failure_class, status]
+      properties:
+        recovery_case_id: {type: string}
+        checkout_id: {type: string}
+        payment_id: {type: string}
+        reason_code: {type: string}
+        failure_class: {type: string, enum: [retryable, terminal, ambiguous]}
+        status: {type: string}
+    OrderCreatedData:
+      type: object
+      required: [order_id, order_number, context_id, payment_mode, test_order, line_snapshots, total, placed_at]
+      properties:
+        order_id: {type: string}
+        order_number: {type: string}
+        context_id: {type: string}
+        payment_mode: {type: string, enum: [simulated, provider]}
+        test_order: {type: boolean}
+        line_snapshots:
+          type: array
+          items:
+            type: object
+            required: [line_id, variant_id, seller_id, offer_id, quantity, line_total]
+            properties:
+              line_id: {type: string}
+              variant_id: {type: string}
+              seller_id: {type: string}
+              offer_id: {type: string}
+              fulfilment_context: {type: string}
+              quantity: {type: integer, minimum: 1}
+              line_total: {$ref: '#/components/schemas/Money'}
+        total: {$ref: '#/components/schemas/Money'}
+        placed_at: {type: string, format: date-time}
+    MarketplaceAllocationCreatedData:
+      type: object
+      required: [allocation_id, order_id, seller_id, order_line_ids, status]
+      properties:
+        allocation_id: {type: string}
+        order_id: {type: string}
+        seller_id: {type: string}
+        order_line_ids: {type: array, items: {type: string}}
+        status: {type: string, enum: [pending, confirmed, failed, exception]}
+    ShipmentData:
+      type: object
+      required: [shipment_id, order_id, allocation_id, status]
+      properties:
+        shipment_id: {type: string}
+        order_id: {type: string}
+        allocation_id: {type: string}
+        provider: {type: string}
+        provider_reference: {type: [string, 'null']}
+        status: {type: string, enum: [pending, created, picked_up, in_transit, delivered, exception, cancelled]}
+        occurred_at: {type: string, format: date-time}
+        exception_code: {type: [string, 'null']}
+    IntegrationDeliveryFailedData:
+      type: object
+      required: [delivery_id, dependency, error_code, failure_class, attempt_count]
+      properties:
+        delivery_id: {type: string}
+        dependency: {type: string}
+        error_code: {type: string}
+        failure_class: {type: string, enum: [retryable, terminal, ambiguous]}
+        attempt_count: {type: integer, minimum: 1}
+        next_retry_at: {type: [string, 'null'], format: date-time}
+        payload_reference: {type: [string, 'null']}
+    AccountingProjectionData:
+      type: object
+      required: [projection_id, order_id, status, accounting_treatment, bank_receipt_claimed]
+      properties:
+        projection_id: {type: string}
+        order_id: {type: string}
+        status: {type: string, enum: [pending, projected, failed, exception]}
+        accounting_treatment: {type: string, enum: [staging_test_clearing, provider_clearing, production_accounting]}
+        bank_receipt_claimed: {type: boolean}
+        failure_class: {type: [string, 'null'], enum: [retryable, terminal, ambiguous, null]}
+        accounting_reference: {type: [string, 'null']}
+    IdentityAuthenticatedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/IdentityAuthenticatedData'}}
+    SellerOfferChangedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/SellerOfferChangedData'}}
+    InventoryAvailabilityChangedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/InventoryAvailabilityChangedData'}}
+    InventoryReservationEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/InventoryReservationData'}}
+    CartLineRevalidatedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/CartLineRevalidatedData'}}
+    PaymentStatusChangedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/PaymentStatusChangedData'}}
+    PaymentRefundEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/PaymentRefundData'}}
+    CheckoutAttemptEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/CheckoutAttemptData'}}
+    CheckoutRecoveryEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/CheckoutRecoveryData'}}
+    OrderCreatedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/OrderCreatedData'}}
+    MarketplaceAllocationCreatedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/MarketplaceAllocationCreatedData'}}
+    ShipmentEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ShipmentData'}}
+    IntegrationDeliveryFailedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/IntegrationDeliveryFailedData'}}
+    AccountingProjectionEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/AccountingProjectionData'}}

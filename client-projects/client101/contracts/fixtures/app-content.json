@@ -1,0 +1,24 @@
+{
+  "locale": "en-IN",
+  "items": [
+    {
+      "id": "content_test_help_checkout",
+      "content_type": "help",
+      "placement": "checkout-help",
+      "locale": "en-IN",
+      "title": "Staging checkout help",
+      "body": "This staging environment uses simulated payment and test orders.",
+      "action_label": null,
+      "action_uri": null,
+      "version": "test-v1",
+      "test_data": true
+    }
+  ],
+  "generated_at": "2026-10-04T17:30:00Z",
+  "source": "governed-editorial-seed",
+  "freshness": {
+    "source": "governed-editorial-seed",
+    "observed_at": "2026-10-04T17:29:59Z",
+    "stale": false
+  }
+}

@@ -1,0 +1,1109 @@
+openapi: 3.1.0
+info:
+  title: BuildKart Experience API
+  version: 0.2.0-draft
+  description: >-
+    Revision 5 review draft for the CHG-017 marketplace-order vertical slice. Development/staging
+    may use an explicitly labelled simulated-payment adapter; provider payment remains deferred.
+    This API composes governed owner-service data and is not a second canonical writer.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+- url: https://api.example.invalid
+  description: Placeholder only; no environment is approved.
+tags:
+- name: Identity
+  description: Authentication challenges and secure sessions.
+- name: Context
+  description: Authorised customer, business, seller and operator contexts.
+- name: Products
+  description: Composed product, offer, availability and promise reads.
+- name: Carts
+  description: Canonical seller-aware cart operations.
+- name: Checkout
+  description: Revalidation, calculation and idempotent order creation.
+- name: Orders
+  description: Authorised customer order reads.
+- name: Admin
+  description: Permission-scoped commerce administration reads.
+- name: Operations
+  description: Audited integration exception operations.
+- name: Content
+  description: Editorial app-shell content only; never transactional eligibility or success.
+security:
+- bearerAuth: []
+paths:
+  /v1/auth/otp/challenges:
+    post:
+      summary: Create an OTP challenge
+      tags: [Identity]
+      operationId: createOtpChallenge
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOtpChallengeRequest'
+      responses:
+        '202':
+          description: Challenge accepted without revealing account existence.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpChallenge'
+        '400': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+  /v1/auth/otp/verify:
+    post:
+      summary: Verify an OTP challenge
+      tags: [Identity]
+      operationId: verifyOtpChallenge
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+      responses:
+        '200':
+          description: Authenticated session and available account contexts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '429': {$ref: '#/components/responses/Problem'}
+  /v1/me/contexts:
+    get:
+      summary: List authorised business contexts
+      tags: [Context]
+      operationId: listMyBusinessContexts
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Authorised B2C/B2B contexts. The client cannot manufacture a context.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [contexts]
+                properties:
+                  contexts:
+                    type: array
+                    items: {$ref: '#/components/schemas/BusinessContext'}
+        '401': {$ref: '#/components/responses/Problem'}
+  /v1/content/app-shell:
+    get:
+      summary: Get provider-neutral editorial app content
+      tags: [Content]
+      operationId: getAppShellContent
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: locale
+        in: query
+        required: true
+        schema: {type: string, enum: [en-IN, hi-IN]}
+      - name: placement
+        in: query
+        schema: {type: string}
+      responses:
+        '200':
+          description: Editorial content projection; absence or staleness cannot manufacture transactional data.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AppContentBundle'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/products/{productId}:
+    get:
+      summary: Get a composed product and eligible offers
+      tags: [Products]
+      operationId: getComposedProduct
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/ProductId'
+      - name: context_id
+        in: query
+        required: true
+        schema: {type: string}
+      - name: destination_postcode
+        in: query
+        required: true
+        schema: {type: string, pattern: '^\d{6}$'}
+      - name: quantity
+        in: query
+        required: true
+        schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Product with eligible offers and deterministic recommended offer.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ComposedProduct'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/carts:
+    post:
+      summary: Create a canonical cart
+      tags: [Carts]
+      operationId: createCart
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [context_id, channel, currency_code]
+              properties:
+                context_id: {type: string}
+                channel: {$ref: '#/components/schemas/Channel'}
+                currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+      responses:
+        '201':
+          description: Canonical cart.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Cart'}
+        '400': {$ref: '#/components/responses/Problem'}
+  /v1/carts/{cartId}:
+    get:
+      summary: Get an authorised cart
+      tags: [Carts]
+      operationId: getCart
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/CartId'
+      responses:
+        '200':
+          description: Authorised canonical cart.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Cart'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/carts/{cartId}/lines:
+    post:
+      summary: Add a seller-aware cart line
+      tags: [Carts]
+      operationId: addCartLine
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CartId'
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AddCartLineRequest'}
+      responses:
+        '200':
+          description: Updated cart after owner-service revalidation.
+          headers:
+            ETag: {$ref: '#/components/headers/EntityTag'}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Cart'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /v1/carts/{cartId}/revalidate:
+    post:
+      summary: Revalidate all cart lines
+      tags: [Carts]
+      operationId: revalidateCart
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CartId'
+      - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Revalidated cart, including blocked and changed lines.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Cart'}
+        '412': {$ref: '#/components/responses/Problem'}
+  /v1/checkouts/{cartId}/validate:
+    post:
+      summary: Validate and calculate checkout
+      tags: [Checkout]
+      operationId: validateCheckout
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CartId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ValidateCheckoutRequest'}
+      responses:
+        '200':
+          description: Versioned checkout calculation; not an order confirmation.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutSession'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /v1/checkouts/{checkoutId}:
+    get:
+      summary: Get a durable checkout attempt
+      tags: [Checkout]
+      operationId: getCheckoutAttempt
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: checkoutId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Versioned checkout and independent transaction dimensions.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutSession'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/checkouts/{checkoutId}/cancel:
+    post:
+      summary: Cancel checkout and release an active reservation
+      tags: [Checkout]
+      operationId: cancelCheckout
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      - name: checkoutId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Cancelled checkout or prior idempotent cancellation result.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutSession'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+  /v1/checkouts/{checkoutId}/payment-sessions:
+    post:
+      summary: Create or recover a server-side payment session
+      tags: [Checkout]
+      operationId: createCheckoutPaymentSession
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IfMatch'
+      - name: checkoutId
+        in: path
+        required: true
+        schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checkout_version]
+              properties:
+                checkout_version: {type: integer, minimum: 1}
+      responses:
+        '201':
+          description: Provider session created after an active reservation exists.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentSession'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /v1/checkouts/{checkoutId}/complete:
+    post:
+      summary: Complete checkout and create one canonical order
+      tags: [Checkout]
+      operationId: completeCheckout
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: checkoutId
+        in: path
+        required: true
+        schema: {type: string}
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CompleteCheckoutRequest'}
+      responses:
+        '200':
+          description: Existing canonical result for a retried idempotency key.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutResult'}
+        '201':
+          description: Canonical order created. Only this result permits success UI.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutResult'}
+        '409': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+        '422': {$ref: '#/components/responses/Problem'}
+  /v1/orders/{orderId}:
+    get:
+      summary: Get an authorised customer order
+      tags: [Orders]
+      operationId: getMyOrder
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Authorised customer order read model.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Order'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/payments/{paymentId}:
+    get:
+      summary: Get normalised verified payment state
+      tags: [Checkout]
+      operationId: getPaymentState
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: paymentId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Commerce payment projection retaining provider evidence references.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentState'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/admin/orders:
+    get:
+      summary: List orders for operational administration
+      tags: [Admin]
+      operationId: listAdminOrders
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: exception_only
+        in: query
+        schema: {type: boolean, default: false}
+      - name: cursor
+        in: query
+        schema: {type: string}
+      responses:
+        '200':
+          description: Permission-scoped operational queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/AdminOrderSummary'}
+                  next_cursor: {type: [string, 'null']}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/admin/orders/{orderId}:
+    get:
+      summary: Get the correlated order workbench
+      tags: [Admin]
+      operationId: getAdminOrderWorkbench
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Correlated order, payment, allocation, reservation and shipment workbench.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AdminOrderWorkbench'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/admin/orders/{orderId}/reconciliation:
+    get:
+      summary: Reconcile functional staging order references across owner services
+      tags: [Admin]
+      operationId: getStagingOrderReconciliation
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Correlated Medusa, Mercur and Tryton staging references with test markers.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StagingOrderReconciliation'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/ops/integration-exceptions:
+    get:
+      summary: List integration exceptions
+      tags: [Operations]
+      operationId: listIntegrationExceptions
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: status
+        in: query
+        schema: {type: string, enum: [open, retry_scheduled, quarantined, resolved]}
+      responses:
+        '200':
+          description: Permission-scoped integration exception queue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/IntegrationException'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/ops/integration-exceptions/{exceptionId}/retry:
+    post:
+      summary: Schedule an audited integration retry
+      tags: [Operations]
+      operationId: retryIntegrationException
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: exceptionId
+        in: path
+        required: true
+        schema: {type: string}
+      - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 10, maxLength: 500}
+      responses:
+        '202':
+          description: Retry scheduled and audited; does not imply domain success.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/IntegrationException'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '412': {$ref: '#/components/responses/Problem'}
+  /v1/admin/recovery-cases/{recoveryCaseId}:
+    get:
+      summary: Get a paid-but-unfulfillable recovery case
+      tags: [Admin]
+      operationId: getRecoveryCase
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: recoveryCaseId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Permission-scoped recovery case; actions require separate policy controls.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecoveryCase'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema: {type: string, format: uuid}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 128}
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema: {type: string}
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema: {type: string}
+    CartId:
+      name: cartId
+      in: path
+      required: true
+      schema: {type: string}
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: {type: string}
+  headers:
+    EntityTag:
+      description: Current aggregate version for optimistic concurrency.
+      schema: {type: string}
+  responses:
+    Problem:
+      description: Governed error response.
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Channel:
+      type: string
+      enum: [b2c_app, b2b_app, b2c_web, b2b_web]
+    Environment:
+      type: string
+      enum: [development, integration, staging, production]
+    Money:
+      type: object
+      required: [amount_minor, currency_code]
+      properties:
+        amount_minor: {type: integer}
+        currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+    SourceFreshness:
+      type: object
+      required: [source, observed_at, stale]
+      properties:
+        source: {type: string}
+        observed_at: {type: string, format: date-time}
+        stale: {type: boolean}
+    Problem:
+      type: object
+      required: [type, title, status, code, correlation_id, retryable]
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        code: {type: string}
+        detail: {type: string}
+        correlation_id: {type: string, format: uuid}
+        retryable: {type: boolean}
+        current_version: {type: [integer, 'null']}
+        required_action: {type: [string, 'null']}
+        field_errors:
+          type: array
+          items:
+            type: object
+            required: [field, code]
+            properties:
+              field: {type: string}
+              code: {type: string}
+              message: {type: string}
+    CreateOtpChallengeRequest:
+      type: object
+      required: [phone_e164, purpose]
+      properties:
+        phone_e164: {type: string, pattern: '^\+[1-9]\d{7,14}$'}
+        purpose: {type: string, enum: [sign_in, registration, recovery]}
+    OtpChallenge:
+      type: object
+      required: [challenge_id, expires_at, resend_after, masked_destination]
+      properties:
+        challenge_id: {type: string}
+        expires_at: {type: string, format: date-time}
+        resend_after: {type: string, format: date-time}
+        masked_destination: {type: string}
+    VerifyOtpRequest:
+      type: object
+      required: [challenge_id, code]
+      properties:
+        challenge_id: {type: string}
+        code: {type: string, pattern: '^\d{6}$'}
+    AuthSession:
+      type: object
+      required: [access_token, expires_at, session_id, contexts]
+      properties:
+        access_token: {type: string, writeOnly: true}
+        expires_at: {type: string, format: date-time}
+        session_id: {type: string}
+        contexts:
+          type: array
+          items: {$ref: '#/components/schemas/BusinessContext'}
+    BusinessContext:
+      type: object
+      required: [id, mode, display_name, roles, permissions]
+      properties:
+        id: {type: string}
+        mode: {type: string, enum: [b2c, b2b, seller, operator]}
+        display_name: {type: string}
+        business_account_id: {type: [string, 'null']}
+        roles: {type: array, items: {type: string}}
+        permissions: {type: array, items: {type: string}}
+    ComposedProduct:
+      type: object
+      required: [id, title, variants, generated_at, freshness]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        description: {type: [string, 'null']}
+        variants:
+          type: array
+          items: {$ref: '#/components/schemas/ComposedVariant'}
+        generated_at: {type: string, format: date-time}
+        freshness:
+          type: array
+          items: {$ref: '#/components/schemas/SourceFreshness'}
+    ComposedVariant:
+      type: object
+      required: [id, sku, title, offers]
+      properties:
+        id: {type: string}
+        sku: {type: string}
+        title: {type: string}
+        offers:
+          type: array
+          items: {$ref: '#/components/schemas/EligibleOffer'}
+        recommended_offer_id: {type: [string, 'null']}
+    EligibleOffer:
+      type: object
+      required:
+      - id
+      - seller_id
+      - seller_name
+      - eligible
+      - requested_quantity
+      - unit_price
+      - landed_total
+      - valid_until
+      - fulfilment_context
+      properties:
+        id: {type: string}
+        seller_id: {type: string}
+        seller_name: {type: string}
+        eligible: {type: boolean}
+        ineligible_reasons: {type: array, items: {type: string}}
+        requested_quantity: {type: integer, minimum: 1}
+        moq: {type: integer, minimum: 1}
+        case_pack: {type: integer, minimum: 1}
+        unit_price: {$ref: '#/components/schemas/Money'}
+        item_subtotal: {$ref: '#/components/schemas/Money'}
+        shipping: {$ref: '#/components/schemas/Money'}
+        tax: {$ref: '#/components/schemas/Money'}
+        discount: {$ref: '#/components/schemas/Money'}
+        landed_total: {$ref: '#/components/schemas/Money'}
+        available_quantity: {type: [integer, 'null']}
+        delivery_promise: {type: [string, 'null']}
+        valid_until: {type: string, format: date-time}
+        fulfilment_context: {type: string}
+        ranking_reason: {type: [string, 'null']}
+    AddCartLineRequest:
+      type: object
+      required: [variant_id, seller_id, offer_id, fulfilment_context, quantity]
+      properties:
+        variant_id: {type: string}
+        seller_id: {type: string}
+        offer_id: {type: string}
+        fulfilment_context: {type: string}
+        quantity: {type: integer, minimum: 1}
+    OfferSnapshot:
+      type: object
+      required: [offer_id, seller_id, unit_price, landed_total, captured_at, valid_until]
+      properties:
+        offer_id: {type: string}
+        seller_id: {type: string}
+        unit_price: {$ref: '#/components/schemas/Money'}
+        landed_total: {$ref: '#/components/schemas/Money'}
+        captured_at: {type: string, format: date-time}
+        valid_until: {type: string, format: date-time}
+    CartLine:
+      type: object
+      required:
+      - id
+      - variant_id
+      - seller_id
+      - offer_id
+      - fulfilment_context
+      - quantity
+      - status
+      - offer_snapshot
+      properties:
+        id: {type: string}
+        variant_id: {type: string}
+        seller_id: {type: string}
+        offer_id: {type: string}
+        fulfilment_context: {type: string}
+        title: {type: string}
+        quantity: {type: integer, minimum: 1}
+        status: {type: string, enum: [valid, changed, blocked]}
+        validation_codes: {type: array, items: {type: string}}
+        offer_snapshot: {$ref: '#/components/schemas/OfferSnapshot'}
+        current_landed_total: {$ref: '#/components/schemas/Money'}
+        allowed_actions: {type: array, items: {type: string}}
+    Cart:
+      type: object
+      required: [id, context_id, channel, version, status, lines, total, generated_at]
+      properties:
+        id: {type: string}
+        context_id: {type: string}
+        channel: {$ref: '#/components/schemas/Channel'}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [active, blocked, converted, expired]}
+        lines: {type: array, items: {$ref: '#/components/schemas/CartLine'}}
+        total: {$ref: '#/components/schemas/Money'}
+        generated_at: {type: string, format: date-time}
+        allowed_actions: {type: array, items: {type: string}}
+    AddressInput:
+      type: object
+      required: [name, line1, city, state_code, postal_code, country_code, phone_e164]
+      properties:
+        name: {type: string}
+        line1: {type: string}
+        line2: {type: [string, 'null']}
+        city: {type: string}
+        state_code: {type: string}
+        postal_code: {type: string, pattern: '^\d{6}$'}
+        country_code: {type: string, const: IN}
+        phone_e164: {type: string}
+    ValidateCheckoutRequest:
+      type: object
+      required: [cart_version, shipping_address, payment_method]
+      properties:
+        cart_version: {type: integer, minimum: 1}
+        shipping_address: {$ref: '#/components/schemas/AddressInput'}
+        payment_method: {type: string, const: prepaid, description: Adapter mode is server-controlled and cannot be selected by clients.}
+        purchase_order_number: {type: [string, 'null']}
+        project_id: {type: [string, 'null']}
+    CheckoutSession:
+      type: object
+      required:
+      - id
+      - cart_id
+      - version
+      - status
+      - subtotal
+      - shipping
+      - tax
+      - discount
+      - total
+      - expires_at
+      - allowed_actions
+      - selected_seller_id
+      - reservation
+      - payment_status
+      - allocation_status
+      - inventory_status
+      - shipment_status
+      - accounting_status
+      - confirmation_prerequisites
+      - payment_mode
+      - test_data
+      properties:
+        id: {type: string}
+        cart_id: {type: string}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [ready, blocked, payment_pending, completed, expired]}
+        selected_seller_id: {type: string}
+        fulfilment_context_id: {type: string}
+        destination_fingerprint: {type: string, description: Non-reversible reference to the validated destination inputs.}
+        subtotal: {$ref: '#/components/schemas/Money'}
+        shipping: {$ref: '#/components/schemas/Money'}
+        tax: {$ref: '#/components/schemas/Money'}
+        discount: {$ref: '#/components/schemas/Money'}
+        total: {$ref: '#/components/schemas/Money'}
+        seller_groups:
+          type: array
+          items:
+            type: object
+            required: [seller_id, line_ids, shipping, promise]
+            properties:
+              seller_id: {type: string}
+              line_ids: {type: array, items: {type: string}}
+              shipping: {$ref: '#/components/schemas/Money'}
+              promise: {type: string}
+        expires_at: {type: string, format: date-time}
+        reservation: {$ref: '#/components/schemas/ReservationReference'}
+        payment_id: {type: [string, 'null']}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_data: {type: boolean}
+        payment_status: {$ref: '#/components/schemas/PaymentStatus'}
+        allocation_status: {type: string, enum: [pending, confirmed, failed]}
+        inventory_status: {type: string, enum: [unreserved, reserved, committed, released, exception]}
+        shipment_status: {type: string, enum: [not_requested, booking_pending, booked, in_transit, delivered, exception]}
+        accounting_status: {type: string, enum: [pending, projected, exception]}
+        confirmation_prerequisites: {$ref: '#/components/schemas/ConfirmationPrerequisites'}
+        allowed_actions: {type: array, items: {type: string}}
+    ReservationReference:
+      type: object
+      required: [status]
+      properties:
+        reservation_id: {type: [string, 'null']}
+        version: {type: [integer, 'null'], minimum: 1}
+        status: {type: string, enum: [unreserved, reserved, committed, released, expired, exception]}
+        expires_at: {type: [string, 'null'], format: date-time}
+        operation_key: {type: [string, 'null']}
+    PaymentStatus:
+      type: string
+      enum: [not_started, pending, simulated_accepted, simulated_refund_pending, simulated_refunded, authorised, captured, failed, unknown, cod_due, refund_pending, refunded]
+    PaymentMode:
+      type: string
+      enum: [simulated, provider]
+    ConfirmationPrerequisites:
+      type: object
+      required: [canonical_order, allocation_confirmed, reservation_committed, payment_accepted, payment_acceptance_kind, confirmation_allowed]
+      properties:
+        canonical_order: {type: boolean}
+        allocation_confirmed: {type: boolean}
+        reservation_committed: {type: boolean}
+        payment_accepted: {type: boolean, description: 'Simulated acceptance for labelled staging test orders, or captured payment for later provider/production orders.'}
+        payment_acceptance_kind: {type: [string, 'null'], enum: [simulated, captured, null]}
+        confirmation_allowed: {type: boolean}
+        blocking_codes: {type: array, items: {type: string}}
+    PaymentSession:
+      type: object
+      required: [id, checkout_id, status, amount, payment_mode, test_data, expires_at]
+      properties:
+        id: {type: string}
+        checkout_id: {type: string}
+        status: {$ref: '#/components/schemas/PaymentStatus'}
+        amount: {$ref: '#/components/schemas/Money'}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_data: {type: boolean}
+        provider: {type: [string, 'null'], description: Null for the staging simulator; Razorpay remains a deferred candidate.}
+        provider_session_reference: {type: [string, 'null']}
+        client_token: {type: [string, 'null'], writeOnly: true, description: Short-lived provider token; never a secret key.}
+        expires_at: {type: string, format: date-time}
+    PaymentState:
+      type: object
+      required: [id, checkout_id, status, amount, payment_mode, test_data, evidence_status, observed_at]
+      properties:
+        id: {type: string}
+        checkout_id: {type: string}
+        order_id: {type: [string, 'null']}
+        status: {$ref: '#/components/schemas/PaymentStatus'}
+        amount: {$ref: '#/components/schemas/Money'}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_data: {type: boolean}
+        evidence_status: {type: string, enum: [simulated_result, verified_webhook, verified_query, conflicting, pending]}
+        provider_reference: {type: [string, 'null']}
+        observed_at: {type: string, format: date-time}
+        freshness: {$ref: '#/components/schemas/SourceFreshness'}
+    DependencyFailureClass:
+      type: string
+      enum: [retryable, terminal, ambiguous]
+    RecoveryCase:
+      type: object
+      required: [id, version, checkout_id, payment_id, reason_code, status, failure_class, payment_mode, test_data, allowed_actions, created_at]
+      properties:
+        id: {type: string}
+        version: {type: integer, minimum: 1}
+        checkout_id: {type: string}
+        payment_id: {type: string}
+        order_id: {type: [string, 'null']}
+        reason_code: {type: string}
+        status: {type: string, enum: [open, re_reservation_pending, finalisation_retrying, refund_approval_required, refund_pending, resolved, exception]}
+        failure_class: {$ref: '#/components/schemas/DependencyFailureClass'}
+        amount_at_risk: {$ref: '#/components/schemas/Money'}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_data: {type: boolean}
+        refund_id: {type: [string, 'null']}
+        required_approvals: {type: array, items: {type: string}}
+        allowed_actions: {type: array, items: {type: string}}
+        created_at: {type: string, format: date-time}
+    CompleteCheckoutRequest:
+      type: object
+      required: [checkout_version]
+      properties:
+        checkout_version: {type: integer, minimum: 1}
+    CheckoutResult:
+      type: object
+      required: [order_id, order_number, order_status, payment_status, payment_mode, test_order, correlation_id]
+      properties:
+        order_id: {type: string}
+        order_number: {type: string}
+        order_status: {type: string}
+        payment_status: {type: string}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_order: {type: boolean}
+        allocation_status: {type: string}
+        correlation_id: {type: string, format: uuid}
+    OrderLine:
+      type: object
+      required: [id, variant_id, seller_id, offer_id, quantity, unit_price, line_total]
+      properties:
+        id: {type: string}
+        variant_id: {type: string}
+        seller_id: {type: string}
+        offer_id: {type: string}
+        fulfilment_context: {type: string}
+        title: {type: string}
+        quantity: {type: integer, minimum: 1}
+        unit_price: {$ref: '#/components/schemas/Money'}
+        line_total: {$ref: '#/components/schemas/Money'}
+        allocation_id: {type: [string, 'null']}
+        shipment_ids: {type: array, items: {type: string}}
+    Order:
+      type: object
+      required:
+      - id
+      - number
+      - context_id
+      - version
+      - order_status
+      - payment_status
+      - payment_mode
+      - test_order
+      - environment
+      - commerce_source
+      - allocation_status
+      - lines
+      - total
+      - placed_at
+      properties:
+        id: {type: string}
+        number: {type: string}
+        context_id: {type: string}
+        version: {type: integer, minimum: 1}
+        order_status: {type: string}
+        payment_status: {type: string}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_order: {type: boolean}
+        environment: {$ref: '#/components/schemas/Environment'}
+        commerce_source: {type: string, const: medusa}
+        allocation_status: {type: string}
+        shipment_status: {type: string}
+        lines: {type: array, items: {$ref: '#/components/schemas/OrderLine'}}
+        total: {$ref: '#/components/schemas/Money'}
+        placed_at: {type: string, format: date-time}
+        allowed_actions: {type: array, items: {type: string}}
+    AdminOrderSummary:
+      type: object
+      required: [id, number, order_status, payment_status, payment_mode, test_order, allocation_status, total, placed_at]
+      properties:
+        id: {type: string}
+        number: {type: string}
+        order_status: {type: string}
+        payment_status: {type: string}
+        payment_mode: {$ref: '#/components/schemas/PaymentMode'}
+        test_order: {type: boolean}
+        allocation_status: {type: string}
+        exception_codes: {type: array, items: {type: string}}
+        total: {$ref: '#/components/schemas/Money'}
+        placed_at: {type: string, format: date-time}
+    TimelineEntry:
+      type: object
+      required: [id, type, occurred_at, source, correlation_id]
+      properties:
+        id: {type: string}
+        type: {type: string}
+        occurred_at: {type: string, format: date-time}
+        source: {type: string}
+        summary: {type: string}
+        correlation_id: {type: string, format: uuid}
+    AdminOrderWorkbench:
+      type: object
+      required: [order, timeline, integration_exceptions, allowed_actions]
+      properties:
+        order: {$ref: '#/components/schemas/Order'}
+        allocation_ids: {type: array, items: {type: string}}
+        reservation_ids: {type: array, items: {type: string}}
+        payment_ids: {type: array, items: {type: string}}
+        shipment_ids: {type: array, items: {type: string}}
+        timeline: {type: array, items: {$ref: '#/components/schemas/TimelineEntry'}}
+        integration_exceptions:
+          type: array
+          items: {$ref: '#/components/schemas/IntegrationException'}
+        allowed_actions: {type: array, items: {type: string}}
+    SystemReference:
+      type: object
+      required: [system, entity_type, entity_id, environment, test_data, status]
+      properties:
+        system: {type: string, enum: [commerce, medusa, mercur, tryton, payment-simulator]}
+        entity_type: {type: string}
+        entity_id: {type: string}
+        environment: {$ref: '#/components/schemas/Environment'}
+        test_data: {type: boolean}
+        status: {type: string}
+        observed_at: {type: string, format: date-time}
+    StagingOrderReconciliation:
+      type: object
+      required: [order_id, correlation_id, environment, test_data, payment_mode, checkout, order, allocation, reservation, movement, accounting, reconciled]
+      properties:
+        order_id: {type: string}
+        correlation_id: {type: string, format: uuid}
+        environment: {type: string, const: staging}
+        test_data: {type: boolean, const: true}
+        payment_mode: {type: string, const: simulated}
+        checkout: {$ref: '#/components/schemas/SystemReference'}
+        order: {$ref: '#/components/schemas/SystemReference'}
+        allocation: {$ref: '#/components/schemas/SystemReference'}
+        reservation: {$ref: '#/components/schemas/SystemReference'}
+        movement: {$ref: '#/components/schemas/SystemReference'}
+        accounting: {$ref: '#/components/schemas/SystemReference'}
+        accounting_treatment: {type: string, const: staging_test_clearing}
+        bank_receipt_claimed: {type: boolean, const: false}
+        reconciled: {type: boolean}
+        mismatch_codes: {type: array, items: {type: string}}
+    AppContentItem:
+      type: object
+      required: [id, content_type, placement, locale, title, body, version, test_data]
+      properties:
+        id: {type: string}
+        content_type: {type: string, enum: [banner, onboarding, help, faq, campaign-copy, legal-link]}
+        placement: {type: string}
+        locale: {type: string, enum: [en-IN, hi-IN]}
+        title: {type: string}
+        body: {type: string}
+        action_label: {type: [string, 'null']}
+        action_uri: {type: [string, 'null']}
+        version: {type: string}
+        test_data: {type: boolean}
+    AppContentBundle:
+      type: object
+      required: [locale, items, generated_at, source, freshness]
+      properties:
+        locale: {type: string, enum: [en-IN, hi-IN]}
+        items: {type: array, items: {$ref: '#/components/schemas/AppContentItem'}}
+        generated_at: {type: string, format: date-time}
+        source: {type: string, description: CMS identifier or governed seed; never a transactional owner.}
+        freshness: {$ref: '#/components/schemas/SourceFreshness'}
+    IntegrationException:
+      type: object
+      required:
+      - id
+      - version
+      - status
+      - dependency
+      - error_code
+      - retryable
+      - attempt_count
+      - correlation_id
+      - created_at
+      - allowed_actions
+      properties:
+        id: {type: string}
+        version: {type: integer, minimum: 1}
+        status: {type: string, enum: [open, retry_scheduled, quarantined, resolved]}
+        dependency: {type: string}
+        error_code: {type: string}
+        summary: {type: string}
+        retryable: {type: boolean}
+        attempt_count: {type: integer, minimum: 0}
+        next_retry_at: {type: [string, 'null'], format: date-time}
+        aggregate_type: {type: string}
+        aggregate_id: {type: string}
+        correlation_id: {type: string, format: uuid}
+        created_at: {type: string, format: date-time}
+        allowed_actions: {type: array, items: {type: string}}

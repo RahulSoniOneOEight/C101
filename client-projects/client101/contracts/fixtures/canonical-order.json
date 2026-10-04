@@ -1,0 +1,32 @@
+{
+  "id": "order_01",
+  "number": "BK-2026-000001",
+  "context_id": "context_b2c_01",
+  "version": 2,
+  "order_status": "confirmed",
+  "payment_status": "captured",
+  "payment_mode": "provider",
+  "test_order": false,
+  "environment": "integration",
+  "commerce_source": "medusa",
+  "allocation_status": "allocated",
+  "shipment_status": "pending",
+  "lines": [
+    {
+      "id": "order_line_01",
+      "variant_id": "variant_drill_18v",
+      "seller_id": "seller_buildpro",
+      "offer_id": "offer_buildpro_001",
+      "fulfilment_context": "warehouse_bhiwadi",
+      "title": "18V Drill Kit",
+      "quantity": 1,
+      "unit_price": {"amount_minor": 649900, "currency_code": "INR"},
+      "line_total": {"amount_minor": 649900, "currency_code": "INR"},
+      "allocation_id": "allocation_01",
+      "shipment_ids": []
+    }
+  ],
+  "total": {"amount_minor": 649900, "currency_code": "INR"},
+  "placed_at": "2026-10-04T13:05:00Z",
+  "allowed_actions": ["view", "contact_support"]
+}

@@ -1,0 +1,285 @@
+change_id: CHG-017
+revision: 5
+request: >-
+  Establish the governed contract baseline and implement the first production-shaped
+  BuildKart marketplace-order vertical slice: authenticated buyer, composed product
+  and eligible seller offers, explicit seller selection, seller-aware canonical cart,
+  durable checkout attempt, serviceability/tax/inventory revalidation, inventory
+  reservation before payment, explicitly simulated staging payment, functional Commerce-owned
+  canonical order implemented through Medusa, actual staging Mercur seller allocation, committed
+  Tryton reservation/movement and approved staging test-clearing accounting projection,
+  Tryton invoice/accounting projection, logistics shipment projection,
+  and customer/operator order visibility. The work includes the minimum backend
+  administration UI needed to inspect the order, allocation and integration failures.
+type: architecture
+affected_capabilities:
+- authentication
+- audit
+- catalogue
+- pricing
+- cart
+- checkout
+- orders
+- inventory-availability
+- fulfilment
+- marketplace-orders
+- multi-seller-cart
+- ops-exceptions
+- app-content
+affected_domains:
+- identity
+- commerce
+- marketplace
+- erp
+- payments
+- logistics
+- integration
+- experience-api
+- operations
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- web-store.b2c
+- web-store.b2b
+- commerce-admin.order-workbench
+- ops-console.integration-exceptions
+- seller-portal.order-queue
+- shared-app-content
+affected_entities:
+- identity-session
+- business-context
+- product-variant
+- seller-offer
+- inventory-availability
+- inventory-reservation
+- cart
+- cart-line
+- checkout-session
+- checkout-attempt
+- payment
+- order
+- marketplace-order-allocation
+- shipment
+- integration-delivery
+- audit-record
+- recovery-case
+- refund
+- accounting-projection
+- editorial-app-content
+affected_events:
+- identity.authenticated
+- seller-offer.changed
+- inventory.availability-changed
+- inventory.reservation-created
+- inventory.reservation-released
+- cart.line-revalidated
+- payment.status-changed
+- order.created
+- marketplace-allocation.created
+- shipment.created
+- shipment.status-changed
+- integration.delivery-failed
+- checkout.attempt-created
+- checkout.recovery-required
+- payment.refund-requested
+- payment.refund-completed
+- accounting.projection-requested
+- accounting.projection-failed
+- payment.simulation-result-recorded
+required_tests:
+- shared OpenAPI and event schemas pass lint and backward-compatibility checks
+- app, web, seller and operational surfaces consume the shared backend rather than local success flags
+- Medusa persists the canonical staging cart, checkout reference and test order
+- Mercur supplies actual staging offers/eligibility and records confirmed allocation
+- Tryton supplies actual staging ATP, reservation, commit/release, movement and approved accounting projection
+- checkout, Medusa order, Mercur allocation, Tryton reservation/movement and accounting references reconcile by correlation id
+- Flutter and web consumer contract tests pass against the shared experience API
+- identity, role and tenant-isolation tests pass for buyer, seller and operator contexts
+- seller-aware cart preserves variant, seller, offer and fulfilment identity
+- explicit seller selection is never silently replaced
+- price, MOQ, stock, eligibility and serviceability are revalidated at cart and checkout
+- concurrent checkout does not oversell constrained inventory
+- duplicate checkout requests and simulated payment results produce one canonical staging outcome
+- no customer success state is possible without a canonical order reference
+- canonical order lines reconcile to marketplace allocations and inventory reservations
+- payment, ERP and logistics failures are classified retryable, terminal or ambiguous and visible to operators
+- outbox/inbox duplicate, replay and out-of-order event tests pass
+- order, allocation, payment, reservation and shipment share a traceable correlation id
+- commerce-admin order workbench passes RBAC, accessibility and responsive visual checks
+- recovery runbook and reconciliation drill complete without direct database edits
+- one-seller-per-checkout scope is enforced while other seller groups remain in the cart
+- durable checkout attempt is persisted before reservation or payment side effects
+- staging confirmation is impossible until canonical test order, confirmed allocation, committed reservation and backend-recorded simulated payment acceptance hold
+- provider/production confirmation remains impossible without verified captured payment
+- reservation commit and expiry are atomic competing transitions and only one can succeed
+- late captured payment rechecks and re-reserves inventory or enters durable refund recovery
+- action-level permissions and independent second approval are enforced for configured consequential actions
+- simulated pending and late outcomes reconcile by operation key before any repeated side effect
+- simulated accepted-but-unfulfillable flow enters test recovery and produces an idempotent simulated refund outcome
+- simulated adapter supports success, failure, pending, duplicate, late and refund transitions
+- clients cannot select the simulated adapter or manufacture simulated success
+- production startup fails or checkout is disabled when simulated payment is configured
+- provider failure never falls back to the simulated adapter
+- simulated orders, payments and refunds are clearly marked as test data
+- simulation/test markers persist through allocation, inventory, accounting, audit and operational projections
+- staging accounting uses approved test-clearing treatment and never claims bank receipt
+- unsafe routing to production ERP, live payment, production logistics or customer notifications fails closed
+- editorial CMS content cannot determine transactional eligibility, price, stock, seller, payment or order success
+- shipment and accounting failures remain separate from canonical commercial order state
+- G0 through G6 evidence is traceable to the exact contract and release-candidate revision
+approval_required: true
+required_approvals:
+- product
+- architecture
+- security
+- marketplace
+- marketplace-operations
+- finance
+- finance-tax
+- legal
+- logistics
+- erp-operations
+- operations
+- integration-owners
+- release-authority
+decision_approval_roles:
+  D-017-01: [product, architecture, marketplace, erp-operations, finance-tax]
+  D-017-02: [architecture, security]
+  D-017-03: [product, security, architecture]
+  D-017-04: [product, marketplace, finance-tax, legal]
+  D-017-05: [product, marketplace-operations]
+  D-017-06: [product, marketplace-operations]
+  D-017-07: [architecture, product]
+  D-017-08: [product, erp-operations, finance]
+  D-017-09: [product, marketplace, logistics]
+  D-017-10: [finance, security, product]
+  D-017-11: [logistics, operations, security]
+  D-017-12: [finance-tax, product, legal]
+  D-017-13: [product, legal, marketplace]
+  D-017-14: [security, operations, finance]
+  D-017-15: [architecture, operations]
+  D-017-16: [architecture, product]
+  D-017-17: [product, architecture, marketplace, finance]
+  D-017-18: [architecture, operations]
+  D-017-19: [finance-tax, erp-operations]
+  D-017-20: [finance, product, operations]
+  D-017-21: [architecture, security, integration-owners]
+  D-017-22: [architecture, security, release-authority]
+  D-017-23: [architecture, operations, release-authority]
+  D-017-24: [marketplace, finance]
+approval_dependencies:
+- Q-005A ownership and responsibility matrix is resolved for the vertical slice
+- identity and OTP provider direction is approved
+- staging-simulator boundary, adapter contract and provider deferral are approved
+- real payment provider evidence is deferred and does not block only the approved staging increment
+- COD remains disabled until eligibility, collection and reconciliation policies are approved
+- logistics provider sandbox and serviceability direction is approved
+- landed-price formula, offer eligibility and seller tie-break policy are approved
+- inventory reservation point, timeout and release policy are approved
+- split-order, split-shipment and customer charge presentation are approved
+- tax display and calculation authority are approved per B2C and B2B channel
+- API topology, provider versions, environment and deployment baseline are approved
+- Revision 5 affected decisions D-017-10, D-017-17, D-017-20, D-017-21 and D-017-23 have named outcomes and accountable approvers
+- measurable service targets, load profile, RPO and RTO are approved
+unresolved_provider_and_environment_details:
+- exact Medusa, Mercur, Tryton and PostgreSQL versions; Meilisearch version or explicit first-slice exclusion
+- identity and OTP provider plus sandbox capability evidence
+- Razorpay candidate, prepaid method, webhook, query and refund capability evidence for later provider G3 and production readiness
+- logistics provider, sandbox geography, booking and tracking capability evidence
+- queue or broker, object storage and notification providers
+- development, CI, integration, staging and pre-production environment owners
+- secret manager, access, rotation, observability and on-call ownership
+- peak request rate, concurrency profile and approved load targets
+- approved RPO, RTO, backup and restore evidence plan
+- buyer, business-account, seller and operator membership-rule evidence
+- tax calculation, invoice issuer/timing/numbering/correction and reconciliation policy evidence
+- accounting trigger, mapping, writer, reversal and reconciliation evidence
+- Tryton reservation concurrency, atomic expiry/commitment and idempotent recovery evidence
+- functional Medusa staging persistence and recovery evidence
+- functional Mercur offer, eligibility and allocation evidence
+- functional Tryton movement and staging accounting projection evidence
+- cross-system reconciliation and shared-client connectivity evidence
+- environment endpoint, service identity and unsafe-routing guard evidence
+slice_boundaries:
+  buyer_contexts: [b2c, b2b]
+  checkout_seller_count: 1
+  fulfilment_context_count: 1
+  destination_count: 1
+  shipment_count: 1
+  currency: INR
+  reservation_ttl_minutes_proposed: 15
+  exclusions:
+  - b2b-credit-and-approval-purchasing
+  - partial-payment
+  - split-fulfilment
+  - automatic-seller-substitution
+  - full-customer-returns
+  - seller-settlement-execution
+  - rfq-conversion
+  - cms-provider-selection-and-dam-workflows
+  - production-release
+  - real-payment-provider-integration
+constraints:
+- Commerce remains the canonical commercial order aggregate/lifecycle and B2B credit owner; Medusa with governed BuildKart extensions is the order implementation foundation
+- Mercur remains the canonical seller, offer and allocation owner
+- Tryton remains the canonical ATP, reservation and warehouse-movement owner
+- Tryton or the approved accounting boundary owns invoice and accounting records, subject to Finance/Tax approval
+- payment and shipment results remain owned by their integration providers
+- Commerce payment and logistics integrations own normalised order-linked projections
+- staging test-order confirmation requires backend-recorded simulated acceptance; provider/production confirmation requires captured payment
+- inventory reservation occurs before payment and is atomically committed before customer confirmation
+- one seller, fulfilment context, destination and shipment are enforced per checkout while other seller groups remain in the cart
+- unsupported provider physical splits create an exception and cannot silently change customer charges or promises
+- the proposed reservation TTL is configurable, audited and does not extend existing reservations
+- COD is disabled and outside the prepaid slice; future COD policy does not block prepaid G0 while COD remains unavailable
+- simulated payment is development/staging-only, explicitly labelled and server-selected
+- production fails closed when simulated payment is configured and never falls back to simulation
+- simulated refund transitions are workflow evidence, not financial refund evidence
+- Razorpay remains a planned deferred candidate and E-017-003 cannot be accepted without sandbox proof
+- Medusa, Mercur and Tryton must be functional staging services; payment simulation cannot replace their behavior
+- simulated markers propagate through all downstream records and reconciliation views
+- staging accounting uses an approved test-clearing treatment and cannot represent bank receipt
+- environment-specific endpoints and credentials are mandatory; unsafe production routing fails closed
+- dependency failures are classified retryable, terminal or ambiguous before recovery action
+- rejected or deferred required decisions block G0
+- approved-with-amendment decisions block G0 until incorporated and blocking conditions are closed
+- G0 approves governance and the verification plan only; G1 through G6 require implementation evidence
+- Release Authority is accountable for approval governance; Architecture and Security approve the mechanism; other roles acknowledge it through their decision records
+- CMS may own editorial app-shell content only and must not own price, stock, seller, eligibility, payment, credit, allocation, order or accounting state
+- Meilisearch remains a derived index
+- clients must not compose provider responses to decide transactional eligibility
+- no production success may be simulated without a canonical backend result
+- fixtures and local fallbacks must remain explicitly development-only
+drafting_authorization:
+  authorized: true
+  authorized_on: '2026-10-04'
+  authorized_by: human-requester
+  scope: contract-drafts-and-consumer-fixtures-only
+  does_not_approve:
+  - canonical ownership changes
+  - provider selection
+  - production credentials or configuration
+  - runtime implementation
+  - production release
+decision_approval:
+  revision: 5
+  status: all-required-decision-role-outcomes-recorded
+  inherited_revision: 4
+  inherited_decisions: [D-017-01, D-017-02, D-017-03, D-017-04, D-017-05, D-017-06, D-017-07, D-017-08, D-017-09, D-017-11, D-017-12, D-017-13, D-017-14, D-017-15, D-017-16, D-017-18, D-017-19, D-017-22, D-017-24]
+  affected_decisions: [D-017-10, D-017-17, D-017-20, D-017-21, D-017-23]
+  approved_by: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  approved_at_utc: '2026-10-04T18:38:29Z'
+  ledger_ref: client-projects/client101/changes/CHG-017-approvals.yaml
+  conditions_open: true
+  g0_status: blocked
+  runtime_implementation_authorized: true
+  runtime_scope: functional-local-staging-only
+  runtime_constraints:
+  - functional Medusa, Mercur and Tryton local staging services
+  - simulated payment only
+  - environment isolation and production fail-closed behavior
+  - no Razorpay integration or credentials
+  - no production ERP, logistics, notifications or customer data
+  production_release_authorized: false
+status: bounded-staging-runtime-authorized

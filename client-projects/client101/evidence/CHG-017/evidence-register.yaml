@@ -1,0 +1,261 @@
+change_id: CHG-017
+revision: 5
+status: staging-scaffold-in-progress
+g0_ready: false
+allowed_statuses: [missing, planned, in-progress, evidenced, accepted, not-applicable]
+items:
+- id: E-017-001
+  title: Core platform versions and compatibility
+  decisions: [D-017-01, D-017-21]
+  required_roles: [architecture, security, integration-owners]
+  status: in-progress
+  owner: null
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md, services/docker-compose.yml, services/backend/package.json]
+  acceptance_criteria:
+  - Exact compatible Medusa, Mercur, Tryton and PostgreSQL versions are recorded.
+  - Compatibility evidence covers required APIs, extension points and security support.
+  - Meilisearch has an exact version or an approved first-slice exclusion.
+- id: E-017-002
+  title: Identity and OTP provider capability
+  decisions: [D-017-03, D-017-21]
+  required_roles: [architecture, security, integration-owners]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Provider and exact version are recorded.
+  - OTP abuse controls, secure refresh, revocation and stronger authentication are demonstrated.
+  - Credential owner and approved environments are named without recording credentials.
+- id: E-017-003
+  title: Payment provider prepaid and refund capability
+  decisions: [D-017-10, D-017-20, D-017-21]
+  required_roles: [finance, security, integration-owners]
+  status: planned
+  disposition: deferred-for-staging-increment
+  candidate: Razorpay REST API v1
+  blocking_scopes: [provider-payment-g3, production-prepaid-checkout]
+  non_blocking_scopes: [staging-g0]
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Provider, exact version/API version and prepaid method are recorded.
+  - Signed webhook, authenticated query, capture and idempotent refund are demonstrated.
+  - Duplicate, out-of-order and ambiguous outcomes are reconciled without duplicate charge.
+- id: E-017-004
+  title: Logistics provider sandbox capability
+  decisions: [D-017-11, D-017-21]
+  required_roles: [logistics, operations, security, integration-owners]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Provider, API version, sandbox geography and owner are recorded.
+  - Serviceability, rate, booking, lookup and tracking are demonstrated.
+  - Ambiguous booking and unsupported physical split behavior are demonstrated.
+- id: E-017-005
+  title: Queue, storage and notification dependencies
+  decisions: [D-017-15, D-017-21]
+  required_roles: [architecture, security, integration-owners, operations]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Queue or broker, object storage and notification dependencies are selected or excluded.
+  - Exact versions/service tiers, owners and retention/security constraints are recorded.
+- id: E-017-006
+  title: Environment topology and ownership
+  decisions: [D-017-21, D-017-23]
+  required_roles: [architecture, security, operations, integration-owners]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Development, CI, integration, staging and production-readiness owners are named.
+  - Isolation, access and deployment boundaries are documented.
+- id: E-017-007
+  title: Secrets, observability and on-call ownership
+  decisions: [D-017-14, D-017-21, D-017-23]
+  required_roles: [security, operations, integration-owners]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Secret manager, access, rotation and break-glass ownership are documented.
+  - Logs, metrics, traces, alerts, escalation and on-call ownership are documented.
+- id: E-017-008
+  title: Peak load and transaction profile
+  decisions: [D-017-23]
+  required_roles: [architecture, operations, release-authority]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Peak request rate, concurrent checkout attempts and transaction mix are approved.
+  - Representative seller, SKU, order and dependency-latency assumptions are recorded.
+- id: E-017-009
+  title: Recovery objectives and restore-proof plan
+  decisions: [D-017-23]
+  required_roles: [architecture, operations, release-authority]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - RPO and RTO are approved.
+  - Backup ownership, retention and restore-proof stage are documented.
+- id: E-017-010
+  title: Membership and access rules
+  decisions: [D-017-03, D-017-14]
+  required_roles: [product, security, architecture, operations]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Buyer, business-account, seller and operator membership rules are documented.
+  - Tenant and seller isolation plus action-level permissions are testable.
+- id: E-017-011
+  title: Tax and invoice policy
+  decisions: [D-017-01, D-017-12]
+  required_roles: [finance-tax, legal, erp-operations]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Tax calculation owner, basis, jurisdiction and line/order rounding are documented.
+  - Invoice issuer, trigger/timing, numbering and correction policy are documented.
+  - Accepted tax snapshots and invoice-result reconciliation are defined.
+- id: E-017-012
+  title: Accounting projection policy
+  decisions: [D-017-01, D-017-19]
+  required_roles: [finance-tax, erp-operations]
+  status: missing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Posting triggers, entry writer and account mappings are documented.
+  - Reversal and reconciliation ownership are documented.
+  - Order placement is not treated as automatic revenue recognition.
+- id: E-017-013
+  title: Tryton reservation concurrency and recovery
+  decisions: [D-017-08, D-017-17]
+  required_roles: [architecture, erp-operations, finance]
+  status: planned
+  candidate: Tryton 8.0 series; exact server, module and PostgreSQL patch versions pending compatibility testing
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Reserve, commit, release and expiry operations use stable idempotency keys.
+  - Commitment and expiry are demonstrated as atomic competing transitions.
+  - Concurrent checkout cannot oversell constrained inventory.
+  - Late payment obtains a fresh reservation or enters durable refund recovery.
+- id: E-017-014
+  title: Staging simulated-payment adapter safety and behavior
+  decisions: [D-017-10, D-017-17, D-017-20, D-017-23]
+  required_roles: [product, architecture, security, finance, operations, release-authority]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Server-selected simulator supports success, failure, pending, duplicate and late results.
+  - Staging test orders require canonical order, confirmed allocation, committed reservation and simulated acceptance.
+  - Simulated refund transitions remain visibly non-financial test evidence.
+  - Clients cannot select adapter mode or manufacture success.
+  - Production fails startup or disables checkout when simulation is configured.
+  - Provider failure cannot fall back to simulation.
+- id: E-017-015
+  title: Functional Medusa staging Commerce integration
+  decisions: [D-017-01, D-017-02, D-017-17]
+  required_roles: [architecture, product, operations]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Medusa persists staging cart, checkout reference and canonical test order.
+  - Idempotent recovery returns the same order after timeout or duplicate completion.
+  - Test and simulated-payment markers persist on the canonical order.
+- id: E-017-016
+  title: Functional Mercur staging Marketplace integration
+  decisions: [D-017-01, D-017-04, D-017-05, D-017-06, D-017-17]
+  required_roles: [architecture, marketplace, marketplace-operations]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Mercur supplies actual staging sellers, offers and eligibility.
+  - Selected seller is not silently substituted.
+  - Allocation is persisted and confirmed against the Medusa test order.
+- id: E-017-017
+  title: Functional Tryton staging movement and accounting integration
+  decisions: [D-017-01, D-017-08, D-017-19]
+  required_roles: [architecture, erp-operations, finance-tax]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Tryton executes actual staging reservation commit/release and stock movement.
+  - Approved staging accounting projection uses test-clearing treatment.
+  - No projection claims bank receipt or affects production accounting.
+- id: E-017-018
+  title: Cross-system staging reconciliation
+  decisions: [D-017-15, D-017-17, D-017-18, D-017-19]
+  required_roles: [architecture, operations, marketplace, erp-operations, finance-tax]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Checkout, Medusa order, Mercur allocation, Tryton reservation/movement/accounting share correlation references.
+  - Mismatches are visible and recoverable without direct database edits.
+  - Simulated/test markers are preserved in every projection.
+- id: E-017-019
+  title: Shared backend client and operations connectivity
+  decisions: [D-017-02, D-017-14, D-017-18]
+  required_roles: [architecture, security, operations, product]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - App, web, seller and operator screens consume shared backend contracts.
+  - No client fixture or local flag can manufacture transactional success.
+  - Permission, version, freshness and test-data markers are visible.
+- id: E-017-020
+  title: Environment routing and production-effect isolation
+  decisions: [D-017-14, D-017-21, D-017-23]
+  required_roles: [architecture, security, operations, integration-owners, release-authority]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - Staging uses environment-specific endpoints, service identities and secret references.
+  - Production ERP, live payments, production logistics and customer notifications are unreachable.
+  - Unsafe routing or simulated payment in production fails closed.
+- id: E-017-021
+  title: Editorial CMS app-content boundary
+  decisions: [D-017-01, D-017-02, D-017-21]
+  required_roles: [product, architecture, security]
+  status: planned
+  owner: null
+  evidence_refs: []
+  acceptance_criteria:
+  - CMS or governed seed supplies only editorial app-shell content through the shared backend.
+  - CMS cannot own or calculate transactional state.
+  - CMS failure cannot block or manufacture order processing.
+condition_mappings:
+  invoice-and-accounting-ownership-capability-evidence: [E-017-011, E-017-012]
+  identity-provider-version-and-capability-evidence: [E-017-002, E-017-010]
+  tryton-reservation-concurrency-and-recovery-evidence: [E-017-013]
+  payment-provider-method-webhook-query-and-refund-evidence: [E-017-003]
+  logistics-provider-capability-evidence-through-D-017-21: [E-017-004]
+  tax-rounding-invoice-and-correction-policy-evidence: [E-017-011]
+  accounting-trigger-mapping-writer-reversal-and-reconciliation-evidence: [E-017-012]
+  payment-provider-refund-capability-evidence: [E-017-003]
+  provider-version-capability-owner-and-environment-evidence: [E-017-001, E-017-002, E-017-003, E-017-004, E-017-005, E-017-006, E-017-007]
+  load-profile-rpo-rto-backup-and-restore-evidence-plan: [E-017-008, E-017-009]
+scope_requirements:
+  staging-g0: [E-017-001, E-017-002, E-017-004, E-017-005, E-017-006, E-017-007, E-017-008, E-017-009, E-017-010, E-017-011, E-017-012, E-017-013]
+  staging-simulation-acceptance: [E-017-014]
+  staging-contracts-and-access: [E-017-019, E-017-020]
+  staging-checkout-integrity: [E-017-013, E-017-015, E-017-016]
+  staging-order-allocation: [E-017-013, E-017-015, E-017-016, E-017-018]
+  staging-accounting-reconciliation: [E-017-017, E-017-018]
+  provider-payment-g3: [E-017-003]
+  production-prepaid-checkout: [E-017-003, E-017-014, E-017-020]
+  optional-editorial-content: [E-017-021]

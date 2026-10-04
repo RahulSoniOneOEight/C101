@@ -1,0 +1,106 @@
+change_id: CHG-017
+revision: 5
+status: versions-pinned-capability-verification-pending
+baseline_ref: docs/architecture/backend-local-staging-baseline.md
+providers:
+- component: medusa
+  required: true
+  selection: "@medusajs/medusa (Commerce core)"
+  exact_version: 2.20.1
+  owner: null
+  status: in-progress
+  required_capabilities: [product-variant-identity, cart-persistence, checkout-persistence, order-extension-points, idempotent-order-recovery]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: mercur
+  required: true
+  selection: mercurjs/mercur
+  exact_version: 2.3.4
+  owner: null
+  status: in-progress
+  required_capabilities: [seller-ownership, offer-ownership, deterministic-allocation, allocation-confirmation]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: tryton
+  required: true
+  selection: Tryton server + business modules
+  exact_version: trytond 8.0.11, stock 8.0.4, sale 8.0.5, stock-supply 8.0.0, account 8.0.3, account-invoice 8.0.2
+  owner: null
+  status: in-progress
+  required_capabilities: [atp, reservation, atomic-commit-or-expire, idempotent-release, warehouse-movement, invoice-accounting-integration]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: postgresql
+  required: true
+  selection: PostgreSQL
+  exact_version: 16.15
+  owner: null
+  status: in-progress
+  required_capabilities: [transactional-outbox, unique-operation-keys, optimistic-concurrency, backup-and-restore]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: meilisearch
+  required: false
+  selection: null
+  exact_version: excluded-for-this-increment
+  owner: null
+  exclusion_authorized_by: Rahul Soni
+  status: not-applicable
+  required_capabilities: [derived-product-index-only]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: identity-otp
+  required: true
+  selection: null
+  exact_version: null
+  owner: null
+  status: missing
+  required_capabilities: [otp-abuse-control, refresh-rotation, revocation, tenant-membership, seller-scope, operator-step-up]
+  evidence_refs: []
+- component: payment
+  required: true
+  selection: Razorpay candidate
+  exact_version: REST API v1 family; staging uses in-repo simulator
+  owner: null
+  status: planned
+  disposition: deferred-for-staging-increment
+  permitted_environments: []
+  required_capabilities: [server-session, prepaid-capture, signed-webhook, authenticated-query, idempotent-refund]
+  evidence_refs: []
+- component: logistics
+  required: true
+  selection: null
+  exact_version: null
+  owner: null
+  status: missing
+  required_capabilities: [serviceability, rate, booking, booking-lookup, tracking-webhook]
+  evidence_refs: []
+- component: queue-or-broker
+  required: true
+  selection: Redis-backed Medusa transport
+  exact_version: 7.4.10
+  owner: null
+  status: in-progress
+  required_capabilities: [at-least-once-delivery, bounded-retry, dead-letter, replay-observability]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: object-storage
+  required: false
+  selection: null
+  exact_version: excluded-for-this-increment
+  owner: null
+  exclusion_authorized_by: Rahul Soni
+  status: not-applicable
+  required_capabilities: [encrypted-evidence-or-document-storage, retention, access-audit]
+  evidence_refs: [docs/architecture/backend-local-staging-baseline.md]
+- component: notifications
+  required: true
+  selection: null
+  exact_version: null
+  owner: null
+  status: missing
+  required_capabilities: [email-or-sms, template-versioning, delivery-status, pii-controls]
+  evidence_refs: []
+- component: editorial-cms
+  required: false
+  selection: governed-editorial-seed (optional CMS)
+  exact_version: null
+  owner: null
+  status: planned
+  required_capabilities: [editorial-app-shell-content, localization, content-versioning, cache-freshness]
+  prohibited_capabilities: [transactional-price, inventory, seller-eligibility, payment, order-success]
+  evidence_refs: []

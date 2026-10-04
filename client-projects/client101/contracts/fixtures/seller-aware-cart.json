@@ -1,0 +1,33 @@
+{
+  "id": "cart_01",
+  "context_id": "context_b2c_01",
+  "channel": "b2c_app",
+  "version": 3,
+  "status": "active",
+  "lines": [
+    {
+      "id": "line_01",
+      "variant_id": "variant_drill_18v",
+      "seller_id": "seller_buildpro",
+      "offer_id": "offer_buildpro_001",
+      "fulfilment_context": "warehouse_bhiwadi",
+      "title": "18V Drill Kit",
+      "quantity": 1,
+      "status": "valid",
+      "validation_codes": [],
+      "offer_snapshot": {
+        "offer_id": "offer_buildpro_001",
+        "seller_id": "seller_buildpro",
+        "unit_price": {"amount_minor": 649900, "currency_code": "INR"},
+        "landed_total": {"amount_minor": 649900, "currency_code": "INR"},
+        "captured_at": "2026-10-04T13:00:00Z",
+        "valid_until": "2026-10-04T13:15:00Z"
+      },
+      "current_landed_total": {"amount_minor": 649900, "currency_code": "INR"},
+      "allowed_actions": ["change_quantity", "remove", "choose_seller"]
+    }
+  ],
+  "total": {"amount_minor": 649900, "currency_code": "INR"},
+  "generated_at": "2026-10-04T13:01:00Z",
+  "allowed_actions": ["add_line", "revalidate", "checkout"]
+}

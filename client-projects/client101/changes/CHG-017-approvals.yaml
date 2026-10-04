@@ -1,0 +1,594 @@
+change_id: CHG-017
+decision_pack_revision: 5
+document_ref: docs/architecture/backend-first-slice-decision-pack.md
+revision_hashes:
+  decision_pack_sha256: D868B38A9450E3FCAD6A3CFBCB6686F4038E8C8DF6FB71A908222742700E37E5
+  change_contract_sha256: 9F3F13EA71D3111B06AD3AB386AEC451CB22DBFFDE9D93C678C902C8CF5E5AA9
+revision_history:
+- revision: 3
+  decision_pack_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  status: superseded-by-revision-4
+- revision: 4
+  decision_pack_sha256: EEABCBCAD1379E4ABBCC5EF2EC13D064D33C52E226D775270EB315F97EF0EC49
+  change_contract_sha256: 55AD9EB0C5D2286853362C7E44D5F17262B0DE148D97605641856EDC3A9D51A4
+  status: partially-superseded-by-revision-5
+status: revision-5-approvals-recorded-evidence-pending
+instructions:
+- Record one outcome per decision; silence is not approval.
+- Approved-with-amendment must quote the replacement baseline or reference an approved artifact.
+- Record a named accountable human, UTC timestamp, evidence and exact document/contract revision.
+- Deferred or rejected required decisions block G0.
+- Approved-with-amendment remains blocking until incorporated into the referenced revision and all blocking conditions are closed.
+- One role's approval never substitutes for another required role.
+- G0 approves governance and the verification plan only; G1 through G6 require implementation evidence.
+- This ledger cannot authorise production release.
+outcome_values:
+- approved
+- approved-with-amendment
+- rejected
+- deferred
+decisions:
+- id: D-017-01
+  subject: canonical-ownership
+  required_roles: [product, architecture, marketplace, erp-operations, finance-tax]
+- id: D-017-02
+  subject: shared-api-topology
+  required_roles: [architecture, security]
+- id: D-017-03
+  subject: identity-and-access
+  required_roles: [product, security, architecture]
+- id: D-017-04
+  subject: cheapest-eligible-seller
+  required_roles: [product, marketplace, finance-tax, legal]
+- id: D-017-05
+  subject: seller-tie-break
+  required_roles: [product, marketplace-operations]
+- id: D-017-06
+  subject: manual-seller-choice
+  required_roles: [product, marketplace-operations]
+- id: D-017-07
+  subject: cart-identity
+  required_roles: [architecture, product]
+- id: D-017-08
+  subject: reservation-policy
+  required_roles: [product, erp-operations, finance]
+- id: D-017-09
+  subject: split-fulfilment-disabled
+  required_roles: [product, marketplace, logistics]
+- id: D-017-10
+  subject: payment-integration
+  required_roles: [finance, security, product]
+- id: D-017-11
+  subject: logistics-integration
+  required_roles: [logistics, operations, security]
+- id: D-017-12
+  subject: tax-and-invoice-semantics
+  required_roles: [finance-tax, product, legal]
+- id: D-017-13
+  subject: offer-changes
+  required_roles: [product, legal, marketplace]
+- id: D-017-14
+  subject: operational-override
+  required_roles: [security, operations, finance]
+- id: D-017-15
+  subject: reliability
+  required_roles: [architecture, operations]
+- id: D-017-16
+  subject: durable-checkout-attempt
+  required_roles: [architecture, product]
+- id: D-017-17
+  subject: order-confirmation-prerequisites
+  required_roles: [product, architecture, marketplace, finance]
+- id: D-017-18
+  subject: independent-status-dimensions
+  required_roles: [architecture, operations]
+- id: D-017-19
+  subject: accounting-triggers-and-reversals
+  required_roles: [finance-tax, erp-operations]
+- id: D-017-20
+  subject: recovery-refunds
+  required_roles: [finance, product, operations]
+- id: D-017-21
+  subject: provider-version-capability-verification
+  required_roles: [architecture, security, integration-owners]
+- id: D-017-22
+  subject: approval-evidence-recording
+  required_roles: [architecture, security, release-authority]
+- id: D-017-23
+  subject: service-targets-and-gates
+  required_roles: [architecture, operations, release-authority]
+- id: D-017-24
+  subject: commission-policy-snapshot
+  required_roles: [marketplace, finance]
+current_revision_approval_scope:
+  inherited_revision: 4
+  inherited_decisions: [D-017-01, D-017-02, D-017-03, D-017-04, D-017-05, D-017-06, D-017-07, D-017-08, D-017-09, D-017-11, D-017-12, D-017-13, D-017-14, D-017-15, D-017-16, D-017-18, D-017-19, D-017-22, D-017-24]
+  affected_decisions: [D-017-10, D-017-17, D-017-20, D-017-21, D-017-23]
+  inheritance_rule: Revision 4 outcomes carry forward only for decisions whose baseline text and role requirements are unchanged.
+amendment_requests:
+- request_id: CHG-017-R5-STAGING-SIMULATION-001
+  requested_at_utc: '2026-10-04T17:56:57Z'
+  requested_by: human-requester
+  status: approved-for-bounded-staging-runtime
+  summary: Defer external payment integration and permit an explicitly labelled development/staging simulated-payment adapter.
+  affected_decisions: [D-017-10, D-017-17, D-017-20, D-017-21, D-017-23]
+  required_decision_role_approvals: 16
+  runtime_implementation_authorized: true
+approval_records:
+- decision_id: D-017-06
+  outcome: approved
+  approved_baseline: Revision 3 manual-seller-choice baseline as written
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; Revision 3 verified.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments: []
+  amendment_status: not-applicable
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [marketplace-operations-approval]
+- decision_id: D-017-07
+  outcome: approved
+  approved_baseline: Revision 3 cart-identity baseline as written
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; Revision 3 verified.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments: []
+  amendment_status: not-applicable
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [architecture-approval]
+- decision_id: D-017-13
+  outcome: approved
+  approved_baseline: Revision 3 offer-change baseline as written
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; Revision 3 verified.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments: []
+  amendment_status: not-applicable
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [legal-approval, marketplace-approval]
+- decision_id: D-017-16
+  outcome: approved
+  approved_baseline: Revision 3 durable-checkout-attempt baseline as written
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; Revision 3 verified.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments: []
+  amendment_status: not-applicable
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [architecture-approval]
+- decision_id: D-017-20
+  outcome: approved
+  approved_baseline: Revision 3 recovery-refund baseline as written
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; Revision 3 verified.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments: []
+  amendment_status: not-applicable
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  - Provider-dependent refund implementation remains blocked pending capability evidence.
+  unresolved_conditions: [finance-approval, operations-approval, payment-provider-capability-evidence]
+- decision_id: D-017-01
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 canonical-ownership baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; requested ownership amendment incorporated in Revision 3.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Commerce owns the commercial order aggregate/lifecycle through Medusa with governed BuildKart extensions.
+  - Tryton owns ATP, reservation and warehouse movement; invoice/accounting ownership requires Finance/Tax validation.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve approvals required from all other accountable roles.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [architecture-approval, marketplace-approval, erp-operations-approval, finance-tax-approval]
+- decision_id: D-017-03
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 identity-and-access baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; provider-selection condition retained in Revision 3.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Identity provider selection, exact version and sandbox capability evidence remain pending.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Security and Architecture approval requirements.
+  - Provider-dependent implementation remains blocked pending approved capability evidence.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [security-approval, architecture-approval, identity-provider-selection-and-evidence]
+- decision_id: D-017-04
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 cheapest-eligible-seller baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; landed-total safeguards incorporated in Revision 3.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Unknown tax, freight or fees prevent a cheapest claim; compare the complete eligible seller-group total.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Marketplace, Finance/Tax and Legal approvals.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [marketplace-approval, finance-tax-approval, legal-approval]
+- decision_id: D-017-05
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 seller-tie-break baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; missing-metric and policy-version controls incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Partial quantity is ineligible; missing quality metrics cannot improve ranking; persist policy version and explanation.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Marketplace Operations approval.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [marketplace-operations-approval]
+- decision_id: D-017-08
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 reservation-policy baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; reserve-before-payment and atomic transition amendments incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Reserve before payment and atomically commit before confirmation.
+  - Expiry and commitment compete on the same version; late captured payment re-reserves or enters refund recovery.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve ERP Operations and Finance approvals.
+  - Provider-dependent implementation remains blocked pending Tryton capability evidence.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [erp-operations-approval, finance-approval, tryton-version-and-capability-evidence]
+- decision_id: D-017-09
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 split-fulfilment-disabled baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; one-seller checkout boundary incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Enforce one seller, fulfilment context, destination and shipment per checkout; preserve other seller groups in cart.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Marketplace and Logistics approvals.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [marketplace-approval, logistics-approval]
+- decision_id: D-017-10
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 payment-integration baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; captured-payment and COD amendments incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Captured payment is the proposed prepaid confirmation prerequisite.
+  - COD remains disabled pending approved eligibility, collection and reconciliation policies.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Finance and Security approvals.
+  - Provider selection and payment/refund capability evidence remain blockers.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [finance-approval, security-approval, payment-provider-selection-and-evidence, cod-policy-approval]
+- decision_id: D-017-12
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 tax-and-invoice baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; tax calculation, rounding, invoice and correction responsibilities incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Approved tax boundary owns calculation; Tryton/accounting owns invoice records, numbering and credit/debit-note correction subject to Finance/Tax validation.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Finance/Tax and Legal approvals.
+  - Tax, rounding, invoice timing/numbering and correction policies remain blocking until approved.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [finance-tax-approval, legal-approval, tax-and-invoice-policy-evidence]
+- decision_id: D-017-17
+  outcome: approved-with-amendment
+  approved_baseline: Revision 3 order-confirmation-prerequisites baseline as amended
+  approver: {name: Rahul Soni, role: product}
+  evidence: Reviewed Revision 2 and accompanying technical review recommendations; confirmation prerequisites incorporated.
+  timestamp_utc: '2026-10-04T16:45:44Z'
+  revision: 3
+  document_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
+  change_contract_sha256: 47DC8E8217E978D03118B1A3EE68B8B05799580B962008F5F45F707A31AB0D44
+  amendments:
+  - Require canonical order, confirmed allocation, committed reservation and captured payment or separately approved eligible COD before confirmation.
+  amendment_status: incorporated-in-revision-3
+  conditions:
+  - Preserve Architecture, Marketplace and Finance approvals.
+  - Provider-dependent prerequisites remain blocked pending selected-provider capability evidence.
+  - Product approval authorises bounded-slice policy only, not production release.
+  unresolved_conditions: [architecture-approval, marketplace-approval, finance-approval, provider-capability-evidence]
+batch_approval_records:
+- submission_id: CHG-017-R4-RAHUL-ALL-ROLES-001
+  approver: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, marketplace-operations, erp-operations, finance, finance-tax, legal, logistics, operations, integration-owners, release-authority]
+  authorization_evidence: User explicitly confirmed Rahul Soni is authorised to represent all listed roles for this approval.
+  evidence: Reviewed all 24 Revision 4 recommendations and explicitly directed that they be considered approved by Rahul Soni.
+  timestamp_utc: '2026-10-04T17:05:44Z'
+  revision: 4
+  document_sha256: EEABCBCAD1379E4ABBCC5EF2EC13D064D33C52E226D775270EB315F97EF0EC49
+  change_contract_sha256: 55AD9EB0C5D2286853362C7E44D5F17262B0DE148D97605641856EDC3A9D51A4
+  governance_transition:
+    decision_id: D-017-22
+    from_revision: 3
+    outcome: approved-with-amendment
+    approving_roles: [product, architecture, security, marketplace, marketplace-operations, erp-operations, finance, finance-tax, legal, logistics, operations, integration-owners, release-authority]
+    amendment: Replace the Revision 3 all-role mechanism approval with Release Authority accountability and Architecture/Security mechanism approval; other roles acknowledge through their decision records.
+  decision_records:
+  - decision_id: D-017-01
+    outcome: approved-with-amendment
+    roles: [product, architecture, marketplace, erp-operations, finance-tax]
+    approved_baseline: Revision 4 canonical ownership and evidence-gated invoice/accounting ownership.
+    amendments: [Define Commerce as the commercial domain and Medusa as its canonical order implementation.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [invoice-and-accounting-ownership-capability-evidence]
+  - decision_id: D-017-02
+    outcome: approved
+    roles: [architecture, security]
+    approved_baseline: Revision 4 shared Experience API baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-03
+    outcome: approved-with-amendment
+    roles: [product, security, architecture]
+    approved_baseline: Revision 4 identity, OTP and explicit membership baseline.
+    amendments: [Require named provider capability evidence and explicit buyer, business-account, seller and operator membership rules.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [identity-provider-version-and-capability-evidence]
+  - decision_id: D-017-04
+    outcome: approved
+    roles: [product, marketplace, finance-tax, legal]
+    approved_baseline: Revision 4 complete landed-payable-price baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-05
+    outcome: approved
+    roles: [product, marketplace-operations]
+    approved_baseline: Revision 4 deterministic seller tie-break baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-06
+    outcome: approved
+    roles: [product, marketplace-operations]
+    approved_baseline: Revision 4 manual seller selection baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-07
+    outcome: approved
+    roles: [architecture, product]
+    approved_baseline: Revision 4 seller-aware cart identity baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-08
+    outcome: approved-with-amendment
+    roles: [product, erp-operations, finance]
+    approved_baseline: Revision 4 reserve-before-payment and atomic commitment baseline.
+    amendments: [Make the proposed 15-minute TTL configurable and verify Tryton concurrency behavior.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [tryton-reservation-concurrency-and-recovery-evidence]
+  - decision_id: D-017-09
+    outcome: approved-with-amendment
+    roles: [product, marketplace, logistics]
+    approved_baseline: Revision 4 single-seller and single-shipment checkout baseline.
+    amendments: [Route unsupported physical splits to an exception without silent charges or promise changes.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: []
+  - decision_id: D-017-10
+    outcome: approved-with-amendment
+    roles: [finance, security, product]
+    approved_baseline: Revision 4 captured-prepaid-payment baseline with COD disabled.
+    amendments: [Treat disabled COD as outside the prepaid slice and require named payment provider evidence.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [payment-provider-method-webhook-query-and-refund-evidence]
+  - decision_id: D-017-11
+    outcome: approved
+    roles: [logistics, operations, security]
+    approved_baseline: Revision 4 logistics intent, reconciliation and exception baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: [logistics-provider-capability-evidence-through-D-017-21]
+  - decision_id: D-017-12
+    outcome: approved-with-amendment
+    roles: [finance-tax, product, legal]
+    approved_baseline: Revision 4 tax calculation and invoice-policy baseline.
+    amendments: [Require invoice issuer, timing, numbering, correction and reconciliation ownership.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [tax-rounding-invoice-and-correction-policy-evidence]
+  - decision_id: D-017-13
+    outcome: approved
+    roles: [product, legal, marketplace]
+    approved_baseline: Revision 4 explicit commercial-change acceptance baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-14
+    outcome: approved-with-amendment
+    roles: [security, operations, finance]
+    approved_baseline: Revision 4 action-level permissions and second-approver baseline.
+    amendments: [Specify consequential actions requiring an independent second approver.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: []
+  - decision_id: D-017-15
+    outcome: approved
+    roles: [architecture, operations]
+    approved_baseline: Revision 4 at-least-once and classified-failure reliability baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-16
+    outcome: approved
+    roles: [architecture, product]
+    approved_baseline: Revision 4 durable versioned checkout-attempt baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-17
+    outcome: approved-with-amendment
+    roles: [product, architecture, marketplace, finance]
+    approved_baseline: Revision 4 customer-confirmation prerequisites.
+    amendments: [Align confirmation with canonical order, confirmed allocation, committed reservation and captured payment.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: []
+  - decision_id: D-017-18
+    outcome: approved
+    roles: [architecture, operations]
+    approved_baseline: Revision 4 independent status-dimensions baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+  - decision_id: D-017-19
+    outcome: approved-with-amendment
+    roles: [finance-tax, erp-operations]
+    approved_baseline: Revision 4 accounting projection, reversal and reconciliation baseline.
+    amendments: [Define posting triggers, mappings, writer, reversals and reconciliation ownership.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [accounting-trigger-mapping-writer-reversal-and-reconciliation-evidence]
+  - decision_id: D-017-20
+    outcome: approved
+    roles: [finance, product, operations]
+    approved_baseline: Revision 4 paid-but-unfulfillable recovery and idempotent-refund baseline.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: [payment-provider-refund-capability-evidence]
+  - decision_id: D-017-21
+    outcome: approved-with-amendment
+    roles: [architecture, security, integration-owners]
+    approved_baseline: Revision 4 provider, version, owner and environment readiness baseline.
+    amendments: [Explicitly exclude unused optional dependencies and require evidence before dependent integration work.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [provider-version-capability-owner-and-environment-evidence]
+  - decision_id: D-017-22
+    outcome: approved-with-amendment
+    roles: [architecture, security, release-authority]
+    approved_baseline: Revision 4 simplified approval-governance mechanism.
+    amendments: [Release Authority is accountable; Architecture and Security approve the mechanism; other roles acknowledge through decision records.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: []
+  - decision_id: D-017-23
+    outcome: approved-with-amendment
+    roles: [architecture, operations, release-authority]
+    approved_baseline: Revision 4 measurable-target and G0-through-G6 gate baseline.
+    amendments: [Define peak rate, concurrency and transaction mix while separating governance approval from implementation evidence.]
+    amendment_status: incorporated-in-revision-4
+    unresolved_conditions: [load-profile-rpo-rto-backup-and-restore-evidence-plan]
+  - decision_id: D-017-24
+    outcome: approved
+    roles: [marketplace, finance]
+    approved_baseline: Revision 4 commission-policy snapshot baseline with settlement excluded.
+    amendments: []
+    amendment_status: not-applicable
+    unresolved_conditions: []
+- submission_id: CHG-017-R5-RAHUL-AFFECTED-ROLES-001
+  approver: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  authorization_evidence: User explicitly approved all 16 affected Revision 5 decision-role records and authorised functional staging runtime implementation.
+  evidence: Approved the payment-simulation amendment with functional Medusa, Mercur and Tryton staging services and local isolated stack boundary.
+  timestamp_utc: '2026-10-04T18:38:29Z'
+  revision: 5
+  document_sha256: D868B38A9450E3FCAD6A3CFBCB6686F4038E8C8DF6FB71A908222742700E37E5
+  change_contract_sha256: 9F3F13EA71D3111B06AD3AB386AEC451CB22DBFFDE9D93C678C902C8CF5E5AA9
+  decision_records:
+  - decision_id: D-017-10
+    outcome: approved-with-amendment
+    roles: [finance, security, product]
+    approved_baseline: Revision 5 staging simulated-payment adapter with production fail-closed behavior.
+    amendments: [Permit explicit simulation only in development/staging while deferring Razorpay provider evidence.]
+    amendment_status: incorporated-in-revision-5
+    unresolved_conditions: [staging-simulator-behavior-and-safety-evidence]
+  - decision_id: D-017-17
+    outcome: approved-with-amendment
+    roles: [product, architecture, marketplace, finance]
+    approved_baseline: Revision 5 test-order confirmation through functional Medusa, Mercur and Tryton staging services.
+    amendments: [Require canonical Medusa test order, confirmed Mercur allocation, committed Tryton reservation and simulated acceptance.]
+    amendment_status: incorporated-in-revision-5
+    unresolved_conditions: [functional-staging-commerce-marketplace-erp-and-reconciliation-evidence]
+  - decision_id: D-017-20
+    outcome: approved-with-amendment
+    roles: [finance, product, operations]
+    approved_baseline: Revision 5 simulated late-result and refund-recovery workflow.
+    amendments: [Keep simulated refunds distinct from financial refunds and preserve test markers.]
+    amendment_status: incorporated-in-revision-5
+    unresolved_conditions: [simulated-recovery-and-refund-workflow-evidence]
+  - decision_id: D-017-21
+    outcome: approved-with-amendment
+    roles: [architecture, security, integration-owners]
+    approved_baseline: Revision 5 local isolated staging stack with Razorpay deferred.
+    amendments: [Require exact compatible local-stack versions, environment isolation and unsafe-routing guards.]
+    amendment_status: incorporated-in-revision-5
+    unresolved_conditions: [exact-version-compatibility-and-environment-routing-evidence]
+  - decision_id: D-017-23
+    outcome: approved-with-amendment
+    roles: [architecture, operations, release-authority]
+    approved_baseline: Revision 5 separated G3-SIM, provider G3 and production readiness gates.
+    amendments: [Allow bounded staging implementation while keeping all evidence gates and production release blocked.]
+    amendment_status: incorporated-in-revision-5
+    unresolved_conditions: [staging-gate-load-recovery-and-operational-evidence]
+runtime_authorizations:
+- authorization_id: CHG-017-R5-STAGING-RUNTIME-001
+  authorized_by: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  authorized_at_utc: '2026-10-04T18:38:29Z'
+  scope: functional-local-staging-only
+  permitted: [medusa-staging, mercur-staging, tryton-staging, simulated-payment, shared-backend, app-web-operator-integration, editorial-content-contract]
+  prohibited: [razorpay-integration, provider-credentials, production-erp, production-logistics, production-notifications, production-customer-data, production-release]
+gate_status:
+  G0-governance: blocked
+  G1-contracts-and-access: blocked
+  G2-checkout-integrity: blocked
+  G3-staging-simulation: blocked
+  G3-provider-payment: deferred
+  G4-order-and-allocation: blocked
+  G5-fulfilment-and-accounting: blocked
+  G6-operational-readiness: blocked
+production_release_authorized: false

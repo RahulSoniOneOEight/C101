@@ -1,0 +1,27 @@
+change_id: CHG-017
+revision: 5
+status: targets-pending
+load_profile:
+  peak_requests_per_second: null
+  concurrent_checkout_attempts: null
+  transaction_mix: null
+  active_sellers: null
+  sku_and_variant_count: null
+  peak_orders_per_hour: null
+  dependency_latency_assumptions: null
+  owner: null
+  evidence_refs: []
+recovery_profile:
+  rpo_minutes: null
+  rto_minutes: null
+  backup_frequency: null
+  backup_retention: null
+  restore_proof_gate: null
+  reconciliation_interval: null
+  owner: null
+  evidence_refs: []
+approval:
+  architecture: pending
+  operations: pending
+  release_authority: pending
+g0_ready: false
