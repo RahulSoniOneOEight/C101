@@ -1,0 +1,43 @@
+name: Flutter validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Shared UI dependencies
+        working-directory: packages/agency_flutter_ui
+        run: flutter pub get
+
+      - name: Shared UI analysis
+        working-directory: packages/agency_flutter_ui
+        run: flutter analyze
+
+      - name: Shared UI tests
+        working-directory: packages/agency_flutter_ui
+        run: flutter test
+
+      - name: App dependencies
+        working-directory: apps/prototype_app
+        run: flutter pub get
+
+      - name: App analysis
+        working-directory: apps/prototype_app
+        run: flutter analyze
+
+      - name: App tests
+        working-directory: apps/prototype_app
+        run: flutter test

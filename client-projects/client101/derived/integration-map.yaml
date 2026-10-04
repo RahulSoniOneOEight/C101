@@ -1,0 +1,68 @@
+client_id: client101
+integrations:
+- id: payments
+  domain: payments
+  provider_candidates:
+  - razorpay
+  - cashfree
+  direction: bidirectional
+  criticality: critical
+  data_classes:
+  - operational
+  credential_refs:
+  - env:PAYMENTS_CREDENTIALS
+  sla:
+    availability: client-defined
+    timeout_seconds: 30
+  fallback_strategy: queue-and-retry
+  events: []
+  commands: []
+- id: logistics
+  domain: logistics
+  provider_candidates:
+  - shiprocket
+  - delhivery
+  direction: bidirectional
+  criticality: high
+  data_classes:
+  - operational
+  credential_refs:
+  - env:LOGISTICS_CREDENTIALS
+  sla:
+    availability: client-defined
+    timeout_seconds: 30
+  fallback_strategy: queue-and-retry
+  events: []
+  commands: []
+- id: messaging
+  domain: messaging
+  provider_candidates:
+  - meta-whatsapp-cloud
+  direction: bidirectional
+  criticality: medium
+  data_classes:
+  - operational
+  credential_refs:
+  - env:MESSAGING_CREDENTIALS
+  sla:
+    availability: client-defined
+    timeout_seconds: 30
+  fallback_strategy: queue-and-retry
+  events: []
+  commands: []
+- id: support
+  domain: customer-support
+  provider_candidates:
+  - chatwoot
+  direction: bidirectional
+  criticality: medium
+  data_classes:
+  - operational
+  credential_refs:
+  - env:SUPPORT_CREDENTIALS
+  sla:
+    availability: client-defined
+    timeout_seconds: 30
+  fallback_strategy: queue-and-retry
+  events: []
+  commands: []

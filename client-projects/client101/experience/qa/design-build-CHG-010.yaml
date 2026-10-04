@@ -1,0 +1,32 @@
+client_id: client101
+design_revision: Client101-CHG-010-2026-09-30
+platform: flutter
+checks:
+- id: governed-component-resolution
+  passed: true
+  evidence: >-
+    commerce.product-card and layout.standard-grid resolve through the approved
+    UI implementation registry to ProductCard and GridView-owned wrappers.
+- id: b2c-home-content-density
+  passed: true
+  evidence: >-
+    MerchandisingModuleView no longer maps rating, reviewCount, or deliveryNote
+    into B2C home ProductCard instances; widget coverage verifies their absence.
+- id: responsive-product-composition
+  passed: true
+  evidence: >-
+    Widget tests verify two columns at 320 px and three columns at 768 px with no
+    layout exceptions; rendered captures at 390 px and 768 px show six aligned
+    cells and a contained split merchandising tile.
+- id: penpot-alignment
+  passed: true
+  evidence: >-
+    Penpot Home Screen shape 8af5cce6-1485-8016-8008-b49e9f6596eb has five
+    165x254 product tiles and one 165x254 split tile; rating and delivery
+    metadata are absent from the updated home composition.
+- id: static-and-runtime-validation
+  passed: true
+  evidence: >-
+    flutter analyze and flutter test passed for agency_flutter_ui and
+    prototype_app; flutter build web --release completed successfully.
+status: passed

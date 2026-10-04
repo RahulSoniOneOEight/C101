@@ -1,0 +1,48 @@
+version: 1
+client: client101
+providers:
+  experience_mobile:
+    type: experience
+    provider: flutter
+    version: null
+    extensions: []
+  experience_web:
+    type: experience
+    provider: nextjs
+    version: null
+    extensions: []
+  commerce:
+    type: commerce
+    provider: medusa
+    version: null
+    extensions: []
+  marketplace:
+    type: marketplace
+    provider: mercur
+    version: null
+    extensions: []
+  erp:
+    type: erp
+    provider: tryton
+    version: null
+    extensions: []
+  search:
+    type: search
+    provider: meilisearch
+    version: null
+    extensions: []
+  support:
+    type: customer-support
+    provider: chatwoot
+    version: null
+    extensions: []
+  automation:
+    type: automation
+    provider: activepieces
+    version: null
+    extensions: []
+  database:
+    type: data
+    provider: postgresql
+    version: null
+    extensions: []

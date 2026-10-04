@@ -1,0 +1,36 @@
+client_id: client101
+direction_id: DIR-CLIENT101-A
+build_identity: unbuilt
+requirements_source: input/client-input.yaml#experience_requirements
+coverage_ref: experience/prototypes/a-coverage.yaml
+surfaces:
+- id: customer-app
+  runtime: flutter
+  entry: apps/prototype_app
+- id: web-store
+  runtime: web
+  entry: apps/storefront
+- id: commerce-admin
+  runtime: web
+  entry: apps/commerce_admin
+- id: analytics
+  runtime: web
+  entry: apps/analytics
+- id: erp
+  runtime: external
+  entry: external/erp
+- id: seller-portal
+  runtime: web
+  entry: apps/seller_portal
+- id: b2b
+  runtime: web
+  entry: external/b2b
+- id: ops-console
+  runtime: web
+  entry: apps/ops_console
+fixtures:
+- commerce-baseline
+design_selection_ref: experience/design/selection.yaml
+theme_resolution_ref: experience/design/theme-resolution.yaml
+asset_plan_ref: experience/design/asset-plan.yaml
+status: draft

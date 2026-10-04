@@ -1,0 +1,147 @@
+provider: medusa
+source_dataset: DEMO-client101-v1
+customers:
+- id: CUST-B2C-001
+  name: Aarav Demo
+  type: b2c
+- id: CUST-B2B-014
+  name: Metro Hardware Demo
+  type: b2b
+  gstin: 29ABCDE1234F1Z5
+  credit_limit: 500000
+  credit_available: 185000
+products:
+- id: SKU-1001
+  name: Reference Product A
+  mrp: 1999
+  gst_rate: 18
+  uom: each
+- id: SKU-2001
+  name: Reference Product B
+  mrp: 4800
+  gst_rate: 18
+  uom: case
+warehouses:
+- id: BLR-01
+  name: Bengaluru Central
+- id: BLR-02
+  name: Bengaluru North
+inventory:
+- sku: SKU-1001
+  warehouse: BLR-01
+  on_hand: 42
+  reserved: 7
+  available: 35
+- sku: SKU-2001
+  warehouse: BLR-01
+  on_hand: 8
+  reserved: 8
+  available: 0
+- sku: SKU-2001
+  warehouse: BLR-02
+  on_hand: 17
+  reserved: 2
+  available: 15
+orders:
+- id: ORD-1001
+  customer_id: CUST-B2C-001
+  status: delivered
+  total: 11800
+  payment_status: captured
+  shipment_status: delivered
+- id: ORD-1002
+  customer_id: CUST-B2C-001
+  status: payment_failed
+  total: 4720
+  payment_status: failed
+  shipment_status: not_created
+- id: ORD-1003
+  customer_id: CUST-B2B-014
+  status: approval_pending
+  total: 124800
+  payment_status: part_credit
+  shipment_status: pending
+- id: ORD-1004
+  customer_id: CUST-B2B-014
+  status: partially_fulfilled
+  total: 86400
+  payment_status: captured
+  shipment_status: partial
+- id: ORD-1005
+  customer_id: CUST-B2C-001
+  status: return_requested
+  total: 23600
+  payment_status: captured
+  shipment_status: delivered
+- id: ORD-1006
+  customer_id: CUST-B2C-001
+  status: refund_pending
+  total: 5900
+  payment_status: refund_pending
+  shipment_status: returned
+- id: ORD-1007
+  customer_id: CUST-B2B-014
+  status: inventory_shortage
+  total: 43200
+  payment_status: pending
+  shipment_status: blocked
+- id: ORD-1008
+  customer_id: CUST-B2C-001
+  status: reconciliation_mismatch
+  total: 12980
+  payment_status: captured
+  shipment_status: shipped
+- id: ORD-1009
+  customer_id: CUST-B2B-014
+  status: delivered
+  total: 100000
+  payment_status: credit
+  shipment_status: delivered
+- id: ORD-1010
+  customer_id: CUST-B2C-001
+  status: seller_settlement_pending
+  total: 17500
+  payment_status: captured
+  shipment_status: delivered
+  seller_id: SELLER-001
+payments:
+- id: PAY-1001
+  order_id: ORD-1001
+  provider: razorpay-mock
+  status: captured
+  amount: 11800
+- id: PAY-1002
+  order_id: ORD-1002
+  provider: razorpay-mock
+  status: failed
+  amount: 4720
+- id: PAY-1003A
+  order_id: ORD-1003
+  provider: razorpay-mock
+  status: captured
+  amount: 24800
+- id: PAY-1003B
+  order_id: ORD-1003
+  provider: credit
+  status: approved
+  amount: 100000
+shipments:
+- id: SHP-1001
+  order_id: ORD-1001
+  provider: shiprocket-mock
+  awb: SRDEMO982173
+  status: delivered
+- id: SHP-1008
+  order_id: ORD-1008
+  provider: shiprocket-mock
+  awb: SRDEMO982181
+  status: in_transit
+returns:
+- id: RET-1005
+  order_id: ORD-1005
+  status: qc_pending
+  refund_status: not_started
+- id: RET-1006
+  order_id: ORD-1006
+  status: received
+  refund_status: pending

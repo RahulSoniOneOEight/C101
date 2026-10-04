@@ -1,0 +1,13 @@
+client_id: client101
+required:
+- customer-app
+- web-store
+- commerce-admin
+- analytics
+- erp
+- seller-portal
+- b2b
+- ops-console
+recommended:
+- warehouse
+- customer-support

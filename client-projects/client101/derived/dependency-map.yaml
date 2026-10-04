@@ -1,0 +1,43 @@
+client_id: client101
+critical_cross_domain_flows:
+- id: checkout-to-accounting
+  domains:
+  - experience
+  - commerce
+  - integration
+  - erp
+- id: order-to-fulfilment
+  domains:
+  - commerce
+  - integration
+  - erp
+- id: return-to-refund
+  domains:
+  - experience
+  - commerce
+  - integration
+  - erp
+  - automation
+- id: quote-to-order
+  domains:
+  - experience
+  - commerce
+  - automation
+  - erp
+- id: seller-onboarding-to-approval
+  domains:
+  - experience
+  - marketplace
+  - automation
+- id: commerce-order-to-seller-allocation
+  domains:
+  - commerce
+  - marketplace
+  - integration
+  - erp
+- id: seller-settlement-to-accounting
+  domains:
+  - marketplace
+  - integration
+  - erp
+  - finance

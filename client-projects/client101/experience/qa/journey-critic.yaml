@@ -1,0 +1,10 @@
+client_id: client101
+critic: journey
+checks:
+- id: journey-nodes
+  passed: true
+  evidence: every required journey has executable nodes
+- id: error-states
+  passed: true
+  evidence: every journey node has error behavior
+status: passed

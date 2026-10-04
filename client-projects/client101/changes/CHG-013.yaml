@@ -1,0 +1,27 @@
+change_id: CHG-013
+request: >-
+  Organize the B2B procurement surfaces into dedicated screens and finish the
+  pending Penpot screens. Adds B2B Saved Lists and B2B Suggested Lists
+  (merchandising) screens, wires the home "Frequent & Saved" card and "Seasonal"
+  tile to them, and builds the Catalogue / Schemes / Price Advantage / Saved /
+  Suggested screens in Penpot with clean containment.
+type: ux
+affected_capabilities:
+- b2b-quick-order
+- procurement-list
+- b2b-catalogue
+- b2b-schemes
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- b2b.saved-lists
+- b2b.suggested-lists
+affected_entities:
+- procurement-list
+affected_events: []
+required_tests:
+- saved lists screen shows only buyer-saved lists
+- suggested lists screen shows merchandising lists and filters by source
+- penpot B2B screens containment validation
+approval_required: false
+status: validated

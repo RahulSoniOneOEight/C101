@@ -1,0 +1,121 @@
+client_id: client101
+registry_version: 1
+required_capabilities:
+- analytics
+- approval-workflow
+- assisted-commerce
+- audit
+- authentication
+- b2b-account
+- buyer-seller-chat
+- cart
+- cart-merchandising
+- catalogue
+- checkout
+- commissions
+- credit-management
+- customer-support
+- external-price-comparison
+- fulfilment
+- gst-invoicing
+- inventory-availability
+- lifecycle-automation
+- loyalty
+- marketplace-orders
+- multi-seller-cart
+- notifications
+- ops-exceptions
+- orders
+- payout-reconciliation
+- pricing
+- project-site-purchasing
+- promotions
+- quote-rfq
+- ratings-reviews
+- referral
+- reorder
+- return-refund
+- search
+- seller-analytics
+- seller-approval
+- seller-catalogue
+- seller-inventory
+- seller-onboarding
+- settlements
+- split-order-tracking
+- trade-pricing
+- wishlist
+discovered:
+- domain: commerce
+  runtime: medusa
+  matched_capabilities:
+  - cart
+  - catalogue
+  - checkout
+  - orders
+  - pricing
+  - return-refund
+  adapter: platform/commerce/medusa/adapter.yaml
+  adapter_exists: true
+  classification: RETAIN
+- domain: marketplace
+  runtime: mercur
+  matched_capabilities:
+  - commissions
+  - marketplace-orders
+  - seller-catalogue
+  - seller-inventory
+  - seller-onboarding
+  - settlements
+  adapter: platform/marketplace/mercur/adapter.yaml
+  adapter_exists: true
+  classification: RETAIN
+- domain: search
+  runtime: meilisearch
+  matched_capabilities:
+  - search
+  adapter: platform/search/meilisearch/adapter.yaml
+  adapter_exists: true
+  classification: RETAIN
+unmapped_capabilities:
+- analytics
+- approval-workflow
+- assisted-commerce
+- audit
+- authentication
+- b2b-account
+- buyer-seller-chat
+- cart-merchandising
+- credit-management
+- customer-support
+- external-price-comparison
+- fulfilment
+- gst-invoicing
+- inventory-availability
+- lifecycle-automation
+- loyalty
+- multi-seller-cart
+- notifications
+- ops-exceptions
+- payout-reconciliation
+- project-site-purchasing
+- promotions
+- quote-rfq
+- ratings-reviews
+- referral
+- reorder
+- seller-analytics
+- seller-approval
+- split-order-tracking
+- trade-pricing
+- wishlist
+policy:
+  allowed_classifications:
+  - RETAIN
+  - REUSE
+  - ADAPT
+  - UPGRADE
+  - REPLACE
+  - BUILD
+  build_new_only_after_discovery: true
+status: gaps-present

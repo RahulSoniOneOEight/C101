@@ -1,0 +1,42 @@
+client_id: client101
+design_revision: Client101-CHG-016-2026-10-02
+platform: flutter
+checks:
+- id: buy-again-rail-fit
+  passed: true
+  evidence: >-
+    BuyAgainCard replaces the fixed 84px image with a flexible image that
+    absorbs the remaining rail height, removing the 44px bottom overflow while
+    keeping the product title and Add action visible.
+- id: compact-trade-card-fit
+  passed: true
+  evidence: >-
+    TradeProductCard no longer nests its own padding inside Surface's 24px
+    padding; it uses a single tokenised container at the compact spacing. The
+    badges moved from a Row with a collapsing Expanded to an overflow-safe Wrap,
+    and the unit/MRP price row now uses flexible, ellipsised text. The card
+    content column therefore grows from ~90px to ~138px at a 186px grid tile,
+    eliminating the vertical overflow.
+- id: grid-extent
+  passed: true
+  evidence: >-
+    The B2B home Trade Picks grid and the catalogue grid raise mainAxisExtent
+    from 500 to 540 so the compact card's full content (image, tier selector,
+    price block, fulfilment note, Add + RFQ) fits within the tile.
+- id: device-verification
+  passed: true
+  evidence: >-
+    Built and ran on the API 36 Android emulator (411x914 logical). Navigating
+    through onboarding, B2B sign-in and the B2B trade home rendered the Buy Again
+    rail and the Trade Picks grid with no yellow/black overflow stripes, and
+    logcat contained no "RenderFlex overflowed" or rendering exceptions after
+    the fixes.
+- id: regression-tests
+  passed: true
+  evidence: >-
+    Added test/b2b_layout_overflow_test.dart, which pumps B2B home, catalogue,
+    schemes, quick order, procurement list detail, credit, trade PDP and a
+    populated quotation cart at 1080x2400 @2.625 dpr and asserts no exception.
+    flutter analyze is clean and all tests pass in both packages (21 app tests,
+    22 + 27 captures in the UI package).
+status: passed

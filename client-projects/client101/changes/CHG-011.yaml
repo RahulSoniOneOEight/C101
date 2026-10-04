@@ -1,0 +1,28 @@
+change_id: CHG-011
+request: >-
+  Extend the B2B Quick Order Center so the Upload List tab surfaces Saved and
+  Suggested procurement lists alongside the existing CSV/Excel/PDF upload.
+  Lists are data-driven (backend-curated, buyer-saved, personalized, seasonal,
+  category) via a ProcurementList model and a reusable ProcurementListCard,
+  implemented in both Penpot and Flutter without hardcoding list names in UI.
+type: ux
+affected_capabilities:
+- b2b-quick-order
+- procurement-list
+- cart-merchandising
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- b2b.quick-order-center
+affected_entities:
+- procurement-list
+affected_events:
+- procurement-list.use
+- procurement-list.add-all
+required_tests:
+- procurement list card render (title, count, source, action)
+- quick order center tab + saved/suggested sections render
+- procurement lists provider is data-driven (split by source type)
+- penpot quick order center containment and layout validation
+approval_required: false
+status: validated

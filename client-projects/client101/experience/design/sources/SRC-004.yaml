@@ -1,0 +1,22 @@
+source_id: SRC-004
+type: git
+source_ref: https://github.com/bagisto/opensource-ecommerce-mobile-app
+authority: approved-reference
+components:
+  - product-card
+  - product-gallery
+  - cart-line
+  - checkout-summary
+  - order-card
+  - search-control
+  - category-navigation
+  - variant-selector
+patterns:
+  - name: mobile-ecommerce-browse
+    kind: component
+    evidence: mobile-first product browsing, listing, product detail with gallery
+  - name: mobile-ecommerce-order
+    kind: component
+    evidence: mobile cart, checkout and order history patterns
+notes:
+  - Approved reference: Bagisto open-source e-commerce mobile app (Flutter).

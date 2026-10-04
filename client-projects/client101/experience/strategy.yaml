@@ -1,0 +1,65 @@
+client_id: client101
+principles:
+- client truth over reference imitation
+- journey before screen
+- reuse before build
+- provider-neutral UX
+- implementation-aware design
+journey_priorities:
+- journey: browse-to-buy
+  priority: critical
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: search-to-buy
+  priority: critical
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: order-tracking
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: return-refund
+  priority: critical
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: quote-to-order
+  priority: critical
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: repeat-order
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: credit-order
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: seller-onboarding
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: seller-catalogue
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: marketplace-order
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: seller-fulfilment
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: seller-return
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+- journey: seller-settlement
+  priority: high
+  rationale: Required client journey connected to executable states and runtime capabilities.
+surface_strategy:
+- surface: customer-app
+  role: mobile customer conversion
+- surface: web-store
+  role: web discovery and conversion
+- surface: commerce-admin
+  role: commerce operations
+- surface: analytics
+  role: decision support
+- surface: erp
+  role: accounting and ERP operations
+- surface: seller-portal
+  role: seller operations
+- surface: b2b
+  role: business buying
+- surface: ops-console
+  role: exceptions and recovery
+status: generated

@@ -1,0 +1,10 @@
+client_id: client101
+critic: design
+checks:
+- id: component-resolution
+  passed: true
+  evidence: all Design IR component refs resolve to component contracts
+- id: state-coverage
+  passed: true
+  evidence: every design node declares states
+status: passed

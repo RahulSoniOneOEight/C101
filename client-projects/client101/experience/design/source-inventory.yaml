@@ -1,0 +1,56 @@
+inventory_id: DSI-client101
+client_id: client101
+sources:
+- id: SRC-001
+  type: other
+  ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807abcbffa05af2fb58c
+  authority: client-authoritative
+  notes: D2C feature note (25 feature areas, 29 automations, 5 dashboard groups, provider
+    candidates).
+- id: SRC-002
+  type: other
+  ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807db1eddb9e47afd14f
+  authority: client-authoritative
+  notes: B2B + B2C Figma export/source package (design and functional source); not
+    production technology.
+- id: SRC-003
+  type: git
+  ref: https://github.com/coderbaba0/flipkart_clone
+  authority: approved-reference
+  notes: Existing code / reuse / functional reference.
+- id: SRC-004
+  type: git
+  ref: https://github.com/bagisto/opensource-ecommerce-mobile-app
+  authority: approved-reference
+  notes: App UI reference (Bagisto mobile e-commerce app).
+- id: SRC-005
+  type: git
+  ref: https://github.com/medusajs/ui
+  authority: approved-reference
+  notes: Medusa UI reference (design-system components and icons).
+- id: source-ref-1
+  type: other
+  ref: SRC-001
+  authority: client-authoritative
+  notes: existing onboarding source reference
+- id: source-ref-2
+  type: other
+  ref: SRC-002
+  authority: client-authoritative
+  notes: existing onboarding source reference
+- id: source-ref-3
+  type: other
+  ref: SRC-003
+  authority: client-authoritative
+  notes: existing onboarding source reference
+- id: source-ref-4
+  type: other
+  ref: SRC-004
+  authority: client-authoritative
+  notes: existing onboarding source reference
+- id: source-ref-5
+  type: other
+  ref: SRC-005
+  authority: client-authoritative
+  notes: existing onboarding source reference
+status: evaluated

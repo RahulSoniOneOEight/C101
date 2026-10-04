@@ -1,0 +1,318 @@
+consolidation_id: JCONS-client101
+client_id: client101
+purpose: consolidated-journeys-and-components-for-direction-review
+final_journeys:
+- id: browse-to-buy
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-003
+  - SRC-004
+  - SRC-005
+- id: search-to-buy
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-003
+  - SRC-004
+  - SRC-005
+- id: order-tracking
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-004
+  - SRC-005
+- id: return-refund
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+- id: quote-to-order
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-002
+  - SRC-005
+- id: repeat-order
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-002
+  - SRC-005
+- id: credit-order
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-002
+  - SRC-005
+- id: seller-onboarding
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-005
+- id: seller-catalogue
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-005
+- id: marketplace-order
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+- id: seller-fulfilment
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-005
+- id: seller-return
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-005
+- id: seller-settlement
+  status: kept
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+- id: REQ-cart-merchandising
+  status: kept
+  derived_from:
+  - client-brief
+- id: REQ-external-price-comparison
+  status: kept
+  derived_from:
+  - client-brief
+- id: REQ-project-site-purchasing
+  status: kept
+  derived_from:
+  - client-brief
+- id: REQ-project-site-reorder
+  status: kept
+  derived_from:
+  - client-brief
+final_components:
+- id: related-products-rail
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-001
+- id: product-card
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-001
+  - SRC-003
+  - SRC-004
+  - SRC-005
+- id: cart-line
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-001
+  - SRC-003
+  - SRC-004
+- id: quick-add
+  status: kept
+  derived_from:
+  - client-brief
+- id: price-comparison
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-001
+- id: competitor-price
+  status: kept
+  derived_from:
+  - client-brief
+- id: project-card
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-002
+- id: project-selector
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-002
+- id: material-list
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-002
+- id: reorder-action
+  status: kept
+  derived_from:
+  - client-brief
+  - SRC-001
+  - SRC-002
+- id: approval-status
+  status: kept
+  derived_from:
+  - SRC-002
+- id: badge
+  status: kept
+  derived_from:
+  - SRC-005
+- id: bottom-nav
+  status: kept
+  derived_from:
+  - SRC-003
+  - SRC-005
+- id: button
+  status: kept
+  derived_from:
+  - SRC-005
+- id: category-navigation
+  status: kept
+  derived_from:
+  - SRC-003
+  - SRC-004
+- id: checkout-summary
+  status: kept
+  derived_from:
+  - SRC-001
+  - SRC-003
+  - SRC-004
+- id: coupon-entry
+  status: kept
+  derived_from:
+  - SRC-001
+- id: credit-limit
+  status: kept
+  derived_from:
+  - SRC-002
+- id: data-table
+  status: kept
+  derived_from:
+  - SRC-005
+- id: dialog
+  status: kept
+  derived_from:
+  - SRC-005
+- id: filter-chip
+  status: kept
+  derived_from:
+  - SRC-005
+- id: filter-control
+  status: kept
+  derived_from:
+  - SRC-003
+- id: gst-invoice
+  status: kept
+  derived_from:
+  - SRC-002
+- id: input
+  status: kept
+  derived_from:
+  - SRC-005
+- id: notification
+  status: kept
+  derived_from:
+  - SRC-001
+- id: order-card
+  status: kept
+  derived_from:
+  - SRC-001
+  - SRC-003
+  - SRC-004
+- id: price-line
+  status: kept
+  derived_from:
+  - SRC-005
+- id: product-gallery
+  status: kept
+  derived_from:
+  - SRC-004
+- id: profile-settings
+  status: kept
+  derived_from:
+  - SRC-001
+- id: promotion-banner
+  status: kept
+  derived_from:
+  - SRC-001
+- id: quantity-stepper
+  status: kept
+  derived_from:
+  - SRC-005
+- id: radio-card
+  status: kept
+  derived_from:
+  - SRC-005
+- id: referral
+  status: kept
+  derived_from:
+  - SRC-001
+- id: return-status
+  status: kept
+  derived_from:
+  - SRC-001
+- id: rfq-form
+  status: kept
+  derived_from:
+  - SRC-002
+- id: search-bar
+  status: kept
+  derived_from:
+  - SRC-005
+- id: search-control
+  status: kept
+  derived_from:
+  - SRC-001
+  - SRC-003
+  - SRC-004
+- id: sort-control
+  status: kept
+  derived_from:
+  - SRC-003
+- id: support-entry
+  status: kept
+  derived_from:
+  - SRC-001
+- id: tabs
+  status: kept
+  derived_from:
+  - SRC-005
+- id: toast
+  status: kept
+  derived_from:
+  - SRC-005
+- id: trade-price
+  status: kept
+  derived_from:
+  - SRC-002
+- id: variant-selector
+  status: kept
+  derived_from:
+  - SRC-004
+- id: wishlist
+  status: kept
+  derived_from:
+  - SRC-001
+- id: workflow-action
+  status: kept
+  derived_from:
+  - SRC-002
+discarded_journeys:
+- id: loyalty-rewards
+  identified_from:
+  - client-brief
+  - SRC-001
+  reason: NOT confirmed for Phase 1 (client constraint)
+- id: personalisation
+  identified_from:
+  - client-brief
+  - SRC-001
+  reason: NOT confirmed for Phase 1 (client constraint)
+design_theme:
+  palette: slate-professional
+  source: design-contract/themes + client brief brand
+status: review-ready

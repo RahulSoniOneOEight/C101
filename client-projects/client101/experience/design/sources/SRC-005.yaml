@@ -1,0 +1,25 @@
+source_id: SRC-005
+type: git
+source_ref: https://github.com/medusajs/ui
+authority: approved-reference
+components:
+  - button
+  - input
+  - badge
+  - quantity-stepper
+  - price-line
+  - search-bar
+  - filter-chip
+  - radio-card
+  - product-card
+  - bottom-nav
+  - tabs
+  - toast
+  - dialog
+  - data-table
+patterns:
+  - name: design-system-primitives
+    kind: component
+    evidence: Medusa UI design-system primitives (buttons, inputs, badges, cards, tables) and icons
+notes:
+  - Approved reference: Medusa UI design-system components and icons; wrap behind PinCommerce shared primitives.

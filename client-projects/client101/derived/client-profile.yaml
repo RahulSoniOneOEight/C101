@@ -1,0 +1,52 @@
+client_id: client101
+industry: retail
+business_models:
+- d2c
+- b2c
+- b2b
+- marketplace
+archetypes:
+- d2c-commerce
+- b2b-commerce
+- marketplace
+geographies:
+- India
+risk_profile: standard
+goals:
+- Unified B2C/D2C multi-seller marketplace with a simple consumer experience across
+  sellers and categories
+- B2B procurement marketplace (RFQ, bulk/trade pricing, credit, repeat ordering, business
+  accounts)
+- Integrated commerce operations (orders, inventory, fulfilment, finance/settlement,
+  ERP)
+- Tier-2-friendly experience (mobile-first, UPI/COD, assisted/WhatsApp commerce, data-light,
+  localized)
+- Automation and management visibility (lifecycle/operations automations and functional
+  dashboards)
+existing_systems: []
+constraints:
+- Greenfield implementation; no current commerce, ERP/accounting, inventory/WMS or
+  support systems identified
+- Phase 1 scope is B2C + B2B + seller experience together, including Commerce Operations/Admin
+  UX and ERP/Accounting UX
+- Mobile-first and data-light
+- UPI, COD and assisted/WhatsApp commerce emphasized
+- Vernacular/localized UX direction
+- Mixed catalogue/inventory/fulfilment ownership model
+- 10 sellers at launch, approximately 30 SKUs per seller
+- Referral is included in Phase 1
+- Loyalty/rewards and personalisation are NOT confirmed for Phase 1
+- Multi-seller offers; backend splits orders by seller/warehouse/fulfilment location
+- Seller-specific return conditions/policies must be visible
+- Marketplace finance separates seller payable, commission, gateway/logistics/promotion
+  adjustments and refund liability
+- GST/business documents required for B2B flows
+- Exact launch geography, order volumes, timeline, budget and performance targets
+  remain TBD
+- Technology implementation (Flutter/web/backend stack) is not treated as client-confirmed
+required_integrations:
+- payments
+- logistics
+- messaging
+- support
+status: normalized

@@ -1,0 +1,20 @@
+client_id: client101
+workflow_version: 1
+current_stage: multi-surface-prototype
+completed:
+- client-intake
+- normalize-client-truth
+- classify-industry-archetype
+- benchmark-best-practices
+- capability-gap-analysis
+- resource-reuse-analysis
+- capability-map
+- journey-map
+- entity-map
+- surface-map
+- integration-map
+- dependency-map
+- solution-architecture
+- experience-directions
+blocked: false
+human_approvals: []

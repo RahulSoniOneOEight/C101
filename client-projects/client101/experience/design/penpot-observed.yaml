@@ -1,0 +1,100 @@
+project_ref: 40e06342-8830-80d6-8008-9a92fdfb6804
+revision_ref: 40e06342-8830-80d6-8008-9a92fdfb6804@95
+project_name: Client101
+pages:
+  - name: Page 1
+    id: 40e06342-8830-80d6-8008-9a92fdfb6805
+    content: design-system-components
+  - name: Screens
+    content: login-and-home-screens
+direction:
+  selected: A+B hybrid (AB)
+  strategy: discovery-and-search
+  recorded_on: '2026-09-28'
+theme:
+  palette: indigo
+  typography: Inter (provisional; client brief specifies no font)
+  dark_mode: deferred (no governed dark values yet)
+token_sets:
+  - primitives
+  - semantic
+  - modes/light
+components:
+  - ProductCard
+  - Search
+  - CartLine
+  - CheckoutSummary
+  - OrderCard
+  - ReturnStatus
+  - ShipmentStatus
+  - RFQForm
+  - ReorderAction
+  - CreditLimit
+  - ApprovalStatus
+  - WorkflowAction
+  - Form
+  - Filters
+  - DataTable
+  - Chart
+  - Carousel
+  - ProductGrid
+  - MasonryGrid
+  - Toast
+  - Tabs
+  - Dialog
+  - DateTime
+component_counts:
+  ProductCard: 35
+  Search: 10
+  CartLine: 12
+  CheckoutSummary: 8
+  OrderCard: 16
+  RFQForm: 2
+  ShipmentStatus: 5
+  ReturnStatus: 5
+  CreditLimit: 3
+  ApprovalStatus: 3
+  WorkflowAction: 3
+  ReorderAction: 2
+  Form: 2
+  Filters: 4
+  DataTable: 3
+  Chart: 4
+  Carousel: 3
+  ProductGrid: 4
+  MasonryGrid: 2
+  Toast: 4
+  Tabs: 2
+  Dialog: 2
+  DateTime: 2
+screens:
+  - name: Login Screen
+    surface: customer-app
+    includes: [back-navigation, logo, phone-input, password-input, primary-button, google-social-login, signup-link]
+  - name: Home Screen
+    surface: customer-app
+    includes: [header, search-bar, category-chips, hero-banner, featured-products-grid, bottom-navigation]
+  - name: Product Detail Screen
+    surface: customer-app
+    includes: [back-navigation, product-image, title, rating, price, seller-info, quantity-stepper, add-to-cart]
+  - name: Cart Screen
+    surface: customer-app
+    includes: [back-navigation, cart-line-items, order-summary, checkout-button]
+  - name: Checkout Screen
+    surface: customer-app
+    includes: [back-navigation, delivery-address, payment-methods, order-summary, place-order]
+imagery:
+  provider: pexels
+  license: Pexels-License
+  assets: [hero-construction, drill, ceramic-tiles, plumbing, electrical]
+icons:
+  family: Phosphor (regular weight)
+  used: [magnifying-glass, shopping-cart-simple, bell, house, squares-four, user, phone, lock-simple, eye, arrow-left, google-logo]
+interactive_journeys: []
+known_limitations:
+  - variant-grouping deferred (standalone cells to avoid Penpot variant-corruption risk)
+  - dark mode deferred (no governed dark values)
+  - 14 component-internal text fills render correct colors but are not token-bound (Penpot applyToken fill persistence limitation on component internals)
+  - 4 border strokes use raw resolved hex (mirror of color.border.default)
+source: penpot-mcp
+status: observed

@@ -1,0 +1,52 @@
+runtime_id: PCR-client101
+client_id: client101
+modules:
+- provider: medusa
+  baseline_ref: platform/prototype/baselines/medusa-standard-v1.yaml
+  required: true
+  mode: real-core
+  overrides: []
+  health:
+    required: true
+    evidence_ref: null
+  seed_evidence_ref: null
+  status: planned
+- provider: mercur
+  baseline_ref: platform/prototype/baselines/mercur-standard-v1.yaml
+  required: true
+  mode: real-core
+  overrides: []
+  health:
+    required: true
+    evidence_ref: null
+  seed_evidence_ref: null
+  status: planned
+- provider: tryton
+  baseline_ref: platform/prototype/baselines/tryton-standard-v1.yaml
+  required: true
+  mode: real-core
+  overrides: []
+  health:
+    required: true
+    evidence_ref: null
+  seed_evidence_ref: null
+  status: planned
+external_integrations:
+- provider: razorpay
+  mode: mock
+  scenario_catalog_ref: platform/prototype/mocks/provider-scenarios.yaml
+  status: ready
+- provider: shiprocket
+  mode: mock
+  scenario_catalog_ref: platform/prototype/mocks/provider-scenarios.yaml
+  status: ready
+- provider: meta-whatsapp-cloud
+  mode: mock
+  scenario_catalog_ref: platform/prototype/mocks/provider-scenarios.yaml
+  status: ready
+- provider: support
+  mode: mock
+  scenario_catalog_ref: platform/prototype/mocks/provider-scenarios.yaml
+  status: ready
+demo_dataset_ref: experience/fixtures/client101-demo-dataset.yaml
+status: incomplete

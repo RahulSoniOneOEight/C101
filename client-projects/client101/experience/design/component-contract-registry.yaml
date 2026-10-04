@@ -1,0 +1,346 @@
+client_id: client101
+components:
+- id: product-card
+  semantic_role: product card
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinProductCard
+    web: PinProductCard
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+  content_rules:
+  - B2C home cards omit rating, review-count, and delivery-promise metadata.
+  - Promotional and trust badges overlay product media instead of adding variable card height.
+  responsive_rules:
+  - B2C home composition uses two columns on phones and three columns on tablets.
+  - The split merchandising cell matches the adjacent product-card row height.
+- id: cart-line
+  semantic_role: cart line
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinCartLine
+    web: PinCartLine
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: checkout-summary
+  semantic_role: checkout summary
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinCheckoutSummary
+    web: PinCheckoutSummary
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: order-card
+  semantic_role: order card
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinOrderCard
+    web: PinOrderCard
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: search-control
+  semantic_role: search control
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinSearchControl
+    web: PinSearchControl
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: shipment-status
+  semantic_role: shipment status
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinShipmentStatus
+    web: PinShipmentStatus
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: return-status
+  semantic_role: return status
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinReturnStatus
+    web: PinReturnStatus
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: rfq-form
+  semantic_role: rfq form
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinRfqForm
+    web: PinRfqForm
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: reorder-action
+  semantic_role: reorder action
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinReorderAction
+    web: PinReorderAction
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: credit-limit
+  semantic_role: credit limit
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinCreditLimit
+    web: PinCreditLimit
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: approval-status
+  semantic_role: approval status
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinApprovalStatus
+    web: PinApprovalStatus
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: workflow-action
+  semantic_role: workflow action
+  variants:
+  - default
+  - compact
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: PinWorkflowAction
+    web: PinWorkflowAction
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+- id: procurement-list-card
+  semantic_role: procurement list card
+  variants:
+  - default
+  states:
+  - default
+  tokens:
+  - surface
+  - text.primary
+  - action.primary
+  - border
+  implementation:
+    flutter: ProcurementListCard
+    web: ProcurementListCard
+  accessibility:
+  - keyboard/focus where interactive
+  - semantic label
+  - contrast policy
+  qa:
+  - widget/story render
+  - responsive states
+  - visual evidence
+  content_rules:
+  - List names and counts are data-driven; source type drives the label and accent.
+  - Source types: backend_curated, buyer_saved, personalized, seasonal, category_based.
+status: generated

@@ -1,0 +1,31 @@
+client_id: client101
+design_revision: Client101-CHG-015-2026-09-30
+platform: flutter
+checks:
+- id: android-platform-target
+  passed: true
+  evidence: >-
+    Generated android/ with flutter create --platforms=android --org
+    com.buildkart; .metadata now tracks both android and web; analysis_options
+    excludes android/**; compileSdk/targetSdk inherit Flutter 3.47 defaults (36)
+    and minSdk 24.
+- id: android-build-and-launch
+  passed: true
+  evidence: >-
+    flutter run -d emulator-5554 assembled app-debug.apk, installed it and
+    launched com.buildkart.prototype_app (pid observed) on an API 36
+    (Android 16) x86_64 AVD; the Dart VM service attached for hot reload.
+- id: android-runtime-render
+  passed: true
+  evidence: >-
+    Onboarding, login and the B2C home scroll feed render on the emulator with
+    the debug demo catalog; the catalog loaded, unlike the release web build
+    which correctly showed the retry state with no backend configured.
+- id: toolchain-prerequisites
+  passed: true
+  evidence: >-
+    Android command-line tools (2026 android CLI), platform 36, an API 36 Google
+    APIs system image and NDK 28.2.13676358 are required for the build; the
+    Android SDK, AVD store and Gradle cache were relocated to D: because C: had
+    insufficient free space.
+status: passed

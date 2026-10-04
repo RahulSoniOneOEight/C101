@@ -1,0 +1,58 @@
+asset_plan_id: ASSET-client101
+client_id: client101
+source_order:
+- client-supplied
+- existing-project-assets
+- pincommerce-approved-fixtures
+- pexels
+- generated-neutral-placeholder
+requests:
+- id: homepage-hero
+  purpose: homepage-hero
+  provider_policy: client-assets-first; pexels-if-missing
+  query:
+    text: retail
+    orientation: landscape
+    candidate_count: 8
+  selected_asset: null
+  status: planned
+- id: static-banner
+  purpose: static-banner
+  provider_policy: client-assets-first; pexels-if-missing
+  query:
+    text: retail
+    orientation: landscape
+    size: large
+    candidate_count: 8
+  selected_asset: null
+  status: planned
+- id: category-editorial
+  purpose: category-editorial
+  provider_policy: client-assets-first; pexels-if-missing
+  query:
+    text: retail
+    orientation: landscape
+    candidate_count: 8
+  selected_asset: null
+  status: planned
+- id: product-tile
+  purpose: product-tile
+  provider_policy: client-assets-first; pexels-if-missing
+  query:
+    text: retail
+    orientation: square
+    candidate_count: 8
+  selected_asset: null
+  status: planned
+client_media_present: false
+pexels:
+  enabled: true
+  api_key_ref: env:PEXELS_API_KEY
+  website_url: https://www.pexels.com/
+  api_root: https://api.pexels.com/v1
+  license: Pexels-License
+  use_only_after:
+  - client-supplied
+  - existing-project-assets
+  - pincommerce-approved-fixtures
+status: ready

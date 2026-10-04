@@ -1,0 +1,30 @@
+client_id: client101
+experience_status: experience-prototype-complete
+runtime_status: incomplete
+vertical_slices:
+- id: browse-to-buy
+  passed: false
+  evidence: journey=browse-to-buy; runtime_critic=blocked
+- id: payment-failure-recovery
+  passed: false
+  evidence: journey=browse-to-buy; runtime_critic=blocked
+- id: order-to-erp
+  passed: false
+  evidence: journey=browse-to-buy; runtime_critic=blocked
+- id: order-to-shipment
+  passed: false
+  evidence: journey=order-tracking; runtime_critic=blocked
+- id: return-refund
+  passed: false
+  evidence: journey=return-refund; runtime_critic=blocked
+- id: seller-settlement
+  passed: false
+  evidence: journey=quote-to-order; runtime_critic=blocked
+- id: reconciliation
+  passed: false
+  evidence: journey=browse-to-buy; runtime_critic=blocked
+critics:
+  design: true
+  journey: true
+  runtime: false
+status: blocked

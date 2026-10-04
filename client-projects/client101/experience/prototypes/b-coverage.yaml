@@ -1,0 +1,745 @@
+coverage_id: COV-client101-b
+client_id: client101
+direction_id: DIR-CLIENT101-B
+prototype_manifest_ref: experience/prototypes/b-manifest.yaml
+implementation_ref: null
+requirements:
+- requirement_id: REQ-cart-merchandising
+  statement: Show related/complementary products based on products already in the
+    cart before checkout completion, with quick-add where appropriate. Recommendation
+    logic must remain configurable rather than hard-coded into the UI.
+  ux_impact: true
+  source_refs:
+  - SRC-001
+  - SRC-002
+  prototype_coverage:
+  - surface: customer-app
+    screens:
+    - cart
+    - checkout
+    components:
+    - related-products-rail
+    - product-card
+    - cart-line
+    - quick-add
+    states:
+    - default
+    - empty
+    - loading
+  - surface: web-store
+    screens:
+    - cart
+    - checkout
+    components:
+    - related-products-rail
+    - product-card
+    - cart-line
+    - quick-add
+    states:
+    - default
+    - empty
+    - loading
+  - surface: b2b
+    screens:
+    - cart
+    - checkout
+    components:
+    - related-products-rail
+    - product-card
+    - cart-line
+    - quick-add
+    states:
+    - default
+    - empty
+    - loading
+  decision_reason: null
+  status: covered
+- requirement_id: REQ-external-price-comparison
+  statement: Product tiles/PDP may show comparable observed Amazon/Flipkart prices,
+    clearly distinguished from own selling price. Competitor-price records must retain
+    source marketplace, observed price and observation/freshness timestamp so stale
+    or unavailable external prices are handled safely.
+  ux_impact: true
+  source_refs:
+  - SRC-001
+  prototype_coverage:
+  - surface: customer-app
+    screens:
+    - product-list
+    - product-detail
+    components:
+    - product-card
+    - price-comparison
+    - competitor-price
+    states:
+    - default
+    - stale-price
+    - unavailable
+  - surface: web-store
+    screens:
+    - product-list
+    - product-detail
+    components:
+    - product-card
+    - price-comparison
+    - competitor-price
+    states:
+    - default
+    - stale-price
+    - unavailable
+  - surface: b2b
+    screens:
+    - product-list
+    - product-detail
+    components:
+    - product-card
+    - price-comparison
+    - competitor-price
+    states:
+    - default
+    - stale-price
+    - unavailable
+  decision_reason: null
+  status: covered
+- requirement_id: REQ-project-site-purchasing
+  statement: A B2B account can manage multiple projects/sites and delivery locations,
+    build project-specific material lists/carts/orders, and deliver orders to the
+    appropriate project/location. Project/Site is a first-class business context (name,
+    delivery location, material lists, RFQs/orders, purchasing history), not merely
+    a saved address.
+  ux_impact: true
+  source_refs:
+  - SRC-002
+  prototype_coverage:
+  - surface: b2b
+    screens:
+    - project-list
+    - project-detail
+    - material-list
+    components:
+    - project-card
+    - project-selector
+    - material-list
+    states:
+    - default
+    - empty
+    - loading
+  decision_reason: null
+  status: covered
+- requirement_id: REQ-project-site-reorder
+  statement: A B2B account can view project/site-level purchasing history and conveniently
+    reorder from previous project orders or material lists.
+  ux_impact: true
+  source_refs:
+  - SRC-002
+  prototype_coverage:
+  - surface: b2b
+    screens:
+    - project-detail
+    - order-history
+    components:
+    - project-card
+    - reorder-action
+    states:
+    - default
+    - empty
+    - loading
+  decision_reason: null
+  status: covered
+- requirement_id: REQ-competitor-price-data
+  statement: Amazon/Flipkart observed prices are external inputs supplied by a crawler/price-intelligence
+    process; UX consumes normalized competitor-price data (marketplace, observed price,
+    freshness timestamp).
+  ux_impact: false
+  source_refs:
+  - SRC-001
+  prototype_coverage: []
+  decision_reason: null
+  status: not-applicable
+- requirement_id: REQ-configurable-recommendations
+  statement: Cart/checkout recommendation logic must remain configurable rather than
+    hard-coded into the UI.
+  ux_impact: false
+  source_refs:
+  - SRC-001
+  prototype_coverage: []
+  decision_reason: null
+  status: not-applicable
+surface_coverage:
+- surface: customer-app
+  required: true
+  screens:
+  - home
+  - search
+  - product-list
+  - product-detail
+  - cart
+  - checkout
+  - orders
+  - profile
+  - category
+  - search-results
+  - address
+  - delivery
+  - payment
+  - order-confirmation
+  - order-detail
+  - inventory
+  - return-request
+  - return-status
+  - rfq
+  - quote-detail
+  - support
+  - account
+  - approval-status
+  components:
+  - navigation
+  - search-bar
+  - product-card
+  - cart-line
+  - order-card
+  - category-navigation
+  - product-gallery
+  - variant-selector
+  - search-suggestions
+  - filter-control
+  - sort-control
+  - promotion-banner
+  - coupon-entry
+  - discount-breakdown
+  - quantity-selector
+  - price-summary
+  - address-card
+  - delivery-option
+  - payment-method
+  - order-summary
+  - order-status
+  - order-timeline
+  - availability-indicator
+  - warehouse-availability
+  - return-reason
+  - pickup-option
+  - refund-status
+  - rfq-form
+  - quote-line
+  - quote-status
+  - support-entry
+  - whatsapp-cta
+  - ticket-status
+  - credit-limit-card
+  - credit-balance
+  - credit-status
+  - approval-banner
+  - approver-status
+  - approval-action
+  - related-products-rail
+  - quick-add
+  - price-comparison
+  - competitor-price
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - out-of-stock
+  - no-results
+  - coupon-valid
+  - coupon-invalid
+  - payment-failed
+  - order-success
+  - in-stock
+  - low-stock
+  - approval-pending
+  - rejected
+  - refunded
+  - draft
+  - submitted
+  - approved
+  - available
+  - partially-used
+  - limit-exceeded
+  - stale-price
+  - unavailable
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: web-store
+  required: true
+  screens:
+  - home
+  - search
+  - product-list
+  - product-detail
+  - cart
+  - checkout
+  - account
+  - orders
+  - category
+  - search-results
+  - address
+  - delivery
+  - payment
+  - order-confirmation
+  - order-detail
+  - inventory
+  - return-request
+  - return-status
+  - rfq
+  - quote-detail
+  - support
+  - approval-status
+  components:
+  - header
+  - navigation
+  - search-bar
+  - product-card
+  - cart-line
+  - order-card
+  - category-navigation
+  - product-gallery
+  - variant-selector
+  - search-suggestions
+  - filter-control
+  - sort-control
+  - promotion-banner
+  - coupon-entry
+  - discount-breakdown
+  - quantity-selector
+  - price-summary
+  - address-card
+  - delivery-option
+  - payment-method
+  - order-summary
+  - order-status
+  - order-timeline
+  - availability-indicator
+  - warehouse-availability
+  - return-reason
+  - pickup-option
+  - refund-status
+  - rfq-form
+  - quote-line
+  - quote-status
+  - support-entry
+  - whatsapp-cta
+  - ticket-status
+  - credit-limit-card
+  - credit-balance
+  - credit-status
+  - approval-banner
+  - approver-status
+  - approval-action
+  - related-products-rail
+  - quick-add
+  - price-comparison
+  - competitor-price
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - out-of-stock
+  - no-results
+  - coupon-valid
+  - coupon-invalid
+  - payment-failed
+  - order-success
+  - in-stock
+  - low-stock
+  - approval-pending
+  - rejected
+  - refunded
+  - draft
+  - submitted
+  - approved
+  - available
+  - partially-used
+  - limit-exceeded
+  - stale-price
+  - unavailable
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: commerce-admin
+  required: true
+  screens:
+  - dashboard
+  - products
+  - orders
+  - inventory
+  - promotions
+  - returns
+  - customers
+  - settings
+  - home
+  - category
+  - product-list
+  - product-detail
+  - search
+  - search-results
+  - cart
+  - checkout
+  - return-request
+  - return-status
+  - rfq
+  - quote-detail
+  - exceptions
+  - exception-detail
+  - account
+  - approval-status
+  components:
+  - data-table
+  - filter-bar
+  - form
+  - status-chip
+  - bulk-actions
+  - category-navigation
+  - product-card
+  - product-gallery
+  - variant-selector
+  - search-bar
+  - search-suggestions
+  - filter-control
+  - sort-control
+  - promotion-banner
+  - coupon-entry
+  - discount-breakdown
+  - availability-indicator
+  - warehouse-availability
+  - return-reason
+  - pickup-option
+  - refund-status
+  - metric-card
+  - trend-chart
+  - rfq-form
+  - quote-line
+  - quote-status
+  - exception-card
+  - retry-action
+  - replay-action
+  - credit-limit-card
+  - credit-balance
+  - credit-status
+  - approval-banner
+  - approver-status
+  - approval-action
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - out-of-stock
+  - no-results
+  - coupon-valid
+  - coupon-invalid
+  - in-stock
+  - low-stock
+  - approval-pending
+  - rejected
+  - refunded
+  - draft
+  - submitted
+  - approved
+  - open
+  - retrying
+  - resolved
+  - failed
+  - available
+  - partially-used
+  - limit-exceeded
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: analytics
+  required: true
+  screens:
+  - dashboard
+  - sales
+  - orders
+  - inventory
+  - fulfilment
+  - customers
+  - exceptions
+  - exception-detail
+  components:
+  - metric-card
+  - trend-chart
+  - filter-bar
+  - data-table
+  - exception-card
+  - retry-action
+  - replay-action
+  - status-chip
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - open
+  - retrying
+  - resolved
+  - failed
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: erp
+  required: true
+  screens:
+  - products
+  - sales-orders
+  - purchases
+  - inventory
+  - warehouse
+  - invoices
+  - product-detail
+  - rfq
+  - quote-detail
+  - account
+  - checkout
+  - approval-status
+  components:
+  - data-table
+  - form
+  - status-chip
+  - document-lines
+  - availability-indicator
+  - warehouse-availability
+  - rfq-form
+  - quote-line
+  - quote-status
+  - credit-limit-card
+  - credit-balance
+  - credit-status
+  - approval-banner
+  - approver-status
+  - approval-action
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - in-stock
+  - low-stock
+  - out-of-stock
+  - draft
+  - submitted
+  - approved
+  - rejected
+  - available
+  - partially-used
+  - limit-exceeded
+  - approval-pending
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: seller-portal
+  required: true
+  screens:
+  - dashboard
+  - catalogue
+  - inventory
+  - pricing
+  - orders
+  - returns
+  - settlements
+  - settings
+  - home
+  - category
+  - product-list
+  - product-detail
+  - search
+  - search-results
+  - return-request
+  - return-status
+  components:
+  - metric-card
+  - data-table
+  - filter-bar
+  - form
+  - status-chip
+  - category-navigation
+  - product-card
+  - product-gallery
+  - variant-selector
+  - search-bar
+  - search-suggestions
+  - filter-control
+  - sort-control
+  - availability-indicator
+  - warehouse-availability
+  - return-reason
+  - pickup-option
+  - refund-status
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - out-of-stock
+  - no-results
+  - in-stock
+  - low-stock
+  - approval-pending
+  - rejected
+  - refunded
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: b2b
+  required: true
+  screens:
+  - cart
+  - checkout
+  - product-list
+  - product-detail
+  - project-list
+  - project-detail
+  - material-list
+  - order-history
+  components:
+  - related-products-rail
+  - product-card
+  - cart-line
+  - quick-add
+  - price-comparison
+  - competitor-price
+  - project-card
+  - project-selector
+  - material-list
+  - reorder-action
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - stale-price
+  - unavailable
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+- surface: ops-console
+  required: true
+  screens:
+  - exceptions
+  - payments
+  - shipments
+  - reconciliation
+  - health
+  - exception-detail
+  components:
+  - exception-card
+  - data-table
+  - retry-action
+  - replay-action
+  - status-chip
+  states:
+  - default
+  - loading
+  - empty
+  - failure
+  - open
+  - retrying
+  - resolved
+  - failed
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  status: complete
+blocking_items:
+- 'prototype implementation evidence missing: experience/prototypes/b-implementation.yaml'
+status: incomplete

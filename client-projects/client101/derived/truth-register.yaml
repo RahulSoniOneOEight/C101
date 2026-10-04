@@ -1,0 +1,409 @@
+client_id: client101
+version: 2
+records:
+- truth_id: TRUTH-0001
+  path: industry
+  value: retail
+  classification: fact
+  confidence: 1.0
+  sources: &id001
+  - SRC-001
+  - SRC-002
+  - SRC-003
+  - SRC-004
+  - SRC-005
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0002
+  path: business_models
+  value:
+  - d2c
+  - b2c
+  - b2b
+  - marketplace
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0003
+  path: goals
+  value:
+  - Unified B2C/D2C multi-seller marketplace with a simple consumer experience across
+    sellers and categories
+  - B2B procurement marketplace (RFQ, bulk/trade pricing, credit, repeat ordering,
+    business accounts)
+  - Integrated commerce operations (orders, inventory, fulfilment, finance/settlement,
+    ERP)
+  - Tier-2-friendly experience (mobile-first, UPI/COD, assisted/WhatsApp commerce,
+    data-light, localized)
+  - Automation and management visibility (lifecycle/operations automations and functional
+    dashboards)
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0004
+  path: requested_capabilities
+  value:
+  - catalogue
+  - search
+  - pricing
+  - promotions
+  - cart
+  - checkout
+  - orders
+  - inventory-availability
+  - fulfilment
+  - return-refund
+  - analytics
+  - loyalty
+  - customer-support
+  - lifecycle-automation
+  - ops-exceptions
+  - b2b-account
+  - quote-rfq
+  - credit-management
+  - approval-workflow
+  - reorder
+  - seller-onboarding
+  - seller-catalogue
+  - seller-inventory
+  - marketplace-orders
+  - commissions
+  - settlements
+  - seller-analytics
+  - seller-approval
+  - payout-reconciliation
+  - multi-seller-cart
+  - split-order-tracking
+  - external-price-comparison
+  - cart-merchandising
+  - project-site-purchasing
+  - buyer-seller-chat
+  - ratings-reviews
+  - referral
+  - wishlist
+  - notifications
+  - trade-pricing
+  - gst-invoicing
+  - assisted-commerce
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0005
+  path: required_integrations
+  value:
+  - payments
+  - logistics
+  - messaging
+  - support
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0006
+  path: constraints
+  value:
+  - Greenfield implementation; no current commerce, ERP/accounting, inventory/WMS
+    or support systems identified
+  - Phase 1 scope is B2C + B2B + seller experience together, including Commerce Operations/Admin
+    UX and ERP/Accounting UX
+  - Mobile-first and data-light
+  - UPI, COD and assisted/WhatsApp commerce emphasized
+  - Vernacular/localized UX direction
+  - Mixed catalogue/inventory/fulfilment ownership model
+  - 10 sellers at launch, approximately 30 SKUs per seller
+  - Referral is included in Phase 1
+  - Loyalty/rewards and personalisation are NOT confirmed for Phase 1
+  - Multi-seller offers; backend splits orders by seller/warehouse/fulfilment location
+  - Seller-specific return conditions/policies must be visible
+  - Marketplace finance separates seller payable, commission, gateway/logistics/promotion
+    adjustments and refund liability
+  - GST/business documents required for B2B flows
+  - Exact launch geography, order volumes, timeline, budget and performance targets
+    remain TBD
+  - Technology implementation (Flutter/web/backend stack) is not treated as client-confirmed
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0007
+  path: geographies
+  value:
+  - India
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0008
+  path: risk_profile
+  value: standard
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0009
+  path: experience_requirements
+  value:
+  - requirement_id: REQ-cart-merchandising
+    statement: Show related/complementary products based on products already in the
+      cart before checkout completion, with quick-add where appropriate. Recommendation
+      logic must remain configurable rather than hard-coded into the UI.
+    ux_impact: true
+    source_refs:
+    - SRC-001
+    - SRC-002
+    requested_surfaces:
+    - customer-app
+    - web-store
+    - b2b
+    requested_screens:
+    - cart
+    - checkout
+    requested_components:
+    - related-products-rail
+    - product-card
+    - cart-line
+    - quick-add
+    required_states:
+    - default
+    - empty
+    - loading
+  - requirement_id: REQ-external-price-comparison
+    statement: Product tiles/PDP may show comparable observed Amazon/Flipkart prices,
+      clearly distinguished from own selling price. Competitor-price records must
+      retain source marketplace, observed price and observation/freshness timestamp
+      so stale or unavailable external prices are handled safely.
+    ux_impact: true
+    source_refs:
+    - SRC-001
+    requested_surfaces:
+    - customer-app
+    - web-store
+    - b2b
+    requested_screens:
+    - product-list
+    - product-detail
+    requested_components:
+    - product-card
+    - price-comparison
+    - competitor-price
+    required_states:
+    - default
+    - stale-price
+    - unavailable
+  - requirement_id: REQ-project-site-purchasing
+    statement: A B2B account can manage multiple projects/sites and delivery locations,
+      build project-specific material lists/carts/orders, and deliver orders to the
+      appropriate project/location. Project/Site is a first-class business context
+      (name, delivery location, material lists, RFQs/orders, purchasing history),
+      not merely a saved address.
+    ux_impact: true
+    source_refs:
+    - SRC-002
+    requested_surfaces:
+    - b2b
+    requested_screens:
+    - project-list
+    - project-detail
+    - material-list
+    requested_components:
+    - project-card
+    - project-selector
+    - material-list
+    required_states:
+    - default
+    - empty
+    - loading
+  - requirement_id: REQ-project-site-reorder
+    statement: A B2B account can view project/site-level purchasing history and conveniently
+      reorder from previous project orders or material lists.
+    ux_impact: true
+    source_refs:
+    - SRC-002
+    requested_surfaces:
+    - b2b
+    requested_screens:
+    - project-detail
+    - order-history
+    requested_components:
+    - project-card
+    - reorder-action
+    required_states:
+    - default
+    - empty
+    - loading
+  - requirement_id: REQ-competitor-price-data
+    statement: Amazon/Flipkart observed prices are external inputs supplied by a crawler/price-intelligence
+      process; UX consumes normalized competitor-price data (marketplace, observed
+      price, freshness timestamp).
+    ux_impact: false
+    source_refs:
+    - SRC-001
+  - requirement_id: REQ-configurable-recommendations
+    statement: Cart/checkout recommendation logic must remain configurable rather
+      than hard-coded into the UI.
+    ux_impact: false
+    source_refs:
+    - SRC-001
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0010
+  path: marketplace_requirements
+  value:
+    seller_onboarding: required
+    seller_kyc: TBD
+    catalogue_ownership: mixed
+    inventory_ownership: mixed
+    fulfilment_ownership: mixed
+    returns_ownership: mixed
+    commission_model: configurable (10 percent prototype default)
+    settlement_cycle: TBD
+    payout_model: configurable
+    dispute_model: seller-specific-returns-and-disputes
+  classification: fact
+  confidence: 1.0
+  sources: *id001
+  status: confirmed
+  notes: []
+- truth_id: TRUTH-0011
+  path: assumptions
+  value: Provider selection from approved provider pool; one suitable provider per
+    category may be chosen for prototype; final production provider selection remains
+    configurable
+  classification: assumption
+  confidence: 0.5
+  sources: *id001
+  status: open
+  notes:
+  - Requires explicit confirmation before production scope freeze.
+- truth_id: TRUTH-0012
+  path: assumptions
+  value: Seller commission is configurable; 10 percent is the prototype/default assumption,
+    not a fixed production rule
+  classification: assumption
+  confidence: 0.5
+  sources: *id001
+  status: open
+  notes:
+  - Requires explicit confirmation before production scope freeze.
+- truth_id: TRUTH-0013
+  path: assumptions
+  value: Standard/default prototype values for B2B credit, approval and partial-payment
+    behavior; not production business rules
+  classification: assumption
+  confidence: 0.5
+  sources: *id001
+  status: open
+  notes:
+  - Requires explicit confirmation before production scope freeze.
+- truth_id: TRUTH-0014
+  path: assumptions
+  value: Technology implementation (Flutter/web/backend stack) is not treated as client-confirmed
+  classification: assumption
+  confidence: 0.5
+  sources: *id001
+  status: open
+  notes:
+  - Requires explicit confirmation before production scope freeze.
+- truth_id: TRUTH-0015
+  path: assumptions
+  value: Supplier provider candidates (logistics/payments/telephony) are supplied,
+    not selected
+  classification: assumption
+  confidence: 0.5
+  sources: *id001
+  status: open
+  notes:
+  - Requires explicit confirmation before production scope freeze.
+- truth_id: TRUTH-0016
+  path: open_questions
+  value: Q-007A Exact launch geography
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0017
+  path: open_questions
+  value: Q-007B Expected order volumes / orders per month and peak volume
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0018
+  path: open_questions
+  value: Q-005A Detailed ownership/responsibility matrix within the mixed catalogue,
+    inventory and fulfilment model
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0019
+  path: open_questions
+  value: Q-010A Whether loyalty/rewards and personalisation should be included in
+    Phase 1
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0020
+  path: open_questions
+  value: Final production payment, logistics and communication provider selections
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0021
+  path: open_questions
+  value: Timeline, budget/commercial and performance targets
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0022
+  path: open_questions
+  value: Stakeholder and approver identities (scope owner, design/technology/finance/UAT/release
+    approvers)
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+- truth_id: TRUTH-0023
+  path: open_questions
+  value: Official brand name confirmation ('BuildKart' is a working title)
+  classification: unknown
+  confidence: 0.0
+  sources: *id001
+  status: open
+  notes: []
+open_questions:
+- Q-007A Exact launch geography
+- Q-007B Expected order volumes / orders per month and peak volume
+- Q-005A Detailed ownership/responsibility matrix within the mixed catalogue, inventory
+  and fulfilment model
+- Q-010A Whether loyalty/rewards and personalisation should be included in Phase 1
+- Final production payment, logistics and communication provider selections
+- Timeline, budget/commercial and performance targets
+- Stakeholder and approver identities (scope owner, design/technology/finance/UAT/release
+  approvers)
+- Official brand name confirmation ('BuildKart' is a working title)
+conflicts: []
+status: needs-input

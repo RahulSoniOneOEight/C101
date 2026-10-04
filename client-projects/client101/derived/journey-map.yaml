@@ -1,0 +1,28 @@
+client_id: client101
+journeys:
+- id: browse-to-buy
+  status: required
+- id: search-to-buy
+  status: required
+- id: order-tracking
+  status: required
+- id: return-refund
+  status: required
+- id: quote-to-order
+  status: required
+- id: repeat-order
+  status: required
+- id: credit-order
+  status: required
+- id: seller-onboarding
+  status: required
+- id: seller-catalogue
+  status: required
+- id: marketplace-order
+  status: required
+- id: seller-fulfilment
+  status: required
+- id: seller-return
+  status: required
+- id: seller-settlement
+  status: required

@@ -1,0 +1,54 @@
+client_id: client101
+design_revision: Client101-CHG-014-2026-09-30
+platform: flutter
+checks:
+- id: penpot-critical-journey-token-governance
+  passed: true
+  evidence: >-
+    B2B Home, Quick Order Center, Quick Order Search, Procurement List Detail,
+    Quotation Cart, Collection Expanded, and the three new state boards use
+    semantic color and typography bindings. New approved semantic tokens are
+    color.surface.trust-subtle and color.surface.promotion-subtle.
+- id: penpot-critical-states
+  passed: true
+  evidence: >-
+    Added and visually reviewed B2B Home — Collection Expanded, Quick Order
+    Search — Empty, Procurement List Detail — Error, and Quotation Cart —
+    Empty. State boards have zero containment violations; Home rail overflow is
+    intentional clipped horizontal-scroll content.
+- id: penpot-prototype-journey
+  passed: true
+  evidence: >-
+    Fourteen on-click navigate-to interactions connect Home search to Quick
+    Order Search, six procurement-list cards to List Detail, list actions and
+    four search quick-add actions to Quotation Cart, and the empty-cart CTA back
+    to Quick Order Center.
+- id: single-search-parity
+  passed: true
+  evidence: >-
+    Flutter B2BHeader no longer renders or exposes a duplicate search control;
+    QuickOrderPanel remains the single B2B search entry and is covered by a
+    widget test.
+- id: b2b-cart-persistence
+  passed: true
+  evidence: >-
+    A separate Riverpod B2BQuotationCart persists direct trade-product adds,
+    Quick Order search/manual lines, procurement-list selected/all lines,
+    accepted quotes, PDP adds, and representative repeat orders. It supports
+    upsert, quantity changes, removal, clear, subtotal, GST 18%, and total.
+- id: quotation-cart-states
+  passed: true
+  evidence: >-
+    B2BQuotationCartScreen is provider-driven, renders governed empty and
+    populated states, provides editable quantity controls, computed totals,
+    Return to Quick Order, and Proceed to Checkout. Checkout and confirmation
+    consume the same computed total.
+- id: automated-validation
+  passed: true
+  evidence: >-
+    flutter analyze and flutter test pass in packages/agency_flutter_ui and
+    apps/prototype_app. The prototype app release web build completes. Widget
+    and provider tests cover header search removal, cart upsert/math,
+    procurement and reorder persistence, trade-tier quantity repricing, and
+    empty/populated quotation cart rendering.
+status: passed

@@ -1,0 +1,17 @@
+client_id: client101
+archetypes:
+- d2c-commerce
+- b2b-commerce
+- marketplace
+confidence: 1.0
+method: deterministic-rules
+evidence:
+- business_model: d2c
+  rule: business-model-to-archetype
+- business_model: b2c
+  rule: business-model-to-archetype
+- business_model: b2b
+  rule: business-model-to-archetype
+- business_model: marketplace
+  rule: business-model-to-archetype
+human_override: null

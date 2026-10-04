@@ -1,0 +1,850 @@
+registry_id: pincommerce-ui-implementation-registry
+version: 2
+components:
+- semantic_id: commerce.product-card
+  aliases:
+  - product-card
+  penpot:
+    component: ProductCard
+    variants:
+    - mobile-compact
+    - mobile-standard
+    - web-grid
+    - web-horizontal
+    - b2b-dense
+  flutter:
+    owned_component: ProductCard
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: ProductCard
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.search
+  aliases:
+  - search-control
+  penpot:
+    component: Search
+    variants:
+    - mobile-overlay
+    - desktop-command
+  flutter:
+    owned_component: PinSearch
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinSearch
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.cart-line
+  aliases:
+  - cart-line
+  penpot:
+    component: CartLine
+    variants:
+    - mobile
+    - web
+    - b2b-dense
+  flutter:
+    owned_component: PinCartLine
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinCartLine
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.checkout-summary
+  aliases:
+  - checkout-summary
+  penpot:
+    component: CheckoutSummary
+    variants:
+    - mobile
+    - web
+  flutter:
+    owned_component: CheckoutSummary
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: CheckoutSummary
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.order-card
+  aliases:
+  - order-card
+  penpot:
+    component: OrderCard
+    variants:
+    - customer
+    - b2b
+    - seller
+    - admin
+  flutter:
+    owned_component: PinOrderCard
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinOrderCard
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.return-status
+  aliases:
+  - return-status
+  penpot:
+    component: ReturnStatus
+    variants:
+    - request
+    - reviewing
+    - accepted
+    - refunded
+    - rejected
+  flutter:
+    owned_component: PinReturnStatus
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinReturnStatus
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.rfq-form
+  aliases:
+  - rfq-form
+  penpot:
+    component: RFQForm
+    variants:
+    - buyer
+    - seller-review
+  flutter:
+    owned_component: PinRFQForm
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+    - flutter_form_builder
+  web:
+    owned_component: PinRFQForm
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - React Hook Form
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.reorder-action
+  aliases:
+  - reorder-action
+  penpot:
+    component: ReorderAction
+    variants:
+    - compact
+    - detailed
+  flutter:
+    owned_component: PinReorderAction
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinReorderAction
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.credit-limit
+  aliases:
+  - credit-limit
+  penpot:
+    component: CreditLimit
+    variants:
+    - available
+    - warning
+    - blocked
+  flutter:
+    owned_component: PinCreditLimit
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinCreditLimit
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: workflow.approval-status
+  aliases:
+  - approval-status
+  penpot:
+    component: ApprovalStatus
+    variants:
+    - pending
+    - approved
+    - rejected
+  flutter:
+    owned_component: PinApprovalStatus
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinApprovalStatus
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: fulfilment.shipment-status
+  aliases:
+  - shipment-status
+  penpot:
+    component: ShipmentStatus
+    variants:
+    - processing
+    - shipped
+    - out-for-delivery
+    - delivered
+    - exception
+  flutter:
+    owned_component: PinShipmentStatus
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinShipmentStatus
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: workflow.action
+  aliases:
+  - workflow-action
+  penpot:
+    component: WorkflowAction
+    variants:
+    - primary
+    - secondary
+    - destructive
+  flutter:
+    owned_component: PinWorkflowAction
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinWorkflowAction
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.form
+  aliases:
+  - form
+  penpot:
+    component: Form
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - stacked
+    - dense
+  flutter:
+    owned_component: PinForm
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+    - flutter_form_builder
+  web:
+    owned_component: PinForm
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - React Hook Form
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: commerce.filters
+  aliases:
+  - filters
+  penpot:
+    component: Filters
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - chips
+    - bottom-sheet
+    - sidebar
+    - popover
+  flutter:
+    owned_component: FilterBar
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: FilterBar
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: data.table
+  aliases:
+  - table
+  - exception-table
+  penpot:
+    component: DataTable
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - compact
+    - operational
+    - full
+  flutter:
+    owned_component: ExceptionTable
+    primitive: data_table_2
+    libraries:
+    - data_table_2
+  web:
+    owned_component: ExceptionTable
+    primitive: TanStack Table
+    libraries:
+    - TanStack Table
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: analytics.chart
+  aliases:
+  - chart
+  penpot:
+    component: Chart
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - line
+    - bar
+    - area
+    - donut
+  flutter:
+    owned_component: PinChart
+    status: implemented
+    primitive: fl_chart
+    libraries:
+    - fl_chart
+  web:
+    owned_component: PinChart
+    status: implemented
+    primitive: Recharts
+    libraries:
+    - Recharts
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: layout.carousel
+  aliases:
+  - carousel
+  penpot:
+    component: Carousel
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - product
+    - banner
+    - gallery
+  flutter:
+    owned_component: PinCarousel
+    status: implemented
+    primitive: PageView
+    libraries:
+    - Flutter PageView
+    - carousel_slider
+  web:
+    owned_component: PinCarousel
+    status: implemented
+    primitive: Embla Carousel
+    libraries:
+    - Embla Carousel
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: layout.standard-grid
+  aliases:
+  - product-grid
+  penpot:
+    component: ProductGrid
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - phone-2
+    - tablet-3
+    - desktop-4
+    - wide-5
+  flutter:
+    owned_component: PinResponsiveGrid
+    status: implemented
+    primitive: GridView
+    libraries:
+    - Flutter GridView
+  web:
+    owned_component: ResponsiveGrid
+    primitive: CSS Grid
+    libraries:
+    - CSS Grid
+    - Tailwind
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: layout.masonry
+  aliases:
+  - masonry-grid
+  penpot:
+    component: MasonryGrid
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - mobile
+    - desktop
+  flutter:
+    owned_component: PinMasonryGrid
+    status: implemented
+    primitive: flutter_staggered_grid_view
+    libraries:
+    - flutter_staggered_grid_view
+  web:
+    owned_component: MasonryGrid
+    primitive: CSS masonry
+    libraries:
+    - CSS Grid
+    - Tailwind
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: feedback.toast
+  aliases:
+  - toast
+  penpot:
+    component: Toast
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - success
+    - error
+    - warning
+    - info
+  flutter:
+    owned_component: PinToast
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinToast
+    status: implemented
+    primitive: Sonner
+    libraries:
+    - Sonner
+    - shadcn/ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: navigation.tabs
+  aliases:
+  - tabs
+  penpot:
+    component: Tabs
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - mobile-segmented
+    - desktop-tabs
+  flutter:
+    owned_component: PinTabs
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinTabs
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: overlay.dialog
+  aliases:
+  - dialog
+  - bottom-sheet
+  penpot:
+    component: Dialog
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - modal
+    - sheet
+  flutter:
+    owned_component: PinDialog
+    status: implemented
+    primitive: shadcn_flutter
+    libraries:
+    - shadcn_flutter
+  web:
+    owned_component: PinDialog
+    status: implemented
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+    - Base UI
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: input.date-time
+  aliases:
+  - date-time
+  penpot:
+    component: DateTime
+    status: removed-in-penpot  # placeholder stub removed 2026-10-02
+    variants:
+    - mobile-picker
+    - desktop-calendar
+  flutter:
+    owned_component: PinDateTime
+    status: implemented
+    primitive: Flutter date component
+    libraries:
+    - Flutter
+  web:
+    owned_component: PinDateTime
+    status: implemented
+    primitive: shadcn Calendar
+    libraries:
+    - shadcn/ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.cart-plus-icon-button
+  aliases:
+  - cart-plus-icon-button
+  penpot:
+    component: CartPlusIconButton
+    variants:
+    - normal
+    - loading
+    - added
+    - unavailable
+    - error
+  flutter:
+    owned_component: CartPlusIconButton
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: CartPlusIconButton
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.quantity-stepper
+  aliases:
+  - quantity-stepper
+  penpot:
+    component: QuantityStepper
+    variants:
+    - default
+    - compact
+    - compact-dense
+  flutter:
+    owned_component: QuantityStepper
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: QuantityStepper
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.rfq-plus-icon-button
+  aliases:
+  - rfq-plus-icon-button
+  penpot:
+    component: RFQPlusIconButton
+    variants:
+    - normal
+    - loading
+    - added
+    - unavailable
+    - error
+  flutter:
+    owned_component: RFQPlusIconButton
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: RFQPlusIconButton
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.rfq-workspace
+  aliases:
+  - rfq-workspace
+  - rfq-basket
+  penpot:
+    component: B2B RFQ Workspace
+  flutter:
+    owned_component: B2BRfqWorkspaceScreen
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: RFQBasket
+    primitive: shadcn/ui
+    base: Base UI
+    libraries:
+    - shadcn/ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.filter-chip
+  aliases:
+  - filter-chip
+  penpot:
+    component: FilterChip
+    variants:
+    - unselected
+    - selected
+  flutter:
+    owned_component: TradeFilterChip
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: TradeFilterChip
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.procurement-list-filter-bar
+  aliases:
+  - procurement-list-filter-bar
+  penpot:
+    component: ProcurementListFilterBar
+  flutter:
+    owned_component: ProcurementListFilterBar
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: ProcurementListFilterBar
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.compact-quick-order-sku-card
+  aliases:
+  - compact-quick-order-sku-card
+  penpot:
+    component: CompactQuickOrderSKUCard
+  flutter:
+    owned_component: CompactQuickOrderSkuCard
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: CompactQuickOrderSkuCard
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.trade-product-card-compact
+  aliases:
+  - trade-product-card-compact
+  penpot:
+    component: TradeProductCard Compact
+  flutter:
+    owned_component: TradeProductCardCompact
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: TradeProductCardCompact
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.buy-again-card
+  aliases:
+  - buy-again-card
+  penpot:
+    component: Buy Again Card
+  flutter:
+    owned_component: BuyAgainCard
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: BuyAgainCard
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+- semantic_id: b2b.merchandising-tile
+  aliases:
+  - merchandising-tile
+  penpot:
+    component: MerchandisingTile
+    variants:
+    - seasonal
+    - best-deals
+    - schemes
+  flutter:
+    owned_component: MerchandisingTile
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: implemented
+  web:
+    owned_component: MerchandisingTile
+    primitive: flutter-web
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widgetbook+golden
+    web: storybook+visual
+specialists:
+  icons:
+    primary: Phosphor
+    secondary: Iconoir
+    fallback: Hugeicons
+  motion:
+    flutter: flutter_animate
+    web: Motion
+    rich:
+    - Rive
+    - Lottie
+  layout:
+    flutter:
+    - GridView
+    - flutter_staggered_grid_view
+    web:
+    - CSS Grid
+    - Tailwind
+  carousel:
+    flutter:
+    - PageView
+    - carousel_slider
+    web:
+    - Embla Carousel
+  tables:
+    flutter: data_table_2
+    web: TanStack Table
+  charts:
+    flutter: fl_chart
+    web: Recharts
+  accessibility:
+    flutter: Flutter semantics
+    web:
+    - Base UI
+    - React Aria
+    - semantic HTML
+status: review-ready

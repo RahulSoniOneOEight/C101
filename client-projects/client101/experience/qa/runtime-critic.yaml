@@ -1,0 +1,8 @@
+client_id: client101
+critic: runtime
+checks:
+- id: core-runtime
+  passed: false
+  evidence: 'Core prototype runtime is not ready; missing healthy runtime evidence
+    for: medusa, mercur, tryton'
+status: blocked

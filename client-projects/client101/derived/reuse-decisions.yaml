@@ -1,0 +1,29 @@
+client_id: client101
+decisions:
+  experience_mobile:
+    strategy: shared-platform
+    provider: flutter
+  experience_web:
+    strategy: shared-platform
+    provider: nextjs
+  commerce:
+    strategy: reuse
+    provider: medusa
+  marketplace:
+    strategy: reuse
+    provider: mercur
+  erp:
+    strategy: reuse
+    provider: tryton
+  search:
+    strategy: reuse
+    provider: meilisearch
+  support:
+    strategy: reuse
+    provider: chatwoot
+  automation:
+    strategy: reuse
+    provider: activepieces
+  database:
+    strategy: reuse
+    provider: postgresql

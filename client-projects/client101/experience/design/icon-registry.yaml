@@ -1,0 +1,426 @@
+policy:
+  primary: Phosphor
+  secondary: Iconoir
+  fallback: Hugeicons
+icons:
+- semantic_id: commerce.cart
+  family: Phosphor
+  name: shopping-cart
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.shoppingCart
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ShoppingCart
+  penpot:
+    source: phosphor-svg
+    name: shopping-cart
+- semantic_id: commerce.search
+  family: Phosphor
+  name: magnifying-glass
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.magnifyingGlass
+  web:
+    package: '@phosphor-icons/react'
+    symbol: MagnifyingGlass
+  penpot:
+    source: phosphor-svg
+    name: magnifying-glass
+- semantic_id: commerce.account
+  family: Phosphor
+  name: user
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.user
+  web:
+    package: '@phosphor-icons/react'
+    symbol: User
+  penpot:
+    source: phosphor-svg
+    name: user
+- semantic_id: navigation.home
+  family: Phosphor
+  name: house
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.house
+  web:
+    package: '@phosphor-icons/react'
+    symbol: House
+  penpot:
+    source: phosphor-svg
+    name: house
+- semantic_id: commerce.wishlist
+  family: Phosphor
+  name: heart
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.heart
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Heart
+  penpot:
+    source: phosphor-svg
+    name: heart
+- semantic_id: commerce.notifications
+  family: Phosphor
+  name: bell
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.bell
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Bell
+  penpot:
+    source: phosphor-svg
+    name: bell
+- semantic_id: fulfilment.truck
+  family: Phosphor
+  name: truck
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.truck
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Truck
+  penpot:
+    source: phosphor-svg
+    name: truck
+- semantic_id: commerce.orders
+  family: Phosphor
+  name: package
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.package
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Package
+  penpot:
+    source: phosphor-svg
+    name: package
+- semantic_id: commerce.returns
+  family: Phosphor
+  name: arrows-counter-clockwise
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.arrowsCounterClockwise
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ArrowsCounterClockwise
+  penpot:
+    source: phosphor-svg
+    name: arrows-counter-clockwise
+- semantic_id: payments.credit-card
+  family: Phosphor
+  name: credit-card
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.creditCard
+  web:
+    package: '@phosphor-icons/react'
+    symbol: CreditCard
+  penpot:
+    source: phosphor-svg
+    name: credit-card
+- semantic_id: finance.receipt
+  family: Phosphor
+  name: receipt
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.receipt
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Receipt
+  penpot:
+    source: phosphor-svg
+    name: receipt
+- semantic_id: seller.storefront
+  family: Phosphor
+  name: storefront
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.storefront
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Storefront
+  penpot:
+    source: phosphor-svg
+    name: storefront
+- semantic_id: erp.warehouse
+  family: Phosphor
+  name: warehouse
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.warehouse
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Warehouse
+  penpot:
+    source: phosphor-svg
+    name: warehouse
+- semantic_id: support.chat
+  family: Phosphor
+  name: chat-circle-dots
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.chatCircleDots
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ChatCircleDots
+  penpot:
+    source: phosphor-svg
+    name: chat-circle-dots
+- semantic_id: commerce.rating
+  family: Phosphor
+  name: star
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.star
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Star
+  penpot:
+    source: phosphor-svg
+    name: star
+- semantic_id: growth.referral
+  family: Phosphor
+  name: share-network
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.shareNetwork
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ShareNetwork
+  penpot:
+    source: phosphor-svg
+    name: share-network
+- semantic_id: commerce.filters
+  family: Phosphor
+  name: sliders-horizontal
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.slidersHorizontal
+  web:
+    package: '@phosphor-icons/react'
+    symbol: SlidersHorizontal
+  penpot:
+    source: phosphor-svg
+    name: sliders-horizontal
+- semantic_id: commerce.sort
+  family: Phosphor
+  name: sort-ascending
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.sortAscending
+  web:
+    package: '@phosphor-icons/react'
+    symbol: SortAscending
+  penpot:
+    source: phosphor-svg
+    name: sort-ascending
+- semantic_id: commerce.promotions
+  family: Phosphor
+  name: tag
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.tag
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Tag
+  penpot:
+    source: phosphor-svg
+    name: tag
+- semantic_id: b2b.quote
+  family: Phosphor
+  name: calculator
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.calculator
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Calculator
+  penpot:
+    source: phosphor-svg
+    name: calculator
+- semantic_id: workflow.form
+  family: Phosphor
+  name: clipboard-text
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.clipboardText
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ClipboardText
+  penpot:
+    source: phosphor-svg
+    name: clipboard-text
+- semantic_id: analytics.chart
+  family: Phosphor
+  name: chart-line-up
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.chartLineUp
+  web:
+    package: '@phosphor-icons/react'
+    symbol: ChartLineUp
+  penpot:
+    source: phosphor-svg
+    name: chart-line-up
+- semantic_id: commerce.settings
+  family: Phosphor
+  name: gear
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.gear
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Gear
+  penpot:
+    source: phosphor-svg
+    name: gear
+- semantic_id: commerce.location
+  family: Phosphor
+  name: map-pin
+  weight: regular
+  size: 20
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.mapPin
+  web:
+    package: '@phosphor-icons/react'
+    symbol: MapPin
+  penpot:
+    source: phosphor-svg
+    name: map-pin
+- semantic_id: category.bathroom
+  family: Phosphor
+  name: shower
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.shower
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Shower
+  penpot:
+    source: phosphor-svg
+    name: shower
+- semantic_id: category.tiles
+  family: Phosphor
+  name: squares-four
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.squaresFour
+  web:
+    package: '@phosphor-icons/react'
+    symbol: SquaresFour
+  penpot:
+    source: phosphor-svg
+    name: squares-four
+- semantic_id: category.electrical
+  family: Phosphor
+  name: lightning
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.lightning
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Lightning
+  penpot:
+    source: phosphor-svg
+    name: lightning
+- semantic_id: category.agriculture
+  family: Phosphor
+  name: plant
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.plant
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Plant
+  penpot:
+    source: phosphor-svg
+    name: plant
+- semantic_id: category.pumps
+  family: Phosphor
+  name: gauge
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.gauge
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Gauge
+  penpot:
+    source: phosphor-svg
+    name: gauge
+- semantic_id: category.construction
+  family: Phosphor
+  name: hammer
+  weight: regular
+  size: 22
+  flutter:
+    package: phosphor_flutter
+    symbol: PhosphorIcons.hammer
+  web:
+    package: '@phosphor-icons/react'
+    symbol: Hammer
+  penpot:
+    source: phosphor-svg
+    name: hammer
+status: review-ready

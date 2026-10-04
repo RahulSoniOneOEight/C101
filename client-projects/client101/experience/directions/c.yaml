@@ -1,0 +1,98 @@
+direction_id: DIR-CLIENT101-C
+client_id: client101
+strategy: task-first
+surfaces:
+- customer-app
+- web-store
+- commerce-admin
+- analytics
+- erp
+- seller-portal
+- b2b
+- ops-console
+journey_emphasis:
+- browse-to-buy
+- search-to-buy
+- order-tracking
+- return-refund
+- quote-to-order
+- repeat-order
+- credit-order
+- seller-onboarding
+- seller-catalogue
+- marketplace-order
+- seller-fulfilment
+- seller-return
+- seller-settlement
+- REQ-cart-merchandising
+- REQ-external-price-comparison
+- REQ-project-site-purchasing
+- REQ-project-site-reorder
+journeys:
+- id: browse-to-buy
+  entry: quick reorder / saved list
+  emphasis: critical
+- id: search-to-buy
+  entry: contextual search from task
+  emphasis: critical
+- id: order-tracking
+  entry: orders task list
+  emphasis: high
+- id: return-refund
+  entry: returns task list
+  emphasis: critical
+- id: quote-to-order
+  entry: RFQ task list
+  emphasis: critical
+- id: repeat-order
+  entry: reorder task
+  emphasis: high
+- id: credit-order
+  entry: credit task list
+  emphasis: high
+- id: seller-onboarding
+  entry: onboarding task list
+  emphasis: high
+- id: seller-catalogue
+  entry: catalogue task list
+  emphasis: high
+- id: marketplace-order
+  entry: orders task list
+  emphasis: high
+- id: seller-fulfilment
+  entry: fulfilment queue
+  emphasis: high
+- id: seller-return
+  entry: returns queue
+  emphasis: high
+- id: seller-settlement
+  entry: settlement task list
+  emphasis: high
+- id: REQ-cart-merchandising
+  entry: contextual cart-completion task
+  emphasis: high
+- id: REQ-external-price-comparison
+  entry: contextual price-check task
+  emphasis: high
+- id: REQ-project-site-purchasing
+  entry: project/site purchasing task list
+  emphasis: high
+- id: REQ-project-site-reorder
+  entry: project reorder task
+  emphasis: high
+design_intent:
+  density: efficient
+  navigation: task-led
+  discovery: contextual
+  interaction: operational
+differentiators:
+- high-frequency tasks prioritized
+- contextual discovery
+- business/operational efficiency emphasis
+fixture_set: commerce-baseline
+visual_preset: compact-commerce
+design_selection_ref: experience/design/selection.yaml
+theme_resolution_ref: experience/design/theme-resolution.yaml
+asset_plan_ref: experience/design/asset-plan.yaml
+motion_policy_ref: design-intelligence/motion-policy.yaml
+status: draft

@@ -1,0 +1,59 @@
+contract_id: DC-client101-001
+client_id: client101
+entities:
+  - name: order
+    canonical_owner: commerce
+    consumers: [erp, analytics]
+    projections: [erp-sales-order, analytics-order-fact]
+    notes: [checkout-to-accounting flow]
+  - name: inventory
+    canonical_owner: erp
+    consumers: [commerce]
+    projections: [commerce-availability]
+    notes: [erp is the single source of truth for availability]
+  - name: payment
+    canonical_owner: payment-integration
+    consumers: [commerce, erp]
+    projections: [commerce-payment-status]
+    notes: []
+  - name: shipment
+    canonical_owner: logistics-integration
+    consumers: [commerce, erp]
+    projections: [commerce-fulfilment-status]
+    notes: []
+  - name: business-account
+    canonical_owner: commerce
+    consumers: [erp, analytics]
+    projections: [erp-customer-account]
+    notes: [ownership of B2B credit lives with commerce; erp consumes projections]
+  - name: seller
+    canonical_owner: marketplace
+    consumers: [commerce, erp]
+    projections: [commerce-seller]
+    notes: []
+  - name: seller-offer
+    canonical_owner: marketplace
+    consumers: [commerce, erp]
+    projections: [commerce-offer]
+    notes: []
+  - name: marketplace-order-allocation
+    canonical_owner: marketplace
+    consumers: [commerce, erp]
+    projections: [commerce-allocation]
+    notes: []
+  - name: commission
+    canonical_owner: marketplace
+    consumers: [erp]
+    projections: [erp-commission]
+    notes: []
+  - name: seller-settlement
+    canonical_owner: marketplace
+    consumers: [erp]
+    projections: [erp-settlement]
+    notes: []
+  - name: seller-payout-reconciliation
+    canonical_owner: marketplace
+    consumers: [erp, analytics]
+    projections: [erp-payout-reconciliation]
+    notes: []
+status: draft

@@ -1,0 +1,24 @@
+change_id: CHG-015
+request: >-
+  Enable an Android run target for the prototype app so the unified B2C/B2B
+  experience can be built, installed and reviewed on an Android emulator or
+  device instead of only the web target. Generates the missing android/ platform
+  folder, keeps the existing web target, pins the Flutter 3.47 default
+  compile/target SDK (36) and records the toolchain prerequisites (command-line
+  tools, platform 36, API 36 system image, NDK 28.2.13676358) required to build
+  the debug APK.
+type: infrastructure
+affected_capabilities: []
+affected_domains:
+- experience
+affected_surfaces:
+- app.android
+affected_entities: []
+affected_events: []
+required_tests:
+- Flutter produces a debug APK for the android target
+- debug APK installs and launches com.buildkart.prototype_app on an Android emulator
+- B2C home renders the demo catalog on the Android debug build
+- flutter analyze and flutter test still pass for prototype_app
+approval_required: false
+status: validated

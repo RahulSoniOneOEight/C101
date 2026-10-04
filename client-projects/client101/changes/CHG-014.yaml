@@ -1,0 +1,49 @@
+change_id: CHG-014
+request: >-
+  Close the critical B2B buying-journey gaps across Penpot and Flutter: align
+  the single-search header decision, tokenise and repair the Home / Quick Order
+  / Search / Procurement List / Quotation Cart design path, add the expanded
+  home collection and key empty/error states, connect the Penpot prototype
+  journey, and persist direct-add, procurement-list, and reorder actions into a
+  shared B2B quotation cart.
+type: ux
+affected_capabilities:
+- b2b-home
+- b2b-quick-order
+- procurement-list
+- b2b-cart
+- repeat-order
+- b2b-search
+affected_domains:
+- commerce-merchandising
+- commerce-cart
+- procurement
+affected_surfaces:
+- b2b.home
+- b2b.quick-order-center
+- b2b.quick-order-search
+- b2b.procurement-list-detail
+- b2b.quotation-cart
+affected_entities:
+- trade-product
+- procurement-list
+- b2b-cart-line
+- b2b-order
+affected_events:
+- b2b-cart.item-added
+- b2b-cart.list-added
+- b2b-cart.reorder-added
+required_tests:
+- Penpot critical journey screens use semantic token bindings
+- Penpot critical journey screens have zero containment violations
+- Penpot expanded collection and empty/error journey states render
+- Penpot Home / Search / Procurement List prototype paths reach Quotation Cart
+- B2B header has no duplicate search control
+- direct trade-product add persists into the quotation cart
+- procurement-list selected/all actions persist into the quotation cart
+- reorder persists representative lines into the quotation cart
+- empty and populated quotation-cart states render
+- flutter analyze and flutter test pass
+- flutter web release build succeeds
+approval_required: false
+status: validated

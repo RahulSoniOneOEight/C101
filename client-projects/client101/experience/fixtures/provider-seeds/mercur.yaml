@@ -1,0 +1,56 @@
+provider: mercur
+source_dataset: DEMO-client101-v1
+sellers:
+- id: SELLER-001
+  name: Demo Seller One
+  status: active
+  commission_percent: 10
+- id: SELLER-002
+  name: Demo Seller Two
+  status: pending
+  commission_percent: 8
+seller_offers:
+- id: OFFER-001
+  seller_id: SELLER-001
+  sku: SKU-1001
+  price: 17500
+  status: active
+- id: OFFER-002
+  seller_id: SELLER-002
+  sku: SKU-2001
+  price: 4800
+  status: pending-approval
+marketplace_allocations:
+- id: ALLOC-1010-001
+  order_id: ORD-1010
+  seller_id: SELLER-001
+  gross: 17500
+  status: fulfilled
+commission_ledger:
+- id: COMM-1010-001
+  allocation_id: ALLOC-1010-001
+  seller_id: SELLER-001
+  rate_percent: 10
+  commission: 1750
+seller_settlements:
+- id: SET-001
+  seller_id: SELLER-001
+  gross: 17500
+  commission: 1750
+  payable: 15750
+  status: pending
+seller_payout_reconciliations:
+- id: SPREC-001
+  settlement_id: SET-001
+  seller_id: SELLER-001
+  erp_payable: 15750
+  marketplace_payable: 15750
+  status: matched
+orders:
+- id: ORD-1010
+  customer_id: CUST-B2C-001
+  status: seller_settlement_pending
+  total: 17500
+  payment_status: captured
+  shipment_status: delivered
+  seller_id: SELLER-001

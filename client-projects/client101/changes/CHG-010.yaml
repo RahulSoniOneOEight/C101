@@ -1,0 +1,24 @@
+change_id: CHG-010
+request: >-
+  Simplify B2C home product tiles by removing rating and delivery metadata,
+  correcting product-card spacing, and repairing the split merchandising cell
+  in both Penpot and Flutter.
+type: visual
+affected_capabilities:
+- product-discovery
+- merchandising
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- customer-app.b2c-home
+affected_entities:
+- product-card
+- merchandising-module
+affected_events: []
+required_tests:
+- product-card widget test without rating or delivery metadata
+- responsive B2C home layout tests at phone and tablet widths
+- split merchandising composition widget test
+- Penpot containment and overlap validation
+approval_required: false
+status: validated

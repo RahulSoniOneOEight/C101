@@ -1,0 +1,34 @@
+theme_id: THEME-client101
+client_id: client101
+preset: compact-commerce
+palette: indigo
+semantic_roles:
+  surface.page: '#F7F8FF'
+  surface.raised: '#FFFFFF'
+  surface.interactive: '#E9ECFF'
+  content.primary: '#1F2A44'
+  content.secondary: '#66708A'
+  content.inverse: '#FFFFFF'
+  action.primary: '#5B6EE1'
+  action.secondary: '#DCE2FF'
+  action.destructive: '#B54747'
+  border.default: '#DDE2F2'
+  border.strong: '#AAB4D6'
+  feedback.success: '#3D7A57'
+  feedback.warning: '#B9792D'
+  feedback.error: '#B54747'
+  feedback.info: '#5570B8'
+overrides:
+  brand_raw_colors: {}
+  fonts: []
+  tone: []
+  image_direction: []
+  motion_preference: balanced
+  direction_overrides:
+    A:
+      preset: premium-modern
+    B:
+      preset: compact-commerce
+    C:
+      preset: compact-commerce
+status: resolved

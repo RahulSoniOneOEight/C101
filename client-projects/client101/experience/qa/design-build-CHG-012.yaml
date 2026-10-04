@@ -1,0 +1,30 @@
+client_id: client101
+design_revision: Client101-CHG-012-2026-09-30
+platform: flutter
+checks:
+- id: catalogue-data-model
+  passed: true
+  evidence: >-
+    TradeProduct gains categoryId and seasonal flags; tradeCatalogueProvider
+    supplies 12 category-tagged products (with seasonal + discounted items) so
+    Best Deals and Seasonal filter without hardcoded list names.
+- id: catalogue-browse-flow
+  passed: true
+  evidence: >-
+    B2BCatalogueScreen renders a search field, category chips and a responsive
+    2-column grid of TradeProductCard with PDP/RFQ/Add wired; category rail,
+    header search and Seasonal/Best Deals tiles route into it.
+- id: schemes-and-pricing
+  passed: true
+  evidence: >-
+    B2BSchemesScreen renders the active TradeScheme list and
+    B2BPriceAdvantageScreen renders account summary plus a tier pricing table
+    computed from the catalogue.
+- id: static-and-runtime-validation
+  passed: true
+  evidence: >-
+    flutter analyze and flutter test pass for agency_flutter_ui and
+    prototype_app (including catalogue provider and filter tests);
+    flutter build web --release completes; compact trade card overflow resolved
+    by a single-line title and 500px grid extent.
+status: passed

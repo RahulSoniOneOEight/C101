@@ -1,0 +1,33 @@
+source_id: SRC-001
+type: other
+source_ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807abcbffa05af2fb58c
+authority: client-authoritative
+components:
+  - product-card
+  - search-control
+  - cart-line
+  - checkout-summary
+  - order-card
+  - return-status
+  - reorder-action
+  - wishlist
+  - notification
+  - support-entry
+  - referral
+  - profile-settings
+  - promotion-banner
+  - coupon-entry
+  - related-products-rail
+  - price-comparison
+patterns:
+  - name: d2c-feature-areas
+    kind: declared-pattern
+    evidence: 25 D2C feature areas (onboarding, home, categories, search, filters, listing, detail, merchandising, wishlist, cart, promotions, checkout, payments, delivery, orders, returns, reorder, loyalty, ratings, personalisation, notifications, support, referral, content, profile)
+  - name: lifecycle-automations
+    kind: declared-pattern
+    evidence: 29 event-driven/lifecycle and monitoring automations (welcome, abandonment, payment-failure-recovery, COD-confirmation, price-drop, back-in-stock, etc.)
+  - name: dashboard-groups
+    kind: declared-pattern
+    evidence: 5 functional dashboard groups (business-finance, customer-growth, commerce-merchandising, operations-fulfilment, cx-intelligence)
+notes:
+  - Client-authoritative D2C feature note; 25 feature areas, 29 automations, 5 dashboard groups.

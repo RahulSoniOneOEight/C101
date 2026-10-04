@@ -1,0 +1,1509 @@
+client_id: client101
+journeys:
+- id: browse-to-buy
+  actor: customer
+  objective: browse to buy
+  surfaces:
+  - customer-app
+  nodes:
+  - id: browse-to-buy.1
+    actor: customer
+    action: discover
+    surface: customer-app
+    screen: discover
+    capability: catalogue
+    data:
+    - catalogue.read
+    - catalogue.write
+    permission: customer
+    backend_operation: catalogue.discover
+    event: browse-to-buy.discover.completed
+    success_state: discover-success
+    error_state: discover-error
+    empty_state: discover-empty
+    loading_state: discover-loading
+    next: &id001
+    - browse-to-buy.2
+    branches:
+    - when: success
+      next: *id001
+    - when: error
+      state: discover-error
+      recover: browse-to-buy.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: browse-to-buy.2
+    actor: customer
+    action: select-product
+    surface: customer-app
+    screen: select_product
+    capability: catalogue
+    data:
+    - catalogue.read
+    - catalogue.write
+    permission: customer
+    backend_operation: catalogue.select-product
+    event: browse-to-buy.select-product.completed
+    success_state: select-product-success
+    error_state: select-product-error
+    empty_state: select-product-empty
+    loading_state: select-product-loading
+    next: &id002
+    - browse-to-buy.3
+    branches:
+    - when: success
+      next: *id002
+    - when: error
+      state: select-product-error
+      recover: browse-to-buy.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: browse-to-buy.3
+    actor: customer
+    action: add-cart
+    surface: customer-app
+    screen: add_cart
+    capability: cart
+    data:
+    - cart.read
+    - cart.write
+    permission: customer
+    backend_operation: cart.add-cart
+    event: browse-to-buy.add-cart.completed
+    success_state: add-cart-success
+    error_state: add-cart-error
+    empty_state: add-cart-empty
+    loading_state: add-cart-loading
+    next: &id003
+    - browse-to-buy.4
+    branches:
+    - when: success
+      next: *id003
+    - when: error
+      state: add-cart-error
+      recover: browse-to-buy.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: browse-to-buy.4
+    actor: customer
+    action: checkout
+    surface: customer-app
+    screen: checkout
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: customer
+    backend_operation: checkout.checkout
+    event: browse-to-buy.checkout.completed
+    success_state: checkout-success
+    error_state: checkout-error
+    empty_state: checkout-empty
+    loading_state: checkout-loading
+    next: &id004
+    - browse-to-buy.5
+    branches:
+    - when: success
+      next: *id004
+    - when: error
+      state: checkout-error
+      recover: browse-to-buy.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: browse-to-buy.5
+    actor: customer
+    action: payment
+    surface: customer-app
+    screen: payment
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: customer
+    backend_operation: checkout.payment
+    event: browse-to-buy.payment.completed
+    success_state: payment-success
+    error_state: payment-error
+    empty_state: payment-empty
+    loading_state: payment-loading
+    next: &id005
+    - browse-to-buy.6
+    branches:
+    - when: success
+      next: *id005
+    - when: error
+      state: payment-error
+      recover: browse-to-buy.5
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: browse-to-buy.6
+    actor: customer
+    action: confirm-order
+    surface: customer-app
+    screen: confirm_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: customer
+    backend_operation: orders.confirm-order
+    event: browse-to-buy.confirm-order.completed
+    success_state: confirm-order-success
+    error_state: confirm-order-error
+    empty_state: confirm-order-empty
+    loading_state: confirm-order-loading
+    next: &id006 []
+    branches:
+    - when: success
+      next: *id006
+    - when: error
+      state: confirm-order-error
+      recover: browse-to-buy.6
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: confirm-order-success
+- id: search-to-buy
+  actor: customer
+  objective: search to buy
+  surfaces:
+  - customer-app
+  nodes:
+  - id: search-to-buy.1
+    actor: customer
+    action: search
+    surface: customer-app
+    screen: search
+    capability: search
+    data:
+    - search.read
+    - search.write
+    permission: customer
+    backend_operation: search.search
+    event: search-to-buy.search.completed
+    success_state: search-success
+    error_state: search-error
+    empty_state: search-empty
+    loading_state: search-loading
+    next: &id007
+    - search-to-buy.2
+    branches:
+    - when: success
+      next: *id007
+    - when: error
+      state: search-error
+      recover: search-to-buy.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: search-to-buy.2
+    actor: customer
+    action: select-product
+    surface: customer-app
+    screen: select_product
+    capability: catalogue
+    data:
+    - catalogue.read
+    - catalogue.write
+    permission: customer
+    backend_operation: catalogue.select-product
+    event: search-to-buy.select-product.completed
+    success_state: select-product-success
+    error_state: select-product-error
+    empty_state: select-product-empty
+    loading_state: select-product-loading
+    next: &id008
+    - search-to-buy.3
+    branches:
+    - when: success
+      next: *id008
+    - when: error
+      state: select-product-error
+      recover: search-to-buy.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: search-to-buy.3
+    actor: customer
+    action: add-cart
+    surface: customer-app
+    screen: add_cart
+    capability: cart
+    data:
+    - cart.read
+    - cart.write
+    permission: customer
+    backend_operation: cart.add-cart
+    event: search-to-buy.add-cart.completed
+    success_state: add-cart-success
+    error_state: add-cart-error
+    empty_state: add-cart-empty
+    loading_state: add-cart-loading
+    next: &id009
+    - search-to-buy.4
+    branches:
+    - when: success
+      next: *id009
+    - when: error
+      state: add-cart-error
+      recover: search-to-buy.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: search-to-buy.4
+    actor: customer
+    action: checkout
+    surface: customer-app
+    screen: checkout
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: customer
+    backend_operation: checkout.checkout
+    event: search-to-buy.checkout.completed
+    success_state: checkout-success
+    error_state: checkout-error
+    empty_state: checkout-empty
+    loading_state: checkout-loading
+    next: &id010
+    - search-to-buy.5
+    branches:
+    - when: success
+      next: *id010
+    - when: error
+      state: checkout-error
+      recover: search-to-buy.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: search-to-buy.5
+    actor: customer
+    action: confirm-order
+    surface: customer-app
+    screen: confirm_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: customer
+    backend_operation: orders.confirm-order
+    event: search-to-buy.confirm-order.completed
+    success_state: confirm-order-success
+    error_state: confirm-order-error
+    empty_state: confirm-order-empty
+    loading_state: confirm-order-loading
+    next: &id011 []
+    branches:
+    - when: success
+      next: *id011
+    - when: error
+      state: confirm-order-error
+      recover: search-to-buy.5
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: confirm-order-success
+- id: order-tracking
+  actor: customer
+  objective: order tracking
+  surfaces:
+  - customer-app
+  nodes:
+  - id: order-tracking.1
+    actor: customer
+    action: open-order
+    surface: customer-app
+    screen: open_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: customer
+    backend_operation: orders.open-order
+    event: order-tracking.open-order.completed
+    success_state: open-order-success
+    error_state: open-order-error
+    empty_state: open-order-empty
+    loading_state: open-order-loading
+    next: &id012
+    - order-tracking.2
+    branches:
+    - when: success
+      next: *id012
+    - when: error
+      state: open-order-error
+      recover: order-tracking.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: order-tracking.2
+    actor: customer
+    action: track-shipment
+    surface: customer-app
+    screen: track_shipment
+    capability: fulfilment
+    data:
+    - fulfilment.read
+    - fulfilment.write
+    permission: customer
+    backend_operation: fulfilment.track-shipment
+    event: order-tracking.track-shipment.completed
+    success_state: track-shipment-success
+    error_state: track-shipment-error
+    empty_state: track-shipment-empty
+    loading_state: track-shipment-loading
+    next: &id013 []
+    branches:
+    - when: success
+      next: *id013
+    - when: error
+      state: track-shipment-error
+      recover: order-tracking.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: track-shipment-success
+- id: return-refund
+  actor: customer
+  objective: return refund
+  surfaces:
+  - customer-app
+  nodes:
+  - id: return-refund.1
+    actor: customer
+    action: open-order
+    surface: customer-app
+    screen: open_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: customer
+    backend_operation: orders.open-order
+    event: return-refund.open-order.completed
+    success_state: open-order-success
+    error_state: open-order-error
+    empty_state: open-order-empty
+    loading_state: open-order-loading
+    next: &id014
+    - return-refund.2
+    branches:
+    - when: success
+      next: *id014
+    - when: error
+      state: open-order-error
+      recover: return-refund.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: return-refund.2
+    actor: customer
+    action: request-return
+    surface: customer-app
+    screen: request_return
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: customer
+    backend_operation: return-refund.request-return
+    event: return-refund.request-return.completed
+    success_state: request-return-success
+    error_state: request-return-error
+    empty_state: request-return-empty
+    loading_state: request-return-loading
+    next: &id015
+    - return-refund.3
+    branches:
+    - when: success
+      next: *id015
+    - when: error
+      state: request-return-error
+      recover: return-refund.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: return-refund.3
+    actor: customer
+    action: seller-review
+    surface: customer-app
+    screen: seller_review
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: customer
+    backend_operation: return-refund.seller-review
+    event: return-refund.seller-review.completed
+    success_state: seller-review-success
+    error_state: seller-review-error
+    empty_state: seller-review-empty
+    loading_state: seller-review-loading
+    next: &id016
+    - return-refund.4
+    branches:
+    - when: success
+      next: *id016
+    - when: error
+      state: seller-review-error
+      recover: return-refund.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: return-refund.4
+    actor: customer
+    action: track-refund
+    surface: customer-app
+    screen: track_refund
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: customer
+    backend_operation: return-refund.track-refund
+    event: return-refund.track-refund.completed
+    success_state: track-refund-success
+    error_state: track-refund-error
+    empty_state: track-refund-empty
+    loading_state: track-refund-loading
+    next: &id017 []
+    branches:
+    - when: success
+      next: *id017
+    - when: error
+      state: track-refund-error
+      recover: return-refund.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: track-refund-success
+- id: quote-to-order
+  actor: b2b-buyer
+  objective: quote to order
+  surfaces:
+  - b2b
+  nodes:
+  - id: quote-to-order.1
+    actor: b2b-buyer
+    action: create-rfq
+    surface: b2b
+    screen: create_rfq
+    capability: quote-rfq
+    data:
+    - quote-rfq.read
+    - quote-rfq.write
+    permission: b2b-buyer
+    backend_operation: quote-rfq.create-rfq
+    event: quote-to-order.create-rfq.completed
+    success_state: create-rfq-success
+    error_state: create-rfq-error
+    empty_state: create-rfq-empty
+    loading_state: create-rfq-loading
+    next: &id018
+    - quote-to-order.2
+    branches:
+    - when: success
+      next: *id018
+    - when: error
+      state: create-rfq-error
+      recover: quote-to-order.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: quote-to-order.2
+    actor: b2b-buyer
+    action: seller-quote
+    surface: b2b
+    screen: seller_quote
+    capability: quote-rfq
+    data:
+    - quote-rfq.read
+    - quote-rfq.write
+    permission: b2b-buyer
+    backend_operation: quote-rfq.seller-quote
+    event: quote-to-order.seller-quote.completed
+    success_state: seller-quote-success
+    error_state: seller-quote-error
+    empty_state: seller-quote-empty
+    loading_state: seller-quote-loading
+    next: &id019
+    - quote-to-order.3
+    branches:
+    - when: success
+      next: *id019
+    - when: error
+      state: seller-quote-error
+      recover: quote-to-order.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: quote-to-order.3
+    actor: b2b-buyer
+    action: buyer-accept
+    surface: b2b
+    screen: buyer_accept
+    capability: quote-rfq
+    data:
+    - quote-rfq.read
+    - quote-rfq.write
+    permission: b2b-buyer
+    backend_operation: quote-rfq.buyer-accept
+    event: quote-to-order.buyer-accept.completed
+    success_state: buyer-accept-success
+    error_state: buyer-accept-error
+    empty_state: buyer-accept-empty
+    loading_state: buyer-accept-loading
+    next: &id020
+    - quote-to-order.4
+    branches:
+    - when: success
+      next: *id020
+    - when: error
+      state: buyer-accept-error
+      recover: quote-to-order.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: quote-to-order.4
+    actor: b2b-buyer
+    action: checkout
+    surface: b2b
+    screen: checkout
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: b2b-buyer
+    backend_operation: checkout.checkout
+    event: quote-to-order.checkout.completed
+    success_state: checkout-success
+    error_state: checkout-error
+    empty_state: checkout-empty
+    loading_state: checkout-loading
+    next: &id021
+    - quote-to-order.5
+    branches:
+    - when: success
+      next: *id021
+    - when: error
+      state: checkout-error
+      recover: quote-to-order.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: quote-to-order.5
+    actor: b2b-buyer
+    action: confirm-order
+    surface: b2b
+    screen: confirm_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: b2b-buyer
+    backend_operation: orders.confirm-order
+    event: quote-to-order.confirm-order.completed
+    success_state: confirm-order-success
+    error_state: confirm-order-error
+    empty_state: confirm-order-empty
+    loading_state: confirm-order-loading
+    next: &id022 []
+    branches:
+    - when: success
+      next: *id022
+    - when: error
+      state: confirm-order-error
+      recover: quote-to-order.5
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: confirm-order-success
+- id: repeat-order
+  actor: b2b-buyer
+  objective: repeat order
+  surfaces:
+  - b2b
+  nodes:
+  - id: repeat-order.1
+    actor: b2b-buyer
+    action: order-history
+    surface: b2b
+    screen: order_history
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: b2b-buyer
+    backend_operation: orders.order-history
+    event: repeat-order.order-history.completed
+    success_state: order-history-success
+    error_state: order-history-error
+    empty_state: order-history-empty
+    loading_state: order-history-loading
+    next: &id023
+    - repeat-order.2
+    branches:
+    - when: success
+      next: *id023
+    - when: error
+      state: order-history-error
+      recover: repeat-order.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: repeat-order.2
+    actor: b2b-buyer
+    action: reorder
+    surface: b2b
+    screen: reorder
+    capability: reorder
+    data:
+    - reorder.read
+    - reorder.write
+    permission: b2b-buyer
+    backend_operation: reorder.reorder
+    event: repeat-order.reorder.completed
+    success_state: reorder-success
+    error_state: reorder-error
+    empty_state: reorder-empty
+    loading_state: reorder-loading
+    next: &id024
+    - repeat-order.3
+    branches:
+    - when: success
+      next: *id024
+    - when: error
+      state: reorder-error
+      recover: repeat-order.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: repeat-order.3
+    actor: b2b-buyer
+    action: checkout
+    surface: b2b
+    screen: checkout
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: b2b-buyer
+    backend_operation: checkout.checkout
+    event: repeat-order.checkout.completed
+    success_state: checkout-success
+    error_state: checkout-error
+    empty_state: checkout-empty
+    loading_state: checkout-loading
+    next: &id025 []
+    branches:
+    - when: success
+      next: *id025
+    - when: error
+      state: checkout-error
+      recover: repeat-order.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: checkout-success
+- id: credit-order
+  actor: b2b-buyer
+  objective: credit order
+  surfaces:
+  - b2b
+  nodes:
+  - id: credit-order.1
+    actor: b2b-buyer
+    action: choose-credit
+    surface: b2b
+    screen: choose_credit
+    capability: credit-management
+    data:
+    - credit-management.read
+    - credit-management.write
+    permission: b2b-buyer
+    backend_operation: credit-management.choose-credit
+    event: credit-order.choose-credit.completed
+    success_state: choose-credit-success
+    error_state: choose-credit-error
+    empty_state: choose-credit-empty
+    loading_state: choose-credit-loading
+    next: &id026
+    - credit-order.2
+    branches:
+    - when: success
+      next: *id026
+    - when: error
+      state: choose-credit-error
+      recover: credit-order.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: credit-order.2
+    actor: b2b-buyer
+    action: approval
+    surface: b2b
+    screen: approval
+    capability: approval-workflow
+    data:
+    - approval-workflow.read
+    - approval-workflow.write
+    permission: b2b-buyer
+    backend_operation: approval-workflow.approval
+    event: credit-order.approval.completed
+    success_state: approval-success
+    error_state: approval-error
+    empty_state: approval-empty
+    loading_state: approval-loading
+    next: &id027
+    - credit-order.3
+    branches:
+    - when: success
+      next: *id027
+    - when: error
+      state: approval-error
+      recover: credit-order.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: credit-order.3
+    actor: b2b-buyer
+    action: checkout
+    surface: b2b
+    screen: checkout
+    capability: checkout
+    data:
+    - checkout.read
+    - checkout.write
+    permission: b2b-buyer
+    backend_operation: checkout.checkout
+    event: credit-order.checkout.completed
+    success_state: checkout-success
+    error_state: checkout-error
+    empty_state: checkout-empty
+    loading_state: checkout-loading
+    next: &id028
+    - credit-order.4
+    branches:
+    - when: success
+      next: *id028
+    - when: error
+      state: checkout-error
+      recover: credit-order.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: credit-order.4
+    actor: b2b-buyer
+    action: confirm-order
+    surface: b2b
+    screen: confirm_order
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: b2b-buyer
+    backend_operation: orders.confirm-order
+    event: credit-order.confirm-order.completed
+    success_state: confirm-order-success
+    error_state: confirm-order-error
+    empty_state: confirm-order-empty
+    loading_state: confirm-order-loading
+    next: &id029 []
+    branches:
+    - when: success
+      next: *id029
+    - when: error
+      state: confirm-order-error
+      recover: credit-order.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: confirm-order-success
+- id: seller-onboarding
+  actor: seller
+  objective: seller onboarding
+  surfaces:
+  - seller-portal
+  nodes:
+  - id: seller-onboarding.1
+    actor: seller
+    action: register-business
+    surface: seller-portal
+    screen: register_business
+    capability: seller-onboarding
+    data:
+    - seller-onboarding.read
+    - seller-onboarding.write
+    permission: seller
+    backend_operation: seller-onboarding.register-business
+    event: seller-onboarding.register-business.completed
+    success_state: register-business-success
+    error_state: register-business-error
+    empty_state: register-business-empty
+    loading_state: register-business-loading
+    next: &id030
+    - seller-onboarding.2
+    branches:
+    - when: success
+      next: *id030
+    - when: error
+      state: register-business-error
+      recover: seller-onboarding.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-onboarding.2
+    actor: seller
+    action: submit-kyc
+    surface: seller-portal
+    screen: submit_kyc
+    capability: seller-onboarding
+    data:
+    - seller-onboarding.read
+    - seller-onboarding.write
+    permission: seller
+    backend_operation: seller-onboarding.submit-kyc
+    event: seller-onboarding.submit-kyc.completed
+    success_state: submit-kyc-success
+    error_state: submit-kyc-error
+    empty_state: submit-kyc-empty
+    loading_state: submit-kyc-loading
+    next: &id031
+    - seller-onboarding.3
+    branches:
+    - when: success
+      next: *id031
+    - when: error
+      state: submit-kyc-error
+      recover: seller-onboarding.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-onboarding.3
+    actor: seller
+    action: verify-documents
+    surface: seller-portal
+    screen: verify_documents
+    capability: seller-approval
+    data:
+    - seller-approval.read
+    - seller-approval.write
+    permission: seller
+    backend_operation: seller-approval.verify-documents
+    event: seller-onboarding.verify-documents.completed
+    success_state: verify-documents-success
+    error_state: verify-documents-error
+    empty_state: verify-documents-empty
+    loading_state: verify-documents-loading
+    next: &id032
+    - seller-onboarding.4
+    branches:
+    - when: success
+      next: *id032
+    - when: error
+      state: verify-documents-error
+      recover: seller-onboarding.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-onboarding.4
+    actor: seller
+    action: approve-seller
+    surface: seller-portal
+    screen: approve_seller
+    capability: seller-approval
+    data:
+    - seller-approval.read
+    - seller-approval.write
+    permission: seller
+    backend_operation: seller-approval.approve-seller
+    event: seller-onboarding.approve-seller.completed
+    success_state: approve-seller-success
+    error_state: approve-seller-error
+    empty_state: approve-seller-empty
+    loading_state: approve-seller-loading
+    next: &id033 []
+    branches:
+    - when: success
+      next: *id033
+    - when: error
+      state: approve-seller-error
+      recover: seller-onboarding.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: approve-seller-success
+- id: seller-catalogue
+  actor: seller
+  objective: seller catalogue
+  surfaces:
+  - seller-portal
+  nodes:
+  - id: seller-catalogue.1
+    actor: seller
+    action: add-product
+    surface: seller-portal
+    screen: add_product
+    capability: seller-catalogue
+    data:
+    - seller-catalogue.read
+    - seller-catalogue.write
+    permission: seller
+    backend_operation: seller-catalogue.add-product
+    event: seller-catalogue.add-product.completed
+    success_state: add-product-success
+    error_state: add-product-error
+    empty_state: add-product-empty
+    loading_state: add-product-loading
+    next: &id034
+    - seller-catalogue.2
+    branches:
+    - when: success
+      next: *id034
+    - when: error
+      state: add-product-error
+      recover: seller-catalogue.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-catalogue.2
+    actor: seller
+    action: set-pricing
+    surface: seller-portal
+    screen: set_pricing
+    capability: seller-catalogue
+    data:
+    - seller-catalogue.read
+    - seller-catalogue.write
+    permission: seller
+    backend_operation: seller-catalogue.set-pricing
+    event: seller-catalogue.set-pricing.completed
+    success_state: set-pricing-success
+    error_state: set-pricing-error
+    empty_state: set-pricing-empty
+    loading_state: set-pricing-loading
+    next: &id035
+    - seller-catalogue.3
+    branches:
+    - when: success
+      next: *id035
+    - when: error
+      state: set-pricing-error
+      recover: seller-catalogue.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-catalogue.3
+    actor: seller
+    action: set-stock
+    surface: seller-portal
+    screen: set_stock
+    capability: seller-inventory
+    data:
+    - seller-inventory.read
+    - seller-inventory.write
+    permission: seller
+    backend_operation: seller-inventory.set-stock
+    event: seller-catalogue.set-stock.completed
+    success_state: set-stock-success
+    error_state: set-stock-error
+    empty_state: set-stock-empty
+    loading_state: set-stock-loading
+    next: &id036
+    - seller-catalogue.4
+    branches:
+    - when: success
+      next: *id036
+    - when: error
+      state: set-stock-error
+      recover: seller-catalogue.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-catalogue.4
+    actor: seller
+    action: publish-offer
+    surface: seller-portal
+    screen: publish_offer
+    capability: seller-catalogue
+    data:
+    - seller-catalogue.read
+    - seller-catalogue.write
+    permission: seller
+    backend_operation: seller-catalogue.publish-offer
+    event: seller-catalogue.publish-offer.completed
+    success_state: publish-offer-success
+    error_state: publish-offer-error
+    empty_state: publish-offer-empty
+    loading_state: publish-offer-loading
+    next: &id037 []
+    branches:
+    - when: success
+      next: *id037
+    - when: error
+      state: publish-offer-error
+      recover: seller-catalogue.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: publish-offer-success
+- id: marketplace-order
+  actor: operator
+  objective: marketplace order
+  surfaces:
+  - commerce-admin
+  nodes:
+  - id: marketplace-order.1
+    actor: operator
+    action: receive-order
+    surface: commerce-admin
+    screen: receive_order
+    capability: marketplace-orders
+    data:
+    - marketplace-orders.read
+    - marketplace-orders.write
+    permission: operator
+    backend_operation: marketplace-orders.receive-order
+    event: marketplace-order.receive-order.completed
+    success_state: receive-order-success
+    error_state: receive-order-error
+    empty_state: receive-order-empty
+    loading_state: receive-order-loading
+    next: &id038
+    - marketplace-order.2
+    branches:
+    - when: success
+      next: *id038
+    - when: error
+      state: receive-order-error
+      recover: marketplace-order.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: marketplace-order.2
+    actor: operator
+    action: split-allocate
+    surface: commerce-admin
+    screen: split_allocate
+    capability: marketplace-orders
+    data:
+    - marketplace-orders.read
+    - marketplace-orders.write
+    permission: operator
+    backend_operation: marketplace-orders.split-allocate
+    event: marketplace-order.split-allocate.completed
+    success_state: split-allocate-success
+    error_state: split-allocate-error
+    empty_state: split-allocate-empty
+    loading_state: split-allocate-loading
+    next: &id039
+    - marketplace-order.3
+    branches:
+    - when: success
+      next: *id039
+    - when: error
+      state: split-allocate-error
+      recover: marketplace-order.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: marketplace-order.3
+    actor: operator
+    action: release-to-seller
+    surface: commerce-admin
+    screen: release_to_seller
+    capability: marketplace-orders
+    data:
+    - marketplace-orders.read
+    - marketplace-orders.write
+    permission: operator
+    backend_operation: marketplace-orders.release-to-seller
+    event: marketplace-order.release-to-seller.completed
+    success_state: release-to-seller-success
+    error_state: release-to-seller-error
+    empty_state: release-to-seller-empty
+    loading_state: release-to-seller-loading
+    next: &id040 []
+    branches:
+    - when: success
+      next: *id040
+    - when: error
+      state: release-to-seller-error
+      recover: marketplace-order.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: release-to-seller-success
+- id: seller-fulfilment
+  actor: seller
+  objective: seller fulfilment
+  surfaces:
+  - seller-portal
+  nodes:
+  - id: seller-fulfilment.1
+    actor: seller
+    action: pick-items
+    surface: seller-portal
+    screen: pick_items
+    capability: fulfilment
+    data:
+    - fulfilment.read
+    - fulfilment.write
+    permission: seller
+    backend_operation: fulfilment.pick-items
+    event: seller-fulfilment.pick-items.completed
+    success_state: pick-items-success
+    error_state: pick-items-error
+    empty_state: pick-items-empty
+    loading_state: pick-items-loading
+    next: &id041
+    - seller-fulfilment.2
+    branches:
+    - when: success
+      next: *id041
+    - when: error
+      state: pick-items-error
+      recover: seller-fulfilment.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-fulfilment.2
+    actor: seller
+    action: pack
+    surface: seller-portal
+    screen: pack
+    capability: fulfilment
+    data:
+    - fulfilment.read
+    - fulfilment.write
+    permission: seller
+    backend_operation: fulfilment.pack
+    event: seller-fulfilment.pack.completed
+    success_state: pack-success
+    error_state: pack-error
+    empty_state: pack-empty
+    loading_state: pack-loading
+    next: &id042
+    - seller-fulfilment.3
+    branches:
+    - when: success
+      next: *id042
+    - when: error
+      state: pack-error
+      recover: seller-fulfilment.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-fulfilment.3
+    actor: seller
+    action: dispatch
+    surface: seller-portal
+    screen: dispatch
+    capability: fulfilment
+    data:
+    - fulfilment.read
+    - fulfilment.write
+    permission: seller
+    backend_operation: fulfilment.dispatch
+    event: seller-fulfilment.dispatch.completed
+    success_state: dispatch-success
+    error_state: dispatch-error
+    empty_state: dispatch-empty
+    loading_state: dispatch-loading
+    next: &id043
+    - seller-fulfilment.4
+    branches:
+    - when: success
+      next: *id043
+    - when: error
+      state: dispatch-error
+      recover: seller-fulfilment.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-fulfilment.4
+    actor: seller
+    action: mark-delivered
+    surface: seller-portal
+    screen: mark_delivered
+    capability: fulfilment
+    data:
+    - fulfilment.read
+    - fulfilment.write
+    permission: seller
+    backend_operation: fulfilment.mark-delivered
+    event: seller-fulfilment.mark-delivered.completed
+    success_state: mark-delivered-success
+    error_state: mark-delivered-error
+    empty_state: mark-delivered-empty
+    loading_state: mark-delivered-loading
+    next: &id044 []
+    branches:
+    - when: success
+      next: *id044
+    - when: error
+      state: mark-delivered-error
+      recover: seller-fulfilment.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: mark-delivered-success
+- id: seller-return
+  actor: seller
+  objective: seller return
+  surfaces:
+  - seller-portal
+  nodes:
+  - id: seller-return.1
+    actor: seller
+    action: receive-return
+    surface: seller-portal
+    screen: receive_return
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: seller
+    backend_operation: return-refund.receive-return
+    event: seller-return.receive-return.completed
+    success_state: receive-return-success
+    error_state: receive-return-error
+    empty_state: receive-return-empty
+    loading_state: receive-return-loading
+    next: &id045
+    - seller-return.2
+    branches:
+    - when: success
+      next: *id045
+    - when: error
+      state: receive-return-error
+      recover: seller-return.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-return.2
+    actor: seller
+    action: inspect
+    surface: seller-portal
+    screen: inspect
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: seller
+    backend_operation: return-refund.inspect
+    event: seller-return.inspect.completed
+    success_state: inspect-success
+    error_state: inspect-error
+    empty_state: inspect-empty
+    loading_state: inspect-loading
+    next: &id046
+    - seller-return.3
+    branches:
+    - when: success
+      next: *id046
+    - when: error
+      state: inspect-error
+      recover: seller-return.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-return.3
+    actor: seller
+    action: refund-adjust
+    surface: seller-portal
+    screen: refund_adjust
+    capability: return-refund
+    data:
+    - return-refund.read
+    - return-refund.write
+    permission: seller
+    backend_operation: return-refund.refund-adjust
+    event: seller-return.refund-adjust.completed
+    success_state: refund-adjust-success
+    error_state: refund-adjust-error
+    empty_state: refund-adjust-empty
+    loading_state: refund-adjust-loading
+    next: &id047 []
+    branches:
+    - when: success
+      next: *id047
+    - when: error
+      state: refund-adjust-error
+      recover: seller-return.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: refund-adjust-success
+- id: seller-settlement
+  actor: seller
+  objective: seller settlement
+  surfaces:
+  - seller-portal
+  nodes:
+  - id: seller-settlement.1
+    actor: seller
+    action: review-orders
+    surface: seller-portal
+    screen: review_orders
+    capability: orders
+    data:
+    - orders.read
+    - orders.write
+    permission: seller
+    backend_operation: orders.review-orders
+    event: seller-settlement.review-orders.completed
+    success_state: review-orders-success
+    error_state: review-orders-error
+    empty_state: review-orders-empty
+    loading_state: review-orders-loading
+    next: &id048
+    - seller-settlement.2
+    branches:
+    - when: success
+      next: *id048
+    - when: error
+      state: review-orders-error
+      recover: seller-settlement.1
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-settlement.2
+    actor: seller
+    action: calculate-settlement
+    surface: seller-portal
+    screen: calculate_settlement
+    capability: seller-settlements
+    data:
+    - seller-settlements.read
+    - seller-settlements.write
+    permission: seller
+    backend_operation: seller-settlements.calculate-settlement
+    event: seller-settlement.calculate-settlement.completed
+    success_state: calculate-settlement-success
+    error_state: calculate-settlement-error
+    empty_state: calculate-settlement-empty
+    loading_state: calculate-settlement-loading
+    next: &id049
+    - seller-settlement.3
+    branches:
+    - when: success
+      next: *id049
+    - when: error
+      state: calculate-settlement-error
+      recover: seller-settlement.2
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-settlement.3
+    actor: seller
+    action: post-accounting
+    surface: seller-portal
+    screen: post_accounting
+    capability: seller-settlements
+    data:
+    - seller-settlements.read
+    - seller-settlements.write
+    permission: seller
+    backend_operation: seller-settlements.post-accounting
+    event: seller-settlement.post-accounting.completed
+    success_state: post-accounting-success
+    error_state: post-accounting-error
+    empty_state: post-accounting-empty
+    loading_state: post-accounting-loading
+    next: &id050
+    - seller-settlement.4
+    branches:
+    - when: success
+      next: *id050
+    - when: error
+      state: post-accounting-error
+      recover: seller-settlement.3
+    handoff:
+      required: false
+      from: null
+      to: null
+  - id: seller-settlement.4
+    actor: seller
+    action: reconcile-payout
+    surface: seller-portal
+    screen: reconcile_payout
+    capability: payout-reconciliation
+    data:
+    - payout-reconciliation.read
+    - payout-reconciliation.write
+    permission: seller
+    backend_operation: payout-reconciliation.reconcile-payout
+    event: seller-settlement.reconcile-payout.completed
+    success_state: reconcile-payout-success
+    error_state: reconcile-payout-error
+    empty_state: reconcile-payout-empty
+    loading_state: reconcile-payout-loading
+    next: &id051 []
+    branches:
+    - when: success
+      next: *id051
+    - when: error
+      state: reconcile-payout-error
+      recover: seller-settlement.4
+    handoff:
+      required: false
+      from: null
+      to: null
+  completion: reconcile-payout-success
+status: generated

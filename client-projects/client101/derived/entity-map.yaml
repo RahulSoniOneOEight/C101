@@ -1,0 +1,24 @@
+client_id: client101
+entities:
+  order:
+    owner_capability: commerce-order-management
+  inventory:
+    owner_capability: erp-inventory
+  payment:
+    owner_capability: payment-integration
+  shipment:
+    owner_capability: logistics-integration
+  business-account:
+    owner_capability: commerce-account-management
+  seller:
+    owner_capability: marketplace-seller-management
+  seller-offer:
+    owner_capability: marketplace-offer-management
+  marketplace-order-allocation:
+    owner_capability: marketplace-order-management
+  commission:
+    owner_capability: marketplace-commission-management
+  seller-settlement:
+    owner_capability: marketplace-settlement-management
+  seller-payout-reconciliation:
+    owner_capability: marketplace-settlement-management

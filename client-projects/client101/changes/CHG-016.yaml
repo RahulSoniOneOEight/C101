@@ -1,0 +1,30 @@
+change_id: CHG-016
+request: >-
+  Fix RenderFlex overflows in the B2B trade surfaces observed on an Android
+  device. The Buy Again rail cards overflowed by 44px because the card used a
+  fixed 84px image inside a fixed-height rail, and the compact TradeProductCard
+  overflowed by 100px+ because Surface added 24px padding on top of the card's
+  own padding, squeezing the content column to ~90px so badges collapsed and
+  text wrapped vertically. Removes the double padding, makes the Buy Again image
+  flexible, makes the price row and badges overflow-safe, and raises the grid
+  card extent to fit the content.
+type: ux
+affected_capabilities:
+- b2b-home
+- b2b-catalogue
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- b2b.home
+- b2b.catalogue
+affected_entities:
+- trade-product
+affected_events: []
+required_tests:
+- compact TradeProductCard fits its grid extent at phone width without overflow
+- Buy Again rail cards fit the rail height without overflow
+- B2B home, catalogue, quick order, procurement list, credit, PDP and populated
+  quotation cart render without RenderFlex overflow at 411x914
+- flutter analyze and flutter test pass
+approval_required: false
+status: validated

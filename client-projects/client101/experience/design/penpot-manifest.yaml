@@ -1,0 +1,56 @@
+client_id: client101
+project_ref: 40e06342-8830-80d6-8008-9a92fdfb6804
+revision_ref: 40e06342-8830-80d6-8008-9a92fdfb6804@95
+input_hashes:
+  design_ir: sha256:20756b0888d2c8620bebc8159ba9173544c7647a1a16426838ff610b195a3dc1
+  components: sha256:53af12215f58637966e09348552459b33be48b1116feab7493e40d81375eb78a
+  theme: sha256:6bc94dc6643c7f07f3128d3d2b78332cc44d06bd9191485f3818b43f34463bd1
+  journeys: sha256:069e39fe6d4ba33d83086f8f2322134e390f687f70a6e5f6f2dbcb78d087c606
+required_surfaces:
+- b2b
+- commerce-admin
+- customer-app
+- seller-portal
+required_journeys:
+- browse-to-buy
+- search-to-buy
+- order-tracking
+- return-refund
+- quote-to-order
+- repeat-order
+- credit-order
+- seller-onboarding
+- seller-catalogue
+- marketplace-order
+- seller-fulfilment
+- seller-return
+- seller-settlement
+required_components:
+- product-card
+- cart-line
+- checkout-summary
+- order-card
+- search-control
+- shipment-status
+- return-status
+- rfq-form
+- reorder-action
+- credit-limit
+- approval-status
+- workflow-action
+requirements:
+  components_editable: true
+  responsive_variants:
+  - mobile
+  - tablet
+  - desktop
+  states:
+  - default
+  - loading
+  - empty
+  - error
+  - success
+  - disabled
+  interactive_journeys: true
+selected_direction: AB
+status: design-system-built

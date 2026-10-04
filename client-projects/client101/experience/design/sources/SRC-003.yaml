@@ -1,0 +1,23 @@
+source_id: SRC-003
+type: git
+source_ref: https://github.com/coderbaba0/flipkart_clone
+authority: approved-reference
+components:
+  - product-card
+  - search-control
+  - cart-line
+  - checkout-summary
+  - order-card
+  - category-navigation
+  - filter-control
+  - sort-control
+  - bottom-nav
+patterns:
+  - name: consumer-marketplace-browse
+    kind: component
+    evidence: category-led product browsing and listing with seller comparison
+  - name: consumer-marketplace-checkout
+    kind: component
+    evidence: multi-seller cart and unified checkout patterns
+notes:
+  - Approved reference: Flipkart clone (consumer marketplace UI); functional reference, not production technology.

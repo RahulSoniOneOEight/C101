@@ -1,0 +1,17 @@
+decision_id: ADR-client101-003
+client_id: client101
+title: Select postgresql for database
+status: proposed
+context: Resolve provider for solution domain database.
+decision: Use provider postgresql behind the data boundary.
+alternatives: []
+consequences:
+- Provider-specific behavior remains behind an adapter.
+- Replacement must not change canonical business contracts.
+affected_capabilities: []
+affected_domains:
+- data
+evidence_refs:
+- solution/solution-contract.yaml
+approved_by: null
+approved_at: null

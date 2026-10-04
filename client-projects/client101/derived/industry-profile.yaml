@@ -1,0 +1,17 @@
+client_id: client101
+industry: retail
+archetypes:
+- d2c-commerce
+- b2b-commerce
+- marketplace
+business_models:
+- d2c
+- b2c
+- b2b
+- marketplace
+risk_profile: standard
+benchmark_sources:
+- intelligence/industries/retail/profile.yaml
+- intelligence/archetypes/d2c-commerce.yaml
+- intelligence/archetypes/b2b-commerce.yaml
+- intelligence/archetypes/marketplace.yaml

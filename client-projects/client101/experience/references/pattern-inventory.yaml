@@ -1,0 +1,56 @@
+client_id: client101
+sources:
+  - source_id: SRC-001
+    ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807abcbffa05af2fb58c
+    patterns:
+      - id: SRC-001-d2c-features
+        name: d2c-feature-areas
+        kind: declared-pattern
+      - id: SRC-001-automations
+        name: lifecycle-automations
+        kind: declared-pattern
+      - id: SRC-001-dashboards
+        name: dashboard-groups
+        kind: declared-pattern
+    status: analyzed
+  - source_id: SRC-002
+    ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807db1eddb9e47afd14f
+    patterns:
+      - id: SRC-002-rfq
+        name: b2b-rfq-quote
+        kind: declared-pattern
+      - id: SRC-002-credit
+        name: b2b-credit-approval
+        kind: declared-pattern
+      - id: SRC-002-project-site
+        name: b2b-project-site
+        kind: declared-pattern
+    status: analyzed
+  - source_id: SRC-003
+    ref: https://github.com/coderbaba0/flipkart_clone
+    patterns:
+      - id: SRC-003-browse
+        name: consumer-marketplace-browse
+        kind: component
+      - id: SRC-003-checkout
+        name: consumer-marketplace-checkout
+        kind: component
+    status: analyzed
+  - source_id: SRC-004
+    ref: https://github.com/bagisto/opensource-ecommerce-mobile-app
+    patterns:
+      - id: SRC-004-browse
+        name: mobile-ecommerce-browse
+        kind: component
+      - id: SRC-004-order
+        name: mobile-ecommerce-order
+        kind: component
+    status: analyzed
+  - source_id: SRC-005
+    ref: https://github.com/medusajs/ui
+    patterns:
+      - id: SRC-005-primitives
+        name: design-system-primitives
+        kind: component
+    status: analyzed
+status: analyzed

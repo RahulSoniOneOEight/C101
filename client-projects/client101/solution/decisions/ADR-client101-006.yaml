@@ -1,0 +1,17 @@
+decision_id: ADR-client101-006
+client_id: client101
+title: Select nextjs for experience_web
+status: proposed
+context: Resolve provider for solution domain experience_web.
+decision: Use provider nextjs behind the experience boundary.
+alternatives: []
+consequences:
+- Provider-specific behavior remains behind an adapter.
+- Replacement must not change canonical business contracts.
+affected_capabilities: []
+affected_domains:
+- experience
+evidence_refs:
+- solution/solution-contract.yaml
+approved_by: null
+approved_at: null

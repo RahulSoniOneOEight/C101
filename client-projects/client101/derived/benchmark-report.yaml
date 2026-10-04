@@ -1,0 +1,75 @@
+client_id: client101
+industry: retail
+archetypes:
+- d2c-commerce
+- b2b-commerce
+- marketplace
+expected:
+  core_capabilities:
+  - catalogue
+  - search
+  - pricing
+  - promotions
+  - cart
+  - checkout
+  - orders
+  - inventory-availability
+  - fulfilment
+  - return-refund
+  - analytics
+  - b2b-account
+  - quote-rfq
+  - seller-onboarding
+  - seller-catalogue
+  - seller-inventory
+  - marketplace-orders
+  - commissions
+  - settlements
+  recommended_capabilities:
+  - loyalty
+  - customer-support
+  - lifecycle-automation
+  - ops-exceptions
+  - credit-management
+  - approval-workflow
+  - reorder
+  - seller-analytics
+  - seller-approval
+  - payout-reconciliation
+  journeys:
+  - browse-to-buy
+  - search-to-buy
+  - order-tracking
+  - return-refund
+  - quote-to-order
+  - repeat-order
+  - credit-order
+  - seller-onboarding
+  - seller-catalogue
+  - marketplace-order
+  - seller-fulfilment
+  - seller-return
+  - seller-settlement
+  surfaces:
+  - customer-app
+  - web-store
+  - commerce-admin
+  - analytics
+  - erp
+  - seller-portal
+  optional_surfaces:
+  - warehouse
+  - customer-support
+  - ops-console
+  controls:
+  - role-based-access
+  - payment-reconciliation
+  - inventory-reconciliation
+  - audit
+  qa_emphasis:
+  - checkout
+  - inventory-consistency
+  - payment-failure
+  - fulfilment
+  - returns
+  - performance

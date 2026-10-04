@@ -1,0 +1,21 @@
+fixture_set_id: commerce-baseline
+client_id: client101
+states:
+- id: default
+  purpose: primary happy path
+  data: {}
+- id: loading
+  purpose: loading behavior
+  data: {}
+- id: empty
+  purpose: empty-state behavior
+  data: {}
+- id: failure
+  purpose: recoverable failure behavior
+  data: {}
+- id: approval-pending
+  purpose: business approval waiting state
+  data: {}
+- id: payment-failed
+  purpose: payment recovery state
+  data: {}

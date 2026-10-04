@@ -1,0 +1,8 @@
+name: pincommerce
+packages:
+  - apps/**
+  - packages/**
+
+command:
+  bootstrap:
+    usePubspecOverrides: true

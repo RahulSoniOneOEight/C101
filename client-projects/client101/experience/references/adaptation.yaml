@@ -1,0 +1,91 @@
+client_id: client101
+sources:
+  - source_id: SRC-001
+    ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807abcbffa05af2fb58c
+    patterns:
+      - id: SRC-001-d2c-features
+        name: d2c-feature-areas
+        decision: ADAPT
+        reason: Client-authoritative D2C feature note; its 25 feature areas map onto PinCommerce governed components and consumer journeys.
+        journeys: [browse-to-buy, search-to-buy, order-tracking, return-refund, repeat-order]
+        surfaces: [customer-app, web-store]
+        implementation_target: experience/design/component-contract-registry.yaml
+      - id: SRC-001-automations
+        name: lifecycle-automations
+        decision: ADAPT
+        reason: 29 lifecycle/monitoring automations inform platform automation workflows, not UI.
+        journeys: [browse-to-buy, order-tracking, return-refund, repeat-order]
+        surfaces: [commerce-admin, ops-console]
+        implementation_target: platform/automation
+      - id: SRC-001-dashboards
+        name: dashboard-groups
+        decision: ADAPT
+        reason: 5 dashboard groups map to analytics and ops surfaces.
+        journeys: [marketplace-order, seller-settlement]
+        surfaces: [analytics, ops-console]
+        implementation_target: platform/analytics
+  - source_id: SRC-002
+    ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807db1eddb9e47afd14f
+    patterns:
+      - id: SRC-002-rfq
+        name: b2b-rfq-quote
+        decision: ADAPT
+        reason: B2B RFQ/best-price/negotiation maps to the governed rfq-form component and quote-to-order journey.
+        journeys: [quote-to-order]
+        surfaces: [b2b, customer-app]
+        implementation_target: experience/design/component-contract-registry.yaml#rfq-form
+      - id: SRC-002-credit
+        name: b2b-credit-approval
+        decision: ADAPT
+        reason: Credit limit/terms and approval workflow map to credit-limit and approval-status components and credit-order journey.
+        journeys: [credit-order]
+        surfaces: [b2b]
+        implementation_target: experience/design/component-contract-registry.yaml#credit-limit
+      - id: SRC-002-project-site
+        name: b2b-project-site
+        decision: ADAPT
+        reason: Project/site purchasing maps to project-card and material-list components and repeat-order journey.
+        journeys: [repeat-order, quote-to-order]
+        surfaces: [b2b]
+        implementation_target: experience/design/component-contract-registry.yaml
+  - source_id: SRC-003
+    ref: https://github.com/coderbaba0/flipkart_clone
+    patterns:
+      - id: SRC-003-browse
+        name: consumer-marketplace-browse
+        decision: REUSE
+        reason: Consumer marketplace browsing/listing/seller-comparison patterns are reusable for the storefront.
+        journeys: [browse-to-buy, search-to-buy]
+        surfaces: [customer-app, web-store]
+      - id: SRC-003-checkout
+        name: consumer-marketplace-checkout
+        decision: REUSE
+        reason: Multi-seller cart and unified checkout patterns are reusable for the consumer checkout flow.
+        journeys: [browse-to-buy]
+        surfaces: [customer-app, web-store]
+  - source_id: SRC-004
+    ref: https://github.com/bagisto/opensource-ecommerce-mobile-app
+    patterns:
+      - id: SRC-004-browse
+        name: mobile-ecommerce-browse
+        decision: REUSE
+        reason: Mobile product browsing/listing/detail patterns are reusable for the mobile app.
+        journeys: [browse-to-buy, search-to-buy]
+        surfaces: [customer-app]
+      - id: SRC-004-order
+        name: mobile-ecommerce-order
+        decision: REUSE
+        reason: Mobile cart/checkout/order-history patterns are reusable for the mobile app.
+        journeys: [browse-to-buy, order-tracking]
+        surfaces: [customer-app]
+  - source_id: SRC-005
+    ref: https://github.com/medusajs/ui
+    patterns:
+      - id: SRC-005-primitives
+        name: design-system-primitives
+        decision: ADAPT
+        reason: Medusa UI primitives are wrapped behind PinCommerce shared design primitives with semantic-token compatibility.
+        journeys: [browse-to-buy, search-to-buy, order-tracking, return-refund, quote-to-order, repeat-order, credit-order, seller-onboarding, seller-catalogue, marketplace-order, seller-fulfilment, seller-return, seller-settlement]
+        surfaces: [customer-app, web-store, b2b, seller-portal, commerce-admin, analytics, erp, ops-console]
+        implementation_target: packages/agency_flutter_ui, packages/agency_web_ui
+status: evaluated

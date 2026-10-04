@@ -1,0 +1,67 @@
+client_id: client101
+gaps:
+- journey: order-tracking
+  node: order-tracking.2
+  capability: fulfilment
+  reason: not mapped to discovered platform capability
+- journey: quote-to-order
+  node: quote-to-order.1
+  capability: quote-rfq
+  reason: not mapped to discovered platform capability
+- journey: quote-to-order
+  node: quote-to-order.2
+  capability: quote-rfq
+  reason: not mapped to discovered platform capability
+- journey: quote-to-order
+  node: quote-to-order.3
+  capability: quote-rfq
+  reason: not mapped to discovered platform capability
+- journey: repeat-order
+  node: repeat-order.2
+  capability: reorder
+  reason: not mapped to discovered platform capability
+- journey: credit-order
+  node: credit-order.1
+  capability: credit-management
+  reason: not mapped to discovered platform capability
+- journey: credit-order
+  node: credit-order.2
+  capability: approval-workflow
+  reason: not mapped to discovered platform capability
+- journey: seller-onboarding
+  node: seller-onboarding.3
+  capability: seller-approval
+  reason: not mapped to discovered platform capability
+- journey: seller-onboarding
+  node: seller-onboarding.4
+  capability: seller-approval
+  reason: not mapped to discovered platform capability
+- journey: seller-fulfilment
+  node: seller-fulfilment.1
+  capability: fulfilment
+  reason: not mapped to discovered platform capability
+- journey: seller-fulfilment
+  node: seller-fulfilment.2
+  capability: fulfilment
+  reason: not mapped to discovered platform capability
+- journey: seller-fulfilment
+  node: seller-fulfilment.3
+  capability: fulfilment
+  reason: not mapped to discovered platform capability
+- journey: seller-fulfilment
+  node: seller-fulfilment.4
+  capability: fulfilment
+  reason: not mapped to discovered platform capability
+- journey: seller-settlement
+  node: seller-settlement.2
+  capability: seller-settlements
+  reason: not mapped to discovered platform capability
+- journey: seller-settlement
+  node: seller-settlement.3
+  capability: seller-settlements
+  reason: not mapped to discovered platform capability
+- journey: seller-settlement
+  node: seller-settlement.4
+  capability: payout-reconciliation
+  reason: not mapped to discovered platform capability
+status: action-required

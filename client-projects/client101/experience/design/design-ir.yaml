@@ -1,0 +1,506 @@
+client_id: client101
+surfaces:
+- b2b
+- commerce-admin
+- customer-app
+- seller-portal
+journeys:
+- id: browse-to-buy
+  nodes:
+  - id: browse-to-buy.1
+    surface: customer-app
+    component_refs:
+    - product-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: browse-to-buy.2
+    surface: customer-app
+    component_refs:
+    - product-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: browse-to-buy.3
+    surface: customer-app
+    component_refs:
+    - cart-line
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: browse-to-buy.4
+    surface: customer-app
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: browse-to-buy.5
+    surface: customer-app
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: browse-to-buy.6
+    surface: customer-app
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: search-to-buy
+  nodes:
+  - id: search-to-buy.1
+    surface: customer-app
+    component_refs:
+    - search-control
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: search-to-buy.2
+    surface: customer-app
+    component_refs:
+    - product-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: search-to-buy.3
+    surface: customer-app
+    component_refs:
+    - cart-line
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: search-to-buy.4
+    surface: customer-app
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: search-to-buy.5
+    surface: customer-app
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: order-tracking
+  nodes:
+  - id: order-tracking.1
+    surface: customer-app
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: order-tracking.2
+    surface: customer-app
+    component_refs:
+    - shipment-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: return-refund
+  nodes:
+  - id: return-refund.1
+    surface: customer-app
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: return-refund.2
+    surface: customer-app
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: return-refund.3
+    surface: customer-app
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: return-refund.4
+    surface: customer-app
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: quote-to-order
+  nodes:
+  - id: quote-to-order.1
+    surface: b2b
+    component_refs:
+    - rfq-form
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: quote-to-order.2
+    surface: b2b
+    component_refs:
+    - rfq-form
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: quote-to-order.3
+    surface: b2b
+    component_refs:
+    - rfq-form
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: quote-to-order.4
+    surface: b2b
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: quote-to-order.5
+    surface: b2b
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: repeat-order
+  nodes:
+  - id: repeat-order.1
+    surface: b2b
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: repeat-order.2
+    surface: b2b
+    component_refs:
+    - reorder-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: repeat-order.3
+    surface: b2b
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: credit-order
+  nodes:
+  - id: credit-order.1
+    surface: b2b
+    component_refs:
+    - credit-limit
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: credit-order.2
+    surface: b2b
+    component_refs:
+    - approval-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: credit-order.3
+    surface: b2b
+    component_refs:
+    - checkout-summary
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: credit-order.4
+    surface: b2b
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: seller-onboarding
+  nodes:
+  - id: seller-onboarding.1
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-onboarding.2
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-onboarding.3
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-onboarding.4
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: seller-catalogue
+  nodes:
+  - id: seller-catalogue.1
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-catalogue.2
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-catalogue.3
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-catalogue.4
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: marketplace-order
+  nodes:
+  - id: marketplace-order.1
+    surface: commerce-admin
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: marketplace-order.2
+    surface: commerce-admin
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: marketplace-order.3
+    surface: commerce-admin
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: seller-fulfilment
+  nodes:
+  - id: seller-fulfilment.1
+    surface: seller-portal
+    component_refs:
+    - shipment-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-fulfilment.2
+    surface: seller-portal
+    component_refs:
+    - shipment-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-fulfilment.3
+    surface: seller-portal
+    component_refs:
+    - shipment-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-fulfilment.4
+    surface: seller-portal
+    component_refs:
+    - shipment-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: seller-return
+  nodes:
+  - id: seller-return.1
+    surface: seller-portal
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-return.2
+    surface: seller-portal
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-return.3
+    surface: seller-portal
+    component_refs:
+    - return-status
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+- id: seller-settlement
+  nodes:
+  - id: seller-settlement.1
+    surface: seller-portal
+    component_refs:
+    - order-card
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-settlement.2
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-settlement.3
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+  - id: seller-settlement.4
+    surface: seller-portal
+    component_refs:
+    - workflow-action
+    state_refs:
+    - default
+    - loading
+    - empty
+    - failure
+components:
+- product-card
+- cart-line
+- checkout-summary
+- order-card
+- search-control
+- shipment-status
+- return-status
+- rfq-form
+- reorder-action
+- credit-limit
+- approval-status
+- workflow-action
+status: generated

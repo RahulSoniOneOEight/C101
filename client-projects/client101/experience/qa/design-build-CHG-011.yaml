@@ -1,0 +1,37 @@
+client_id: client101
+design_revision: Client101-CHG-011-2026-09-30
+platform: flutter
+checks:
+- id: procurement-list-data-model
+  passed: true
+  evidence: >-
+    ProcurementList, ProcurementListItem, ProcurementListSourceType
+    (backendCurated, buyerSaved, personalized, seasonal, categoryBased) and
+    ProcurementListAction are defined in the B2B trade domain without
+    hardcoding list names in UI widgets.
+- id: governed-component-resolution
+  passed: true
+  evidence: >-
+    New ProcurementListCard is a presentation-only widget in the agency UI
+    package bound to primitive values + callbacks; the app layer maps
+    ProcurementList to it via a source-type style helper.
+- id: quick-order-center-flow
+  passed: true
+  evidence: >-
+    B2BQuickOrderCenterScreen provides Manual Entry and Upload List tabs; Upload
+    List renders Upload Own List plus Saved/Suggested sections; Use List loads
+    a list into the manual pad and View/Add opens ProcurementListDetailScreen
+    with Add All to Order flowing to the quotation cart.
+- id: responsive-and-static-validation
+  passed: true
+  evidence: >-
+    flutter analyze and flutter test passed for agency_flutter_ui and
+    prototype_app; procurement list grids adapt to 2/3/4 columns by width;
+    flutter build web --release completed successfully.
+- id: penpot-alignment
+  passed: true
+  evidence: >-
+    Penpot B2B Quick Order Center (375 wide) renders upload panel, Saved Lists
+    and Suggested Lists with six ProcurementListCard instances; containment
+    validation reports zero violations.
+status: passed

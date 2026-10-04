@@ -1,0 +1,248 @@
+selection_id: DSEL-client101
+client_id: client101
+selected_direction: AB
+direction_selection:
+  mode: hybrid
+  combines:
+  - A
+  - B
+  strategy: discovery-and-search
+  application:
+    discovery_category_merchandising: A
+    search_and_high_intent_access: B
+  human_decision:
+    decision: use A and B hybrid
+    recorded_on: '2026-09-28'
+    recorded_from: explicit-human-chat-selection
+    rationale: Human explicitly selected the A+B hybrid; no additional rationale or journey-level overrides were supplied.
+  journey_level_overrides: []
+  status: selected
+experience_type:
+- d2c-customer
+- b2b-ordering
+- marketplace
+- seller-operations
+- admin-operations
+preset: compact-commerce
+platforms:
+  flutter:
+    core:
+    - shadcn_flutter
+    icons:
+    - iconoir
+    motion:
+    - flutter_animate
+    candidate_pool:
+      core:
+      - shadcn_flutter
+      - material
+      - cupertino
+      specialists:
+      - data_table_2
+      - flutter_form_builder
+      - fl_chart
+      - cached_network_image
+      - carousel_slider
+      - moon_design
+      - base_ui_flutter
+      - ripplearc_core_ui
+      - geniuslink_design_system
+      icons:
+      - iconoir
+      - phosphor
+      - lucide
+      - material_symbols
+      motion:
+      - flutter_animate
+      - flutter_native_animation
+      - rive
+      - lottie
+  web:
+    core:
+    - shadcn_ui
+    - base_ui
+    icons:
+    - iconoir
+    motion:
+    - motion_react
+    candidate_pool:
+      core:
+      - shadcn_ui
+      - base_ui
+      - radix_ui
+      - react_aria
+      - ant_design
+      - mui
+      - tailwind_css
+      - web_awesome
+      - shoelace
+      specialists:
+      - tanstack_table
+      - tanstack_query
+      - react_hook_form
+      - recharts
+      - embla
+      icons:
+      - iconoir
+      - lucide
+      - phosphor
+      - material_symbols
+      motion:
+      - motion_react
+      - css_waapi
+      - gsap
+      - rive
+      - lottie
+patterns:
+- pattern: product-card
+  surface_role: visual-commerce-card
+  selected:
+    flutter:
+    - shadcn_flutter
+    - cached_network_image
+    - iconoir
+    - flutter_animate
+    web:
+    - shadcn_ui
+    - base_ui
+    - iconoir
+    - motion_react
+  candidates:
+  - shadcn_flutter
+  - cached_network_image
+  - iconoir
+  - flutter_animate
+  - shadcn_ui
+  - base_ui
+  - motion_react
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: category-rail
+  surface_role: visual-merchandising
+  selected:
+    flutter:
+    - carousel_slider
+    - cached_network_image
+    - flutter_animate
+    web:
+    - embla
+    - motion_react
+  candidates:
+  - carousel_slider
+  - cached_network_image
+  - flutter_animate
+  - embla
+  - motion_react
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: checkout-section
+  surface_role: structured-form
+  selected:
+    flutter:
+    - flutter_form_builder
+    - shadcn_flutter
+    web:
+    - react_hook_form
+    - shadcn_ui
+  candidates:
+  - flutter_form_builder
+  - shadcn_flutter
+  - react_hook_form
+  - shadcn_ui
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: b2b-quick-order
+  surface_role: dense-transactional-table
+  selected:
+    flutter:
+    - data_table_2
+    - flutter_form_builder
+    web:
+    - tanstack_table
+    - react_hook_form
+  candidates:
+  - data_table_2
+  - flutter_form_builder
+  - tanstack_table
+  - react_hook_form
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: dashboard-kpi
+  surface_role: analytical-tile
+  selected:
+    flutter:
+    - fl_chart
+    - shadcn_flutter
+    web:
+    - recharts
+    - shadcn_ui
+  candidates:
+  - fl_chart
+  - shadcn_flutter
+  - recharts
+  - shadcn_ui
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: exception-table
+  surface_role: ops-dense-table
+  selected:
+    flutter:
+    - data_table_2
+    web:
+    - tanstack_table
+  candidates:
+  - data_table_2
+  - tanstack_table
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+- pattern: seller-settlement
+  surface_role: finance-operations-table
+  selected:
+    flutter:
+    - data_table_2
+    - fl_chart
+    web:
+    - tanstack_table
+    - recharts
+  candidates:
+  - data_table_2
+  - fl_chart
+  - tanstack_table
+  - recharts
+  reason:
+  - selected from approved registry by functional role
+  - wrapped behind PinCommerce shared design primitives
+  - semantic-token compatibility required
+  - production adoption remains subject to license/maintenance review
+quality_policy:
+  minimum_score: 80
+  weights:
+    functional_fit: 20
+    visual_quality: 15
+    information_hierarchy: 15
+    interaction_quality: 10
+    responsive_fit: 10
+    accessibility: 10
+    brand_alignment: 10
+    performance: 5
+    reusability: 5
+  rule: deterministic checks plus rendered visual review; AI self-score alone is insufficient
+status: evaluated

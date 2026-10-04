@@ -1,0 +1,27 @@
+source_id: SRC-002
+type: other
+source_ref: https://app.notion.com/p/client101-3e6ddf8e5f6a80f3b201ff2474a374e4?source=copy_link#3e6ddf8e5f6a807db1eddb9e47afd14f
+authority: client-authoritative
+components:
+  - rfq-form
+  - credit-limit
+  - approval-status
+  - workflow-action
+  - project-card
+  - project-selector
+  - material-list
+  - reorder-action
+  - trade-price
+  - gst-invoice
+patterns:
+  - name: b2b-rfq-quote
+    kind: declared-pattern
+    evidence: B2B RFQ / request-best-price, seller counter-offer and negotiation, bulk enquiry / material-list upload
+  - name: b2b-credit-approval
+    kind: declared-pattern
+    evidence: credit limit, payment terms, outstanding balance, partial/advance payment, multi-user approval workflow
+  - name: b2b-project-site
+    kind: declared-pattern
+    evidence: multiple projects/sites and delivery locations, project-specific material lists/carts/orders, per-project reorder
+notes:
+  - Client-authoritative B2B + B2C Figma export/source package (Vite/React prototype with embedded briefs); not production technology.

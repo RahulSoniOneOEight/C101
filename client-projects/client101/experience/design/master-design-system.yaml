@@ -1,0 +1,72 @@
+system_id: client101-master-design-system
+client_id: client101
+tokens:
+  color:
+    surface.page: '{theme.surface.page}'
+    surface.raised: '{theme.surface.raised}'
+    surface.interactive: '{theme.surface.interactive}'
+    content.primary: '{theme.content.primary}'
+    content.secondary: '{theme.content.secondary}'
+    content.inverse: '{theme.content.inverse}'
+    action.primary: '{theme.action.primary}'
+    feedback.error: '{theme.feedback.error}'
+    feedback.success: '{theme.feedback.success}'
+  typography:
+    display:
+      role: display
+      weight: 700
+    heading:
+      role: heading
+      weight: 600
+    body:
+      role: body
+      weight: 400
+    label:
+      role: label
+      weight: 500
+  spacing:
+    xs: 4
+    sm: 8
+    md: 12
+    lg: 16
+    xl: 24
+    2xl: 32
+  radius:
+    sm: 6
+    md: 8
+    lg: 12
+    pill: 999
+  elevation:
+    none: 0
+    raised: 1
+    overlay: 3
+  motion:
+    fast: 120
+    standard: 200
+    deliberate: 320
+breakpoints:
+  phone: 0
+  tablet: 768
+  desktop: 1024
+  wide: 1440
+themes:
+- light
+- dark
+status: review-ready
+resolved_theme_ref: experience/design/theme-resolution.yaml
+resolved_semantic_roles:
+  surface.page: '#F7F8FF'
+  surface.raised: '#FFFFFF'
+  surface.interactive: '#E9ECFF'
+  content.primary: '#1F2A44'
+  content.secondary: '#66708A'
+  content.inverse: '#FFFFFF'
+  action.primary: '#5B6EE1'
+  action.secondary: '#DCE2FF'
+  action.destructive: '#B54747'
+  border.default: '#DDE2F2'
+  border.strong: '#AAB4D6'
+  feedback.success: '#3D7A57'
+  feedback.warning: '#B9792D'
+  feedback.error: '#B54747'
+  feedback.info: '#5570B8'

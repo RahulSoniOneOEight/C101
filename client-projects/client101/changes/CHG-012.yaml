@@ -1,0 +1,31 @@
+change_id: CHG-012
+request: >-
+  Add a data-driven B2B catalogue/category browse plus Schemes and Price
+  Advantage screens in Flutter (and mirror them in Penpot), resolving the home
+  category rail, header search, and Seasonal / Best Deals / Schemes /
+  My Price Advantage dead-end tiles. The trade catalogue is category-tagged and
+  seasonally flagged so merchandising surfaces filter without hardcoding.
+type: ux
+affected_capabilities:
+- b2b-catalogue
+- b2b-schemes
+- b2b-pricing
+- cart-merchandising
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- b2b.catalogue
+- b2b.schemes
+- b2b.price-advantage
+affected_entities:
+- trade-product
+- trade-category
+affected_events:
+- trade-catalogue.filter
+required_tests:
+- trade catalogue provider is data-driven and category-tagged
+- catalogue screen filters by category chip
+- scheme and price advantage screen render
+- penpot catalogue/schemes/price-advantage layout validation
+approval_required: false
+status: validated

@@ -1,0 +1,237 @@
+comparison_id: JCOMP-client101
+client_id: client101
+purpose: first-review-direction-selection
+directions:
+- id: A
+  strategy: discovery-first
+  design_intent:
+    density: medium
+    navigation: category-led
+    discovery: editorial
+    interaction: guided
+  differentiators:
+  - strong merchandising and discovery
+  - category-led navigation
+  - guided conversion path
+- id: B
+  strategy: search-first
+  design_intent:
+    density: compact
+    navigation: search-led
+    discovery: intent-driven
+    interaction: fast
+  differentiators:
+  - search and intent dominate entry
+  - faster route to product/action
+  - compact information density
+- id: C
+  strategy: task-first
+  design_intent:
+    density: efficient
+    navigation: task-led
+    discovery: contextual
+    interaction: operational
+  differentiators:
+  - high-frequency tasks prioritized
+  - contextual discovery
+  - business/operational efficiency emphasis
+journeys:
+- id: browse-to-buy
+  emphasis: critical
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-003
+  - SRC-004
+  - SRC-005
+  A:
+    entry: category/merchandising browse
+  B:
+    entry: search results
+  C:
+    entry: quick reorder / saved list
+- id: search-to-buy
+  emphasis: critical
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-003
+  - SRC-004
+  - SRC-005
+  A:
+    entry: discovery rail then search
+  B:
+    entry: search (primary entry)
+  C:
+    entry: contextual search from task
+- id: order-tracking
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-004
+  - SRC-005
+  A:
+    entry: order history browse
+  B:
+    entry: search order id
+  C:
+    entry: orders task list
+- id: return-refund
+  emphasis: critical
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+  A:
+    entry: order detail then return
+  B:
+    entry: search order then return
+  C:
+    entry: returns task list
+- id: quote-to-order
+  emphasis: critical
+  derived_from:
+  - benchmark
+  - SRC-002
+  - SRC-005
+  A:
+    entry: category then RFQ
+  B:
+    entry: search then RFQ
+  C:
+    entry: RFQ task list
+- id: repeat-order
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-002
+  - SRC-005
+  A:
+    entry: recommendation rail
+  B:
+    entry: search history
+  C:
+    entry: reorder task
+- id: credit-order
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-002
+  - SRC-005
+  A:
+    entry: account / credit page
+  B:
+    entry: search then credit
+  C:
+    entry: credit task list
+- id: seller-onboarding
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-005
+  A:
+    entry: guided onboarding flow
+  B:
+    entry: help search
+  C:
+    entry: onboarding task list
+- id: seller-catalogue
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-005
+  A:
+    entry: category browse
+  B:
+    entry: catalogue search
+  C:
+    entry: catalogue task list
+- id: marketplace-order
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+  A:
+    entry: marketplace browse
+  B:
+    entry: order search
+  C:
+    entry: orders task list
+- id: seller-fulfilment
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-005
+  A:
+    entry: order detail
+  B:
+    entry: order search
+  C:
+    entry: fulfilment queue
+- id: seller-return
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-005
+  A:
+    entry: order detail
+  B:
+    entry: order search
+  C:
+    entry: returns queue
+- id: seller-settlement
+  emphasis: high
+  derived_from:
+  - benchmark
+  - SRC-001
+  - SRC-005
+  A:
+    entry: finance overview
+  B:
+    entry: settlement search
+  C:
+    entry: settlement task list
+- id: REQ-cart-merchandising
+  emphasis: high
+  derived_from:
+  - client-brief
+  A:
+    entry: guided complementary-product rail in cart/checkout
+  B:
+    entry: search-led complementary-product quick add
+  C:
+    entry: contextual cart-completion task
+- id: REQ-external-price-comparison
+  emphasis: high
+  derived_from:
+  - client-brief
+  A:
+    entry: guided price context on product listing/detail
+  B:
+    entry: compact price comparison in search results
+  C:
+    entry: contextual price-check task
+- id: REQ-project-site-purchasing
+  emphasis: high
+  derived_from:
+  - client-brief
+  A:
+    entry: guided project/site catalogue browse
+  B:
+    entry: search within project/site material context
+  C:
+    entry: project/site purchasing task list
+- id: REQ-project-site-reorder
+  emphasis: high
+  derived_from:
+  - client-brief
+  A:
+    entry: browse project purchasing history
+  B:
+    entry: search prior project orders/material lists
+  C:
+    entry: project reorder task
+status: draft
