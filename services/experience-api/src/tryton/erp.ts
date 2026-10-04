@@ -101,13 +101,19 @@ export class TrytonErp {
     if (this.productBySku.has(sku)) return this.productBySku.get(sku)!;
 
     const existing = await this.client.search(
-      "product.product",
+      "product.template",
       [["code", "=", sku]],
       1,
     );
     if (existing.length) {
-      this.productBySku.set(sku, existing[0]);
-      return existing[0];
+      const products = await this.client.search(
+        "product.product",
+        [["template", "=", existing[0]]],
+        1,
+      );
+      const productId = products.length ? products[0] : await this.createProduct(existing[0]);
+      this.productBySku.set(sku, productId);
+      return productId;
     }
 
     const uom = await this.uomId();
@@ -115,22 +121,33 @@ export class TrytonErp {
       name,
       type: "goods",
       default_uom: uom,
-    });
-    const productId = await this.client.create("product.product", {
-      template: templateId,
       code: sku,
     });
+    const productId = await this.createProduct(templateId);
     this.productBySku.set(sku, productId);
     return productId;
   }
 
+  private async createProduct(templateId: number): Promise<number> {
+    // `code` on product.product is read-only (derived from template); set only the template link.
+    return this.client.create("product.product", { template: templateId });
+  }
+
   private async findProductBySku(sku: string): Promise<number> {
     if (this.productBySku.has(sku)) return this.productBySku.get(sku)!;
-    const ids = await this.client.search("product.product", [["code", "=", sku]], 1);
-    if (!ids.length) {
+    const templates = await this.client.search("product.template", [["code", "=", sku]], 1);
+    if (!templates.length) {
       throw new Error(`Tryton product not found for SKU ${sku}`);
     }
-    return ids[0];
+    const products = await this.client.search(
+      "product.product",
+      [["template", "=", templates[0]]],
+      1,
+    );
+    if (!products.length) {
+      throw new Error(`Tryton variant not found for template ${templates[0]}`);
+    }
+    return products[0];
   }
 
   async reserve(checkoutRef: string, sku: string, quantity: number): Promise<number> {

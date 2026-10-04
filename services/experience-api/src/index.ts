@@ -6,8 +6,10 @@ import type { Money, SimulatorOutcome } from "./payment/types.js";
 import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
+import { EventStore } from "./store/event-store.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
+import { collections as collectionRegistry } from "./collections/registry.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
@@ -15,6 +17,7 @@ const medusa = new MedusaStoreClient(config);
 const tryton = new TrytonClient(config);
 const erp = new TrytonErp(tryton, config.trytonUsername);
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
+const events = new EventStore(config.experienceDatabaseUrl);
 const collections = new CollectionResolver(medusa);
 
 const json = (body: unknown, status = 200) =>
@@ -196,6 +199,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
       const result = await medusa.completeCart(cartId);
       if (result.type === "order_group") {
         await correlation.link(cartId, { orderGroup: result.order_group?.id });
+        await events.append({
+          event_type: "order.confirmed",
+          aggregate_type: "order_group",
+          aggregate_id: result.order_group?.id ?? cartId,
+          correlation_id: cid,
+          payload: { cart_id: cartId, order_group: result.order_group },
+        });
         return json({
           type: "order_group",
           order_group: result.order_group,
@@ -227,22 +237,38 @@ async function handle(req: Request, url: URL): Promise<Response> {
         medusa.getProduct(productId),
         medusa.listOffers(productId),
       ]);
-      const offerViews = offers.map((o) => ({
-        id: o.id,
-        seller_id: o.seller_id,
-        seller_name: o.seller?.name ?? null,
-        variant_id: o.variant_id,
-        sku: o.sku,
-        currency_code: o.calculated_price?.currency_code ?? "INR",
-        unit_amount_minor: o.calculated_price?.calculated_amount ?? null,
-        inventory_quantity: o.inventory_quantity ?? null,
-        in_stock: o.in_stock ?? null,
-      }));
+      const offerViews = offers.map((o) => {
+        const qty = o.inventory_quantity ?? null;
+        const stockBadge = !o.in_stock ? "out_of_stock" : qty !== null && qty <= 5 ? "low_stock" : "in_stock";
+        return {
+          id: o.id,
+          seller_id: o.seller_id,
+          seller_name: o.seller?.name ?? null,
+          variant_id: o.variant_id,
+          sku: o.sku,
+          currency_code: o.calculated_price?.currency_code ?? "INR",
+          unit_amount_minor: o.calculated_price?.calculated_amount ?? null,
+          inventory_quantity: qty,
+          in_stock: o.in_stock ?? null,
+          stock_badge: stockBadge,
+        };
+      });
+      // Commercial eligibility (WP3): default seller = lowest eligible landed unit price, in-stock preferred.
+      const eligible = offerViews.filter((o) => o.in_stock !== false && o.unit_amount_minor != null);
+      const selected = eligible.length
+        ? eligible.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), eligible[0])
+        : null;
       return json({
         id: p.id,
         title: p.title,
         variants: p.variants,
         offers: offerViews,
+        commercial: {
+          selected_seller: selected,
+          payment_eligibility: [config.paymentAdapterMode],
+          moq: null,
+          quantity_tiers: null,
+        },
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
@@ -297,6 +323,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
     try {
       const moveId = await erp.reserve(checkoutId, body.sku, body.quantity as number);
       await correlation.link(checkoutId, { trytonMove: moveId });
+      await events.append({
+        event_type: "inventory.reservation_created",
+        aggregate_type: "checkout",
+        aggregate_id: checkoutId,
+        correlation_id: cid,
+        payload: { sku: body.sku, quantity: body.quantity, tryton_move_id: moveId },
+      });
       return json({
         checkout_id: checkoutId,
         reservation_id: `tryton_move_${moveId}`,
@@ -321,6 +354,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
     try {
       await erp.commit(ref.tryton_move_id);
+      await events.append({
+        event_type: "inventory.reservation_committed",
+        aggregate_type: "checkout",
+        aggregate_id: checkoutId,
+        correlation_id: cid,
+        payload: { tryton_move_id: ref.tryton_move_id },
+      });
       return json({
         checkout_id: checkoutId,
         reservation_id: `tryton_move_${ref.tryton_move_id}`,
@@ -344,6 +384,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
     try {
       await erp.release(ref.tryton_move_id);
+      await events.append({
+        event_type: "inventory.reservation_released",
+        aggregate_type: "checkout",
+        aggregate_id: checkoutId,
+        correlation_id: cid,
+        payload: { tryton_move_id: ref.tryton_move_id },
+      });
       return json({
         checkout_id: checkoutId,
         reservation_id: `tryton_move_${ref.tryton_move_id}`,
@@ -355,6 +402,25 @@ async function handle(req: Request, url: URL): Promise<Response> {
     } catch (error) {
       return problem(502, "tryton-error", (error as Error).message);
     }
+  }
+
+  // GET /v1/admin/events — durable domain-event log (WP4)
+  if (url.pathname === "/v1/admin/events" && req.method === "GET") {
+    const aggregateType = url.searchParams.get("aggregate_type") ?? undefined;
+    const aggregateId = url.searchParams.get("aggregate_id") ?? undefined;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    const items = await events.list(aggregateType, aggregateId, limit);
+    return json({ events: items, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  // GET /v1/admin/collections — governed collection registry (WP6)
+  if (url.pathname === "/v1/admin/collections" && req.method === "GET") {
+    return json({
+      collections: collectionRegistry,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
   }
 
   // GET /v1/admin/orders/{orderId}/reconciliation — correlated owner-service references

@@ -1,0 +1,73 @@
+import pg from "pg";
+import { randomUUID } from "node:crypto";
+
+/**
+ * Durable domain-event log (step 3 / WP4 foundation). Appends canonical events emitted by the
+ * Experience API; consumers (Flutter, web, notifications, ERP) poll or subscribe. This is an
+ * outbox-style projection — a full Redis-backed transport is tracked separately (step 7).
+ */
+
+export interface DomainEvent {
+  id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  correlation_id: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export class EventStore {
+  private pool: pg.Pool;
+  private ready: Promise<void>;
+
+  constructor(connectionString: string) {
+    this.pool = new pg.Pool({ connectionString, max: 5 });
+    this.ready = this.ensureSchema();
+  }
+
+  private async ensureSchema(): Promise<void> {
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS domain_event (
+        id             uuid PRIMARY KEY,
+        event_type     text NOT NULL,
+        aggregate_type text NOT NULL,
+        aggregate_id   text NOT NULL,
+        correlation_id text NOT NULL,
+        payload        jsonb NOT NULL,
+        occurred_at    timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS domain_event_aggregate_idx ON domain_event (aggregate_type, aggregate_id);
+      CREATE INDEX IF NOT EXISTS domain_event_occurred_idx ON domain_event (occurred_at);
+    `);
+  }
+
+  async append(event: Omit<DomainEvent, "id" | "occurred_at">): Promise<DomainEvent> {
+    await this.ready;
+    const id = randomUUID();
+    const occurredAt = new Date().toISOString();
+    await this.pool.query(
+      `INSERT INTO domain_event (id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [id, event.event_type, event.aggregate_type, event.aggregate_id, event.correlation_id, JSON.stringify(event.payload), occurredAt],
+    );
+    return { id, ...event, occurred_at: occurredAt };
+  }
+
+  async list(aggregateType?: string, aggregateId?: string, limit = 50): Promise<DomainEvent[]> {
+    await this.ready;
+    const params: unknown[] = [];
+    let where = "";
+    if (aggregateType && aggregateId) {
+      where = "WHERE aggregate_type = $1 AND aggregate_id = $2";
+      params.push(aggregateType, aggregateId);
+    }
+    params.push(limit);
+    const result = await this.pool.query(
+      `SELECT id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at
+       FROM domain_event ${where} ORDER BY occurred_at DESC LIMIT $${params.length}`,
+      params,
+    );
+    return result.rows;
+  }
+}
