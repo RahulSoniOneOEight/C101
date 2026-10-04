@@ -69,13 +69,39 @@ bun run dev
 ## Tryton ERP integration
 
 - `services/experience-api/src/tryton/` — Tryton JSON-RPC client + ERP orchestration.
-- Variant sync: `POST /v1/admin/tryton/variants` maps a Medusa variant SKU → Tryton `product.product`.
+- Variant sync: `POST /v1/admin/tryton/variants` maps a Medusa variant SKU → Tryton `product.template`.
 - Reservation lifecycle: `POST /v1/checkouts/{id}/reserve|commit|release` models the reservation as a
   Tryton `stock.move` (draft → assigned/cancelled).
 - Reconciliation: `GET /v1/admin/orders/{id}/reconciliation` correlates the Medusa order group and the
   Tryton move, with `accounting_treatment=staging_test_clearing` and `bank_receipt_claimed=false`.
 - The Tryton instance was initialised with the `stock,sale,stock_supply,account,account_invoice` modules
   and a minimal `INR` currency + `BuildKart India` company.
+
+## Configurable rules / durable state / collections
+
+- Durable correlation + domain events stored in a `buildkart_experience` Postgres database
+  (`correlation` + `domain_event` tables).
+- Dynamic collections: `GET /v1/collections/{key}` (new_arrivals, recently_viewed, manual, related;
+  best_sellers/buy_again deferred).
+- Commercial eligibility on composed product (`commercial.selected_seller`, `stock_badge`,
+  `payment_eligibility`).
+- Admin: `GET /v1/admin/events`, `GET /v1/admin/collections`.
+- Parity check: `bun run src/parity-check.ts`.
+
+## Client wiring
+
+- Flutter `apps/prototype_app/lib/core/app_config.dart` points at the staging stack: Medusa `:9010`,
+  Experience API `:9020`, real publishable key.
+- Seller and operator surfaces are the Mercur dashboards (already wired to `:9010`).
+- Web (Next.js B2C/B2B) is Phase 6 — not yet scaffolded.
+
+## Known gap — Redis outbox/inbox (D-017-15)
+
+Medusa still uses the local event bus + in-memory locking. A durable `domain_event` log exists in the
+Experience API, but the full Redis-backed event bus / workflow engine / locking requires registering
+`@medusajs/event-bus-redis`, `@medusajs/workflow-engine-redis` and `@medusajs/locking-redis` through
+Medusa's module-package resolution (not the bare package name, which fails `serviceName` lookup). Tracked
+as a remaining reliability item.
 
 ## Seed data
 
