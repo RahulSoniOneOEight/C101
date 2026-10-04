@@ -1,0 +1,840 @@
+# BuildKart Configurable Rule Registry — machine-readable rule inventory.
+# Companion to docs/architecture/configurable-rules-framework.md.
+# Statuses: provider-supported | hardcoded-in-flutter | fixture-backed | new-capability | pending-approval
+# This registry REFERENCES owners; it never computes prices, eligibility, stock or tax.
+
+schema_version: 1
+status: proposed
+source: docs/architecture/configurable-rules-framework.md
+change_contract: CHG-017
+precedence: [account-sku, seller-sku, category-account-segment, channel-region, global-default]
+
+collection_rules:
+  - rule_key: recently_viewed
+    rule_type: collection
+    owner: flutter-history-then-commerce
+    trigger: product_viewed
+    conditions: []
+    parameters: { max_entries: 20, dedupe_by: variant_id }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: best_sellers
+    rule_type: collection
+    owner: analytics
+    trigger: home_module_load
+    conditions: []
+    parameters: { period_days: 30, limit: 12, sort: net_units_sold_desc, exclude_out_of_stock: true }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: popular_eligible_products
+    status: new-capability
+    audit: []
+
+  - rule_key: flash_deals
+    rule_type: collection
+    owner: cms-medusa
+    trigger: home_module_load
+    conditions: []
+    parameters: { active_promotions_only: true, campaign_window: true }
+    scope: [b2c]
+    priority: 90
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: new-capability
+    audit: []
+
+  - rule_key: recommended_for_you
+    rule_type: collection
+    owner: recommendation-service
+    trigger: home_module_load
+    conditions: []
+    parameters: { signal_sources: [browse, category, purchase] }
+    scope: [b2c, b2b]
+    priority: 80
+    effective_from: null
+    effective_to: null
+    fallback: best_sellers
+    status: new-capability
+    audit: []
+
+  - rule_key: buy_again
+    rule_type: collection
+    owner: commerce
+    trigger: home_module_load
+    conditions: []
+    parameters: { revalidate: [seller, price, stock] }
+    scope: [b2c, b2b]
+    priority: 85
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: new-capability
+    audit: []
+
+  - rule_key: new_arrivals
+    rule_type: collection
+    owner: commerce
+    trigger: home_module_load
+    conditions: []
+    parameters: { window_days: 30 }
+    scope: [b2c, b2b]
+    priority: 70
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: provider-supported
+    audit: []
+
+  - rule_key: trending_products
+    rule_type: collection
+    owner: analytics
+    trigger: home_module_load
+    conditions: []
+    parameters: { min_thresholds: true, sources: [views, searches, purchases] }
+    scope: [b2c, b2b]
+    priority: 75
+    effective_from: null
+    effective_to: null
+    fallback: best_sellers
+    status: new-capability
+    audit: []
+
+  - rule_key: frequently_bought_together
+    rule_type: collection
+    owner: recommendation-service
+    trigger: product_detail_load
+    conditions: []
+    parameters: { context_sku: product_id }
+    scope: [b2c, b2b]
+    priority: 60
+    effective_from: null
+    effective_to: null
+    fallback: related_products
+    status: new-capability
+    audit: []
+
+  - rule_key: related_products
+    rule_type: collection
+    owner: search-commerce
+    trigger: product_detail_load
+    conditions: []
+    parameters: { match: [category, attributes, usage, associations] }
+    scope: [b2c, b2b]
+    priority: 65
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: new-capability
+    audit: []
+
+  - rule_key: seasonal_collections
+    rule_type: collection
+    owner: cms-commerce
+    trigger: home_module_load
+    conditions: []
+    parameters: { curated_skus: true, dates: true }
+    scope: [b2c]
+    priority: 50
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: new-capability
+    audit: []
+
+  - rule_key: category_chips
+    rule_type: collection
+    owner: search-commerce
+    trigger: category_selected
+    conditions: []
+    parameters: {}
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: skip_module
+    status: provider-supported
+    audit: []
+
+  - rule_key: banner_personalization
+    rule_type: operational
+    owner: cms
+    trigger: home_module_load
+    conditions: []
+    parameters: { target: [channel, region, locale, audience] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: default_banner
+    status: fixture-backed
+    audit: []
+
+  - rule_key: swimlane_ordering
+    rule_type: collection
+    owner: cms-collection-resolver
+    trigger: home_module_load
+    conditions: []
+    parameters: { mode: manual-or-dynamic-or-hybrid }
+    scope: [b2c, b2b]
+    priority: 50
+    effective_from: null
+    effective_to: null
+    fallback: default_order
+    status: fixture-backed
+    audit: []
+
+  - rule_key: empty_collection_fallback
+    rule_type: collection
+    owner: collection-resolver
+    trigger: collection_empty
+    conditions: []
+    parameters: { mode: replace-or-suppress }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: suppress_module
+    status: new-capability
+    audit: []
+
+commercial_rules:
+  - rule_key: default_seller_selection
+    rule_type: commercial
+    owner: mercur
+    trigger: offer_ranking
+    conditions: []
+    parameters: { basis: landed_payable_price }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: manual_selection
+    status: provider-supported
+    audit: []
+
+  - rule_key: best_price_badge
+    rule_type: operational
+    owner: mercur
+    trigger: offer_selected
+    conditions: []
+    parameters: {}
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_badge
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: discount_badge
+    rule_type: operational
+    owner: commerce
+    trigger: price_display
+    conditions: []
+    parameters: { basis: current_vs_mrp }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_badge
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: stock_badge
+    rule_type: operational
+    owner: tryton-commerce
+    trigger: availability_display
+    conditions: []
+    parameters: { thresholds: { low: 5, out: 0 } }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: unknown_stock
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: quantity_price_tiers
+    rule_type: commercial
+    owner: mercur-commerce
+    trigger: quantity_changed
+    conditions: []
+    parameters: {}
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: base_unit_price
+    status: provider-supported
+    audit: []
+
+  - rule_key: moq_pack_multiple
+    rule_type: commercial
+    owner: commerce
+    trigger: quantity_changed
+    conditions: []
+    parameters: { per: product-account }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block_checkout
+    status: provider-supported
+    audit: []
+
+  - rule_key: product_visibility
+    rule_type: commercial
+    owner: medusa
+    trigger: catalog_read
+    conditions: []
+    parameters: { dimensions: [publication, region, channel, account] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: exclude
+    status: provider-supported
+    audit: []
+
+  - rule_key: delivery_availability
+    rule_type: commercial
+    owner: logistics-commerce
+    trigger: checkout_validate
+    conditions: []
+    parameters: {}
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: pending-approval
+    audit: []
+
+  - rule_key: shipping_charge
+    rule_type: commercial
+    owner: logistics-commerce
+    trigger: checkout_validate
+    conditions: []
+    parameters: { dimensions: [shipment_group, destination, weight, carrier, policy] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: pending-approval
+    audit: []
+
+  - rule_key: promotions_coupons
+    rule_type: commercial
+    owner: medusa
+    trigger: cart_update
+    conditions: []
+    parameters: { checks: [eligibility, combinability, priority, caps, expiry] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_promotion
+    status: provider-supported
+    audit: []
+
+  - rule_key: cart_quantity_merge
+    rule_type: commercial
+    owner: medusa
+    trigger: add_line_item
+    conditions: []
+    parameters: { identity: [product, seller, offer, fulfilment_context] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: new_line
+    status: provider-supported
+    audit: []
+
+  - rule_key: cart_revalidation
+    rule_type: commercial
+    owner: commerce-orchestration
+    trigger: cart_read_or_checkout
+    conditions: []
+    parameters: { checks: [price, stock, seller_eligibility, moq] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: provider-supported
+    audit: []
+
+  - rule_key: payment_method_eligibility
+    rule_type: commercial
+    owner: commerce-payment
+    trigger: checkout_payment
+    conditions: []
+    parameters: { dimensions: [order, account, location, risk] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: simulated_only
+    status: provider-supported
+    audit: []
+
+  - rule_key: checkout_total
+    rule_type: commercial
+    owner: commerce-tax
+    trigger: checkout_validate
+    conditions: []
+    parameters: { components: [price, discount, tax, delivery, payable] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: provider-supported
+    audit: []
+
+journey_rules:
+  - rule_key: procurement_list_suggestions
+    rule_type: journey
+    owner: cms-merchandising
+    trigger: procurement_list_load
+    conditions: []
+    parameters: { by: [segment, project, category] }
+    scope: [b2b]
+    priority: 80
+    effective_from: null
+    effective_to: null
+    fallback: skip
+    status: new-capability
+    audit: []
+
+  - rule_key: list_multi_selection
+    rule_type: journey
+    owner: procurement-service
+    trigger: list_selection
+    conditions: []
+    parameters: { dedupe_by: stable_sku }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_merge
+    status: new-capability
+    audit: []
+
+  - rule_key: quick_order_quantity
+    rule_type: journey
+    owner: session
+    trigger: quick_order_open
+    conditions: []
+    parameters: { default_once: true, preserve_edits: true }
+    scope: [b2b]
+    priority: 90
+    effective_from: null
+    effective_to: null
+    fallback: quantity_one
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: list_default_quantity
+    rule_type: journey
+    owner: procurement-service
+    trigger: list_item_load
+    conditions: []
+    parameters: { independent_of_cart: true }
+    scope: [b2b]
+    priority: 90
+    effective_from: null
+    effective_to: null
+    fallback: quantity_one
+    status: new-capability
+    audit: []
+
+  - rule_key: rfq_icon_eligibility
+    rule_type: journey
+    owner: commerce-mercur
+    trigger: product_display
+    conditions: []
+    parameters: { dimensions: [account, sku, quantity, business] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: hide_rfq
+    status: new-capability
+    audit: []
+
+  - rule_key: rfq_basket
+    rule_type: journey
+    owner: b2b-commerce
+    trigger: rfq_add_line
+    conditions: []
+    parameters: { compatible_skus: true }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: reject_line
+    status: new-capability
+    audit: []
+
+  - rule_key: rfq_target_price
+    rule_type: journey
+    owner: b2b-commerce
+    trigger: rfq_submit
+    conditions: []
+    parameters: { never_agreed: true }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_target
+    status: new-capability
+    audit: []
+
+  - rule_key: rfq_seller_routing
+    rule_type: journey
+    owner: mercur
+    trigger: rfq_submit
+    conditions: []
+    parameters: { dimensions: [skus, destination] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_route
+    status: new-capability
+    audit: []
+
+  - rule_key: quotation_comparison
+    rule_type: journey
+    owner: mercur-commerce
+    trigger: quotation_received
+    conditions: []
+    parameters: { dimensions: [price, tax, freight, lead_time, validity] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_comparison
+    status: new-capability
+    audit: []
+
+  - rule_key: quote_expiration
+    rule_type: journey
+    owner: mercur
+    trigger: quote_accept
+    conditions: []
+    parameters: { block_after_expiry: true, offer_refresh: true }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block_acceptance
+    status: new-capability
+    audit: []
+
+  - rule_key: quote_to_order
+    rule_type: journey
+    owner: commerce
+    trigger: quote_accept
+    conditions: []
+    parameters: { revalidate: [terms, availability, credit, approvals] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: new-capability
+    audit: []
+
+  - rule_key: credit_eligibility
+    rule_type: journey
+    owner: commerce-credit
+    trigger: checkout_or_quote
+    conditions: []
+    parameters: { dimensions: [credit, exposure, overdue, policy] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: new-capability
+    audit: []
+
+  - rule_key: purchase_approval
+    rule_type: journey
+    owner: commerce-workflow
+    trigger: order_or_rfq
+    conditions: []
+    parameters: { dimensions: [role, value, category, project, budget] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: require_approval
+    status: new-capability
+    audit: []
+
+  - rule_key: project_site_selection
+    rule_type: journey
+    owner: business-account
+    trigger: context_select
+    conditions: []
+    parameters: { constrain: [address, budget, permissions, purchases] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_site
+    status: new-capability
+    audit: []
+
+  - rule_key: po_validation
+    rule_type: journey
+    owner: commerce
+    trigger: order_submit
+    conditions: []
+    parameters: { checks: [requiredness, duplicate_number] }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: new-capability
+    audit: []
+
+  - rule_key: order_cancellation
+    rule_type: journey
+    owner: commerce
+    trigger: cancel_request
+    conditions: []
+    parameters: { check: [fulfilment_milestone, seller_allocation, actor_permissions] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: pending-approval
+    audit: []
+
+  - rule_key: return_eligibility
+    rule_type: journey
+    owner: commerce
+    trigger: return_request
+    conditions: []
+    parameters: { check: [line, quantity, category, seller, window] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: pending-approval
+    audit: []
+
+  - rule_key: refund_initiation
+    rule_type: journey
+    owner: commerce-payments
+    trigger: return_approved
+    conditions: []
+    parameters: { after: approved_cancellation_or_return }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: pending-approval
+    audit: []
+
+operational_rules:
+  - rule_key: otp_issuance
+    rule_type: operational
+    owner: identity
+    trigger: login_attempt
+    conditions: []
+    parameters: { enforce: [expiry, resend_delay, attempt_limit] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block_login
+    status: pending-approval
+    audit: []
+
+  - rule_key: b2b_mode_entitlement
+    rule_type: operational
+    owner: identity-commerce
+    trigger: mode_switch
+    conditions: []
+    parameters: { verified_membership: true }
+    scope: [b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: b2c_only
+    status: pending-approval
+    audit: []
+
+  - rule_key: address_selection
+    rule_type: operational
+    owner: commerce-logistics
+    trigger: checkout_validate
+    conditions: []
+    parameters: { check: serviceability }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: block
+    status: provider-supported
+    audit: []
+
+  - rule_key: wishlist
+    rule_type: operational
+    owner: commerce
+    trigger: wishlist_toggle
+    conditions: []
+    parameters: { independent_of_price: true }
+    scope: [b2c, b2b]
+    priority: 80
+    effective_from: null
+    effective_to: null
+    fallback: no_wishlist
+    status: hardcoded-in-flutter
+    audit: []
+
+  - rule_key: order_confirmation
+    rule_type: operational
+    owner: medusa
+    trigger: order_created
+    conditions: []
+    parameters: { success_only_after_canonical_order: true }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: pending_state
+    status: provider-supported
+    audit: []
+
+  - rule_key: order_status
+    rule_type: operational
+    owner: commerce
+    trigger: order_read
+    conditions: []
+    parameters: { projections: [payment, shipment] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: unknown
+    status: provider-supported
+    audit: []
+
+  - rule_key: shipment_notifications
+    rule_type: operational
+    owner: logistics-notifications
+    trigger: shipment_status_changed
+    conditions: []
+    parameters: { meaningful_changes_only: true }
+    scope: [b2c, b2b]
+    priority: 80
+    effective_from: null
+    effective_to: null
+    fallback: no_notification
+    status: new-capability
+    audit: []
+
+  - rule_key: refund_tracking
+    rule_type: operational
+    owner: payments-commerce
+    trigger: refund_event
+    conditions: []
+    parameters: { reflect: [provider_outcome, reconciliation] }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: pending
+    status: pending-approval
+    audit: []
+
+  - rule_key: abandoned_cart
+    rule_type: operational
+    owner: analytics-automation
+    trigger: cart_inactivity
+    conditions: []
+    parameters: { consent_required: true }
+    scope: [b2c, b2b]
+    priority: 60
+    effective_from: null
+    effective_to: null
+    fallback: no_communication
+    status: pending-approval
+    audit: []
+
+  - rule_key: back_in_stock_alerts
+    rule_type: operational
+    owner: inventory-notifications
+    trigger: availability_returns
+    conditions: []
+    parameters: { subscription_required: true }
+    scope: [b2c, b2b]
+    priority: 60
+    effective_from: null
+    effective_to: null
+    fallback: no_alert
+    status: pending-approval
+    audit: []
+
+  - rule_key: support_escalation
+    rule_type: operational
+    owner: chatwoot-automation
+    trigger: ticket_event
+    conditions: []
+    parameters: { by: [category, priority, sla, status] }
+    scope: [b2c, b2b]
+    priority: 70
+    effective_from: null
+    effective_to: null
+    fallback: default_queue
+    status: pending-approval
+    audit: []
+
+  - rule_key: invoice_generation
+    rule_type: operational
+    owner: tryton
+    trigger: order_confirmed
+    conditions: []
+    parameters: { immutable: true, corrections_via: credit_debit_note }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: no_invoice
+    status: pending-approval
+    audit: []
+
+  - rule_key: notifications_feed
+    rule_type: operational
+    owner: notification-service
+    trigger: domain_event
+    conditions: []
+    parameters: { dedupe: true, expiry: true }
+    scope: [b2c, b2b]
+    priority: 100
+    effective_from: null
+    effective_to: null
+    fallback: empty_feed
+    status: new-capability
+    audit: []
