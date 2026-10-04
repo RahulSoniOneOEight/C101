@@ -202,7 +202,27 @@ transactional-boundary tests pass.
 | I6 | Seller fulfilment and admin exception recovery | Marketplace launch without returns/settlement |
 | I7 | Return/refund and finance reconciliation | Release without all gate sign-offs |
 
-## 11. Definition of done for every backend feature
+## 11. Configurable business rules framework
+
+The configurable business-logic/rules framework is documented in
+`configurable-rules-framework.md` and must be treated as a cross-cutting workstream layered over these
+phases — not a replacement for canonical ownership. It governs how B2C/B2B product selection, badges,
+pricing, seller ranking, offer eligibility, credit and purchasing behaviour are expressed, with the
+frontend rendering results while owning services make the decisions.
+
+Work-package sequence (in parallel with the production blockers):
+
+1. **Rule Registry & contracts** — machine-readable ownership + configuration foundation.
+2. **Dynamic Collections** — Recently Viewed, manual collections, Best Sellers, Buy Again.
+3. **Product & commercial rules** — eligibility, seller selection, discounts, stock, quantity tiers.
+4. **B2B procurement rules** — Operate Lists, saved quantities, RFQ eligibility, quote lifecycle.
+5. **Lifecycle automations** — order, return, shipment, support, notification triggers.
+6. **Admin configuration & QA** — preview, permissions, publish, rollback, app/web parity.
+
+Provider-dependent rules (analytics, recommendation, Chatwoot, Meilisearch, CMS, feature-flags) remain
+`pending-approval` until the relevant provider/selection decisions are made.
+
+## 12. Definition of done for every backend feature
 
 - Approved contract and owner; migration/rollback plan.
 - Positive, validation, permission, stale-version, dependency-failure and retry behavior.
