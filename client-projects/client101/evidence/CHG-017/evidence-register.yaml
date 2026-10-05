@@ -239,8 +239,9 @@ items:
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
+  - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
   - services/experience-api/src/scripts/payment-flow-test.ts
-  note: The acceptance flow asserts a reconciled correlation across canonical order group, Mercur allocation and committed Tryton reservation (shared cart reference, no direct DB edits), with simulated/test markers preserved. Production-effect isolation evidence and human review remain.
+  note: The acceptance flow asserts a reconciled correlation across canonical order group, Mercur allocation and committed Tryton reservation (shared cart reference, no direct DB edits), with simulated/test markers preserved. Continuous reconciliation-tracker consumption, retry and dead-letter are evidenced. Production-effect isolation evidence and human review remain.
   acceptance_criteria:
   - Checkout, Medusa order, Mercur allocation, Tryton reservation/movement/accounting share correlation references.
   - Mismatches are visible and recoverable without direct database edits.
@@ -255,7 +256,8 @@ items:
   - apps/prototype_app/lib/screens/checkout_screen.dart
   - apps/prototype_app/test/checkout_canonical_flow_test.dart
   - client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml
-  note: Flutter checkout consumes Experience API customer-details, seller shipping-option and canonical completion contracts; one option is required per seller and local payment mocks cannot manufacture success. A bounded staging debug APK completed the full hosted emulator journey to a canonical order group verified in PostgreSQL/NATS (see payment-simulation-acceptance.md). Human review plus the remaining shared-surface permission/version/freshness checks still block acceptance.
+  - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
+  note: Flutter checkout consumes Experience API customer-details, seller shipping-option and canonical completion contracts; one option is required per seller and local payment mocks cannot manufacture success. A bounded staging debug APK completed the full hosted emulator journey to a canonical order group verified in PostgreSQL/NATS (see payment-simulation-acceptance.md). Cross-system consumers now run continuously with lag/dead-letter metrics. Human review plus the remaining shared-surface permission/version/freshness checks still block acceptance.
   acceptance_criteria:
   - App, web, seller and operator screens consume shared backend contracts.
   - No client fixture or local flag can manufacture transactional success.
