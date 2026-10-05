@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
-import '../data/medusa_api.dart';
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
 
@@ -201,13 +200,14 @@ List<Product> filterProductsByHomeCategory(
 
 /// Catalog providers for the browse flow.
 ///
-/// The product list is cached locally and served as a fallback when the backend
-/// is unreachable, giving the storefront basic offline behaviour.
+/// The product list is sourced from the shared Experience API (composed products
+/// with best-price offers) and cached locally as a fallback when the backend is
+/// unreachable, giving the storefront basic offline behaviour.
 final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
-  final client = ref.watch(medusaClientProvider);
   final store = ref.watch(localStoreProvider);
   try {
-    final products = await client.listProducts();
+    final products =
+        await ref.watch(experienceApiProvider).getComposedProducts(limit: 100);
     await store.writeCatalog(products);
     return products;
   } catch (_) {
@@ -223,17 +223,14 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
 final productProvider =
     FutureProvider.autoDispose.family<Product, String>((ref, id) async {
   try {
-    final products = await ref.watch(medusaClientProvider).listProducts();
-    final match = products.where((p) => p.id == id).firstOrNull;
-    if (match != null) return match;
+    return await ref.watch(experienceApiProvider).getComposedProduct(id);
   } catch (_) {
-    // backend unreachable — fall through to the dev-only demo catalog below
+    if (AppConfig.useMockData) {
+      final match = demoProducts.where((p) => p.id == id).firstOrNull;
+      if (match != null) return match;
+    }
+    rethrow;
   }
-  if (AppConfig.useMockData) {
-    final match = demoProducts.where((p) => p.id == id).firstOrNull;
-    if (match != null) return match;
-  }
-  throw StateError('Product $id not found');
 });
 
 /// Real seller offers for a product, fetched from the shared Experience API

@@ -8,8 +8,14 @@ import type { Config } from "../config.js";
 export interface StoreProduct {
   id: string;
   title: string;
+  thumbnail?: string | null;
+  description?: string | null;
+  handle?: string | null;
   variants: { id: string; title?: string; sku?: string | null }[];
 }
+
+const PRODUCT_FIELDS =
+  "id,title,thumbnail,description,handle,variants.id,variants.title,variants.sku";
 
 export interface StoreOffer {
   id: string;
@@ -65,7 +71,7 @@ export class MedusaStoreClient {
 
   async getProduct(productId: string): Promise<StoreProduct> {
     const data = await this.getJson<{ product: StoreProduct }>(
-      `/store/products/${encodeURIComponent(productId)}?fields=id,title,variants.id,variants.title,variants.sku`,
+      `/store/products/${encodeURIComponent(productId)}?fields=${PRODUCT_FIELDS}`,
     );
     return data.product;
   }
@@ -84,9 +90,14 @@ export class MedusaStoreClient {
     return data.offers;
   }
 
-  async listProducts(limit = 12): Promise<StoreProduct[]> {
+  async listProducts(limit = 50, offset = 0): Promise<StoreProduct[]> {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      fields: PRODUCT_FIELDS,
+    });
     const data = await this.getJson<{ products: StoreProduct[] }>(
-      `/store/products?limit=${limit}&fields=id,title,variants.id`,
+      `/store/products?${params.toString()}`,
     );
     return data.products;
   }

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_config.dart';
+import '../domain/models.dart';
 
 /// Client for the shared BuildKart Experience API (`:9020`), which composes Medusa/Mercur/Tryton.
 /// This is the canonical client for the pilot: it consumes composed responses and the dummy
@@ -36,6 +37,24 @@ class ExperienceApi {
   Future<Map<String, dynamic>> getProduct(String productId) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/products/$productId');
     return res.data!;
+  }
+
+  /// Composed product list with best-price offer per product.
+  Future<List<Product>> getComposedProducts({int limit = 50, int offset = 0}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/products',
+      queryParameters: {'limit': limit, 'offset': offset},
+    );
+    return (res.data!['products'] as List? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(Product.fromComposedJson)
+        .toList();
+  }
+
+  /// Composed product detail (best-price offer drives price + variant identity).
+  Future<Product> getComposedProduct(String productId) async {
+    final res = await _dio.get<Map<String, dynamic>>('/v1/products/$productId');
+    return Product.fromComposedJson(res.data!);
   }
 
   Future<Map<String, dynamic>> checkServiceability(String postcode) async {

@@ -131,6 +131,30 @@ class Product {
   final String? variantId;
   final Money? price;
 
+  /// Builds a [Product] from the Experience API's composed product payload,
+  /// where price and variant identity come from the best-price Mercur offer.
+  factory Product.fromComposedJson(Map<String, dynamic> json) {
+    final variants = (json['variants'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final best = json['best_price'] as Map<String, dynamic>?;
+    final num? bestAmount = best?['unit_amount_minor'] as num?;
+    return Product(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String?,
+      thumbnail: json['thumbnail'] as String?,
+      variantId: best?['variant_id'] as String? ??
+          (variants.isNotEmpty ? variants.first['id'] as String? : null),
+      price: bestAmount == null
+          ? null
+          : Money(
+              amount: bestAmount.toInt(),
+              currencyCode: best?['currency_code'] as String? ?? 'INR',
+            ),
+    );
+  }
+
   /// Original / compare-at price (struck through on the card).
   final Money? mrp;
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { loadConfig } from "./config.js";
-import { MedusaStoreClient } from "./medusa/store-client.js";
+import { MedusaStoreClient, type StoreOffer } from "./medusa/store-client.js";
 import { SimulatedPaymentAdapter } from "./payment/simulated-adapter.js";
 import type { Money, SimulatorOutcome } from "./payment/types.js";
 import { TrytonClient } from "./tryton/client.js";
@@ -39,6 +39,37 @@ const problem = (status: number, title: string, detail?: string) =>
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
+}
+
+/** Maps Mercur offers to composed offer views and picks the lowest eligible in-stock offer. */
+function composeOffers(offers: StoreOffer[]) {
+  const offerViews = offers.map((o) => {
+    const qty = o.inventory_quantity ?? null;
+    const stockBadge = !o.in_stock
+      ? "out_of_stock"
+      : qty !== null && qty <= 5
+        ? "low_stock"
+        : "in_stock";
+    return {
+      id: o.id,
+      seller_id: o.seller_id,
+      seller_name: o.seller?.name ?? null,
+      variant_id: o.variant_id,
+      sku: o.sku,
+      currency_code: o.calculated_price?.currency_code ?? "INR",
+      unit_amount_minor: o.calculated_price?.calculated_amount ?? null,
+      inventory_quantity: qty,
+      in_stock: o.in_stock ?? null,
+      stock_badge: stockBadge,
+    };
+  });
+  const eligible = offerViews.filter(
+    (o) => o.in_stock !== false && o.unit_amount_minor != null,
+  );
+  const selected = eligible.length
+    ? eligible.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), eligible[0])
+    : null;
+  return { offerViews, selected };
 }
 
 async function handle(req: Request, url: URL): Promise<Response> {
@@ -341,6 +372,42 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
   }
 
+  // GET /v1/products — composed product list with best-price offer per product
+  if (url.pathname === "/v1/products" && req.method === "GET") {
+    const limit = Number(url.searchParams.get("limit") ?? 50);
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    try {
+      const products = await medusa.listProducts(limit, offset);
+      const composed = await Promise.all(
+        products.map(async (p) => {
+          const base = {
+            id: p.id,
+            title: p.title,
+            thumbnail: p.thumbnail,
+            description: p.description,
+            handle: p.handle,
+            variants: p.variants,
+          };
+          try {
+            const offers = await medusa.listOffers(p.id);
+            const { selected } = composeOffers(offers);
+            return { ...base, best_price: selected, offer_count: offers.length };
+          } catch {
+            return { ...base, best_price: null, offer_count: 0 };
+          }
+        }),
+      );
+      return json({
+        products: composed,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
   // GET /v1/products/{productId} — composed Medusa product + Mercur offers
   const product = url.pathname.match(/^\/v1\/products\/([^/]+)$/);
   if (product && req.method === "GET") {
@@ -350,30 +417,12 @@ async function handle(req: Request, url: URL): Promise<Response> {
         medusa.getProduct(productId),
         medusa.listOffers(productId),
       ]);
-      const offerViews = offers.map((o) => {
-        const qty = o.inventory_quantity ?? null;
-        const stockBadge = !o.in_stock ? "out_of_stock" : qty !== null && qty <= 5 ? "low_stock" : "in_stock";
-        return {
-          id: o.id,
-          seller_id: o.seller_id,
-          seller_name: o.seller?.name ?? null,
-          variant_id: o.variant_id,
-          sku: o.sku,
-          currency_code: o.calculated_price?.currency_code ?? "INR",
-          unit_amount_minor: o.calculated_price?.calculated_amount ?? null,
-          inventory_quantity: qty,
-          in_stock: o.in_stock ?? null,
-          stock_badge: stockBadge,
-        };
-      });
-      // Commercial eligibility (WP3): default seller = lowest eligible landed unit price, in-stock preferred.
-      const eligible = offerViews.filter((o) => o.in_stock !== false && o.unit_amount_minor != null);
-      const selected = eligible.length
-        ? eligible.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), eligible[0])
-        : null;
+      const { offerViews, selected } = composeOffers(offers);
       return json({
         id: p.id,
         title: p.title,
+        thumbnail: p.thumbnail,
+        description: p.description,
         variants: p.variants,
         offers: offerViews,
         commercial: {
