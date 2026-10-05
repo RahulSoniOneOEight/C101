@@ -271,8 +271,8 @@ decision_approval:
   authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
   approved_at_utc: '2026-10-04T18:38:29Z'
   ledger_ref: client-projects/client101/changes/CHG-017-approvals.yaml
-  conditions_open: true
-  g0_status: blocked
+  conditions_open: false
+  g0_status: approved
   runtime_implementation_authorized: true
   runtime_scope: functional-local-staging-only
   runtime_constraints:

@@ -1,7 +1,7 @@
 change_id: CHG-017
 revision: 5
 status: staging-scaffold-in-progress
-g0_ready: false
+g0_ready: true
 allowed_statuses: [missing, planned, in-progress, evidenced, accepted, not-applicable]
 items:
 - id: E-017-001
@@ -119,11 +119,11 @@ items:
   title: Membership and access rules
   decisions: [D-017-03, D-017-14]
   required_roles: [product, security, architecture, operations]
-  status: missing
-  disposition: accepted-with-conditions
+  status: planned
+  disposition: accepted-for-bounded-pilot
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Bounded-pilot rules proposed (PS-13) — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Reviewer resolved (RS); not accepted pending explicit policy approval.
+  note: Membership/access policy approved for the bounded pilot (PS-13) — allowlist-only, simulated OTP, backend-controlled B2B membership and roles (account_admin, buyer, approver, finance), account isolation, least privilege, fail-closed revocation, logout invalidation, auditable changes. Implementation evidence still pending.
   acceptance_criteria:
   - Buyer, business-account, seller and operator membership rules are documented.
   - Tenant and seller isolation plus action-level permissions are testable.

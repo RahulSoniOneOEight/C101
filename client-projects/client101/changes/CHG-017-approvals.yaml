@@ -679,9 +679,22 @@ batch_approval_records:
       pilot_mode: test-clearing/staging accounts only; no staging posting represented as statutory or final production accounting; no production books updated; no real statutory filing implied; Tryton remains the accounting projection target for staging verification
   - decision_id: PS-13
     subject: membership-and-access
-    outcome: accepted-with-conditions
+    outcome: accepted
     roles: [product, security, architecture, operations]
-    conditions: [Bounded-pilot rules — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Reviewer resolved (RS); explicit policy approval still required before accepted.]
+    conditions: []
+    policy:
+      allowlist_only: Pilot access limited to explicitly allowlisted users
+      simulated_otp: OTP simulated for the pilot; not real phone-number verification
+      b2b_gating: B2B mode available only when the backend confirms active business-account membership
+      backend_controlled: business-account membership and role are backend-controlled
+      client_cannot_escalate: Flutter/web client state must not grant or elevate access
+      isolation: B2C and B2B account contexts isolated; no cross-account access via client-side params/state
+      roles: [account_admin, buyer, approver, finance]
+      least_privilege: least-privilege access applies
+      fail_closed: revoked, disabled or expired memberships fail closed
+      logout_invalidation: logout/session invalidation clears the active business-account context
+      no_public_b2b_registration: no unrestricted public B2B registration for the bounded pilot
+      audit: membership and role changes must be auditable
 runtime_authorizations:
 - authorization_id: CHG-017-R5-STAGING-RUNTIME-001
   authorized_by: Rahul Soni

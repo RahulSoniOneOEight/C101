@@ -4,65 +4,72 @@
 **Change contract:** CHG-017 Revision 5
 **Owner / Reviewer:** RS (Accountable Project / Architecture Owner) — self-review explicitly authorized by the human.
 
-## G0_STATUS: OPEN
+## G0_STATUS: CLOSED
 
-G0 is **not** closed. Owners and reviewers are named (`RS`); PS-09 delegation and PS-10 targets are
-recorded; PS-11 (GST-inclusive tax/invoice) and PS-12 (accounting-posting) are approved for the
-bounded pilot. One item remains open: **PS-13 membership/access policy** (explicit policy approval).
+G0 governance is **closed**. All mandatory owners and reviewers are named (`RS`); PS-09 delegation
+and PS-10 numeric targets are recorded; and PS-01…PS-13 are approved (bounded-pilot simulation
+boundaries applied; production providers deferred). Razorpay sandbox evidence remains **deferred and
+non-blocking** for the bounded staging pilot.
+
+This closure does **not** authorize production release, real payment processing, real OTP, real
+logistics, production credentials, or unrestricted customer usage.
 
 ## Provider decisions (PS-01 … PS-13)
 
 | Item | Owner | Reviewer | Outcome | Conditions outstanding | Closure status |
 |---|---|---|---|---|---|
-| PS-01 Identity/OTP | RS | RS | accepted-with-conditions | Production OTP provider deferred | open |
-| PS-02 Logistics | RS | RS | accepted-with-conditions | Production logistics provider deferred | open |
-| PS-03 Queue/storage/notifications | RS | RS | accepted | Exact versions/tiers/owners | open |
-| PS-04 Editorial CMS | RS | RS | accepted | — | open |
-| PS-05 Search | RS | RS | accepted | — | open |
-| PS-06 Analytics | RS | RS | accepted-with-conditions | Retention/consent/PII/residency/access | open |
-| PS-07 Support | RS | RS | accepted-with-conditions | Retention/attachment/roles/escalation/SLA | open |
-| PS-08 Recommendations | RS | RS | accepted | — | open |
+| PS-01 Identity/OTP | RS | RS | accepted-with-conditions | Production OTP provider deferred (pilot simulated) | closed |
+| PS-02 Logistics | RS | RS | accepted-with-conditions | Production logistics provider deferred (pilot simulated) | closed |
+| PS-03 Queue/storage/notifications | RS | RS | accepted | Exact versions/tiers/owners (evidence) | closed |
+| PS-04 Editorial CMS | RS | RS | accepted | — | closed |
+| PS-05 Search | RS | RS | accepted | — | closed |
+| PS-06 Analytics | RS | RS | accepted-with-conditions | Retention/consent/PII/residency/access (pre-production) | closed |
+| PS-07 Support | RS | RS | accepted-with-conditions | Retention/attachment/roles/escalation/SLA (pre-production) | closed |
+| PS-08 Recommendations | RS | RS | accepted | — | closed |
 | PS-09 Secrets/env/observability | RS | RS | accepted | — (delegates = RS) | closed |
 | PS-10 Load/RPO/RTO | RS | RS | accepted | — (targets recorded) | closed |
-| PS-11 Tax/invoice | RS | RS | accepted | — (GST-inclusive policy recorded) | closed |
+| PS-11 Tax/invoice | RS | RS | accepted | — (GST-inclusive policy) | closed |
 | PS-12 Accounting-posting | RS | RS | accepted | — (bounded-pilot test-clearing) | closed |
-| PS-13 Membership/access | RS | RS | accepted-with-conditions | Explicit policy approval | open |
+| PS-13 Membership/access | RS | RS | accepted | — (bounded-pilot membership rules) | closed |
 
 ## Evidence items (E-017-001 … E-017-021)
 
-| Item | Owner | Reviewer | Outcome | Conditions outstanding | Closure status |
-|---|---|---|---|---|---|
-| E-017-001 Core platform versions | RS | RS | in-progress | Exact compatible versions recorded | open |
-| E-017-002 Identity/OTP capability | RS | RS | missing · deferred-for-pilot | Real provider evidence | open |
-| E-017-003 Payment provider | RS | RS | planned · deferred | Razorpay sandbox evidence | open |
-| E-017-004 Logistics provider | RS | RS | missing · deferred-for-pilot | Real provider evidence | open |
-| E-017-005 Queue/storage/notifications | RS | RS | planned | Exact versions/tiers/owners | open |
-| E-017-006 Environment topology | RS | RS | missing · accepted-with-conditions | Environment topology evidence | open |
-| E-017-007 Secrets/observability/on-call | RS | RS | missing · accepted-with-conditions | Mechanism evidence | open |
-| E-017-008 Peak load / transaction profile | RS | RS | planned | Load evidence (targets approved) | open |
-| E-017-009 Recovery objectives | RS | RS | planned | Restore drill evidence (targets approved) | open |
-| E-017-010 Membership/access rules | RS | RS | missing · accepted-with-conditions | Policy approval | open |
-| E-017-011 Tax/invoice policy | RS | RS | planned · accepted | Implementation evidence | open |
-| E-017-012 Accounting projection policy | RS | RS | planned · accepted-for-pilot | Implementation evidence | open |
-| E-017-013 Tryton reservation concurrency | RS | RS | planned | Concurrency/atomicity evidence | open |
-| E-017-014 Simulated payment safety | RS | RS | planned | Safety + fail-closed evidence | open |
-| E-017-015 Medusa Commerce integration | RS | RS | planned | Persistence/recovery evidence | open |
-| E-017-016 Mercur Marketplace integration | RS | RS | planned | Allocation evidence | open |
-| E-017-017 Tryton movement/accounting | RS | RS | planned | Movement/accounting evidence | open |
-| E-017-018 Cross-system reconciliation | RS | RS | planned | Reconciliation evidence | open |
-| E-017-019 Shared client connectivity | RS | RS | planned | Consumer contract tests | open |
-| E-017-020 Environment routing/isolation | RS | RS | planned | Routing/isolation evidence | open |
-| E-017-021 Editorial CMS boundary | RS | RS | planned · Strapi | CMS boundary evidence | open |
+Governance accepted for G0; implementation evidence (G1–G6) remains pending per item.
 
-## Exact remaining blockers to G0 closure
+| Item | Owner | Reviewer | Outcome | Closure status |
+|---|---|---|---|---|
+| E-017-001 Core platform versions | RS | RS | in-progress | G0-closed · evidence pending |
+| E-017-002 Identity/OTP capability | RS | RS | missing · deferred-for-pilot | G0-closed · deferred |
+| E-017-003 Payment provider | RS | RS | planned · deferred | G0-closed · deferred |
+| E-017-004 Logistics provider | RS | RS | missing · deferred-for-pilot | G0-closed · deferred |
+| E-017-005 Queue/storage/notifications | RS | RS | planned | G0-closed · evidence pending |
+| E-017-006 Environment topology | RS | RS | missing · accepted-with-conditions | G0-closed · evidence pending |
+| E-017-007 Secrets/observability/on-call | RS | RS | missing · accepted-with-conditions | G0-closed · evidence pending |
+| E-017-008 Peak load / transaction profile | RS | RS | planned | G0-closed · evidence pending |
+| E-017-009 Recovery objectives | RS | RS | planned | G0-closed · evidence pending |
+| E-017-010 Membership/access rules | RS | RS | planned · accepted-for-bounded-pilot | G0-closed · evidence pending |
+| E-017-011 Tax/invoice policy | RS | RS | planned · accepted | G0-closed · evidence pending |
+| E-017-012 Accounting projection policy | RS | RS | planned · accepted-for-pilot | G0-closed · evidence pending |
+| E-017-013 Tryton reservation concurrency | RS | RS | planned | G0-closed · evidence pending |
+| E-017-014 Simulated payment safety | RS | RS | planned | G0-closed · evidence pending |
+| E-017-015 Medusa Commerce integration | RS | RS | planned | G0-closed · evidence pending |
+| E-017-016 Mercur Marketplace integration | RS | RS | planned | G0-closed · evidence pending |
+| E-017-017 Tryton movement/accounting | RS | RS | planned | G0-closed · evidence pending |
+| E-017-018 Cross-system reconciliation | RS | RS | planned | G0-closed · evidence pending |
+| E-017-019 Shared client connectivity | RS | RS | planned | G0-closed · evidence pending |
+| E-017-020 Environment routing/isolation | RS | RS | planned | G0-closed · evidence pending |
+| E-017-021 Editorial CMS boundary | RS | RS | planned · Strapi | G0-closed · evidence pending |
 
-1. **PS-13 / E-017-010 — membership/access policy** — explicit approval of the bounded-pilot
-   membership rules (allowlisted users, simulated OTP, backend-controlled B2B membership, account
-   isolation, explicit roles, least privilege, revoked membership fails closed).
-2. *(Deferred, non-blocking for the dummy pilot)* Razorpay sandbox evidence for provider G3.
+## Deferred (non-blocking for the bounded pilot)
 
-## Not in scope of this update
+- **Razorpay sandbox evidence (provider G3)** — deferred. Payment remains simulated for the pilot.
+  Razorpay is not integrated; no production payment credentials are provisioned; simulated payment is
+  not treated as provider evidence; production payment processing is not authorized. Razorpay sandbox
+  validation remains a later provider/production-readiness gate.
 
-- No application code or infrastructure was modified.
-- No provider or credential was provisioned.
-- The Redis → NATS production-gap disposition is unchanged (staging=Redis, canonical=NATS JetStream).
+## Not in scope of this closure
+
+- Production release.
+- Real payment processing, real OTP/SMS, real logistics.
+- Production credentials or customer data.
+- Redis → NATS production-gap disposition (unchanged: staging=Redis, canonical=NATS JetStream).

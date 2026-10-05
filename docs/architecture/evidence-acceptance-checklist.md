@@ -47,13 +47,11 @@ recorded as Reviewer (self-review explicitly authorized by the human).
 | E-017-020 | Environment routing/production isolation | in-progress | RS | RS | Architecture, Security, Ops, Integration Owners, Release Authority |
 | E-017-021 | Editorial CMS boundary | planned · Strapi | RS | RS | Product, Architecture, Security |
 
-## G0 blockers (remaining human actions)
+## G0 blockers
 
-1. **E-017-010 / PS-13** — explicit membership/access policy approval.
-2. **Razorpay sandbox evidence** for provider G3 (deferred; does not block the dummy pilot).
-
-Resolved: reviewers (RS), PS-10 targets, PS-09 delegation (RS), PS-11 GST-inclusive tax/invoice
-policy, PS-12 accounting-posting (bounded pilot).
+None. G0 governance is closed — all mandatory owners and reviewers (RS) are named, and PS-01…PS-13
+are approved. Razorpay sandbox evidence (provider G3) remains deferred and non-blocking for the
+bounded staging pilot.
 
 ## What G0 closing authorizes (and does not)
 

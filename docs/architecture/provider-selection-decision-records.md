@@ -132,7 +132,7 @@ explicitly authorized by the human for all PS-01…PS-13.
 | PS-10 | Load/RPO/RTO | RS | RS | accepted | — (targets recorded) |
 | PS-11 | Tax/invoice | RS | RS | accepted | — (GST-inclusive policy recorded) |
 | PS-12 | Accounting-posting | RS | RS | accepted | — (bounded-pilot test-clearing) |
-| PS-13 | Membership/access (E-017-010) | RS | RS | accepted-with-conditions | Explicit policy approval |
+| PS-13 | Membership/access (E-017-010) | RS | RS | accepted | — |
 
 ## 5. Mapping to evidence and decisions
 
