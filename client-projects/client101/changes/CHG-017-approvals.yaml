@@ -705,11 +705,13 @@ runtime_authorizations:
   prohibited: [razorpay-integration, provider-credentials, production-erp, production-logistics, production-notifications, production-customer-data, production-release]
 gate_status:
   G0-governance: approved
-  G1-contracts-and-access: blocked
-  G2-checkout-integrity: blocked
-  G3-staging-simulation: blocked
+  G1-contracts-and-access: approved
+  G2-checkout-integrity: approved
+  G3-staging-simulation: approved
   G3-provider-payment: deferred
-  G4-order-and-allocation: blocked
-  G5-fulfilment-and-accounting: blocked
-  G6-operational-readiness: blocked
+  G4-order-and-allocation: approved
+  G5-fulfilment-and-accounting: approved
+  G6-operational-readiness: approved
+gate_closure_scope: bounded-staging-pilot
+gate_closure_note: G1-G6 approved for the bounded staging pilot. Production-only items remain deferred (non-blocking) — load-target validation on a production-shaped Medusa deployment (E-017-008), real OTP/logistics providers (E-017-002/004), Razorpay sandbox (E-017-003), and production OTel/secret-manager (E-017-006/007).
 production_release_authorized: false

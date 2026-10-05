@@ -41,6 +41,7 @@ export class ReservationStore {
         quantity     integer NOT NULL,
         move_id      bigint,
         status       text NOT NULL DEFAULT 'reserved',
+        reserved_at  timestamptz NOT NULL DEFAULT now(),
         created_at   timestamptz NOT NULL DEFAULT now()
       );
       CREATE TABLE IF NOT EXISTS reservation_ledger (
@@ -49,6 +50,7 @@ export class ReservationStore {
         reserved   integer NOT NULL DEFAULT 0,
         updated_at timestamptz NOT NULL DEFAULT now()
       );
+      ALTER TABLE reservation ADD COLUMN IF NOT EXISTS reserved_at timestamptz NOT NULL DEFAULT now();
     `);
   }
 
@@ -121,6 +123,36 @@ export class ReservationStore {
       "UPDATE reservation_ledger SET reserved = GREATEST(0, reserved - $2), updated_at = now() WHERE sku = $1",
       [sku, quantity],
     );
+  }
+
+  /** True when the checkout's reservation is expired (marked expired, or reserved past its TTL). */
+  async isExpired(checkoutRef: string, ttlMs: number): Promise<boolean> {
+    await this.ready;
+    const r = await this.pool.query(
+      "SELECT 1 FROM reservation WHERE checkout_ref = $1 AND (status = 'expired' OR (status = 'reserved' AND reserved_at < now() - ($2 || ' milliseconds')::interval))",
+      [checkoutRef, ttlMs],
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  /** Release all reservations older than `ttlMs` (decrement ledger + mark expired); returns count. */
+  async expireReservations(ttlMs: number): Promise<number> {
+    await this.ready;
+    const expired = await this.pool.query(
+      "SELECT checkout_ref, sku, quantity FROM reservation WHERE status = 'reserved' AND reserved_at < now() - ($1 || ' milliseconds')::interval",
+      [ttlMs],
+    );
+    for (const r of expired.rows) {
+      await this.pool.query(
+        "UPDATE reservation_ledger SET reserved = GREATEST(0, reserved - $2), updated_at = now() WHERE sku = $1",
+        [r.sku, r.quantity],
+      );
+      await this.pool.query(
+        "UPDATE reservation SET status = 'expired' WHERE checkout_ref = $1",
+        [r.checkout_ref],
+      );
+    }
+    return expired.rowCount ?? 0;
   }
 
   async getLedger(sku: string): Promise<ReservationLedgerRow | null> {

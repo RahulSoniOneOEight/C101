@@ -8,6 +8,7 @@
     "start": "bun run src/index.ts",
     "typecheck": "bunx tsc --noEmit",
     "test:concurrency": "bun run src/scripts/concurrency-test.ts",
+    "test:expiry": "bun run src/scripts/expiry-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {

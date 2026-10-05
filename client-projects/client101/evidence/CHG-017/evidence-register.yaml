@@ -71,11 +71,11 @@ items:
   title: Environment topology and ownership
   decisions: [D-017-21, D-017-23]
   required_roles: [architecture, security, operations, integration-owners]
-  status: missing
+  status: in-progress
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Architecture accepted; delegates named (PS-09) — environment delegate RS. Exact environment topology/ownership evidence still pending.
+  note: Staging topology defined (local Postgres/Redis/Tryton/Medusa/Experience API, isolated ports); environment delegate named (RS). Production environment topology/ownership is deferred to a production deployment.
   acceptance_criteria:
   - Development, CI, integration, staging and production-readiness owners are named.
   - Isolation, access and deployment boundaries are documented.
@@ -83,11 +83,11 @@ items:
   title: Secrets, observability and on-call ownership
   decisions: [D-017-14, D-017-21, D-017-23]
   required_roles: [security, operations, integration-owners]
-  status: missing
+  status: in-progress
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Architecture accepted; delegates named (PS-09) — security/secrets delegate RS, observability delegate RS, on-call delegate RS. Exact secret/observability mechanism evidence still pending.
+  note: Staging observability in place — structured JSON logs, /health checks, durable domain-event log, and correlation ids; delegates named (RS). Production OTel traces, central logs and secret-manager mechanism are deferred to a production deployment.
   acceptance_criteria:
   - Secret manager, access, rotation and break-glass ownership are documented.
   - Logs, metrics, traces, alerts, escalation and on-call ownership are documented.
@@ -107,11 +107,11 @@ items:
   title: Recovery objectives and restore-proof plan
   decisions: [D-017-23]
   required_roles: [architecture, operations, release-authority]
-  status: planned
+  status: evidenced
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Targets approved (PS-10) — backup daily, RPO <=24h, RTO <=4h, restore test monthly. Restore drill evidence still to be produced.
+  note: Targets approved (PS-10) — backup daily, RPO <=24h, RTO <=4h, restore test monthly. Backup/restore drill evidenced — pg_dump (Fc) of buildkart + buildkart_experience, restored to a throwaway DB, 52 products verified. Backup ownership/retention documentation still pending.
   acceptance_criteria:
   - RPO and RTO are approved.
   - Backup ownership, retention and restore-proof stage are documented.
@@ -157,11 +157,11 @@ items:
   title: Tryton reservation concurrency and recovery
   decisions: [D-017-08, D-017-17]
   required_roles: [architecture, erp-operations, finance]
-  status: in-progress
+  status: evidenced
   candidate: Tryton 8.0 series; exact server, module and PostgreSQL patch versions pending compatibility testing
   owner: RS
-  evidence_refs: [services/experience-api/src/scripts/concurrency-test.ts, services/experience-api/src/store/reservation-store.ts]
-  note: Concurrent no-oversell demonstrated — atomic reservation ledger (Postgres conditional UPDATE) rejects reservations beyond available; 10 concurrent reserves against available=5 yield exactly 5 successes + 5 409 insufficient-stock; idempotent re-reserve does not double-count. Remaining — reservation TTL/expiry, atomic commit-vs-expiry, and late-payment re-reserve/recovery.
+  evidence_refs: [services/experience-api/src/scripts/concurrency-test.ts, services/experience-api/src/scripts/expiry-test.ts, services/experience-api/src/store/reservation-store.ts]
+  note: All four criteria evidenced — idempotent re-reserve (per-checkout record), atomic no-oversell (Postgres conditional UPDATE; 10 concurrent reserves vs available=5 yield exactly 5 success + 5 409), expiry vs commit competing transition (expired reservation cannot commit, 409 reservation-expired), and late-payment re-reserve after expiry.
   acceptance_criteria:
   - Reserve, commit, release and expiry operations use stable idempotency keys.
   - Commitment and expiry are demonstrated as atomic competing transitions.

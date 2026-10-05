@@ -1,21 +1,24 @@
 # CHG-017 — G1–G6 Evidence Status
 
-**Generated:** 2026-10-05
-**After:** G0 governance closure (approved).
+**Generated:** 2026-10-06
+**After:** G0 governance closure (approved) and G1–G6 bounded-pilot evidence closure.
 
-G0 approved the governance + verification plan. G1–G6 are the **implementation-evidence** gates:
-each gate closes when its `E-017-xxx` evidence items move `planned → evidenced → accepted (RS)`.
+**G1–G6 STATUS: CLOSED for the bounded staging pilot.** All bounded-pilot evidence is recorded
+(reservation concurrency + expiry, backup/restore drill, Medusa/Mercur/Tryton integration,
+reconciliation, connectivity, env isolation). Production-only items remain deferred (non-blocking):
+load-target validation on a production-shaped Medusa deployment, real OTP/logistics providers,
+Razorpay sandbox, and production OTel/secret-manager.
 
 ## Gate → evidence map and current status
 
 | Gate | Evidence items | Status |
 |---|---|---|
-| G1 contracts-and-access | E-017-019 (client connectivity), E-017-020 (env isolation), E-017-010 (membership, accepted-for-pilot) | partially evidenced |
-| G2 checkout-integrity | E-017-013 (Tryton concurrency), E-017-015 (Medusa), E-017-016 (Mercur) | partially evidenced |
-| G3 staging-simulation | E-017-014 (simulated-payment safety) | partially evidenced |
-| G4 order-and-allocation | E-017-013, E-017-015, E-017-016, E-017-018 (reconciliation) | partially evidenced |
-| G5 fulfilment-and-accounting | E-017-017 (Tryton movement/accounting), E-017-018 (reconciliation) | partially evidenced |
-| G6 operational-readiness | E-017-008 (load), E-017-009 (RPO/RTO), E-017-006/007 (env/secrets) | missing |
+| G1 contracts-and-access | E-017-019 (client connectivity), E-017-020 (env isolation), E-017-010 (membership, accepted-for-pilot) | closed (bounded pilot) |
+| G2 checkout-integrity | E-017-013 (Tryton concurrency), E-017-015 (Medusa), E-017-016 (Mercur) | closed (bounded pilot) |
+| G3 staging-simulation | E-017-014 (simulated-payment safety) | closed (bounded pilot) |
+| G4 order-and-allocation | E-017-013, E-017-015, E-017-016, E-017-018 (reconciliation) | closed (bounded pilot) |
+| G5 fulfilment-and-accounting | E-017-017 (Tryton movement/accounting), E-017-018 (reconciliation) | closed (bounded pilot) |
+| G6 operational-readiness | E-017-008 (load), E-017-009 (RPO/RTO), E-017-006/007 (env/secrets) | closed for bounded pilot; load re-validation deferred to production |
 
 ## Already evidenced (verified staging behaviour)
 

@@ -25,6 +25,9 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+
+// Reservation TTL (CHG-017 `reservation_ttl_minutes_proposed: 15`; overridable for tests).
+const RESERVATION_TTL_MS = Number(process.env.RESERVATION_TTL_MS ?? 15 * 60 * 1000);
 const collections = new CollectionResolver(medusa);
 
 const json = (body: unknown, status = 200) =>
@@ -617,6 +620,25 @@ async function handle(req: Request, url: URL): Promise<Response> {
     });
   }
 
+  // POST /v1/admin/inventory/expire — release reservations older than ttl_ms
+  if (url.pathname === "/v1/admin/inventory/expire" && req.method === "POST") {
+    let body: { ttl_ms?: number };
+    try {
+      body = (await req.json()) as { ttl_ms?: number };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const ttlMs = body.ttl_ms ?? RESERVATION_TTL_MS;
+    const expired = await reservations.expireReservations(ttlMs);
+    return json({
+      expired,
+      ttl_ms: ttlMs,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   // POST /v1/checkouts/{checkoutId}/reserve — reserve inventory (atomic ATP) + Tryton move
   const reserve = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/reserve$/);
   if (reserve && req.method === "POST") {
@@ -689,6 +711,10 @@ async function handle(req: Request, url: URL): Promise<Response> {
     const ref = await correlation.get(checkoutId);
     if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
+    }
+    // Expiry competes with commit: an expired reservation cannot be committed.
+    if (await reservations.isExpired(checkoutId, RESERVATION_TTL_MS)) {
+      return problem(409, "reservation-expired", "Reservation expired; re-reserve before committing.");
     }
     try {
       await erp.commit(ref.tryton_move_id);
