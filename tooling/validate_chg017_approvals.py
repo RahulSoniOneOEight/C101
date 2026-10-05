@@ -25,7 +25,9 @@ def load(path: Path) -> dict[str, Any]:
 
 
 def sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest().upper()
+    # Normalise line endings so the recorded hash is stable across LF (CI) and CRLF (Windows) checkouts.
+    data = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest().upper()
 
 
 def main() -> None:
