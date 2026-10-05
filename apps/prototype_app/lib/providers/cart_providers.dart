@@ -31,6 +31,8 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     await _store.writeCart(cart);
   }
 
+  Future<void> replaceFromServer(Cart cart) => _setCart(cart);
+
   /// Returns the existing cart or creates one on first use.
   Future<Cart> _requireCart() async {
     final existing = state.value;
@@ -73,6 +75,7 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     return Cart(
       id: cart.id,
       items: items,
+      subtotal: Money(amount: amount, currencyCode: currency),
       total: Money(amount: amount, currencyCode: currency),
     );
   }
@@ -155,6 +158,12 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
         }
       }
     }
+    state = const AsyncValue<Cart?>.data(null);
+    await _store.writeCart(null);
+  }
+
+  /// Clears only the local projection after canonical order creation succeeds.
+  Future<void> clearAfterOrder() async {
     state = const AsyncValue<Cart?>.data(null);
     await _store.writeCart(null);
   }
