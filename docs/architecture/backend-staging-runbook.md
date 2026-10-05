@@ -19,9 +19,10 @@ Local functional staging for the CHG-017 vertical slice. Synthetic data only.
 | Role | Identifier | Secret |
 |---|---|---|
 | Admin | `admin@buildkart.local` | `buildkart-staging-admin` |
-| Seller (Sole Society) | `seller@mercur.dev` | `supersecret` |
-| Seller (Kickz Corner) | `kickz@mercur.dev` | `supersecret` |
-| Seller (Trailhead Outfitters) | `trailhead@mercur.dev` | `supersecret` |
+| Seller (BuildMaster Supplies) | `buildmaster@mercur.dev` | `supersecret` |
+| Seller (PowerMax Depot) | `powermax@mercur.dev` | `supersecret` |
+| Seller (AquaFlow Supplies) | `aquaflow@mercur.dev` | `supersecret` |
+| Seller (UrbanBuild Supply) | `urbanbuild@mercur.dev` | `supersecret` |
 
 ## Bring-up order
 
@@ -105,14 +106,17 @@ as a remaining reliability item.
 
 ## Seed data
 
-The seed now uses an **India / INR** region (`reg_01M4489T2F1K8C8QKMX8N8Z4F6`). Demo price
-magnitudes are unchanged from the template (small integers) — they are INR-consistent but not
-market-realistic; adjust `priceByHandle` in `seed.ts` if realistic INR pricing is required.
+The seed uses an **India / INR** region with **market-realistic INR prices** for a construction /
+hardware catalogue (~52 products across 6 departments: Construction, Bathroom & Plumbing,
+Tiles & Plywood, Electrical, Agriculture & Seeds, Pumps & Machines). Products are single-SKU with
+`Color` + `Condition` attributes (no footwear size axis). Product imagery is deterministic Picsum
+placeholders — replace with real photography before production. The catalogue lives in
+`src/scripts/catalog.ts`.
 
 ## State
 
 - PostgreSQL and Redis: running (healthy).
-- Backend: dependencies installed, migrations applied, seeded (3 sellers, 244 offers), admin user created.
+- Backend: dependencies installed, migrations applied, seeded (4 sellers, ~52 hardware products), admin user created.
 - Tryton: image build + module init (in progress during initial bring-up).
 
 ## Known staging gaps (not production)

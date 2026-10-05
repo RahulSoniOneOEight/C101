@@ -27,9 +27,9 @@ marketplace, ERP and reconciliation are real.
 
 | Seller | Email |
 |---|---|
-| Sole Society | `seller@mercur.dev` |
-| Kickz Corner | `kickz@mercur.dev` |
-| Trailhead Outfitters | `trailhead@mercur.dev` |
+| BuildMaster Supplies | `buildmaster@mercur.dev` |
+| PowerMax Depot | `powermax@mercur.dev` |
+| AquaFlow Supplies | `aquaflow@mercur.dev` |
 | UrbanBuild Supply | `urbanbuild@mercur.dev` |
 
 ### Admin

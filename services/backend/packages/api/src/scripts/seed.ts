@@ -39,569 +39,7 @@ import {
   updateStoresWorkflow,
 } from "@medusajs/medusa/core-flows";
 
-// Demo catalog with fictional brands and generic product names. Titles, brands,
-// and colorways are invented for a trademark-safe marketplace demo — they do not
-// reference any real brand or protected product design. Product images are generic
-// AI-generated renders hosted from /static via the jsDelivr GitHub CDN (main branch).
-type SeedCatalogItem = {
-  title: string;
-  brand: string;
-  colorway: string;
-  category: "Sandals" | "Sneakers" | "Boots" | "Sport" | "Accessories";
-  price: number;
-  footwear: boolean;
-  description: string;
-  images: string[];
-};
-
-const seedCatalog: SeedCatalogItem[] = [
-  {
-    title: "Meridian Twin-Strap Buckle Sandal",
-    brand: "Meridian",
-    colorway: "Black - Regular/Wide",
-    price: 155,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-buckle-sandal-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Meridian Twin-Strap Buckle Sandal in Black - Regular/Wide.",
-  },
-  {
-    title: "Meridian Twin-Strap Sandal",
-    brand: "Meridian",
-    colorway: "Pearl White - Narrow",
-    price: 125,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-sandal-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Meridian Twin-Strap Sandal in Pearl White - Narrow.",
-  },
-  {
-    title: "Meridian Clog Slide",
-    brand: "Meridian",
-    colorway: "Anthracite",
-    price: 232,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-clog-slide-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Meridian Clog Slide in Anthracite.",
-  },
-  {
-    title: "Cloudpeak Golden Slide",
-    brand: "Cloudpeak",
-    colorway: "Dark Sand",
-    price: 72,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Cloudpeak Golden Slide in Dark Sand.",
-  },
-  {
-    title: "Meridian Wire Buckle Clog",
-    brand: "Meridian",
-    colorway: "Vintage Wood Roast",
-    price: 226,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-wire-buckle-clog-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Meridian Wire Buckle Clog in Vintage Wood Roast.",
-  },
-  {
-    title: "Cloudpeak Golden Sandal",
-    brand: "Cloudpeak",
-    colorway: "Bay Fog",
-    price: 78,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-sandal-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Cloudpeak Golden Sandal in Bay Fog.",
-  },
-  {
-    title: "Apex Pool Slides",
-    brand: "Apex",
-    colorway: "Black",
-    price: 47,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png",
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-2.png",
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-3.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Apex Pool Slides in Black.",
-  },
-  {
-    title: "Strive Mule Slides",
-    brand: "Strive",
-    colorway: "Core Black Gum",
-    price: 106,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Strive Mule Slides in Core Black Gum.",
-  },
-  {
-    title: "Nimbus Classic Clog",
-    brand: "Nimbus",
-    colorway: "Pond",
-    price: 60,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Nimbus Classic Clog in Pond.",
-  },
-  {
-    title: "Cloudpeak Starlet Sandal",
-    brand: "Cloudpeak",
-    colorway: "Sand",
-    price: 83,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-starlet-sandal-1.png",
-    ],
-    category: "Sandals",
-    footwear: true,
-    description: "Cloudpeak Starlet Sandal in Sand.",
-  },
-  {
-    title: "Cityline Canvas High Top",
-    brand: "Cityline",
-    colorway: "Black Denim",
-    price: 82,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png",
-    ],
-    category: "Sneakers",
-    footwear: true,
-    description: "Cityline Canvas High Top in Black Denim.",
-  },
-  {
-    title: "Vantage 204 Runner",
-    brand: "Vantage",
-    colorway: "Beige Brown",
-    price: 95,
-    images: [
-      "https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png",
-    ],
-    category: "Sneakers",
-    footwear: true,
-    description: "Vantage 204 Runner in Beige Brown.",
-  },
-  {
-    title: "Meridian Slip-On Loafer",
-    brand: "Meridian",
-    colorway: "Chestnut",
-    price: 148,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-sandal-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Meridian Slip-On Loafer in Chestnut.",
-  },
-  {
-    title: "Cloudpeak Court Low",
-    brand: "Cloudpeak",
-    colorway: "Off White",
-    price: 112,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Cloudpeak Court Low in Off White.",
-  },
-  {
-    title: "Apex Street Runner",
-    brand: "Apex",
-    colorway: "Grey Ash",
-    price: 89,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Apex Street Runner in Grey Ash.",
-  },
-  {
-    title: "Strive Knit Trainer",
-    brand: "Strive",
-    colorway: "Navy Mesh",
-    price: 134,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Strive Knit Trainer in Navy Mesh.",
-  },
-  {
-    title: "Nimbus Retro Court",
-    brand: "Nimbus",
-    colorway: "Forest",
-    price: 99,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Nimbus Retro Court in Forest.",
-  },
-  {
-    title: "Cityline Slip-On",
-    brand: "Cityline",
-    colorway: "Black Canvas",
-    price: 76,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Cityline Slip-On in Black Canvas.",
-  },
-  {
-    title: "Vantage Trail Runner",
-    brand: "Vantage",
-    colorway: "Clay Red",
-    price: 128,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Vantage Trail Runner in Clay Red.",
-  },
-  {
-    title: "Meridian Chelsea Boot",
-    brand: "Meridian",
-    colorway: "Dark Brown",
-    price: 210,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-wire-buckle-clog-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Meridian Chelsea Boot in Dark Brown.",
-  },
-  {
-    title: "Cloudpeak Winter Boot",
-    brand: "Cloudpeak",
-    colorway: "Slate Grey",
-    price: 186,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-sandal-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Cloudpeak Winter Boot in Slate Grey.",
-  },
-  {
-    title: "Apex Work Boot",
-    brand: "Apex",
-    colorway: "Tan Leather",
-    price: 240,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Apex Work Boot in Tan Leather.",
-  },
-  {
-    title: "Strive Ankle Boot",
-    brand: "Strive",
-    colorway: "Black Suede",
-    price: 172,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Strive Ankle Boot in Black Suede.",
-  },
-  {
-    title: "Nimbus Hiker",
-    brand: "Nimbus",
-    colorway: "Moss",
-    price: 158,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Nimbus Hiker in Moss.",
-  },
-  {
-    title: "Cityline Desert Boot",
-    brand: "Cityline",
-    colorway: "Sand",
-    price: 132,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Cityline Desert Boot in Sand.",
-  },
-  {
-    title: "Vantage All-Weather Boot",
-    brand: "Vantage",
-    colorway: "Blackout",
-    price: 224,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png"],
-    category: "Boots",
-    footwear: true,
-    description: "Vantage All-Weather Boot in Blackout.",
-  },
-  {
-    title: "Meridian Track Spike",
-    brand: "Meridian",
-    colorway: "Signal Red",
-    price: 118,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-buckle-sandal-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Meridian Track Spike in Signal Red.",
-  },
-  {
-    title: "Cloudpeak Court Trainer",
-    brand: "Cloudpeak",
-    colorway: "White/Navy",
-    price: 104,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Cloudpeak Court Trainer in White/Navy.",
-  },
-  {
-    title: "Apex Football Boot",
-    brand: "Apex",
-    colorway: "Volt",
-    price: 142,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Apex Football Boot in Volt.",
-  },
-  {
-    title: "Strive Running Shoe",
-    brand: "Strive",
-    colorway: "Cyan",
-    price: 96,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Strive Running Shoe in Cyan.",
-  },
-  {
-    title: "Nimbus Indoor Court",
-    brand: "Nimbus",
-    colorway: "Gum",
-    price: 88,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Nimbus Indoor Court in Gum.",
-  },
-  {
-    title: "Cityline Skate Shoe",
-    brand: "Cityline",
-    colorway: "Black/White",
-    price: 82,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Cityline Skate Shoe in Black/White.",
-  },
-  {
-    title: "Vantage Marathon Racer",
-    brand: "Vantage",
-    colorway: "Coral",
-    price: 156,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png"],
-    category: "Sport",
-    footwear: true,
-    description: "Vantage Marathon Racer in Coral.",
-  },
-  {
-    title: "Meridian Lace Kit",
-    brand: "Meridian",
-    colorway: "Assorted",
-    price: 18,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-sandal-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Meridian Lace Kit in Assorted.",
-  },
-  {
-    title: "Cloudpeak Insoles",
-    brand: "Cloudpeak",
-    colorway: "Gel",
-    price: 24,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Cloudpeak Insoles in Gel.",
-  },
-  {
-    title: "Apex Shoe Cleaner",
-    brand: "Apex",
-    colorway: "Universal",
-    price: 15,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Apex Shoe Cleaner, universal.",
-  },
-  {
-    title: "Strive Ankle Socks (3-Pack)",
-    brand: "Strive",
-    colorway: "White",
-    price: 22,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Strive Ankle Socks 3-pack in White.",
-  },
-  {
-    title: "Nimbus Water Repellent Spray",
-    brand: "Nimbus",
-    colorway: "Clear",
-    price: 19,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Nimbus Water Repellent Spray.",
-  },
-  {
-    title: "Cityline Backpack",
-    brand: "Cityline",
-    colorway: "Black",
-    price: 45,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Cityline Backpack in Black.",
-  },
-  {
-    title: "Vantage Gym Towel",
-    brand: "Vantage",
-    colorway: "Charcoal",
-    price: 14,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png"],
-    category: "Accessories",
-    footwear: false,
-    description: "Vantage Gym Towel in Charcoal.",
-  },
-  {
-    title: "Meridian Espadrille",
-    brand: "Meridian",
-    colorway: "Natural",
-    price: 78,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-buckle-sandal-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Meridian Espadrille in Natural.",
-  },
-  {
-    title: "Cloudpeak Flip Flop",
-    brand: "Cloudpeak",
-    colorway: "Navy",
-    price: 42,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Cloudpeak Flip Flop in Navy.",
-  },
-  {
-    title: "Apex Sport Sandal",
-    brand: "Apex",
-    colorway: "Black/Volt",
-    price: 54,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Apex Sport Sandal in Black/Volt.",
-  },
-  {
-    title: "Strive Recovery Slide",
-    brand: "Strive",
-    colorway: "Grey",
-    price: 38,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Strive Recovery Slide in Grey.",
-  },
-  {
-    title: "Nimbus Pool Sandal",
-    brand: "Nimbus",
-    colorway: "Aqua",
-    price: 36,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Nimbus Pool Sandal in Aqua.",
-  },
-  {
-    title: "Cityline Slide",
-    brand: "Cityline",
-    colorway: "Brown",
-    price: 34,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cityline-canvas-high-top-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Cityline Slide in Brown.",
-  },
-  {
-    title: "Vantage Trail Sandal",
-    brand: "Vantage",
-    colorway: "Olive",
-    price: 66,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/vantage-204-runner-1.png"],
-    category: "Sandals",
-    footwear: true,
-    description: "Vantage Trail Sandal in Olive.",
-  },
-  {
-    title: "Meridian Court Low",
-    brand: "Meridian",
-    colorway: "Triple White",
-    price: 122,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/meridian-twin-strap-sandal-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Meridian Court Low in Triple White.",
-  },
-  {
-    title: "Cloudpeak Knit Runner",
-    brand: "Cloudpeak",
-    colorway: "Blush",
-    price: 116,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/cloudpeak-golden-slide-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Cloudpeak Knit Runner in Blush.",
-  },
-  {
-    title: "Apex Court Classic",
-    brand: "Apex",
-    colorway: "White/Green",
-    price: 92,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/apex-pool-slides-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Apex Court Classic in White/Green.",
-  },
-  {
-    title: "Strive Casual Sneaker",
-    brand: "Strive",
-    colorway: "Stone",
-    price: 84,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/strive-mule-slides-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Strive Casual Sneaker in Stone.",
-  },
-  {
-    title: "Nimbus Lace-Up",
-    brand: "Nimbus",
-    colorway: "Indigo",
-    price: 102,
-    images: ["https://cdn.jsdelivr.net/gh/mercurjs/mercur@main/static/nimbus-classic-clog-1.png"],
-    category: "Sneakers",
-    footwear: true,
-    description: "Nimbus Lace-Up in Indigo.",
-  },
-];
+import { seedCatalog } from "./catalog";
 
 const updateStoreCurrencies = createWorkflow(
   "update-store-currencies",
@@ -805,11 +243,12 @@ export default async function seedDemoData({ container }: ExecArgs) {
 
   // Departments (roots) and their sub-categories; array order sets nav `rank`.
   const CATEGORY_TREE: Record<string, string[]> = {
-    Sandals: ["Slides", "Flip Flops", "Clogs"],
-    Sneakers: ["Low Top", "High Top", "Retro"],
-    Boots: ["Chelsea Boots", "Winter Boots", "Work Boots"],
-    Sport: ["Football", "Running", "Basketball"],
-    Accessories: ["Bags", "Headwear", "Wallets"],
+    Construction: ["Power Tools", "Hand Tools", "Building Materials", "Safety Gear"],
+    "Bathroom & Plumbing": ["Faucets & Showers", "Sanitaryware", "Pipes & Fittings"],
+    "Tiles & Plywood": ["Floor Tiles", "Wall Tiles", "Plywood & Boards"],
+    Electrical: ["Wiring & Cables", "Lighting", "Switches & Sockets"],
+    "Agriculture & Seeds": ["Seeds", "Fertilizers & Soil", "Garden Tools"],
+    "Pumps & Machines": ["Water Pumps", "Generators", "Machinery"],
   };
   const parentNames = Object.keys(CATEGORY_TREE);
   const childNames = Object.values(CATEGORY_TREE).flat();
@@ -861,11 +300,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
 
   // Global product attributes (Mercur product-attribute module). Each is a
   // multi_select variant axis so it maps to a native Medusa product option and
-  // powers `/store/products` filtering via `variants.options`. Products restrict
-  // Color/Condition to a single value each, so variant count stays size-driven.
+  // powers `/store/products` filtering via `variants.options`. Hardware products
+  // are single-SKU, so Color/Condition each take one value per product.
   logger.info("Seeding global product attributes...");
 
-  const FOOTWEAR_SIZES = ["40", "41", "42", "43", "44", "45"];
   const COLOR_VALUES = [
     "Black",
     "White",
@@ -884,7 +322,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const CONDITION_VALUES = ["New", "Like New", "Used"];
 
   const ATTRIBUTE_DEFS = [
-    { name: "Size", handle: "size", values: FOOTWEAR_SIZES },
     { name: "Color", handle: "color", values: COLOR_VALUES },
     { name: "Condition", handle: "condition", values: CONDITION_VALUES },
   ];
@@ -929,7 +366,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
     attrByHandle = await loadAttributes();
   }
 
-  const sizeAttr = attrByHandle.get("size")!;
   const colorAttr = attrByHandle.get("color")!;
   const conditionAttr = attrByHandle.get("condition")!;
 
@@ -993,10 +429,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
 
   const SELLER_PASSWORD = "supersecret";
   const SELLER_CONFIGS = [
-    { name: "Sole Society", email: "seller@mercur.dev", first_name: "Demo", last_name: "Seller", city: "Mumbai", country_code: "IN", address_1: "Linking Road 1" },
-    { name: "Kickz Corner", email: "kickz@mercur.dev", first_name: "Kai", last_name: "Corner", city: "Delhi", country_code: "IN", address_1: "CP Block B 12" },
-    { name: "Trailhead Outfitters", email: "trailhead@mercur.dev", first_name: "Tara", last_name: "Head", city: "Bengaluru", country_code: "IN", address_1: "MG Road 3" },
-    { name: "UrbanBuild Supply", email: "urbanbuild@mercur.dev", first_name: "Uma", last_name: "Build", city: "Pune", country_code: "IN", address_1: "FC Road 10" },
+    { name: "BuildMaster Supplies", email: "buildmaster@mercur.dev", first_name: "Arjun", last_name: "Mehta", city: "Mumbai", country_code: "IN", address_1: "LBS Marg 21" },
+    { name: "PowerMax Depot", email: "powermax@mercur.dev", first_name: "Rohan", last_name: "Gupta", city: "Delhi", country_code: "IN", address_1: "Okhla Phase 2, B-12" },
+    { name: "AquaFlow Supplies", email: "aquaflow@mercur.dev", first_name: "Priya", last_name: "Nair", city: "Bengaluru", country_code: "IN", address_1: "Peenya Industrial Area 3" },
+    { name: "UrbanBuild Supply", email: "urbanbuild@mercur.dev", first_name: "Vikram", last_name: "Singh", city: "Pune", country_code: "IN", address_1: "Hadapsar Industrial Estate 10" },
   ];
   const PRIMARY_SELLER_EMAIL = SELLER_CONFIGS[0].email;
 
@@ -1084,7 +520,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
           name: sellerConfig.name,
           email: sellerConfig.email,
           currency_code: "inr",
-          description: `${sellerConfig.name} — a demo marketplace footwear seller.`,
+          description: `${sellerConfig.name} — a demo marketplace hardware seller.`,
           logo: sellerLogo(sellerConfig.name),
           banner: sellerBanner(sellerConfig.name),
         },
@@ -1279,25 +715,29 @@ export default async function seedDemoData({ container }: ExecArgs) {
     return catByName.get(children[i])!.id;
   };
 
+  const WEIGHT_BY_CATEGORY: Record<string, number> = {
+    Construction: 3000,
+    "Bathroom & Plumbing": 2000,
+    "Tiles & Plywood": 8000,
+    Electrical: 500,
+    "Agriculture & Seeds": 1000,
+    "Pumps & Machines": 15000,
+  };
+
   const products: CreateProductDTO[] = catalog.map((item, index) => {
     const handle = uniqueHandle(item.title);
     const skuBase = handle.toUpperCase().replace(/-/g, "");
-    const images = item.images.map((url) => ({ url }));
+    // Deterministic placeholder imagery per product (Picsum), consistent with
+    // seller banners. Replace with real product photography before production.
+    const images = [
+      { url: `https://picsum.photos/seed/${handle}/800/800` },
+      { url: `https://picsum.photos/seed/${handle}-alt/800/800` },
+    ];
 
     const color = mapColor(item.colorway);
     const condition = conditionForIndex(index);
 
     const attributes = [
-      ...(item.footwear
-        ? [
-            {
-              id: sizeAttr.id,
-              value_ids: FOOTWEAR_SIZES.map((size) =>
-                valueId(sizeAttr, size)
-              ).filter((id): id is string => Boolean(id)),
-            },
-          ]
-        : []),
       {
         id: colorAttr.id,
         value_ids: [valueId(colorAttr, color)].filter(
@@ -1312,26 +752,20 @@ export default async function seedDemoData({ container }: ExecArgs) {
       },
     ];
 
-    const variants = item.footwear
-      ? FOOTWEAR_SIZES.map((size) => ({
-          title: `EU ${size}`,
-          sku: `${skuBase}-EU${size}`,
-          options: { Size: size, Color: color, Condition: condition },
-        }))
-      : [
-          {
-            title: "One Size",
-            sku: `${skuBase}-OS`,
-            options: { Color: color, Condition: condition },
-          },
-        ];
+    const variants = [
+      {
+        title: "Standard",
+        sku: `${skuBase}-STD`,
+        options: { Color: color, Condition: condition },
+      },
+    ];
 
     return {
       title: item.title,
       category_ids: [nextChildId(item.category)],
       description: item.description,
       handle,
-      weight: item.footwear ? 1200 : 400,
+      weight: WEIGHT_BY_CATEGORY[item.category] ?? 1000,
       status: ProductStatus.PUBLISHED,
       thumbnail: images[0].url,
       images,

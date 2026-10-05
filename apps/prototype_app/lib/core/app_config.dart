@@ -29,7 +29,7 @@ class AppConfig {
 
   static const String medusaPublishableKey = String.fromEnvironment(
     'MEDUSA_PUBLISHABLE_KEY',
-    defaultValue: 'pk_1a6aa25e609fe2299d7784b9e6219ce8baedf02426727a189f6bbff2a26daf38',
+    defaultValue: 'pk_144180889dafdc1c2f15bc4d6244e24507380905f3664e411e072297333c0140',
   );
 
   /// Whether the storefront may fall back to the seeded demo catalog when the
