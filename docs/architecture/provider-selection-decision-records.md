@@ -1,11 +1,9 @@
 # BuildKart Provider-Selection Decision Records (Draft)
 
-**Status:** DRAFT — proposal for human approval. Nothing here is selected or approved.
+**Status:** DECIDED (high-level) — outcomes recorded from the G0 architecture & pilot provider approval request; formal per-decision named sign-off still required to close G0.
 **Change contract:** CHG-017 (Revision 5) · `unresolved_provider_and_environment_details`
-**Authorization basis:** `drafting_authorization` (contract-drafts only) — this document does **not**
-select or approve any provider; it proposes candidates, a recommendation, and evidence requirements
-for accountable humans to decide.
-**Approval ledger:** decisions recorded here map to `D-017-03/10/11/21` and evidence items `E-017-002 … E-017-021`.
+**Approval ledger:** recorded in `client-projects/client101/changes/CHG-017-approvals.yaml` (submission `CHG-017-G0-PROVIDER-ARCHITECTURE-001`).
+**Authorization basis:** this document records the human-provided outcomes; it does **not** itself select or approve providers.
 
 ## 1. Purpose
 
@@ -149,3 +147,29 @@ picks or overrides the recommendation and names the owner.
 - A role's approval never substitutes for another required role's.
 - Deferred/rejected selections block G0 for the dependent scope.
 - This document cannot authorise provider credentials, production configuration, or production release.
+
+## 7. Recorded outcomes (G0 architecture & pilot provider approval)
+
+Recorded `2026-10-05` from the human-supplied approval request. These outcomes supersede the draft
+recommendations in §2/§3 above.
+
+**Approved now:**
+- **PS-03** queue/storage/notifications → **NATS JetStream** (canonical cross-domain event backbone) + **Valkey/Redis** (cache/locks) + **Cloudflare R2** (object storage) + FCM push. *This replaces the earlier "Redis kept" draft — NATS is the canonical event backbone, not Redis.*
+- **PS-04** CMS → **Strapi** (self-hosted, editorial-only).
+- **PS-05** Search → **Meilisearch** (derived index).
+- **PS-08** Recommendations → keep the existing **59-rule framework** (distributed execution across Medusa/Mercur/Tryton/Meilisearch/CMS/analytics).
+
+**Accepted with conditions (pilot restriction or pending human input):**
+- **PS-01** Identity/OTP → **simulated OTP** for allowlisted pilot users; production OTP provider **deferred** (MSG91 candidate only).
+- **PS-02** Logistics → **simulated logistics** for the pilot; production provider **deferred** (Shiprocket candidate, Delhivery fallback).
+- **PS-06** Analytics → **PostHog** for pilot; retention/consent/PII/residency/access approved before production.
+- **PS-07** Support → **Chatwoot**; retention/attachment/roles/escalation/SLA defined before production.
+- **PS-09** Secrets/env/observability → architecture approved; **named humans required** (security/secrets, environment, observability, on-call).
+- **PS-10** Load/backup/RPO/RTO → bounded pilot approach approved; **numeric targets require human approval**.
+
+**Deferred (separate human approval required):**
+- **PS-11** GST/tax/invoice policy → staging test-clearing only.
+- **PS-12** Accounting-posting policy → staging test-clearing only.
+- Production OTP provider, production logistics provider, production payment provider, and production credentials remain deferred.
+
+**Still required to close G0:** per-decision named sign-off (name + role + timestamp) in §4, named owners for PS-09, numeric targets for PS-10, and Finance/Tax + Legal + ERP Operations approval for PS-11/PS-12.
