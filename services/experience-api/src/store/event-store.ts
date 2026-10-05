@@ -42,6 +42,9 @@ export class EventStore {
       CREATE INDEX IF NOT EXISTS domain_event_aggregate_idx ON domain_event (aggregate_type, aggregate_id);
       CREATE INDEX IF NOT EXISTS domain_event_occurred_idx ON domain_event (occurred_at);
       CREATE INDEX IF NOT EXISTS domain_event_published_idx ON domain_event (published_at) WHERE published_at IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS domain_event_order_confirmed_unique
+        ON domain_event (event_type, aggregate_type, aggregate_id)
+        WHERE event_type = 'order.confirmed';
     `);
   }
 
@@ -55,6 +58,40 @@ export class EventStore {
       [id, event.event_type, event.aggregate_type, event.aggregate_id, event.correlation_id, JSON.stringify(event.payload), occurredAt],
     );
     return { id, ...event, occurred_at: occurredAt };
+  }
+
+  /**
+   * Append the single canonical order-confirmed event for an order group. The partial unique index
+   * makes duplicate cart-complete retries converge on the existing event instead of republishing.
+   */
+  async appendOrderConfirmed(
+    event: Omit<DomainEvent, "id" | "occurred_at">,
+  ): Promise<DomainEvent> {
+    if (event.event_type !== "order.confirmed") {
+      throw new Error("appendOrderConfirmed only accepts order.confirmed events");
+    }
+    await this.ready;
+    const id = randomUUID();
+    const occurredAt = new Date().toISOString();
+    const inserted = await this.pool.query(
+      `INSERT INTO domain_event (id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (event_type, aggregate_type, aggregate_id)
+         WHERE event_type = 'order.confirmed'
+       DO NOTHING
+       RETURNING id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at`,
+      [id, event.event_type, event.aggregate_type, event.aggregate_id, event.correlation_id, JSON.stringify(event.payload), occurredAt],
+    );
+    if (inserted.rows[0]) return inserted.rows[0] as DomainEvent;
+
+    const existing = await this.pool.query(
+      `SELECT id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at
+       FROM domain_event
+       WHERE event_type = 'order.confirmed' AND aggregate_type = $1 AND aggregate_id = $2
+       LIMIT 1`,
+      [event.aggregate_type, event.aggregate_id],
+    );
+    return existing.rows[0] as DomainEvent;
   }
 
   async list(aggregateType?: string, aggregateId?: string, limit = 50): Promise<DomainEvent[]> {

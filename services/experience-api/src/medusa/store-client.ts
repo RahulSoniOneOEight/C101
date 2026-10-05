@@ -1,8 +1,9 @@
 import type { Config } from "../config.js";
 
 /**
- * Minimal typed client for the Medusa/Mercur store API. Reads composed owner-service data
- * (Medusa products + Mercur offers) for the Experience API. It never writes canonical state.
+ * Minimal typed client for the Medusa/Mercur store API. It reads composed owner-service data and
+ * delegates canonical cart mutations to Medusa/Mercur; the Experience API does not duplicate that
+ * state locally.
  */
 
 export interface StoreProduct {
@@ -16,6 +17,8 @@ export interface StoreProduct {
 
 const PRODUCT_FIELDS =
   "id,title,thumbnail,description,handle,variants.id,variants.title,variants.sku";
+
+export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
 
 export interface StoreOffer {
   id: string;
@@ -142,6 +145,38 @@ export class MedusaStoreClient {
     return data.cart;
   }
 
+  async getCart(cartId: string): Promise<StoreCart> {
+    const data = await this.getJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}`,
+    );
+    return data.cart;
+  }
+
+  async updateCartMetadata(
+    cartId: string,
+    metadata: Record<string, unknown>,
+  ): Promise<StoreCart> {
+    const data = await this.postJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}`,
+      { metadata },
+    );
+    return data.cart;
+  }
+
+  async updateCartCustomerDetails(
+    cartId: string,
+    input: {
+      email: string;
+      shipping_address: StoreAddress;
+    },
+  ): Promise<StoreCart> {
+    const data = await this.postJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}`,
+      input,
+    );
+    return data.cart;
+  }
+
   async addLineItem(cartId: string, offerId: string, quantity: number): Promise<StoreCart> {
     const data = await this.postJson<{ cart: StoreCart }>(
       `/store/carts/${encodeURIComponent(cartId)}/line-items`,
@@ -165,12 +200,93 @@ export class MedusaStoreClient {
     return data.cart;
   }
 
+  async createPaymentCollection(cartId: string): Promise<StorePaymentCollection> {
+    const data = await this.postJson<{ payment_collection: StorePaymentCollection }>(
+      "/store/payment-collections",
+      { cart_id: cartId },
+    );
+    return data.payment_collection;
+  }
+
+  async listShippingOptions(cartId: string): Promise<StoreShippingOption[]> {
+    const params = new URLSearchParams({ cart_id: cartId });
+    const data = await this.getJson<{
+      shipping_options: Record<string, Omit<StoreShippingOption, "seller_id">[]>;
+    }>(`/store/shipping-options?${params.toString()}`);
+    return Object.entries(data.shipping_options).flatMap(([sellerId, options]) =>
+      options.map((option) => ({ ...option, seller_id: sellerId })),
+    );
+  }
+
+  async addShippingMethod(cartId: string, optionId: string): Promise<StoreCart> {
+    const data = await this.postJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}/shipping-methods`,
+      { option_id: optionId },
+    );
+    return data.cart;
+  }
+
+  async createPaymentSession(
+    paymentCollectionId: string,
+    providerId: string,
+  ): Promise<StorePaymentCollection> {
+    const simulatedData = providerId === SIMULATED_PAYMENT_PROVIDER_ID
+      ? { payment_mode: "simulated", test_data: true }
+      : undefined;
+    const data = await this.postJson<{ payment_collection: StorePaymentCollection }>(
+      `/store/payment-collections/${encodeURIComponent(paymentCollectionId)}/payment-sessions`,
+      {
+        provider_id: providerId,
+        ...(simulatedData ? { data: simulatedData } : {}),
+      },
+    );
+    return data.payment_collection;
+  }
+
   async completeCart(cartId: string): Promise<StoreCompleteResult> {
     return this.postJson<StoreCompleteResult>(
       `/store/carts/${encodeURIComponent(cartId)}/complete`,
       {},
     );
   }
+}
+
+export interface StorePaymentSession {
+  id: string;
+  provider_id: string;
+  status: string;
+  amount: number;
+  data: {
+    payment_mode?: string;
+    test_data?: boolean;
+    [key: string]: unknown;
+  } | null;
+}
+
+export interface StoreAddress {
+  first_name: string;
+  last_name: string;
+  address_1: string;
+  city: string;
+  postal_code: string;
+  country_code: string;
+}
+
+export interface StoreShippingOption {
+  id: string;
+  seller_id: string;
+  name: string;
+  amount: number;
+  price_type: string;
+  provider_id: string;
+  type?: { label?: string; code?: string } | null;
+}
+
+export interface StorePaymentCollection {
+  id: string;
+  currency_code: string;
+  amount: number;
+  payment_sessions: StorePaymentSession[];
 }
 
 export interface StoreCompleteResult {
@@ -190,6 +306,9 @@ export interface StoreCart {
   id: string;
   currency_code: string;
   region_id: string;
+  completed_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  shipping_total?: number;
   items: {
     id: string;
     title: string;
