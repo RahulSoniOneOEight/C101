@@ -193,6 +193,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 ? () async {
                     final messenger = ScaffoldMessenger.of(context);
                     await ref.read(cartProvider.notifier).addItem(
+                        offerId: seller?.id ?? '',
                         variantId: product.variantId ?? product.id,
                         quantity: 1,
                         unitPrice: unitPrice);
@@ -219,6 +220,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
             onPressed: canAdd
                 ? () async {
                     await ref.read(cartProvider.notifier).addItem(
+                        offerId: seller?.id ?? '',
                         variantId: product.variantId ?? product.id,
                         quantity: 1,
                         unitPrice: unitPrice);

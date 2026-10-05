@@ -57,6 +57,42 @@ class ExperienceApi {
     return Product.fromComposedJson(res.data!);
   }
 
+  /// Creates a canonical Medusa cart (Commerce).
+  Future<Cart> createCart() async {
+    final res = await _dio.post<Map<String, dynamic>>('/v1/carts', data: <String, dynamic>{});
+    return Cart.fromJson(res.data!);
+  }
+
+  /// Adds a seller offer (Marketplace) to the cart — offer-based, never variant-based.
+  Future<Cart> addLineItem(String cartId, String offerId, int quantity) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts/$cartId/lines',
+      data: {'offer_id': offerId, 'quantity': quantity},
+    );
+    return Cart.fromJson(res.data!);
+  }
+
+  Future<Cart> updateLineItem(String cartId, String lineItemId, int quantity) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts/$cartId/lines/$lineItemId',
+      data: {'quantity': quantity},
+    );
+    return Cart.fromJson(res.data!);
+  }
+
+  Future<Cart> removeLineItem(String cartId, String lineItemId) async {
+    final res =
+        await _dio.delete<Map<String, dynamic>>('/v1/carts/$cartId/lines/$lineItemId');
+    return Cart.fromJson(res.data!);
+  }
+
+  /// Completes the cart into per-seller orders (Commerce + Marketplace).
+  Future<Map<String, dynamic>> completeCart(String cartId) async {
+    final res =
+        await _dio.post<Map<String, dynamic>>('/v1/checkouts/$cartId/complete');
+    return res.data!;
+  }
+
   Future<Map<String, dynamic>> checkServiceability(String postcode) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/logistics/serviceability',

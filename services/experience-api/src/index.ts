@@ -297,9 +297,12 @@ async function handle(req: Request, url: URL): Promise<Response> {
 
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
   if (url.pathname === "/v1/carts" && req.method === "POST") {
-    let body: { region_id?: string; currency_code?: string };
+    let body: { region_id?: string; currency_code?: string } = {};
     try {
-      body = (await req.json()) as { region_id?: string; currency_code?: string };
+      const text = await req.text();
+      if (text.trim()) {
+        body = JSON.parse(text) as { region_id?: string; currency_code?: string };
+      }
     } catch {
       return problem(400, "invalid-request-body", "Expected a JSON body.");
     }
@@ -329,6 +332,36 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
     try {
       const cart = await medusa.addLineItem(cartId, body.offer_id, body.quantity as number);
+      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/carts/{cartId}/lines/{lineId} — update line quantity (0 = remove)
+  // DELETE /v1/carts/{cartId}/lines/{lineId} — remove a line
+  const cartLineItem = url.pathname.match(/^\/v1\/carts\/([^/]+)\/lines\/([^/]+)$/);
+  if (cartLineItem && (req.method === "POST" || req.method === "DELETE")) {
+    const cartId = cartLineItem[1];
+    const lineId = cartLineItem[2];
+    try {
+      let cart;
+      if (req.method === "DELETE") {
+        cart = await medusa.removeLineItem(cartId, lineId);
+      } else {
+        let body: { quantity?: number };
+        try {
+          body = (await req.json()) as { quantity?: number };
+        } catch {
+          return problem(400, "invalid-request-body", "Expected a JSON body.");
+        }
+        if (!Number.isInteger(body.quantity) || (body.quantity as number) < 0) {
+          return problem(400, "invalid-line", "quantity must be a non-negative integer.");
+        }
+        cart = (body.quantity as number) === 0
+          ? await medusa.removeLineItem(cartId, lineId)
+          : await medusa.updateLineItem(cartId, lineId, body.quantity as number);
+      }
       return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);

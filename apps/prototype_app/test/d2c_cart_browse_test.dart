@@ -3,8 +3,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
-import 'package:prototype_app/data/medusa_api.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/cart_providers.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
@@ -13,8 +13,8 @@ import 'package:prototype_app/screens/d2c_shell.dart';
 import 'package:prototype_app/widgets/notification_bell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// A client that always fails, standing in for "no Medusa backend reachable".
-class _UnreachableClient extends MedusaStoreClient {
+/// A client that always fails, standing in for "no backend reachable".
+class _UnreachableClient extends ExperienceApi {
   _UnreachableClient() : super(Dio());
 
   @override
@@ -42,14 +42,14 @@ void main() {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         productsProvider.overrideWith((ref) async => demoProducts),
-        medusaClientProvider.overrideWithValue(_UnreachableClient()),
+        experienceApiProvider.overrideWithValue(_UnreachableClient()),
       ],
     );
     addTearDown(container.dispose);
 
     await container
         .read(cartProvider.notifier)
-        .addItem(variantId: 'prod_plywood', quantity: 1);
+        .addItem(offerId: '', variantId: 'prod_plywood', quantity: 1);
 
     final cart = container.read(cartProvider).value;
     expect(cart, isNotNull);

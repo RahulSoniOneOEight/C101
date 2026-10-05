@@ -139,9 +139,10 @@ class CartScreen extends ConsumerWidget {
                 variant: ProductCardVariant.compact,
                 onPressed: () => context.push('/product/${p.id}'),
                 onAddToCart: () async {
-                  await ref
-                      .read(cartProvider.notifier)
-                      .addItem(variantId: p.variantId ?? p.id, quantity: 1);
+                  await ref.read(cartProvider.notifier).addItem(
+                      offerId: p.offerId ?? '',
+                      variantId: p.variantId ?? p.id,
+                      quantity: 1);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Added to cart')),

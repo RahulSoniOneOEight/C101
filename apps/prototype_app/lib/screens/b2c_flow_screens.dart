@@ -9,6 +9,7 @@ import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/orders_providers.dart';
 import '../providers/account_providers.dart';
+import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
 
 AgencyColors _c(BuildContext c) =>
@@ -155,15 +156,47 @@ class _Benefit extends StatelessWidget {
 // Login (two-mode: Consumer D2C / B2B Trade)
 // ---------------------------------------------------------------------------
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isB2B = false;
+  bool _busy = false;
+  final TextEditingController _identifierController = TextEditingController();
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    super.dispose();
+  }
+
+  /// Accepts a pilot email or an India phone number (prefix +91 applied).
+  String _identifier() {
+    final text = _identifierController.text.trim();
+    if (text.contains('@')) return text;
+    return '+91$text';
+  }
+
+  Future<void> _requestOtp() async {
+    final identifier = _identifier();
+    setState(() => _busy = true);
+    try {
+      await ref.read(pilotOtpProvider.notifier).requestChallenge(identifier);
+      if (mounted) context.go('/otp');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Login failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -206,9 +239,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(fontSize: 13, color: colors.contentSecondary)),
               const SizedBox(height: AgencySpacing.lg),
               TextField(
+                controller: _identifierController,
                 decoration: InputDecoration(
                   prefixText: 'IN +91 ',
                   hintText: '98765 43210',
+                  helperText: _isB2B
+                      ? 'Pilot: pilot1@buildkart.test or 9000000001'
+                      : null,
                   filled: true,
                   fillColor: colors.surfacePage,
                   border: OutlineInputBorder(
@@ -237,12 +274,14 @@ class _LoginScreenState extends State<LoginScreen> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => context.go(_isB2B ? '/otp' : '/'),
+                  onPressed:
+                      _isB2B ? (_busy ? null : _requestOtp) : () => context.go('/'),
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.actionPrimary,
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  child: Text(_isB2B ? 'Get OTP' : 'Sign In'),
+                  child: Text(
+                      _isB2B ? (_busy ? 'Sending…' : 'Get OTP') : 'Sign In'),
                 ),
               ),
               if (_isB2B) ...<Widget>[
@@ -271,8 +310,40 @@ class _LoginScreenState extends State<LoginScreen> {
 // OTP verification
 // ---------------------------------------------------------------------------
 
-class OtpScreen extends StatelessWidget {
+class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key});
+
+  @override
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
+}
+
+class _OtpScreenState extends ConsumerState<OtpScreen> {
+  final TextEditingController _codeController = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _verify() async {
+    setState(() => _busy = true);
+    try {
+      await ref
+          .read(pilotOtpProvider.notifier)
+          .verify(_codeController.text.trim());
+      if (mounted) context.go('/b2b');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Verification failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -284,10 +355,11 @@ class OtpScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Enter the 6-digit code sent to +91 98765 43210',
+            Text('Enter the 6-digit code (pilot test code: 123456)',
                 style: TextStyle(fontSize: 13, color: colors.contentSecondary)),
             const SizedBox(height: AgencySpacing.lg),
             TextField(
+              controller: _codeController,
               textAlign: TextAlign.center,
               keyboardType: TextInputType.number,
               style: TextStyle(fontSize: 22, letterSpacing: 8),
@@ -308,12 +380,12 @@ class OtpScreen extends StatelessWidget {
             ),
             const SizedBox(height: AgencySpacing.lg),
             FilledButton(
-              onPressed: () => context.go('/b2b'),
+              onPressed: _busy ? null : _verify,
               style: FilledButton.styleFrom(
                 backgroundColor: colors.actionPrimary,
                 minimumSize: const Size.fromHeight(48),
               ),
-              child: const Text('Verify'),
+              child: Text(_busy ? 'Verifying…' : 'Verify'),
             ),
           ],
         ),
@@ -1119,6 +1191,7 @@ class _WishlistTile extends ConsumerWidget {
                   child: FilledButton(
                     onPressed: () async {
                       await ref.read(cartProvider.notifier).addItem(
+                          offerId: product.offerId ?? '',
                           variantId: product.variantId ?? product.id,
                           quantity: 1);
                       if (context.mounted) {

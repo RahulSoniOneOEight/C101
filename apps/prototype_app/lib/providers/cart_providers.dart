@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/experience_api.dart';
 import '../data/local_store.dart';
-import '../data/medusa_api.dart';
 import '../domain/models.dart';
 import 'catalog_providers.dart';
 
@@ -22,7 +22,7 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     return AsyncValue.data(restored);
   }
 
-  MedusaStoreClient get _client => ref.read(medusaClientProvider);
+  ExperienceApi get _client => ref.read(experienceApiProvider);
 
   LocalStore get _store => ref.read(localStoreProvider);
 
@@ -94,13 +94,13 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
   }
 
   Future<void> addItem(
-      {required String variantId,
+      {required String offerId,
+      required String variantId,
       required int quantity,
       Money? unitPrice}) async {
     try {
       final cart = await _requireCart();
-      final updated = await _client.addLineItem(cart.id,
-          variantId: variantId, quantity: quantity);
+      final updated = await _client.addLineItem(cart.id, offerId, quantity);
       await _setCart(updated);
     } catch (_) {
       // Offline / demo: keep a working local cart rather than an error state.
@@ -116,7 +116,7 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     if (cart == null) return;
     try {
       final updated =
-          await _client.updateLineItem(cart.id, lineItemId, quantity: quantity);
+          await _client.updateLineItem(cart.id, lineItemId, quantity);
       await _setCart(updated);
     } catch (_) {
       await _setCart(_withItems(cart, <CartLineItem>[

@@ -69,6 +69,22 @@ export class MedusaStoreClient {
     return (await response.json()) as T;
   }
 
+  private async deleteJson<T>(path: string): Promise<T> {
+    const url = `${this.config.medusaBaseUrl}${path}`;
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "x-publishable-api-key": this.config.medusaPublishableKey,
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(`Medusa store request failed (${response.status}): ${url} — ${text.slice(0, 300)}`);
+    }
+    return (await response.json()) as T;
+  }
+
   async getProduct(productId: string): Promise<StoreProduct> {
     const data = await this.getJson<{ product: StoreProduct }>(
       `/store/products/${encodeURIComponent(productId)}?fields=${PRODUCT_FIELDS}`,
@@ -114,6 +130,21 @@ export class MedusaStoreClient {
     const data = await this.postJson<{ cart: StoreCart }>(
       `/store/carts/${encodeURIComponent(cartId)}/line-items`,
       { offer_id: offerId, quantity },
+    );
+    return data.cart;
+  }
+
+  async updateLineItem(cartId: string, lineItemId: string, quantity: number): Promise<StoreCart> {
+    const data = await this.postJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}/line-items/${encodeURIComponent(lineItemId)}`,
+      { quantity },
+    );
+    return data.cart;
+  }
+
+  async removeLineItem(cartId: string, lineItemId: string): Promise<StoreCart> {
+    const data = await this.deleteJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}/line-items/${encodeURIComponent(lineItemId)}`,
     );
     return data.cart;
   }

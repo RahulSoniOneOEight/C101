@@ -124,6 +124,25 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AppContentBundle'}
         '404': {$ref: '#/components/responses/Problem'}
+  /v1/products:
+    get:
+      summary: List composed products with best-price offers
+      tags: [Products]
+      operationId: listComposedProducts
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      - name: offset
+        in: query
+        schema: {type: integer, minimum: 0, default: 0}
+      responses:
+        '200':
+          description: Composed product list with a best-price offer per product.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProductList'}
   /v1/products/{productId}:
     get:
       summary: Get a composed product and eligible offers
@@ -652,6 +671,24 @@ components:
         business_account_id: {type: [string, 'null']}
         roles: {type: array, items: {type: string}}
         permissions: {type: array, items: {type: string}}
+    ProductList:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ProductSummary'}}
+        next_cursor: {type: [string, 'null']}
+    ProductSummary:
+      type: object
+      required: [id, title, variants, offer_count]
+      properties:
+        id: {type: string}
+        title: {type: string}
+        description: {type: [string, 'null']}
+        thumbnail: {type: [string, 'null']}
+        handle: {type: [string, 'null']}
+        variants: {type: array, items: {$ref: '#/components/schemas/ComposedVariant'}}
+        best_price: {$ref: '#/components/schemas/EligibleOffer'}
+        offer_count: {type: integer, minimum: 0}
     ComposedProduct:
       type: object
       required: [id, title, variants, generated_at, freshness]

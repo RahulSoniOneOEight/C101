@@ -30,22 +30,31 @@ final pilotNotificationsProvider = FutureProvider<List<dynamic>>((ref) async {
   return ref.watch(experienceApiProvider).getNotifications();
 });
 
-/// OTP challenge/verify result. `null` until the user completes the flow.
+/// OTP challenge/verify state. Holds the current challenge (after request), then
+/// the session (after verify). `null` until the user starts the flow.
 class PilotOtpNotifier extends Notifier<Map<String, dynamic>?> {
   @override
   Map<String, dynamic>? build() => null;
 
   Future<Map<String, dynamic>> requestChallenge(String identifier) async {
     final api = ref.read(experienceApiProvider);
-    return api.requestOtp(identifier);
+    final challenge = await api.requestOtp(identifier);
+    state = challenge;
+    return challenge;
   }
 
-  Future<Map<String, dynamic>> verify(String challengeId, String code) async {
+  Future<Map<String, dynamic>> verify(String code) async {
+    final challengeId = state?['challenge_id'] as String?;
+    if (challengeId == null) {
+      throw StateError('No OTP challenge issued yet');
+    }
     final api = ref.read(experienceApiProvider);
     final result = await api.verifyOtp(challengeId, code);
     state = result;
     return result;
   }
+
+  void reset() => state = null;
 }
 
 final pilotOtpProvider = NotifierProvider<PilotOtpNotifier, Map<String, dynamic>?>(PilotOtpNotifier.new);

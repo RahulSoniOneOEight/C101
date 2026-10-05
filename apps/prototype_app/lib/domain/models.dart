@@ -48,6 +48,7 @@ class Product {
     this.description,
     this.thumbnail,
     this.variantId,
+    this.offerId,
     this.price,
     this.mrp,
     this.brand,
@@ -129,6 +130,11 @@ class Product {
   final String? description;
   final String? thumbnail;
   final String? variantId;
+
+  /// Best-price offer id (for offer-based add-to-cart), when composed from the
+  /// Experience API.
+  final String? offerId;
+
   final Money? price;
 
   /// Builds a [Product] from the Experience API's composed product payload,
@@ -146,6 +152,7 @@ class Product {
       thumbnail: json['thumbnail'] as String?,
       variantId: best?['variant_id'] as String? ??
           (variants.isNotEmpty ? variants.first['id'] as String? : null),
+      offerId: best?['id'] as String?,
       price: bestAmount == null
           ? null
           : Money(
@@ -183,6 +190,7 @@ class Product {
         'description': description,
         'thumbnail': thumbnail,
         'variant_id': variantId,
+        'offer_id': offerId,
         'price_amount': price?.amount,
         'price_currency': price?.currencyCode,
         'mrp_amount': mrp?.amount,
@@ -199,6 +207,7 @@ class Product {
         description: json['description'] as String?,
         thumbnail: json['thumbnail'] as String?,
         variantId: json['variant_id'] as String?,
+        offerId: json['offer_id'] as String?,
         price: json['price_amount'] == null
             ? null
             : Money(

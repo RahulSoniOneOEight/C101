@@ -2,17 +2,18 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:prototype_app/app.dart';
+import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
-import 'package:prototype_app/data/medusa_api.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Fakes the Medusa client so the smoke test runs without a backend.
-class _FakeMedusaStoreClient extends MedusaStoreClient {
-  _FakeMedusaStoreClient() : super(Dio());
+/// Fakes the Experience API client so the smoke test runs without a backend.
+class _FakeExperienceApi extends ExperienceApi {
+  _FakeExperienceApi() : super(Dio());
 
   @override
-  Future<List<Product>> listProducts({int limit = 20, int offset = 0}) async {
+  Future<List<Product>> getComposedProducts(
+      {int limit = 50, int offset = 0}) async {
     return const <Product>[];
   }
 
@@ -29,7 +30,7 @@ void main() {
       ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(prefs),
-          medusaClientProvider.overrideWithValue(_FakeMedusaStoreClient()),
+          experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
         ],
         child: const PinCommerceApp(),
       ),

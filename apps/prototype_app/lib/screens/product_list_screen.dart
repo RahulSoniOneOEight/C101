@@ -45,7 +45,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Future<void> _addToCart(Product product) async {
     await ref
         .read(cartProvider.notifier)
-        .addItem(variantId: product.variantId ?? product.id, quantity: 1);
+        .addItem(
+            offerId: product.offerId ?? '',
+            variantId: product.variantId ?? product.id,
+            quantity: 1);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Added to cart')),

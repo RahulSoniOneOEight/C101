@@ -143,6 +143,7 @@ def main() -> None:
     required_paths = {
         "/v1/auth/otp/challenges",
         "/v1/auth/otp/verify",
+        "/v1/products",
         "/v1/products/{productId}",
         "/v1/content/app-shell",
         "/v1/carts",
