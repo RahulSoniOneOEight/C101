@@ -12,6 +12,7 @@ import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import { findPilotUser, pilotUsers } from "./auth/pilot-users.js";
 import { issueChallenge, verifyChallenge } from "./auth/dummy-otp.js";
+import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
@@ -100,6 +101,67 @@ async function handle(req: Request, url: URL): Promise<Response> {
     return json({
       session_token: verified.session_token,
       user,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  // GET /v1/logistics/serviceability?postcode=... — simulated delivery serviceability (Step 3)
+  if (url.pathname === "/v1/logistics/serviceability" && req.method === "GET") {
+    const postcode = url.searchParams.get("postcode") ?? "";
+    const result = checkServiceability(postcode);
+    return json({ ...result, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  // POST /v1/checkouts/{checkoutId}/shipment — book a simulated shipment (Step 3)
+  const bookShipmentMatch = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/shipment$/);
+  if (bookShipmentMatch && req.method === "POST") {
+    const checkoutId = bookShipmentMatch[1];
+    const shipment = bookShipment(checkoutId);
+    await events.append({
+      event_type: "shipment.status_changed",
+      aggregate_type: "order_group",
+      aggregate_id: checkoutId,
+      correlation_id: cid,
+      payload: { shipment_id: shipment.id, status: shipment.status, tracking_number: shipment.tracking_number },
+    });
+    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid }, 201);
+  }
+
+  // GET /v1/shipments/{shipmentId} — simulated tracking (Step 3)
+  const shipmentMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)$/);
+  if (shipmentMatch && req.method === "GET") {
+    const shipment = getShipment(shipmentMatch[1]);
+    if (!shipment) return problem(404, "unknown-shipment");
+    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  // POST /v1/shipments/{shipmentId}/advance — demo-only status progression (Step 3)
+  const advanceMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)\/advance$/);
+  if (advanceMatch && req.method === "POST") {
+    const shipment = advanceShipment(advanceMatch[1]);
+    if (!shipment) return problem(404, "unknown-shipment");
+    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  // GET /v1/notifications — dummy notification feed derived from domain events (Step 4)
+  if (url.pathname === "/v1/notifications" && req.method === "GET") {
+    const items = await events.list(undefined, undefined, 20);
+    const messages: Record<string, string> = {
+      "order.confirmed": "Your order was confirmed.",
+      "inventory.reservation_created": "Inventory reserved for your order.",
+      "inventory.reservation_committed": "Inventory committed for your order.",
+      "inventory.reservation_released": "Inventory reservation released.",
+      "shipment.status_changed": "Your shipment status changed.",
+    };
+    return json({
+      notifications: items.map((e) => ({
+        id: e.id,
+        event_type: e.event_type,
+        message: messages[e.event_type] ?? e.event_type,
+        occurred_at: e.occurred_at,
+      })),
       environment: config.environment,
       test_data: true,
       correlation_id: cid,
