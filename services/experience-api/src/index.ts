@@ -489,28 +489,44 @@ async function handle(req: Request, url: URL): Promise<Response> {
     const limit = Number(url.searchParams.get("limit") ?? 50);
     const offset = Number(url.searchParams.get("offset") ?? 0);
     try {
+      const t0 = performance.now();
       const products = await medusa.listProducts(limit, offset);
-      const composed = await Promise.all(
-        products.map(async (p) => {
-          const base = {
-            id: p.id,
-            title: p.title,
-            thumbnail: p.thumbnail,
-            description: p.description,
-            handle: p.handle,
-            variants: p.variants,
-          };
-          try {
-            const offers = await medusa.listOffers(p.id);
-            const { selected } = composeOffers(offers);
-            return { ...base, best_price: selected, offer_count: offers.length };
-          } catch {
-            return { ...base, best_price: null, offer_count: 0 };
-          }
-        }),
-      );
+      const productsMs = performance.now() - t0;
+
+      const t1 = performance.now();
+      const productIds = products.map((p) => p.id);
+      const allOffers = await medusa.listOffersByProducts(productIds);
+      const offersMs = performance.now() - t1;
+
+      const t2 = performance.now();
+      const offersByProduct = new Map<string, StoreOffer[]>();
+      for (const o of allOffers) {
+        const list = offersByProduct.get(o.product_id) ?? [];
+        list.push(o);
+        offersByProduct.set(o.product_id, list);
+      }
+      const composed = products.map((p) => {
+        const base = {
+          id: p.id,
+          title: p.title,
+          thumbnail: p.thumbnail,
+          description: p.description,
+          handle: p.handle,
+          variants: p.variants,
+        };
+        const offers = offersByProduct.get(p.id) ?? [];
+        const { selected } = composeOffers(offers);
+        return { ...base, best_price: selected, offer_count: offers.length };
+      });
+      const composeMs = performance.now() - t2;
+
       return json({
         products: composed,
+        timing_ms: {
+          products_fetch: Math.round(productsMs * 10) / 10,
+          offers_fetch: Math.round(offersMs * 10) / 10,
+          composition: Math.round(composeMs * 10) / 10,
+        },
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
@@ -525,11 +541,17 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (product && req.method === "GET") {
     const productId = product[1];
     try {
+      const t0 = performance.now();
       const [p, offers] = await Promise.all([
         medusa.getProduct(productId),
         medusa.listOffers(productId),
       ]);
+      const fetchMs = performance.now() - t0;
+
+      const t1 = performance.now();
       const { offerViews, selected } = composeOffers(offers);
+      const composeMs = performance.now() - t1;
+
       return json({
         id: p.id,
         title: p.title,
@@ -537,6 +559,10 @@ async function handle(req: Request, url: URL): Promise<Response> {
         description: p.description,
         variants: p.variants,
         offers: offerViews,
+        timing_ms: {
+          fetch: Math.round(fetchMs * 10) / 10,
+          composition: Math.round(composeMs * 10) / 10,
+        },
         commercial: {
           selected_seller: selected,
           payment_eligibility: [config.paymentAdapterMode],

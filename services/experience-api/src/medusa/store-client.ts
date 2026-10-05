@@ -106,6 +106,22 @@ export class MedusaStoreClient {
     return data.offers;
   }
 
+  /** Bulk offers for many products in a single request (removes the N+1 pattern). */
+  async listOffersByProducts(productIds: string[]): Promise<StoreOffer[]> {
+    if (!productIds.length) return [];
+    const fields = "+calculated_price,+inventory_quantity,+in_stock";
+    const params = new URLSearchParams();
+    for (const id of productIds) {
+      params.append("product_id[]", id);
+    }
+    params.set("region_id", this.config.medusaRegionId);
+    params.set("country_code", this.config.medusaCountryCode);
+    params.set("fields", fields);
+    params.set("limit", String(Math.max(200, productIds.length * 50)));
+    const data = await this.getJson<{ offers: StoreOffer[] }>(`/store/offers?${params.toString()}`);
+    return data.offers;
+  }
+
   async listProducts(limit = 50, offset = 0): Promise<StoreProduct[]> {
     const params = new URLSearchParams({
       limit: String(limit),

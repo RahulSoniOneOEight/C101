@@ -98,8 +98,8 @@ items:
   status: in-progress
   disposition: accepted-with-conditions
   owner: RS
-  evidence_refs: [docs/architecture/provider-selection-decision-records.md, services/experience-api/src/scripts/load-test.ts]
-  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 <=1.5s. Dev-mode staging load test (test:load) yielded ~5 rps at 20 virtual users and ~8.7 rps at 50, with 55% error rate (502 upstream + network) and p95 ~22s — does NOT meet the target. Bottleneck is the single-threaded `medusa develop` dev server plus the N+1 offers pattern in /v1/products. Production load targets require a production-shaped Medusa deployment and bulk/optimized offers query.
+  evidence_refs: [docs/architecture/provider-selection-decision-records.md, services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts]
+  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 <=1.5s. N+1 pattern fixed (bulk offers API keyed by product IDs — one /store/offers?product_id[]=... call instead of N), production-shaped Medusa deployed (medusa build + medusa start), and timing instrumentation added (products_fetch / offers_fetch / composition). Load test re-run on the production server — p95 ~21s, ~33% errors at 50 virtual users (improved from ~55%). Remaining bottleneck is the Medusa pricing/inventory computation (single bulk-offers call ~357ms, but ~7.5s under 30 concurrent requests) — a Medusa performance characteristic requiring offers caching or horizontal scaling, not a staging-code defect.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.

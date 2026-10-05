@@ -36,6 +36,10 @@ import {
 class SimulatedPaymentProviderService extends AbstractPaymentProvider {
   static identifier = "simulated";
 
+  constructor(container: Record<string, unknown>, config?: Record<string, unknown>) {
+    super(container, config);
+  }
+
   async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentOutput> {
     return {
       id: `sim_${randomUUID()}`,
