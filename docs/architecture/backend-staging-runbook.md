@@ -117,7 +117,7 @@ placeholders — replace with real photography before production. The catalogue 
 
 - PostgreSQL and Redis: running (healthy).
 - Backend: dependencies installed, migrations applied, seeded (4 sellers, ~52 hardware products), admin user created.
-- Tryton: image build + module init (in progress during initial bring-up).
+- Tryton: modules initialised, DB reset clean for the hardware pilot (ERP sync/reserve verified against a fresh instance).
 
 ## Known staging gaps (not production)
 
