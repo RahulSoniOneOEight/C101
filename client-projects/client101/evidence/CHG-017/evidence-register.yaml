@@ -9,7 +9,7 @@ items:
   decisions: [D-017-01, D-017-21]
   required_roles: [architecture, security, integration-owners]
   status: in-progress
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/backend-local-staging-baseline.md, services/docker-compose.yml, services/backend/package.json]
   acceptance_criteria:
   - Exact compatible Medusa, Mercur, Tryton and PostgreSQL versions are recorded.
@@ -21,7 +21,7 @@ items:
   required_roles: [architecture, security, integration-owners]
   status: missing
   disposition: deferred-for-pilot
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Pilot uses simulated OTP for allowlisted test users; production OTP provider deferred (MSG91 candidate only).
   acceptance_criteria:
@@ -37,7 +37,7 @@ items:
   candidate: Razorpay REST API v1
   blocking_scopes: [provider-payment-g3, production-prepaid-checkout]
   non_blocking_scopes: [staging-g0]
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Provider, exact version/API version and prepaid method are recorded.
@@ -49,7 +49,7 @@ items:
   required_roles: [logistics, operations, security, integration-owners]
   status: missing
   disposition: deferred-for-pilot
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Pilot uses simulated logistics (serviceability/shipment/tracking); production logistics provider deferred (Shiprocket candidate, Delhivery fallback).
   acceptance_criteria:
@@ -61,7 +61,7 @@ items:
   decisions: [D-017-15, D-017-21]
   required_roles: [architecture, security, integration-owners, operations]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Approved architecture — NATS JetStream (canonical cross-domain event backbone), Valkey/Redis (cache/locks), Cloudflare R2 (object storage), FCM push. Exact versions/tiers/owners still to be recorded.
   acceptance_criteria:
@@ -73,7 +73,7 @@ items:
   required_roles: [architecture, security, operations, integration-owners]
   status: missing
   disposition: accepted-with-conditions
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Architecture accepted; named accountable humans for environment ownership required.
   acceptance_criteria:
@@ -85,7 +85,7 @@ items:
   required_roles: [security, operations, integration-owners]
   status: missing
   disposition: accepted-with-conditions
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Architecture accepted (secret manager, OTel, central logs, alerts); named humans for security/secrets, observability and on-call ownership required.
   acceptance_criteria:
@@ -97,7 +97,7 @@ items:
   required_roles: [architecture, operations, release-authority]
   status: missing
   disposition: accepted-with-conditions
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Bounded pilot load approach accepted; numeric peak users / order rate / p95 latency targets require human approval.
   acceptance_criteria:
@@ -109,7 +109,7 @@ items:
   required_roles: [architecture, operations, release-authority]
   status: missing
   disposition: accepted-with-conditions
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Backup/restore approach accepted; numeric RPO/RTO, backup interval and restore-test frequency require human approval.
   acceptance_criteria:
@@ -120,8 +120,10 @@ items:
   decisions: [D-017-03, D-017-14]
   required_roles: [product, security, architecture, operations]
   status: missing
-  owner: null
-  evidence_refs: []
+  disposition: accepted-with-conditions
+  owner: RS
+  evidence_refs: [docs/architecture/provider-selection-decision-records.md]
+  note: Bounded-pilot rules proposed (PS-13) — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Not accepted pending explicit policy approval and reviewer.
   acceptance_criteria:
   - Buyer, business-account, seller and operator membership rules are documented.
   - Tenant and seller isolation plus action-level permissions are testable.
@@ -131,7 +133,7 @@ items:
   required_roles: [finance-tax, legal, erp-operations]
   status: missing
   disposition: deferred
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Production GST/tax/invoice policy not approved; staging test-clearing only until Finance/Tax, Legal and ERP Operations approve.
   acceptance_criteria:
@@ -144,7 +146,7 @@ items:
   required_roles: [finance-tax, erp-operations]
   status: missing
   disposition: deferred
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Production accounting-posting policy not approved; staging test-clearing only until Finance/Tax and ERP Operations approve.
   acceptance_criteria:
@@ -157,7 +159,7 @@ items:
   required_roles: [architecture, erp-operations, finance]
   status: planned
   candidate: Tryton 8.0 series; exact server, module and PostgreSQL patch versions pending compatibility testing
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Reserve, commit, release and expiry operations use stable idempotency keys.
@@ -169,7 +171,7 @@ items:
   decisions: [D-017-10, D-017-17, D-017-20, D-017-23]
   required_roles: [product, architecture, security, finance, operations, release-authority]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Server-selected simulator supports success, failure, pending, duplicate and late results.
@@ -183,7 +185,7 @@ items:
   decisions: [D-017-01, D-017-02, D-017-17]
   required_roles: [architecture, product, operations]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Medusa persists staging cart, checkout reference and canonical test order.
@@ -194,7 +196,7 @@ items:
   decisions: [D-017-01, D-017-04, D-017-05, D-017-06, D-017-17]
   required_roles: [architecture, marketplace, marketplace-operations]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Mercur supplies actual staging sellers, offers and eligibility.
@@ -205,7 +207,7 @@ items:
   decisions: [D-017-01, D-017-08, D-017-19]
   required_roles: [architecture, erp-operations, finance-tax]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Tryton executes actual staging reservation commit/release and stock movement.
@@ -216,7 +218,7 @@ items:
   decisions: [D-017-15, D-017-17, D-017-18, D-017-19]
   required_roles: [architecture, operations, marketplace, erp-operations, finance-tax]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Checkout, Medusa order, Mercur allocation, Tryton reservation/movement/accounting share correlation references.
@@ -227,7 +229,7 @@ items:
   decisions: [D-017-02, D-017-14, D-017-18]
   required_roles: [architecture, security, operations, product]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - App, web, seller and operator screens consume shared backend contracts.
@@ -238,7 +240,7 @@ items:
   decisions: [D-017-14, D-017-21, D-017-23]
   required_roles: [architecture, security, operations, integration-owners, release-authority]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: []
   acceptance_criteria:
   - Staging uses environment-specific endpoints, service identities and secret references.
@@ -249,7 +251,7 @@ items:
   decisions: [D-017-01, D-017-02, D-017-21]
   required_roles: [product, architecture, security]
   status: planned
-  owner: null
+  owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
   note: Strapi (self-hosted) selected for editorial app-shell content behind a provider-neutral CMS boundary; CMS never owns transactional state.
   acceptance_criteria:

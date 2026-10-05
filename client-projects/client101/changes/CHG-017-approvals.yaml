@@ -576,6 +576,9 @@ batch_approval_records:
     unresolved_conditions: [staging-gate-load-recovery-and-operational-evidence]
 - submission_id: CHG-017-G0-PROVIDER-ARCHITECTURE-001
   approver: human-requester
+  owner: RS
+  owner_role: Accountable Project / Architecture Owner
+  reviewer_status: missing
   authorized_roles: [product, architecture, security, marketplace, marketplace-operations, erp-operations, finance, finance-tax, legal, logistics, operations, integration-owners, release-authority]
   authorization_evidence: Human supplied the G0 architecture & pilot provider approval request with recommended outcomes per decision (PS-01..PS-12). High-level approval recorded; formal per-decision named sign-off (name + role + timestamp) remains required to close G0.
   evidence: Bounded-staging architecture approval (NATS JetStream + Valkey/Redis + Cloudflare R2, Strapi CMS, Meilisearch, PostHog, Chatwoot, existing 59-rule framework) with simulated OTP/logistics/payment for the pilot; production providers (OTP/logistics/payment) and tax/accounting policy deferred.
@@ -643,6 +646,11 @@ batch_approval_records:
     outcome: deferred
     roles: [finance-tax, erp-operations]
     conditions: [Staging test-clearing only; production accounting-posting policy not approved.]
+  - decision_id: PS-13
+    subject: membership-and-access
+    outcome: accepted-with-conditions
+    roles: [product, security, architecture, operations]
+    conditions: [Bounded-pilot rules — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Explicit policy approval and independent reviewer required before accepted.]
 runtime_authorizations:
 - authorization_id: CHG-017-R5-STAGING-RUNTIME-001
   authorized_by: Rahul Soni
