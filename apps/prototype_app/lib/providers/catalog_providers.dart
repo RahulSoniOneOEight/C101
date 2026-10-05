@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_config.dart';
+import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../data/medusa_api.dart';
 import '../domain/merchandising.dart';
@@ -235,15 +236,44 @@ final productProvider =
   throw StateError('Product $id not found');
 });
 
+/// Real seller offers for a product, fetched from the shared Experience API
+/// (Medusa product + Mercur offers + best-price selection). This is the
+/// canonical offer list — it is never manufactured locally.
+final composedProductOffersProvider =
+    FutureProvider.autoDispose.family<List<ProductSeller>, String>(
+        (ref, productId) async {
+  final data = await ref.watch(experienceApiProvider).getProduct(productId);
+  final offers = (data['offers'] as List<dynamic>? ?? const <dynamic>[])
+      .whereType<Map<String, dynamic>>()
+      .toList();
+  final selectedId =
+      (data['commercial']?['selected_seller']?['id']) as String?;
+  return offers.map((o) {
+    return ProductSeller(
+      id: o['id'] as String? ?? '',
+      name: o['seller_name'] as String? ?? 'Seller',
+      price: Money(
+        amount: (o['unit_amount_minor'] as num?)?.toInt() ?? 0,
+        currencyCode: (o['currency_code'] as String?) ?? 'INR',
+      ),
+      isBestPrice: o['id'] == selectedId,
+    );
+  }).toList();
+});
+
 /// Seller offers for a product, **best-price first**.
 ///
-/// The Medusa storefront API used here exposes a single default variant price,
-/// not marketplace seller offers. Until the seller/offer contract (Mercur) is
-/// wired through, the product page derives a small, deterministic set of offers:
-/// the best-price offer matches the product's own price and is the default
-/// selection, and the alternatives are slightly higher.
+/// Serves the canonical offers from the shared Experience API. A small,
+/// deterministic dev-only set is derived only when the backend is unreachable
+/// (`AppConfig.useMockData`), so no silent seller substitution can reach
+/// production.
 final productSellersProvider =
     Provider.family<List<ProductSeller>, String>((ref, productId) {
+  final real = ref.watch(composedProductOffersProvider(productId)).value;
+  if (real != null && real.isNotEmpty) return real;
+
+  if (!AppConfig.useMockData) return const <ProductSeller>[];
+
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   Product? product;
   for (final p in products) {
