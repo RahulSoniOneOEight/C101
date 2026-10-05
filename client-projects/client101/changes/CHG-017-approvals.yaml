@@ -704,7 +704,7 @@ runtime_authorizations:
   permitted: [medusa-staging, mercur-staging, tryton-staging, simulated-payment, shared-backend, app-web-operator-integration, editorial-content-contract]
   prohibited: [razorpay-integration, provider-credentials, production-erp, production-logistics, production-notifications, production-customer-data, production-release]
 gate_status:
-  G0-governance: blocked
+  G0-governance: approved
   G1-contracts-and-access: blocked
   G2-checkout-integrity: blocked
   G3-staging-simulation: blocked
