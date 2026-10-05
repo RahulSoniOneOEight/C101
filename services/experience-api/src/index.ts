@@ -10,6 +10,8 @@ import { EventStore } from "./store/event-store.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
+import { findPilotUser, pilotUsers } from "./auth/pilot-users.js";
+import { issueChallenge, verifyChallenge } from "./auth/dummy-otp.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
@@ -51,6 +53,55 @@ async function handle(req: Request, url: URL): Promise<Response> {
       environment: config.environment,
       payment_mode: config.paymentAdapterMode,
       test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // POST /v1/auth/otp/challenges — issue a simulated OTP challenge (allowlisted pilot users only)
+  if (url.pathname === "/v1/auth/otp/challenges" && req.method === "POST") {
+    let body: { identifier?: string };
+    try {
+      body = (await req.json()) as { identifier?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.identifier) {
+      return problem(400, "missing-identifier", "identifier (email or phone) is required.");
+    }
+    const user = findPilotUser(body.identifier);
+    if (!user) {
+      return problem(403, "not-pilot-user", "This identity is not allowlisted for the pilot.");
+    }
+    const challenge = issueChallenge(user.id);
+    return json({
+      ...challenge,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, 201);
+  }
+
+  // POST /v1/auth/otp/verify — verify the simulated OTP and return a pilot session
+  if (url.pathname === "/v1/auth/otp/verify" && req.method === "POST") {
+    let body: { challenge_id?: string; code?: string };
+    try {
+      body = (await req.json()) as { challenge_id?: string; code?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.challenge_id || !body.code) {
+      return problem(400, "missing-fields", "challenge_id and code are required.");
+    }
+    const verified = verifyChallenge(body.challenge_id, body.code);
+    if (!verified) {
+      return problem(401, "invalid-otp", "Invalid or expired OTP.");
+    }
+    const user = pilotUsers.find((u) => u.id === verified.user_id);
+    return json({
+      session_token: verified.session_token,
+      user,
+      environment: config.environment,
+      test_data: true,
       correlation_id: cid,
     });
   }
