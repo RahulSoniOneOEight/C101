@@ -41,6 +41,72 @@ function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
 }
 
+/** Minimal read-only operator console (staging) served as a static HTML page. */
+function opsPage(): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BuildKart Ops — Staging</title>
+<style>
+  body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 2rem; color: #111; }
+  h1 { font-size: 1.25rem; }
+  .badge { font-size: .75rem; background: #fde68a; color: #713f12; padding: .15rem .5rem; border-radius: 999px; vertical-align: middle; }
+  h2 { font-size: 1rem; margin-top: 2rem; border-bottom: 1px solid #e5e7eb; padding-bottom: .25rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #e5e7eb; }
+  th { color: #6b7280; font-weight: 600; }
+  .ok { color: #15803d; } .warn { color: #b45309; } .empty { color: #6b7280; }
+  code { background: #f3f4f6; padding: .1rem .3rem; border-radius: .25rem; font-size: .8rem; }
+</style>
+</head>
+<body>
+<h1>BuildKart Ops Console <span class="badge">staging · simulated payment</span></h1>
+<section>
+  <h2>Correlated orders</h2>
+  <div id="orders">Loading…</div>
+</section>
+<section>
+  <h2>Integration exceptions</h2>
+  <div id="exceptions">Loading…</div>
+</section>
+<script>
+async function load() {
+  try {
+    const [orders, exceptions] = await Promise.all([
+      fetch('/v1/admin/orders').then(r => r.json()),
+      fetch('/v1/ops/integration-exceptions').then(r => r.json()),
+    ]);
+    renderOrders(orders.items || []);
+    renderExceptions(exceptions.items || []);
+  } catch (e) {
+    document.getElementById('orders').textContent = 'Failed to load: ' + e;
+  }
+}
+function renderOrders(items) {
+  const el = document.getElementById('orders');
+  if (!items.length) { el.innerHTML = '<p class="empty">No orders yet — complete a checkout to see a correlated order.</p>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Order ref</th><th>Order group</th><th>Reservation</th><th>Reconciled</th></tr></thead><tbody>' +
+    items.map(o => {
+      const ok = o.reconciled ? '<span class="ok">yes</span>' : '<span class="warn">no</span>';
+      return '<tr><td><code>' + esc(o.order_id) + '</code></td><td><code>' + esc(o.medusa_order_group_id || '—') + '</code></td><td><code>' + esc(o.reservation_id || '—') + '</code></td><td>' + ok + '</td></tr>';
+    }).join('') + '</tbody></table>';
+}
+function renderExceptions(items) {
+  const el = document.getElementById('exceptions');
+  if (!items.length) { el.innerHTML = '<p class="empty">No integration exceptions recorded.</p>'; return; }
+  el.innerHTML = '<table><thead><tr><th>Type</th><th>Aggregate</th><th>Occurred</th></tr></thead><tbody>' +
+    items.map(e => '<tr><td><code>' + esc(e.event_type) + '</code></td><td><code>' + esc(e.aggregate_id) + '</code></td><td>' + esc(e.occurred_at) + '</td></tr>').join('') + '</tbody></table>';
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+load();
+setInterval(load, 5000);
+</script>
+</body>
+</html>`;
+}
+
 /** Maps Mercur offers to composed offer views and picks the lowest eligible in-stock offer. */
 function composeOffers(offers: StoreOffer[]) {
   const offerViews = offers.map((o) => {
@@ -78,6 +144,12 @@ async function handle(req: Request, url: URL): Promise<Response> {
   }
 
   const cid = correlationId(req);
+
+  if (url.pathname === "/ops" || url.pathname === "/ops/") {
+    return new Response(opsPage(), {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
 
   if (url.pathname === "/health") {
     return json({
@@ -643,6 +715,60 @@ async function handle(req: Request, url: URL): Promise<Response> {
       bank_receipt_claimed: false,
       reconciled,
       mismatch_codes: reconciled ? [] : ["RESERVATION_OR_ORDER_MISSING"],
+    });
+  }
+
+  // GET /v1/admin/orders — operator order queue (list correlated checkouts)
+  if (url.pathname === "/v1/admin/orders" && req.method === "GET") {
+    const rows = await correlation.list();
+    return json({
+      items: rows.map((r) => ({
+        order_id: r.checkout_ref,
+        medusa_order_group_id: r.medusa_order_group_id,
+        reservation_id: r.tryton_move_id ? `tryton_move_${r.tryton_move_id}` : null,
+        reconciled: Boolean(r.medusa_order_group_id && r.tryton_move_id),
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      })),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  // GET /v1/orders/{orderId} — customer order read (correlated staging references)
+  const customerOrder = url.pathname.match(/^\/v1\/orders\/([^/]+)$/);
+  if (customerOrder && req.method === "GET") {
+    const orderId = customerOrder[1];
+    const ref = await correlation.get(orderId);
+    if (!ref) {
+      return problem(404, "order-not-found", "No correlated order for this reference.");
+    }
+    const trytonMove = ref.tryton_move_id ?? null;
+    const orderGroup = ref.medusa_order_group_id ?? null;
+    return json({
+      order_id: orderId,
+      medusa_order_group_id: orderGroup,
+      status: orderGroup ? "confirmed" : "not_started",
+      payment_mode: config.paymentAdapterMode,
+      environment: config.environment,
+      test_data: true,
+      reservation_id: trytonMove ? `tryton_move_${trytonMove}` : null,
+      reservation_status: trytonMove ? "committed" : "not_started",
+      reconciled: Boolean(orderGroup && trytonMove),
+      correlation_id: cid,
+    });
+  }
+
+  // GET /v1/ops/integration-exceptions — list failure/exception domain events
+  if (url.pathname === "/v1/ops/integration-exceptions" && req.method === "GET") {
+    const recent = await events.list(undefined, undefined, 200);
+    const exceptions = recent.filter((e) => /(failed|exception|error)/i.test(e.event_type));
+    return json({
+      items: exceptions,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
     });
   }
 

@@ -80,6 +80,16 @@ export class CorrelationStore {
     return result.rows[0] ?? null;
   }
 
+  /** List recent correlations (most recently updated first) for the operator order queue. */
+  async list(limit = 200): Promise<CorrelationRecord[]> {
+    await this.ready;
+    const result = await this.pool.query(
+      "SELECT checkout_ref, medusa_order_group_id, tryton_move_id, created_at, updated_at FROM correlation ORDER BY updated_at DESC LIMIT $1",
+      [limit],
+    );
+    return result.rows;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
