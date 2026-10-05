@@ -97,6 +97,14 @@ export class TrytonErp {
     return this.warehouseLocationId();
   }
 
+  /** Resolve company, UoM and locations once at startup so concurrent reserves don't race setup. */
+  async warmup(): Promise<void> {
+    await this.companyId();
+    await this.uomId();
+    await this.storageLocationId();
+    await this.customerLocationId();
+  }
+
   async syncVariant(sku: string, name: string, priceMinor: number): Promise<number> {
     if (this.productBySku.has(sku)) return this.productBySku.get(sku)!;
 

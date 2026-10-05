@@ -7,6 +7,7 @@ import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
+import { ReservationStore } from "./store/reservation-store.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
@@ -19,8 +20,11 @@ const payment = new SimulatedPaymentAdapter();
 const medusa = new MedusaStoreClient(config);
 const tryton = new TrytonClient(config);
 const erp = new TrytonErp(tryton, config.trytonUsername);
+// Pre-resolve Tryton company/UoM/locations so concurrent reserves don't race setup.
+erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:", (e as Error).message));
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
+const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const collections = new CollectionResolver(medusa);
 
 const json = (body: unknown, status = 200) =>
@@ -574,7 +578,46 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
   }
 
-  // POST /v1/checkouts/{checkoutId}/reserve — reserve inventory in Tryton
+  // POST /v1/admin/inventory/available — set available quantity for a SKU (staging/test)
+  if (url.pathname === "/v1/admin/inventory/available" && req.method === "POST") {
+    let body: { sku?: string; available?: number };
+    try {
+      body = (await req.json()) as { sku?: string; available?: number };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.sku || !Number.isInteger(body.available) || (body.available as number) < 0) {
+      return problem(400, "invalid-inventory", "sku and non-negative integer available are required.");
+    }
+    await reservations.setAvailable(body.sku, body.available as number);
+    return json({
+      sku: body.sku,
+      available: body.available,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  // GET /v1/admin/inventory/{sku} — read the reservation ledger for a SKU
+  const inventoryLedger = url.pathname.match(/^\/v1\/admin\/inventory\/([^/]+)$/);
+  if (inventoryLedger && req.method === "GET") {
+    const sku = inventoryLedger[1];
+    const ledger = await reservations.getLedger(sku);
+    if (!ledger) {
+      return problem(404, "unknown-sku", `No reservation ledger for SKU ${sku}.`);
+    }
+    return json({
+      sku: ledger.sku,
+      available: ledger.available,
+      reserved: ledger.reserved,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  // POST /v1/checkouts/{checkoutId}/reserve — reserve inventory (atomic ATP) + Tryton move
   const reserve = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/reserve$/);
   if (reserve && req.method === "POST") {
     const checkoutId = reserve[1];
@@ -587,26 +630,54 @@ async function handle(req: Request, url: URL): Promise<Response> {
     if (!body.sku || !Number.isInteger(body.quantity) || (body.quantity as number) < 1) {
       return problem(400, "invalid-reservation", "sku and positive integer quantity are required.");
     }
+
+    // Idempotency: re-reserving an already-reserved checkout returns the existing reservation.
+    const existing = await reservations.getReservation(checkoutId);
+    if (existing) {
+      return json({
+        checkout_id: checkoutId,
+        reservation_id: existing.move_id ? `tryton_move_${existing.move_id}` : null,
+        tryton_move_id: existing.move_id,
+        status: "reserved",
+        idempotent: true,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    }
+
+    const quantity = body.quantity as number;
+    const sku = body.sku;
     try {
-      const moveId = await erp.reserve(checkoutId, body.sku, body.quantity as number);
+      // Atomic availability check: reject if reserved + quantity would exceed available.
+      const ledger = await reservations.tryReserve(sku, quantity);
+      if (!ledger) {
+        return problem(409, "insufficient-stock", `Insufficient stock for SKU ${sku}.`);
+      }
+      const moveId = await erp.reserve(checkoutId, sku, quantity);
+      await reservations.recordReservation(checkoutId, sku, quantity, moveId);
       await correlation.link(checkoutId, { trytonMove: moveId });
       await events.append({
         event_type: "inventory.reservation_created",
         aggregate_type: "checkout",
         aggregate_id: checkoutId,
         correlation_id: cid,
-        payload: { sku: body.sku, quantity: body.quantity, tryton_move_id: moveId },
+        payload: { sku, quantity, tryton_move_id: moveId },
       });
       return json({
         checkout_id: checkoutId,
         reservation_id: `tryton_move_${moveId}`,
         tryton_move_id: moveId,
         status: "reserved",
+        reserved_quantity: ledger.reserved,
+        available_quantity: ledger.available,
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
       }, 201);
     } catch (error) {
+      // Roll back the ledger increment if the Tryton move failed.
+      await reservations.releaseQuantity(sku, quantity).catch(() => undefined);
       return problem(502, "tryton-error", (error as Error).message);
     }
   }
@@ -651,6 +722,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
     try {
       await erp.release(ref.tryton_move_id);
+      await reservations.release(checkoutId);
       await events.append({
         event_type: "inventory.reservation_released",
         aggregate_type: "checkout",

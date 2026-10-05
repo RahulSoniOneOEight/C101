@@ -157,10 +157,11 @@ items:
   title: Tryton reservation concurrency and recovery
   decisions: [D-017-08, D-017-17]
   required_roles: [architecture, erp-operations, finance]
-  status: planned
+  status: in-progress
   candidate: Tryton 8.0 series; exact server, module and PostgreSQL patch versions pending compatibility testing
   owner: RS
-  evidence_refs: []
+  evidence_refs: [services/experience-api/src/scripts/concurrency-test.ts, services/experience-api/src/store/reservation-store.ts]
+  note: Concurrent no-oversell demonstrated — atomic reservation ledger (Postgres conditional UPDATE) rejects reservations beyond available; 10 concurrent reserves against available=5 yield exactly 5 successes + 5 409 insufficient-stock; idempotent re-reserve does not double-count. Remaining — reservation TTL/expiry, atomic commit-vs-expiry, and late-payment re-reserve/recovery.
   acceptance_criteria:
   - Reserve, commit, release and expiry operations use stable idempotency keys.
   - Commitment and expiry are demonstrated as atomic competing transitions.

@@ -32,12 +32,15 @@ each gate closes when its `E-017-xxx` evidence items move `planned → evidenced
   fail-closed (code verified).
 - **E-017-021** CMS boundary — seed content module is editorial-only, non-transactional (verified).
 - **E-017-001** versions — pinned in `backend-local-staging-baseline.md`.
+- **E-017-013** no-oversell under concurrency — atomic reservation ledger (Postgres conditional UPDATE);
+  `test:concurrency` shows 10 concurrent reserves against `available=5` → exactly 5 succeed, 5
+  rejected `409 insufficient-stock`, and an idempotent re-reserve does not double-count.
 
 ## Missing evidence (concrete next actions)
 
 | Item | Missing evidence | How to produce |
 |---|---|---|
-| E-017-013 | Reservation concurrency / atomic expiry-commit | concurrent reserve/commit test (two checkouts competing for constrained stock → no oversell) |
+| E-017-013 (remaining) | Reservation TTL/expiry, atomic commit-vs-expiry, late-payment re-reserve/recovery | add reservation expiry + competing commit/expiry transition + late-payment recovery test |
 | E-017-008 | Load profile vs targets (100 CCU, 20–30 rps, 100 orders/hr, p95 ≤ 1.5s) | load test (k6/Artillery) against the staging stack |
 | E-017-009 | RPO/RTO + restore drill (daily backup, ≤24h RPO, ≤4h RTO, monthly restore) | backup + restore-from-backup test |
 | E-017-006/007 | Environment/secrets/observability mechanism | staging observability wiring (OTel traces, central logs, secret-manager reference) |
@@ -46,8 +49,7 @@ each gate closes when its `E-017-xxx` evidence items move `planned → evidenced
 
 ## Recommended next sequence
 
-1. **G2/G4 concurrency** (E-017-013) — smallest remaining functional test; write + run a concurrent
-   reserve/commit oversell test against constrained stock.
+1. **E-017-013 remaining** — reservation expiry + commit-vs-expiry + late-payment recovery.
 2. **G6 load + restore** (E-017-008/009) — run a load test and a backup/restore drill against the
    staging stack.
 3. **G6 observability** (E-017-006/007) — wire OTel/central-log/secret-manager references for staging.
