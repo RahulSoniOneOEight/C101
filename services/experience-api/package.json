@@ -11,6 +11,8 @@
     "test:expiry": "bun run src/scripts/expiry-test.ts",
     "test:nats": "bun run src/scripts/nats-check.ts",
     "test:consume": "bun run src/scripts/nats-consume.ts",
+    "test:payment-flow": "bun run src/scripts/payment-flow-test.ts",
+    "test:payment-matrix": "bun run src/scripts/payment-outcome-matrix-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {
