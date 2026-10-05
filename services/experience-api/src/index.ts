@@ -28,6 +28,27 @@ const reservations = new ReservationStore(config.experienceDatabaseUrl);
 
 // Reservation TTL (CHG-017 `reservation_ttl_minutes_proposed: 15`; overridable for tests).
 const RESERVATION_TTL_MS = Number(process.env.RESERVATION_TTL_MS ?? 15 * 60 * 1000);
+
+// Read-model offer cache (browse only). Never caches cart/order/reservation decisions.
+const OFFER_CACHE_TTL_MS = Number(process.env.OFFER_CACHE_TTL_MS ?? 30000);
+const offerCache = new Map<string, { offers: StoreOffer[]; expiresAt: number }>();
+const offerCacheKey = (productIds: string[], context: string) =>
+  `${[...productIds].sort().join("|")}|${context}`;
+
+/** Read-model offer fetch with a short TTL cache. Never used for cart/order/reservation decisions. */
+async function getOffersCached(
+  productIds: string[],
+  context: string,
+): Promise<{ offers: StoreOffer[]; cacheHit: boolean }> {
+  const key = offerCacheKey(productIds, context);
+  const cached = offerCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { offers: cached.offers, cacheHit: true };
+  }
+  const offers = await medusa.listOffersByProducts(productIds);
+  offerCache.set(key, { offers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
+  return { offers, cacheHit: false };
+}
 const collections = new CollectionResolver(medusa);
 
 const json = (body: unknown, status = 200) =>
@@ -493,9 +514,20 @@ async function handle(req: Request, url: URL): Promise<Response> {
       const products = await medusa.listProducts(limit, offset);
       const productsMs = performance.now() - t0;
 
-      const t1 = performance.now();
       const productIds = products.map((p) => p.id);
-      const allOffers = await medusa.listOffersByProducts(productIds);
+      const cacheKey = offerCacheKey(productIds, `${config.medusaRegionId}:${config.medusaCountryCode}:inr`);
+
+      const t1 = performance.now();
+      const cached = offerCache.get(cacheKey);
+      let allOffers: StoreOffer[];
+      let cacheHit = false;
+      if (cached && cached.expiresAt > Date.now()) {
+        allOffers = cached.offers;
+        cacheHit = true;
+      } else {
+        allOffers = await medusa.listOffersByProducts(productIds);
+        offerCache.set(cacheKey, { offers: allOffers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
+      }
       const offersMs = performance.now() - t1;
 
       const t2 = performance.now();
@@ -522,9 +554,10 @@ async function handle(req: Request, url: URL): Promise<Response> {
 
       return json({
         products: composed,
+        cache_hit: cacheHit,
         timing_ms: {
           products_fetch: Math.round(productsMs * 10) / 10,
-          offers_fetch: Math.round(offersMs * 10) / 10,
+          offers: Math.round(offersMs * 10) / 10,
           composition: Math.round(composeMs * 10) / 10,
         },
         environment: config.environment,
@@ -541,16 +574,19 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (product && req.method === "GET") {
     const productId = product[1];
     try {
+      const context = `${config.medusaRegionId}:${config.medusaCountryCode}:inr`;
+
       const t0 = performance.now();
-      const [p, offers] = await Promise.all([
-        medusa.getProduct(productId),
-        medusa.listOffers(productId),
-      ]);
-      const fetchMs = performance.now() - t0;
+      const p = await medusa.getProduct(productId);
+      const productMs = performance.now() - t0;
 
       const t1 = performance.now();
+      const { offers, cacheHit } = await getOffersCached([productId], context);
+      const offersMs = performance.now() - t1;
+
+      const t2 = performance.now();
       const { offerViews, selected } = composeOffers(offers);
-      const composeMs = performance.now() - t1;
+      const composeMs = performance.now() - t2;
 
       return json({
         id: p.id,
@@ -559,8 +595,10 @@ async function handle(req: Request, url: URL): Promise<Response> {
         description: p.description,
         variants: p.variants,
         offers: offerViews,
+        cache_hit: cacheHit,
         timing_ms: {
-          fetch: Math.round(fetchMs * 10) / 10,
+          product_fetch: Math.round(productMs * 10) / 10,
+          offers: Math.round(offersMs * 10) / 10,
           composition: Math.round(composeMs * 10) / 10,
         },
         commercial: {

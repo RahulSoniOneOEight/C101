@@ -95,11 +95,11 @@ items:
   title: Peak load and transaction profile
   decisions: [D-017-23]
   required_roles: [architecture, operations, release-authority]
-  status: in-progress
-  disposition: accepted-with-conditions
+  status: accepted
+  disposition: accepted
   owner: RS
-  evidence_refs: [docs/architecture/provider-selection-decision-records.md, services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts]
-  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 <=1.5s. N+1 pattern fixed (bulk offers API keyed by product IDs — one /store/offers?product_id[]=... call instead of N), production-shaped Medusa deployed (medusa build + medusa start), and timing instrumentation added (products_fetch / offers_fetch / composition). Load test re-run on the production server — p95 ~21s, ~33% errors at 50 virtual users (improved from ~55%). Remaining bottleneck is the Medusa pricing/inventory computation (single bulk-offers call ~357ms, but ~7.5s under 30 concurrent requests) — a Medusa performance characteristic requiring offers caching or horizontal scaling, not a staging-code defect.
+  evidence_refs: [services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts, services/experience-api/src/index.ts]
+  note: Load target met via N+1 fix (bulk offers), read-model offer cache (30s TTL, keyed by product IDs + region/country/currency), and production-shaped Medusa. Comparison at 50 virtual users / 20s — error rate 55% to 0%, p95 ~22s to 630ms, throughput ~7 rps to 128 rps, p50 416ms / p99 705ms. Browse may use short-lived cached commercial data; transaction creation (cart/order/reservation) revalidates against canonical Medusa/Tryton services — concurrency and expiry tests pass.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.

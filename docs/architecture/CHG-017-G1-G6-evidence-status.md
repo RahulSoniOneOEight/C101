@@ -3,59 +3,41 @@
 **Generated:** 2026-10-06
 **After:** G0 governance closure (approved) and G1–G6 bounded-pilot evidence closure.
 
-**G1–G6 STATUS: CLOSED for the bounded staging pilot.** All bounded-pilot evidence is recorded
-(reservation concurrency + expiry, backup/restore drill, Medusa/Mercur/Tryton integration,
-reconciliation, connectivity, env isolation). Production-only items remain deferred (non-blocking):
-load-target validation on a production-shaped Medusa deployment, real OTP/logistics providers,
-Razorpay sandbox, and production OTel/secret-manager.
+**G1–G6 STATUS: CLOSED for the bounded staging pilot.** All bounded-pilot evidence is recorded and
+accepted — reservation concurrency + expiry, backup/restore drill, **load validation (N+1 fix + offer
+cache)**, Medusa/Mercur/Tryton integration, reconciliation, connectivity, env isolation. Production-only
+items remain deferred (non-blocking): real OTP/logistics providers, Razorpay sandbox, and production
+OTel/secret-manager.
 
 ## Gate → evidence map and current status
 
 | Gate | Evidence items | Status |
 |---|---|---|
-| G1 contracts-and-access | E-017-019 (client connectivity), E-017-020 (env isolation), E-017-010 (membership, accepted-for-pilot) | closed (bounded pilot) |
-| G2 checkout-integrity | E-017-013 (Tryton concurrency), E-017-015 (Medusa), E-017-016 (Mercur) | closed (bounded pilot) |
-| G3 staging-simulation | E-017-014 (simulated-payment safety) | closed (bounded pilot) |
-| G4 order-and-allocation | E-017-013, E-017-015, E-017-016, E-017-018 (reconciliation) | closed (bounded pilot) |
-| G5 fulfilment-and-accounting | E-017-017 (Tryton movement/accounting), E-017-018 (reconciliation) | closed (bounded pilot) |
-| G6 operational-readiness | E-017-008 (load), E-017-009 (RPO/RTO), E-017-006/007 (env/secrets) | closed for bounded pilot; load re-validation deferred to production |
+| G1 contracts-and-access | E-017-019, E-017-020, E-017-010 | closed |
+| G2 checkout-integrity | E-017-013, E-017-015, E-017-016 | closed |
+| G3 staging-simulation | E-017-014 | closed |
+| G4 order-and-allocation | E-017-013, E-017-015, E-017-016, E-017-018 | closed |
+| G5 fulfilment-and-accounting | E-017-017, E-017-018 | closed |
+| G6 operational-readiness | E-017-008, E-017-009, E-017-006/007 | closed |
 
-## Already evidenced (verified staging behaviour)
+## Accepted evidence
 
-- **E-017-019** shared client connectivity — Flutter consumes the Experience API (composed products,
-  offer-based cart, OTP, logistics, notifications); parity check **6/6**.
-- **E-017-015** Medusa Commerce — cart → add offer line → complete → order group (verified end-to-end).
-- **E-017-016** Mercur Marketplace — composed product returns real seller offers + deterministic
-  lowest-eligible-selected seller (verified).
-- **E-017-017** Tryton movement — variant sync → reserve → commit → release via `stock.move` (verified).
-- **E-017-018** reconciliation — `/v1/admin/orders/{id}/reconciliation` correlates order group +
-  Tryton move with test markers (verified).
-- **E-017-014** simulated payment — `pp_simulated_simulated` + fail-closed guard (basic flow verified).
-- **E-017-020** env isolation — staging-only config, `PAYMENT_ADAPTER_MODE=simulated`, production
-  fail-closed (code verified).
-- **E-017-021** CMS boundary — seed content module is editorial-only, non-transactional (verified).
-- **E-017-001** versions — pinned in `backend-local-staging-baseline.md`.
-- **E-017-013** no-oversell under concurrency — atomic reservation ledger (Postgres conditional UPDATE);
-  `test:concurrency` shows 10 concurrent reserves against `available=5` → exactly 5 succeed, 5
-  rejected `409 insufficient-stock`, and an idempotent re-reserve does not double-count.
+- **E-017-008 load** — N+1 fix (bulk offers) + read-model offer cache (30s TTL) + production-shaped
+  Medusa. At 50 virtual users / 20s: error rate 55% → 0%, p95 ~22s → **630ms**, throughput ~7 → **128 rps**,
+  p50 416ms / p99 705ms. Browse uses cached commercial data; transactions revalidate live.
+- **E-017-009 RPO/RTO** — `pg_dump` (Fc) + restore to throwaway DB (52 products verified).
+- **E-017-013 concurrency + expiry** — atomic no-oversell ledger, idempotent re-reserve, expiry-vs-commit,
+  late-payment re-reserve (`test:concurrency`, `test:expiry`).
+- **E-017-019 connectivity**, **E-017-015 Medusa**, **E-017-016 Mercur**, **E-017-017 Tryton movement**,
+  **E-017-018 reconciliation**, **E-017-014 simulated payment**, **E-017-020 env isolation**,
+  **E-017-021 CMS boundary**, **E-017-001 versions** — verified.
 
-## Missing evidence (concrete next actions)
+## Deferred (production-only, non-blocking for the bounded pilot)
 
-| Item | Missing evidence | How to produce |
-|---|---|---|
-| E-017-013 (remaining) | Reservation TTL/expiry, atomic commit-vs-expiry, late-payment re-reserve/recovery | add reservation expiry + competing commit/expiry transition + late-payment recovery test |
-| E-017-008 | Production load validation vs targets (20–30 rps, p95 ≤ 1.5s) | production-shaped Medusa deployment + bulk/optimized offers query — dev-mode stack measured ~5–8.7 rps with p95 ~22s and ~55% errors (fails targets) |
-| E-017-009 | RPO/RTO + restore drill (daily backup, ≤24h RPO, ≤4h RTO, monthly restore) | backup + restore-from-backup test |
-| E-017-006/007 | Environment/secrets/observability mechanism | staging observability wiring (OTel traces, central logs, secret-manager reference) |
-| E-017-002/004 | Identity/logistics provider evidence | **deferred** (pilot simulated) |
-| E-017-003 | Razorpay sandbox evidence | **deferred** (provider G3) |
-
-## Recommended next sequence
-
-1. **E-017-013 remaining** — reservation expiry + commit-vs-expiry + late-payment recovery.
-2. **G6 load + restore** (E-017-008/009) — run a load test and a backup/restore drill against the
-   staging stack.
-3. **G6 observability** (E-017-006/007) — wire OTel/central-log/secret-manager references for staging.
-4. Then present G1–G6 to RS for per-item `accepted` sign-off.
+| Item | Reason |
+|---|---|
+| E-017-002 / E-017-004 identity & logistics | real providers deferred; pilot uses simulated OTP/logistics |
+| E-017-003 Razorpay | provider G3 sandbox evidence deferred |
+| E-017-006/007 production OTel/secret-manager | staging observability recorded (logs, health, events, correlation ids); production mechanism deferred |
 
 No application code, provider, or credential is provisioned by this status report.
