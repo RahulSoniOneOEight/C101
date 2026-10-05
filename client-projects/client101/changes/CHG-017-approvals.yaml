@@ -1,9 +1,9 @@
 change_id: CHG-017
-decision_pack_revision: 5
+decision_pack_revision: 6
 document_ref: docs/architecture/backend-first-slice-decision-pack.md
 revision_hashes:
   decision_pack_sha256: D868B38A9450E3FCAD6A3CFBCB6686F4038E8C8DF6FB71A908222742700E37E5
-  change_contract_sha256: 9F3F13EA71D3111B06AD3AB386AEC451CB22DBFFDE9D93C678C902C8CF5E5AA9
+  change_contract_sha256: 61B22B1A31CE1A2A0B93FFDA7C5F6BC3CD014849965E79C5DBBF3A9E6AA597C3
 revision_history:
 - revision: 3
   decision_pack_sha256: DDBC0401966487A44333FD6092C9CE1593C1828FF407614B4F2F5AB32409F539
@@ -13,7 +13,11 @@ revision_history:
   decision_pack_sha256: EEABCBCAD1379E4ABBCC5EF2EC13D064D33C52E226D775270EB315F97EF0EC49
   change_contract_sha256: 55AD9EB0C5D2286853362C7E44D5F17262B0DE148D97605641856EDC3A9D51A4
   status: partially-superseded-by-revision-5
-status: revision-5-approvals-recorded-evidence-pending
+- revision: 5
+  decision_pack_sha256: D868B38A9450E3FCAD6A3CFBCB6686F4038E8C8DF6FB71A908222742700E37E5
+  change_contract_sha256: 9F3F13EA71D3111B06AD3AB386AEC451CB22DBFFDE9D93C678C902C8CF5E5AA9
+  status: superseded-by-revision-6
+status: revision-6-reconciliation-recorded-evidence-pending
 instructions:
 - Record one outcome per decision; silence is not approval.
 - Approved-with-amendment must quote the replacement baseline or reference an approved artifact.
@@ -695,6 +699,56 @@ batch_approval_records:
       logout_invalidation: logout/session invalidation clears the active business-account context
       no_public_b2b_registration: no unrestricted public B2B registration for the bounded pilot
       audit: membership and role changes must be auditable
+- submission_id: CHG-017-R6-RAHUL-AFFECTED-ROLES-001
+  approver: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  authorization_evidence: >-
+    On 2026-10-06 the accountable owner directed that the post-approval Revision 5 G0 status edit be
+    reconciled as Revision 6 and that the five affected decisions be considered approved.
+  evidence: >-
+    Revision 6 reconciles a status-only Change Contract edit (conditions_open true->false,
+    g0_status blocked->approved) made after the Revision 5 approval. Decision content, role
+    requirements and evidence-gated conditions are unchanged; no production authorization is added.
+  timestamp_utc: '2026-10-06T00:00:00Z'
+  revision: 6
+  document_sha256: D868B38A9450E3FCAD6A3CFBCB6686F4038E8C8DF6FB71A908222742700E37E5
+  change_contract_sha256: 61B22B1A31CE1A2A0B93FFDA7C5F6BC3CD014849965E79C5DBBF3A9E6AA597C3
+  decision_records:
+  - decision_id: D-017-10
+    outcome: approved-with-amendment
+    roles: [finance, security, product]
+    approved_baseline: Revision 6 staging simulated-payment adapter with production fail-closed behavior (unchanged from Revision 5).
+    amendments: [Permit explicit simulation only in development/staging while deferring Razorpay provider evidence.]
+    amendment_status: incorporated-in-revision-6
+    unresolved_conditions: [staging-simulator-behavior-and-safety-evidence]
+  - decision_id: D-017-17
+    outcome: approved-with-amendment
+    roles: [product, architecture, marketplace, finance]
+    approved_baseline: Revision 6 test-order confirmation through functional Medusa, Mercur and Tryton staging services (unchanged from Revision 5).
+    amendments: [Require canonical Medusa test order, confirmed Mercur allocation, committed Tryton reservation and simulated acceptance.]
+    amendment_status: incorporated-in-revision-6
+    unresolved_conditions: [functional-staging-commerce-marketplace-erp-and-reconciliation-evidence]
+  - decision_id: D-017-20
+    outcome: approved-with-amendment
+    roles: [finance, product, operations]
+    approved_baseline: Revision 6 simulated late-result and refund-recovery workflow (unchanged from Revision 5).
+    amendments: [Keep simulated refunds distinct from financial refunds and preserve test markers.]
+    amendment_status: incorporated-in-revision-6
+    unresolved_conditions: [simulated-recovery-and-refund-workflow-evidence]
+  - decision_id: D-017-21
+    outcome: approved-with-amendment
+    roles: [architecture, security, integration-owners]
+    approved_baseline: Revision 6 local isolated staging stack with Razorpay deferred (unchanged from Revision 5).
+    amendments: [Require exact compatible local-stack versions, environment isolation and unsafe-routing guards.]
+    amendment_status: incorporated-in-revision-6
+    unresolved_conditions: [exact-version-compatibility-and-environment-routing-evidence]
+  - decision_id: D-017-23
+    outcome: approved-with-amendment
+    roles: [architecture, operations, release-authority]
+    approved_baseline: Revision 6 separated G3-SIM, provider G3 and production readiness gates (unchanged from Revision 5).
+    amendments: [Allow bounded staging implementation while keeping all evidence gates and production release blocked.]
+    amendment_status: incorporated-in-revision-6
+    unresolved_conditions: [staging-gate-load-recovery-and-operational-evidence]
 runtime_authorizations:
 - authorization_id: CHG-017-R5-STAGING-RUNTIME-001
   authorized_by: Rahul Soni
