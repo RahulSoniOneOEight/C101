@@ -37,10 +37,28 @@ docker compose -f services/docker-compose.yml up -d --build tryton
 cd services/backend
 bun install
 cd packages/api
-bun run db:migrate
+bunx medusa db:migrate
 bun run seed
-bun run dev
+bun run build     # production-shaped compile (medusa build)
+bun run start     # production server (no watcher) — faster than `bun run dev`
 ```
+
+`bun run dev` (`medusa develop`) is the hot-reload watcher and is **not** representative of production
+performance. Use `bun run build && bun run start` for load tests.
+
+## Experience API (shared backend)
+
+```sh
+cd services/experience-api
+bun run src/index.ts   # :9020
+```
+
+Test/evidence scripts:
+
+- `bun run test:concurrency` — reservation no-oversell + idempotency.
+- `bun run test:expiry` — reservation expiry + late-payment re-reserve.
+- `bun run test:load` — load profile (VIRTUAL_USERS / DURATION_MS env).
+- `bun run src/parity-check.ts` — cross-surface parity.
 
 ## Verify services
 
@@ -116,16 +134,19 @@ placeholders — replace with real photography before production. The catalogue 
 ## State
 
 - PostgreSQL and Redis: running (healthy).
-- Backend: dependencies installed, migrations applied, seeded (4 sellers, ~52 hardware products), admin user created.
+- Backend: **production build + `medusa start`** (compiled, no watcher); seeded (4 sellers, ~52 hardware products); admin user created.
+- Experience API: running with read-model offer cache (30s TTL) + atomic reservation ledger.
 - Tryton: modules initialised, DB reset clean for the hardware pilot (ERP sync/reserve verified against a fresh instance).
+- CHG-017: **G0 governance + G1–G6 evidence closed** for the bounded staging pilot (see `CHG-017-G0-closure-report.md` and `CHG-017-G1-G6-evidence-status.md`).
 
 ## Known staging gaps (not production)
 
-- Medusa runs the local event bus and in-memory locking by default; durable outbox/inbox and
-  Redis-backed transport are reliability work tracked under D-017-15 / E-017-015.
-- Payment is simulated (`PAYMENT_ADAPTER_MODE=simulated`); the simulator is not yet wired into the
-  checkout flow — that is the next Experience-API increment.
-- Identity/OTP, logistics, notifications, and accounting-policy evidence remain pending.
+- Medusa uses Redis for the event bus / workflow engine / locking. The approved production architecture
+  is **NATS JetStream** as the canonical cross-domain event backbone — this is a tracked production gap
+  (staging=Redis, canonical=NATS), not yet migrated.
+- Payment is simulated (`PAYMENT_ADAPTER_MODE=simulated`); real payment/OTP/logistics providers are deferred.
+- Production OTel traces, central logs, and secret-manager mechanism are deferred (staging uses structured
+  JSON logs, `/health`, the durable domain-event log, and correlation ids).
 
 ## Safety
 
