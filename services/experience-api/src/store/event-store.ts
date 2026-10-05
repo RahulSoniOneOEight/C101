@@ -35,10 +35,13 @@ export class EventStore {
         aggregate_id   text NOT NULL,
         correlation_id text NOT NULL,
         payload        jsonb NOT NULL,
-        occurred_at    timestamptz NOT NULL DEFAULT now()
+        occurred_at    timestamptz NOT NULL DEFAULT now(),
+        published_at   timestamptz
       );
+      ALTER TABLE domain_event ADD COLUMN IF NOT EXISTS published_at timestamptz;
       CREATE INDEX IF NOT EXISTS domain_event_aggregate_idx ON domain_event (aggregate_type, aggregate_id);
       CREATE INDEX IF NOT EXISTS domain_event_occurred_idx ON domain_event (occurred_at);
+      CREATE INDEX IF NOT EXISTS domain_event_published_idx ON domain_event (published_at) WHERE published_at IS NULL;
     `);
   }
 
@@ -69,5 +72,25 @@ export class EventStore {
       params,
     );
     return result.rows;
+  }
+
+  /** Outbox drain: unpublished events, oldest first. */
+  async listUnpublished(limit = 100): Promise<DomainEvent[]> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT id, event_type, aggregate_type, aggregate_id, correlation_id, payload, occurred_at
+       FROM domain_event WHERE published_at IS NULL ORDER BY occurred_at ASC LIMIT $1`,
+      [limit],
+    );
+    return result.rows;
+  }
+
+  /** Mark an event published (outbox acknowledgement). */
+  async markPublished(id: string): Promise<void> {
+    await this.ready;
+    await this.pool.query(
+      "UPDATE domain_event SET published_at = now() WHERE id = $1 AND published_at IS NULL",
+      [id],
+    );
   }
 }

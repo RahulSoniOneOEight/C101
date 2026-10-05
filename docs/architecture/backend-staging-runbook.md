@@ -141,9 +141,11 @@ placeholders — replace with real photography before production. The catalogue 
 
 ## Known staging gaps (not production)
 
-- Medusa uses Redis for the event bus / workflow engine / locking. The approved production architecture
-  is **NATS JetStream** as the canonical cross-domain event backbone — this is a tracked production gap
-  (staging=Redis, canonical=NATS), not yet migrated.
+- **Event architecture** — Medusa internal jobs/events stay on Redis/BullMQ (unchanged); cross-system
+  business events now publish to **NATS JetStream** via a transactional outbox (`domain_event` →
+  `NatsPublisher`). Remaining gap: the consumers (Mercur allocation, Tryton reservation, reconciliation)
+  still receive events through the Experience API directly rather than subscribing to JetStream — the
+  NATS *subscriber* side is the next increment.
 - Payment is simulated (`PAYMENT_ADAPTER_MODE=simulated`); real payment/OTP/logistics providers are deferred.
 - Production OTel traces, central logs, and secret-manager mechanism are deferred (staging uses structured
   JSON logs, `/health`, the durable domain-event log, and correlation ids).

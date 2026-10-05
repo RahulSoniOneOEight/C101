@@ -8,6 +8,7 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
+import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
@@ -25,6 +26,29 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+const nats = new NatsPublisher(config.natsUrl);
+
+// Outbox → NATS drain: publish unpublished cross-system domain events, then mark them published.
+async function drainOutbox(): Promise<void> {
+  if (!nats.connected) return;
+  const unpublished = await events.listUnpublished(100);
+  for (const e of unpublished) {
+    try {
+      await nats.publish(eventSubject(e.event_type), {
+        id: e.id,
+        event_type: e.event_type,
+        aggregate_type: e.aggregate_type,
+        aggregate_id: e.aggregate_id,
+        correlation_id: e.correlation_id,
+        payload: e.payload,
+        occurred_at: e.occurred_at,
+      });
+      await events.markPublished(e.id);
+    } catch (err) {
+      console.warn("[experience-api] NATS publish failed:", (err as Error).message);
+    }
+  }
+}
 
 // Reservation TTL (CHG-017 `reservation_ttl_minutes_proposed: 15`; overridable for tests).
 const RESERVATION_TTL_MS = Number(process.env.RESERVATION_TTL_MS ?? 15 * 60 * 1000);
@@ -184,6 +208,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
       status: "ok",
       environment: config.environment,
       payment_mode: config.paymentAdapterMode,
+      nats: nats.connected ? "connected" : "disconnected",
       test_data: config.environment !== "production",
       correlation_id: cid,
     });
@@ -944,6 +969,18 @@ const server = Bun.serve({
     return handle(req, url);
   },
 });
+
+// Connect to NATS (best-effort) and start the outbox drain.
+nats
+  .connect()
+  .then(() => {
+    console.log("[experience-api] NATS JetStream connected");
+    drainOutbox().catch(() => undefined);
+    setInterval(() => drainOutbox().catch(() => undefined), 1000);
+  })
+  .catch((e) => {
+    console.warn("[experience-api] NATS connect failed (cross-system events disabled):", (e as Error).message);
+  });
 
 console.log(
   `[experience-api] ready on http://localhost:${server.port} ` +

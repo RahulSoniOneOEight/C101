@@ -45,6 +45,7 @@ export interface Config {
   trytonUsername: string;
   trytonPassword: string;
   experienceDatabaseUrl: string;
+  natsUrl: string;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -82,5 +83,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     experienceDatabaseUrl:
       env.EXPERIENCE_DATABASE_URL ??
       "postgres://buildkart:buildkart@localhost:5433/buildkart_experience",
+    natsUrl: env.NATS_URL ?? "nats://localhost:4222",
   };
 }
