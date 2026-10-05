@@ -1,7 +1,7 @@
 // BuildKart pilot catalog — construction / hardware marketplace products.
 // Titles, brands and colorways are invented for a trademark-safe demo; they do not
-// reference any real brand or protected product design. Prices are INR and
-// market-realistic for the Indian construction-supply category.
+// reference any real brand or protected product design. `price` is in rupees
+// (major units); `seed.ts` converts to paise (minor units) when creating offers.
 
 export type SeedCatalogItem = {
   title: string;

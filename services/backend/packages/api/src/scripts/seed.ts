@@ -639,8 +639,8 @@ export default async function seedDemoData({ container }: ExecArgs) {
               code: "standard",
             },
             prices: [
-              { currency_code: "inr", amount: 1000 },
-              { region_id: region.id, amount: 1000 },
+              { currency_code: "inr", amount: 9900 }, // ₹99 flat (paise)
+              { region_id: region.id, amount: 9900 },
             ],
             rules: [
               { attribute: "enabled_in_store", value: "true", operator: "eq" },
@@ -659,8 +659,8 @@ export default async function seedDemoData({ container }: ExecArgs) {
               code: "express",
             },
             prices: [
-              { currency_code: "inr", amount: 1000 },
-              { region_id: region.id, amount: 1000 },
+              { currency_code: "inr", amount: 19900 }, // ₹199 flat (paise)
+              { region_id: region.id, amount: 19900 },
             ],
             rules: [
               { attribute: "enabled_in_store", value: "true", operator: "eq" },
@@ -827,7 +827,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
         const offerCount = randInt(1, 2);
         for (let o = 0; o < offerCount; o++) {
           const jitter = 1 + (rand() * 0.3 - 0.15); // ±15%
-          const inr = Math.max(1, Math.round(basePrice * jitter));
+          // Catalog prices are rupees (major units); Medusa/Mercur money is stored
+          // in the currency's minor unit (paise for INR), so multiply by 100.
+          const inr = Math.max(1, Math.round(basePrice * jitter)) * 100;
           const sku = `OFFER-${seller.id.slice(-4)}-${variant.sku}-${o + 1}`;
           offers.push({
             seller_id: seller.id,
