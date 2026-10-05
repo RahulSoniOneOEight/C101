@@ -66,6 +66,28 @@ const offerCache = new Map<string, { offers: StoreOffer[]; expiresAt: number }>(
 const offerCacheKey = (productIds: string[], context: string) =>
   `${[...productIds].sort().join("|")}|${context}`;
 
+// Operational counters (exposed on /metrics). Browse cache only; never transactional.
+let offerCacheHits = 0;
+let offerCacheMisses = 0;
+
+// Process CPU sampling for the operational metrics endpoint.
+let lastCpuUsage = process.cpuUsage();
+let lastCpuAt = Date.now();
+function processSnapshot(): { cpu_percent: number; rss_mb: number; heap_used_mb: number } {
+  const now = Date.now();
+  const usage = process.cpuUsage();
+  const elapsedUs = Math.max(1, (now - lastCpuAt) * 1000);
+  const cpuUs = usage.user - lastCpuUsage.user + (usage.system - lastCpuUsage.system);
+  lastCpuUsage = usage;
+  lastCpuAt = now;
+  const mem = process.memoryUsage();
+  return {
+    cpu_percent: Number(((cpuUs / elapsedUs) * 100).toFixed(2)),
+    rss_mb: Number((mem.rss / 1048576).toFixed(1)),
+    heap_used_mb: Number((mem.heapUsed / 1048576).toFixed(1)),
+  };
+}
+
 /** Read-model offer fetch with a short TTL cache. Never used for cart/order/reservation decisions. */
 async function getOffersCached(
   productIds: string[],
@@ -74,10 +96,12 @@ async function getOffersCached(
   const key = offerCacheKey(productIds, context);
   const cached = offerCache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
+    offerCacheHits++;
     return { offers: cached.offers, cacheHit: true };
   }
   const offers = await medusa.listOffersByProducts(productIds);
   offerCache.set(key, { offers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
+  offerCacheMisses++;
   return { offers, cacheHit: false };
 }
 const collections = new CollectionResolver(medusa);
@@ -229,6 +253,42 @@ async function handle(req: Request, url: URL): Promise<Response> {
       nats: nats.connected ? "connected" : "disconnected",
       test_data: config.environment !== "production",
       correlation_id: cid,
+    });
+  }
+
+  // GET /metrics — Prometheus-style resource + operational telemetry (process, pg pools,
+  // offer cache, NATS consumer lag). Read-only; no transactional state.
+  if (url.pathname === "/metrics") {
+    const proc = processSnapshot();
+    const lag = await nats.consumerLag([
+      "mercur-allocation",
+      "tryton-reservation",
+      "reconciliation-tracker",
+    ]);
+    const pools: Array<[string, { total: number; idle: number; waiting: number }]> = [
+      ["reservation", reservations.poolStats()],
+      ["event", events.poolStats()],
+      ["correlation", correlation.poolStats()],
+    ];
+    const lines: string[] = [
+      `buildkart_process_cpu_percent ${proc.cpu_percent}`,
+      `buildkart_process_rss_mb ${proc.rss_mb}`,
+      `buildkart_process_heap_used_mb ${proc.heap_used_mb}`,
+      `buildkart_offer_cache_entries ${offerCache.size}`,
+      `buildkart_offer_cache_hits_total ${offerCacheHits}`,
+      `buildkart_offer_cache_misses_total ${offerCacheMisses}`,
+      `buildkart_nats_connected ${nats.connected ? 1 : 0}`,
+    ];
+    for (const [store, pool] of pools) {
+      lines.push(`buildkart_pg_pool_total{store="${store}"} ${pool.total}`);
+      lines.push(`buildkart_pg_pool_idle{store="${store}"} ${pool.idle}`);
+      lines.push(`buildkart_pg_pool_waiting{store="${store}"} ${pool.waiting}`);
+    }
+    for (const [name, value] of Object.entries(lag)) {
+      lines.push(`buildkart_nats_consumer_lag{consumer="${name}"} ${value}`);
+    }
+    return new Response(`${lines.join("\n")}\n`, {
+      headers: { "content-type": "text/plain; version=0.0.4" },
     });
   }
 
@@ -726,9 +786,11 @@ async function handle(req: Request, url: URL): Promise<Response> {
       if (cached && cached.expiresAt > Date.now()) {
         allOffers = cached.offers;
         cacheHit = true;
+        offerCacheHits++;
       } else {
         allOffers = await medusa.listOffersByProducts(productIds);
         offerCache.set(cacheKey, { offers: allOffers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
+        offerCacheMisses++;
       }
       const offersMs = performance.now() - t1;
 

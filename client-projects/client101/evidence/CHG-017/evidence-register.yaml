@@ -86,8 +86,8 @@ items:
   status: in-progress
   disposition: accepted-with-conditions
   owner: RS
-  evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Staging observability in place — structured JSON logs, /health checks, durable domain-event log, and correlation ids; delegates named (RS). Production OTel traces, central logs and secret-manager mechanism are deferred to a production deployment.
+  evidence_refs: [docs/architecture/provider-selection-decision-records.md, client-projects/client101/evidence/CHG-017/load-profile-resources.md, client-projects/client101/evidence/CHG-017/event-consumers-operations.md, docs/architecture/backend-staging-runbook.md]
+  note: Staging observability in place — structured JSON logs, /health checks, durable domain-event log, correlation ids, a Prometheus-style /metrics endpoint (process/pool/cache/NATS-lag), an nginx reverse proxy, and continuously running event workers exposing per-consumer lag/dead-letter counters; delegates named (RS). Production OTel traces, central logs and secret-manager mechanism are deferred to a production deployment.
   acceptance_criteria:
   - Secret manager, access, rotation and break-glass ownership are documented.
   - Logs, metrics, traces, alerts, escalation and on-call ownership are documented.
@@ -98,8 +98,8 @@ items:
   status: accepted
   disposition: accepted
   owner: RS
-  evidence_refs: [services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts, services/experience-api/src/index.ts]
-  note: Load target met via N+1 fix (bulk offers), read-model offer cache (30s TTL, keyed by product IDs + region/country/currency), and production-shaped Medusa. Comparison at 50 virtual users / 20s — error rate 55% to 0%, p95 ~22s to 630ms, throughput ~7 rps to 128 rps, p50 416ms / p99 705ms. Browse may use short-lived cached commercial data; transaction creation (cart/order/reservation) revalidates against canonical Medusa/Tryton services — concurrency and expiry tests pass.
+  evidence_refs: [services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts, services/experience-api/src/index.ts, client-projects/client101/evidence/CHG-017/load-profile-resources.md, docs/architecture/backend-staging-runbook.md]
+  note: Load target met via N+1 fix (bulk offers), read-model offer cache (30s TTL, keyed by product IDs + region/country/currency), and production-shaped Medusa. Comparison at 50 virtual users / 20s — error rate 55% to 0%, p95 ~22s to 630ms, throughput ~7 rps to 128 rps, p50 416ms / p99 705ms. Re-measured through the nginx reverse proxy at 50 users / 15s — 93 rps, 0.99% errors, p95 527ms, cache hit ratio 96.9%, CPU <8%, RSS <100MB, no pool waiting, NATS lag 0. Browse may use short-lived cached commercial data; transaction creation (cart/order/reservation) revalidates against canonical Medusa/Tryton services — concurrency and expiry tests pass.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.

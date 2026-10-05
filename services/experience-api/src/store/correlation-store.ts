@@ -131,6 +131,15 @@ export class CorrelationStore {
     return result.rows;
   }
 
+  /** Connection-pool telemetry for the operational metrics endpoint. */
+  poolStats(): { total: number; idle: number; waiting: number } {
+    return {
+      total: this.pool.totalCount,
+      idle: this.pool.idleCount,
+      waiting: this.pool.waitingCount,
+    };
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }
