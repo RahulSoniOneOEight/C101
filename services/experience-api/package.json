@@ -10,6 +10,7 @@
     "test:concurrency": "bun run src/scripts/concurrency-test.ts",
     "test:expiry": "bun run src/scripts/expiry-test.ts",
     "test:nats": "bun run src/scripts/nats-check.ts",
+    "test:consume": "bun run src/scripts/nats-consume.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {
