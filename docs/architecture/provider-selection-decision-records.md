@@ -130,8 +130,8 @@ explicitly authorized by the human for all PS-01…PS-13.
 | PS-08 | Recommendation | RS | RS | accepted | — |
 | PS-09 | Secrets/observability/env | RS | RS | accepted | — (delegates: security/env/observability/on-call = RS) |
 | PS-10 | Load/RPO/RTO | RS | RS | accepted | — (targets recorded) |
-| PS-11 | Tax/invoice | RS | RS | accepted | — (GST policy recorded) |
-| PS-12 | Accounting-posting | RS | RS | deferred | Finance/Tax + ERP Ops approval |
+| PS-11 | Tax/invoice | RS | RS | accepted | — (GST-inclusive policy recorded) |
+| PS-12 | Accounting-posting | RS | RS | accepted | — (bounded-pilot test-clearing) |
 | PS-13 | Membership/access (E-017-010) | RS | RS | accepted-with-conditions | Explicit policy approval |
 
 ## 5. Mapping to evidence and decisions

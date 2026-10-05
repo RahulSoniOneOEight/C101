@@ -49,14 +49,11 @@ recorded as Reviewer (self-review explicitly authorized by the human).
 
 ## G0 blockers (remaining human actions)
 
-1. **PS-12 accounting-posting policy** — posting boundaries, account mappings, settlement/payment/
-   refund accounting, reconciliation and reversal rules (Finance/Tax + ERP Ops), or a formal scope
-   amendment moving it out of G0.
-2. **E-017-010 / PS-13** — explicit membership/access policy approval.
-3. **Razorpay sandbox evidence** for provider G3 (deferred; does not block the dummy pilot).
+1. **E-017-010 / PS-13** — explicit membership/access policy approval.
+2. **Razorpay sandbox evidence** for provider G3 (deferred; does not block the dummy pilot).
 
-Resolved this cycle: reviewers (RS), PS-10 numeric targets, PS-09 delegation (RS), PS-11 GST/invoice
-policy.
+Resolved: reviewers (RS), PS-10 targets, PS-09 delegation (RS), PS-11 GST-inclusive tax/invoice
+policy, PS-12 accounting-posting (bounded pilot).
 
 ## What G0 closing authorizes (and does not)
 

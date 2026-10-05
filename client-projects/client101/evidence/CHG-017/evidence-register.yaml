@@ -135,7 +135,7 @@ items:
   disposition: accepted
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: GST/invoice policy approved (PS-11) — B2C tax-inclusive, B2B ex-GST labelled '+ GST', supplier-issued tax invoices at the invoicing milestone, credit/debit notes for adjustments, Section 52 TCS where applicable, immutable invoices. Implementation evidence still pending.
+  note: GST/invoice policy approved (PS-11) — all customer-facing prices GST-inclusive for B2C and B2B across app/web; taxable value + CGST/SGST/IGST breakup shown separately but headline price GST-inclusive; frontend never computes GST; supplier-issued immutable invoices; credit/debit notes for corrections. Implementation evidence still pending.
   acceptance_criteria:
   - Tax calculation owner, basis, jurisdiction and line/order rounding are documented.
   - Invoice issuer, trigger/timing, numbering and correction policy are documented.
@@ -144,11 +144,11 @@ items:
   title: Accounting projection policy
   decisions: [D-017-01, D-017-19]
   required_roles: [finance-tax, erp-operations]
-  status: missing
-  disposition: deferred
+  status: planned
+  disposition: accepted-for-pilot
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Production accounting-posting policy not approved; staging test-clearing only until Finance/Tax and ERP Operations approve.
+  note: Accounting-posting policy approved for the bounded pilot (PS-12) — no posting from non-financial intent states; canonical triggers only (order, payment, invoice, fulfilment, cancellation, return, refund, commission, settlement, reversal); test-clearing/staging accounts only; no production books or statutory filing; Tryton is the staging accounting target.
   acceptance_criteria:
   - Posting triggers, entry writer and account mappings are documented.
   - Reversal and reconciliation ownership are documented.

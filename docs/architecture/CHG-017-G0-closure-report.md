@@ -6,9 +6,9 @@
 
 ## G0_STATUS: OPEN
 
-G0 is **not** closed. Owners and reviewers are now named (`RS`), PS-10 targets and PS-09 delegation
-are recorded, and the PS-11 GST/invoice policy is approved. Two items remain open: **PS-12
-accounting-posting policy** (deferred) and **PS-13 membership/access policy** (explicit approval).
+G0 is **not** closed. Owners and reviewers are named (`RS`); PS-09 delegation and PS-10 targets are
+recorded; PS-11 (GST-inclusive tax/invoice) and PS-12 (accounting-posting) are approved for the
+bounded pilot. One item remains open: **PS-13 membership/access policy** (explicit policy approval).
 
 ## Provider decisions (PS-01 … PS-13)
 
@@ -22,10 +22,10 @@ accounting-posting policy** (deferred) and **PS-13 membership/access policy** (e
 | PS-06 Analytics | RS | RS | accepted-with-conditions | Retention/consent/PII/residency/access | open |
 | PS-07 Support | RS | RS | accepted-with-conditions | Retention/attachment/roles/escalation/SLA | open |
 | PS-08 Recommendations | RS | RS | accepted | — | open |
-| PS-09 Secrets/env/observability | RS | RS | accepted | — (delegates: security/env/observability/on-call = RS) | closed |
+| PS-09 Secrets/env/observability | RS | RS | accepted | — (delegates = RS) | closed |
 | PS-10 Load/RPO/RTO | RS | RS | accepted | — (targets recorded) | closed |
-| PS-11 Tax/invoice | RS | RS | accepted | — (GST policy recorded) | closed |
-| PS-12 Accounting-posting | RS | RS | deferred | Finance/Tax + ERP Ops approval | open |
+| PS-11 Tax/invoice | RS | RS | accepted | — (GST-inclusive policy recorded) | closed |
+| PS-12 Accounting-posting | RS | RS | accepted | — (bounded-pilot test-clearing) | closed |
 | PS-13 Membership/access | RS | RS | accepted-with-conditions | Explicit policy approval | open |
 
 ## Evidence items (E-017-001 … E-017-021)
@@ -37,13 +37,13 @@ accounting-posting policy** (deferred) and **PS-13 membership/access policy** (e
 | E-017-003 Payment provider | RS | RS | planned · deferred | Razorpay sandbox evidence | open |
 | E-017-004 Logistics provider | RS | RS | missing · deferred-for-pilot | Real provider evidence | open |
 | E-017-005 Queue/storage/notifications | RS | RS | planned | Exact versions/tiers/owners | open |
-| E-017-006 Environment topology | RS | RS | missing · accepted-with-conditions | Environment topology evidence (delegate: RS) | open |
-| E-017-007 Secrets/observability/on-call | RS | RS | missing · accepted-with-conditions | Mechanism evidence (delegates: RS) | open |
+| E-017-006 Environment topology | RS | RS | missing · accepted-with-conditions | Environment topology evidence | open |
+| E-017-007 Secrets/observability/on-call | RS | RS | missing · accepted-with-conditions | Mechanism evidence | open |
 | E-017-008 Peak load / transaction profile | RS | RS | planned | Load evidence (targets approved) | open |
 | E-017-009 Recovery objectives | RS | RS | planned | Restore drill evidence (targets approved) | open |
 | E-017-010 Membership/access rules | RS | RS | missing · accepted-with-conditions | Policy approval | open |
 | E-017-011 Tax/invoice policy | RS | RS | planned · accepted | Implementation evidence | open |
-| E-017-012 Accounting projection policy | RS | RS | missing · deferred | Finance/Tax + ERP Ops | open |
+| E-017-012 Accounting projection policy | RS | RS | planned · accepted-for-pilot | Implementation evidence | open |
 | E-017-013 Tryton reservation concurrency | RS | RS | planned | Concurrency/atomicity evidence | open |
 | E-017-014 Simulated payment safety | RS | RS | planned | Safety + fail-closed evidence | open |
 | E-017-015 Medusa Commerce integration | RS | RS | planned | Persistence/recovery evidence | open |
@@ -56,12 +56,10 @@ accounting-posting policy** (deferred) and **PS-13 membership/access policy** (e
 
 ## Exact remaining blockers to G0 closure
 
-1. **PS-12 / E-017-012 — accounting-posting policy** — posting boundaries, account mappings,
-   settlement/payment/refund accounting, reconciliation and reversal rules (Finance/Tax + ERP Ops),
-   or a formal scope amendment moving it out of G0.
-2. **PS-13 / E-017-010 — membership/access policy** — explicit approval of the bounded-pilot
-   membership rules.
-3. *(Deferred, non-blocking for the dummy pilot)* Razorpay sandbox evidence for provider G3.
+1. **PS-13 / E-017-010 — membership/access policy** — explicit approval of the bounded-pilot
+   membership rules (allowlisted users, simulated OTP, backend-controlled B2B membership, account
+   isolation, explicit roles, least privilege, revoked membership fails closed).
+2. *(Deferred, non-blocking for the dummy pilot)* Razorpay sandbox evidence for provider G3.
 
 ## Not in scope of this update
 

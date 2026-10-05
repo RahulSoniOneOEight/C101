@@ -658,21 +658,25 @@ batch_approval_records:
     roles: [finance-tax, legal, erp-operations]
     conditions: []
     policy:
-      b2c_pricing: GST-inclusive (tax-inclusive display), invoice shows GST breakup
-      b2b_pricing: ex-GST labelled '+ GST', GST-inclusive payable shown before checkout
-      invoice_issuer: legal supplier of goods/services issues the tax invoice (BuildKart for own inventory; marketplace seller for seller-owned supply)
-      invoice_timing: generated at the supply/invoicing milestone (after canonical order + fulfilment trigger), not at Cart creation
-      credit_notes: for taxable value/tax decreases (returns, post-invoice reductions); original invoice immutable
-      debit_notes: for taxable value/tax increases after the original invoice
-      marketplace_seller_invoice: seller -> buyer for supply; platform -> seller for commission/service fees
+      all_customer_facing_prices_gst_inclusive: true (B2C and B2B, app and web)
+      surfaces: catalogue, product detail, quantity tiers, Quick Order, Procurement Lists, RFQ reference prices, seller quotations, cart, checkout, order confirmation
+      no_surprise_gst: GST must not be added unexpectedly after displaying the selling price
+      tax_breakup: taxable value and CGST/SGST/IGST breakdown may be shown separately; headline selling/payable price remains GST-inclusive
+      frontend_constraint: frontend must not independently calculate or add GST; canonical commerce/tax response provides the GST-inclusive price and tax breakup
+      invoice_issuer: legal supplier issues the tax invoice (BuildKart/legal selling entity for own inventory; marketplace seller for third-party supply; platform commission/service invoices separately)
+      invoice_immutability: issued invoices immutable; corrections via credit/debit notes; historical records retain the original tax/commercial snapshot
       gst_tcs: Section 52 TCS framework where BuildKart is the e-commerce operator collecting for other suppliers; not for own-account sales
       b2b_gstin: capture and validate business GSTIN for GST/ITC-supported invoices
-      invoice_modification: immutable; corrections via credit/debit notes and governed amendments
   - decision_id: PS-12
     subject: accounting-posting
-    outcome: deferred
+    outcome: accepted
     roles: [finance-tax, erp-operations]
-    conditions: [Staging test-clearing only; production accounting-posting policy not approved.]
+    conditions: []
+    scope: bounded-pilot
+    policy:
+      no_posting_from_intent_states: product view, wishlist, procurement-list edit, cart create/update, RFQ create/submit, quotation create, quotation acceptance by itself
+      canonical_accounting_triggers: canonical order, payment capture/receipt, invoice issuance, fulfilment/revenue-recognition milestone, cancellation, return, refund, seller commission, seller settlement, approved reversal/correction
+      pilot_mode: test-clearing/staging accounts only; no staging posting represented as statutory or final production accounting; no production books updated; no real statutory filing implied; Tryton remains the accounting projection target for staging verification
   - decision_id: PS-13
     subject: membership-and-access
     outcome: accepted-with-conditions
