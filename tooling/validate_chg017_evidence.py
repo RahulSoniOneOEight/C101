@@ -64,9 +64,9 @@ def main() -> None:
     by_id = {item["id"]: item for item in items}
     assert by_id["E-017-003"]["status"] == "planned"
     assert by_id["E-017-003"]["disposition"] == "deferred-for-staging-increment"
-    assert by_id["E-017-014"]["status"] == "in-progress"
-    assert by_id["E-017-015"]["status"] == "evidenced"
-    assert by_id["E-017-016"]["status"] == "evidenced"
+    assert by_id["E-017-014"]["status"] == "evidenced"
+    assert by_id["E-017-015"]["status"] == "accepted"
+    assert by_id["E-017-016"]["status"] == "accepted"
 
     provider_rows = providers["providers"]
     components = {row["component"] for row in provider_rows}
