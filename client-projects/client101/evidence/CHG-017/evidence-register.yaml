@@ -99,7 +99,7 @@ items:
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md, services/experience-api/src/scripts/load-test.ts]
-  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 <=1.5s. Dev-mode staging load test (test:load): ~5 rps at 20 virtual users and ~8.7 rps at 50, with 55% error rate (502 upstream + network) and p95 ~22s — does NOT meet the target. Bottleneck is the single-threaded `medusa develop` dev server plus the N+1 offers pattern in /v1/products. Production load targets require a production-shaped Medusa deployment and bulk/optimized offers query.
+  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 <=1.5s. Dev-mode staging load test (test:load) yielded ~5 rps at 20 virtual users and ~8.7 rps at 50, with 55% error rate (502 upstream + network) and p95 ~22s — does NOT meet the target. Bottleneck is the single-threaded `medusa develop` dev server plus the N+1 offers pattern in /v1/products. Production load targets require a production-shaped Medusa deployment and bulk/optimized offers query.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.
