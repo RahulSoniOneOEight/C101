@@ -1,0 +1,51 @@
+name: Experience API validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/experience-api/**"
+      - "services/backend/packages/api/src/config/**"
+      - "services/backend/packages/api/src/scripts/payment-safety-test.ts"
+      - ".github/workflows/experience-api.yml"
+  pull_request:
+    paths:
+      - "services/experience-api/**"
+      - "services/backend/packages/api/src/config/**"
+      - "services/backend/packages/api/src/scripts/payment-safety-test.ts"
+      - ".github/workflows/experience-api.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: Experience API typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/experience-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+      - run: bun install --frozen-lockfile
+      # Integration tests (test:payment-flow, test:payment-matrix) require the
+      # local staging stack (Medusa/Mercur, PostgreSQL, NATS, Tryton) and run
+      # against a live deployment, not in CI.
+      - run: bun run typecheck
+
+  payment-guard:
+    name: Medusa payment production guard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend/packages/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.11"
+      # Standalone: imports only ../config/payment-runtime, so no dependency install is required.
+      - run: bun run ./src/scripts/payment-safety-test.ts
