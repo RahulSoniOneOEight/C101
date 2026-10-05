@@ -2,65 +2,66 @@
 
 **Generated:** 2026-10-05
 **Change contract:** CHG-017 Revision 5
-**Owner:** RS (Accountable Project / Architecture Owner)
+**Owner / Reviewer:** RS (Accountable Project / Architecture Owner) — self-review explicitly authorized by the human.
 
 ## G0_STATUS: OPEN
 
-G0 is **not** closed. Owners are now named (`RS`), but every item still lacks a named **reviewer**,
-and several items retain outstanding conditions (numeric targets, tax/accounting policy, membership
-policy approval).
+G0 is **not** closed. Owners and reviewers are now named (`RS`), PS-10 targets and PS-09 delegation
+are recorded, and the PS-11 GST/invoice policy is approved. Two items remain open: **PS-12
+accounting-posting policy** (deferred) and **PS-13 membership/access policy** (explicit approval).
 
 ## Provider decisions (PS-01 … PS-13)
 
 | Item | Owner | Reviewer | Outcome | Conditions outstanding | Closure status |
 |---|---|---|---|---|---|
-| PS-01 Identity/OTP | RS | missing | accepted-with-conditions | Production OTP provider deferred | open |
-| PS-02 Logistics | RS | missing | accepted-with-conditions | Production logistics provider deferred | open |
-| PS-03 Queue/storage/notifications | RS | missing | accepted | Exact versions/tiers/owners | open |
-| PS-04 Editorial CMS | RS | missing | accepted | — | open |
-| PS-05 Search | RS | missing | accepted | — | open |
-| PS-06 Analytics | RS | missing | accepted-with-conditions | Retention/consent/PII/residency/access | open |
-| PS-07 Support | RS | missing | accepted-with-conditions | Retention/attachment/roles/escalation/SLA | open |
-| PS-08 Recommendations | RS | missing | accepted | — | open |
-| PS-09 Secrets/env/observability | RS | missing | accepted-with-conditions | Delegated operators unassigned | open |
-| PS-10 Load/RPO/RTO | RS | missing | accepted-with-conditions | Numeric targets | open |
-| PS-11 Tax/invoice | RS | missing | deferred | Finance/Tax + Legal + ERP Ops approval | open |
-| PS-12 Accounting-posting | RS | missing | deferred | Finance/Tax + ERP Ops approval | open |
-| PS-13 Membership/access | RS | missing | accepted-with-conditions | Explicit policy approval + reviewer | open |
+| PS-01 Identity/OTP | RS | RS | accepted-with-conditions | Production OTP provider deferred | open |
+| PS-02 Logistics | RS | RS | accepted-with-conditions | Production logistics provider deferred | open |
+| PS-03 Queue/storage/notifications | RS | RS | accepted | Exact versions/tiers/owners | open |
+| PS-04 Editorial CMS | RS | RS | accepted | — | open |
+| PS-05 Search | RS | RS | accepted | — | open |
+| PS-06 Analytics | RS | RS | accepted-with-conditions | Retention/consent/PII/residency/access | open |
+| PS-07 Support | RS | RS | accepted-with-conditions | Retention/attachment/roles/escalation/SLA | open |
+| PS-08 Recommendations | RS | RS | accepted | — | open |
+| PS-09 Secrets/env/observability | RS | RS | accepted | — (delegates: security/env/observability/on-call = RS) | closed |
+| PS-10 Load/RPO/RTO | RS | RS | accepted | — (targets recorded) | closed |
+| PS-11 Tax/invoice | RS | RS | accepted | — (GST policy recorded) | closed |
+| PS-12 Accounting-posting | RS | RS | deferred | Finance/Tax + ERP Ops approval | open |
+| PS-13 Membership/access | RS | RS | accepted-with-conditions | Explicit policy approval | open |
 
 ## Evidence items (E-017-001 … E-017-021)
 
 | Item | Owner | Reviewer | Outcome | Conditions outstanding | Closure status |
 |---|---|---|---|---|---|
-| E-017-001 Core platform versions | RS | missing | in-progress | Exact compatible versions recorded | open |
-| E-017-002 Identity/OTP capability | RS | missing | missing · deferred-for-pilot | Real provider evidence | open |
-| E-017-003 Payment provider | RS | missing | planned · deferred | Razorpay sandbox evidence | open |
-| E-017-004 Logistics provider | RS | missing | missing · deferred-for-pilot | Real provider evidence | open |
-| E-017-005 Queue/storage/notifications | RS | missing | planned | Exact versions/tiers/owners | open |
-| E-017-006 Environment topology | RS | missing | missing · accepted-with-conditions | Environment owners | open |
-| E-017-007 Secrets/observability/on-call | RS | missing | missing · accepted-with-conditions | Security/observability/on-call owners | open |
-| E-017-008 Peak load / transaction profile | RS | missing | missing · accepted-with-conditions | Numeric targets | open |
-| E-017-009 Recovery objectives | RS | missing | missing · accepted-with-conditions | RPO/RTO/restore numbers | open |
-| E-017-010 Membership/access rules | RS | missing | missing · accepted-with-conditions | Policy approval + reviewer | open |
-| E-017-011 Tax/invoice policy | RS | missing | missing · deferred | Finance/Tax + Legal + ERP Ops | open |
-| E-017-012 Accounting projection policy | RS | missing | missing · deferred | Finance/Tax + ERP Ops | open |
-| E-017-013 Tryton reservation concurrency | RS | missing | planned | Concurrency/atomicity evidence | open |
-| E-017-014 Simulated payment safety | RS | missing | planned | Safety + fail-closed evidence | open |
-| E-017-015 Medusa Commerce integration | RS | missing | planned | Persistence/recovery evidence | open |
-| E-017-016 Mercur Marketplace integration | RS | missing | planned | Allocation evidence | open |
-| E-017-017 Tryton movement/accounting | RS | missing | planned | Movement/accounting evidence | open |
-| E-017-018 Cross-system reconciliation | RS | missing | planned | Reconciliation evidence | open |
-| E-017-019 Shared client connectivity | RS | missing | planned | Consumer contract tests | open |
-| E-017-020 Environment routing/isolation | RS | missing | planned | Routing/isolation evidence | open |
-| E-017-021 Editorial CMS boundary | RS | missing | planned · Strapi | CMS boundary evidence | open |
+| E-017-001 Core platform versions | RS | RS | in-progress | Exact compatible versions recorded | open |
+| E-017-002 Identity/OTP capability | RS | RS | missing · deferred-for-pilot | Real provider evidence | open |
+| E-017-003 Payment provider | RS | RS | planned · deferred | Razorpay sandbox evidence | open |
+| E-017-004 Logistics provider | RS | RS | missing · deferred-for-pilot | Real provider evidence | open |
+| E-017-005 Queue/storage/notifications | RS | RS | planned | Exact versions/tiers/owners | open |
+| E-017-006 Environment topology | RS | RS | missing · accepted-with-conditions | Environment topology evidence (delegate: RS) | open |
+| E-017-007 Secrets/observability/on-call | RS | RS | missing · accepted-with-conditions | Mechanism evidence (delegates: RS) | open |
+| E-017-008 Peak load / transaction profile | RS | RS | planned | Load evidence (targets approved) | open |
+| E-017-009 Recovery objectives | RS | RS | planned | Restore drill evidence (targets approved) | open |
+| E-017-010 Membership/access rules | RS | RS | missing · accepted-with-conditions | Policy approval | open |
+| E-017-011 Tax/invoice policy | RS | RS | planned · accepted | Implementation evidence | open |
+| E-017-012 Accounting projection policy | RS | RS | missing · deferred | Finance/Tax + ERP Ops | open |
+| E-017-013 Tryton reservation concurrency | RS | RS | planned | Concurrency/atomicity evidence | open |
+| E-017-014 Simulated payment safety | RS | RS | planned | Safety + fail-closed evidence | open |
+| E-017-015 Medusa Commerce integration | RS | RS | planned | Persistence/recovery evidence | open |
+| E-017-016 Mercur Marketplace integration | RS | RS | planned | Allocation evidence | open |
+| E-017-017 Tryton movement/accounting | RS | RS | planned | Movement/accounting evidence | open |
+| E-017-018 Cross-system reconciliation | RS | RS | planned | Reconciliation evidence | open |
+| E-017-019 Shared client connectivity | RS | RS | planned | Consumer contract tests | open |
+| E-017-020 Environment routing/isolation | RS | RS | planned | Routing/isolation evidence | open |
+| E-017-021 Editorial CMS boundary | RS | RS | planned · Strapi | CMS boundary evidence | open |
 
 ## Exact remaining blockers to G0 closure
 
-1. **Named reviewers** for all PS-01…PS-13 and E-017-001…E-017-021 (independent review required; `RS` is owner, not reviewer).
-2. **PS-10 numeric targets** — peak concurrent users, peak requests/sec (if used), peak orders/hour, p95 API latency, backup interval, RPO, RTO, restore-test frequency.
-3. **PS-09 operational delegation** — named delegates for security/secrets, environment, observability and on-call.
-4. **PS-11 / PS-12** — GST/tax/invoice and accounting-posting policy approval (Finance/Tax + Legal + ERP Ops), or a formal scope amendment moving them out of G0.
-5. **E-017-010 / PS-13** — explicit membership/access policy approval + named reviewer.
+1. **PS-12 / E-017-012 — accounting-posting policy** — posting boundaries, account mappings,
+   settlement/payment/refund accounting, reconciliation and reversal rules (Finance/Tax + ERP Ops),
+   or a formal scope amendment moving it out of G0.
+2. **PS-13 / E-017-010 — membership/access policy** — explicit approval of the bounded-pilot
+   membership rules.
+3. *(Deferred, non-blocking for the dummy pilot)* Razorpay sandbox evidence for provider G3.
 
 ## Not in scope of this update
 

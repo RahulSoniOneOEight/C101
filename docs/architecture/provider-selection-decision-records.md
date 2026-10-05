@@ -115,24 +115,24 @@ picks or overrides the recommendation and names the owner.
 
 ## 4. Ownership and sign-off
 
-Owner `RS` (Accountable Project / Architecture Owner) is recorded for PS-01 through PS-13.
-Reviewer is unresolved for every item until a named reviewer is explicitly recorded.
+Owner and Reviewer are both `RS` (Accountable Project / Architecture Owner); self-review was
+explicitly authorized by the human for all PS-01…PS-13.
 
 | # | Provider / policy | Owner | Reviewer | Outcome | Conditions outstanding |
 |---|---|---|---|---|---|
-| PS-01 | Identity/OTP | RS | — (missing) | accepted-with-conditions | Production OTP provider deferred |
-| PS-02 | Logistics | RS | — (missing) | accepted-with-conditions | Production logistics provider deferred |
-| PS-03 | Queue/storage/notifications | RS | — (missing) | accepted | Exact versions/tiers/owners |
-| PS-04 | CMS | RS | — (missing) | accepted | — |
-| PS-05 | Search | RS | — (missing) | accepted | — |
-| PS-06 | Analytics | RS | — (missing) | accepted-with-conditions | Retention/consent/PII/residency/access |
-| PS-07 | Support | RS | — (missing) | accepted-with-conditions | Retention/attachment/roles/escalation/SLA |
-| PS-08 | Recommendation | RS | — (missing) | accepted | — |
-| PS-09 | Secrets/observability/env | RS | — (missing) | accepted-with-conditions | Delegated operators unassigned |
-| PS-10 | Load/RPO/RTO | RS | — (missing) | accepted-with-conditions | Numeric targets |
-| PS-11 | Tax/invoice | RS | — (missing) | deferred | Finance/Tax + Legal + ERP Ops approval |
-| PS-12 | Accounting-posting | RS | — (missing) | deferred | Finance/Tax + ERP Ops approval |
-| PS-13 | Membership/access (E-017-010) | RS | — (missing) | accepted-with-conditions | Explicit policy approval + reviewer |
+| PS-01 | Identity/OTP | RS | RS | accepted-with-conditions | Production OTP provider deferred |
+| PS-02 | Logistics | RS | RS | accepted-with-conditions | Production logistics provider deferred |
+| PS-03 | Queue/storage/notifications | RS | RS | accepted | Exact versions/tiers/owners |
+| PS-04 | CMS | RS | RS | accepted | — |
+| PS-05 | Search | RS | RS | accepted | — |
+| PS-06 | Analytics | RS | RS | accepted-with-conditions | Retention/consent/PII/residency/access |
+| PS-07 | Support | RS | RS | accepted-with-conditions | Retention/attachment/roles/escalation/SLA |
+| PS-08 | Recommendation | RS | RS | accepted | — |
+| PS-09 | Secrets/observability/env | RS | RS | accepted | — (delegates: security/env/observability/on-call = RS) |
+| PS-10 | Load/RPO/RTO | RS | RS | accepted | — (targets recorded) |
+| PS-11 | Tax/invoice | RS | RS | accepted | — (GST policy recorded) |
+| PS-12 | Accounting-posting | RS | RS | deferred | Finance/Tax + ERP Ops approval |
+| PS-13 | Membership/access (E-017-010) | RS | RS | accepted-with-conditions | Explicit policy approval |
 
 ## 5. Mapping to evidence and decisions
 

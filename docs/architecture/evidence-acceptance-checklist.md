@@ -20,44 +20,43 @@ UTC timestamp:
 
 ## Evidence items and sign-off
 
-Owner `RS` (Accountable Project / Architecture Owner) is recorded for every item. Reviewer is
-unresolved for every item until a named reviewer is explicitly recorded (`reviewer_status: missing`).
+Owner `RS` (Accountable Project / Architecture Owner) is recorded for every item, and `RS` is
+recorded as Reviewer (self-review explicitly authorized by the human).
 
 | Item | Title | Current status | Owner | Reviewer | Sign-off roles |
 |---|---|---|---|---|---|
-| E-017-001 | Core platform versions | in-progress | RS | missing | Architecture, Security, Integration Owners |
-| E-017-002 | Identity/OTP provider | missing · deferred-for-pilot | RS | missing | Architecture, Security, Integration Owners |
-| E-017-003 | Payment provider | planned · deferred (Razorpay) | RS | missing | Finance, Security, Integration Owners |
-| E-017-004 | Logistics provider | missing · deferred-for-pilot | RS | missing | Logistics, Ops, Security, Integration Owners |
-| E-017-005 | Queue/storage/notifications | planned · NATS+Valkey/Redis+R2 | RS | missing | Architecture, Security, Integration Owners, Ops |
-| E-017-006 | Environment topology | missing · accepted-with-conditions | RS | missing | Architecture, Security, Ops, Integration Owners |
-| E-017-007 | Secrets/observability/on-call | missing · accepted-with-conditions | RS | missing | Security, Ops, Integration Owners |
-| E-017-008 | Peak load / transaction profile | missing · accepted-with-conditions | RS | missing | Architecture, Ops, Release Authority |
-| E-017-009 | Recovery objectives | missing · accepted-with-conditions | RS | missing | Architecture, Ops, Release Authority |
-| E-017-010 | Membership/access rules | missing · accepted-with-conditions | RS | missing | Product, Security, Architecture, Ops |
-| E-017-011 | Tax/invoice policy | missing · deferred | RS | missing | Finance/Tax, Legal, ERP Ops |
-| E-017-012 | Accounting projection policy | missing · deferred | RS | missing | Finance/Tax, ERP Ops |
-| E-017-013 | Tryton reservation concurrency | in-progress | RS | missing | Architecture, ERP Ops, Finance |
-| E-017-014 | Simulated payment safety | in-progress | RS | missing | Product, Architecture, Security, Finance, Ops, Release Authority |
-| E-017-015 | Medusa Commerce integration | in-progress | RS | missing | Architecture, Product, Ops |
-| E-017-016 | Mercur Marketplace integration | in-progress | RS | missing | Architecture, Marketplace, Marketplace Ops |
-| E-017-017 | Tryton movement/accounting | in-progress | RS | missing | Architecture, ERP Ops, Finance/Tax |
-| E-017-018 | Cross-system reconciliation | in-progress | RS | missing | Architecture, Ops, Marketplace, ERP Ops, Finance/Tax |
-| E-017-019 | Shared client connectivity | in-progress | RS | missing | Architecture, Security, Ops, Product |
-| E-017-020 | Environment routing/production isolation | in-progress | RS | missing | Architecture, Security, Ops, Integration Owners, Release Authority |
-| E-017-021 | Editorial CMS boundary | planned · Strapi | RS | missing | Product, Architecture, Security |
+| E-017-001 | Core platform versions | in-progress | RS | RS | Architecture, Security, Integration Owners |
+| E-017-002 | Identity/OTP provider | missing · deferred-for-pilot | RS | RS | Architecture, Security, Integration Owners |
+| E-017-003 | Payment provider | planned · deferred (Razorpay) | RS | RS | Finance, Security, Integration Owners |
+| E-017-004 | Logistics provider | missing · deferred-for-pilot | RS | RS | Logistics, Ops, Security, Integration Owners |
+| E-017-005 | Queue/storage/notifications | planned · NATS+Valkey/Redis+R2 | RS | RS | Architecture, Security, Integration Owners, Ops |
+| E-017-006 | Environment topology | missing · accepted-with-conditions | RS | RS | Architecture, Security, Ops, Integration Owners |
+| E-017-007 | Secrets/observability/on-call | missing · accepted-with-conditions | RS | RS | Security, Ops, Integration Owners |
+| E-017-008 | Peak load / transaction profile | missing · accepted-with-conditions | RS | RS | Architecture, Ops, Release Authority |
+| E-017-009 | Recovery objectives | missing · accepted-with-conditions | RS | RS | Architecture, Ops, Release Authority |
+| E-017-010 | Membership/access rules | missing · accepted-with-conditions | RS | RS | Product, Security, Architecture, Ops |
+| E-017-011 | Tax/invoice policy | missing · deferred | RS | RS | Finance/Tax, Legal, ERP Ops |
+| E-017-012 | Accounting projection policy | missing · deferred | RS | RS | Finance/Tax, ERP Ops |
+| E-017-013 | Tryton reservation concurrency | in-progress | RS | RS | Architecture, ERP Ops, Finance |
+| E-017-014 | Simulated payment safety | in-progress | RS | RS | Product, Architecture, Security, Finance, Ops, Release Authority |
+| E-017-015 | Medusa Commerce integration | in-progress | RS | RS | Architecture, Product, Ops |
+| E-017-016 | Mercur Marketplace integration | in-progress | RS | RS | Architecture, Marketplace, Marketplace Ops |
+| E-017-017 | Tryton movement/accounting | in-progress | RS | RS | Architecture, ERP Ops, Finance/Tax |
+| E-017-018 | Cross-system reconciliation | in-progress | RS | RS | Architecture, Ops, Marketplace, ERP Ops, Finance/Tax |
+| E-017-019 | Shared client connectivity | in-progress | RS | RS | Architecture, Security, Ops, Product |
+| E-017-020 | Environment routing/production isolation | in-progress | RS | RS | Architecture, Security, Ops, Integration Owners, Release Authority |
+| E-017-021 | Editorial CMS boundary | planned · Strapi | RS | RS | Product, Architecture, Security |
 
 ## G0 blockers (remaining human actions)
 
-1. **Named reviewers** for every item above (owners now named `RS`; reviewers unresolved).
-2. **PS-10 numeric targets** — peak concurrent users, peak orders/hour, p95 API latency, backup
-   interval, RPO, RTO, restore-test frequency (Operations + Architecture + Release Authority).
-3. **PS-09 operational delegation** — named delegates for security/secrets, environment,
-   observability and on-call (RS remains accountable owner until delegation is named).
-4. **PS-11 / PS-12** — GST/tax/invoice and accounting-posting policy approval (Finance/Tax + Legal +
-   ERP Ops), or a formal scope amendment moving them out of G0.
-5. **E-017-010 / PS-13** — explicit membership/access policy approval + reviewer.
-6. **Razorpay sandbox evidence** for provider G3 (deferred; does not block the dummy pilot).
+1. **PS-12 accounting-posting policy** — posting boundaries, account mappings, settlement/payment/
+   refund accounting, reconciliation and reversal rules (Finance/Tax + ERP Ops), or a formal scope
+   amendment moving it out of G0.
+2. **E-017-010 / PS-13** — explicit membership/access policy approval.
+3. **Razorpay sandbox evidence** for provider G3 (deferred; does not block the dummy pilot).
+
+Resolved this cycle: reviewers (RS), PS-10 numeric targets, PS-09 delegation (RS), PS-11 GST/invoice
+policy.
 
 ## What G0 closing authorizes (and does not)
 

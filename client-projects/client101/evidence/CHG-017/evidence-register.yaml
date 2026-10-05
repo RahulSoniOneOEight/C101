@@ -75,7 +75,7 @@ items:
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Architecture accepted; named accountable humans for environment ownership required.
+  note: Architecture accepted; delegates named (PS-09) — environment delegate RS. Exact environment topology/ownership evidence still pending.
   acceptance_criteria:
   - Development, CI, integration, staging and production-readiness owners are named.
   - Isolation, access and deployment boundaries are documented.
@@ -87,7 +87,7 @@ items:
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Architecture accepted (secret manager, OTel, central logs, alerts); named humans for security/secrets, observability and on-call ownership required.
+  note: Architecture accepted; delegates named (PS-09) — security/secrets delegate RS, observability delegate RS, on-call delegate RS. Exact secret/observability mechanism evidence still pending.
   acceptance_criteria:
   - Secret manager, access, rotation and break-glass ownership are documented.
   - Logs, metrics, traces, alerts, escalation and on-call ownership are documented.
@@ -95,11 +95,11 @@ items:
   title: Peak load and transaction profile
   decisions: [D-017-23]
   required_roles: [architecture, operations, release-authority]
-  status: missing
+  status: planned
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Bounded pilot load approach accepted; numeric peak users / order rate / p95 latency targets require human approval.
+  note: Targets approved (PS-10) — peak 100 concurrent users, 20-30 req/s, 100 orders/hour, p95 API latency <=1.5s. Actual load evidence still to be measured.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.
@@ -107,11 +107,11 @@ items:
   title: Recovery objectives and restore-proof plan
   decisions: [D-017-23]
   required_roles: [architecture, operations, release-authority]
-  status: missing
+  status: planned
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Backup/restore approach accepted; numeric RPO/RTO, backup interval and restore-test frequency require human approval.
+  note: Targets approved (PS-10) — backup daily, RPO <=24h, RTO <=4h, restore test monthly. Restore drill evidence still to be produced.
   acceptance_criteria:
   - RPO and RTO are approved.
   - Backup ownership, retention and restore-proof stage are documented.
@@ -123,7 +123,7 @@ items:
   disposition: accepted-with-conditions
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Bounded-pilot rules proposed (PS-13) — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Not accepted pending explicit policy approval and reviewer.
+  note: Bounded-pilot rules proposed (PS-13) — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Reviewer resolved (RS); not accepted pending explicit policy approval.
   acceptance_criteria:
   - Buyer, business-account, seller and operator membership rules are documented.
   - Tenant and seller isolation plus action-level permissions are testable.
@@ -131,11 +131,11 @@ items:
   title: Tax and invoice policy
   decisions: [D-017-01, D-017-12]
   required_roles: [finance-tax, legal, erp-operations]
-  status: missing
-  disposition: deferred
+  status: planned
+  disposition: accepted
   owner: RS
   evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Production GST/tax/invoice policy not approved; staging test-clearing only until Finance/Tax, Legal and ERP Operations approve.
+  note: GST/invoice policy approved (PS-11) — B2C tax-inclusive, B2B ex-GST labelled '+ GST', supplier-issued tax invoices at the invoicing milestone, credit/debit notes for adjustments, Section 52 TCS where applicable, immutable invoices. Implementation evidence still pending.
   acceptance_criteria:
   - Tax calculation owner, basis, jurisdiction and line/order rounding are documented.
   - Invoice issuer, trigger/timing, numbering and correction policy are documented.

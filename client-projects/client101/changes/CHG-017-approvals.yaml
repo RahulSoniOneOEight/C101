@@ -578,7 +578,9 @@ batch_approval_records:
   approver: human-requester
   owner: RS
   owner_role: Accountable Project / Architecture Owner
-  reviewer_status: missing
+  reviewer: RS
+  reviewer_status: resolved
+  self_review_note: Human explicitly authorized RS as both owner and reviewer for all PS-01..PS-13 decisions.
   authorized_roles: [product, architecture, security, marketplace, marketplace-operations, erp-operations, finance, finance-tax, legal, logistics, operations, integration-owners, release-authority]
   authorization_evidence: Human supplied the G0 architecture & pilot provider approval request with recommended outcomes per decision (PS-01..PS-12). High-level approval recorded; formal per-decision named sign-off (name + role + timestamp) remains required to close G0.
   evidence: Bounded-staging architecture approval (NATS JetStream + Valkey/Redis + Cloudflare R2, Strapi CMS, Meilisearch, PostHog, Chatwoot, existing 59-rule framework) with simulated OTP/logistics/payment for the pilot; production providers (OTP/logistics/payment) and tax/accounting policy deferred.
@@ -628,19 +630,44 @@ batch_approval_records:
     conditions: [Keep the existing 59-rule framework; no dedicated recommendation engine during the pilot.]
   - decision_id: PS-09
     subject: secrets-environment-observability
-    outcome: accepted-with-conditions
+    outcome: accepted
     roles: [security, operations, integration-owners]
-    conditions: [Named humans required for security/secrets, environment, observability and on-call ownership.]
+    conditions: []
+    delegates:
+      security_secrets: RS
+      environment: RS
+      observability: RS
+      on_call: RS
   - decision_id: PS-10
     subject: load-backup-rpo-rto
-    outcome: accepted-with-conditions
+    outcome: accepted
     roles: [architecture, operations, release-authority]
-    conditions: [Numeric peak/concurrency/latency/RPO/RTO/restore-frequency targets require human approval.]
+    conditions: []
+    targets:
+      peak_concurrent_users: 100
+      peak_requests_per_sec: 20-30
+      peak_orders_per_hour: 100
+      p95_normal_api_latency: <=1.5s
+      backup_interval: daily
+      rpo: <=24h
+      rto: <=4h
+      restore_test_frequency: monthly
   - decision_id: PS-11
     subject: tax-and-invoice
-    outcome: deferred
+    outcome: accepted
     roles: [finance-tax, legal, erp-operations]
-    conditions: [Staging test-clearing only; production GST/invoice policy not approved.]
+    conditions: []
+    policy:
+      b2c_pricing: GST-inclusive (tax-inclusive display), invoice shows GST breakup
+      b2b_pricing: ex-GST labelled '+ GST', GST-inclusive payable shown before checkout
+      invoice_issuer: legal supplier of goods/services issues the tax invoice (BuildKart for own inventory; marketplace seller for seller-owned supply)
+      invoice_timing: generated at the supply/invoicing milestone (after canonical order + fulfilment trigger), not at Cart creation
+      credit_notes: for taxable value/tax decreases (returns, post-invoice reductions); original invoice immutable
+      debit_notes: for taxable value/tax increases after the original invoice
+      marketplace_seller_invoice: seller -> buyer for supply; platform -> seller for commission/service fees
+      gst_tcs: Section 52 TCS framework where BuildKart is the e-commerce operator collecting for other suppliers; not for own-account sales
+      b2b_gstin: capture and validate business GSTIN for GST/ITC-supported invoices
+      invoice_modification: immutable; corrections via credit/debit notes and governed amendments
   - decision_id: PS-12
     subject: accounting-posting
     outcome: deferred
@@ -650,7 +677,7 @@ batch_approval_records:
     subject: membership-and-access
     outcome: accepted-with-conditions
     roles: [product, security, architecture, operations]
-    conditions: [Bounded-pilot rules — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Explicit policy approval and independent reviewer required before accepted.]
+    conditions: [Bounded-pilot rules — allowlisted pilot users, simulated OTP, backend-controlled B2B membership, account isolation, explicit roles, least privilege, revoked membership fails closed. Reviewer resolved (RS); explicit policy approval still required before accepted.]
 runtime_authorizations:
 - authorization_id: CHG-017-R5-STAGING-RUNTIME-001
   authorized_by: Rahul Soni
