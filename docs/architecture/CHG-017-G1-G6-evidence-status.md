@@ -41,7 +41,7 @@ each gate closes when its `E-017-xxx` evidence items move `planned → evidenced
 | Item | Missing evidence | How to produce |
 |---|---|---|
 | E-017-013 (remaining) | Reservation TTL/expiry, atomic commit-vs-expiry, late-payment re-reserve/recovery | add reservation expiry + competing commit/expiry transition + late-payment recovery test |
-| E-017-008 | Load profile vs targets (100 CCU, 20–30 rps, 100 orders/hr, p95 ≤ 1.5s) | load test (k6/Artillery) against the staging stack |
+| E-017-008 | Production load validation vs targets (20–30 rps, p95 ≤ 1.5s) | production-shaped Medusa deployment + bulk/optimized offers query — dev-mode stack measured ~5–8.7 rps with p95 ~22s and ~55% errors (fails targets) |
 | E-017-009 | RPO/RTO + restore drill (daily backup, ≤24h RPO, ≤4h RTO, monthly restore) | backup + restore-from-backup test |
 | E-017-006/007 | Environment/secrets/observability mechanism | staging observability wiring (OTel traces, central logs, secret-manager reference) |
 | E-017-002/004 | Identity/logistics provider evidence | **deferred** (pilot simulated) |
