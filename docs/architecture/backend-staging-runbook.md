@@ -14,6 +14,7 @@ Local functional staging for the CHG-017 vertical slice. Synthetic data only.
 | Redis | `6379` | queue/cache |
 | NATS JetStream | `4222` (`8222` monitoring) | cross-system domain events |
 | Tryton | `8010` | ERP — JSON-RPC only (no browser UI) |
+| Reverse proxy (nginx) | `8081` → Experience API/Medusa | `services/proxy/nginx.conf`; `docker compose up -d proxy` |
 
 ## Staging credentials (synthetic, never reuse in production)
 
@@ -64,8 +65,14 @@ Test/evidence scripts:
 - `bun run test:payment-matrix` — simulator outcome matrix (success/failure/pending/duplicate/late/
   refund) with idempotency and non-financial guarantees.
 - `bun run test:nats` — JetStream stream/subject publication check.
-- `bun run test:consume` — one-batch durable-consumer harness.
-- `bun run test:load` — load profile (VIRTUAL_USERS / DURATION_MS env).
+- `bun run test:consume` — one-batch durable-consumer harness (legacy).
+- `bun run test:consumers` — continuous worker check: process + dedupe + dead-letter.
+- `bun run start:workers` — run the long-lived cross-system event workers (`:9030` `/health`,
+  `/metrics`). One durable consumer per owning service.
+- `bun run test:load` — load profile (VIRTUAL_USERS / DURATION_MS env). Set
+  `TARGET_BASE_URL=http://localhost:8081` to drive it through the reverse proxy. Reports throughput,
+  latency and errors plus the resource profile from `/metrics` (process CPU/RSS, PostgreSQL pool
+  usage, offer-cache hit ratio, NATS consumer lag).
 - `bun run src/parity-check.ts` — cross-surface parity.
 
 ## Verify services
@@ -137,9 +144,28 @@ Test/evidence scripts:
 ## Event topology (D-017-15)
 
 Medusa internal events/workflows/locking use Redis. Cross-system events use the Experience API's
-PostgreSQL `domain_event` outbox and NATS JetStream. Durable batch-consumer plumbing is present for
-Mercur allocation, Tryton reservation and reconciliation; handlers acknowledge only after success and
-negative-ack failures for retry.
+PostgreSQL `domain_event` outbox and NATS JetStream.
+
+Consumers run continuously via `bun run start:workers` (`src/workers/event-consumers.ts`): one
+durable consumer per owning service (`mercur-allocation` on `commerce.>`, `tryton-reservation` on
+`inventory.>`, `reconciliation-tracker` on `logistics.>`). Each acks only after the handler succeeds,
+retries with `nak` backoff, and dead-letters a poison message to `buildkart.dlq.v1` after
+`WORKER_MAX_DELIVER` attempts. Processing is idempotent per event id. Lag and
+processed/failed/dead-letter counters are exposed as Prometheus text on `:9030/metrics` and JSON on
+`:9030/health`.
+
+## Reverse proxy and resource metrics
+
+`docker compose up -d proxy` starts an nginx reverse proxy (`:8081`) fronting the Experience API
+(`/v1/`, `/health`, `/metrics`, `/ops`) and Medusa (`/store/`). Upstream keepalive is intentionally
+disabled: the Bun upstream closes idle connections, and reusing a stale pooled connection adds
+latency/502s, while a fresh connection to the host is ~2ms.
+
+The Experience API exposes Prometheus-style telemetry at `GET /metrics`: process CPU / RSS / heap,
+the PostgreSQL connection-pool `total`/`idle`/`waiting` per store, the offer read-model cache
+`entries` and `hits`/`misses` counters, NATS connectivity, and per-durable-consumer lag.
+`bun run test:load` (with `TARGET_BASE_URL`) prints a resource profile captured from `/metrics`
+before and after a run.
 
 ## Seed data
 
@@ -160,10 +186,10 @@ placeholders — replace with real photography before production. The catalogue 
 
 ## Known staging gaps (not production)
 
-- **Event consumers** — durable JetStream receipt/acknowledgement is verified, including
-  `commerce.order.created.v1` by `mercur-allocation`. The current handlers are bounded-pilot batch
-  harnesses; continuously deployed service-owned workers and dead-letter operations remain a later
-  production-readiness increment.
+- **Event consumers** — continuous, service-owned workers with retry, idempotency, dead-letter
+  (`buildkart.dlq.v1`) and lag metrics are implemented (`start:workers`). The worker reactions are
+  side-effect-free placeholders; the owning Mercur/Tryton/reconciliation services must supply the
+  real reactions and run the workers in their own deployment before production.
 - Payment is simulated (`PAYMENT_ADAPTER_MODE=simulated`); real payment/OTP/logistics providers are deferred.
 - A bounded-staging debug APK has completed the full emulator checkout journey to a canonical order
   group verified in PostgreSQL/NATS (see `evidence/CHG-017/payment-simulation-acceptance.md`). Human

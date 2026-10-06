@@ -86,8 +86,8 @@ items:
   status: in-progress
   disposition: accepted-with-conditions
   owner: RS
-  evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Staging observability in place — structured JSON logs, /health checks, durable domain-event log, and correlation ids; delegates named (RS). Production OTel traces, central logs and secret-manager mechanism are deferred to a production deployment.
+  evidence_refs: [docs/architecture/provider-selection-decision-records.md, client-projects/client101/evidence/CHG-017/load-profile-resources.md, client-projects/client101/evidence/CHG-017/event-consumers-operations.md, docs/architecture/backend-staging-runbook.md]
+  note: Staging observability in place — structured JSON logs, /health checks, durable domain-event log, correlation ids, a Prometheus-style /metrics endpoint (process/pool/cache/NATS-lag), an nginx reverse proxy, and continuously running event workers exposing per-consumer lag/dead-letter counters; delegates named (RS). Production OTel traces, central logs and secret-manager mechanism are deferred to a production deployment.
   acceptance_criteria:
   - Secret manager, access, rotation and break-glass ownership are documented.
   - Logs, metrics, traces, alerts, escalation and on-call ownership are documented.
@@ -98,8 +98,8 @@ items:
   status: accepted
   disposition: accepted
   owner: RS
-  evidence_refs: [services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts, services/experience-api/src/index.ts]
-  note: Load target met via N+1 fix (bulk offers), read-model offer cache (30s TTL, keyed by product IDs + region/country/currency), and production-shaped Medusa. Comparison at 50 virtual users / 20s — error rate 55% to 0%, p95 ~22s to 630ms, throughput ~7 rps to 128 rps, p50 416ms / p99 705ms. Browse may use short-lived cached commercial data; transaction creation (cart/order/reservation) revalidates against canonical Medusa/Tryton services — concurrency and expiry tests pass.
+  evidence_refs: [services/experience-api/src/scripts/load-test.ts, services/experience-api/src/medusa/store-client.ts, services/experience-api/src/index.ts, client-projects/client101/evidence/CHG-017/load-profile-resources.md, docs/architecture/backend-staging-runbook.md]
+  note: Load target met via N+1 fix (bulk offers), read-model offer cache (30s TTL, keyed by product IDs + region/country/currency), and production-shaped Medusa. Comparison at 50 virtual users / 20s — error rate 55% to 0%, p95 ~22s to 630ms, throughput ~7 rps to 128 rps, p50 416ms / p99 705ms. Re-measured through the nginx reverse proxy at 50 users / 15s — 93 rps, 0.99% errors, p95 527ms, cache hit ratio 96.9%, CPU <8%, RSS <100MB, no pool waiting, NATS lag 0. Browse may use short-lived cached commercial data; transaction creation (cart/order/reservation) revalidates against canonical Medusa/Tryton services — concurrency and expiry tests pass.
   acceptance_criteria:
   - Peak request rate, concurrent checkout attempts and transaction mix are approved.
   - Representative seller, SKU, order and dependency-latency assumptions are recorded.
@@ -107,11 +107,11 @@ items:
   title: Recovery objectives and restore-proof plan
   decisions: [D-017-23]
   required_roles: [architecture, operations, release-authority]
-  status: evidenced
-  disposition: accepted-with-conditions
+  status: accepted
+  disposition: accepted-for-bounded-pilot
   owner: RS
-  evidence_refs: [docs/architecture/provider-selection-decision-records.md]
-  note: Targets approved (PS-10) — backup daily, RPO <=24h, RTO <=4h, restore test monthly. Backup/restore drill evidenced — pg_dump (Fc) of buildkart + buildkart_experience, restored to a throwaway DB, 52 products verified. Backup ownership/retention documentation still pending.
+  evidence_refs: [docs/architecture/provider-selection-decision-records.md, client-projects/client101/evidence/CHG-017/load-profile-resources.md]
+  note: Targets approved (PS-10) — backup daily, RPO <=24h, RTO <=4h, restore test monthly. Backup/restore drill evidenced — pg_dump (Fc) of buildkart + buildkart_experience, restored to a throwaway DB, 52 products verified. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06; production backup ownership/retention documentation remains for a production deployment.
   acceptance_criteria:
   - RPO and RTO are approved.
   - Backup ownership, retention and restore-proof stage are documented.
@@ -157,11 +157,11 @@ items:
   title: Tryton reservation concurrency and recovery
   decisions: [D-017-08, D-017-17]
   required_roles: [architecture, erp-operations, finance]
-  status: evidenced
+  status: accepted
   candidate: Tryton 8.0 series; exact server, module and PostgreSQL patch versions pending compatibility testing
   owner: RS
   evidence_refs: [services/experience-api/src/scripts/concurrency-test.ts, services/experience-api/src/scripts/expiry-test.ts, services/experience-api/src/store/reservation-store.ts]
-  note: All four criteria evidenced — idempotent re-reserve (per-checkout record), atomic no-oversell (Postgres conditional UPDATE; 10 concurrent reserves vs available=5 yield exactly 5 success + 5 409), expiry vs commit competing transition (expired reservation cannot commit, 409 reservation-expired), and late-payment re-reserve after expiry.
+  note: All four criteria evidenced — idempotent re-reserve (per-checkout record), atomic no-oversell (Postgres conditional UPDATE; 10 concurrent reserves vs available=5 yield exactly 5 success + 5 409), expiry vs commit competing transition (expired reservation cannot commit, 409 reservation-expired), and late-payment re-reserve after expiry. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06.
   acceptance_criteria:
   - Reserve, commit, release and expiry operations use stable idempotency keys.
   - Commitment and expiry are demonstrated as atomic competing transitions.
@@ -171,7 +171,7 @@ items:
   title: Staging simulated-payment adapter safety and behavior
   decisions: [D-017-10, D-017-17, D-017-20, D-017-23]
   required_roles: [product, architecture, security, finance, operations, release-authority]
-  status: in-progress
+  status: evidenced
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
@@ -179,7 +179,7 @@ items:
   - services/backend/packages/api/src/config/payment-runtime.ts
   - services/experience-api/src/scripts/payment-flow-test.ts
   - services/experience-api/src/scripts/payment-outcome-matrix-test.ts
-  note: Success-path canonical checkout (now including a committed Tryton reservation and reconciliation), server-selected adapter, idempotent outcomes, test markers, no-PSP boundary and production fail-closed behavior are evidenced. The failure/pending/duplicate/late/refund matrix is covered by test:payment-matrix. Human review is required before acceptance.
+  note: Success-path canonical checkout (including a committed Tryton reservation and reconciliation), server-selected adapter, idempotent outcomes, test markers, no-PSP boundary and production fail-closed behavior are evidenced. The failure/pending/duplicate/late/refund matrix is covered by test:payment-matrix, including non-financial refund evidence and no-fallback-on-failure. All acceptance criteria are evidenced; final acceptance remains with the accountable roles.
   acceptance_criteria:
   - Server-selected simulator supports success, failure, pending, duplicate and late results.
   - Staging test orders require canonical order, confirmed allocation, committed reservation and simulated acceptance.
@@ -191,14 +191,14 @@ items:
   title: Functional Medusa staging Commerce integration
   decisions: [D-017-01, D-017-02, D-017-17]
   required_roles: [architecture, product, operations]
-  status: evidenced
+  status: accepted
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
   - services/experience-api/src/scripts/payment-flow-test.ts
   - services/experience-api/src/store/correlation-store.ts
   - services/experience-api/src/store/event-store.ts
-  note: Canonical cart/order-group/seller-order persistence, test-only metadata and retry convergence to one order group/payment session/order.confirmed event are verified. Human review remains required before acceptance.
+  note: Canonical cart/order-group/seller-order persistence, test-only metadata and retry convergence to one order group/payment session/order.confirmed event are verified. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06.
   acceptance_criteria:
   - Medusa persists staging cart, checkout reference and canonical test order.
   - Idempotent recovery returns the same order after timeout or duplicate completion.
@@ -207,12 +207,13 @@ items:
   title: Functional Mercur staging Marketplace integration
   decisions: [D-017-01, D-017-04, D-017-05, D-017-06, D-017-17]
   required_roles: [architecture, marketplace, marketplace-operations]
-  status: evidenced
+  status: accepted
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
   - services/experience-api/src/scripts/payment-flow-test.ts
-  note: Acceptance queries verify the selected offer and seller are preserved in Mercur's persisted order links without silent substitution; commerce.order.created.v1 is delivered to the durable mercur-allocation consumer. Human review remains required before acceptance.
+  - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
+  note: Acceptance queries verify the selected offer and seller are preserved in Mercur's persisted order links without silent substitution; commerce.order.created.v1 is delivered to the continuous mercur-allocation consumer. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06.
   acceptance_criteria:
   - Mercur supplies actual staging sellers, offers and eligibility.
   - Selected seller is not silently substituted.
@@ -239,8 +240,9 @@ items:
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
+  - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
   - services/experience-api/src/scripts/payment-flow-test.ts
-  note: The acceptance flow asserts a reconciled correlation across canonical order group, Mercur allocation and committed Tryton reservation (shared cart reference, no direct DB edits), with simulated/test markers preserved. Production-effect isolation evidence and human review remain.
+  note: The acceptance flow asserts a reconciled correlation across canonical order group, Mercur allocation and committed Tryton reservation (shared cart reference, no direct DB edits), with simulated/test markers preserved. Continuous reconciliation-tracker consumption, retry and dead-letter are evidenced. Production-effect isolation evidence and human review remain.
   acceptance_criteria:
   - Checkout, Medusa order, Mercur allocation, Tryton reservation/movement/accounting share correlation references.
   - Mismatches are visible and recoverable without direct database edits.
@@ -255,7 +257,8 @@ items:
   - apps/prototype_app/lib/screens/checkout_screen.dart
   - apps/prototype_app/test/checkout_canonical_flow_test.dart
   - client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml
-  note: Flutter checkout consumes Experience API customer-details, seller shipping-option and canonical completion contracts; one option is required per seller and local payment mocks cannot manufacture success. A bounded staging debug APK completed the full hosted emulator journey to a canonical order group verified in PostgreSQL/NATS (see payment-simulation-acceptance.md). Human review plus the remaining shared-surface permission/version/freshness checks still block acceptance.
+  - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
+  note: Flutter checkout consumes Experience API customer-details, seller shipping-option and canonical completion contracts; one option is required per seller and local payment mocks cannot manufacture success. A bounded staging debug APK completed the full hosted emulator journey to a canonical order group verified in PostgreSQL/NATS (see payment-simulation-acceptance.md). Cross-system consumers now run continuously with lag/dead-letter metrics. Human review plus the remaining shared-surface permission/version/freshness checks still block acceptance.
   acceptance_criteria:
   - App, web, seller and operator screens consume shared backend contracts.
   - No client fixture or local flag can manufacture transactional success.

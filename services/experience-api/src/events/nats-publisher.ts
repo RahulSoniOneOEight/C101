@@ -53,6 +53,22 @@ export class NatsPublisher {
     return this.js !== null;
   }
 
+  /** Pending+ack-pending message count per durable consumer (operational lag / backpressure). */
+  async consumerLag(names: string[]): Promise<Record<string, number>> {
+    const result: Record<string, number> = {};
+    if (!this.nc) return result;
+    const jsm = await this.nc.jetstreamManager();
+    for (const name of names) {
+      try {
+        const info = await jsm.consumers.info(STREAM, name);
+        result[name] = (info.num_pending ?? 0) + (info.num_ack_pending ?? 0);
+      } catch {
+        result[name] = -1;
+      }
+    }
+    return result;
+  }
+
   async close(): Promise<void> {
     await this.nc?.drain();
   }

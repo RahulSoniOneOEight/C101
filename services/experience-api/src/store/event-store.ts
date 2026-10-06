@@ -130,4 +130,13 @@ export class EventStore {
       [id],
     );
   }
+
+  /** Connection-pool telemetry for the operational metrics endpoint. */
+  poolStats(): { total: number; idle: number; waiting: number } {
+    return {
+      total: this.pool.totalCount,
+      idle: this.pool.idleCount,
+      waiting: this.pool.waitingCount,
+    };
+  }
 }
