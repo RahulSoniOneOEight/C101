@@ -21,7 +21,8 @@ class ExperienceApi {
     return res.data!;
   }
 
-  Future<Map<String, dynamic>> verifyOtp(String challengeId, String code) async {
+  Future<Map<String, dynamic>> verifyOtp(
+      String challengeId, String code) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/v1/auth/otp/verify',
       data: {'challenge_id': challengeId, 'code': code},
@@ -40,7 +41,8 @@ class ExperienceApi {
   }
 
   /// Composed product list with best-price offer per product.
-  Future<List<Product>> getComposedProducts({int limit = 50, int offset = 0}) async {
+  Future<List<Product>> getComposedProducts(
+      {int limit = 50, int offset = 0}) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/products',
       queryParameters: {'limit': limit, 'offset': offset},
@@ -59,7 +61,8 @@ class ExperienceApi {
 
   /// Creates a canonical Medusa cart (Commerce).
   Future<Cart> createCart() async {
-    final res = await _dio.post<Map<String, dynamic>>('/v1/carts', data: <String, dynamic>{});
+    final res = await _dio
+        .post<Map<String, dynamic>>('/v1/carts', data: <String, dynamic>{});
     return Cart.fromJson(res.data!);
   }
 
@@ -72,7 +75,8 @@ class ExperienceApi {
     return Cart.fromJson(res.data!);
   }
 
-  Future<Cart> updateLineItem(String cartId, String lineItemId, int quantity) async {
+  Future<Cart> updateLineItem(
+      String cartId, String lineItemId, int quantity) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/v1/carts/$cartId/lines/$lineItemId',
       data: {'quantity': quantity},
@@ -81,12 +85,45 @@ class ExperienceApi {
   }
 
   Future<Cart> removeLineItem(String cartId, String lineItemId) async {
-    final res =
-        await _dio.delete<Map<String, dynamic>>('/v1/carts/$cartId/lines/$lineItemId');
+    final res = await _dio
+        .delete<Map<String, dynamic>>('/v1/carts/$cartId/lines/$lineItemId');
     return Cart.fromJson(res.data!);
   }
 
-  /// Completes the cart into per-seller orders (Commerce + Marketplace).
+  Future<Cart> updateCartCustomerDetails(
+    String cartId, {
+    required String email,
+    required Address shippingAddress,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts/$cartId/customer-details',
+      data: {
+        'email': email,
+        'shipping_address': shippingAddress.toJson(),
+      },
+    );
+    return Cart.fromJson(res.data!);
+  }
+
+  Future<List<ShippingOption>> listShippingOptions(String cartId) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/carts/$cartId/shipping-options',
+    );
+    return (res.data!['shipping_options'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(ShippingOption.fromJson)
+        .toList();
+  }
+
+  Future<Cart> selectShippingMethod(String cartId, String optionId) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts/$cartId/shipping-methods',
+      data: {'option_id': optionId},
+    );
+    return Cart.fromJson(res.data!);
+  }
+
+  /// Completes the cart only after server-side shipping and simulated payment setup.
   Future<Map<String, dynamic>> completeCart(String cartId) async {
     final res =
         await _dio.post<Map<String, dynamic>>('/v1/checkouts/$cartId/complete');

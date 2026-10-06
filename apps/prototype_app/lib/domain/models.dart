@@ -307,7 +307,11 @@ class CartLineItem {
 /// A Medusa shopping cart with its line items and totals.
 class Cart {
   const Cart(
-      {required this.id, this.items = const <CartLineItem>[], this.total});
+      {required this.id,
+      this.items = const <CartLineItem>[],
+      this.subtotal,
+      this.total,
+      this.shippingTotal});
 
   factory Cart.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? const <dynamic>[])
@@ -315,29 +319,70 @@ class Cart {
         .map(CartLineItem.fromJson)
         .toList();
     final total = json['total'] as num?;
+    final subtotal = json['subtotal'] as num?;
+    final shippingTotal = json['shipping_total'] as num?;
+    final currency = json['currency_code'] as String? ?? 'INR';
     return Cart(
       id: json['id'] as String? ?? '',
       items: items,
+      subtotal: subtotal == null
+          ? null
+          : Money(amount: subtotal.toInt(), currencyCode: currency),
       total: total == null
           ? null
-          : Money(
-              amount: total.toInt(),
-              currencyCode: json['currency_code'] as String? ?? 'INR'),
+          : Money(amount: total.toInt(), currencyCode: currency),
+      shippingTotal: shippingTotal == null
+          ? null
+          : Money(amount: shippingTotal.toInt(), currencyCode: currency),
     );
   }
 
   final String id;
   final List<CartLineItem> items;
+  final Money? subtotal;
   final Money? total;
+  final Money? shippingTotal;
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'items': items.map((e) => e.toJson()).toList(),
+        'subtotal': subtotal?.amount,
         'total': total?.amount,
+        'shipping_total': shippingTotal?.amount,
         'currency_code': total?.currencyCode,
       };
+}
+
+/// An eligible seller-aware delivery option calculated by Mercur/Medusa.
+class ShippingOption {
+  const ShippingOption({
+    required this.id,
+    required this.sellerId,
+    required this.name,
+    required this.price,
+    required this.providerId,
+  });
+
+  factory ShippingOption.fromJson(Map<String, dynamic> json) {
+    return ShippingOption(
+      id: json['id'] as String? ?? '',
+      sellerId: json['seller_id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Delivery',
+      price: Money(
+        amount: (json['amount'] as num?)?.toInt() ?? 0,
+        currencyCode: json['currency_code'] as String? ?? 'INR',
+      ),
+      providerId: json['provider_id'] as String? ?? '',
+    );
+  }
+
+  final String id;
+  final String sellerId;
+  final String name;
+  final Money price;
+  final String providerId;
 }
 
 /// A shipping/billing address sent to Medusa.

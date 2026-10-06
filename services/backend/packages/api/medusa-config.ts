@@ -2,8 +2,11 @@ import { loadEnv } from '@medusajs/framework/utils'
 import { withMercur } from '@mercurjs/core'
 import fs from 'fs'
 import path from 'path'
+import { resolvePaymentRuntime } from './src/config/payment-runtime'
 
 loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+
+const paymentRuntime = resolvePaymentRuntime(process.env)
 
 // Resolves where a dashboard app lives:
 // - in the source tree (development): ../../apps/<name>
@@ -54,7 +57,7 @@ module.exports = withMercur({
         ],
       },
     },
-    {
+    ...(paymentRuntime.simulatedProviderEnabled ? [{
       resolve: '@medusajs/medusa/payment',
       options: {
         providers: [
@@ -65,7 +68,7 @@ module.exports = withMercur({
           },
         ],
       },
-    },
+    }] : []),
     {
       resolve: '@mercurjs/core/modules/admin-ui',
       options: {

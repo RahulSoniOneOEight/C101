@@ -54,11 +54,12 @@ export class NatsSubscriber {
       try {
         const payload = JSON.parse(sc.decode(msg.data)) as Record<string, unknown>;
         await handler(payload, msg.subject);
+        msg.ack();
+        count++;
       } catch (err) {
         console.warn(`[subscriber:${durable}] handler failed:`, (err as Error).message);
+        msg.nak();
       }
-      msg.ack();
-      count++;
     }
     return count;
   }

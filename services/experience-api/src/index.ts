@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { loadConfig } from "./config.js";
-import { MedusaStoreClient, type StoreOffer } from "./medusa/store-client.js";
+import {
+  MedusaStoreClient,
+  SIMULATED_PAYMENT_PROVIDER_ID,
+  type StoreOffer,
+  type StoreAddress,
+  type StorePaymentCollection,
+  type StorePaymentSession,
+} from "./medusa/store-client.js";
 import { SimulatedPaymentAdapter } from "./payment/simulated-adapter.js";
 import type { Money, SimulatorOutcome } from "./payment/types.js";
 import { TrytonClient } from "./tryton/client.js";
@@ -91,6 +98,17 @@ const problem = (status: number, title: string, detail?: string) =>
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
+}
+
+function findValidSimulatedSession(
+  paymentCollection: StorePaymentCollection,
+): StorePaymentSession | undefined {
+  return paymentCollection.payment_sessions?.find((session) =>
+    session.provider_id === SIMULATED_PAYMENT_PROVIDER_ID &&
+    session.data?.payment_mode === "simulated" &&
+    session.data?.test_data === true &&
+    session.amount === paymentCollection.amount,
+  );
 }
 
 /** Minimal read-only operator console (staging) served as a static HTML page. */
@@ -442,6 +460,95 @@ async function handle(req: Request, url: URL): Promise<Response> {
     }
   }
 
+  // POST /v1/carts/{cartId}/customer-details — attach checkout contact and delivery address.
+  const cartCustomerDetails = url.pathname.match(/^\/v1\/carts\/([^/]+)\/customer-details$/);
+  if (cartCustomerDetails && req.method === "POST") {
+    const cartId = cartCustomerDetails[1];
+    let body: { email?: string; shipping_address?: Partial<StoreAddress> };
+    try {
+      body = (await req.json()) as { email?: string; shipping_address?: Partial<StoreAddress> };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const address = body.shipping_address;
+    if (
+      !body.email?.trim() ||
+      !address?.first_name?.trim() ||
+      !address.last_name?.trim() ||
+      !address.address_1?.trim() ||
+      !address.city?.trim() ||
+      !/^\d{6}$/.test(address.postal_code ?? "") ||
+      address.country_code?.toUpperCase() !== "IN"
+    ) {
+      return problem(
+        400,
+        "invalid-customer-details",
+        "email and a complete Indian shipping address with a six-digit postcode are required.",
+      );
+    }
+    try {
+      const cart = await medusa.updateCartCustomerDetails(cartId, {
+        email: body.email.trim(),
+        shipping_address: {
+          first_name: address.first_name.trim(),
+          last_name: address.last_name.trim(),
+          address_1: address.address_1.trim(),
+          city: address.city.trim(),
+          postal_code: address.postal_code!,
+          country_code: "in",
+        },
+      });
+      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // GET /v1/carts/{cartId}/shipping-options — seller-aware eligible delivery choices.
+  const cartShippingOptions = url.pathname.match(/^\/v1\/carts\/([^/]+)\/shipping-options$/);
+  if (cartShippingOptions && req.method === "GET") {
+    try {
+      const options = await medusa.listShippingOptions(cartShippingOptions[1]);
+      options.sort((a, b) => a.amount - b.amount || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+      return json({
+        shipping_options: options.map((option) => ({
+          ...option,
+          currency_code: "INR",
+        })),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/carts/{cartId}/shipping-methods — persist the buyer's explicit seller option.
+  const cartShippingMethod = url.pathname.match(/^\/v1\/carts\/([^/]+)\/shipping-methods$/);
+  if (cartShippingMethod && req.method === "POST") {
+    const cartId = cartShippingMethod[1];
+    let body: { option_id?: string };
+    try {
+      body = (await req.json()) as { option_id?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.option_id) {
+      return problem(400, "missing-shipping-option", "option_id is required.");
+    }
+    try {
+      const eligible = await medusa.listShippingOptions(cartId);
+      if (!eligible.some((option) => option.id === body.option_id)) {
+        return problem(409, "ineligible-shipping-option", "The selected shipping option is not eligible for this cart.");
+      }
+      const cart = await medusa.addShippingMethod(cartId, body.option_id);
+      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
   // POST /v1/carts/{cartId}/lines — add a seller offer (Marketplace) to the cart
   const cartLines = url.pathname.match(/^\/v1\/carts\/([^/]+)\/lines$/);
   if (cartLines && req.method === "POST") {
@@ -498,32 +605,102 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (complete && req.method === "POST") {
     const cartId = complete[1];
     try {
-      const result = await medusa.completeCart(cartId);
-      if (result.type === "order_group") {
-        await correlation.link(cartId, { orderGroup: result.order_group?.id });
-        await events.append({
-          event_type: "order.confirmed",
-          aggregate_type: "order_group",
-          aggregate_id: result.order_group?.id ?? cartId,
-          correlation_id: cid,
-          payload: { cart_id: cartId, order_group: result.order_group },
-        });
+      return await correlation.withCheckoutLock(cartId, async () => {
+        // Mercur 2.3.4's split workflow can create a second group if invoked again after success.
+        // Stop retries here and return the first persisted canonical completion snapshot.
+        const existingCompletion = await correlation.get(cartId);
+        if (existingCompletion?.medusa_order_group_id) {
+          return json({
+            type: "order_group",
+            order_group: existingCompletion.medusa_order_group ?? {
+              id: existingCompletion.medusa_order_group_id,
+              cart_id: cartId,
+            },
+            payment: existingCompletion.payment_evidence,
+            environment: config.environment,
+            test_data: true,
+            payment_mode: config.paymentAdapterMode,
+            correlation_id: cid,
+            idempotent_replay: true,
+          });
+        }
+
+        const cart = await medusa.getCart(cartId);
+        if (!cart.completed_at) {
+          await medusa.updateCartMetadata(cartId, {
+            ...(cart.metadata ?? {}),
+            payment_mode: "simulated",
+            test_data: true,
+          });
+        }
+
+        // Medusa requires a payment collection and initialized session before completion. Reuse an
+        // amount-matched simulated session on retries so an authorization is never replaced.
+        let paymentCollection = await medusa.createPaymentCollection(cartId);
+        let paymentSession = findValidSimulatedSession(paymentCollection);
+        if (!paymentSession) {
+          paymentCollection = await medusa.createPaymentSession(
+            paymentCollection.id,
+            SIMULATED_PAYMENT_PROVIDER_ID,
+          );
+          paymentSession = findValidSimulatedSession(paymentCollection);
+        }
+        if (!paymentSession) {
+          throw new Error(
+            "Simulated payment session was not initialized with required test-only markers.",
+          );
+        }
+
+        const result = await medusa.completeCart(cartId);
+        if (result.type === "order_group") {
+          const paymentEvidence = {
+            payment_collection_id: paymentCollection.id,
+            payment_session_id: paymentSession.id,
+            provider_id: paymentSession.provider_id,
+            payment_mode: "simulated" as const,
+            test_data: true as const,
+          };
+          await correlation.link(cartId, {
+            orderGroup: result.order_group?.id,
+            orderGroupPayload: result.order_group,
+            paymentEvidence,
+          });
+          await events.appendOrderConfirmed({
+            event_type: "order.confirmed",
+            aggregate_type: "order_group",
+            aggregate_id: result.order_group?.id ?? cartId,
+            correlation_id: cid,
+            payload: {
+              cart_id: cartId,
+              order_group: result.order_group,
+              payment: paymentEvidence,
+            },
+          });
+          return json({
+            type: "order_group",
+            order_group: result.order_group,
+            payment: paymentEvidence,
+            environment: config.environment,
+            test_data: true,
+            payment_mode: config.paymentAdapterMode,
+            correlation_id: cid,
+          });
+        }
         return json({
-          type: "order_group",
-          order_group: result.order_group,
+          type: "cart",
+          cart: result.cart,
+          error: result.error,
+          payment: {
+            payment_collection_id: paymentCollection.id,
+            payment_session_id: paymentSession.id,
+            provider_id: paymentSession.provider_id,
+            payment_mode: "simulated",
+            test_data: true,
+          },
           environment: config.environment,
           test_data: true,
-          payment_mode: config.paymentAdapterMode,
           correlation_id: cid,
         });
-      }
-      return json({
-        type: "cart",
-        cart: result.cart,
-        error: result.error,
-        environment: config.environment,
-        test_data: true,
-        correlation_id: cid,
       });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);

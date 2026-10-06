@@ -35,11 +35,13 @@ import {
   createTaxRegionsWorkflow,
   linkSalesChannelsToApiKeyWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
+  updateRegionsWorkflow,
   updateStoresStep,
   updateStoresWorkflow,
 } from "@medusajs/medusa/core-flows";
 
 import { seedCatalog } from "./catalog";
+import { SIMULATED_PAYMENT_PROVIDER_ID } from "../config/payment-runtime";
 
 const updateStoreCurrencies = createWorkflow(
   "update-store-currencies",
@@ -77,6 +79,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const storeModuleService = container.resolve(Modules.STORE);
 
   const countries = ["in"];
+  const paymentProviderIds = process.env.PAYMENT_ADAPTER_MODE === "simulated"
+    ? ["pp_system_default", SIMULATED_PAYMENT_PROVIDER_ID]
+    : ["pp_system_default"];
 
   logger.info("Seeding store data...");
   const [store] = await storeModuleService.listStores();
@@ -151,7 +156,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
             name: "India",
             currency_code: "inr",
             countries: unassignedCountries,
-            payment_providers: ["pp_system_default"],
+            payment_providers: paymentProviderIds,
           },
         ],
       },
@@ -165,13 +170,21 @@ export default async function seedDemoData({ container }: ExecArgs) {
             name: "India",
             currency_code: "inr",
             countries,
-            payment_providers: ["pp_system_default"],
+            payment_providers: paymentProviderIds,
           },
         ],
       },
     });
     region = regionResult[0];
   }
+
+  // Keep an existing India region aligned with the staging payment-provider baseline too.
+  await updateRegionsWorkflow(container).run({
+    input: {
+      selector: { id: region.id },
+      update: { payment_providers: paymentProviderIds },
+    },
+  });
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
