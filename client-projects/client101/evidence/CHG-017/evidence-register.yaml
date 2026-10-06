@@ -255,16 +255,19 @@ items:
   title: Shared backend client and operations connectivity
   decisions: [D-017-02, D-017-14, D-017-18]
   required_roles: [architecture, security, operations, product]
-  status: in-progress
+  status: evidenced
   owner: RS
   evidence_refs:
   - apps/prototype_app/lib/screens/checkout_screen.dart
   - apps/prototype_app/test/checkout_canonical_flow_test.dart
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/api/checkout/route.ts
   - client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml
   - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
   - client-projects/client101/evidence/CHG-017/erp-reconciliation-connectivity.md
+  - client-projects/client101/evidence/CHG-017/web-surface.md
   - services/experience-api/src/scripts/connectivity-test.ts
-  note: App + operator surfaces consume the shared backend with visible environment/freshness/test markers (connectivity-test); the Flutter checkout cannot manufacture success (server-verified canonical order); cross-system consumers expose lag/dead-letter metrics. Only the web (Next.js B2C/B2B) surface remains — deferred Phase 6 — so this item stays in-progress.
+  note: App (Flutter) + web (Next.js) + operator (/ops, /v1/admin) surfaces consume the shared backend with visible environment/freshness/test markers; neither app nor web can manufacture success (server-verified canonical simulated order); seller/operator dashboards are the Mercur surfaces; cross-system consumers expose lag/dead-letter metrics. All listed criteria evidenced; human acceptance remains.
   acceptance_criteria:
   - App, web, seller and operator screens consume shared backend contracts.
   - No client fixture or local flag can manufacture transactional success.

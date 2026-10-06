@@ -142,7 +142,11 @@ Test/evidence scripts:
   shows success only after Experience API returns a canonical simulated order group. It no longer
   presents Razorpay/Cashfree/COD mock choices or manufactures local checkout success.
 - Seller and operator surfaces are the Mercur dashboards (already wired to `:9010`).
-- Web (Next.js B2C/B2B) is Phase 6 — not yet scaffolded.
+- Web pilot surface: `apps/web` (Next.js App Router, `:3000`) consumes the shared Experience API
+  server-side (so no CORS is needed) and shows success only after a canonical simulated order group.
+  Run `cd apps/web && npm ci && npm run dev`; set `EXPERIENCE_API_BASE_URL` (default
+  `http://localhost:9020`). The full customer/B2B web experience (accounts, B2B pricing, RFQ, cart
+  persistence) remains Phase 6.
 
 ## Event topology (D-017-15)
 
