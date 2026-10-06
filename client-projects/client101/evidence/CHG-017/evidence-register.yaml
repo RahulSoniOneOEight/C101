@@ -276,9 +276,14 @@ items:
   title: Environment routing and production-effect isolation
   decisions: [D-017-14, D-017-21, D-017-23]
   required_roles: [architecture, security, operations, integration-owners, release-authority]
-  status: planned
+  status: evidenced
   owner: RS
-  evidence_refs: []
+  evidence_refs:
+  - client-projects/client101/evidence/CHG-017/production-isolation.md
+  - services/experience-api/src/scripts/isolation-test.ts
+  - services/experience-api/src/config.ts
+  - services/backend/packages/api/src/config/payment-runtime.ts
+  note: Staging routing is local and credential-free (GET /v1/admin/environment, redacted, 404 in production); production+simulated and provider mode fail closed in both the Experience API and Medusa registration; simulated adapters are network-free; environment/test markers are visible everywhere. Human acceptance remains.
   acceptance_criteria:
   - Staging uses environment-specific endpoints, service identities and secret references.
   - Production ERP, live payments, production logistics and customer notifications are unreachable.

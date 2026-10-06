@@ -1116,6 +1116,40 @@ async function handle(req: Request, url: URL): Promise<Response> {
     });
   }
 
+  // GET /v1/admin/environment — non-secret routing + provider summary for isolation verification.
+  // Never exposed in production, and credentials are stripped (host:port only).
+  if (url.pathname === "/v1/admin/environment" && req.method === "GET") {
+    if (config.environment === "production") {
+      return problem(404, "not-found");
+    }
+    const redact = (value: string): string => {
+      try {
+        const u = new URL(value);
+        return `${u.hostname}${u.port ? `:${u.port}` : ""}`;
+      } catch {
+        return "unparsed";
+      }
+    };
+    return json({
+      environment: config.environment,
+      payment_mode: config.paymentAdapterMode,
+      routing: {
+        medusa: redact(config.medusaBaseUrl),
+        tryton: redact(config.trytonBaseUrl),
+        nats: redact(config.natsUrl),
+        experience_db: redact(config.experienceDatabaseUrl),
+      },
+      providers: {
+        payment: "simulated",
+        otp: "simulated",
+        logistics: "simulated",
+      },
+      production_release_authorized: false,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   // GET /v1/admin/orders/{orderId}/reconciliation — correlated owner-service references
   const reconciliation = url.pathname.match(/^\/v1\/admin\/orders\/([^/]+)\/reconciliation$/);
   if (reconciliation && req.method === "GET") {

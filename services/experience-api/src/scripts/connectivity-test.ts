@@ -71,7 +71,7 @@ try {
   console.log("PASS: shared-backend app + operator surfaces expose environment/freshness/test markers.");
   console.log("  app: catalogue + product detail (payment_eligibility=simulated, freshness medusa/mercur)");
   console.log("  operator: /v1/admin/* + /ops + /metrics");
-  console.log("  note: web surface deferred (Phase 6)");
+  console.log("  web: apps/web (Next.js) consumes the same shared contracts; seller = Mercur dashboard");
 } catch (error) {
   console.error("FAIL: shared-backend connectivity check failed.");
   console.error(error);
