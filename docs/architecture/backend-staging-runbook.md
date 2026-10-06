@@ -62,6 +62,7 @@ Test/evidence scripts:
 - `bun run test:erp` — Tryton stock-movement commit/release + test-clearing accounting (no bank receipt).
 - `bun run test:reconciliation` — cross-system correlation, mismatch visibility and API recovery.
 - `bun run test:connectivity` — shared app/operator surfaces + environment/freshness/test markers.
+- `bun run test:isolation` — production fail-closed, local credential-free routing, network-free simulators.
 - `bun run test:payment-flow` — payment guard, canonical simulated checkout, committed Tryton
   reservation + reconciliation, retry idempotency, test-only metadata, outbox/NATS delivery and
   Mercur allocation-consumer receipt.
@@ -131,7 +132,8 @@ Test/evidence scripts:
   best_sellers/buy_again deferred).
 - Commercial eligibility on composed product (`commercial.selected_seller`, `stock_badge`,
   `payment_eligibility`).
-- Admin: `GET /v1/admin/events`, `GET /v1/admin/collections`.
+- Admin: `GET /v1/admin/events`, `GET /v1/admin/collections`,
+  `GET /v1/admin/environment` (redacted routing + provider summary; `404` in production).
 - Parity check: `bun run src/parity-check.ts`.
 
 ## Client wiring
