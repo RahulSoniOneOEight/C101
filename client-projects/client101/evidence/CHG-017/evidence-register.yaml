@@ -222,12 +222,14 @@ items:
   title: Functional Tryton staging movement and accounting integration
   decisions: [D-017-01, D-017-08, D-017-19]
   required_roles: [architecture, erp-operations, finance-tax]
-  status: in-progress
+  status: accepted
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
+  - client-projects/client101/evidence/CHG-017/erp-reconciliation-connectivity.md
   - services/experience-api/src/scripts/payment-flow-test.ts
-  note: The canonical acceptance flow now executes real Tryton reservation commit for the ordered SKU and reconciles with `accounting_treatment=staging_test_clearing` and `bank_receipt_claimed=false`. Release/stock-movement coverage and human review remain before acceptance.
+  - services/experience-api/src/scripts/erp-movement-test.ts
+  note: Tryton executes real reservation commit (move draft -> assigned) and release (-> cancelled) as stock movements; the accounting projection is staging_test_clearing with bank_receipt_claimed=false and zero posted account.move. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06.
   acceptance_criteria:
   - Tryton executes actual staging reservation commit/release and stock movement.
   - Approved staging accounting projection uses test-clearing treatment.
@@ -236,13 +238,15 @@ items:
   title: Cross-system staging reconciliation
   decisions: [D-017-15, D-017-17, D-017-18, D-017-19]
   required_roles: [architecture, operations, marketplace, erp-operations, finance-tax]
-  status: in-progress
+  status: accepted
   owner: RS
   evidence_refs:
   - client-projects/client101/evidence/CHG-017/payment-simulation-acceptance.md
   - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
+  - client-projects/client101/evidence/CHG-017/erp-reconciliation-connectivity.md
   - services/experience-api/src/scripts/payment-flow-test.ts
-  note: The acceptance flow asserts a reconciled correlation across canonical order group, Mercur allocation and committed Tryton reservation (shared cart reference, no direct DB edits), with simulated/test markers preserved. Continuous reconciliation-tracker consumption, retry and dead-letter are evidenced. Production-effect isolation evidence and human review remain.
+  - services/experience-api/src/scripts/reconciliation-test.ts
+  note: Checkout/order/allocation/reservation share one correlation reference; a missing reservation is a visible mismatch (with recovery_actions) and is recoverable through the reserve/commit API without direct DB edits; reconciliation reflects the real Tryton move state and preserves test markers in every projection. Accepted for the bounded staging pilot by the accountable owner (RS), 2026-10-06.
   acceptance_criteria:
   - Checkout, Medusa order, Mercur allocation, Tryton reservation/movement/accounting share correlation references.
   - Mismatches are visible and recoverable without direct database edits.
@@ -258,7 +262,9 @@ items:
   - apps/prototype_app/test/checkout_canonical_flow_test.dart
   - client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml
   - client-projects/client101/evidence/CHG-017/event-consumers-operations.md
-  note: Flutter checkout consumes Experience API customer-details, seller shipping-option and canonical completion contracts; one option is required per seller and local payment mocks cannot manufacture success. A bounded staging debug APK completed the full hosted emulator journey to a canonical order group verified in PostgreSQL/NATS (see payment-simulation-acceptance.md). Cross-system consumers now run continuously with lag/dead-letter metrics. Human review plus the remaining shared-surface permission/version/freshness checks still block acceptance.
+  - client-projects/client101/evidence/CHG-017/erp-reconciliation-connectivity.md
+  - services/experience-api/src/scripts/connectivity-test.ts
+  note: App + operator surfaces consume the shared backend with visible environment/freshness/test markers (connectivity-test); the Flutter checkout cannot manufacture success (server-verified canonical order); cross-system consumers expose lag/dead-letter metrics. Only the web (Next.js B2C/B2B) surface remains — deferred Phase 6 — so this item stays in-progress.
   acceptance_criteria:
   - App, web, seller and operator screens consume shared backend contracts.
   - No client fixture or local flag can manufacture transactional success.

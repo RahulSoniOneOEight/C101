@@ -1124,7 +1124,46 @@ async function handle(req: Request, url: URL): Promise<Response> {
     const ref = await correlation.get(orderId);
     const trytonMove = ref?.tryton_move_id ?? null;
     const orderGroup = ref?.medusa_order_group_id ?? null;
-    const reconciled = Boolean(orderGroup && trytonMove);
+
+    // Reflect the real Tryton reservation/movement state rather than assuming "committed" when a
+    // move exists, so a released/expired/draft reservation is visible as a mismatch.
+    let reservationStatus: "not_started" | "reserved" | "committed" | "released" = "not_started";
+    let movementStatus = "not_started";
+    if (trytonMove) {
+      const record = await reservations.getReservation(orderId);
+      if (record?.status === "released") {
+        reservationStatus = "released";
+        movementStatus = "released";
+      } else {
+        const [move] = await tryton
+          .read("stock.move", [trytonMove], ["state"])
+          .catch(() => [] as Record<string, unknown>[]);
+        const state = String(move?.state ?? "");
+        if (state === "assigned") {
+          reservationStatus = "committed";
+          movementStatus = "staging-posted";
+        } else if (state === "cancelled") {
+          reservationStatus = "released";
+          movementStatus = "released";
+        } else {
+          reservationStatus = "reserved";
+          movementStatus = "staging-pending";
+        }
+      }
+    }
+    const reconciled = Boolean(orderGroup && reservationStatus === "committed");
+    const mismatchCodes: string[] = [];
+    if (!orderGroup) mismatchCodes.push("ORDER_OR_ALLOCATION_MISSING");
+    if (!trytonMove) mismatchCodes.push("RESERVATION_OR_ORDER_MISSING");
+    else if (reservationStatus !== "committed") mismatchCodes.push(`RESERVATION_${reservationStatus.toUpperCase()}`);
+    const recoveryActions = reconciled
+      ? []
+      : [
+          ...(orderGroup ? [] : ["complete-checkout"]),
+          ...(trytonMove
+            ? ["POST /v1/checkouts/{id}/reserve (re-reserve)"]
+            : [`POST /v1/checkouts/${orderId}/reserve`, `POST /v1/checkouts/${orderId}/commit`]),
+        ];
     return json({
       order_id: orderId,
       correlation_id: cid,
@@ -1134,13 +1173,14 @@ async function handle(req: Request, url: URL): Promise<Response> {
       checkout: { system: "commerce", entity_type: "checkout-attempt", entity_id: orderId, environment: "staging", test_data: true, status: "completed", observed_at: now },
       order: { system: "medusa", entity_type: "order", entity_id: null, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
       allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: orderGroup, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
-      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: trytonMove ? "committed" : "not_started", observed_at: now },
-      movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: trytonMove ? "staging-posted" : "not_started", observed_at: now },
+      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: reservationStatus, observed_at: now },
+      movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: movementStatus, observed_at: now },
       accounting: { system: "tryton", entity_type: "accounting-projection", entity_id: null, environment: "staging", test_data: true, status: "test-clearing-projected", observed_at: now },
       accounting_treatment: "staging_test_clearing",
       bank_receipt_claimed: false,
       reconciled,
-      mismatch_codes: reconciled ? [] : ["RESERVATION_OR_ORDER_MISSING"],
+      mismatch_codes: mismatchCodes,
+      recovery_actions: recoveryActions,
     });
   }
 

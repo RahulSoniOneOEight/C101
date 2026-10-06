@@ -15,6 +15,9 @@
     "test:payment-flow": "bun run src/scripts/payment-flow-test.ts",
     "test:payment-matrix": "bun run src/scripts/payment-outcome-matrix-test.ts",
     "test:consumers": "bun run src/scripts/consumers-test.ts",
+    "test:erp": "bun run src/scripts/erp-movement-test.ts",
+    "test:reconciliation": "bun run src/scripts/reconciliation-test.ts",
+    "test:connectivity": "bun run src/scripts/connectivity-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {
