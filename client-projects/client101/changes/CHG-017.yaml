@@ -1,5 +1,5 @@
 change_id: CHG-017
-revision: 5
+revision: 6
 request: >-
   Establish the governed contract baseline and implement the first production-shaped
   BuildKart marketplace-order vertical slice: authenticated buyer, composed product
@@ -262,7 +262,7 @@ drafting_authorization:
   - runtime implementation
   - production release
 decision_approval:
-  revision: 5
+  revision: 6
   status: all-required-decision-role-outcomes-recorded
   inherited_revision: 4
   inherited_decisions: [D-017-01, D-017-02, D-017-03, D-017-04, D-017-05, D-017-06, D-017-07, D-017-08, D-017-09, D-017-11, D-017-12, D-017-13, D-017-14, D-017-15, D-017-16, D-017-18, D-017-19, D-017-22, D-017-24]
