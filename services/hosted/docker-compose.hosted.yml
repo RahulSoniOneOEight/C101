@@ -94,6 +94,8 @@ services:
     build: ../tryton
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/tryton.env
+    volumes:
+      - /etc/buildkart/trytond.conf:/etc/tryton/trytond.conf:ro
     depends_on:
       postgres: {condition: service_healthy}
     networks: [private]
