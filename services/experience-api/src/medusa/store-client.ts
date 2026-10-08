@@ -40,11 +40,22 @@ export interface StoreOffer {
 export class MedusaStoreClient {
   constructor(private readonly config: Config) {}
 
+  /**
+   * Medusa's store API requires an explicit sales channel when the publishable key is linked to
+   * more than one (we link B2C + B2B). Reads default to the B2C channel; cart creation passes the
+   * caller's channel.
+   */
+  private channelHeaders(salesChannelId?: string): Record<string, string> {
+    const id = salesChannelId ?? this.config.medusaB2cSalesChannelId;
+    return id ? { "x-sales-channel-id": id } : {};
+  }
+
   private async getJson<T>(path: string): Promise<T> {
     const url = `${this.config.medusaBaseUrl}${path}`;
     const response = await fetch(url, {
       headers: {
         "x-publishable-api-key": this.config.medusaPublishableKey,
+        ...this.channelHeaders(),
         accept: "application/json",
       },
     });
@@ -54,12 +65,13 @@ export class MedusaStoreClient {
     return (await response.json()) as T;
   }
 
-  private async postJson<T>(path: string, body: unknown): Promise<T> {
+  private async postJson<T>(path: string, body: unknown, salesChannelId?: string): Promise<T> {
     const url = `${this.config.medusaBaseUrl}${path}`;
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "x-publishable-api-key": this.config.medusaPublishableKey,
+        ...this.channelHeaders(salesChannelId),
         "content-type": "application/json",
         accept: "application/json",
       },
@@ -78,6 +90,7 @@ export class MedusaStoreClient {
       method: "DELETE",
       headers: {
         "x-publishable-api-key": this.config.medusaPublishableKey,
+        ...this.channelHeaders(),
         accept: "application/json",
       },
     });
@@ -142,11 +155,15 @@ export class MedusaStoreClient {
     currencyCode: string,
     salesChannelId?: string,
   ): Promise<StoreCart> {
-    const data = await this.postJson<{ cart: StoreCart }>("/store/carts", {
-      region_id: regionId,
-      currency_code: currencyCode,
-      ...(salesChannelId ? { sales_channel_id: salesChannelId } : {}),
-    });
+    const data = await this.postJson<{ cart: StoreCart }>(
+      "/store/carts",
+      {
+        region_id: regionId,
+        currency_code: currencyCode,
+        ...(salesChannelId ? { sales_channel_id: salesChannelId } : {}),
+      },
+      salesChannelId,
+    );
     return data.cart;
   }
 
