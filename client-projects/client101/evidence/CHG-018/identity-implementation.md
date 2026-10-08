@@ -1,6 +1,6 @@
 # CHG-018 Identity Implementation Evidence
 
-Date: 2026-10-08  
+Date: 2026-10-08
 Scope: Configurable pilot identities, simulated OTP, Redis sessions and per-user order ownership
 
 ## Implemented

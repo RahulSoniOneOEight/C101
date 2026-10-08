@@ -1,8 +1,8 @@
 # BuildKart Hosted-Pilot Decision Pack
 
-**Change Contract:** `CHG-018`  
-**Revision:** 1  
-**Status:** Proposed — human approval required  
+**Change Contract:** `CHG-018`
+**Revision:** 1
+**Status:** Approved for bounded hosted staging
 **Target:** A bounded hosted-staging pilot for no more than 20 allowlisted Android testers
 
 ## Decision requested

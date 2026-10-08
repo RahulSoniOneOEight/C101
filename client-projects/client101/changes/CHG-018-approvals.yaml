@@ -2,7 +2,7 @@ change_id: CHG-018
 decision_pack_revision: 1
 document_ref: docs/architecture/hosted-pilot-decision-pack.md
 revision_hashes:
-  decision_pack_sha256: 5E6F46D1C68C83C0000959F5A3A3860BB4F0AA3544328CBB27D4BB9CB562DDE1
+  decision_pack_sha256: A1B8EF866C2FB414CB30021ED204D0B4FB4F549EA90BA7B25D0DE33AF6943B19
   reviewed_draft_change_contract_sha256: FCD4F1DCBBA0632C37C38EFDDC04984A11D00B5FED1C76FFB9A912F80C2DF753
   change_contract_sha256: E38E4070C9E68F8B445CC08F8A829B58786ABC8F1103D4BB342E0B8CCB645049
 status: approved-for-bounded-hosted-staging
@@ -53,7 +53,7 @@ batch_approval_records:
     bounded hosted-staging implementation only. Production effects and production release remain prohibited.
   timestamp_utc: '2026-10-08T06:07:14Z'
   revision: 1
-  document_sha256: 5E6F46D1C68C83C0000959F5A3A3860BB4F0AA3544328CBB27D4BB9CB562DDE1
+  document_sha256: A1B8EF866C2FB414CB30021ED204D0B4FB4F549EA90BA7B25D0DE33AF6943B19
   change_contract_sha256: E38E4070C9E68F8B445CC08F8A829B58786ABC8F1103D4BB342E0B8CCB645049
   decision_records:
   - decision_id: D-018-01
