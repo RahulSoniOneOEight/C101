@@ -48,6 +48,23 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
 
+## B2B vs B2C
+
+- The app's B2C and B2B shells are backed by **pilot roles** (`customer` vs `b2b_buyer` /
+  `b2b_account_admin` / `b2b_approver`) and **one shared catalogue and seller set** — sellers are
+  common to both channels.
+- `POST /v1/carts` selects the channel from an explicit `channel` in the body when supplied, else
+  from the caller's role, and echoes `channel` and `business_account_id`.
+- Medusa's store API allows only **one sales channel per publishable key**, so the B2B/B2C
+  distinction is carried as **cart metadata** (`channel`, `business_account_id`). Cart metadata
+  propagates to the canonical order, so the marketplace admin can separate B2B from B2C on real
+  orders.
+- Two Medusa sales channels exist — **B2C Storefront** and **B2B Trade Portal** (all products linked)
+  — ready for a stricter per-channel publishable-key split if that is later required.
+- B2B-specific commerce (price lists, credit, approvals, MOQ/quantity tiers) is **not yet
+  implemented** on the backend; the app's B2B procurement journeys are prototype-level. See CHG-020
+  and `docs/architecture/production-readiness-gap-assessment.md`.
+
 ## Required host files
 
 Create these root-owned files on the VPS with mode `0600`:
