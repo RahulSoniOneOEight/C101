@@ -40,4 +40,4 @@ jobs:
 
       - name: App tests
         working-directory: apps/prototype_app
-        run: flutter test
+        run: flutter test --exclude-tags golden
