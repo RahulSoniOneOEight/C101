@@ -9,7 +9,9 @@ COPY --from=bun-runtime /usr/local/bin/bun /usr/local/bin/bun
 
 WORKDIR /app
 COPY . .
-RUN npm install --frozen-lockfile
+# Install with Bun — this repo has no package-lock.json and uses bun.lock; plain `npm install`
+# resolves a fresh (and conflicting) tree. The build scripts themselves still run under Node below.
+RUN bun install --frozen-lockfile
 
 # The panels MUST be built before the API, because the API's bundle-dashboards step copies them into
 # the Medusa artifact.
