@@ -32,6 +32,8 @@ tags:
   description: Audited integration exception operations.
 - name: Content
   description: Editorial app-shell content only; never transactional eligibility or success.
+- name: Notifications
+  description: Per-user staging inbox, read state and allowlisted Android device registrations.
 security:
 - bearerAuth: []
 paths:
@@ -118,6 +120,92 @@ paths:
                     type: array
                     items: {$ref: '#/components/schemas/BusinessContext'}
         '401': {$ref: '#/components/responses/Problem'}
+  /v1/me/notifications:
+    get:
+      summary: List the authenticated pilot user's persistent notification inbox
+      tags: [Notifications]
+      operationId: listMyNotifications
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 100, default: 50}
+      responses:
+        '200':
+          description: Owner-scoped persistent inbox; every item is staging test data.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notifications, environment, test_data, correlation_id]
+                properties:
+                  notifications:
+                    type: array
+                    items: {$ref: '#/components/schemas/PilotNotification'}
+                  environment: {type: string, enum: [development, integration, staging]}
+                  test_data: {type: boolean, const: true}
+                  correlation_id: {type: string, format: uuid}
+        '401': {$ref: '#/components/responses/Problem'}
+  /v1/me/notifications/{notificationId}/read:
+    post:
+      summary: Mark one owned notification as read
+      tags: [Notifications]
+      operationId: markMyNotificationRead
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: notificationId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '204': {description: Read state persisted}
+        '401': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+  /v1/me/notifications/read-all:
+    post:
+      summary: Mark every owned notification as read
+      tags: [Notifications]
+      operationId: markAllMyNotificationsRead
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200': {description: Read state persisted}
+        '401': {$ref: '#/components/responses/Problem'}
+  /v1/me/devices:
+    post:
+      summary: Register an authenticated Android staging-FCM device
+      tags: [Notifications]
+      operationId: registerMyPilotDevice
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterPilotDeviceRequest'}
+      responses:
+        '201':
+          description: Device registration is bound to the authenticated allowlisted user.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PilotDeviceRegistration'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+  /v1/me/devices/{deviceId}:
+    delete:
+      summary: Deactivate an owned pilot device registration
+      tags: [Notifications]
+      operationId: removeMyPilotDevice
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: deviceId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '204': {description: Device registration deactivated}
+        '401': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/content/app-shell:
     get:
       summary: Get provider-neutral editorial app content
@@ -516,6 +604,28 @@ paths:
                     items: {$ref: '#/components/schemas/AdminOrderSummary'}
                   next_cursor: {type: [string, 'null']}
         '403': {$ref: '#/components/responses/Problem'}
+  /v1/admin/notifications/broadcast:
+    post:
+      summary: Trigger one governed pilot-wide staging notification template
+      tags: [Admin, Notifications]
+      operationId: triggerPilotBroadcastNotification
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_key, product_id, product_title]
+              properties:
+                template_key: {type: string, enum: [product_launch_v1, price_drop_v1]}
+                product_id: {type: string}
+                product_title: {type: string}
+      responses:
+        '202': {description: Durable staging event accepted; external FCM may still be disabled.}
+        '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
   /v1/admin/orders/{orderId}:
     get:
       summary: Get the correlated order workbench
@@ -569,6 +679,32 @@ paths:
                   items:
                     type: array
                     items: {$ref: '#/components/schemas/IntegrationException'}
+        '403': {$ref: '#/components/responses/Problem'}
+  /v1/ops/audit:
+    get:
+      summary: List immutable privileged-action audit records
+      tags: [Operations]
+      operationId: listPrivilegedAuditRecords
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 200, default: 100}
+      responses:
+        '200':
+          description: Permission-scoped staging audit records.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, environment, test_data, correlation_id]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/PrivilegedAuditRecord'}
+                  environment: {type: string, const: staging}
+                  test_data: {type: boolean, const: true}
+                  correlation_id: {type: string, format: uuid}
         '403': {$ref: '#/components/responses/Problem'}
   /v1/ops/integration-exceptions/{exceptionId}/retry:
     post:
@@ -759,6 +895,53 @@ components:
         business_account_id: {type: [string, 'null']}
         roles: {type: array, items: {type: string}}
         permissions: {type: array, items: {type: string}}
+    PilotNotification:
+      type: object
+      required: [id, user_id, template_key, title, body, read_at, test_data, created_at, audience]
+      properties:
+        id: {type: string}
+        user_id: {type: string, description: Server-owned authenticated pilot user id.}
+        template_key: {type: string, enum: [product_launch_v1, price_drop_v1, order_confirmed_v1, delivery_update_v1]}
+        title: {type: string}
+        body: {type: string}
+        deep_link: {type: [string, 'null']}
+        source_event_id: {type: [string, 'null']}
+        read_at: {type: [string, 'null'], format: date-time}
+        test_data: {type: boolean, const: true}
+        created_at: {type: string, format: date-time}
+        audience: {type: string, enum: [b2c, b2b]}
+    RegisterPilotDeviceRequest:
+      type: object
+      required: [token, platform, firebase_project_id]
+      properties:
+        token: {type: string, minLength: 20, maxLength: 4096, writeOnly: true}
+        platform: {type: string, const: android}
+        firebase_project_id: {type: string, const: buildkart-staging}
+    PilotDeviceRegistration:
+      type: object
+      required: [id, platform, firebase_project_id, test_data]
+      properties:
+        id: {type: string}
+        platform: {type: string, const: android}
+        firebase_project_id: {type: string, const: buildkart-staging}
+        test_data: {type: boolean, const: true}
+    PrivilegedAuditRecord:
+      type: object
+      required: [id, actor_user_id, actor_roles, method, path, correlation_id, status, test_data, started_at]
+      properties:
+        id: {type: string}
+        actor_user_id: {type: string}
+        actor_roles: {type: array, items: {type: string}}
+        business_account_id: {type: [string, 'null']}
+        seller_id: {type: [string, 'null']}
+        method: {type: string}
+        path: {type: string}
+        correlation_id: {type: string}
+        status: {type: string, enum: [started, succeeded, rejected, failed]}
+        response_status: {type: [integer, 'null']}
+        test_data: {type: boolean, const: true}
+        started_at: {type: string, format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
     ProductList:
       type: object
       required: [items]

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "<firebase-project-number>",
+    "project_id": "buildkart-staging",
+    "storage_bucket": "buildkart-staging.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "<firebase-android-app-id>",
+        "android_client_info": {
+          "package_name": "com.buildkart.prototype_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "<firebase-android-api-key>"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

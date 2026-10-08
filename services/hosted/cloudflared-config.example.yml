@@ -1,0 +1,11 @@
+# Copy to /etc/buildkart/cloudflared/config.yml on the VPS and replace the placeholders.
+# Keep the tunnel credential JSON outside Git at the referenced path.
+tunnel: <tunnel-uuid>
+credentials-file: /etc/cloudflared/tunnel-credentials.json
+
+ingress:
+  - hostname: api-staging.example.invalid
+    service: http://proxy:8080
+  - hostname: ops-staging.example.invalid
+    service: http://proxy:8080
+  - service: http_status:404

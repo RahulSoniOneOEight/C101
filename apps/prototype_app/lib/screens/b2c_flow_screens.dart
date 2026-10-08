@@ -186,7 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _busy = true);
     try {
       await ref.read(pilotOtpProvider.notifier).requestChallenge(identifier);
-      if (mounted) context.go('/otp');
+      if (mounted) context.go('/otp?mode=${_isB2B ? 'b2b' : 'b2c'}');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -236,16 +236,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _isB2B
                       ? 'Enter your phone to access wholesale pricing & credit.'
                       : 'Sign in to shop across 10 sellers.',
-                  style: TextStyle(fontSize: 13, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: colors.contentSecondary)),
               const SizedBox(height: AgencySpacing.lg),
               TextField(
                 controller: _identifierController,
                 decoration: InputDecoration(
-                  prefixText: 'IN +91 ',
-                  hintText: '98765 43210',
-                  helperText: _isB2B
-                      ? 'Pilot: pilot1@buildkart.test or 9000000001'
-                      : null,
+                  hintText: 'Pilot email or 10-digit phone',
+                  helperText:
+                      'Only allowlisted staging identities can sign in.',
                   filled: true,
                   fillColor: colors.surfacePage,
                   border: OutlineInputBorder(
@@ -253,35 +252,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.emailAddress,
               ),
-              if (!_isB2B) ...<Widget>[
-                const SizedBox(height: AgencySpacing.sm),
-                TextField(
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    hintText: 'Password',
-                    filled: true,
-                    fillColor: colors.surfacePage,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AgencyRadius.md),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(height: AgencySpacing.lg),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed:
-                      _isB2B ? (_busy ? null : _requestOtp) : () => context.go('/'),
+                  onPressed: _busy ? null : _requestOtp,
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.actionPrimary,
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  child: Text(
-                      _isB2B ? (_busy ? 'Sending…' : 'Get OTP') : 'Sign In'),
+                  child: Text(_busy ? 'Sending…' : 'Get OTP'),
                 ),
               ),
               if (_isB2B) ...<Widget>[
@@ -311,7 +293,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 // ---------------------------------------------------------------------------
 
 class OtpScreen extends ConsumerStatefulWidget {
-  const OtpScreen({super.key});
+  const OtpScreen({required this.isB2B, super.key});
+
+  final bool isB2B;
 
   @override
   ConsumerState<OtpScreen> createState() => _OtpScreenState();
@@ -333,7 +317,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       await ref
           .read(pilotOtpProvider.notifier)
           .verify(_codeController.text.trim());
-      if (mounted) context.go('/b2b');
+      if (mounted) context.go(widget.isB2B ? '/b2b' : '/');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -376,7 +360,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             const SizedBox(height: AgencySpacing.md),
             Center(
               child: Text('Resend code in 00:28',
-                  style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 12, color: colors.contentSecondary)),
             ),
             const SizedBox(height: AgencySpacing.lg),
             FilledButton(
@@ -625,11 +610,16 @@ class _FilterScreenState extends State<FilterScreen> {
             child: ListView(
               padding: const EdgeInsets.all(AgencySpacing.md),
               children: <Widget>[
-                _filterSection(context, 'Category',
-                    const <String>['Bathroom & plumbing', 'Tiles & plywood', 'Electrical', 'Agriculture']),
+                _filterSection(context, 'Category', const <String>[
+                  'Bathroom & plumbing',
+                  'Tiles & plywood',
+                  'Electrical',
+                  'Agriculture'
+                ]),
                 _filterSection(context, 'Price range',
                     const <String>['Under ₹500', '₹500 – ₹5,000', '₹5,000+']),
-                _filterSection(context, 'Rating', const <String>['4★ and above']),
+                _filterSection(
+                    context, 'Rating', const <String>['4★ and above']),
               ],
             ),
           ),
@@ -652,7 +642,8 @@ class _FilterScreenState extends State<FilterScreen> {
     );
   }
 
-  Widget _filterSection(BuildContext context, String title, List<String> options) {
+  Widget _filterSection(
+      BuildContext context, String title, List<String> options) {
     final colors = _c(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: AgencySpacing.lg),
@@ -725,8 +716,9 @@ class D2COrdersScreen extends ConsumerWidget {
                     .where((o) => o.stage == OrderStage.processing)
                     .toList()),
             _OrderList(
-                orders:
-                    orders.where((o) => o.stage == OrderStage.shipped).toList()),
+                orders: orders
+                    .where((o) => o.stage == OrderStage.shipped)
+                    .toList()),
             _OrderList(
                 orders: orders
                     .where((o) => o.stage == OrderStage.delivered)
@@ -761,9 +753,7 @@ class _OrderList extends StatelessWidget {
               OrderStage.delivered => PinOrderTone.success,
               OrderStage.shipped => PinOrderTone.neutral,
               OrderStage.processing => PinOrderTone.warning,
-              OrderStage.cancelled ||
-              OrderStage.returned =>
-                PinOrderTone.error,
+              OrderStage.cancelled || OrderStage.returned => PinOrderTone.error,
             },
             actions: <Widget>[
               TextButton(
@@ -1005,8 +995,8 @@ class OrderDetailScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text('${line.title}  ×${line.quantity}',
-                    style: TextStyle(
-                        fontSize: 13, color: colors.contentPrimary)),
+                    style:
+                        TextStyle(fontSize: 13, color: colors.contentPrimary)),
                 if (line.brand != null)
                   Text(line.brand!,
                       style: TextStyle(
@@ -1061,8 +1051,7 @@ class WishlistScreen extends ConsumerWidget {
     final ids = ref.watch(wishlistProvider);
     final products = ref.watch(productsProvider).value ?? const <Product>[];
     final items = <Product>[
-      for (final id in ids)
-        ...products.where((p) => p.id == id),
+      for (final id in ids) ...products.where((p) => p.id == id),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Wishlist')),
@@ -1124,14 +1113,12 @@ class _WishlistTile extends ConsumerWidget {
                   child: IconButton(
                     tooltip: 'Remove from wishlist',
                     onPressed: () {
-                      ref
-                          .read(wishlistProvider.notifier)
-                          .remove(product.id);
+                      ref.read(wishlistProvider.notifier).remove(product.id);
                       PinToast.show(context, 'Removed from wishlist',
                           tone: PinToastTone.info);
                     },
-                    icon: Icon(Icons.favorite,
-                        size: 18, color: colors.promotion),
+                    icon:
+                        Icon(Icons.favorite, size: 18, color: colors.promotion),
                   ),
                 ),
               ],
@@ -1255,13 +1242,13 @@ class OrderConfirmedScreen extends StatelessWidget {
               const SizedBox(height: AgencySpacing.sm),
               Text('Order placed successfully',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 14, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 14, color: colors.contentSecondary)),
               const SizedBox(height: AgencySpacing.xs),
               Text('Payment confirmed · GST invoice will be issued',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 12, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 12, color: colors.contentSecondary)),
               const SizedBox(height: AgencySpacing.xl),
               SizedBox(
                 width: double.infinity,

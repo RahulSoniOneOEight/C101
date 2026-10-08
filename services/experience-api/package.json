@@ -20,9 +20,13 @@
     "test:connectivity": "bun run src/scripts/connectivity-test.ts",
     "test:isolation": "bun run src/scripts/isolation-test.ts",
     "test:identity": "bun run src/scripts/identity-test.ts",
+    "test:rbac": "bun run src/scripts/rbac-test.ts",
+    "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
+    "test:notifications": "bun run src/scripts/notification-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {
+    "firebase-admin": "^14.5.0",
     "nats": "^2.29.3",
     "pg": "^8.23.1"
   },

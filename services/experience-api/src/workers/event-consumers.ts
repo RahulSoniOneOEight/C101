@@ -1,6 +1,11 @@
 import { createServer, type Server } from "node:http";
 import { loadConfig } from "../config.js";
 import { EventWorkers, type WorkerDefinition } from "../events/event-workers.js";
+import { loadPilotUsers } from "../auth/pilot-users.js";
+import { CorrelationStore } from "../store/correlation-store.js";
+import { NotificationStore } from "../store/notification-store.js";
+import { FcmGateway } from "../notifications/fcm-gateway.js";
+import { NotificationProcessor } from "../notifications/processor.js";
 
 /**
  * Continuously deployed cross-system event workers (bounded staging pilot).
@@ -18,8 +23,24 @@ import { EventWorkers, type WorkerDefinition } from "../events/event-workers.js"
 const config = loadConfig(process.env);
 const metricsPort = Number.parseInt(process.env.WORKERS_METRICS_PORT ?? "9030", 10);
 const maxDeliver = Number.parseInt(process.env.WORKER_MAX_DELIVER ?? "5", 10);
+const pilotUsers = loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount);
+const correlation = new CorrelationStore(config.experienceDatabaseUrl);
+const notifications = new NotificationStore(config.experienceDatabaseUrl);
+const fcm = config.fcmDeliveryEnabled ? new FcmGateway(config.firebaseProjectId) : null;
+const notificationProcessor = new NotificationProcessor(
+  notifications,
+  correlation,
+  pilotUsers.map((user) => user.id),
+  fcm,
+);
 
 const definitions: WorkerDefinition[] = [
+  {
+    name: "pilot-notification-dispatch",
+    subject: ">",
+    handle: async (event) => notificationProcessor.process(event),
+    onDeadLetter: async (event, error) => notificationProcessor.deadLetter(event, error),
+  },
   {
     name: "mercur-allocation",
     subject: "commerce.>",
@@ -61,6 +82,7 @@ const server: Server = createServer((req, res) => {
         status: "ok",
         environment: config.environment,
         payment_mode: config.paymentAdapterMode,
+        fcm_delivery: config.fcmDeliveryEnabled ? "enabled" : "disabled",
         consumers: workers.stats(),
       }),
     );
@@ -87,6 +109,7 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`[event-workers] ${signal} received, draining...`);
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await workers.stop();
+  await Promise.all([notifications.close(), correlation.close()]);
   process.exit(0);
 }
 process.on("SIGINT", () => void shutdown("SIGINT"));

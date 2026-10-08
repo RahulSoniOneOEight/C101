@@ -157,4 +157,12 @@ entities:
     notes:
     - FCM owns provider execution evidence; this entity stores the normalised auditable attempt.
     - Delivery failure cannot alter canonical commercial state.
+  - name: privileged-audit-record
+    canonical_owner: experience-api-staging-only
+    consumers: [operations, security]
+    projections: [privileged-action-audit-log]
+    notes:
+    - Records actor, server-owned roles and scope, route, correlation id and outcome for privileged staging mutations.
+    - An unavailable audit store blocks the privileged mutation before execution.
+    - Records are staging test data and do not authorize production actions.
 status: draft

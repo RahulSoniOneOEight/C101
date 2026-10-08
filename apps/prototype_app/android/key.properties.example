@@ -1,0 +1,6 @@
+# Copy to key.properties and keep every real value outside Git.
+# Prefer a protected absolute keystore path supplied by CI or the release host.
+storeFile=<absolute-path-to-buildkart-staging-keystore>
+storePassword=<secret>
+keyAlias=<staging-key-alias>
+keyPassword=<secret>

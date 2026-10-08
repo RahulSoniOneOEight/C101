@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 
 /// Static runtime configuration for the BuildKart storefront.
 ///
@@ -15,6 +15,11 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 class AppConfig {
   const AppConfig._();
 
+  static const String environment = String.fromEnvironment(
+    'BUILDKART_ENVIRONMENT',
+    defaultValue: 'development',
+  );
+
   /// Commerce/Marketplace backend (Medusa + Mercur), staging port 9010.
   static const String medusaBaseUrl = String.fromEnvironment(
     'MEDUSA_BASE_URL',
@@ -29,7 +34,8 @@ class AppConfig {
 
   static const String medusaPublishableKey = String.fromEnvironment(
     'MEDUSA_PUBLISHABLE_KEY',
-    defaultValue: 'pk_2e029a34f69466612ff50c36ba44e37f87dc05e99f8d291ec25096a5a2d37235',
+    defaultValue:
+        'pk_2e029a34f69466612ff50c36ba44e37f87dc05e99f8d291ec25096a5a2d37235',
   );
 
   /// Whether the storefront may fall back to the seeded demo catalog when the
@@ -39,4 +45,26 @@ class AppConfig {
   /// [kDebugMode], so it is always `false` in release/profile builds and can
   /// never silently serve demo data to production users.
   static const bool useMockData = kDebugMode;
+
+  static void validateForRelease() {
+    if (!kReleaseMode) return;
+    if (environment != 'staging') {
+      throw StateError(
+          'Release builds for this pilot must set BUILDKART_ENVIRONMENT=staging.');
+    }
+    for (final entry in <String, String>{
+      'EXPERIENCE_API_BASE_URL': experienceApiBaseUrl,
+      'MEDUSA_BASE_URL': medusaBaseUrl,
+    }.entries) {
+      final uri = Uri.tryParse(entry.value);
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host.isEmpty ||
+          uri.host == 'localhost' ||
+          uri.host == '127.0.0.1') {
+        throw StateError(
+            '${entry.key} must be a non-local HTTPS URL in release builds.');
+      }
+    }
+  }
 }

@@ -1,0 +1,89 @@
+change_id: CHG-019
+decision_pack_revision: 1
+document_ref: docs/architecture/hosted-pilot-rbac-decision-pack.md
+revision_hashes:
+  reviewed_draft_decision_pack_sha256: 65447BD33FC7F4AB706C58528FEF0F01506DEE3E5D6D5F8FCC81D934A176E2F5
+  reviewed_draft_change_contract_sha256: A77484A149AB8D09C040714E756011F141EDAE0DFCBF78E519B960F5E597C838
+  decision_pack_sha256: B45CC62289D5AA29D8AA69719E19C9EBA49FB42AC4845E271F937BCE64E5795E
+  change_contract_sha256: 6FA625CCC0F94CF4E0B0D60C55130154068AD0694E5B24E502B0461E4A7A4492
+status: approved-for-bounded-hosted-staging-rbac
+requested_at_utc: '2026-10-08T16:43:47Z'
+instructions:
+- Record one human-reviewed outcome per decision and required role; silence is not approval.
+- Approved-with-amendment must identify the replacement baseline and incorporated revision.
+- Rejected or deferred decisions block RBAC runtime implementation.
+- Approval authorizes bounded hosted-staging RBAC only and cannot authorize production release.
+- Never record full tester emails, secrets, access tokens or infrastructure credentials here.
+outcome_values: [approved, approved-with-amendment, rejected, deferred]
+decisions:
+- id: D-019-01
+  subject: server-owned-role-assignments
+  required_roles: [product, architecture, security]
+- id: D-019-02
+  subject: customer-and-business-account-isolation
+  required_roles: [product, architecture, security]
+- id: D-019-03
+  subject: seller-scope-and-separation-of-duties
+  required_roles: [architecture, security, marketplace]
+- id: D-019-04
+  subject: support-marketplace-erp-and-finance-operations
+  required_roles: [security, finance, operations, integration-owners]
+- id: D-019-05
+  subject: super-admin-and-consequential-actions
+  required_roles: [security, operations, release-authority]
+- id: D-019-06
+  subject: privileged-route-exposure-and-cloudflare-access
+  required_roles: [architecture, security, operations]
+approval_records: []
+batch_approval_records:
+- approver: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  authorization_evidence: >-
+    Accountable roles are carried from the named human authorizations recorded for CHG-017 and
+    CHG-018. The human requester explicitly selected Approve Revision 1 at the CHG-019 checkpoint.
+  evidence: >-
+    Reviewed CHG-019 Revision 1 and the hosted-pilot RBAC decision pack; approved all six decisions
+    for bounded hosted-staging RBAC only. Production permissions, effects and release remain prohibited.
+  timestamp_utc: '2026-10-08T16:46:50Z'
+  revision: 1
+  document_sha256: B45CC62289D5AA29D8AA69719E19C9EBA49FB42AC4845E271F937BCE64E5795E
+  change_contract_sha256: 6FA625CCC0F94CF4E0B0D60C55130154068AD0694E5B24E502B0461E4A7A4492
+  decision_records:
+  - decision_id: D-019-01
+    roles: [product, architecture, security]
+    outcome: approved
+  - decision_id: D-019-02
+    roles: [product, architecture, security]
+    outcome: approved
+  - decision_id: D-019-03
+    roles: [architecture, security, marketplace]
+    outcome: approved
+  - decision_id: D-019-04
+    roles: [security, finance, operations, integration-owners]
+    outcome: approved
+  - decision_id: D-019-05
+    roles: [security, operations, release-authority]
+    outcome: approved
+  - decision_id: D-019-06
+    roles: [architecture, security, operations]
+    outcome: approved
+gate_status:
+  G0-governance: approved
+  rbac-implementation: approved
+  privileged-route-exposure: blocked-pending-rbac-tests-and-cloudflare-access
+runtime_authorizations:
+- scope: bounded-hosted-staging-rbac-only
+  authorized:
+  - server-owned-role-and-scope-configuration
+  - application-route-authorization
+  - tenant-and-seller-isolation-tests
+  - privileged-action-audit-records
+  - Cloudflare-Access-policy-preparation
+  conditional_external_effects:
+  - Privileged routes may be exposed only after RBAC tests pass and Cloudflare Access is verified.
+  prohibited:
+  - production-permissions
+  - production-customer-data
+  - production-providers
+  - production-release
+production_release_authorized: false

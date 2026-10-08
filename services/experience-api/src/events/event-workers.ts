@@ -34,6 +34,8 @@ export interface WorkerDefinition {
   subject: string;
   /** Reaction performed by the owning service. Must be idempotent. */
   handle: EventHandler;
+  /** Persist consumer-specific terminal failure state before the broker message is acknowledged. */
+  onDeadLetter?: (event: Record<string, unknown>, error: string) => Promise<void>;
 }
 
 export interface WorkerStats {
@@ -159,6 +161,11 @@ export class EventWorkers {
           const deliveryCount = msg.info?.deliveryCount ?? 1;
           if (deliveryCount >= maxDeliver) {
             await this.deadLetter(runtime, msg.subject, payload, message, deliveryCount);
+            try {
+              await runtime.definition.onDeadLetter?.(payload, message);
+            } catch (deadLetterError) {
+              runtime.stats.lastError = `${message}; terminal-state update failed: ${(deadLetterError as Error).message}`;
+            }
             runtime.stats.deadLettered++;
             msg.ack();
           } else {

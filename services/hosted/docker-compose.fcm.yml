@@ -1,0 +1,7 @@
+# Apply only after the external-FCM gate is approved and experience-api.env explicitly enables FCM.
+services:
+  event-workers:
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+    volumes:
+      - /etc/buildkart/secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
