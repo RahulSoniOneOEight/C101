@@ -25,6 +25,9 @@ RUN bun install --frozen-lockfile
 # NODE_ENV=production makes bundle-dashboards enforce the base path and the backend URL instead of
 # warning and skipping.
 ENV NODE_ENV=production
+# The payment runtime guard reads BUILDKART_ENVIRONMENT before NODE_ENV. Without this the production
+# image build would refuse to load medusa-config.ts with the simulated provider. Staging only.
+ENV BUILDKART_ENVIRONMENT=staging
 ARG MERCUR_BACKEND_URL
 ENV MERCUR_BACKEND_URL=$MERCUR_BACKEND_URL
 
