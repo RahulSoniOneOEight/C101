@@ -123,14 +123,15 @@ function processSnapshot(): { cpu_percent: number; rss_mb: number; heap_used_mb:
 async function getOffersCached(
   productIds: string[],
   context: string,
+  regionId: string = config.medusaRegionId,
 ): Promise<{ offers: StoreOffer[]; cacheHit: boolean }> {
-  const key = offerCacheKey(productIds, context);
+  const key = `${offerCacheKey(productIds, context)}|${regionId}`;
   const cached = offerCache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
     offerCacheHits++;
     return { offers: cached.offers, cacheHit: true };
   }
-  const offers = await medusa.listOffersByProducts(productIds);
+  const offers = await medusa.listOffersByProducts(productIds, regionId);
   offerCache.set(key, { offers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
   offerCacheMisses++;
   return { offers, cacheHit: false };
@@ -194,6 +195,40 @@ async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promis
     return { response: problem(404, "not-found") };
   }
   return authenticated;
+}
+
+/**
+ * Resolve an optional session without failing the request. Used by read endpoints so a B2B caller
+ * can be priced against the B2B region while anonymous/B2C callers get the default region.
+ */
+async function optionalAuthorization(req: Request): Promise<PilotAuthorization | undefined> {
+  const token = bearerToken(req);
+  if (!token) return undefined;
+  try {
+    const userId = await pilotAuth.resolveSession(token);
+    return userId ? pilotAuthorizations.get(userId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isBusinessBuyer(authorization?: PilotAuthorization): boolean {
+  return Boolean(
+    authorization?.roles.some((role) =>
+      role === "b2b_buyer" || role === "b2b_account_admin" || role === "b2b_approver",
+    ),
+  );
+}
+
+/**
+ * B2B callers are priced against the B2B region, which carries the trade price list. The region is
+ * part of the pricing context, so the trade price is resolved canonically by Medusa — the same value
+ * is used for product reads, cart lines and orders.
+ */
+function regionFor(authorization?: PilotAuthorization): string {
+  return isBusinessBuyer(authorization) && config.medusaB2bRegionId
+    ? config.medusaB2bRegionId
+    : config.medusaRegionId;
 }
 
 function privilegedRoles(pathname: string): readonly PilotRole[] | null {
@@ -327,6 +362,10 @@ function composeOffers(offers: StoreOffer[]) {
       : qty !== null && qty <= 5
         ? "low_stock"
         : "in_stock";
+    const selling = o.calculated_price?.calculated_amount ?? null;
+    const list = o.calculated_price?.original_amount ?? selling;
+    const discountMinor =
+      list !== null && selling !== null && list > selling ? list - selling : 0;
     return {
       id: o.id,
       seller_id: o.seller_id,
@@ -334,7 +373,12 @@ function composeOffers(offers: StoreOffer[]) {
       variant_id: o.variant_id,
       sku: o.sku,
       currency_code: o.calculated_price?.currency_code ?? "INR",
-      unit_amount_minor: o.calculated_price?.calculated_amount ?? null,
+      unit_amount_minor: selling,
+      list_amount_minor: list,
+      selling_amount_minor: selling,
+      discount_minor: discountMinor,
+      discount_percent: discountMinor > 0 && list ? Math.round((discountMinor / list) * 100) : 0,
+      price_source: o.calculated_price?.price_list_type ? "price_list" : "list",
       inventory_quantity: qty,
       in_stock: o.in_stock ?? null,
       stock_badge: stockBadge,
@@ -770,7 +814,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const channel = wantsB2B ? "b2b" : "b2c";
     try {
       const cart = await medusa.createCart(
-        body.region_id ?? config.medusaRegionId,
+        body.region_id ?? regionFor(authenticated.authorization),
         body.currency_code ?? "inr",
       );
       // Medusa's store API allows only a single sales channel per publishable key, so B2B vs B2C is
@@ -1062,27 +1106,21 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (url.pathname === "/v1/products" && req.method === "GET") {
     const limit = Number(url.searchParams.get("limit") ?? 50);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    const authorization = await optionalAuthorization(req);
+    const regionId = regionFor(authorization);
+    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
     try {
       const t0 = performance.now();
       const products = await medusa.listProducts(limit, offset);
       const productsMs = performance.now() - t0;
 
       const productIds = products.map((p) => p.id);
-      const cacheKey = offerCacheKey(productIds, `${config.medusaRegionId}:${config.medusaCountryCode}:inr`);
-
       const t1 = performance.now();
-      const cached = offerCache.get(cacheKey);
-      let allOffers: StoreOffer[];
-      let cacheHit = false;
-      if (cached && cached.expiresAt > Date.now()) {
-        allOffers = cached.offers;
-        cacheHit = true;
-        offerCacheHits++;
-      } else {
-        allOffers = await medusa.listOffersByProducts(productIds);
-        offerCache.set(cacheKey, { offers: allOffers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
-        offerCacheMisses++;
-      }
+      const { offers: allOffers, cacheHit } = await getOffersCached(
+        productIds,
+        `${config.medusaCountryCode}:inr`,
+        regionId,
+      );
       const offersMs = performance.now() - t1;
 
       const t2 = performance.now();
@@ -1109,6 +1147,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
       return json({
         products: composed,
+        channel,
         cache_hit: cacheHit,
         timing_ms: {
           products_fetch: Math.round(productsMs * 10) / 10,
@@ -1128,15 +1167,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   const product = url.pathname.match(/^\/v1\/products\/([^/]+)$/);
   if (product && req.method === "GET") {
     const productId = product[1];
+    const authorization = await optionalAuthorization(req);
+    const regionId = regionFor(authorization);
+    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
     try {
-      const context = `${config.medusaRegionId}:${config.medusaCountryCode}:inr`;
+      const context = `${config.medusaCountryCode}:inr`;
 
       const t0 = performance.now();
       const p = await medusa.getProduct(productId);
       const productMs = performance.now() - t0;
 
       const t1 = performance.now();
-      const { offers, cacheHit } = await getOffersCached([productId], context);
+      const { offers, cacheHit } = await getOffersCached([productId], context, regionId);
       const offersMs = performance.now() - t1;
 
       const t2 = performance.now();
@@ -1150,6 +1192,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         description: p.description,
         variants: p.variants,
         offers: offerViews,
+        channel,
         cache_hit: cacheHit,
         timing_ms: {
           product_fetch: Math.round(productMs * 10) / 10,

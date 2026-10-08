@@ -29,6 +29,8 @@ export interface StoreOffer {
   seller: { id: string; name: string } | null;
   calculated_price: {
     calculated_amount: number | null;
+    original_amount?: number | null;
+    price_list_type?: string | null;
     calculated_amount_with_tax: number | null;
     calculated_amount_without_tax: number | null;
     currency_code: string;
@@ -108,12 +110,12 @@ export class MedusaStoreClient {
     return data.product;
   }
 
-  async listOffers(productId: string): Promise<StoreOffer[]> {
+  async listOffers(productId: string, regionId = this.config.medusaRegionId): Promise<StoreOffer[]> {
     // The `+` prefix adds computed fields (calculated_price, inventory) to the default fields.
     const fields = "+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams({
       product_id: productId,
-      region_id: this.config.medusaRegionId,
+      region_id: regionId,
       country_code: this.config.medusaCountryCode,
       fields,
       limit: "50",
@@ -123,14 +125,17 @@ export class MedusaStoreClient {
   }
 
   /** Bulk offers for many products in a single request (removes the N+1 pattern). */
-  async listOffersByProducts(productIds: string[]): Promise<StoreOffer[]> {
+  async listOffersByProducts(
+    productIds: string[],
+    regionId = this.config.medusaRegionId,
+  ): Promise<StoreOffer[]> {
     if (!productIds.length) return [];
     const fields = "+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams();
     for (const id of productIds) {
       params.append("product_id[]", id);
     }
-    params.set("region_id", this.config.medusaRegionId);
+    params.set("region_id", regionId);
     params.set("country_code", this.config.medusaCountryCode);
     params.set("fields", fields);
     params.set("limit", String(Math.max(200, productIds.length * 50)));
