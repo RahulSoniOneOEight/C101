@@ -103,6 +103,23 @@ It verifies: reachable health with a connected identity store and simulated paym
 operator; owner-scoped notification inbox; device registration/removal; logout revocation; and that
 the deployment still reports `production_release_authorized: false`. It fails closed on any miss.
 
+## Seed data (staging demo)
+
+Two helper scripts run against the deployed API and are safe to re-run:
+
+```sh
+# Create orders through the real checkout flow (cart -> line -> address -> shipping -> complete)
+# usage: bun seed-orders.ts <count> <customerEmail> <sellerName>
+bun services/hosted/scripts/seed-orders.ts 20 rsoni001@gmail.com "BuildMaster Supplies"
+
+# Sync offer SKUs to Tryton and create ERP reservations for the seeded carts
+bun services/hosted/scripts/populate-tryton.ts carts.json
+```
+
+`seed-orders.ts` authenticates as a pilot customer (OTP `123456`), so orders are canonical and
+allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
+`order_summary.created_at` (staging dummy data only).
+
 ## Backups
 
 Install `age`, place the backup recipient in `/etc/buildkart/backup-age-recipient`, and run
