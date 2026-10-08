@@ -47,7 +47,10 @@ const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
-const nats = new NatsPublisher(config.natsUrl);
+const nats = new NatsPublisher(config.natsUrl, {
+  user: config.natsUser,
+  password: config.natsPassword,
+});
 const pilotDirectory = new PilotUserDirectory(
   loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount),
 );

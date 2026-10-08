@@ -28,6 +28,7 @@ export class NotificationProcessor {
         title: rendered.title,
         body: rendered.body,
         deepLink: rendered.deepLink,
+        imageUrl: rendered.imageUrl,
         sourceEventId: eventId,
       });
       if (!this.fcm) continue;
@@ -43,6 +44,7 @@ export class NotificationProcessor {
             title: notification.title,
             body: notification.body,
             deepLink: notification.deep_link ?? undefined,
+            imageUrl: notification.image_url ?? undefined,
           });
           await this.notifications.deliverySent(attempt.id, providerId);
         } catch (error) {

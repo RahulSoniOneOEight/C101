@@ -22,6 +22,8 @@ if (!base) {
   console.error("FAIL: EXPERIENCE_BASE_URL is required (hosted staging endpoint).");
   process.exit(2);
 }
+// Operator checks must target the operator hostname, whose nginx policy allows privileged paths.
+const opsBase = (process.env.EXPERIENCE_OPS_BASE_URL ?? base).replace(/\/+$/, "");
 if (!/^https:\/\//.test(base) && process.env.ALLOW_INSECURE_ACCEPTANCE !== "true") {
   console.error("FAIL: hosted acceptance requires an https endpoint (set ALLOW_INSECURE_ACCEPTANCE=true for a local pre-check).");
   process.exit(2);
@@ -42,8 +44,8 @@ function record(name: string, ok: boolean, detail = ""): void {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
 }
 
-async function request(path: string, init: RequestInit = {}): Promise<{ status: number; body: Record<string, unknown> }> {
-  const response = await fetch(`${base}${path}`, init);
+async function request(path: string, init: RequestInit = {}, hostBase = base): Promise<{ status: number; body: Record<string, unknown> }> {
+  const response = await fetch(`${hostBase}${path}`, init);
   const text = await response.text();
   let body: Record<string, unknown> = {};
   try {
@@ -130,9 +132,9 @@ try {
   record("customer cannot read /v1/admin/orders", adminAsCustomer.status === 404, `status=${adminAsCustomer.status}`);
 
   // 5. Operator can read privileged surfaces.
-  const metricsAsOperator = await request("/metrics", { headers: authorization(operatorToken) });
+  const metricsAsOperator = await request("/metrics", { headers: authorization(operatorToken) }, opsBase);
   record("marketplace operator can read /metrics", metricsAsOperator.status === 200, `status=${metricsAsOperator.status}`);
-  const audit = await request("/v1/ops/audit", { headers: authorization(operatorToken) });
+  const audit = await request("/v1/ops/audit", { headers: authorization(operatorToken) }, opsBase);
   record("marketplace operator can read /v1/ops/audit", audit.status === 200, `status=${audit.status}`);
 
   // 6. Notification inbox is owner-scoped and persists.
@@ -174,7 +176,7 @@ try {
   );
 
   // 9. Production remains unauthorized on the deployment.
-  const environment = await request("/v1/admin/environment", { headers: authorization(operatorToken) });
+  const environment = await request("/v1/admin/environment", { headers: authorization(operatorToken) }, opsBase);
   record(
     "deployment reports production release unauthorized",
     environment.status !== 200 || environment.body.production_release_authorized === false,

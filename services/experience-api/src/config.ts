@@ -47,6 +47,8 @@ export interface Config {
   experienceDatabaseUrl: string;
   redisUrl: string;
   natsUrl: string;
+  natsUser?: string;
+  natsPassword?: string;
   pilotUsersJson?: string;
   pilotRoleAssignmentsJson?: string;
   pilotExpectedUserCount?: number;
@@ -68,6 +70,27 @@ function positiveInteger(raw: string | undefined, fallback: number, name: string
 
 function booleanFlag(raw: string | undefined): boolean {
   return raw?.trim().toLowerCase() === "true";
+}
+
+/**
+ * NATS credentials must not be embedded in the server URL: nats.js rejects a URL with userinfo.
+ * Split them out so the connection can be built from `servers` + `user` + `pass`.
+ */
+function parseNats(raw: string | undefined): { url: string; user?: string; password?: string } {
+  const value = raw ?? "nats://localhost:4222";
+  try {
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password) {
+      const user = decodeURIComponent(parsed.username);
+      const password = decodeURIComponent(parsed.password);
+      parsed.username = "";
+      parsed.password = "";
+      return { url: parsed.toString(), user, password };
+    }
+    return { url: value };
+  } catch {
+    return { url: value };
+  }
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -126,6 +149,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     }
   }
 
+  const nats = parseNats(env.NATS_URL);
+
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
@@ -142,7 +167,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       env.EXPERIENCE_DATABASE_URL ??
       "postgres://buildkart:buildkart@localhost:5433/buildkart_experience",
     redisUrl: env.REDIS_URL ?? "redis://localhost:6379",
-    natsUrl: env.NATS_URL ?? "nats://localhost:4222",
+    natsUrl: nats.url,
+    natsUser: nats.user,
+    natsPassword: nats.password,
     pilotUsersJson: env.PILOT_USERS_JSON,
     pilotRoleAssignmentsJson: env.PILOT_ROLE_ASSIGNMENTS_JSON,
     pilotExpectedUserCount: expectedPilotUsers,

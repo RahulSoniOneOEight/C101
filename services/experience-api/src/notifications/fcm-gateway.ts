@@ -24,18 +24,29 @@ export class FcmGateway {
     title: string;
     body: string;
     deepLink?: string;
+    imageUrl?: string;
   }): Promise<string> {
     return this.messaging.send({
       token: input.token,
-      notification: { title: input.title, body: input.body },
+      notification: {
+        title: input.title,
+        body: input.body,
+        ...(input.imageUrl ? { imageUrl: input.imageUrl } : {}),
+      },
       data: {
         notification_id: input.notificationId,
         template_key: input.templateKey,
         deep_link: input.deepLink ?? "/notifications",
+        ...(input.imageUrl ? { image_url: input.imageUrl } : {}),
         environment: "staging",
         test_data: "true",
       },
-      android: { priority: "high" },
+      android: {
+        priority: "high",
+        ...(input.imageUrl
+          ? { notification: { imageUrl: input.imageUrl, channelId: "buildkart_staging", sound: "default" } }
+          : {}),
+      },
     });
   }
 }
@@ -47,5 +58,6 @@ export function fcmErrorCode(error: unknown): string {
 
 export function isInvalidFcmToken(code: string): boolean {
   return code === "messaging/registration-token-not-registered" ||
-    code === "messaging/invalid-registration-token";
+    code === "messaging/invalid-registration-token" ||
+    code === "messaging/invalid-argument";
 }

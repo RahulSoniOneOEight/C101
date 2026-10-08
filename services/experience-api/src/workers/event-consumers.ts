@@ -70,7 +70,10 @@ const definitions: WorkerDefinition[] = [
   },
 ];
 
-const workers = new EventWorkers(config.natsUrl);
+const workers = new EventWorkers(config.natsUrl, undefined, undefined, {
+  user: config.natsUser,
+  password: config.natsPassword,
+});
 await workers.connect();
 await workers.start(definitions, { maxDeliver });
 

@@ -1,5 +1,21 @@
-# Apply only after the external-FCM gate is approved and experience-api.env explicitly enables FCM.
+name: buildkart-hosted-pilot
+
+# Enables external FCM delivery. Apply ONLY after the template wording is approved and tester consent
+# is recorded, and after the server-side Firebase Admin credential is installed on the host.
+#
+#   docker compose -f docker-compose.hosted.yml -f docker-compose.fcm.yml up -d experience-api event-workers
+#
+# The credential is mounted read-only at /run/secrets/firebase-admin.json and referenced through
+# GOOGLE_APPLICATION_CREDENTIALS. Both services get it because configuration validation requires the
+# credential whenever FCM_DELIVERY_ENABLED=true, even though only the worker sends messages.
+
 services:
+  experience-api:
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json
+    volumes:
+      - /etc/buildkart/secrets/firebase-admin.json:/run/secrets/firebase-admin.json:ro
+
   event-workers:
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-admin.json

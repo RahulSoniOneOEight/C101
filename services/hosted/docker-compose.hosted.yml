@@ -1,5 +1,10 @@
 name: buildkart-hosted-pilot
 
+# Edge: the Customer host (`PUBLIC_API_HOSTNAME`) and the Operator host (`PUBLIC_OPS_HOSTNAME`) are
+# terminated by Coolify's existing Traefik on :80/:443 (Let's Encrypt). The `proxy` service joins
+# the external `coolify` network and publishes no host ports. The optional Cloudflare Tunnel edge is
+# in docker-compose.cloudflared.yml instead. Only the proxy is reachable from outside.
+
 services:
   postgres:
     image: postgres:16.15-alpine
@@ -46,6 +51,7 @@ services:
       retries: 12
 
   medusa-migrate:
+    image: buildkart-hosted-pilot-medusa
     build: ../backend
     env_file: /etc/buildkart/secrets/medusa.env
     command: ["npm", "run", "predeploy"]
@@ -56,23 +62,26 @@ services:
     restart: "no"
 
   medusa-api:
+    image: buildkart-hosted-pilot-medusa
     build: ../backend
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/medusa.env
     environment:
       MEDUSA_WORKER_MODE: server
-      DISABLE_MEDUSA_ADMIN: "false"
+      DISABLE_MEDUSA_ADMIN: "true"
       PORT: "9010"
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
     networks: [private]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9010/health"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:9010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 20
+      start_period: 40s
 
   medusa-worker:
+    image: buildkart-hosted-pilot-medusa
     build: ../backend
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/medusa.env
@@ -88,11 +97,14 @@ services:
     build: ../tryton
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/tryton.env
+    volumes:
+      - /etc/buildkart/trytond.conf:/etc/tryton/trytond.conf:ro
     depends_on:
       postgres: {condition: service_healthy}
     networks: [private]
 
   experience-api:
+    image: buildkart-hosted-pilot-experience-api
     build: ../experience-api
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/experience-api.env
@@ -105,12 +117,14 @@ services:
       medusa-api: {condition: service_healthy}
     networks: [private]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9020/health"]
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:9020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 20
+      start_period: 20s
 
   event-workers:
+    image: buildkart-hosted-pilot-experience-api
     build: ../experience-api
     command: ["bun", "run", "start:workers"]
     restart: unless-stopped
@@ -121,6 +135,7 @@ services:
       experience-api: {condition: service_healthy}
     networks: [private, egress]
 
+  # Internal reverse proxy: host-based privilege policy + rate limiting. Public only through Traefik.
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
@@ -134,16 +149,32 @@ services:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
     depends_on:
       experience-api: {condition: service_healthy}
-    networks: [private, tunnel]
-
-  cloudflared:
-    image: cloudflare/cloudflared:2026.9.1
-    restart: unless-stopped
-    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
-    volumes:
-      - /etc/buildkart/cloudflared:/etc/cloudflared:ro
-    depends_on: [proxy]
-    networks: [tunnel]
+    networks: [private, coolify]
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "coolify"
+      traefik.http.services.buildkart-proxy.loadbalancer.server.port: "8080"
+      # Customer host
+      traefik.http.routers.buildkart-api.rule: "Host(`${PUBLIC_API_HOSTNAME}`)"
+      traefik.http.routers.buildkart-api.entrypoints: "https"
+      traefik.http.routers.buildkart-api.tls: "true"
+      traefik.http.routers.buildkart-api.tls.certresolver: "letsencrypt"
+      traefik.http.routers.buildkart-api.service: "buildkart-proxy"
+      traefik.http.routers.buildkart-api-http.rule: "Host(`${PUBLIC_API_HOSTNAME}`)"
+      traefik.http.routers.buildkart-api-http.entrypoints: "http"
+      traefik.http.routers.buildkart-api-http.middlewares: "buildkart-redirect"
+      traefik.http.routers.buildkart-api-http.service: "buildkart-proxy"
+      # Operator host
+      traefik.http.routers.buildkart-ops.rule: "Host(`${PUBLIC_OPS_HOSTNAME}`)"
+      traefik.http.routers.buildkart-ops.entrypoints: "https"
+      traefik.http.routers.buildkart-ops.tls: "true"
+      traefik.http.routers.buildkart-ops.tls.certresolver: "letsencrypt"
+      traefik.http.routers.buildkart-ops.service: "buildkart-proxy"
+      traefik.http.routers.buildkart-ops-http.rule: "Host(`${PUBLIC_OPS_HOSTNAME}`)"
+      traefik.http.routers.buildkart-ops-http.entrypoints: "http"
+      traefik.http.routers.buildkart-ops-http.middlewares: "buildkart-redirect"
+      traefik.http.routers.buildkart-ops-http.service: "buildkart-proxy"
+      traefik.http.middlewares.buildkart-redirect.redirectscheme.scheme: "https"
 
 volumes:
   postgres_data:
@@ -151,7 +182,11 @@ volumes:
   nats_data:
 
 networks:
+  # Backend services only; no route to the public internet or the host.
   private:
     internal: true
-  tunnel:
+  # Outbound-only for FCM/provider calls when enabled.
   egress:
+  # Coolify's existing Traefik network (created by Coolify).
+  coolify:
+    external: true

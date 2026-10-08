@@ -8,6 +8,7 @@ export interface NotificationRecord {
   title: string;
   body: string;
   deep_link: string | null;
+  image_url: string | null;
   source_event_id: string | null;
   read_at: string | null;
   test_data: true;
@@ -46,6 +47,7 @@ export class NotificationStore {
         title            text NOT NULL,
         body             text NOT NULL,
         deep_link        text,
+        image_url        text,
         source_event_id  text,
         read_at          timestamptz,
         test_data        boolean NOT NULL DEFAULT true CHECK (test_data = true),
@@ -53,6 +55,7 @@ export class NotificationStore {
       );
       CREATE INDEX IF NOT EXISTS pilot_notification_user_created_idx
         ON pilot_notification (user_id, created_at DESC);
+      ALTER TABLE pilot_notification ADD COLUMN IF NOT EXISTS image_url text;
       CREATE UNIQUE INDEX IF NOT EXISTS pilot_notification_event_user_uidx
         ON pilot_notification (source_event_id, user_id, template_key)
         WHERE source_event_id IS NOT NULL;
@@ -100,6 +103,7 @@ export class NotificationStore {
       title: string;
       body: string;
       deepLink?: string;
+      imageUrl?: string;
       sourceEventId: string;
     },
   ): Promise<NotificationRecord> {
@@ -107,18 +111,18 @@ export class NotificationStore {
     const id = `notification_${randomUUID()}`;
     const inserted = await this.pool.query(
       `INSERT INTO pilot_notification (
-         id, user_id, template_key, title, body, deep_link, source_event_id, test_data
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+         id, user_id, template_key, title, body, deep_link, image_url, source_event_id, test_data
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
        ON CONFLICT (source_event_id, user_id, template_key)
          WHERE source_event_id IS NOT NULL
        DO NOTHING
-       RETURNING id, user_id, template_key, title, body, deep_link, source_event_id,
+       RETURNING id, user_id, template_key, title, body, deep_link, image_url, source_event_id,
                  read_at, test_data, created_at`,
-      [id, userId, input.templateKey, input.title, input.body, input.deepLink ?? null, input.sourceEventId],
+      [id, userId, input.templateKey, input.title, input.body, input.deepLink ?? null, input.imageUrl ?? null, input.sourceEventId],
     );
     if (inserted.rows[0]) return inserted.rows[0] as NotificationRecord;
     const existing = await this.pool.query(
-      `SELECT id, user_id, template_key, title, body, deep_link, source_event_id,
+      `SELECT id, user_id, template_key, title, body, deep_link, image_url, source_event_id,
               read_at, test_data, created_at
        FROM pilot_notification
        WHERE source_event_id = $1 AND user_id = $2 AND template_key = $3`,
@@ -132,7 +136,7 @@ export class NotificationStore {
     await this.ready;
     const safeLimit = Math.max(1, Math.min(limit, 100));
     const result = await this.pool.query(
-      `SELECT id, user_id, template_key, title, body, deep_link, source_event_id,
+      `SELECT id, user_id, template_key, title, body, deep_link, image_url, source_event_id,
               read_at, test_data, created_at
        FROM pilot_notification
        WHERE user_id = $1

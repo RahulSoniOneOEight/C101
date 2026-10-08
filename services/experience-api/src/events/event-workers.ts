@@ -69,10 +69,14 @@ export class EventWorkers {
     private readonly url: string,
     private readonly dlqSubject: string = DEFAULT_DLQ_SUBJECT,
     private readonly dedupeWindow = 5000,
+    private readonly auth?: { user?: string; password?: string },
   ) {}
 
   async connect(): Promise<void> {
-    this.nc = await connect({ servers: this.url });
+    this.nc = await connect({
+      servers: this.url,
+      ...(this.auth?.user ? { user: this.auth.user, pass: this.auth.password } : {}),
+    });
     this.js = this.nc.jetstream();
     this.jsm = await this.nc.jetstreamManager();
   }

@@ -28,10 +28,16 @@ export class NatsPublisher {
   private nc: NatsConnection | null = null;
   private js: JetStreamClient | null = null;
 
-  constructor(private readonly url: string) {}
+  constructor(
+    private readonly url: string,
+    private readonly auth?: { user?: string; password?: string },
+  ) {}
 
   async connect(): Promise<void> {
-    this.nc = await connect({ servers: this.url });
+    this.nc = await connect({
+      servers: this.url,
+      ...(this.auth?.user ? { user: this.auth.user, pass: this.auth.password } : {}),
+    });
     const jsm = await this.nc.jetstreamManager();
     try {
       await jsm.streams.add({
