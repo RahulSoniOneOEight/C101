@@ -9,6 +9,7 @@ on:
       - "client-projects/client101/changes/CHG-018*.yaml"
       - "client-projects/client101/changes/CHG-019*.yaml"
       - "client-projects/client101/changes/CHG-020*.yaml"
+      - "client-projects/client101/changes/CHG-021*.yaml"
       - "client-projects/client101/evidence/CHG-017/**"
       - "client-projects/client101/evidence/CHG-018/**"
       - "tooling/validate_contracts.py"
@@ -18,10 +19,12 @@ on:
       - "tooling/validate_chg019_approvals.py"
       - "tooling/validate_chg020_approvals.py"
       - "tooling/test_chg020_validator.py"
+      - "tooling/validate_chg021_approvals.py"
       - "docs/architecture/backend-first-slice-decision-pack.md"
       - "docs/architecture/hosted-pilot-decision-pack.md"
       - "docs/architecture/hosted-pilot-rbac-decision-pack.md"
       - "docs/architecture/production-transition-decision-pack.md"
+      - "docs/architecture/hosted-pilot-edge-topology-decision-pack.md"
       - "requirements-contracts.txt"
       - ".github/workflows/contracts.yml"
   pull_request:
@@ -31,6 +34,7 @@ on:
       - "client-projects/client101/changes/CHG-018*.yaml"
       - "client-projects/client101/changes/CHG-019*.yaml"
       - "client-projects/client101/changes/CHG-020*.yaml"
+      - "client-projects/client101/changes/CHG-021*.yaml"
       - "client-projects/client101/evidence/CHG-017/**"
       - "client-projects/client101/evidence/CHG-018/**"
       - "tooling/validate_contracts.py"
@@ -40,10 +44,12 @@ on:
       - "tooling/validate_chg019_approvals.py"
       - "tooling/validate_chg020_approvals.py"
       - "tooling/test_chg020_validator.py"
+      - "tooling/validate_chg021_approvals.py"
       - "docs/architecture/backend-first-slice-decision-pack.md"
       - "docs/architecture/hosted-pilot-decision-pack.md"
       - "docs/architecture/hosted-pilot-rbac-decision-pack.md"
       - "docs/architecture/production-transition-decision-pack.md"
+      - "docs/architecture/hosted-pilot-edge-topology-decision-pack.md"
       - "requirements-contracts.txt"
       - ".github/workflows/contracts.yml"
 
@@ -70,6 +76,7 @@ jobs:
       - run: python tooling/validate_chg019_approvals.py
       - run: python tooling/validate_chg020_approvals.py
       - run: python tooling/test_chg020_validator.py
+      - run: python tooling/validate_chg021_approvals.py
       - run: npx --yes @redocly/cli@2.57.0 lint client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml
       - run: npx --yes openapi-typescript@7.10.1 client-projects/client101/contracts/openapi/buildkart-experience-v1.yaml --output $RUNNER_TEMP/buildkart-experience-v1.d.ts
       - run: npx --yes @asyncapi/cli@6.2.0 validate client-projects/client101/contracts/asyncapi/buildkart-events-v1.yaml

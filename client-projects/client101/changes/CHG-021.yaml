@@ -1,0 +1,61 @@
+change_id: CHG-021
+revision: 1
+request: >-
+  Amend the hosted staging edge topology. Staging DNS for pinakaplay.cloud is hosted on Hostinger
+  nameservers with direct A records to the VPS, so a Cloudflare Tunnel cannot serve the hostnames.
+  The hosted staging edge therefore terminates at the existing Coolify Traefik on :80/:443 with
+  Let's Encrypt certificates. Operator-surface protection relies on application RBAC (CHG-019) plus a
+  host-based privilege policy in the internal nginx; the Cloudflare Access layer from D-019-06 is
+  deferred and recorded as a hardening gap. No data store or privileged route becomes publicly
+  reachable, and production release remains unauthorized.
+type: architecture
+extends:
+- CHG-018
+- CHG-019
+affected_capabilities:
+- hosted-staging-topology
+- edge-and-ingress
+- operator-surface-protection
+affected_domains:
+- platform
+- operations
+- experience-api
+affected_surfaces:
+- platform-infrastructure
+- operations-console
+decisions:
+  D-021-01: hosted-staging-edge-is-coolify-traefik
+  D-021-02: operator-surface-protection-and-deferred-cloudflare-access
+  D-021-03: private-backend-network-unchanged
+decision_approval_roles:
+  D-021-01: [architecture, security, operations]
+  D-021-02: [security, operations]
+  D-021-03: [architecture, security]
+required_approvals:
+- architecture
+- security
+- operations
+required_tests:
+- The customer hostname returns 404 for /metrics, /ops, /v1/admin/*, /v1/ops/*, payment simulate and shipment advance.
+- The operator hostname reaches those privileged routes and application RBAC still denies unauthorized roles.
+- Traefik issues valid TLS for both hostnames.
+- No host port is published for PostgreSQL, Redis, NATS, Tryton, Medusa or the Experience API.
+- The hosted acceptance gate passes and reports production_release_authorized: false.
+constraints:
+- Staging only; production release remains prohibited.
+- The Coolify installation and its other applications are not modified.
+- The Cloudflare Tunnel remains an optional, inactive overlay.
+- Cloudflare Access for the operator hostname remains an open hardening requirement.
+- Secrets, tunnel credentials and tester data are never committed to Git.
+production_release_authorized: false
+approval_required: true
+decision_approval:
+  status: all-required-decision-role-outcomes-recorded
+  approved_by: Rahul Soni
+  authorized_roles: [architecture, security, operations]
+  approved_at_utc: '2026-10-08T18:21:16Z'
+  ledger_ref: client-projects/client101/changes/CHG-021-approvals.yaml
+  runtime_implementation_authorized: true
+  runtime_scope: bounded-hosted-staging-edge-only
+  production_release_authorized: false
+status: bounded-hosted-staging-edge-authorized

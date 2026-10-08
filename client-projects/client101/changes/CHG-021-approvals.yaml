@@ -1,0 +1,71 @@
+change_id: CHG-021
+decision_pack_revision: 1
+document_ref: docs/architecture/hosted-pilot-edge-topology-decision-pack.md
+revision_hashes:
+  reviewed_draft_decision_pack_sha256: 37E8163382E6FD41C68895A92F9F70E420FF34178FBE1A47C44F6BF592E6249E
+  reviewed_draft_change_contract_sha256: 0C125B7CB6E2180A001E03391FDD989B86500D59333400E945FC7CCFAF419742
+  decision_pack_sha256: 78BF47B5207006FDEDC8B2F3C03FE6B4B4540591A72A3A5ABF93BD5BD4F81D2F
+  change_contract_sha256: 906859EFF7C27B377E9A2469744ACA5F71882285EDD58BBB3CF2D58C1C9F6CA5
+status: approved-for-bounded-hosted-staging-edge
+requested_at_utc: '2026-10-08T18:21:16Z'
+instructions:
+- Record one human-reviewed outcome per decision and required role; silence is not approval.
+- Approval authorizes the bounded hosted staging edge only, never production release.
+- Cloudflare Access for the operator hostname remains an open hardening requirement.
+- Never record secrets, tunnel credentials or tester data here.
+outcome_values: [approved, approved-with-amendment, rejected, deferred]
+decisions:
+- id: D-021-01
+  subject: hosted-staging-edge-is-coolify-traefik
+  required_roles: [architecture, security, operations]
+- id: D-021-02
+  subject: operator-surface-protection-and-deferred-cloudflare-access
+  required_roles: [security, operations]
+- id: D-021-03
+  subject: private-backend-network-unchanged
+  required_roles: [architecture, security]
+approval_records: []
+batch_approval_records:
+- approver: Rahul Soni
+  authorized_roles: [architecture, security, operations]
+  authorization_evidence: >-
+    The human requester explicitly selected the Coolify Traefik edge over the Cloudflare Tunnel
+    option at the hosted-edge checkpoint, with the Cloudflare Access deferral stated in the option.
+  evidence: >-
+    Reviewed the hosted staging edge decision pack and approved all three decisions for the bounded
+    hosted staging edge. Production release remains prohibited.
+  timestamp_utc: '2026-10-08T18:21:16Z'
+  revision: 1
+  document_sha256: 78BF47B5207006FDEDC8B2F3C03FE6B4B4540591A72A3A5ABF93BD5BD4F81D2F
+  change_contract_sha256: 906859EFF7C27B377E9A2469744ACA5F71882285EDD58BBB3CF2D58C1C9F6CA5
+  decision_records:
+  - decision_id: D-021-01
+    roles: [architecture, security, operations]
+    outcome: approved
+  - decision_id: D-021-02
+    roles: [security, operations]
+    outcome: approved
+  - decision_id: D-021-03
+    roles: [architecture, security]
+    outcome: approved
+gate_status:
+  edge-routing: approved
+  operator-surface-protection: approved-pending-cloudflare-access
+  private-backend-network: approved
+  production-release: blocked
+runtime_authorizations:
+- scope: bounded-hosted-staging-edge-only
+  authorized:
+  - coolify-traefik-edge-routing-with-lets-encrypt
+  - internal-nginx-host-based-privilege-policy
+  - application-rbac-protection-for-the-operator-hostname
+  conditional_external_effects:
+  - Privileged-route exposure remains subject to application RBAC tests and nginx policy.
+  prohibited:
+  - production-release
+  - production-permissions
+  - production-customer-data
+  - removing-the-private-backend-network-isolation
+open_requirements:
+- Cloudflare Access or equivalent SSO+MFA for the operator hostname.
+production_release_authorized: false
