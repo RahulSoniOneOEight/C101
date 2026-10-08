@@ -1,0 +1,28 @@
+name: buildkart-hosted-pilot
+
+# Optional Cloudflare Tunnel edge.
+#
+# Use this ONLY when the zone's nameservers are on Cloudflare and the public hostnames are proxied
+# CNAMEs to the tunnel (`<tunnel-id>.cfargotunnel.com`). It requires
+# /etc/buildkart/cloudflared/config.yml and tunnel-credentials.json on the host.
+#
+# The default and currently authorised edge is Coolify's Traefik (docker-compose.hosted.yml). This
+# overlay can be applied alongside it when a Cloudflare front door (Access/WAF) is approved.
+#
+#   docker compose -f docker-compose.hosted.yml -f docker-compose.cloudflared.yml up -d
+
+services:
+  proxy:
+    networks: [private, coolify, tunnel]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - /etc/buildkart/cloudflared:/etc/cloudflared:ro
+    depends_on: [proxy]
+    networks: [tunnel]
+
+networks:
+  tunnel:
