@@ -378,7 +378,7 @@ function composeOffers(offers: StoreOffer[]) {
       selling_amount_minor: selling,
       discount_minor: discountMinor,
       discount_percent: discountMinor > 0 && list ? Math.round((discountMinor / list) * 100) : 0,
-      price_source: o.calculated_price?.price_list_type ? "price_list" : "list",
+      price_source: discountMinor > 0 ? "price_list" : "list",
       inventory_quantity: qty,
       in_stock: o.in_stock ?? null,
       stock_badge: stockBadge,
