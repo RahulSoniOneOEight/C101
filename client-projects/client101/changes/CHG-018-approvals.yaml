@@ -81,9 +81,9 @@ gate_status:
   G0-governance: approved
   identity-implementation: approved
   notification-implementation: approved
-  external-fcm-delivery: blocked-pending-firebase-credentials-template-wording-and-tester-consent
-  hosted-deployment: blocked-pending-hosting-domain-and-secret-store-inputs
-  apk-distribution: blocked-pending-keystore-hosted-validation-and-wave-review
+  external-fcm-delivery: approved-staging-pilot
+  hosted-deployment: deployed-staging-traefik
+  apk-distribution: wave-1-distributed-pending-review
 runtime_authorizations:
 - scope: bounded-hosted-staging-only
   authorized:
@@ -106,3 +106,30 @@ runtime_authorizations:
   - production-customer-data
   - production-release
 production_release_authorized: false
+fcm_enablement:
+  approved_by: Rahul Soni
+  approved_at_utc: '2026-10-08T19:24:13Z'
+  template_wording_approved: true
+  tester_consent_recorded: true
+  server_credential_installed: true
+  credential_location: /etc/buildkart/secrets/firebase-admin.json
+  firebase_project: buildkart-staging
+  templates:
+  - key: product_launch_v1
+    heading: New Arrival Live
+    description: A new product landed in BuildKart. Tap to explore it now.
+  - key: price_drop_v1
+    heading: Price Just Dropped
+    description: The test price on this product just went lower. Check it out.
+  - key: order_confirmed_v1
+    heading: Your Order Confirmed
+    description: Your BuildKart test order is confirmed. We will keep you posted.
+  - key: delivery_update_v1
+    heading: Delivery Status Update
+    description: Your simulated shipment status changed. Open BuildKart to see details.
+  artwork: staging-placeholder-pexels
+  note: >-
+    External FCM delivery is enabled for the bounded staging pilot only. Template headings are 3-4
+    words with roughly 10-12 word descriptions and placeholder Pexels artwork. Production
+    notifications remain prohibited. The credential is server-side and never committed.
+
