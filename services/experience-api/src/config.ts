@@ -40,6 +40,8 @@ export interface Config {
   medusaPublishableKey: string;
   medusaRegionId: string;
   medusaCountryCode: string;
+  medusaB2cSalesChannelId?: string;
+  medusaB2bSalesChannelId?: string;
   trytonBaseUrl: string;
   trytonDatabase: string;
   trytonUsername: string;
@@ -159,6 +161,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     medusaPublishableKey: env.MEDUSA_PUBLISHABLE_KEY ?? "",
     medusaRegionId: env.MEDUSA_REGION_ID ?? "",
     medusaCountryCode: env.MEDUSA_COUNTRY_CODE ?? "IN",
+    medusaB2cSalesChannelId: env.MEDUSA_B2C_SALES_CHANNEL_ID?.trim() || undefined,
+    medusaB2bSalesChannelId: env.MEDUSA_B2B_SALES_CHANNEL_ID?.trim() || undefined,
     trytonBaseUrl: env.TRYTON_BASE_URL ?? "http://localhost:8010",
     trytonDatabase: env.TRYTON_DATABASE ?? "buildkart_tryton",
     trytonUsername: env.TRYTON_USERNAME ?? "admin",

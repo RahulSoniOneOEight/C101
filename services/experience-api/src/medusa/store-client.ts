@@ -137,10 +137,15 @@ export class MedusaStoreClient {
     return data.products;
   }
 
-  async createCart(regionId: string, currencyCode: string): Promise<StoreCart> {
+  async createCart(
+    regionId: string,
+    currencyCode: string,
+    salesChannelId?: string,
+  ): Promise<StoreCart> {
     const data = await this.postJson<{ cart: StoreCart }>("/store/carts", {
       region_id: regionId,
       currency_code: currencyCode,
+      ...(salesChannelId ? { sales_channel_id: salesChannelId } : {}),
     });
     return data.cart;
   }

@@ -744,22 +744,47 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (url.pathname === "/v1/carts" && req.method === "POST") {
     const authenticated = await requireAnyRole(req, ["customer", "b2b_buyer", "b2b_account_admin", "b2b_approver"]);
     if ("response" in authenticated) return authenticated.response;
-    let body: { region_id?: string; currency_code?: string } = {};
+    let body: { region_id?: string; currency_code?: string; channel?: string } = {};
     try {
       const text = await req.text();
       if (text.trim()) {
-        body = JSON.parse(text) as { region_id?: string; currency_code?: string };
+        body = JSON.parse(text) as { region_id?: string; currency_code?: string; channel?: string };
       }
     } catch {
       return problem(400, "invalid-request-body", "Expected a JSON body.");
     }
+    // B2B vs B2C is an explicit sales channel, so canonical orders carry the channel and the
+    // marketplace admin can separate them. Defaults to the caller's role when not supplied.
+    const isBusinessBuyer = hasAnyRole(authenticated.authorization, [
+      "b2b_buyer",
+      "b2b_account_admin",
+      "b2b_approver",
+    ]);
+    const wantsB2B = typeof body.channel === "string" && body.channel
+      ? body.channel.toLowerCase().startsWith("b2b")
+      : isBusinessBuyer;
+    const allowedChannels = ["b2c_app", "b2c_web", "b2b_app", "b2b_web"];
+    if (typeof body.channel === "string" && body.channel && !allowedChannels.includes(body.channel)) {
+      return problem(400, "invalid-channel", `channel must be one of ${allowedChannels.join(", ")}`);
+    }
+    const salesChannelId = wantsB2B
+      ? config.medusaB2bSalesChannelId
+      : config.medusaB2cSalesChannelId;
     try {
       const cart = await medusa.createCart(
         body.region_id ?? config.medusaRegionId,
         body.currency_code ?? "inr",
+        salesChannelId,
       );
       await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid }, 201);
+      return json({
+        ...cart,
+        channel: wantsB2B ? "b2b" : "b2c",
+        business_account_id: authenticated.authorization.businessAccountId ?? null,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, 201);
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
