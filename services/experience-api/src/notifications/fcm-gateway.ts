@@ -58,5 +58,6 @@ export function fcmErrorCode(error: unknown): string {
 
 export function isInvalidFcmToken(code: string): boolean {
   return code === "messaging/registration-token-not-registered" ||
-    code === "messaging/invalid-registration-token";
+    code === "messaging/invalid-registration-token" ||
+    code === "messaging/invalid-argument";
 }
