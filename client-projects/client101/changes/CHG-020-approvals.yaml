@@ -1,0 +1,79 @@
+change_id: CHG-020
+decision_pack_revision: 1
+document_ref: docs/architecture/production-transition-decision-pack.md
+revision_hashes:
+  decision_pack_sha256: BDDB845E804B5C8CBFA891E8E8C257A3A275D5F002DDB78FECA5C7B03233CBBF
+  change_contract_sha256: DE1A8B13F788622310259EDC4226103F3664EBE979D85DC8F8BAA51D072021D8
+status: awaiting-human-review
+requested_at_utc: '2026-10-08T17:53:34Z'
+instructions:
+- Record one human-reviewed outcome per decision and required role; silence is not approval.
+- Approved-with-amendment must identify the replacement baseline and incorporated revision.
+- Rejected or deferred decisions block the corresponding production implementation.
+- Approving gates 1..11 authorizes implementation and evidence only, never production release.
+- Production release requires the separate D-020-12 decision by release-authority, executive-sponsor and security.
+- D-020-12 may only be recorded after G1-G8 and cross-cutting gates are pass for one immutable release candidate.
+- Never record secrets, credentials, tester data or personal data here.
+outcome_values: [approved, approved-with-amendment, rejected, deferred]
+decisions:
+- id: D-020-01
+  subject: production-environment-and-perimeter
+  required_roles: [product, architecture, security, operations]
+- id: D-020-02
+  subject: real-identity-otp-and-consent
+  required_roles: [product, security, legal-privacy]
+- id: D-020-03
+  subject: real-payment-provider-and-reconciliation
+  required_roles: [finance, security, integration-owners]
+- id: D-020-04
+  subject: multi-seller-cart-identity-and-allocation
+  required_roles: [product, architecture, marketplace]
+- id: D-020-05
+  subject: authoritative-inventory-and-reservation
+  required_roles: [architecture, operations, integration-owners]
+- id: D-020-06
+  subject: real-logistics-and-delivery-promise
+  required_roles: [operations, logistics, integration-owners]
+- id: D-020-07
+  subject: returns-refunds-and-settlement
+  required_roles: [finance, operations, legal-privacy]
+- id: D-020-08
+  subject: seller-operational-surfaces
+  required_roles: [marketplace, product, operations]
+- id: D-020-09
+  subject: marketplace-administration
+  required_roles: [operations, security, marketplace]
+- id: D-020-10
+  subject: security-privacy-and-assurance
+  required_roles: [security, legal-privacy, architecture]
+- id: D-020-11
+  subject: reliability-observability-backup-and-rollback
+  required_roles: [architecture, operations, security]
+- id: D-020-12
+  subject: production-release-authorization
+  required_roles: [release-authority, executive-sponsor, security]
+approval_records: []
+batch_approval_records: []
+gate_status:
+  production-environment: blocked
+  G1-identity: blocked
+  G2-cart: blocked
+  G3-order: blocked
+  G4-inventory: blocked
+  G5-logistics: blocked
+  G6-returns: blocked
+  G7-seller: blocked
+  G8-administration: blocked
+  security-privacy: blocked
+  reliability-observability: blocked
+  backup-recovery: blocked
+  accessibility: blocked
+  uat: blocked
+  rollback: blocked
+  production-release: blocked
+runtime_authorizations: []
+production_release_authorized: false
+release_authorization:
+  decision_ref: D-020-12
+  status: not-requested
+  released_candidate: null

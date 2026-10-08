@@ -22,6 +22,7 @@
     "test:identity": "bun run src/scripts/identity-test.ts",
     "test:rbac": "bun run src/scripts/rbac-test.ts",
     "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
+    "test:acceptance": "bun run src/scripts/hosted-acceptance.ts",
     "test:notifications": "bun run src/scripts/notification-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
