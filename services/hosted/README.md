@@ -65,6 +65,22 @@ Treat this as a pilot-only exposure.
   implemented** on the backend; the app's B2B procurement journeys are prototype-level. See CHG-020
   and `docs/architecture/production-readiness-gap-assessment.md`.
 
+### B2B pricing model (staging)
+
+The pricing model is in place and manageable from the admin console:
+
+- **Customer group** `B2B Trade Customers` — the B2B pilot identities (`buyer.b2b01`,
+  `buyer.b2b02`, `admin.b2b01`, `approver.b2b01`).
+- **Price list** `B2B Trade Pricing` (type `sale`, status `active`) — 52 prices at 90% of list,
+  scoped to the group through `rules.customer_group_id` (a price list is scoped to customer groups
+  via rules in this Medusa version; there is no `/price-lists/{id}/customer-groups` route).
+
+**Known gap:** the price list is **not yet applied to storefront/cart prices**. Mercur computes each
+offer's `calculated_price` from the variant/offer price set and does not surface price-list prices in
+its offer projection, so B2B buyers still see list prices. Closing this needs either Mercur pricing
+support for price lists or an Experience API-side trade-price overlay resolved from the buyer's
+customer group. Tracked as a follow-up.
+
 ## Required host files
 
 Create these root-owned files on the VPS with mode `0600`:
