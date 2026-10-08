@@ -767,19 +767,25 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (typeof body.channel === "string" && body.channel && !allowedChannels.includes(body.channel)) {
       return problem(400, "invalid-channel", `channel must be one of ${allowedChannels.join(", ")}`);
     }
-    const salesChannelId = wantsB2B
-      ? config.medusaB2bSalesChannelId
-      : config.medusaB2cSalesChannelId;
+    const channel = wantsB2B ? "b2b" : "b2c";
     try {
       const cart = await medusa.createCart(
         body.region_id ?? config.medusaRegionId,
         body.currency_code ?? "inr",
-        salesChannelId,
       );
+      // Medusa's store API allows only a single sales channel per publishable key, so B2B vs B2C is
+      // carried as cart metadata. Cart metadata propagates to the canonical order, so the
+      // marketplace admin can separate B2B from B2C on real orders.
+      const metadata: Record<string, unknown> = { ...(cart.metadata ?? {}), channel };
+      if (authenticated.authorization.businessAccountId) {
+        metadata.business_account_id = authenticated.authorization.businessAccountId;
+      }
+      await medusa.updateCartMetadata(cart.id, metadata);
       await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
       return json({
         ...cart,
-        channel: wantsB2B ? "b2b" : "b2c",
+        metadata,
+        channel,
         business_account_id: authenticated.authorization.businessAccountId ?? null,
         environment: config.environment,
         test_data: true,
