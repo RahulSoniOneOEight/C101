@@ -50,6 +50,21 @@ docker compose -f docker-compose.hosted.yml ps
 Verify health through the Tunnel, then verify that the customer hostname returns `404` for
 `/metrics`, `/ops`, `/v1/admin/*`, `/v1/ops/*`, payment simulation and shipment advancement.
 
+## Post-deploy acceptance gate
+
+Run the automated hosted acceptance checklist against the deployed staging endpoint before any
+tester wave:
+
+```sh
+cd services/experience-api
+EXPERIENCE_BASE_URL=https://api-staging.example.com bun run test:acceptance
+```
+
+It verifies: reachable health with a connected identity store and simulated payment; unknown identity
+`403`; server-owned customer context; privileged routes denied to customers and allowed to an
+operator; owner-scoped notification inbox; device registration/removal; logout revocation; and that
+the deployment still reports `production_release_authorized: false`. It fails closed on any miss.
+
 ## Backups
 
 Install `age`, place the backup recipient in `/etc/buildkart/backup-age-recipient`, and run

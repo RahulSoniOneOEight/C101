@@ -1,0 +1,127 @@
+change_id: CHG-020
+revision: 1
+request: >-
+  Establish the governed path from the bounded hosted-staging pilot to a production release. This
+  contract enumerates the production gates that must be closed, the provider and assurance
+  obligations they carry, and the separate, explicitly recorded production-release authorization.
+  Approval of an individual gate authorizes implementation and evidence only. Production release
+  requires the dedicated release-authorization decision (D-020-12) with its own accountable roles.
+  Nothing in this contract authorizes production effects until that decision is recorded and its
+  gate evidence is accepted.
+type: production-transition
+extends:
+- CHG-017
+- CHG-018
+- CHG-019
+affected_capabilities:
+- identity-and-consent
+- payment-and-reconciliation
+- cart-and-allocation
+- inventory-and-reservation
+- logistics-and-fulfilment
+- returns-and-settlement
+- seller-operations
+- marketplace-operations
+- security-and-privacy
+- reliability-and-observability
+- accessibility
+- release-management
+affected_domains:
+- identity
+- commerce
+- marketplace
+- erp
+- finance
+- logistics
+- operations
+- experience-api
+- platform
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- seller-portal
+- commerce-admin
+- operations-console
+- platform-infrastructure
+affected_entities:
+- production-identity
+- production-payment
+- production-shipment
+- production-return
+- production-seller-account
+- production-audit-record
+- release-candidate
+decisions:
+  D-020-01: production-environment-and-perimeter
+  D-020-02: real-identity-otp-and-consent
+  D-020-03: real-payment-provider-and-reconciliation
+  D-020-04: multi-seller-cart-identity-and-allocation
+  D-020-05: authoritative-inventory-and-reservation
+  D-020-06: real-logistics-and-delivery-promise
+  D-020-07: returns-refunds-and-settlement
+  D-020-08: seller-operational-surfaces
+  D-020-09: marketplace-administration
+  D-020-10: security-privacy-and-assurance
+  D-020-11: reliability-observability-backup-and-rollback
+  D-020-12: production-release-authorization
+decision_approval_roles:
+  D-020-01: [product, architecture, security, operations]
+  D-020-02: [product, security, legal-privacy]
+  D-020-03: [finance, security, integration-owners]
+  D-020-04: [product, architecture, marketplace]
+  D-020-05: [architecture, operations, integration-owners]
+  D-020-06: [operations, logistics, integration-owners]
+  D-020-07: [finance, operations, legal-privacy]
+  D-020-08: [marketplace, product, operations]
+  D-020-09: [operations, security, marketplace]
+  D-020-10: [security, legal-privacy, architecture]
+  D-020-11: [architecture, operations, security]
+  D-020-12: [release-authority, executive-sponsor, security]
+required_approvals:
+- product
+- architecture
+- security
+- marketplace
+- finance
+- operations
+- logistics
+- integration-owners
+- legal-privacy
+- release-authority
+- executive-sponsor
+required_tests:
+- Every G1-G8 gate has linked, accepted evidence for an immutable release candidate.
+- No simulated provider (payment, OTP, logistics, notifications) is reachable in production mode.
+- Production configuration rejects development/staging simulation and demo endpoints.
+- Cross-tenant and cross-seller isolation holds under production identities.
+- Payment, refund and settlement reconciliations pass against the production provider.
+- Inventory cannot oversell against the authoritative projection under concurrent load.
+- Signed provider webhooks are verified, deduplicated and replayed safely.
+- Backups restore to approved RPO/RTO on the production topology.
+- Rollback or forward-fix is demonstrated without canonical data loss.
+- Customer, seller and admin critical paths meet WCAG 2.2 AA.
+- Named UAT approvers sign the exact release candidate.
+constraints:
+- staging remains the only authorized runtime until D-020-12 is recorded and accepted.
+- Simulated payment, shared test OTP and simulated logistics are prohibited in production.
+- Production customer data, providers and release remain unauthorized until their gate decisions pass.
+- Production secrets, keystores and credentials are never committed to Git or recorded in chat.
+- Numeric RPO/RTO, SLO and performance targets require explicit human approval.
+- No role, and no agent, may self-authorize production release.
+- This contract does not modify canonical entity ownership.
+production_release_authorized: false
+approval_required: true
+decision_approval:
+  status: awaiting-human-review
+  approved_by: null
+  approved_at_utc: null
+  ledger_ref: client-projects/client101/changes/CHG-020-approvals.yaml
+  runtime_implementation_authorized: false
+  runtime_scope: production-transition-gated
+  production_release_authorized: false
+release_authorization:
+  decision_ref: D-020-12
+  required_roles: [release-authority, executive-sponsor, security]
+  status: not-requested
+  released_candidate: null
+status: proposed-awaiting-human-approval
