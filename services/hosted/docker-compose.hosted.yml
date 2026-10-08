@@ -52,7 +52,10 @@ services:
 
   medusa-migrate:
     image: buildkart-hosted-pilot-medusa
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        MERCUR_BACKEND_URL: ${MERCUR_BACKEND_URL:?set MERCUR_BACKEND_URL}
     env_file: /etc/buildkart/secrets/medusa.env
     command: ["npm", "run", "predeploy"]
     depends_on:
@@ -63,7 +66,10 @@ services:
 
   medusa-api:
     image: buildkart-hosted-pilot-medusa
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        MERCUR_BACKEND_URL: ${MERCUR_BACKEND_URL:?set MERCUR_BACKEND_URL}
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/medusa.env
     environment:
@@ -82,7 +88,10 @@ services:
 
   medusa-worker:
     image: buildkart-hosted-pilot-medusa
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        MERCUR_BACKEND_URL: ${MERCUR_BACKEND_URL:?set MERCUR_BACKEND_URL}
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/medusa.env
     environment:
@@ -142,9 +151,10 @@ services:
     command:
       - /bin/sh
       - -c
-      - envsubst '$$PUBLIC_API_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
+      - envsubst '$$PUBLIC_API_HOSTNAME $$PUBLIC_OPS_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
     environment:
       PUBLIC_API_HOSTNAME: ${PUBLIC_API_HOSTNAME:?set PUBLIC_API_HOSTNAME}
+      PUBLIC_OPS_HOSTNAME: ${PUBLIC_OPS_HOSTNAME:?set PUBLIC_OPS_HOSTNAME}
     volumes:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
     depends_on:

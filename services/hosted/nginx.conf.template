@@ -13,6 +13,7 @@ http {
   limit_req_zone $binary_remote_addr zone=pilot_api:10m rate=10r/s;
 
   upstream experience_api { server experience-api:9020; }
+  upstream medusa_api { server medusa-api:9010; }
 
   server {
     listen 8080 default_server;
@@ -27,6 +28,13 @@ http {
 
     location = /health {
       proxy_pass http://experience_api/health;
+    }
+
+    # MVP admin/operator surfaces (Mercur admin + vendor panels and the Medusa admin/auth/vendor APIs).
+    # Reachable ONLY on the operator hostname; the customer hostname 404s them.
+    location ~ ^/(dashboard|seller|vendor|admin|auth|static|uploads)(/|$) {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://medusa_api;
     }
 
     # The public customer hostname can never reach operator/admin/metrics or simulation controls.
