@@ -20,6 +20,34 @@ moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
 `docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
 the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
 
+## Operator / admin console
+
+The operator hostname also serves the Mercur **admin** and **vendor** dashboards and the Medusa
+admin/auth APIs, routed by nginx to `medusa-api`:
+
+| Path | Surface |
+|---|---|
+| `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
+| `/seller/` | Mercur vendor (seller) dashboard |
+| `/admin/*`, `/auth/*`, `/vendor/*`, `/static/*` | Medusa admin/auth/vendor APIs and uploads |
+
+The customer hostname returns `404` for all of these. The dashboards are bundled into the backend
+image at build time with the correct asset base — see `services/backend/Dockerfile`: the panels are
+built with **npm/Node**, not turbo, because turbo runs scripts under Bun and the Mercur dashboard SDK
+loads `medusa-config.ts` via `esbuild-register` + `require`, which Bun rejects (that made the panels
+fall back to base `/` and 404 their assets).
+
+The admin account is created on the host with the bundled Medusa CLI and stored at
+`/etc/buildkart/secrets/admin-console.txt`:
+
+```sh
+docker compose -f docker-compose.hosted.yml exec -T medusa-api \
+  /app/packages/api/node_modules/.bin/medusa user -e admin@buildkart.test -p '<password>'
+```
+
+Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
+Treat this as a pilot-only exposure.
+
 ## Required host files
 
 Create these root-owned files on the VPS with mode `0600`:
