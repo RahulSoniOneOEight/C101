@@ -3,6 +3,11 @@ client_id: client101
 change_contract: CHG-017
 change_contract_revision: 5
 governance_status: decision-approvals-recorded-evidence-conditions-pending
+governed_amendments:
+- change_contract: CHG-018
+  revision: 1
+  status: bounded-hosted-staging-authorized
+  scope: pilot-identity-session-notification-and-delivery-projections
 entities:
   - name: order
     canonical_owner: commerce
@@ -118,4 +123,38 @@ entities:
     consumers: [erp, analytics]
     projections: [erp-payout-reconciliation]
     notes: []
+  - name: pilot-identity
+    canonical_owner: experience-api-staging-only
+    consumers: [customer-apps, operations]
+    projections: [authenticated-pilot-user]
+    notes:
+    - Limited to no more than 20 configured testers and synthetic/test data under CHG-018.
+    - This staging register is not a production identity provider or production customer record.
+  - name: identity-session
+    canonical_owner: experience-api-staging-only
+    consumers: [customer-apps]
+    projections: [authenticated-request-context]
+    notes:
+    - Challenges and sessions are Redis-backed, expiring and revocable across API replicas.
+    - The shared OTP is simulated and prohibited in production.
+  - name: notification
+    canonical_owner: experience-api
+    consumers: [customer-apps, notification-integration, operations]
+    projections: [per-user-notification-inbox]
+    notes:
+    - Notifications project canonical domain events and never modify canonical order success.
+    - Every hosted-pilot notification remains test_data=true.
+  - name: device-registration
+    canonical_owner: experience-api
+    consumers: [notification-integration]
+    projections: [staging-fcm-target]
+    notes:
+    - Registrations are scoped to an authenticated allowlisted pilot user and staging Firebase project.
+  - name: push-delivery-attempt
+    canonical_owner: experience-api-notification-integration
+    consumers: [operations]
+    projections: [notification-delivery-status]
+    notes:
+    - FCM owns provider execution evidence; this entity stores the normalised auditable attempt.
+    - Delivery failure cannot alter canonical commercial state.
 status: draft

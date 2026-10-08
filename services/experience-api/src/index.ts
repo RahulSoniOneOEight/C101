@@ -19,8 +19,12 @@ import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
-import { findPilotUser, pilotUsers } from "./auth/pilot-users.js";
-import { issueChallenge, verifyChallenge } from "./auth/dummy-otp.js";
+import {
+  loadPilotUsers,
+  PilotUserDirectory,
+  type PilotUser,
+} from "./auth/pilot-users.js";
+import { PilotAuthStore } from "./auth/dummy-otp.js";
 import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
 
 const config = loadConfig(process.env);
@@ -34,6 +38,15 @@ const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const nats = new NatsPublisher(config.natsUrl);
+const pilotDirectory = new PilotUserDirectory(
+  loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount),
+);
+const pilotAuth = new PilotAuthStore(
+  config.redisUrl,
+  config.pilotOtpCode,
+  config.pilotChallengeTtlSeconds,
+  config.pilotSessionTtlSeconds,
+);
 
 // Outbox → NATS drain: publish unpublished cross-system domain events, then mark them published.
 async function drainOutbox(): Promise<void> {
@@ -112,7 +125,7 @@ const json = (body: unknown, status = 200) =>
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
-      "access-control-allow-headers": "content-type, idempotency-key, x-correlation-id",
+      "access-control-allow-headers": "authorization, content-type, idempotency-key, x-correlation-id",
       "access-control-allow-methods": "GET, POST, OPTIONS",
     },
   });
@@ -122,6 +135,44 @@ const problem = (status: number, title: string, detail?: string) =>
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
+}
+
+function bearerToken(req: Request): string | null {
+  const value = req.headers.get("authorization")?.trim();
+  if (!value) return null;
+  const match = value.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
+}
+
+type AuthenticationResult = { user: PilotUser; token: string } | { response: Response };
+
+async function authenticate(req: Request): Promise<AuthenticationResult> {
+  const token = bearerToken(req);
+  if (!token) {
+    return { response: problem(401, "authentication-required", "A pilot bearer session is required.") };
+  }
+  try {
+    const userId = await pilotAuth.resolveSession(token);
+    const user = userId ? pilotDirectory.get(userId) : undefined;
+    if (!user) {
+      return { response: problem(401, "invalid-session", "The pilot session is invalid or expired.") };
+    }
+    return { user, token };
+  } catch (error) {
+    console.warn("[experience-api] pilot session lookup failed:", (error as Error).message);
+    return { response: problem(503, "identity-store-unavailable", "Pilot sessions are temporarily unavailable.") };
+  }
+}
+
+async function authorizeCheckoutOwner(req: Request, checkoutRef: string): Promise<AuthenticationResult> {
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  const record = await correlation.get(checkoutRef);
+  if (!record || record.owner_user_id !== authenticated.user.id) {
+    // Use 404 so one pilot user cannot use this endpoint to enumerate another user's references.
+    return { response: problem(404, "checkout-not-found", "No checkout was found for this user.") };
+  }
+  return authenticated;
 }
 
 function findValidSimulatedSession(
@@ -234,7 +285,14 @@ function composeOffers(offers: StoreOffer[]) {
 
 async function handle(req: Request, url: URL): Promise<Response> {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*" } });
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "authorization, content-type, idempotency-key, x-correlation-id",
+        "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+      },
+    });
   }
 
   const cid = correlationId(req);
@@ -246,14 +304,17 @@ async function handle(req: Request, url: URL): Promise<Response> {
   }
 
   if (url.pathname === "/health") {
+    const identityStore = await pilotAuth.ping().then(() => "connected" as const).catch(() => "unavailable" as const);
     return json({
-      status: "ok",
+      status: identityStore === "connected" ? "ok" : "degraded",
       environment: config.environment,
       payment_mode: config.paymentAdapterMode,
       nats: nats.connected ? "connected" : "disconnected",
+      identity_store: identityStore,
+      pilot_user_count: pilotDirectory.users.length,
       test_data: config.environment !== "production",
       correlation_id: cid,
-    });
+    }, identityStore === "connected" ? 200 : 503);
   }
 
   // GET /metrics — Prometheus-style resource + operational telemetry (process, pg pools,
@@ -303,17 +364,22 @@ async function handle(req: Request, url: URL): Promise<Response> {
     if (!body.identifier) {
       return problem(400, "missing-identifier", "identifier (email or phone) is required.");
     }
-    const user = findPilotUser(body.identifier);
+    const user = pilotDirectory.find(body.identifier);
     if (!user) {
       return problem(403, "not-pilot-user", "This identity is not allowlisted for the pilot.");
     }
-    const challenge = issueChallenge(user.id);
-    return json({
-      ...challenge,
-      environment: config.environment,
-      test_data: true,
-      correlation_id: cid,
-    }, 201);
+    try {
+      const challenge = await pilotAuth.issueChallenge(user.id);
+      return json({
+        ...challenge,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, 201);
+    } catch (error) {
+      console.warn("[experience-api] pilot challenge persistence failed:", (error as Error).message);
+      return problem(503, "identity-store-unavailable", "Pilot authentication is temporarily unavailable.");
+    }
   }
 
   // POST /v1/auth/otp/verify — verify the simulated OTP and return a pilot session
@@ -327,18 +393,36 @@ async function handle(req: Request, url: URL): Promise<Response> {
     if (!body.challenge_id || !body.code) {
       return problem(400, "missing-fields", "challenge_id and code are required.");
     }
-    const verified = verifyChallenge(body.challenge_id, body.code);
-    if (!verified) {
-      return problem(401, "invalid-otp", "Invalid or expired OTP.");
+    try {
+      const verified = await pilotAuth.verifyChallenge(body.challenge_id, body.code);
+      if (!verified) {
+        return problem(401, "invalid-otp", "Invalid or expired OTP.");
+      }
+      const user = pilotDirectory.get(verified.user_id);
+      if (!user) {
+        await pilotAuth.revokeSession(verified.session_token);
+        return problem(401, "invalid-otp", "The pilot identity is no longer allowlisted.");
+      }
+      return json({
+        session_token: verified.session_token,
+        expires_in_seconds: verified.expires_in_seconds,
+        user,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      console.warn("[experience-api] pilot verification failed:", (error as Error).message);
+      return problem(503, "identity-store-unavailable", "Pilot authentication is temporarily unavailable.");
     }
-    const user = pilotUsers.find((u) => u.id === verified.user_id);
-    return json({
-      session_token: verified.session_token,
-      user,
-      environment: config.environment,
-      test_data: true,
-      correlation_id: cid,
-    });
+  }
+
+  // POST /v1/auth/logout — revoke the current Redis-backed session.
+  if (url.pathname === "/v1/auth/logout" && req.method === "POST") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    await pilotAuth.revokeSession(authenticated.token);
+    return new Response(null, { status: 204 });
   }
 
   // GET /v1/logistics/serviceability?postcode=... — simulated delivery serviceability (Step 3)
@@ -381,6 +465,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
 
   // GET /v1/notifications — dummy notification feed derived from domain events (Step 4)
   if (url.pathname === "/v1/notifications" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
     const items = await events.list(undefined, undefined, 20);
     const messages: Record<string, string> = {
       "order.confirmed": "Your order was confirmed.",
@@ -389,8 +475,19 @@ async function handle(req: Request, url: URL): Promise<Response> {
       "inventory.reservation_released": "Inventory reservation released.",
       "shipment.status_changed": "Your shipment status changed.",
     };
+    const ownedItems = [];
+    for (const event of items) {
+      const payloadCartId = typeof event.payload?.cart_id === "string" ? event.payload.cart_id : null;
+      const checkoutRef = payloadCartId ??
+        (event.aggregate_type === "checkout" || event.aggregate_type === "order_group"
+          ? event.aggregate_id
+          : null);
+      if (!checkoutRef) continue;
+      const record = await correlation.get(checkoutRef);
+      if (record?.owner_user_id === authenticated.user.id) ownedItems.push(event);
+    }
     return json({
-      notifications: items.map((e) => ({
+      notifications: ownedItems.map((e) => ({
         id: e.id,
         event_type: e.event_type,
         message: messages[e.event_type] ?? e.event_type,
@@ -500,6 +597,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
 
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
   if (url.pathname === "/v1/carts" && req.method === "POST") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
     let body: { region_id?: string; currency_code?: string } = {};
     try {
       const text = await req.text();
@@ -514,6 +613,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
         body.region_id ?? config.medusaRegionId,
         body.currency_code ?? "inr",
       );
+      await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
       return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid }, 201);
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
@@ -524,6 +624,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const cartCustomerDetails = url.pathname.match(/^\/v1\/carts\/([^/]+)\/customer-details$/);
   if (cartCustomerDetails && req.method === "POST") {
     const cartId = cartCustomerDetails[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
     let body: { email?: string; shipping_address?: Partial<StoreAddress> };
     try {
       body = (await req.json()) as { email?: string; shipping_address?: Partial<StoreAddress> };
@@ -546,6 +648,9 @@ async function handle(req: Request, url: URL): Promise<Response> {
         "email and a complete Indian shipping address with a six-digit postcode are required.",
       );
     }
+    if (body.email.trim().toLowerCase() !== authenticated.user.email.toLowerCase()) {
+      return problem(403, "identity-mismatch", "Checkout email must match the authenticated pilot user.");
+    }
     try {
       const cart = await medusa.updateCartCustomerDetails(cartId, {
         email: body.email.trim(),
@@ -567,6 +672,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   // GET /v1/carts/{cartId}/shipping-options — seller-aware eligible delivery choices.
   const cartShippingOptions = url.pathname.match(/^\/v1\/carts\/([^/]+)\/shipping-options$/);
   if (cartShippingOptions && req.method === "GET") {
+    const authenticated = await authorizeCheckoutOwner(req, cartShippingOptions[1]);
+    if ("response" in authenticated) return authenticated.response;
     try {
       const options = await medusa.listShippingOptions(cartShippingOptions[1]);
       options.sort((a, b) => a.amount - b.amount || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
@@ -588,6 +695,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const cartShippingMethod = url.pathname.match(/^\/v1\/carts\/([^/]+)\/shipping-methods$/);
   if (cartShippingMethod && req.method === "POST") {
     const cartId = cartShippingMethod[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
     let body: { option_id?: string };
     try {
       body = (await req.json()) as { option_id?: string };
@@ -613,6 +722,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const cartLines = url.pathname.match(/^\/v1\/carts\/([^/]+)\/lines$/);
   if (cartLines && req.method === "POST") {
     const cartId = cartLines[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
     let body: { offer_id?: string; quantity?: number };
     try {
       body = (await req.json()) as { offer_id?: string; quantity?: number };
@@ -636,6 +747,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (cartLineItem && (req.method === "POST" || req.method === "DELETE")) {
     const cartId = cartLineItem[1];
     const lineId = cartLineItem[2];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
     try {
       let cart;
       if (req.method === "DELETE") {
@@ -664,6 +777,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const complete = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/complete$/);
   if (complete && req.method === "POST") {
     const cartId = complete[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
     try {
       return await correlation.withCheckoutLock(cartId, async () => {
         // Mercur 2.3.4's split workflow can create a second group if invoked again after success.
@@ -1137,6 +1252,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
         medusa: redact(config.medusaBaseUrl),
         tryton: redact(config.trytonBaseUrl),
         nats: redact(config.natsUrl),
+        redis: redact(config.redisUrl),
         experience_db: redact(config.experienceDatabaseUrl),
       },
       providers: {
@@ -1144,6 +1260,7 @@ async function handle(req: Request, url: URL): Promise<Response> {
         otp: "simulated",
         logistics: "simulated",
       },
+      pilot_user_count: pilotDirectory.users.length,
       production_release_authorized: false,
       test_data: true,
       correlation_id: cid,
@@ -1240,6 +1357,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const customerOrder = url.pathname.match(/^\/v1\/orders\/([^/]+)$/);
   if (customerOrder && req.method === "GET") {
     const orderId = customerOrder[1];
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
+    if ("response" in authenticated) return authenticated.response;
     const ref = await correlation.get(orderId);
     if (!ref) {
       return problem(404, "order-not-found", "No correlated order for this reference.");

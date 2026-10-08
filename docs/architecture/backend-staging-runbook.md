@@ -63,6 +63,7 @@ Test/evidence scripts:
 - `bun run test:reconciliation` — cross-system correlation, mismatch visibility and API recovery.
 - `bun run test:connectivity` — shared app/operator surfaces + environment/freshness/test markers.
 - `bun run test:isolation` — production fail-closed, local credential-free routing, network-free simulators.
+- `bun run test:identity` — configurable allowlist, Redis challenge/session sharing, logout and per-user order isolation.
 - `bun run test:payment-flow` — payment guard, canonical simulated checkout, committed Tryton
   reservation + reconciliation, retry idempotency, test-only metadata, outbox/NATS delivery and
   Mercur allocation-consumer receipt.

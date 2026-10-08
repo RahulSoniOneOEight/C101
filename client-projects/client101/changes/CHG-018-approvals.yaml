@@ -1,0 +1,108 @@
+change_id: CHG-018
+decision_pack_revision: 1
+document_ref: docs/architecture/hosted-pilot-decision-pack.md
+revision_hashes:
+  decision_pack_sha256: A1B8EF866C2FB414CB30021ED204D0B4FB4F549EA90BA7B25D0DE33AF6943B19
+  reviewed_draft_change_contract_sha256: FCD4F1DCBBA0632C37C38EFDDC04984A11D00B5FED1C76FFB9A912F80C2DF753
+  change_contract_sha256: E38E4070C9E68F8B445CC08F8A829B58786ABC8F1103D4BB342E0B8CCB645049
+status: approved-for-bounded-hosted-staging
+requested_at_utc: '2026-10-08T06:05:41Z'
+instructions:
+- Record one human-reviewed outcome per decision and required role; silence is not approval.
+- Approved-with-amendment must identify the replacement baseline and the revision that incorporates it.
+- Record the accountable human, authorised roles, UTC timestamp and exact Revision 1 hashes.
+- Rejected or deferred decisions block hosted-pilot runtime implementation.
+- Approval authorises bounded hosted-staging implementation only and cannot authorise production release.
+- Never record secrets, signing material or tester identifiers in this ledger.
+outcome_values:
+- approved
+- approved-with-amendment
+- rejected
+- deferred
+decisions:
+- id: D-018-01
+  subject: bounded-pilot-scope-and-rollout
+  required_roles: [product, operations, release-authority]
+- id: D-018-02
+  subject: pilot-identity-session-and-ownership
+  required_roles: [product, architecture, security]
+- id: D-018-03
+  subject: notification-inbox-and-template-boundary
+  required_roles: [product, architecture, operations]
+- id: D-018-04
+  subject: staging-fcm-and-credential-boundary
+  required_roles: [security, operations, integration-owners]
+- id: D-018-05
+  subject: hosted-topology-tls-observability-and-recovery
+  required_roles: [architecture, security, operations]
+- id: D-018-06
+  subject: android-signing-and-staged-distribution
+  required_roles: [security, operations, release-authority]
+- id: D-018-07
+  subject: production-effect-isolation
+  required_roles: [architecture, security, release-authority]
+approval_records: []
+batch_approval_records:
+- approver: Rahul Soni
+  authorized_roles: [product, architecture, security, operations, integration-owners, release-authority]
+  authorization_evidence: >-
+    Accountable roles are carried from the named human authorization recorded for CHG-017 Revision 6.
+    The human requester explicitly selected Approve Revision 1 at the CHG-018 OpenCode approval checkpoint.
+  evidence: >-
+    Reviewed CHG-018 Revision 1 and the hosted-pilot decision pack; approved all seven decisions for
+    bounded hosted-staging implementation only. Production effects and production release remain prohibited.
+  timestamp_utc: '2026-10-08T06:07:14Z'
+  revision: 1
+  document_sha256: A1B8EF866C2FB414CB30021ED204D0B4FB4F549EA90BA7B25D0DE33AF6943B19
+  change_contract_sha256: E38E4070C9E68F8B445CC08F8A829B58786ABC8F1103D4BB342E0B8CCB645049
+  decision_records:
+  - decision_id: D-018-01
+    roles: [product, operations, release-authority]
+    outcome: approved
+  - decision_id: D-018-02
+    roles: [product, architecture, security]
+    outcome: approved
+  - decision_id: D-018-03
+    roles: [product, architecture, operations]
+    outcome: approved
+  - decision_id: D-018-04
+    roles: [security, operations, integration-owners]
+    outcome: approved
+  - decision_id: D-018-05
+    roles: [architecture, security, operations]
+    outcome: approved
+  - decision_id: D-018-06
+    roles: [security, operations, release-authority]
+    outcome: approved
+  - decision_id: D-018-07
+    roles: [architecture, security, release-authority]
+    outcome: approved
+gate_status:
+  G0-governance: approved
+  identity-implementation: approved
+  notification-implementation: approved
+  external-fcm-delivery: blocked-pending-firebase-credentials-template-wording-and-tester-consent
+  hosted-deployment: blocked-pending-hosting-domain-and-secret-store-inputs
+  apk-distribution: blocked-pending-keystore-hosted-validation-and-wave-review
+runtime_authorizations:
+- scope: bounded-hosted-staging-only
+  authorized:
+  - configurable pilot allowlist and shared simulated OTP
+  - Redis-backed pilot challenges and sessions
+  - authenticated order and notification ownership enforcement
+  - persistent notification inbox, read state, device registration and delivery records
+  - four versioned notification templates and durable NATS notification worker
+  - Flutter pilot authentication and notification client integration
+  - hosted-staging packaging, configuration guards, tests and runbook preparation
+  conditional_external_effects:
+  - FCM delivery requires dedicated staging credentials, approved template wording and allowlisted tester devices.
+  - Hosted deployment requires authorised hosting, DNS, TLS, secret storage, monitoring and backup inputs.
+  - APK distribution requires protected signing material, hosted validation and approval of each rollout wave.
+  prohibited:
+  - production-payment
+  - real-otp-or-sms
+  - production-logistics
+  - production-notifications
+  - production-customer-data
+  - production-release
+production_release_authorized: false

@@ -1,0 +1,39 @@
+change_id: CHG-018
+revision: 1
+status: implementation-in-progress
+items:
+- id: E-018-001
+  title: Hosted-pilot governance approval
+  status: accepted
+  evidence_refs:
+  - client-projects/client101/changes/CHG-018.yaml
+  - client-projects/client101/changes/CHG-018-approvals.yaml
+  - docs/architecture/hosted-pilot-decision-pack.md
+- id: E-018-002
+  title: Configurable pilot identity and Redis session persistence
+  status: evidenced
+  evidence_refs:
+  - services/experience-api/src/auth/pilot-users.ts
+  - services/experience-api/src/auth/dummy-otp.ts
+  - services/experience-api/src/scripts/identity-test.ts
+  - client-projects/client101/evidence/CHG-018/identity-implementation.md
+- id: E-018-003
+  title: Per-user order ownership isolation
+  status: evidenced
+  evidence_refs:
+  - services/experience-api/src/store/correlation-store.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/scripts/identity-test.ts
+- id: E-018-004
+  title: Persistent notification inbox and bounded FCM delivery
+  status: planned
+  evidence_refs: []
+- id: E-018-005
+  title: Hosted deployment, TLS, monitoring and restore proof
+  status: blocked-pending-inputs
+  evidence_refs: []
+- id: E-018-006
+  title: Signed staging APK and staged distribution
+  status: blocked-pending-inputs
+  evidence_refs: []
+production_release_authorized: false
