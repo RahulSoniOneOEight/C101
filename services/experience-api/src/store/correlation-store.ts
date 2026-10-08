@@ -10,6 +10,7 @@ import pg from "pg";
 
 export interface CorrelationRecord {
   checkout_ref: string;
+  owner_user_id: string | null;
   medusa_order_group_id: string | null;
   medusa_order_group: Record<string, unknown> | null;
   payment_evidence: Record<string, unknown> | null;
@@ -46,6 +47,7 @@ export class CorrelationStore {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS correlation (
         checkout_ref           text PRIMARY KEY,
+        owner_user_id          text,
         medusa_order_group_id  text,
         medusa_order_group     jsonb,
         payment_evidence       jsonb,
@@ -56,6 +58,11 @@ export class CorrelationStore {
 
       ALTER TABLE correlation ADD COLUMN IF NOT EXISTS medusa_order_group jsonb;
       ALTER TABLE correlation ADD COLUMN IF NOT EXISTS payment_evidence jsonb;
+      ALTER TABLE correlation ADD COLUMN IF NOT EXISTS owner_user_id text;
+
+      CREATE INDEX IF NOT EXISTS correlation_owner_updated_idx
+        ON correlation (owner_user_id, updated_at DESC)
+        WHERE owner_user_id IS NOT NULL;
 
       CREATE UNIQUE INDEX IF NOT EXISTS correlation_medusa_uidx
         ON correlation (medusa_order_group_id)
@@ -75,21 +82,26 @@ export class CorrelationStore {
       orderGroupPayload?: Record<string, unknown>;
       paymentEvidence?: Record<string, unknown>;
       trytonMove?: number;
+      ownerUserId?: string;
     },
   ): Promise<void> {
     await this.ready;
     const result = await this.pool.query(
       `INSERT INTO correlation (
-         checkout_ref, medusa_order_group_id, medusa_order_group, payment_evidence, tryton_move_id
+         checkout_ref, owner_user_id, medusa_order_group_id, medusa_order_group, payment_evidence, tryton_move_id
        )
-       VALUES ($1, $2, $3, $4, $5)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (checkout_ref) DO UPDATE SET
+         owner_user_id = COALESCE(correlation.owner_user_id, EXCLUDED.owner_user_id),
          medusa_order_group_id = COALESCE(correlation.medusa_order_group_id, EXCLUDED.medusa_order_group_id),
          medusa_order_group = COALESCE(correlation.medusa_order_group, EXCLUDED.medusa_order_group),
          payment_evidence = COALESCE(correlation.payment_evidence, EXCLUDED.payment_evidence),
          tryton_move_id = COALESCE(correlation.tryton_move_id, EXCLUDED.tryton_move_id),
          updated_at = now()
        WHERE
+         (correlation.owner_user_id IS NULL OR EXCLUDED.owner_user_id IS NULL
+          OR correlation.owner_user_id = EXCLUDED.owner_user_id)
+         AND
          (correlation.medusa_order_group_id IS NULL OR EXCLUDED.medusa_order_group_id IS NULL
           OR correlation.medusa_order_group_id = EXCLUDED.medusa_order_group_id)
          AND
@@ -97,6 +109,7 @@ export class CorrelationStore {
           OR correlation.tryton_move_id = EXCLUDED.tryton_move_id)`,
       [
         checkoutRef,
+        patch.ownerUserId ?? null,
         patch.orderGroup ?? null,
         patch.orderGroupPayload ? JSON.stringify(patch.orderGroupPayload) : null,
         patch.paymentEvidence ? JSON.stringify(patch.paymentEvidence) : null,
@@ -111,8 +124,8 @@ export class CorrelationStore {
   async get(checkoutRef: string): Promise<CorrelationRecord | null> {
     await this.ready;
     const result = await this.pool.query(
-      `SELECT checkout_ref, medusa_order_group_id, medusa_order_group, payment_evidence,
-              tryton_move_id, created_at, updated_at
+      `SELECT checkout_ref, owner_user_id, medusa_order_group_id, medusa_order_group, payment_evidence,
+               tryton_move_id, created_at, updated_at
        FROM correlation WHERE checkout_ref = $1`,
       [checkoutRef],
     );
@@ -123,8 +136,8 @@ export class CorrelationStore {
   async list(limit = 200): Promise<CorrelationRecord[]> {
     await this.ready;
     const result = await this.pool.query(
-      `SELECT checkout_ref, medusa_order_group_id, medusa_order_group, payment_evidence,
-              tryton_move_id, created_at, updated_at
+      `SELECT checkout_ref, owner_user_id, medusa_order_group_id, medusa_order_group, payment_evidence,
+               tryton_move_id, created_at, updated_at
        FROM correlation ORDER BY updated_at DESC LIMIT $1`,
       [limit],
     );

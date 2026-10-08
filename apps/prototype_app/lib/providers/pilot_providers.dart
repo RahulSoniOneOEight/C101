@@ -54,7 +54,15 @@ class PilotOtpNotifier extends Notifier<Map<String, dynamic>?> {
     return result;
   }
 
-  void reset() => state = null;
+  void reset() {
+    ref.read(experienceApiProvider).clearSession();
+    state = null;
+  }
+
+  Future<void> logout() async {
+    await ref.read(experienceApiProvider).logout();
+    state = null;
+  }
 }
 
 final pilotOtpProvider = NotifierProvider<PilotOtpNotifier, Map<String, dynamic>?>(PilotOtpNotifier.new);

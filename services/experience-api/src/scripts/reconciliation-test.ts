@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { loadConfig } from "../config.js";
 import { MedusaStoreClient } from "../medusa/store-client.js";
+import { createPilotSession } from "./pilot-session.js";
 
 /**
  * E-017-018 cross-system staging reconciliation evidence.
@@ -14,6 +15,7 @@ import { MedusaStoreClient } from "../medusa/store-client.js";
 const config = loadConfig(process.env);
 const medusa = new MedusaStoreClient(config);
 const base = process.env.EXPERIENCE_BASE_URL ?? "http://localhost:9020";
+let pilotToken: string | undefined;
 
 async function experienceJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${base}${path}`, {
@@ -21,6 +23,7 @@ async function experienceJson<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       accept: "application/json",
       ...(init?.body ? { "content-type": "application/json" } : {}),
+      ...(pilotToken ? { authorization: `Bearer ${pilotToken}` } : {}),
       ...init?.headers,
     },
   });
@@ -45,6 +48,8 @@ type Reconciliation = {
 };
 
 try {
+  const pilot = await createPilotSession(base);
+  pilotToken = pilot.token;
   const products = await medusa.listProducts(20, 0);
   const offers = await medusa.listOffersByProducts(products.map((p) => p.id));
   const offer = offers.find((candidate) => candidate.in_stock !== false);
@@ -55,12 +60,18 @@ try {
     body: JSON.stringify({ sku: offer.sku, name: offer.sku, price: offer.calculated_price?.calculated_amount ?? 0 }),
   });
 
-  const cart = await medusa.createCart(config.medusaRegionId, "inr");
-  await medusa.addLineItem(cart.id, offer.id, 1);
+  const cart = await experienceJson<{ id: string }>("/v1/carts", {
+    method: "POST",
+    body: JSON.stringify({ region_id: config.medusaRegionId, currency_code: "inr" }),
+  });
+  await experienceJson(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
+    method: "POST",
+    body: JSON.stringify({ offer_id: offer.id, quantity: 1 }),
+  });
   await experienceJson(`/v1/carts/${encodeURIComponent(cart.id)}/customer-details`, {
     method: "POST",
     body: JSON.stringify({
-      email: "pilot-buyer@buildkart.local",
+      email: pilot.user.email,
       shipping_address: { first_name: "Pilot", last_name: "Buyer", address_1: "101 Test Yard", city: "Jaipur", postal_code: "302001", country_code: "IN" },
     }),
   });

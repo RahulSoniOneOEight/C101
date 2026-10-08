@@ -1,0 +1,158 @@
+change_id: CHG-018
+revision: 1
+request: >-
+  Extend the authorised local bounded-staging runtime into a hosted pilot for no more than
+  20 explicitly allowlisted Android testers. The increment adds configurable pilot identities,
+  a shared simulated OTP, Redis-backed sessions, per-user order and notification isolation,
+  a persistent in-app notification inbox, bounded Firebase Cloud Messaging delivery from a
+  dedicated staging project, production-shaped hosted services, TLS, secrets management,
+  backup and restore evidence, Android release signing, and staged Firebase App Distribution.
+  Payment, OTP, logistics and notification effects remain simulated or staging-only, and no
+  production release or production customer effect is authorised.
+type: architecture
+supersedes: []
+extends:
+- CHG-017
+affected_capabilities:
+- authentication
+- authorization
+- orders
+- notifications
+- audit
+- deployment
+- backup-and-restore
+- android-distribution
+affected_domains:
+- identity
+- commerce
+- integration
+- experience-api
+- operations
+- mobile-release
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- hosted-staging
+- operations-monitoring
+affected_entities:
+- pilot-identity
+- identity-session
+- order
+- notification
+- notification-read-state
+- device-registration
+- push-delivery-attempt
+- audit-record
+affected_events:
+- identity.authenticated
+- product.launched
+- seller-offer.price-changed
+- order.confirmed
+- shipment.status-changed
+- notification.delivery-requested
+- notification.delivery-recorded
+ownership:
+  unchanged:
+  - Commerce through Medusa owns carts and canonical orders.
+  - Marketplace through Mercur owns sellers, offers and seller allocation.
+  - ERP through Tryton owns inventory reservation, stock movement and accounting projections.
+  hosted_pilot_additions:
+  - The Experience API owns the staging-only pilot identity register and Redis-backed pilot sessions.
+  - The Experience API owns the per-user notification inbox, read state and device-registration records.
+  - FCM owns provider delivery evidence; the Experience API notification integration owns the normalised delivery-attempt record.
+  - Notification projections never become canonical order, payment, allocation, inventory or shipment state.
+decisions:
+  D-018-01: bounded-pilot-scope-and-rollout
+  D-018-02: pilot-identity-session-and-ownership
+  D-018-03: notification-inbox-and-template-boundary
+  D-018-04: staging-fcm-and-credential-boundary
+  D-018-05: hosted-topology-tls-observability-and-recovery
+  D-018-06: android-signing-and-staged-distribution
+  D-018-07: production-effect-isolation
+decision_approval_roles:
+  D-018-01: [product, operations, release-authority]
+  D-018-02: [product, architecture, security]
+  D-018-03: [product, architecture, operations]
+  D-018-04: [security, operations, integration-owners]
+  D-018-05: [architecture, security, operations]
+  D-018-06: [security, operations, release-authority]
+  D-018-07: [architecture, security, release-authority]
+required_approvals:
+- product
+- architecture
+- security
+- operations
+- integration-owners
+- release-authority
+required_inputs:
+- Twenty tester email addresses or usernames supplied through an approved secret/configuration path.
+- An authorised hosting target and deployment access.
+- Domain and DNS access for staging HTTPS endpoints.
+- A dedicated Firebase staging project and server-side FCM credentials.
+- A protected Android release keystore and signing configuration.
+- Final approved wording for the four notification templates.
+required_tests:
+- Only configured allowlisted identities can request a challenge; unknown identities receive 403.
+- The shared pilot OTP is read from PILOT_OTP_CODE and remains 123456 only in bounded staging.
+- OTP challenges and sessions survive an Experience API restart and work across replicas through Redis.
+- Logout and revocation invalidate the session; expired challenges and sessions fail closed.
+- Authenticated users can access only their own orders, notifications and device registrations.
+- Launch and price-drop notifications target allowlisted testers only.
+- Order-confirmed and delivery-update notifications target only the canonical order owner.
+- Notification inbox and read state survive restart.
+- Event processing and FCM delivery are idempotent, auditable, bounded-retry and dead-letter capable.
+- Notification failure never changes canonical order success or another domain's state.
+- All pilot orders, events, notifications and projections retain test_data=true.
+- FCM credentials stay server-side and production Firebase projects are rejected by configuration guards.
+- Hosted ingress is TLS-only and exposes only intended public routes.
+- Backup and restore, logs, metrics and alert checks are evidenced on hosted staging.
+- The non-debug signed APK resolves only staging HTTPS endpoints and contains no server credentials.
+- Functional, ownership-isolation, restart, notification and bounded-load tests pass before distribution.
+- Rollout is gated at 2-3 internal users, then 5 users, then all 20 after human review of each wave.
+implementation_order:
+- Configure pilot identities and PILOT_OTP_CODE.
+- Persist OTP challenges and sessions in Redis.
+- Propagate identity and enforce order ownership.
+- Add notification, device-registration and delivery-attempt persistence.
+- Add authenticated notification and device-token APIs.
+- Add four versioned templates and required catalogue events.
+- Add the durable NATS notification worker.
+- Integrate only the dedicated staging FCM project.
+- Wire Flutter authentication, notification inbox, badge, token refresh and deep links.
+- Package and deploy the hosted staging services with TLS and secret references.
+- Evidence backup, restore, logging, metrics and alerts.
+- Build the staging-only release-signed APK.
+- Validate and distribute in the approved rollout waves.
+constraints:
+- The pilot is limited to 20 explicitly allowlisted testers and synthetic/test data.
+- PILOT_OTP_CODE is simulated and no SMS or production identity provider is enabled.
+- Payment remains simulated; live payment credentials and production payment effects are prohibited.
+- Logistics remains simulated; real carrier booking and production logistics effects are prohibited.
+- FCM delivery uses a dedicated staging Firebase project and only allowlisted pilot devices.
+- Production customer notifications and production notification credentials are prohibited.
+- Every pilot effect and projection is marked test_data=true.
+- Notification failure cannot block, reverse or manufacture canonical order success.
+- Medusa, Mercur and Tryton ownership boundaries remain unchanged.
+- NATS JetStream remains the cross-system event backbone; Redis/BullMQ remains Medusa-internal.
+- Secrets, signing material and tester identities are never committed to Git or pasted into chat.
+- A repository merge, signed APK or successful pilot wave does not authorise production release.
+- Each rollout wave requires a recorded human review before expansion.
+non_goals:
+- production payment
+- real SMS or OTP delivery
+- real carrier booking or production logistics
+- production customer data
+- production notifications
+- WhatsApp, email marketing or marketing automation
+- production release
+approval_required: true
+decision_approval:
+  status: all-required-decision-role-outcomes-recorded
+  approved_by: Rahul Soni
+  authorized_roles: [product, architecture, security, operations, integration-owners, release-authority]
+  approved_at_utc: '2026-10-08T06:07:14Z'
+  ledger_ref: client-projects/client101/changes/CHG-018-approvals.yaml
+  runtime_implementation_authorized: true
+  runtime_scope: bounded-hosted-staging-only
+  production_release_authorized: false
+status: bounded-hosted-staging-authorized

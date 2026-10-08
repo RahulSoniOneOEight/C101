@@ -19,6 +19,7 @@
     "test:reconciliation": "bun run src/scripts/reconciliation-test.ts",
     "test:connectivity": "bun run src/scripts/connectivity-test.ts",
     "test:isolation": "bun run src/scripts/isolation-test.ts",
+    "test:identity": "bun run src/scripts/identity-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {

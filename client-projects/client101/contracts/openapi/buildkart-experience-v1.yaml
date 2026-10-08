@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: BuildKart Experience API
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: >-
-    Revision 5 review draft for the CHG-017 marketplace-order vertical slice. Development/staging
-    may use an explicitly labelled simulated-payment adapter; provider payment remains deferred.
-    This API composes governed owner-service data and is not a second canonical writer.
+    CHG-017 marketplace-order baseline with the CHG-018 bounded hosted-pilot identity amendment.
+    Development/staging may use explicitly labelled simulated payment and OTP; provider payment,
+    production identity and production release remain deferred. This API composes governed
+    owner-service data and is not a second canonical writer.
   license:
     name: MIT
     identifier: MIT
@@ -50,14 +51,16 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateOtpChallengeRequest'
       responses:
-        '202':
-          description: Challenge accepted without revealing account existence.
+        '201':
+          description: Challenge created for an allowlisted pilot identity. The shared code is never returned.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OtpChallenge'
         '400': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
   /v1/auth/otp/verify:
     post:
       summary: Verify an OTP challenge
@@ -83,6 +86,18 @@ paths:
         '400': {$ref: '#/components/responses/Problem'}
         '401': {$ref: '#/components/responses/Problem'}
         '429': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /v1/auth/logout:
+    post:
+      summary: Revoke the current pilot session
+      tags: [Identity]
+      operationId: revokePilotSession
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204': {description: Session revoked}
+        '401': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
   /v1/me/contexts:
     get:
       summary: List authorised business contexts
@@ -695,18 +710,20 @@ components:
               message: {type: string}
     CreateOtpChallengeRequest:
       type: object
-      required: [phone_e164, purpose]
+      required: [identifier]
       properties:
-        phone_e164: {type: string, pattern: '^\+[1-9]\d{7,14}$'}
-        purpose: {type: string, enum: [sign_in, registration, recovery]}
+        identifier:
+          type: string
+          description: Allowlisted pilot email, username or phone number.
     OtpChallenge:
       type: object
-      required: [challenge_id, expires_at, resend_after, masked_destination]
+      required: [challenge_id, expires_in_seconds, environment, test_data, correlation_id]
       properties:
         challenge_id: {type: string}
-        expires_at: {type: string, format: date-time}
-        resend_after: {type: string, format: date-time}
-        masked_destination: {type: string}
+        expires_in_seconds: {type: integer, minimum: 1}
+        environment: {type: string, enum: [development, integration, staging]}
+        test_data: {type: boolean, const: true}
+        correlation_id: {type: string, format: uuid}
     VerifyOtpRequest:
       type: object
       required: [challenge_id, code]
@@ -715,14 +732,23 @@ components:
         code: {type: string, pattern: '^\d{6}$'}
     AuthSession:
       type: object
-      required: [access_token, expires_at, session_id, contexts]
+      required: [session_token, expires_in_seconds, user, environment, test_data, correlation_id]
       properties:
-        access_token: {type: string, writeOnly: true}
-        expires_at: {type: string, format: date-time}
-        session_id: {type: string}
-        contexts:
-          type: array
-          items: {$ref: '#/components/schemas/BusinessContext'}
+        session_token: {type: string, writeOnly: true}
+        expires_in_seconds: {type: integer, minimum: 1}
+        user: {$ref: '#/components/schemas/PilotUser'}
+        environment: {type: string, enum: [development, integration, staging]}
+        test_data: {type: boolean, const: true}
+        correlation_id: {type: string, format: uuid}
+    PilotUser:
+      type: object
+      required: [id, email, name]
+      properties:
+        id: {type: string}
+        email: {type: string, format: email}
+        username: {type: string}
+        phone: {type: string}
+        name: {type: string}
     BusinessContext:
       type: object
       required: [id, mode, display_name, roles, permissions]

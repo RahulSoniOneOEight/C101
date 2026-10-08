@@ -6,6 +6,7 @@ import {
   MedusaStoreClient,
   SIMULATED_PAYMENT_PROVIDER_ID,
 } from "../medusa/store-client.js";
+import { createPilotSession } from "./pilot-session.js";
 
 type CheckoutResult = {
   type: "order_group" | "cart";
@@ -27,6 +28,7 @@ const medusaDatabaseUrl = process.env.MEDUSA_DATABASE_URL ??
   "postgres://buildkart:buildkart@localhost:5433/buildkart";
 const experiencePool = new pg.Pool({ connectionString: config.experienceDatabaseUrl, max: 2 });
 const medusaPool = new pg.Pool({ connectionString: medusaDatabaseUrl, max: 2 });
+let pilotToken: string | undefined;
 
 async function experienceJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${experienceBaseUrl}${path}`, {
@@ -34,6 +36,7 @@ async function experienceJson<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       accept: "application/json",
       ...(init?.body ? { "content-type": "application/json" } : {}),
+      ...(pilotToken ? { authorization: `Bearer ${pilotToken}` } : {}),
       ...init?.headers,
     },
   });
@@ -75,6 +78,9 @@ try {
     /Refusing to start/,
   );
 
+  const pilot = await createPilotSession(experienceBaseUrl);
+  pilotToken = pilot.token;
+
   const regionLink = await medusaPool.query(
     `SELECT 1 FROM region_payment_provider
      WHERE region_id = $1 AND payment_provider_id = $2 AND deleted_at IS NULL`,
@@ -87,13 +93,19 @@ try {
   const offer = offers.find((candidate) => candidate.in_stock !== false);
   assert.ok(offer, "an in-stock pilot offer is required");
 
-  const cart = await medusa.createCart(config.medusaRegionId, "inr");
-  await medusa.addLineItem(cart.id, offer.id, 1);
+  const cart = await experienceJson<{ id: string }>("/v1/carts", {
+    method: "POST",
+    body: JSON.stringify({ region_id: config.medusaRegionId, currency_code: "inr" }),
+  });
+  await experienceJson(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
+    method: "POST",
+    body: JSON.stringify({ offer_id: offer.id, quantity: 1 }),
+  });
 
   await experienceJson(`/v1/carts/${encodeURIComponent(cart.id)}/customer-details`, {
     method: "POST",
     body: JSON.stringify({
-      email: "pilot-buyer@buildkart.local",
+      email: pilot.user.email,
       shipping_address: {
         first_name: "Pilot",
         last_name: "Buyer",
@@ -151,7 +163,10 @@ try {
     `${experienceBaseUrl}/v1/checkouts/${encodeURIComponent(cart.id)}/complete`,
     {
       method: "POST",
-      headers: { "x-correlation-id": correlationId },
+      headers: {
+        authorization: `Bearer ${pilot.token}`,
+        "x-correlation-id": correlationId,
+      },
     },
   );
   const checkout = await response.json() as CheckoutResult;
@@ -175,7 +190,10 @@ try {
     `${experienceBaseUrl}/v1/checkouts/${encodeURIComponent(cart.id)}/complete`,
     {
       method: "POST",
-      headers: { "x-correlation-id": `${correlationId}-retry` },
+      headers: {
+        authorization: `Bearer ${pilot.token}`,
+        "x-correlation-id": `${correlationId}-retry`,
+      },
     },
   );
   const retryCheckout = await retryResponse.json() as CheckoutResult;

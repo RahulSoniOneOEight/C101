@@ -27,7 +27,23 @@ class ExperienceApi {
       '/v1/auth/otp/verify',
       data: {'challenge_id': challengeId, 'code': code},
     );
+    final token = res.data?['session_token'] as String?;
+    if (token != null && token.isNotEmpty) {
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+    }
     return res.data!;
+  }
+
+  Future<void> logout() async {
+    try {
+      await _dio.post<void>('/v1/auth/logout');
+    } finally {
+      clearSession();
+    }
+  }
+
+  void clearSession() {
+    _dio.options.headers.remove('Authorization');
   }
 
   Future<List<dynamic>> getCollection(String key) async {

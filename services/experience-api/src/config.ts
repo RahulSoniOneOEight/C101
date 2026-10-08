@@ -45,7 +45,21 @@ export interface Config {
   trytonUsername: string;
   trytonPassword: string;
   experienceDatabaseUrl: string;
+  redisUrl: string;
   natsUrl: string;
+  pilotUsersJson?: string;
+  pilotExpectedUserCount?: number;
+  pilotOtpCode: string;
+  pilotChallengeTtlSeconds: number;
+  pilotSessionTtlSeconds: number;
+}
+
+function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
+  const value = Number.parseInt(raw ?? String(fallback), 10);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return value;
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -68,6 +82,21 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     );
   }
 
+  const pilotOtpCode = env.PILOT_OTP_CODE ?? "123456";
+  if (!/^\d{6}$/.test(pilotOtpCode)) {
+    throw new Error("PILOT_OTP_CODE must be exactly six digits.");
+  }
+  if (environment === "production") {
+    throw new Error("Pilot simulated identity is prohibited in production.");
+  }
+
+  const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
+    ? positiveInteger(env.PILOT_EXPECTED_USER_COUNT, 20, "PILOT_EXPECTED_USER_COUNT")
+    : undefined;
+  if (expectedPilotUsers !== undefined && expectedPilotUsers > 20) {
+    throw new Error("PILOT_EXPECTED_USER_COUNT cannot exceed the governed maximum of 20.");
+  }
+
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
@@ -83,6 +112,20 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     experienceDatabaseUrl:
       env.EXPERIENCE_DATABASE_URL ??
       "postgres://buildkart:buildkart@localhost:5433/buildkart_experience",
+    redisUrl: env.REDIS_URL ?? "redis://localhost:6379",
     natsUrl: env.NATS_URL ?? "nats://localhost:4222",
+    pilotUsersJson: env.PILOT_USERS_JSON,
+    pilotExpectedUserCount: expectedPilotUsers,
+    pilotOtpCode,
+    pilotChallengeTtlSeconds: positiveInteger(
+      env.PILOT_CHALLENGE_TTL_SECONDS,
+      5 * 60,
+      "PILOT_CHALLENGE_TTL_SECONDS",
+    ),
+    pilotSessionTtlSeconds: positiveInteger(
+      env.PILOT_SESSION_TTL_SECONDS,
+      60 * 60,
+      "PILOT_SESSION_TTL_SECONDS",
+    ),
   };
 }
