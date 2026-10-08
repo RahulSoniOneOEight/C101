@@ -1,6 +1,7 @@
 name: prototype_app
 description: Agency Platform V2 Flutter prototype runtime
 publish_to: "none"
+version: 0.3.0+3
 environment:
   sdk: ">=3.4.0 <4.0.0"
 dependencies:
@@ -12,6 +13,9 @@ dependencies:
   go_router: ^18.0.1
   dio: ^5.11.1
   shared_preferences: ^2.5.5
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
+  flutter_secure_storage: ^11.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -122,7 +122,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/otp',
-        builder: (context, state) => const OtpScreen(),
+        builder: (context, state) => OtpScreen(
+          isB2B: state.uri.queryParameters['mode'] == 'b2b',
+        ),
       ),
       GoRoute(
         path: '/signup',

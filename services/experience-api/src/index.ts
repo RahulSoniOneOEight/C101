@@ -15,6 +15,8 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
+import { NotificationStore } from "./store/notification-store.js";
+import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
@@ -25,6 +27,12 @@ import {
   type PilotUser,
 } from "./auth/pilot-users.js";
 import { PilotAuthStore } from "./auth/dummy-otp.js";
+import {
+  hasAnyRole,
+  loadPilotAuthorizations,
+  type PilotAuthorization,
+  type PilotRole,
+} from "./auth/pilot-authorization.js";
 import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
 
 const config = loadConfig(process.env);
@@ -37,9 +45,16 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+const notifications = new NotificationStore(config.experienceDatabaseUrl);
+const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
 const nats = new NatsPublisher(config.natsUrl);
 const pilotDirectory = new PilotUserDirectory(
   loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount),
+);
+const pilotAuthorizations = loadPilotAuthorizations(
+  config.pilotRoleAssignmentsJson,
+  pilotDirectory.users,
+  config.pilotExpectedUserCount !== undefined,
 );
 const pilotAuth = new PilotAuthStore(
   config.redisUrl,
@@ -144,7 +159,11 @@ function bearerToken(req: Request): string | null {
   return match?.[1]?.trim() || null;
 }
 
-type AuthenticationResult = { user: PilotUser; token: string } | { response: Response };
+type AuthenticationResult = {
+  user: PilotUser;
+  token: string;
+  authorization: PilotAuthorization;
+} | { response: Response };
 
 async function authenticate(req: Request): Promise<AuthenticationResult> {
   const token = bearerToken(req);
@@ -154,19 +173,63 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
   try {
     const userId = await pilotAuth.resolveSession(token);
     const user = userId ? pilotDirectory.get(userId) : undefined;
-    if (!user) {
+    const authorization = userId ? pilotAuthorizations.get(userId) : undefined;
+    if (!user || !authorization) {
       return { response: problem(401, "invalid-session", "The pilot session is invalid or expired.") };
     }
-    return { user, token };
+    return { user, token, authorization };
   } catch (error) {
     console.warn("[experience-api] pilot session lookup failed:", (error as Error).message);
     return { response: problem(503, "identity-store-unavailable", "Pilot sessions are temporarily unavailable.") };
   }
 }
 
+async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promise<AuthenticationResult> {
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (!hasAnyRole(authenticated.authorization, roles)) {
+    return { response: problem(404, "not-found") };
+  }
+  return authenticated;
+}
+
+function privilegedRoles(pathname: string): readonly PilotRole[] | null {
+  if (/^\/v1\/admin\/(tryton|inventory)(?:\/|$)/.test(pathname)) {
+    return ["erp_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin\/collections(?:\/|$)/.test(pathname)) {
+    return ["marketplace_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin\/notifications(?:\/|$)/.test(pathname)) {
+    return ["marketplace_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin\/(events|orders)(?:\/|$)/.test(pathname)) {
+    return ["support_operator", "marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
+  }
+  if (/^\/v1\/ops(?:\/|$)/.test(pathname) || pathname === "/ops" || pathname === "/ops/") {
+    return ["support_operator", "marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
+  }
+  if (pathname === "/metrics") {
+    return ["marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
+  }
+  if (/^\/v1\/shipments\/[^/]+\/advance$/.test(pathname)) {
+    return ["marketplace_operator", "erp_operator", "super_admin"];
+  }
+  if (/^\/v1\/payments\/[^/]+\/simulate$/.test(pathname)) {
+    return ["finance_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin(?:\/|$)/.test(pathname)) {
+    return ["super_admin"];
+  }
+  return null;
+}
+
 async function authorizeCheckoutOwner(req: Request, checkoutRef: string): Promise<AuthenticationResult> {
   const authenticated = await authenticate(req);
   if ("response" in authenticated) return authenticated;
+  if (!hasAnyRole(authenticated.authorization, ["customer", "b2b_buyer", "b2b_account_admin", "b2b_approver"])) {
+    return { response: problem(404, "checkout-not-found", "No checkout was found for this user.") };
+  }
   const record = await correlation.get(checkoutRef);
   if (!record || record.owner_user_id !== authenticated.user.id) {
     // Use 404 so one pilot user cannot use this endpoint to enumerate another user's references.
@@ -283,7 +346,7 @@ function composeOffers(offers: StoreOffer[]) {
   return { offerViews, selected };
 }
 
-async function handle(req: Request, url: URL): Promise<Response> {
+async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -295,7 +358,13 @@ async function handle(req: Request, url: URL): Promise<Response> {
     });
   }
 
-  const cid = correlationId(req);
+  // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
+  // Local legacy integration runs without that configuration retain their existing operator access.
+  const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
+  if (requiredRoles) {
+    const privileged = await requireAnyRole(req, requiredRoles);
+    if ("response" in privileged) return privileged.response;
+  }
 
   if (url.pathname === "/ops" || url.pathname === "/ops/") {
     return new Response(opsPage(), {
@@ -330,6 +399,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
       ["reservation", reservations.poolStats()],
       ["event", events.poolStats()],
       ["correlation", correlation.poolStats()],
+      ["notification", notifications.poolStats()],
+      ["privileged_audit", privilegedAudit.poolStats()],
     ];
     const lines: string[] = [
       `buildkart_process_cpu_percent ${proc.cpu_percent}`,
@@ -421,8 +492,36 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (url.pathname === "/v1/auth/logout" && req.method === "POST") {
     const authenticated = await authenticate(req);
     if ("response" in authenticated) return authenticated.response;
+    let deviceId: string | undefined;
+    try {
+      const text = await req.text();
+      if (text.trim()) {
+        const body = JSON.parse(text) as { device_id?: unknown };
+        if (typeof body.device_id === "string") deviceId = body.device_id;
+      }
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body when one is supplied.");
+    }
+    if (deviceId) await notifications.removeDevice(authenticated.user.id, deviceId);
     await pilotAuth.revokeSession(authenticated.token);
     return new Response(null, { status: 204 });
+  }
+
+  // GET /v1/me/contexts — server-owned role and scope projection.
+  if (url.pathname === "/v1/me/contexts" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    return json({
+      contexts: [{
+        user_id: authenticated.user.id,
+        roles: authenticated.authorization.roles,
+        business_account_id: authenticated.authorization.businessAccountId ?? null,
+        seller_id: authenticated.authorization.sellerId ?? null,
+      }],
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
   }
 
   // GET /v1/logistics/serviceability?postcode=... — simulated delivery serviceability (Step 3)
@@ -436,6 +535,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const bookShipmentMatch = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/shipment$/);
   if (bookShipmentMatch && req.method === "POST") {
     const checkoutId = bookShipmentMatch[1];
+    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+    if ("response" in authenticated) return authenticated.response;
     const shipment = bookShipment(checkoutId);
     await events.append({
       event_type: "shipment.status_changed",
@@ -452,6 +553,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (shipmentMatch && req.method === "GET") {
     const shipment = getShipment(shipmentMatch[1]);
     if (!shipment) return problem(404, "unknown-shipment");
+    const authenticated = await authorizeCheckoutOwner(req, shipment.order_group_id);
+    if ("response" in authenticated) return authenticated.response;
     return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
   }
 
@@ -460,43 +563,78 @@ async function handle(req: Request, url: URL): Promise<Response> {
   if (advanceMatch && req.method === "POST") {
     const shipment = advanceShipment(advanceMatch[1]);
     if (!shipment) return problem(404, "unknown-shipment");
+    await events.append({
+      event_type: "shipment.status_changed",
+      aggregate_type: "order_group",
+      aggregate_id: shipment.order_group_id,
+      correlation_id: cid,
+      payload: {
+        shipment_id: shipment.id,
+        status: shipment.status,
+        tracking_number: shipment.tracking_number,
+        cart_id: shipment.order_group_id,
+      },
+    });
     return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
   }
 
-  // GET /v1/notifications — dummy notification feed derived from domain events (Step 4)
-  if (url.pathname === "/v1/notifications" && req.method === "GET") {
+  // GET /v1/me/notifications — durable per-user inbox. Legacy path remains a bounded alias.
+  if ((url.pathname === "/v1/me/notifications" || url.pathname === "/v1/notifications") && req.method === "GET") {
     const authenticated = await authenticate(req);
     if ("response" in authenticated) return authenticated.response;
-    const items = await events.list(undefined, undefined, 20);
-    const messages: Record<string, string> = {
-      "order.confirmed": "Your order was confirmed.",
-      "inventory.reservation_created": "Inventory reserved for your order.",
-      "inventory.reservation_committed": "Inventory committed for your order.",
-      "inventory.reservation_released": "Inventory reservation released.",
-      "shipment.status_changed": "Your shipment status changed.",
-    };
-    const ownedItems = [];
-    for (const event of items) {
-      const payloadCartId = typeof event.payload?.cart_id === "string" ? event.payload.cart_id : null;
-      const checkoutRef = payloadCartId ??
-        (event.aggregate_type === "checkout" || event.aggregate_type === "order_group"
-          ? event.aggregate_id
-          : null);
-      if (!checkoutRef) continue;
-      const record = await correlation.get(checkoutRef);
-      if (record?.owner_user_id === authenticated.user.id) ownedItems.push(event);
-    }
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    const items = await notifications.listForUser(authenticated.user.id, limit);
+    const audience = authenticated.authorization.roles.some((role) => role.startsWith("b2b_")) ? "b2b" : "b2c";
     return json({
-      notifications: ownedItems.map((e) => ({
-        id: e.id,
-        event_type: e.event_type,
-        message: messages[e.event_type] ?? e.event_type,
-        occurred_at: e.occurred_at,
-      })),
+      notifications: items.map((item) => ({ ...item, audience })),
       environment: config.environment,
       test_data: true,
       correlation_id: cid,
     });
+  }
+
+  const markNotificationRead = url.pathname.match(/^\/v1\/me\/notifications\/([^/]+)\/read$/);
+  if (markNotificationRead && req.method === "POST") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const updated = await notifications.markRead(authenticated.user.id, markNotificationRead[1]);
+    if (!updated) return problem(404, "notification-not-found");
+    return new Response(null, { status: 204 });
+  }
+
+  if (url.pathname === "/v1/me/notifications/read-all" && req.method === "POST") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const updated = await notifications.markAllRead(authenticated.user.id);
+    return json({ updated, test_data: true, correlation_id: cid });
+  }
+
+  if (url.pathname === "/v1/me/devices" && req.method === "POST") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    let body: { token?: unknown; platform?: unknown; firebase_project_id?: unknown };
+    try {
+      body = await req.json() as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const token = typeof body.token === "string" ? body.token.trim() : "";
+    if (token.length < 20 || token.length > 4096) return problem(400, "invalid-device-token");
+    if (body.platform !== "android") return problem(400, "invalid-platform", "Only Android pilot devices are supported.");
+    if (body.firebase_project_id !== "buildkart-staging") {
+      return problem(400, "invalid-firebase-project", "Only the staging Firebase project is accepted.");
+    }
+    const device = await notifications.registerDevice(authenticated.user.id, token);
+    return json({ ...device, platform: "android", firebase_project_id: "buildkart-staging", test_data: true }, 201);
+  }
+
+  const removeDevice = url.pathname.match(/^\/v1\/me\/devices\/([^/]+)$/);
+  if (removeDevice && req.method === "DELETE") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const removed = await notifications.removeDevice(authenticated.user.id, removeDevice[1]);
+    if (!removed) return problem(404, "device-not-found");
+    return new Response(null, { status: 204 });
   }
 
   if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {
@@ -542,6 +680,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const paymentSessions = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/payment-sessions$/);
   if (paymentSessions && req.method === "POST") {
     const checkoutId = paymentSessions[1];
+    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+    if ("response" in authenticated) return authenticated.response;
     let body: { amount_minor?: number; currency_code?: string };
     try {
       body = (await req.json()) as { amount_minor?: number; currency_code?: string };
@@ -592,12 +732,14 @@ async function handle(req: Request, url: URL): Promise<Response> {
     if (!state) {
       return problem(404, "unknown-payment");
     }
+    const authenticated = await authorizeCheckoutOwner(req, state.checkout_id);
+    if ("response" in authenticated) return authenticated.response;
     return json(state);
   }
 
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
   if (url.pathname === "/v1/carts" && req.method === "POST") {
-    const authenticated = await authenticate(req);
+    const authenticated = await requireAnyRole(req, ["customer", "b2b_buyer", "b2b_account_admin", "b2b_approver"]);
     if ("response" in authenticated) return authenticated.response;
     let body: { region_id?: string; currency_code?: string } = {};
     try {
@@ -1086,6 +1228,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const reserve = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/reserve$/);
   if (reserve && req.method === "POST") {
     const checkoutId = reserve[1];
+    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+    if ("response" in authenticated) return authenticated.response;
     let body: { sku?: string; quantity?: number };
     try {
       body = (await req.json()) as { sku?: string; quantity?: number };
@@ -1151,6 +1295,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const commitReservation = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/commit$/);
   if (commitReservation && req.method === "POST") {
     const checkoutId = commitReservation[1];
+    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+    if ("response" in authenticated) return authenticated.response;
     const ref = await correlation.get(checkoutId);
     if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
@@ -1185,6 +1331,8 @@ async function handle(req: Request, url: URL): Promise<Response> {
   const releaseReservation = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/release$/);
   if (releaseReservation && req.method === "POST") {
     const checkoutId = releaseReservation[1];
+    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+    if ("response" in authenticated) return authenticated.response;
     const ref = await correlation.get(checkoutId);
     if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
@@ -1210,6 +1358,42 @@ async function handle(req: Request, url: URL): Promise<Response> {
     } catch (error) {
       return problem(502, "tryton-error", (error as Error).message);
     }
+  }
+
+  // POST /v1/admin/notifications/broadcast — governed staging trigger for the two pilot-wide templates.
+  if (url.pathname === "/v1/admin/notifications/broadcast" && req.method === "POST") {
+    let body: { template_key?: unknown; product_id?: unknown; product_title?: unknown };
+    try {
+      body = await req.json() as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const templateKey = body.template_key;
+    const productId = typeof body.product_id === "string" ? body.product_id.trim() : "";
+    const productTitle = typeof body.product_title === "string" ? body.product_title.trim() : "";
+    if ((templateKey !== "product_launch_v1" && templateKey !== "price_drop_v1") || !productId || !productTitle) {
+      return problem(
+        400,
+        "invalid-notification-trigger",
+        "template_key must be product_launch_v1 or price_drop_v1; product_id and product_title are required.",
+      );
+    }
+    const event = await events.append({
+      event_type: templateKey === "product_launch_v1" ? "catalog.product_launched" : "seller_offer.price_dropped",
+      aggregate_type: "product",
+      aggregate_id: productId,
+      correlation_id: cid,
+      payload: { product_id: productId, product_title: productTitle, test_data: true },
+    });
+    return json({
+      event_id: event.id,
+      template_key: templateKey,
+      audience: "allowlisted-pilot-users",
+      external_delivery_enabled: config.fcmDeliveryEnabled,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, 202);
   }
 
   // GET /v1/admin/events — durable domain-event log (WP4)
@@ -1391,14 +1575,65 @@ async function handle(req: Request, url: URL): Promise<Response> {
     });
   }
 
+  if (url.pathname === "/v1/ops/audit" && req.method === "GET") {
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await privilegedAudit.list(limit),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   return problem(404, "not-found");
 }
 
 const server = Bun.serve({
   port: config.port,
-  fetch: (req) => {
+  fetch: async (req) => {
     const url = new URL(req.url);
-    return handle(req, url);
+    const cid = correlationId(req);
+    const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
+    const isMutation = req.method !== "GET" && req.method !== "OPTIONS";
+    if (!requiredRoles || !isMutation) return handle(req, url, cid);
+
+    const authenticated = await requireAnyRole(req, requiredRoles);
+    if ("response" in authenticated) return authenticated.response;
+    const consequential = /^\/v1\/admin\/(tryton|inventory)(?:\/|$)/.test(url.pathname) ||
+      /^\/v1\/payments\/[^/]+\/simulate$/.test(url.pathname);
+    if (consequential && authenticated.authorization.roles.every((role) => role === "super_admin")) {
+      return problem(
+        409,
+        "independent-approval-required",
+        "Super-admin consequential actions remain blocked until an independent second approval is recorded.",
+      );
+    }
+    let auditId: string;
+    try {
+      auditId = await privilegedAudit.start({
+        actorUserId: authenticated.user.id,
+        actorRoles: authenticated.authorization.roles,
+        businessAccountId: authenticated.authorization.businessAccountId,
+        sellerId: authenticated.authorization.sellerId,
+        method: req.method,
+        path: url.pathname,
+        correlationId: cid,
+      });
+    } catch (error) {
+      console.warn("[experience-api] privileged audit start failed:", (error as Error).message);
+      return problem(503, "audit-store-unavailable", "The privileged action was not executed.");
+    }
+    let response: Response;
+    try {
+      response = await handle(req, url, cid);
+    } catch (error) {
+      console.error("[experience-api] privileged action failed:", (error as Error).message);
+      response = problem(500, "privileged-action-failed");
+    }
+    await privilegedAudit.complete(auditId, response.status).catch((error) => {
+      console.warn("[experience-api] privileged audit completion failed:", (error as Error).message);
+    });
+    return response;
   },
 });
 

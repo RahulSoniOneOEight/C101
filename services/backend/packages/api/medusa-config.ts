@@ -15,14 +15,17 @@ const paymentRuntime = resolvePaymentRuntime(process.env)
 //   scripts/bundle-dashboards.mjs during `build`. The compiled config runs from the
 //   artifact root, so __dirname points there.
 const dashboardAppDir = (name: string) => {
-  const bundled = path.join(__dirname, 'dashboards', name)
-  return fs.existsSync(bundled) ? bundled : path.join(__dirname, `../../apps/${name}`)
+  const bundled = path.join(process.cwd(), '.medusa', 'server', 'dashboards', name)
+  return fs.existsSync(bundled)
+    ? bundled
+    : path.resolve(process.cwd(), `../../apps/${name}`)
 }
 
 module.exports = withMercur({
   projectConfig: {
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL,
+    workerMode: (process.env.MEDUSA_WORKER_MODE || 'shared') as 'shared' | 'worker' | 'server',
     http: {
       storeCors: process.env.STORE_CORS!,
       adminCors: process.env.ADMIN_CORS!,
@@ -31,6 +34,9 @@ module.exports = withMercur({
       jwtSecret: process.env.JWT_SECRET || "supersecret",
       cookieSecret: process.env.COOKIE_SECRET || "supersecret",
     }
+  },
+  admin: {
+    disable: process.env.DISABLE_MEDUSA_ADMIN === 'true',
   },
   featureFlags: {
     seller_registration: true

@@ -37,14 +37,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Onboarding → Login (Consumer D2C) → Home
+    // Onboarding → Login. Both consumer and trade modes now require an
+    // allowlisted OTP identity, so the consumer path no longer bypasses auth.
     await tester.tap(find.text('Get Started'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign In'));
     await tester.pumpAndSettle();
 
     expect(find.text('BuildKart'), findsOneWidget);
-    expect(find.text('No products yet — seed your Medusa catalog.'),
-        findsOneWidget);
+    expect(find.text('Get OTP'), findsOneWidget);
+    expect(find.text('Sign In'), findsNothing);
   });
 }

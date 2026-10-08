@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "build": "medusa build && node ./scripts/bundle-dashboards.mjs",
+    "predeploy": "medusa db:migrate",
     "seed": "medusa exec ./src/scripts/seed.ts",
     "configure:simulated-payment": "medusa exec ./src/scripts/configure-simulated-payment.ts",
     "test:payment-safety": "bun run ./src/scripts/payment-safety-test.ts",

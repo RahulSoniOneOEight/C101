@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/experience_api.dart';
+import '../notifications/push_notification_coordinator.dart';
+import 'notifications_providers.dart';
 
 /// Riverpod wiring for the shared Experience API. These providers connect the Flutter state layer
 /// to the canonical backend (composed products/collections, dummy OTP, logistics, notifications).
@@ -12,14 +14,16 @@ final pilotNewArrivalsProvider = FutureProvider<List<dynamic>>((ref) async {
 });
 
 /// A single composed product (Medusa product + Mercur offers + commercial eligibility).
-final pilotProductProvider = FutureProvider.family<Map<String, dynamic>, String>(
+final pilotProductProvider =
+    FutureProvider.family<Map<String, dynamic>, String>(
   (ref, productId) async {
     return ref.watch(experienceApiProvider).getProduct(productId);
   },
 );
 
 /// Dummy delivery serviceability for a postcode.
-final pilotServiceabilityProvider = FutureProvider.family<Map<String, dynamic>, String>(
+final pilotServiceabilityProvider =
+    FutureProvider.family<Map<String, dynamic>, String>(
   (ref, postcode) async {
     return ref.watch(experienceApiProvider).checkServiceability(postcode);
   },
@@ -51,18 +55,40 @@ class PilotOtpNotifier extends Notifier<Map<String, dynamic>?> {
     final api = ref.read(experienceApiProvider);
     final result = await api.verifyOtp(challengeId, code);
     state = result;
+    try {
+      await ref.read(pushNotificationCoordinatorProvider).activate();
+    } catch (_) {
+      // Push setup is best-effort and must never invalidate a successful login.
+    }
+    try {
+      await ref.read(notificationsProvider.notifier).refresh();
+    } catch (_) {
+      // Inbox availability must never invalidate a successful login.
+    }
     return result;
   }
 
-  void reset() {
-    ref.read(experienceApiProvider).clearSession();
+  Future<void> reset() async {
+    await ref.read(experienceApiProvider).clearSession();
     state = null;
   }
 
   Future<void> logout() async {
-    await ref.read(experienceApiProvider).logout();
-    state = null;
+    final push = ref.read(pushNotificationCoordinatorProvider);
+    try {
+      await ref.read(experienceApiProvider).logout(deviceId: push.deviceId);
+    } finally {
+      try {
+        await push.clearLocalRegistration();
+      } catch (_) {
+        // Local session cleanup below must still complete.
+      }
+      ref.invalidate(notificationsProvider);
+      state = null;
+    }
   }
 }
 
-final pilotOtpProvider = NotifierProvider<PilotOtpNotifier, Map<String, dynamic>?>(PilotOtpNotifier.new);
+final pilotOtpProvider =
+    NotifierProvider<PilotOtpNotifier, Map<String, dynamic>?>(
+        PilotOtpNotifier.new);

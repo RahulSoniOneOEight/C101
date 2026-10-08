@@ -1,0 +1,135 @@
+change_id: CHG-019
+revision: 1
+request: >-
+  Define and implement server-owned role assignments, tenant and seller isolation, privileged-route
+  authorization and audit requirements for the 20-user bounded hosted-staging pilot. Client-supplied
+  roles are never trusted. Cloudflare Access provides an additional perimeter for operator surfaces
+  but never replaces application authorization. Production access and production release remain
+  unauthorized.
+type: security
+extends:
+- CHG-017
+- CHG-018
+affected_capabilities:
+- authentication
+- authorization
+- business-account-membership
+- seller-operations
+- marketplace-operations
+- erp-operations
+- finance-operations
+- support-operations
+- audit
+affected_domains:
+- identity
+- commerce
+- marketplace
+- erp
+- finance
+- operations
+- experience-api
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- seller-portal
+- operations-console
+- commerce-admin
+affected_entities:
+- pilot-identity
+- role-assignment
+- business-account-membership
+- seller-membership
+- audit-record
+decisions:
+  D-019-01: server-owned-role-assignments
+  D-019-02: customer-and-business-account-isolation
+  D-019-03: seller-scope-and-separation-of-duties
+  D-019-04: support-marketplace-erp-and-finance-operations
+  D-019-05: super-admin-and-consequential-actions
+  D-019-06: privileged-route-exposure-and-cloudflare-access
+decision_approval_roles:
+  D-019-01: [product, architecture, security]
+  D-019-02: [product, architecture, security]
+  D-019-03: [architecture, security, marketplace]
+  D-019-04: [security, finance, operations, integration-owners]
+  D-019-05: [security, operations, release-authority]
+  D-019-06: [architecture, security, operations]
+required_approvals:
+- product
+- architecture
+- security
+- marketplace
+- finance
+- operations
+- integration-owners
+- release-authority
+role_baseline:
+  customer:
+  - read-and-manage-own-profile
+  - manage-own-cart-and-checkout
+  - read-own-orders-notifications-and-devices
+  b2b_buyer:
+  - customer-capabilities
+  - create-business-account-purchase-requests
+  - read-own-business-account-catalogue-and-orders
+  b2b_account_admin:
+  - b2b-buyer-capabilities
+  - manage-own-business-account-membership-without-self-escalation
+  - manage-own-business-account-settings
+  b2b_approver:
+  - read-own-business-account-purchase-requests
+  - approve-or-reject-within-configured-policy
+  seller_admin:
+  - administer-assigned-seller-users-settings-catalogue-and-orders
+  seller_catalog_manager:
+  - manage-products-offers-and-pricing-for-assigned-seller
+  seller_order_manager:
+  - manage-allocations-and-fulfilment-for-assigned-seller
+  support_operator:
+  - read-redacted-customer-and-order-support-context
+  - manage-support-cases-without-commercial-financial-or-inventory-mutation
+  marketplace_operator:
+  - manage-seller-eligibility-and-allocation-operations
+  erp_operator:
+  - manage-atp-reservation-and-stock-operations-through-governed-apis
+  finance_operator:
+  - review-payment-refund-and-reconciliation-evidence
+  super_admin:
+  - cross-system-administration-with-audit-and-second-approval-for-consequential-actions
+required_tests:
+- Role assignments load only from server-side configuration and reject unknown roles or identities.
+- Client headers, request bodies and tokens cannot add or change roles, account ids or seller ids.
+- Customer A cannot access Customer B orders, notifications, devices or profile.
+- B2B users cannot access another business account.
+- B2B buyers cannot manage membership or approve purchases.
+- B2B approvers cannot manage membership, seller data, inventory or finance actions.
+- Seller 1 users cannot access Seller 2 data or actions.
+- Seller catalog managers cannot perform fulfilment or membership actions.
+- Seller order managers cannot modify products, offers or pricing.
+- Support operators cannot mutate commercial, financial, inventory or identity state.
+- Marketplace operators cannot perform finance or ERP actions.
+- ERP operators cannot perform payment, refund, catalogue or canonical-order actions.
+- Finance operators cannot change inventory, catalogue, allocation or canonical-order state.
+- Super-admin consequential actions require an audit record and independent second approval.
+- Missing, expired, revoked or unassigned sessions fail closed.
+- Privileged routes remain inaccessible from the public customer ingress even with a valid customer session.
+constraints:
+- The role plan is staging-only and limited to the approved 20 synthetic identities.
+- Role assignments, business-account ids and seller ids are server-owned configuration or database state.
+- Cloudflare Access is defense in depth and cannot substitute for API authorization.
+- Canonical Medusa, Mercur and Tryton ownership boundaries remain unchanged.
+- Privileged actions are deny-by-default and explicitly enumerated.
+- No role can authorize production effects or production release.
+- Secrets, Cloudflare tokens and tester configuration are never committed to Git.
+- Production payment, real OTP, real logistics and production notifications remain prohibited.
+approval_required: true
+decision_approval:
+  status: all-required-decision-role-outcomes-recorded
+  approved_by: Rahul Soni
+  authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
+  approved_at_utc: '2026-10-08T16:46:50Z'
+  ledger_ref: client-projects/client101/changes/CHG-019-approvals.yaml
+  runtime_implementation_authorized: true
+  runtime_scope: bounded-hosted-staging-rbac-only
+  production_release_authorized: false
+status: bounded-hosted-staging-rbac-authorized

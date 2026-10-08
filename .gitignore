@@ -4,6 +4,12 @@
 !.env.example
 !.env.sample
 !.env.template
+**/firebase-admin*.json
+**/*service-account*.json
+**/google-services.json
+**/*.jks
+**/*.keystore
+**/key.properties
 
 # Python
 __pycache__/

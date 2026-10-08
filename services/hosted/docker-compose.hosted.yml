@@ -1,0 +1,157 @@
+name: buildkart-hosted-pilot
+
+services:
+  postgres:
+    image: postgres:16.15-alpine
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/postgres.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7.4.10-alpine
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/redis.env
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    volumes:
+      - redis_data:/data
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/nats.env
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["exec nats-server -js -sd /data --user \"$$NATS_USER\" --pass \"$$NATS_PASSWORD\" -m 8222"]
+    volumes:
+      - nats_data:/data
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  medusa-migrate:
+    build: ../backend
+    env_file: /etc/buildkart/secrets/medusa.env
+    command: ["npm", "run", "predeploy"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [private]
+    restart: "no"
+
+  medusa-api:
+    build: ../backend
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/medusa.env
+    environment:
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "false"
+      PORT: "9010"
+    depends_on:
+      medusa-migrate: {condition: service_completed_successfully}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9010/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  medusa-worker:
+    build: ../backend
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/medusa.env
+    environment:
+      MEDUSA_WORKER_MODE: worker
+      DISABLE_MEDUSA_ADMIN: "true"
+      PORT: "9011"
+    depends_on:
+      medusa-migrate: {condition: service_completed_successfully}
+    networks: [private]
+
+  tryton:
+    build: ../tryton
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/tryton.env
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [private]
+
+  experience-api:
+    build: ../experience-api
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/experience-api.env
+    environment:
+      PORT: "9020"
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      nats: {condition: service_healthy}
+      medusa-api: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9020/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  event-workers:
+    build: ../experience-api
+    command: ["bun", "run", "start:workers"]
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/experience-api.env
+    environment:
+      WORKERS_METRICS_PORT: "9030"
+    depends_on:
+      experience-api: {condition: service_healthy}
+    networks: [private, egress]
+
+  proxy:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - envsubst '$$PUBLIC_API_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
+    environment:
+      PUBLIC_API_HOSTNAME: ${PUBLIC_API_HOSTNAME:?set PUBLIC_API_HOSTNAME}
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+    depends_on:
+      experience-api: {condition: service_healthy}
+    networks: [private, tunnel]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - /etc/buildkart/cloudflared:/etc/cloudflared:ro
+    depends_on: [proxy]
+    networks: [tunnel]
+
+volumes:
+  postgres_data:
+  redis_data:
+  nats_data:
+
+networks:
+  private:
+    internal: true
+  tunnel:
+  egress:

@@ -1,7 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
+    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseKeystoreProperties = Properties()
+val releaseKeystorePropertiesFile = rootProject.file("key.properties")
+val releaseSigningConfigured = releaseKeystorePropertiesFile.exists()
+if (releaseSigningConfigured) {
+    releaseKeystorePropertiesFile.inputStream().use(releaseKeystoreProperties::load)
 }
 
 android {
@@ -29,12 +39,32 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                keyAlias = releaseKeystoreProperties.getProperty("keyAlias")
+                keyPassword = releaseKeystoreProperties.getProperty("keyPassword")
+                storeFile = file(releaseKeystoreProperties.getProperty("storeFile"))
+                storePassword = releaseKeystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    val requestsRelease = allTasks.any { it.name.contains("Release", ignoreCase = true) }
+    if (requestsRelease && !releaseSigningConfigured) {
+        throw GradleException(
+            "Release signing is not configured. Provide android/key.properties and a protected external keystore.",
+        )
     }
 }
 

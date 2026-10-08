@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/account_models.dart';
 import '../providers/account_providers.dart';
+import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
 
 AgencyColors _colors(BuildContext c) =>
@@ -158,8 +159,7 @@ class AddressesScreen extends ConsumerWidget {
                                     fontWeight: FontWeight.w700,
                                     color: colors.contentPrimary)),
                             const SizedBox(width: AgencySpacing.xs),
-                            if (a.isDefault)
-                              _pill(context, 'Default'),
+                            if (a.isDefault) _pill(context, 'Default'),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -186,7 +186,8 @@ class AddressesScreen extends ConsumerWidget {
                             TextButton(
                               onPressed: () => _delete(context, ref, a),
                               child: Text('Delete',
-                                  style: TextStyle(color: colors.feedbackError)),
+                                  style:
+                                      TextStyle(color: colors.feedbackError)),
                             ),
                           ],
                         ),
@@ -212,8 +213,8 @@ class AddressesScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(text,
-            style: TextStyle(
-                fontSize: 10, color: _colors(context).actionPrimary)),
+            style:
+                TextStyle(fontSize: 10, color: _colors(context).actionPrimary)),
       );
 
   Future<void> _delete(
@@ -248,8 +249,8 @@ class AddressesScreen extends ConsumerWidget {
       await notifier.update(result);
     }
     if (context.mounted) {
-      PinToast.show(context,
-          existing == null ? 'Address added' : 'Address updated',
+      PinToast.show(
+          context, existing == null ? 'Address added' : 'Address updated',
           tone: PinToastTone.success);
     }
   }
@@ -294,7 +295,14 @@ class _AddressFormState extends State<_AddressForm> {
   @override
   void dispose() {
     for (final c in <TextEditingController>[
-      _label, _name, _phone, _line1, _line2, _city, _state, _pin,
+      _label,
+      _name,
+      _phone,
+      _line1,
+      _line2,
+      _city,
+      _state,
+      _pin,
     ]) {
       c.dispose();
     }
@@ -354,7 +362,8 @@ class _AddressFormState extends State<_AddressForm> {
               SizedBox(
                 width: double.infinity,
                 child: PinWorkflowAction(
-                  label: widget.existing == null ? 'Add address' : 'Save address',
+                  label:
+                      widget.existing == null ? 'Add address' : 'Save address',
                   onPressed: _submit,
                 ),
               ),
@@ -421,8 +430,8 @@ class PaymentsScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
               child: Text('No saved cards yet.',
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: colors.contentSecondary)),
             )
           else
             for (final m in saved) _savedTile(context, ref, m),
@@ -511,7 +520,8 @@ class PaymentsScreen extends ConsumerWidget {
             },
             itemBuilder: (_) => <PopupMenuEntry<String>>[
               if (!m.isDefault)
-                const PopupMenuItem(value: 'default', child: Text('Set default')),
+                const PopupMenuItem(
+                    value: 'default', child: Text('Set default')),
               const PopupMenuItem(value: 'remove', child: Text('Remove')),
             ],
           ),
@@ -533,7 +543,8 @@ class PaymentsScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(m.label,
-                    style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
+                    style:
+                        TextStyle(fontSize: 13, color: colors.contentPrimary)),
                 Text(m.detail,
                     style: TextStyle(
                         fontSize: 11, color: colors.contentSecondary)),
@@ -666,9 +677,10 @@ class _AddCardFormState extends State<_AddCardForm> {
                 controller: _expiry,
                 decoration: const InputDecoration(
                     labelText: 'Expiry (MM/YY)', border: OutlineInputBorder()),
-                validator: (v) => RegExp(r'^\d{2}/\d{2}$').hasMatch(v?.trim() ?? '')
-                    ? null
-                    : 'Use MM/YY',
+                validator: (v) =>
+                    RegExp(r'^\d{2}/\d{2}$').hasMatch(v?.trim() ?? '')
+                        ? null
+                        : 'Use MM/YY',
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -820,8 +832,8 @@ class _GstInvoicesScreenState extends ConsumerState<GstInvoicesScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
               child: Text('No invoices yet.',
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: colors.contentSecondary)),
             )
           else
             for (final inv in invoices) _invoiceTile(context, inv),
@@ -901,8 +913,8 @@ class _GstInvoicesScreenState extends ConsumerState<GstInvoicesScreen> {
   Future<void> _download(BuildContext context, Invoice inv) async {
     final gst = ref.read(gstProvider);
     try {
-      final file = File(
-          '${Directory.systemTemp.path}/buildkart_${inv.number}.pdf');
+      final file =
+          File('${Directory.systemTemp.path}/buildkart_${inv.number}.pdf');
       await file.writeAsString(_buildInvoicePdf(inv, gst));
       if (context.mounted) {
         PinToast.show(context, 'Invoice saved to ${file.path}',
@@ -1008,8 +1020,7 @@ class HelpSupportScreen extends ConsumerWidget {
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: AgencySpacing.sm),
               title: Text(f.$1,
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentPrimary)),
+                  style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
               children: <Widget>[
                 Align(
                   alignment: Alignment.centerLeft,
@@ -1060,8 +1071,8 @@ class HelpSupportScreen extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
               child: Text('No tickets raised yet.',
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: colors.contentSecondary)),
             )
           else
             for (final t in tickets) _ticketTile(context, t),
@@ -1096,8 +1107,7 @@ class HelpSupportScreen extends ConsumerWidget {
                         color: colors.contentPrimary)),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: tone.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(999),
@@ -1325,8 +1335,8 @@ class SettingsScreen extends ConsumerWidget {
                   color: colors.contentPrimary)),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.privacy_tip_outlined,
-                color: colors.actionPrimary),
+            leading:
+                Icon(Icons.privacy_tip_outlined, color: colors.actionPrimary),
             title: const Text('Privacy policy', style: TextStyle(fontSize: 13)),
             trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: () => _privacy(context),
@@ -1335,7 +1345,7 @@ class SettingsScreen extends ConsumerWidget {
           PinWorkflowAction(
             label: 'Log out',
             hierarchy: PinWorkflowHierarchy.destructive,
-            onPressed: () => _logout(context),
+            onPressed: () => _logout(context, ref),
           ),
         ],
       ),
@@ -1370,7 +1380,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _logout(BuildContext context) async {
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
     final ok = await PinDialog.confirm(
       context,
       title: 'Log out?',
@@ -1379,6 +1389,11 @@ class SettingsScreen extends ConsumerWidget {
       destructive: true,
     );
     if (!(ok ?? false) || !context.mounted) return;
-    context.go('/login');
+    try {
+      await ref.read(pilotOtpProvider.notifier).logout();
+    } catch (_) {
+      // Local session and device state are still cleared by the notifier.
+    }
+    if (context.mounted) context.go('/login');
   }
 }

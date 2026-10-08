@@ -48,10 +48,14 @@ export interface Config {
   redisUrl: string;
   natsUrl: string;
   pilotUsersJson?: string;
+  pilotRoleAssignmentsJson?: string;
   pilotExpectedUserCount?: number;
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
+  firebaseProjectId: string;
+  fcmDeliveryEnabled: boolean;
+  notificationTemplatesApproved: boolean;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -60,6 +64,10 @@ function positiveInteger(raw: string | undefined, fallback: number, name: string
     throw new Error(`${name} must be a positive integer.`);
   }
   return value;
+}
+
+function booleanFlag(raw: string | undefined): boolean {
+  return raw?.trim().toLowerCase() === "true";
 }
 
 export function loadConfig(env: Record<string, string | undefined>): Config {
@@ -96,6 +104,27 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   if (expectedPilotUsers !== undefined && expectedPilotUsers > 20) {
     throw new Error("PILOT_EXPECTED_USER_COUNT cannot exceed the governed maximum of 20.");
   }
+  if (expectedPilotUsers !== undefined && !env.PILOT_ROLE_ASSIGNMENTS_JSON?.trim()) {
+    throw new Error("PILOT_ROLE_ASSIGNMENTS_JSON is required when PILOT_EXPECTED_USER_COUNT is set.");
+  }
+
+  const firebaseProjectId = env.FIREBASE_PROJECT_ID ?? "buildkart-staging";
+  const fcmDeliveryEnabled = booleanFlag(env.FCM_DELIVERY_ENABLED);
+  const notificationTemplatesApproved = booleanFlag(env.PILOT_NOTIFICATION_TEMPLATES_APPROVED);
+  if (fcmDeliveryEnabled) {
+    if (environment !== "staging") {
+      throw new Error("FCM delivery is permitted only in the staging environment.");
+    }
+    if (firebaseProjectId !== "buildkart-staging") {
+      throw new Error("FCM delivery is restricted to the buildkart-staging Firebase project.");
+    }
+    if (!notificationTemplatesApproved) {
+      throw new Error("FCM delivery requires approved notification template wording.");
+    }
+    if (!env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+      throw new Error("FCM delivery requires GOOGLE_APPLICATION_CREDENTIALS to reference a server-side credential file.");
+    }
+  }
 
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
@@ -115,6 +144,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     redisUrl: env.REDIS_URL ?? "redis://localhost:6379",
     natsUrl: env.NATS_URL ?? "nats://localhost:4222",
     pilotUsersJson: env.PILOT_USERS_JSON,
+    pilotRoleAssignmentsJson: env.PILOT_ROLE_ASSIGNMENTS_JSON,
     pilotExpectedUserCount: expectedPilotUsers,
     pilotOtpCode,
     pilotChallengeTtlSeconds: positiveInteger(
@@ -127,5 +157,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       60 * 60,
       "PILOT_SESSION_TTL_SECONDS",
     ),
+    firebaseProjectId,
+    fcmDeliveryEnabled,
+    notificationTemplatesApproved,
   };
 }
