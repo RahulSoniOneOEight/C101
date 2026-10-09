@@ -14,6 +14,7 @@ http {
 
   upstream experience_api { server experience-api:9020; }
   upstream medusa_api { server medusa-api:9010; }
+  upstream tryton_api { server tryton:8000; }
 
   server {
     listen 8080 default_server;
@@ -35,6 +36,15 @@ http {
     location ~ ^/(dashboard|seller|vendor|admin|auth|static|uploads)(/|$) {
       if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
       proxy_pass http://medusa_api;
+    }
+
+    # Tryton ERP web client (SAO). Reachable ONLY on the operator hostname, under /erp/.
+    # SAO posts to a relative /rpc/ path, so stripping the /erp/ prefix maps it onto
+    # trytond's root JSON-RPC endpoint.
+    location = /erp { return 301 /erp/; }
+    location /erp/ {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://tryton_api/;
     }
 
     # The public customer hostname can never reach operator/admin/metrics or simulation controls.
