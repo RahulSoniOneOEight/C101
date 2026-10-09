@@ -453,7 +453,7 @@ class ProductCard extends StatelessWidget {
                             spacing: AgencySpacing.xs,
                             runSpacing: 2,
                             children: <Widget>[
-                              for (final badge in badges.take(2))
+                              for (final badge in badges.take(1))
                                 _pill(
                                   badge,
                                   _badgeColor(badge, colors),
@@ -1419,114 +1419,113 @@ class CompactProductItem extends StatelessWidget {
     final colors = context.colors;
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(AgencyRadius.sm),
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
       child: Container(
-        height: 80,
-        padding: const EdgeInsets.all(AgencySpacing.xs),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: colors.surfaceInteractive,
-          borderRadius: BorderRadius.circular(AgencyRadius.sm),
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            SizedBox(
-              width: 52,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    imageUrl == null
-                        ? ColoredBox(color: colors.surfaceRaised)
-                        : Image.network(
-                            imageUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                ColoredBox(color: colors.surfaceRaised),
-                          ),
-                    if (discountLabel != null)
-                      Positioned(
-                        top: 2,
-                        left: 2,
-                        right: 2,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 3, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: colors.promotion,
-                            borderRadius:
-                                BorderRadius.circular(AgencyRadius.sm),
-                          ),
-                          child: Text(
-                            discountLabel!,
-                            style: AgencyText.label.copyWith(
-                              color: colors.promotionInverse,
-                              fontSize: 9,
-                              height: 1.2,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
+            // ~70% of the tile is product imagery.
+            Expanded(
+              flex: 7,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  imageUrl == null
+                      ? ColoredBox(color: colors.surfaceRaised)
+                      : Image.network(
+                          imageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              ColoredBox(color: colors.surfaceRaised),
+                        ),
+                  if (discountLabel != null)
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: colors.promotion,
+                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
+                        ),
+                        child: Text(
+                          discountLabel!,
+                          style: AgencyText.label.copyWith(
+                            color: colors.promotionInverse,
+                            fontSize: 9,
+                            height: 1.2,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(width: 6),
+            // Remaining ~30%: price, name and the quick-add action.
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AgencyText.label.copyWith(
-                        color: colors.contentPrimary,
-                        fontSize: 12,
-                        height: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(
-                          priceLabel,
-                          style: AgencyText.label.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (onAdd != null) ...<Widget>[
-                        const SizedBox(width: AgencySpacing.xs),
-                        InkWell(
-                          onTap: onAdd,
-                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: colors.actionPrimary,
-                              shape: BoxShape.circle,
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              priceLabel,
+                              style: AgencyText.label.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colors.contentPrimary,
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            child: Icon(Icons.add,
-                                size: 16, color: colors.contentInverse),
-                          ),
+                            Text(
+                              title,
+                              style: AgencyText.label.copyWith(
+                                color: colors.contentSecondary,
+                                fontSize: 10,
+                                height: 1.1,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                    ),
+                    if (onAdd != null) ...<Widget>[
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: onAdd,
+                        borderRadius: BorderRadius.circular(AgencyRadius.sm),
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: colors.actionPrimary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.add,
+                              size: 16, color: colors.contentInverse),
+                        ),
+                      ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

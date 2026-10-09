@@ -193,8 +193,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl:
-                'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=940',
+            imageUrl: categoryBannerImage(_category),
             title: _category ?? 'Shop by category',
             subtitle: 'Top picks in this aisle',
             ctaLabel: 'Explore',

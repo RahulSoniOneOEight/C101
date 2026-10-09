@@ -333,6 +333,28 @@ final recentlyViewedProvider =
     NotifierProvider<RecentlyViewedNotifier, List<String>>(
         RecentlyViewedNotifier.new);
 
+/// Category-appropriate banner imagery (Pexels) for the home / Browse category
+/// banners. Falls back to a general trade shot for "All".
+const Map<String, String> _categoryBannerImages = <String, String>{
+  'Bathroom & Plumbing':
+      'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Tiles & Plywood':
+      'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Electrical':
+      'https://images.pexels.com/photos/577514/pexels-photo-577514.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Agriculture & Seeds':
+      'https://images.pexels.com/photos/2933243/pexels-photo-2933243.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Pumps & Machines':
+      'https://images.pexels.com/photos/175709/pexels-photo-175709.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Construction':
+      'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
+};
+
+/// Banner image for a home/Browse category (changes per category).
+String categoryBannerImage(String? label) =>
+    _categoryBannerImages[label] ??
+    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&w=940';
+
 /// Home scroll-feed modules, derived from the catalog. Placeholder structure
 /// until a merchandising backend is wired.
 final homeModulesProvider =

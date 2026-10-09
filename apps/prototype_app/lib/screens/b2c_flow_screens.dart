@@ -439,14 +439,28 @@ class SignUpScreen extends StatelessWidget {
 // Search
 // ---------------------------------------------------------------------------
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  static const List<String> _recent = <String>[
+    'drill bit set',
+    'ceramic floor tiles',
+    'cpvc pipe 3/4',
+  ];
+  static const List<String> _popular = <String>[
+    'Bathroom',
+    'Tiles',
+    'Electrical',
+    'Agriculture',
+    'Pumps',
+    'Construction',
+  ];
+
   final TextEditingController _controller = TextEditingController();
   String _query = '';
 
@@ -456,22 +470,25 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  List<Product> get _results {
+  void _submit(String value) => setState(() => _query = value);
+
+  List<Product> _match(List<Product> products) {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return const <Product>[];
-    return demoProducts
+    return products
         .where((p) =>
             p.title.toLowerCase().contains(q) ||
             (p.brand?.toLowerCase().contains(q) ?? false))
         .toList();
   }
 
-  void _submit(String value) => setState(() => _query = value);
-
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
-    final results = _results;
+    final products = ref.watch(productsProvider).value ?? const <Product>[];
+    final results = _match(products);
+    final suggestions = products.take(6).toList();
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -484,82 +501,122 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
       body: _query.trim().isEmpty
-          ? ListView(
-              padding: const EdgeInsets.all(AgencySpacing.md),
-              children: <Widget>[
-                _sectionTitle(context, 'Recent searches'),
-                for (final term in const <String>[
-                  'drill bit set',
-                  'ceramic floor tiles',
-                  'cpvc pipe 3/4',
-                ])
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.history, size: 18),
-                    title: Text(term,
-                        style: TextStyle(
-                            fontSize: 13, color: colors.contentPrimary)),
-                    trailing: const Icon(Icons.close, size: 16),
-                    onTap: () {
-                      _controller.text = term;
-                      _submit(term);
-                    },
-                  ),
-                const SizedBox(height: AgencySpacing.md),
-                _sectionTitle(context, 'Popular categories'),
-                Wrap(
-                  spacing: AgencySpacing.sm,
-                  runSpacing: AgencySpacing.sm,
-                  children: const <String>[
-                    'Bathroom',
-                    'Tiles',
-                    'Electrical',
-                    'Agriculture',
-                    'Pumps',
-                    'Construction',
-                  ]
-                      .map((c) => Chip(
-                          label: Text(c, style: const TextStyle(fontSize: 12))))
-                      .toList(),
-                ),
-              ],
-            )
+          ? _idle(context, colors)
           : results.isEmpty
-              ? const Center(child: Text('No products match your search'))
-              : ListView.builder(
+              ? _noResults(context, colors, suggestions)
+              : ListView(
                   padding: const EdgeInsets.all(AgencySpacing.md),
-                  itemCount: results.length,
-                  itemBuilder: (context, i) {
-                    final p = results[i];
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: colors.surfacePage,
-                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                        ),
-                        child: Icon(Icons.image_outlined,
-                            size: 20, color: colors.contentSecondary),
-                      ),
-                      title: Text(p.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13, color: colors.contentPrimary)),
-                      subtitle: Text(p.brand ?? '',
-                          style: TextStyle(
-                              fontSize: 11, color: colors.contentSecondary)),
-                      trailing: Text(p.price?.formatted ?? '',
-                          style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: colors.actionPrimary)),
-                      onTap: () => context.push('/product/${p.id}'),
-                    );
-                  },
+                  children: <Widget>[
+                    for (final p in results) _productTile(context, colors, p),
+                  ],
                 ),
+    );
+  }
+
+  Widget _idle(BuildContext context, AgencyColors colors) {
+    return ListView(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      children: <Widget>[
+        _sectionTitle(context, 'Recent searches'),
+        for (final term in _recent)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.history, size: 18),
+            title: Text(term,
+                style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
+            trailing: const Icon(Icons.close, size: 16),
+            onTap: () {
+              _controller.text = term;
+              _submit(term);
+            },
+          ),
+        const SizedBox(height: AgencySpacing.md),
+        _sectionTitle(context, 'Popular categories'),
+        _chips(context, _popular),
+      ],
+    );
+  }
+
+  /// Shown when a query yields nothing: suggested searches + a few products so
+  /// the screen is never a dead end.
+  Widget _noResults(
+      BuildContext context, AgencyColors colors, List<Product> suggestions) {
+    return ListView(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      children: <Widget>[
+        Icon(Icons.search_off, color: colors.contentSecondary, size: 32),
+        const SizedBox(height: AgencySpacing.sm),
+        Center(
+          child: Text('No matches for "$_query"',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+        ),
+        const SizedBox(height: AgencySpacing.lg),
+        _sectionTitle(context, 'Suggested searches'),
+        _chips(context, const <String>[
+          'Tiles',
+          'Drill',
+          'Pipe',
+          'Paint',
+          'LED',
+          'Valve',
+        ]),
+        const SizedBox(height: AgencySpacing.lg),
+        _sectionTitle(context, 'Popular products'),
+        for (final p in suggestions) _productTile(context, colors, p),
+      ],
+    );
+  }
+
+  Widget _chips(BuildContext context, List<String> labels) {
+    return Wrap(
+      spacing: AgencySpacing.sm,
+      runSpacing: AgencySpacing.sm,
+      children: labels
+          .map((c) => ActionChip(
+                label: Text(c, style: const TextStyle(fontSize: 12)),
+                onPressed: () {
+                  _controller.text = c;
+                  _submit(c);
+                },
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _productTile(BuildContext context, AgencyColors colors, Product p) {
+    final placeholder = Container(
+      color: colors.surfacePage,
+      child: Icon(Icons.image_outlined, size: 20, color: colors.contentSecondary),
+    );
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: ClipRRect(
+        borderRadius: BorderRadius.circular(AgencyRadius.sm),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: p.thumbnail == null
+              ? placeholder
+              : Image.network(p.thumbnail!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => placeholder),
+        ),
+      ),
+      title: Text(p.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
+      subtitle: Text(p.brand ?? '',
+          style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+      trailing: Text(p.price?.formatted ?? '',
+          style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: colors.actionPrimary)),
+      onTap: () => context.push('/product/${p.id}'),
     );
   }
 

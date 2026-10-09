@@ -233,14 +233,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverToBoxAdapter(child: _sortFilterRow()),
                 if (results.isNotEmpty)
-                  SliverToBoxAdapter(child: _recentlyViewedStrip()),
+                  SliverToBoxAdapter(child: _recommendedStrip()),
                 if (results.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(AgencySpacing.xl),
-                      child: Center(child: Text('No products match')),
-                    ),
-                  )
+                  SliverToBoxAdapter(child: _noResults(products))
                 else
                   SliverPadding(
                     padding: const EdgeInsets.all(AgencySpacing.md),
@@ -439,14 +434,68 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
+  /// Shown when the filters/search yield nothing: suggested filters + a few
+  /// products so Browse is never a dead end.
+  Widget _noResults(List<Product> products) {
+    final colors = _colors(context);
+    final suggestions = products.take(4).toList();
+    return Padding(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.search_off, color: colors.contentSecondary, size: 32),
+          const SizedBox(height: AgencySpacing.sm),
+          Text('No products match your search',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.md),
+          Text('Try a suggested filter',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.sm),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.sm,
+            children: <Widget>[
+              for (final key in _keyItems.take(5))
+                ActionChip(
+                  label: Text(key, style: const TextStyle(fontSize: 12)),
+                  onPressed: () => setState(() {
+                    _keys
+                      ..clear()
+                      ..add(key);
+                    _resetPaging();
+                  }),
+                ),
+            ],
+          ),
+          if (suggestions.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.lg),
+            Text('Popular products',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.contentPrimary)),
+            const SizedBox(height: AgencySpacing.sm),
+            for (final p in suggestions) _card(p),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// A clickable category banner shown at the top of the Browse scroll.
   Widget _browseBanner() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
           AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
       child: MerchandisingBanner(
-        imageUrl:
-            'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
+        imageUrl: categoryBannerImage(_category),
         title: _category ?? 'Browse the catalogue',
         subtitle: 'Top picks in this aisle',
         ctaLabel: 'Best sellers',
@@ -460,42 +509,60 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  /// Split merchandising tile (Recently viewed) inside the Browse scroll.
-  Widget _recentlyViewedStrip() {
+  /// "Recommended for you" horizontal rail inside the Browse scroll.
+  Widget _recommendedStrip() {
     final products = ref.watch(productsProvider).value ?? const <Product>[];
-    final recentIds = ref.watch(recentlyViewedProvider);
-    final recent = recentIds
-        .map((id) => products.where((p) => p.id == id).firstOrNull)
-        .whereType<Product>()
-        .take(2)
-        .toList();
-    final shown = recent.isNotEmpty ? recent : products.take(2).toList();
-    if (shown.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
-      child: SizedBox(
-        height: 210,
-        child: SplitMerchandisingTile(
-          sectionLabel: 'Recently viewed',
-          children: <Widget>[
-            for (final p in shown)
-              CompactProductItem(
-                title: p.title,
-                priceLabel: p.price?.formatted ?? '',
-                discountLabel: p.discountPercent == null
-                    ? null
-                    : '${p.discountPercent}% off',
-                imageUrl: p.thumbnail,
-                onPressed: () => context.push('/product/${p.id}'),
-                onAdd: () => ref.read(cartProvider.notifier).addItem(
-                    offerId: p.offerId ?? '',
-                    variantId: p.variantId ?? p.id,
-                    quantity: 1),
-              ),
-          ],
+    final items = products.take(8).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        const Padding(
+          padding: EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
+              AgencySpacing.md, AgencySpacing.sm),
+          child: SectionHeader(title: 'Recommended for you'),
         ),
-      ),
+        SizedBox(
+          height: 252,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
+            itemCount: items.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AgencySpacing.sm),
+            itemBuilder: (context, i) {
+              final p = items[i];
+              return SizedBox(
+                width: 160,
+                child: ProductCard(
+                  title: p.title,
+                  priceLabel: p.price?.formatted ?? 'Price on request',
+                  previousPriceLabel: p.mrp?.formatted,
+                  discountLabel: p.discountPercent == null
+                      ? null
+                      : '${p.discountPercent}% off',
+                  imageUrl: p.thumbnail,
+                  brand: p.brand,
+                  badges: p.badges,
+                  variant: ProductCardVariant.compact,
+                  onPressed: () => context.push('/product/${p.id}'),
+                  onAddToCart: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ref.read(cartProvider.notifier).addItem(
+                        offerId: p.offerId ?? '',
+                        variantId: p.variantId ?? p.id,
+                        quantity: 1);
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Added to cart')),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

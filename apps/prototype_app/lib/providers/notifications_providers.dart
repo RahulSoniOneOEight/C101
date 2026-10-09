@@ -63,8 +63,25 @@ final unreadNotificationsProvider =
 final notificationsForAudienceProvider =
     Provider.family<List<AppNotification>, NotificationAudience>(
         (ref, audience) {
-  return ref
+  final list = ref
       .watch(notificationsProvider)
       .where((notification) => notification.audience == audience)
       .toList();
+  // Surface the recent commercial nudges (price drop / new arrival) first, then
+  // newest-first.
+  int rank(AppNotification n) => switch (n.kind) {
+        NotificationKind.deal || NotificationKind.launch => 0,
+        _ => 1,
+      };
+  list.sort((a, b) {
+    final byRank = rank(a).compareTo(rank(b));
+    if (byRank != 0) return byRank;
+    final at = a.createdAt;
+    final bt = b.createdAt;
+    if (at == null && bt == null) return 0;
+    if (at == null) return 1;
+    if (bt == null) return -1;
+    return bt.compareTo(at);
+  });
+  return list;
 });

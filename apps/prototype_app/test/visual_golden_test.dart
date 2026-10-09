@@ -222,4 +222,36 @@ void main() {
     ));
     await _capture(t, 'browse');
   });
+
+  testWidgets('split tile', (t) async {
+    await t.pumpWidget(MaterialApp(
+      theme: AgencyTheme.light(),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(AgencySpacing.md),
+          child: SizedBox(
+            height: 320,
+            child: SplitMerchandisingTile(
+              sectionLabel: 'Recently viewed',
+              children: <Widget>[
+                CompactProductItem(
+                  title: 'Ceramic Floor Tiles 600x600 Matt',
+                  priceLabel: '₹1,150',
+                  discountLabel: '23% off',
+                  onAdd: () {},
+                ),
+                CompactProductItem(
+                  title: 'CPVC Pipe 3/4 in',
+                  priceLabel: '₹840',
+                  discountLabel: '16% off',
+                  onAdd: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+    await _capture(t, 'split_tile');
+  });
 }
