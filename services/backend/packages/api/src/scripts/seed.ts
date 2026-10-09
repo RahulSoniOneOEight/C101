@@ -43,6 +43,19 @@ import {
 import { seedCatalog } from "./catalog";
 import { SIMULATED_PAYMENT_PROVIDER_ID } from "../config/payment-runtime";
 
+// Staging placeholder imagery (Pexels). Deterministic per key so re-seeding is stable. Replace with
+// licensed product photography before production.
+const PEXELS_PHOTO_IDS = [
+  1249611, 585419, 577514, 207142, 6492403, 10284048, 2760241, 1251861,
+  2881229, 5691695, 3964736, 3862365, 834892, 1145434, 209230, 175709,
+];
+const pexelsImage = (key: string, width = 800): string => {
+  let hash = 0;
+  for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const id = PEXELS_PHOTO_IDS[hash % PEXELS_PHOTO_IDS.length];
+  return `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=${width}`;
+};
+
 const updateStoreCurrencies = createWorkflow(
   "update-store-currencies",
   (input: {
@@ -449,12 +462,12 @@ export default async function seedDemoData({ container }: ExecArgs) {
   ];
   const PRIMARY_SELLER_EMAIL = SELLER_CONFIGS[0].email;
 
-  // DiceBear renders a crisp initials avatar per seller name; Picsum returns a
-  // deterministic photo for the same seed, so re-seeding is stable.
+  // DiceBear renders a crisp initials avatar per seller name; Pexels supplies the banner photo.
+  // Both are deterministic for the same input, so re-seeding is stable.
   const sellerLogo = (name: string) =>
     `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}`;
   const sellerBanner = (name: string) =>
-    `https://picsum.photos/seed/${toHandle(name)}/1200/320`;
+    pexelsImage(`${toHandle(name)}-banner`, 1200);
 
   const { data: existingSellers } = await query.graph({
     entity: "seller",
@@ -740,11 +753,11 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const products: CreateProductDTO[] = catalog.map((item, index) => {
     const handle = uniqueHandle(item.title);
     const skuBase = handle.toUpperCase().replace(/-/g, "");
-    // Deterministic placeholder imagery per product (Picsum), consistent with
-    // seller banners. Replace with real product photography before production.
+    // Deterministic placeholder imagery per product (Pexels), consistent with seller banners.
+    // Replace with real product photography before production.
     const images = [
-      { url: `https://picsum.photos/seed/${handle}/800/800` },
-      { url: `https://picsum.photos/seed/${handle}-alt/800/800` },
+      { url: pexelsImage(handle) },
+      { url: pexelsImage(`${handle}-alt`) },
     ];
 
     const color = mapColor(item.colorway);
