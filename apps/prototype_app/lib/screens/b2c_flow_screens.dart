@@ -231,25 +231,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
                       color: colors.contentPrimary)),
-              const SizedBox(height: AgencySpacing.sm),
-              Text(
-                  _isB2B
-                      ? 'Enter your phone to access wholesale pricing & credit.'
-                      : 'Sign in to shop across 10 sellers.',
-                  style:
-                      TextStyle(fontSize: 13, color: colors.contentSecondary)),
+              if (_isB2B) ...<Widget>[
+                const SizedBox(height: AgencySpacing.sm),
+                Text('Enter your phone to access wholesale pricing & credit.',
+                    style: TextStyle(
+                        fontSize: 13, color: colors.contentSecondary)),
+              ],
               const SizedBox(height: AgencySpacing.lg),
               TextField(
                 controller: _identifierController,
                 decoration: InputDecoration(
                   hintText: 'Pilot email or 10-digit phone',
-                  helperText:
-                      'Only allowlisted staging identities can sign in.',
                   filled: true,
-                  fillColor: colors.surfacePage,
+                  fillColor: colors.surfaceInteractive,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AgencyRadius.md),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: colors.borderDefault),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AgencyRadius.md),
+                    borderSide: BorderSide(color: colors.borderDefault),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AgencyRadius.md),
+                    borderSide: BorderSide(color: colors.actionPrimary),
                   ),
                 ),
                 keyboardType: TextInputType.emailAddress,
