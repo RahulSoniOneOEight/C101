@@ -509,18 +509,24 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  /// "Recommended for you" horizontal rail inside the Browse scroll.
+  /// "Recommended for you" horizontal rail inside the Browse scroll. The rail
+  /// follows the selected category (falls back to the full catalogue).
   Widget _recommendedStrip() {
     final products = ref.watch(productsProvider).value ?? const <Product>[];
-    final items = products.take(8).toList();
+    final byCategory = filterProductsByHomeCategory(products, _category);
+    final items =
+        (byCategory.isNotEmpty ? byCategory : products).take(8).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const Padding(
-          padding: EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
               AgencySpacing.md, AgencySpacing.sm),
-          child: SectionHeader(title: 'Recommended for you'),
+          child: SectionHeader(
+            title: 'Recommended for you',
+            tag: _category,
+          ),
         ),
         SizedBox(
           height: 252,

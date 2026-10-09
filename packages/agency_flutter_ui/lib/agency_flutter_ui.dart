@@ -363,7 +363,7 @@ class ProductCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _image(context),
+                Expanded(child: _image(context)),
                 const SizedBox(height: AgencySpacing.sm),
                 if (brand != null)
                   Text(
