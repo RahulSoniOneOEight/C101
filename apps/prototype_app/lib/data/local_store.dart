@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/account_models.dart';
+import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
 
@@ -204,6 +205,32 @@ class LocalStore {
       await _prefs.setString(_rfqDraftKey, jsonEncode(cart.toJson()));
     }
   }
+
+  // ---- B2B back-office projections (team, approvals, projects) -------------
+  // Device-local stand-ins for the not-yet-wired B2B account APIs. Each seeds
+  // once from the demo fixture and then persists buyer edits across restarts.
+
+  static const String _teamMembersKey = 'b2b_team_members_v1';
+  static const String _approvalsKey = 'b2b_approvals_v1';
+  static const String _projectsKey = 'b2b_projects_v1';
+
+  bool hasTeamMembers() => _prefs.containsKey(_teamMembersKey);
+  List<TeamMember> readTeamMembers() =>
+      _readList(_teamMembersKey, TeamMember.fromJson);
+  Future<void> writeTeamMembers(List<TeamMember> members) =>
+      _writeList(_teamMembersKey, members.map((m) => m.toJson()).toList());
+
+  bool hasApprovals() => _prefs.containsKey(_approvalsKey);
+  List<ApprovalItem> readApprovals() =>
+      _readList(_approvalsKey, ApprovalItem.fromJson);
+  Future<void> writeApprovals(List<ApprovalItem> items) =>
+      _writeList(_approvalsKey, items.map((i) => i.toJson()).toList());
+
+  bool hasProjects() => _prefs.containsKey(_projectsKey);
+  List<ProjectSummary> readProjects() =>
+      _readList(_projectsKey, ProjectSummary.fromJson);
+  Future<void> writeProjects(List<ProjectSummary> projects) =>
+      _writeList(_projectsKey, projects.map((p) => p.toJson()).toList());
 
   List<T> _readList<T>(String key, T Function(Map<String, dynamic>) fromJson) {
     final raw = _prefs.getString(key);

@@ -1431,7 +1431,8 @@ class B2BCheckoutScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(AgencySpacing.md),
               children: <Widget>[
-                _field(context, 'Delivery site', 'Site A — Main block'),
+                _field(context, 'Delivery site',
+                    cart.deliveryLocation ?? 'Site A — Main block (Pune)'),
                 _field(context, 'PO number', 'PO-3392'),
                 _field(context, 'Payment', 'On credit (30 days)'),
                 _field(context, 'GST invoice', 'GSTIN 27ABCDE1234F1Z5'),

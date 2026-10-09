@@ -315,7 +315,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/b2b/projects/:id',
         builder: (context, state) => B2BProjectDetailScreen(
-            projectName: state.pathParameters['id'] ?? 'Project'),
+            projectId: state.pathParameters['id'] ?? ''),
       ),
       GoRoute(
         path: '/b2b/material-list',

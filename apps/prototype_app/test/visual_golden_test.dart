@@ -16,6 +16,8 @@ import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
+import 'package:prototype_app/screens/b2b_project_screens.dart';
+import 'package:prototype_app/screens/b2b_support_screens.dart';
 import 'package:prototype_app/screens/b2c_flow_screens.dart';
 import 'package:prototype_app/screens/notifications_screen.dart';
 import 'package:prototype_app/screens/product_detail_screen.dart';
@@ -172,5 +174,38 @@ void main() {
       child: MaterialApp(theme: AgencyTheme.light(), home: const B2BHomeScreen()),
     ));
     await _capture(t, 'b2b_home');
+  });
+
+  testWidgets('b2b approvals', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BApprovalsScreen()),
+    ));
+    await _capture(t, 'b2b_approvals');
+  });
+
+  testWidgets('b2b team roles', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BTeamRolesScreen()),
+    ));
+    await _capture(t, 'b2b_team');
+  });
+
+  testWidgets('b2b projects', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BProjectsListScreen()),
+    ));
+    await _capture(t, 'b2b_projects');
   });
 }

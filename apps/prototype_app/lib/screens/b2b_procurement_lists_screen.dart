@@ -390,14 +390,7 @@ class _ProcurementListEditorScreenState
     Navigator.of(context).maybePop();
   }
 
-  // ---- barcode / upload ----------------------------------------------------
-
-  void _scan() {
-    // Development fixture: no barcode scanner is wired in this build.
-    PinToast.show(
-        context, 'Barcode scan is a development fixture — not yet wired.',
-        tone: PinToastTone.info);
-  }
+  // ---- upload --------------------------------------------------------------
 
   void _upload() {
     // Development fixture: the CSV/Excel/PDF parser is not wired in this build.
@@ -481,34 +474,18 @@ class _ProcurementListEditorScreenState
               ),
             ),
             const SizedBox(height: AgencySpacing.sm),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _scan,
-                    icon: const Icon(Icons.qr_code_scanner, size: 18),
-                    label: const Text('Scan'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(40),
-                      side: BorderSide(color: colors.borderDefault),
-                      foregroundColor: colors.actionPrimary,
-                    ),
-                  ),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _upload,
+                icon: const Icon(Icons.upload_file, size: 18),
+                label: const Text('Upload list'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(40),
+                  side: BorderSide(color: colors.borderDefault),
+                  foregroundColor: colors.actionPrimary,
                 ),
-                const SizedBox(width: AgencySpacing.sm),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _upload,
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: const Text('Upload'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(40),
-                      side: BorderSide(color: colors.borderDefault),
-                      foregroundColor: colors.actionPrimary,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             if (matches.isNotEmpty) ...<Widget>[
               const SizedBox(height: AgencySpacing.sm),

@@ -33,6 +33,24 @@ class ApprovalItem {
   final String ref;
   final String amountLabel;
   final ApprovalState state;
+
+  ApprovalItem copyWith({ApprovalState? state}) =>
+      ApprovalItem(ref: ref, amountLabel: amountLabel, state: state ?? this.state);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'ref': ref,
+        'amountLabel': amountLabel,
+        'state': state.name,
+      };
+
+  factory ApprovalItem.fromJson(Map<String, dynamic> json) => ApprovalItem(
+        ref: json['ref'] as String? ?? '',
+        amountLabel: json['amountLabel'] as String? ?? '',
+        state: ApprovalState.values.firstWhere(
+          (s) => s.name == json['state'],
+          orElse: () => ApprovalState.pending,
+        ),
+      );
 }
 
 class TeamMember {
@@ -40,6 +58,19 @@ class TeamMember {
 
   final String name;
   final String role;
+
+  TeamMember copyWith({String? role}) =>
+      TeamMember(name: name, role: role ?? this.role);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'name': name,
+        'role': role,
+      };
+
+  factory TeamMember.fromJson(Map<String, dynamic> json) => TeamMember(
+        name: json['name'] as String? ?? '',
+        role: json['role'] as String? ?? 'Buyer',
+      );
 }
 
 enum ShipmentState { processing, shipped, outForDelivery, delivered, exception }
@@ -67,6 +98,21 @@ class ProjectSummary {
   final String id;
   final String name;
   final String meta;
+
+  ProjectSummary copyWith({String? name, String? meta}) =>
+      ProjectSummary(id: id, name: name ?? this.name, meta: meta ?? this.meta);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'name': name,
+        'meta': meta,
+      };
+
+  factory ProjectSummary.fromJson(Map<String, dynamic> json) => ProjectSummary(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        meta: json['meta'] as String? ?? '',
+      );
 }
 
 /// A material list / bundle within a project.
@@ -83,11 +129,19 @@ class MaterialLine {
     required this.name,
     required this.qtyLabel,
     required this.priceLabel,
+    this.sku = '',
+    this.quantity = 0,
+    this.unitPriceRupees = 0,
   });
 
   final String name;
   final String qtyLabel;
   final String priceLabel;
+
+  /// SKU / quantity / unit price carried for the "Add to Quotation Cart" action.
+  final String sku;
+  final int quantity;
+  final int unitPriceRupees;
 }
 
 /// A delivery site option for a project.

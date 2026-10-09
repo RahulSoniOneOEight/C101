@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 
 /// Host scaffold for the B2B section: owns the persistent bottom navigation
@@ -72,15 +73,36 @@ Widget _statusBadge(BuildContext context, String label, Color color) {
 // B2B Credit
 // ---------------------------------------------------------------------------
 
-class B2BCreditScreen extends StatefulWidget {
+class B2BCreditScreen extends ConsumerStatefulWidget {
   const B2BCreditScreen({super.key});
 
   @override
-  State<B2BCreditScreen> createState() => _B2BCreditScreenState();
+  ConsumerState<B2BCreditScreen> createState() => _B2BCreditScreenState();
 }
 
-class _B2BCreditScreenState extends State<B2BCreditScreen> {
+class _B2BCreditScreenState extends ConsumerState<B2BCreditScreen> {
   int _tab = 0;
+  final TextEditingController _requestedLimit = TextEditingController();
+
+  @override
+  void dispose() {
+    _requestedLimit.dispose();
+    super.dispose();
+  }
+
+  Future<void> _requestIncrease() async {
+    final amount = _requestedLimit.text.trim();
+    final label = amount.isEmpty ? '₹3,00,000' : amount;
+    await ref.read(approvalItemsProvider.notifier).addPending(
+          ref: 'Credit limit · $label',
+          amountLabel: label,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Credit-limit increase requested — pending approval')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -392,6 +414,7 @@ class _B2BCreditScreenState extends State<B2BCreditScreen> {
         ),
         const SizedBox(height: AgencySpacing.lg),
         TextField(
+          controller: _requestedLimit,
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: 'Requested limit',
@@ -421,11 +444,7 @@ class _B2BCreditScreenState extends State<B2BCreditScreen> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content:
-                      Text('Credit-limit increase requested — pending review')),
-            ),
+            onPressed: _requestIncrease,
             style: FilledButton.styleFrom(
               backgroundColor: colors.actionPrimary,
               minimumSize: const Size.fromHeight(48),
