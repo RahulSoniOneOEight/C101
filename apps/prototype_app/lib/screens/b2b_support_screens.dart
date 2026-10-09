@@ -299,6 +299,8 @@ class _GstRow extends StatelessWidget {
 class B2BTeamRolesScreen extends ConsumerWidget {
   const B2BTeamRolesScreen({super.key});
 
+  static const List<String> _roles = <String>['Admin', 'Buyer', 'Approver'];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final members = ref.watch(teamMembersProvider);
@@ -307,26 +309,172 @@ class B2BTeamRolesScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
-          for (final member in members) _MemberRow(member: member),
+          for (final member in members)
+            _MemberRow(
+              member: member,
+              onEdit: () => _editMember(context, ref, member),
+            ),
           const SizedBox(height: AgencySpacing.lg),
           PinWorkflowAction(
             label: 'Invite Member',
             hierarchy: PinWorkflowHierarchy.secondary,
             icon: Icons.person_add_outlined,
-            onPressed: () => PinToast.show(
-                context, 'Member invitations are not part of this prototype yet'),
+            onPressed: () => _inviteMember(context, ref),
           ),
           const SizedBox(height: AgencySpacing.xs),
         ],
       ),
     );
   }
+
+  Future<void> _inviteMember(BuildContext context, WidgetRef ref) async {
+    final draft = await showDialog<TeamMember>(
+      context: context,
+      builder: (_) => const _InviteMemberDialog(roles: _roles),
+    );
+    if (draft == null) return;
+    final ok = await ref
+        .read(teamMembersProvider.notifier)
+        .invite(name: draft.name, role: draft.role);
+    if (!context.mounted) return;
+    PinToast.show(
+      context,
+      ok
+          ? 'Invitation sent to ${draft.name}'
+          : '${draft.name} is already on the team',
+      tone: ok ? PinToastTone.success : PinToastTone.warning,
+    );
+  }
+
+  Future<void> _editMember(
+      BuildContext context, WidgetRef ref, TeamMember member) async {
+    final role = await showDialog<String>(
+      context: context,
+      builder: (_) => _EditRoleDialog(
+        roles: _roles,
+        name: member.name,
+        initial: member.role,
+      ),
+    );
+    if (role == null || role == member.role) return;
+    await ref.read(teamMembersProvider.notifier).updateRole(member.name, role);
+    if (!context.mounted) return;
+    PinToast.show(context, '${member.name} is now $role',
+        tone: PinToastTone.success);
+  }
+}
+
+class _InviteMemberDialog extends StatefulWidget {
+  const _InviteMemberDialog({required this.roles});
+
+  final List<String> roles;
+
+  @override
+  State<_InviteMemberDialog> createState() => _InviteMemberDialogState();
+}
+
+class _InviteMemberDialogState extends State<_InviteMemberDialog> {
+  final TextEditingController _name = TextEditingController();
+  late String _role = widget.roles.length > 1 ? widget.roles[1] : widget.roles.first;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Invite member'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          TextField(
+            controller: _name,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Full name'),
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          DropdownButtonFormField<String>(
+            initialValue: _role,
+            decoration: const InputDecoration(labelText: 'Role'),
+            items: <DropdownMenuItem<String>>[
+              for (final r in widget.roles)
+                DropdownMenuItem<String>(value: r, child: Text(r)),
+            ],
+            onChanged: (v) => setState(() => _role = v ?? _role),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final name = _name.text.trim();
+            if (name.isEmpty) return;
+            Navigator.of(context).pop(TeamMember(name: name, role: _role));
+          },
+          child: const Text('Invite'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditRoleDialog extends StatefulWidget {
+  const _EditRoleDialog({
+    required this.roles,
+    required this.name,
+    required this.initial,
+  });
+
+  final List<String> roles;
+  final String name;
+  final String initial;
+
+  @override
+  State<_EditRoleDialog> createState() => _EditRoleDialogState();
+}
+
+class _EditRoleDialogState extends State<_EditRoleDialog> {
+  late String _role = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Edit ${widget.name}'),
+      content: DropdownButtonFormField<String>(
+        initialValue: _role,
+        decoration: const InputDecoration(labelText: 'Role'),
+        items: <DropdownMenuItem<String>>[
+          for (final r in widget.roles)
+            DropdownMenuItem<String>(value: r, child: Text(r)),
+        ],
+        onChanged: (v) => setState(() => _role = v ?? _role),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_role),
+          child: const Text('Save'),
+        ),
+      ],
+    );
+  }
 }
 
 class _MemberRow extends StatelessWidget {
-  const _MemberRow({required this.member});
+  const _MemberRow({required this.member, required this.onEdit});
 
   final TeamMember member;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -345,8 +493,7 @@ class _MemberRow extends StatelessWidget {
       subtitle: Text(member.role,
           style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
       trailing: TextButton(
-        onPressed: () => PinToast.show(
-            context, 'Editing ${member.name} is not part of this prototype yet'),
+        onPressed: onEdit,
         child: const Text('Edit'),
       ),
     );
@@ -365,20 +512,29 @@ class B2BApprovalsScreen extends ConsumerWidget {
     final items = ref.watch(approvalItemsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Approvals')),
-      body: ListView(
-        padding: const EdgeInsets.all(AgencySpacing.md),
-        children: <Widget>[
-          for (final item in items) _ApprovalRow(item: item),
-        ],
-      ),
+      body: items.isEmpty
+          ? const Center(child: Text('Nothing is waiting on you'))
+          : ListView(
+              padding: const EdgeInsets.all(AgencySpacing.md),
+              children: <Widget>[
+                for (final item in items)
+                  _ApprovalRow(
+                    item: item,
+                    onDecide: (decision) => ref
+                        .read(approvalItemsProvider.notifier)
+                        .decide(item.ref, decision),
+                  ),
+              ],
+            ),
     );
   }
 }
 
 class _ApprovalRow extends StatelessWidget {
-  const _ApprovalRow({required this.item});
+  const _ApprovalRow({required this.item, required this.onDecide});
 
   final ApprovalItem item;
+  final ValueChanged<ApprovalState> onDecide;
 
   @override
   Widget build(BuildContext context) {
@@ -391,22 +547,56 @@ class _ApprovalRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AgencyRadius.lg),
         border: Border.all(color: colors.borderDefault),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
-            child: Text(item.ref,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.contentPrimary)),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(item.ref,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+              ),
+              Text(item.amountLabel,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.contentPrimary)),
+              const SizedBox(width: AgencySpacing.md),
+              PinApprovalStatus(state: _approvalState(item.state)),
+            ],
           ),
-          Text(item.amountLabel,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colors.contentPrimary)),
-          const SizedBox(width: AgencySpacing.md),
-          PinApprovalStatus(state: _approvalState(item.state)),
+          if (item.state == ApprovalState.pending) ...<Widget>[
+            const SizedBox(height: AgencySpacing.sm),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onDecide(ApprovalState.rejected),
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colors.feedbackError,
+                      side: BorderSide(color: colors.borderDefault),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AgencySpacing.sm),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => onDecide(ApprovalState.approved),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text('Approve'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.actionPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

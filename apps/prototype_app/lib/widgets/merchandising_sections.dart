@@ -11,6 +11,9 @@ class MerchandisingModuleView extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onBannerTap,
+    this.onToggleWishlist,
+    this.isWishlisted,
     super.key,
   });
 
@@ -18,6 +21,9 @@ class MerchandisingModuleView extends StatelessWidget {
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final VoidCallback? onBannerTap;
+  final void Function(Product product)? onToggleWishlist;
+  final bool Function(Product product)? isWishlisted;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +35,7 @@ class MerchandisingModuleView extends StatelessWidget {
           title: banner.title,
           subtitle: banner.subtitle,
           ctaLabel: banner.ctaLabel,
+          onCta: onBannerTap,
         );
       case MerchandisingModuleType.productCarousel:
         return _headed(
@@ -104,6 +111,9 @@ class MerchandisingModuleView extends StatelessWidget {
       variant: variant,
       onPressed: onProductTap == null ? null : () => onProductTap!(p),
       onAddToCart: onAddToCart == null ? null : () => onAddToCart!(p),
+      wishlisted: isWishlisted?.call(p) ?? false,
+      onWishlist:
+          onToggleWishlist == null ? null : () => onToggleWishlist!(p),
     );
   }
 
@@ -128,6 +138,9 @@ class HomeScrollFeed extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onBannerTap,
+    this.onToggleWishlist,
+    this.isWishlisted,
     super.key,
   });
 
@@ -136,6 +149,9 @@ class HomeScrollFeed extends StatelessWidget {
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final VoidCallback? onBannerTap;
+  final void Function(Product product)? onToggleWishlist;
+  final bool Function(Product product)? isWishlisted;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +168,9 @@ class HomeScrollFeed extends StatelessWidget {
             onProductTap: onProductTap,
             onSeeAll: onSeeAll,
             onAddToCart: onAddToCart,
+            onBannerTap: onBannerTap,
+            onToggleWishlist: onToggleWishlist,
+            isWishlisted: isWishlisted,
           ),
           const SizedBox(height: AgencySpacing.md),
         ],

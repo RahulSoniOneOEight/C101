@@ -14,8 +14,11 @@ Future<void> _pump(WidgetTester tester, double width) async {
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    const ProviderScope(
-      child: MaterialApp(home: B2BCatalogueScreen()),
+    ProviderScope(
+      child: MaterialApp(
+        theme: AgencyTheme.light(),
+        home: const B2BCatalogueScreen(),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -45,6 +48,13 @@ void main() {
       expect(trailingGap, lessThan(20),
           reason: 'card should end shortly after the last action');
       expect(trailingGap, greaterThan(0));
+
+      final imageRect =
+          tester.getRect(find.byKey(const Key('tradeCardImage')).first);
+      final detailsRect =
+          tester.getRect(find.byKey(const Key('tradeCardDetails')).first);
+      expect((imageRect.height - detailsRect.height).abs(), lessThan(1),
+          reason: 'image and details should each use half the card body');
     });
 
     testWidgets(

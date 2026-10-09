@@ -3,13 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../widgets/trade_product_tile.dart';
 
 AgencyColors _c(BuildContext c) =>
     Theme.of(c).extension<AgencyColors>() ?? AgencyColors.light;
+
+List<Widget> _b2bHomeActions(BuildContext context) => <Widget>[
+      IconButton(
+        tooltip: 'B2B Home',
+        onPressed: () => context.go('/b2b'),
+        icon: const Icon(Icons.home_outlined),
+      ),
+    ];
 
 Widget _label(BuildContext c, String text) {
   final colors = _c(c);
@@ -220,7 +230,7 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                           quantity: tierQty,
                           unitPrice: unitPrice,
                         );
-                    context.push('/b2b/quotation-cart');
+                    context.go('/b2b/cart');
                   },
                   icon: const Icon(Icons.add_shopping_cart, size: 18),
                   label: const Text('Add to Cart'),
@@ -1163,7 +1173,7 @@ class B2BAcceptQuoteScreen extends ConsumerWidget {
                         currencyCode: 'INR',
                       ),
                     );
-                context.push('/b2b/quotation-cart');
+                context.go('/b2b/cart');
               },
               style: FilledButton.styleFrom(
                 backgroundColor: colors.actionPrimary,
@@ -1190,7 +1200,10 @@ class B2BQuotationCartScreen extends ConsumerWidget {
     final colors = _c(context);
     final cart = ref.watch(b2bQuotationCartProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Quotation Cart')),
+      appBar: AppBar(
+        title: const Text('Quotation Cart'),
+        actions: _b2bHomeActions(context),
+      ),
       body: Column(
         children: <Widget>[
           Expanded(
@@ -1214,6 +1227,8 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                 const SizedBox(height: AgencySpacing.lg),
                 // ---- Section 2 · Request Quotation --------------------------
                 _requestQuotation(context),
+                const SizedBox(height: AgencySpacing.md),
+                _ordersQuickLink(context),
               ],
             ),
           ),
@@ -1223,7 +1238,7 @@ class B2BQuotationCartScreen extends ConsumerWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () => context.push('/b2b/checkout'),
+                  onPressed: () => context.go('/b2b/cart/checkout'),
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.actionPrimary,
                     minimumSize: const Size.fromHeight(48),
@@ -1327,6 +1342,32 @@ class B2BQuotationCartScreen extends ConsumerWidget {
     );
   }
 
+  /// Quick link to Order History (Orders now lives under the Cart tab).
+  Widget _ordersQuickLink(BuildContext context) {
+    final colors = _c(context);
+    return Material(
+      color: colors.surfaceRaised,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AgencyRadius.lg),
+        side: BorderSide(color: colors.borderDefault),
+      ),
+      child: ListTile(
+        leading: Icon(Icons.receipt_long_outlined, color: colors.actionPrimary),
+        title: Text('Order History',
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: colors.contentPrimary)),
+        subtitle: Text('Track shipments and reorder past purchases',
+            style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
+        trailing:
+            Icon(Icons.chevron_right, size: 18, color: colors.contentSecondary),
+        onTap: () => context.push('/b2b/orders'),
+      ),
+    );
+  }
+
   Widget _cartLine(BuildContext context, WidgetRef ref, B2BQuotationLine line) {
     final colors = _c(context);
     final notifier = ref.read(b2bQuotationCartProvider.notifier);
@@ -1416,25 +1457,93 @@ class B2BQuotationCartScreen extends ConsumerWidget {
 // B2B Checkout
 // ---------------------------------------------------------------------------
 
-class B2BCheckoutScreen extends ConsumerWidget {
+class B2BCheckoutScreen extends ConsumerStatefulWidget {
   const B2BCheckoutScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<B2BCheckoutScreen> createState() => _B2BCheckoutScreenState();
+}
+
+class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
+  /// Available trade credit in minor units (₹1.72L), mirroring the Credit tab.
+  static const int _availableCreditMinor = 17200000;
+
+  int _payment = 0;
+
+  @override
+  Widget build(BuildContext context) {
     final colors = _c(context);
     final cart = ref.watch(b2bQuotationCartProvider);
+    const payments = <(String, String)>[
+      ('On credit (30 days)', 'Available ₹1.72L'),
+      ('UPI', 'Pay now'),
+      ('Bank transfer', 'Pay now'),
+      ('Cash on delivery', 'Pay on delivery'),
+    ];
+    final onCredit = _payment == 0;
+    final overLimit = onCredit && cart.total.amount > _availableCreditMinor;
+    final hasDeliverySite = cart.deliveryLocation?.trim().isNotEmpty ?? false;
+
+    if (cart.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Business Checkout'),
+          actions: _b2bHomeActions(context),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AgencySpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.shopping_cart_outlined,
+                    size: 40, color: colors.contentSecondary),
+                const SizedBox(height: AgencySpacing.sm),
+                Text('Your cart is empty',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+                const SizedBox(height: AgencySpacing.sm),
+                OutlinedButton(
+                  onPressed: () => context.push('/b2b/quick-order'),
+                  child: const Text('Return to Quick Order'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Business Checkout')),
+      appBar: AppBar(
+        title: const Text('Business Checkout'),
+        actions: _b2bHomeActions(context),
+      ),
       body: Column(
         children: <Widget>[
           Expanded(
             child: ListView(
               padding: const EdgeInsets.all(AgencySpacing.md),
               children: <Widget>[
-                _field(context, 'Delivery site', 'Site A — Main block'),
+                _deliverySitePicker(context, colors, cart.deliveryLocation),
                 _field(context, 'PO number', 'PO-3392'),
-                _field(context, 'Payment', 'On credit (30 days)'),
                 _field(context, 'GST invoice', 'GSTIN 27ABCDE1234F1Z5'),
+                const SizedBox(height: AgencySpacing.sm),
+                Text('Payment',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+                const SizedBox(height: AgencySpacing.sm),
+                for (var i = 0; i < payments.length; i++)
+                  _paymentTile(
+                      context, colors, i, payments[i].$1, payments[i].$2),
+                if (overLimit) ...<Widget>[
+                  const SizedBox(height: AgencySpacing.md),
+                  _approvalNote(context, colors),
+                ],
               ],
             ),
           ),
@@ -1459,16 +1568,279 @@ class B2BCheckoutScreen extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => context.push('/b2b/confirm'),
+                    onPressed: hasDeliverySite
+                        ? () async {
+                            final router = GoRouter.of(context);
+                            if (overLimit) {
+                              await _submitForApproval();
+                              return;
+                            }
+                            final order = await ref
+                                .read(b2bOrdersProvider.notifier)
+                                .placeOrder(cart);
+                            if (!mounted) return;
+                            if (order != null) {
+                              router.go('/b2b/cart/confirm');
+                            }
+                          }
+                        : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: colors.actionPrimary,
+                      backgroundColor: overLimit
+                          ? colors.feedbackWarning
+                          : colors.actionPrimary,
+                      disabledBackgroundColor: colors.surfaceInteractive,
+                      disabledForegroundColor: colors.contentSecondary,
                       minimumSize: const Size.fromHeight(48),
                     ),
-                    child: const Text('Place Business Order'),
+                    child: Text(!hasDeliverySite
+                        ? 'Select delivery site to continue'
+                        : overLimit
+                            ? 'Submit for approval'
+                            : 'Place Business Order'),
                   ),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submitForApproval() async {
+    final ok = await PinDialog.confirm(
+      context,
+      title: 'Approval required',
+      message:
+          'This order exceeds your available credit. Submit it for approver review?',
+      confirmLabel: 'Submit',
+    );
+    if (!mounted) return;
+    if (ok ?? false) context.push('/b2b/approvals');
+  }
+
+  Widget _deliverySitePicker(
+      BuildContext context, AgencyColors colors, String? location) {
+    final selected = location?.trim().isNotEmpty ?? false;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AgencyRadius.md),
+        border: Border.all(
+            color: selected ? colors.actionPrimary : colors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(Icons.location_on_outlined,
+                  size: 20, color: colors.actionPrimary),
+              const SizedBox(width: AgencySpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Delivery site',
+                        style: TextStyle(
+                            fontSize: 12, color: colors.contentSecondary)),
+                    const SizedBox(height: 2),
+                    Text(
+                      selected ? location! : 'No delivery site selected',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colors.contentPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AgencySpacing.sm),
+          OutlinedButton.icon(
+            onPressed: _chooseSavedSite,
+            icon: const Icon(Icons.bookmark_outline, size: 18),
+            label: const Text('Choose from saved sites'),
+          ),
+          const SizedBox(height: AgencySpacing.xs),
+          OutlinedButton.icon(
+            onPressed: _enterNewSite,
+            icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+            label: const Text('Enter a new delivery site'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _chooseSavedSite() async {
+    final sites = ref.read(sitesProvider);
+    final current = ref.read(b2bQuotationCartProvider).deliveryLocation;
+    final choice = await showModalBottomSheet<SiteOption>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final colors = _c(sheetContext);
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AgencySpacing.md, 0, AgencySpacing.md, AgencySpacing.sm),
+                child: Text('Saved delivery sites',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+              ),
+              for (final site in sites)
+                ListTile(
+                  leading: Icon(
+                    current == '${site.name} (${site.city})'
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: current == '${site.name} (${site.city})'
+                        ? colors.actionPrimary
+                        : colors.contentSecondary,
+                  ),
+                  title: Text(site.name),
+                  subtitle: Text(site.city),
+                  onTap: () => Navigator.of(sheetContext).pop(site),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+    if (choice == null || !mounted) return;
+    ref
+        .read(b2bQuotationCartProvider.notifier)
+        .setDeliveryLocation('${choice.name} (${choice.city})');
+  }
+
+  Future<void> _enterNewSite() async {
+    final formKey = GlobalKey<FormState>();
+    var siteName = '';
+    var deliveryAddress = '';
+    final location = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('New delivery site'),
+        content: Form(
+          key: formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                TextFormField(
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                      labelText: 'Site name',
+                      hintText: 'e.g. Baner project site'),
+                  onChanged: (value) => siteName = value,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter a site name'
+                      : null,
+                ),
+                const SizedBox(height: AgencySpacing.sm),
+                TextFormField(
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                      labelText: 'Full delivery address',
+                      hintText: 'Street, city and PIN code'),
+                  onChanged: (value) => deliveryAddress = value,
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter the delivery address'
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+              Navigator.of(dialogContext)
+                  .pop('${siteName.trim()} — ${deliveryAddress.trim()}');
+            },
+            child: const Text('Use this site'),
+          ),
+        ],
+      ),
+    );
+    if (location == null || !mounted) return;
+    ref.read(b2bQuotationCartProvider.notifier).setDeliveryLocation(location);
+  }
+
+  Widget _paymentTile(BuildContext context, AgencyColors colors, int index,
+      String label, String meta) {
+    final selected = _payment == index;
+    return InkWell(
+      onTap: () => setState(() => _payment = index),
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
+        padding: const EdgeInsets.all(AgencySpacing.md),
+        decoration: BoxDecoration(
+          color: selected ? colors.surfaceInteractive : colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
+          border: Border.all(
+              color: selected ? colors.actionPrimary : colors.borderDefault),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+                selected
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                size: 18,
+                color:
+                    selected ? colors.actionPrimary : colors.contentSecondary),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.contentPrimary)),
+            ),
+            Text(meta,
+                style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _approvalNote(BuildContext context, AgencyColors colors) {
+    return Container(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.feedbackWarning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AgencyRadius.md),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.fact_check_outlined,
+              size: 18, color: colors.feedbackWarning),
+          const SizedBox(width: AgencySpacing.sm),
+          Expanded(
+            child: Text(
+                'This order exceeds your available credit (₹1.72L) and needs approver sign-off.',
+                style: TextStyle(fontSize: 12, color: colors.contentPrimary)),
           ),
         ],
       ),
@@ -1512,9 +1884,21 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
-    final cart = ref.watch(b2bQuotationCartProvider);
+    final order = ref.watch(b2bOrdersProvider).firstOrNull;
+    final lines = order?.lines ?? const <B2BOrderLine>[];
+    final subtotalAmount = lines.fold<int>(0, (sum, l) => sum + l.total.amount);
+    final subtotal = Money(amount: subtotalAmount, currencyCode: 'INR');
+    final gst =
+        Money(amount: (subtotalAmount * 18 / 100).round(), currencyCode: 'INR');
+    final total =
+        Money(amount: subtotal.amount + gst.amount, currencyCode: 'INR');
+    final reference =
+        (order?.reference ?? 'Order #PO-3392').replaceFirst('Order #', '');
     return Scaffold(
-      appBar: AppBar(title: const Text('Order Confirmed')),
+      appBar: AppBar(
+        title: const Text('Order Confirmed'),
+        actions: _b2bHomeActions(context),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -1531,13 +1915,17 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AgencySpacing.xs),
           Center(
-            child: Text('PO-3392 · GST invoice raised',
+            child: Text('$reference · GST invoice raised',
                 style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
           ),
           const SizedBox(height: AgencySpacing.lg),
-          _confirmLine(context, 'Subtotal', cart.subtotal.formatted),
-          _confirmLine(context, 'GST 18%', cart.gst.formatted),
-          _confirmLine(context, 'Total', cart.total.formatted, bold: true),
+          if (order?.deliveryLocation != null) ...<Widget>[
+            _confirmLine(context, 'Delivery site', order!.deliveryLocation!),
+            const Divider(height: AgencySpacing.lg),
+          ],
+          _confirmLine(context, 'Subtotal', subtotal.formatted),
+          _confirmLine(context, 'GST 18%', gst.formatted),
+          _confirmLine(context, 'Total', total.formatted, bold: true),
           const SizedBox(height: AgencySpacing.lg),
           SizedBox(
             width: double.infinity,
@@ -1567,11 +1955,16 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
             child: Text(label,
                 style: TextStyle(fontSize: 13, color: colors.contentSecondary)),
           ),
-          Text(amount,
-              style: TextStyle(
-                  fontSize: bold ? 16 : 13,
-                  color: colors.contentPrimary,
-                  fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+          Flexible(
+            child: Text(amount,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                    fontSize: bold ? 16 : 13,
+                    color: colors.contentPrimary,
+                    fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+          ),
         ],
       ),
     );

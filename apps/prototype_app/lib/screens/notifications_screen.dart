@@ -124,8 +124,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           await ref
               .read(notificationsProvider.notifier)
               .markRead(notification.id);
-          if (context.mounted && notification.deepLink != null) {
-            context.push(notification.deepLink!);
+          if (context.mounted) {
+            context.push(notification.destination);
           }
         } catch (_) {
           if (context.mounted) _showFailure(context);
@@ -135,9 +135,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       child: Container(
         padding: const EdgeInsets.all(AgencySpacing.md),
         decoration: BoxDecoration(
-          color: notification.read
-              ? colors.surfaceRaised
-              : colors.surfaceInteractive,
+          color: _surface(notification, colors),
           borderRadius: BorderRadius.circular(AgencyRadius.lg),
           border: Border.all(color: colors.borderDefault),
         ),
@@ -148,10 +146,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                    color: colors.surfaceRaised,
+                    color: _accent(notification.kind, colors),
                     borderRadius: BorderRadius.circular(AgencyRadius.md)),
                 child: Icon(notification.icon,
-                    size: 20, color: colors.actionPrimary),
+                    size: 20, color: colors.contentInverse),
               ),
               const SizedBox(width: AgencySpacing.md),
               Expanded(
@@ -192,6 +190,29 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ),
     );
   }
+
+  /// Card background tint by kind (unread recolours; read stays neutral).
+  Color _surface(AppNotification n, AgencyColors colors) {
+    if (n.read) return colors.surfaceRaised;
+    return switch (n.kind) {
+      NotificationKind.order => colors.surfaceInteractive,
+      NotificationKind.deal || NotificationKind.offer =>
+        colors.promotion.withValues(alpha: 0.10),
+      NotificationKind.launch => colors.actionPrimary.withValues(alpha: 0.10),
+      NotificationKind.credit => colors.feedbackWarning.withValues(alpha: 0.12),
+      _ => colors.surfaceInteractive,
+    };
+  }
+
+  /// Solid accent for the leading icon chip.
+  Color _accent(NotificationKind kind, AgencyColors colors) => switch (kind) {
+        NotificationKind.order => colors.actionPrimary,
+        NotificationKind.deal || NotificationKind.offer => colors.promotion,
+        NotificationKind.launch => colors.trust,
+        NotificationKind.credit => colors.feedbackWarning,
+        NotificationKind.account => colors.contentSecondary,
+        NotificationKind.system => colors.actionPrimary,
+      };
 
   void _showFailure(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(

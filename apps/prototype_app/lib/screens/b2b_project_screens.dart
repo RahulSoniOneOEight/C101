@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_support_models.dart';
+import '../domain/models.dart';
 import '../providers/b2b_support_providers.dart';
+import '../providers/b2b_trade_providers.dart';
 
 AgencyColors _c(BuildContext c) =>
     Theme.of(c).extension<AgencyColors>() ?? AgencyColors.light;
@@ -24,29 +26,110 @@ class B2BProjectsListScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
-          PinResponsiveGrid(
-            mobileColumns: 1,
-            tabletColumns: 2,
-            desktopColumns: 3,
-            mainAxisExtent: 88,
-            children: <Widget>[
-              for (final project in projects)
-                _ProjectCard(
-                  project: project,
-                  onTap: () => context.push('/b2b/projects/${project.id}'),
-                ),
-            ],
-          ),
+          if (projects.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AgencySpacing.lg),
+              child: Center(
+                child: Text('No projects yet',
+                    style: TextStyle(color: _c(context).contentSecondary)),
+              ),
+            )
+          else
+            PinResponsiveGrid(
+              mobileColumns: 1,
+              tabletColumns: 2,
+              desktopColumns: 3,
+              mainAxisExtent: 88,
+              children: <Widget>[
+                for (final project in projects)
+                  _ProjectCard(
+                    project: project,
+                    onTap: () => context.push('/b2b/projects/${project.id}'),
+                  ),
+              ],
+            ),
           const SizedBox(height: AgencySpacing.lg),
           PinWorkflowAction(
             label: 'New Project',
             hierarchy: PinWorkflowHierarchy.secondary,
             icon: Icons.add,
-            onPressed: () => PinToast.show(
-                context, 'Project creation is not part of this prototype yet'),
+            onPressed: () => _newProject(context, ref),
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _newProject(BuildContext context, WidgetRef ref) async {
+    final draft = await showDialog<(String, String)>(
+      context: context,
+      builder: (_) => const _NewProjectDialog(),
+    );
+    if (draft == null) return;
+    final project = await ref
+        .read(projectsProvider.notifier)
+        .create(name: draft.$1, location: draft.$2);
+    if (project == null || !context.mounted) return;
+    PinToast.show(context, 'Project "${project.name}" created',
+        tone: PinToastTone.success);
+    context.push('/b2b/projects/${project.id}');
+  }
+}
+
+class _NewProjectDialog extends StatefulWidget {
+  const _NewProjectDialog();
+
+  @override
+  State<_NewProjectDialog> createState() => _NewProjectDialogState();
+}
+
+class _NewProjectDialogState extends State<_NewProjectDialog> {
+  final TextEditingController _name = TextEditingController();
+  final TextEditingController _location = TextEditingController(text: 'Pune');
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _location.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('New project'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          TextField(
+            controller: _name,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Project name'),
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          TextField(
+            controller: _location,
+            decoration: const InputDecoration(labelText: 'Location'),
+          ),
+        ],
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final name = _name.text.trim();
+            if (name.isEmpty) return;
+            Navigator.of(context).pop((
+              name,
+              _location.text.trim().isEmpty ? 'Pune' : _location.text.trim()
+            ));
+          },
+          child: const Text('Create'),
+        ),
+      ],
     );
   }
 }
@@ -103,9 +186,9 @@ class _ProjectCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class B2BProjectDetailScreen extends ConsumerStatefulWidget {
-  const B2BProjectDetailScreen({super.key, required this.projectName});
+  const B2BProjectDetailScreen({super.key, required this.projectId});
 
-  final String projectName;
+  final String projectId;
 
   @override
   ConsumerState<B2BProjectDetailScreen> createState() =>
@@ -126,14 +209,21 @@ class _B2BProjectDetailScreenState
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
-    final bundles = ref.watch(projectBundlesProvider);
+    final project = ref
+        .watch(projectsProvider)
+        .where((p) => p.id == widget.projectId)
+        .firstOrNull;
+    final name = project?.name ?? 'Project';
+    final meta = project?.meta ?? '';
+
     return Scaffold(
-      appBar: AppBar(title: Text(widget.projectName)),
+      appBar: AppBar(title: Text(name)),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
-          Text('Pune · 3 sites · 12 orders',
-              style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
+          if (meta.isNotEmpty)
+            Text(meta,
+                style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
           const SizedBox(height: AgencySpacing.md),
           PinTabs(
             tabs: _tabs,
@@ -141,29 +231,127 @@ class _B2BProjectDetailScreenState
             onChanged: (i) => setState(() => _tab = i),
           ),
           const SizedBox(height: AgencySpacing.md),
+          ..._tabBody(),
+          const SizedBox(height: AgencySpacing.lg),
           if (_tab == 0)
-            for (final bundle in bundles)
-              _MaterialCard(
-                title: bundle.title,
-                meta: bundle.meta,
-                onTap: () => context.push('/b2b/material-list'),
-              )
-          else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: AgencySpacing.lg),
-              child: Center(
-                child: Text('${_tabs[_tab]} — coming soon',
-                    style: TextStyle(color: colors.contentSecondary)),
+            PinWorkflowAction(
+              label: 'Create Material List',
+              hierarchy: PinWorkflowHierarchy.secondary,
+              icon: Icons.add,
+              onPressed: () => context.push('/b2b/material-list'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _tabBody() {
+    switch (_tab) {
+      case 0:
+        final bundles = ref.watch(projectBundlesProvider);
+        return <Widget>[
+          for (final bundle in bundles)
+            _MaterialCard(
+              title: bundle.title,
+              meta: bundle.meta,
+              onTap: () => context.push('/b2b/material-list'),
+            ),
+        ];
+      case 1:
+        final orders = ref.watch(tradeDashboardProvider).repeatOrders;
+        return <Widget>[
+          for (final order in orders)
+            _SimpleRow(
+              icon: Icons.receipt_long_outlined,
+              title: order.reference,
+              subtitle: '${order.dateLabel} · ${order.itemSummary}',
+              trailing: order.total.formatted,
+              onTap: () => context.push('/b2b/tracking'),
+            ),
+        ];
+      case 2:
+        final sites = ref.watch(sitesProvider);
+        return <Widget>[
+          for (final site in sites)
+            _SimpleRow(
+              icon: Icons.location_on_outlined,
+              title: site.name,
+              subtitle: site.city,
+              onTap: () => context.push('/b2b/site-selector'),
+            ),
+        ];
+      default:
+        final rfqs = ref.watch(tradeDashboardProvider).quotations;
+        return <Widget>[
+          for (final rfq in rfqs)
+            _SimpleRow(
+              icon: Icons.request_quote_outlined,
+              title: rfq.reference,
+              subtitle: rfq.summary,
+              trailing: '${rfq.quoteCount} quotes',
+              onTap: () => context.push('/b2b/quotes-received'),
+            ),
+        ];
+    }
+  }
+}
+
+class _SimpleRow extends StatelessWidget {
+  const _SimpleRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String? trailing;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _c(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AgencyRadius.lg),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
+        padding: const EdgeInsets.all(AgencySpacing.md),
+        decoration: BoxDecoration(
+          color: colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(AgencyRadius.lg),
+          border: Border.all(color: colors.borderDefault),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(icon, color: colors.actionPrimary),
+            const SizedBox(width: AgencySpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: colors.contentPrimary)),
+                  Text(subtitle,
+                      style: TextStyle(
+                          fontSize: 11, color: colors.contentSecondary)),
+                ],
               ),
             ),
-          const SizedBox(height: AgencySpacing.lg),
-          PinWorkflowAction(
-            label: 'Create Material List',
-            hierarchy: PinWorkflowHierarchy.secondary,
-            icon: Icons.add,
-            onPressed: () => context.push('/b2b/material-list'),
-          ),
-        ],
+            if (trailing != null)
+              Text(trailing!,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.contentPrimary)),
+          ],
+        ),
       ),
     );
   }
@@ -257,7 +445,7 @@ class B2BMaterialListScreen extends ConsumerWidget {
                 const SizedBox(height: AgencySpacing.sm),
                 PinWorkflowAction(
                   label: 'Add to Quotation Cart',
-                  onPressed: () => context.push('/b2b/quotation-cart'),
+                  onPressed: () => _addToCart(context, ref, lines),
                 ),
               ],
             ),
@@ -265,6 +453,31 @@ class B2BMaterialListScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  void _addToCart(
+      BuildContext context, WidgetRef ref, List<MaterialLine> lines) {
+    final notifier = ref.read(b2bQuotationCartProvider.notifier);
+    var added = 0;
+    for (final line in lines) {
+      if (line.sku.isEmpty || line.quantity <= 0) continue;
+      notifier.addSku(
+        sku: line.sku,
+        name: line.name,
+        quantity: line.quantity,
+        unitPrice:
+            Money(amount: line.unitPriceRupees * 100, currencyCode: 'INR'),
+      );
+      added++;
+    }
+    if (added == 0) {
+      PinToast.show(context, 'This material list has no orderable lines',
+          tone: PinToastTone.warning);
+      return;
+    }
+    PinToast.show(context, '$added lines added to the quotation cart',
+        tone: PinToastTone.success);
+    context.go('/b2b/cart');
   }
 }
 
@@ -324,8 +537,8 @@ class _MaterialRow extends StatelessWidget {
                       color: colors.contentPrimary)),
               const SizedBox(height: 2),
               Text('/unit',
-                  style: TextStyle(
-                      fontSize: 10, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 10, color: colors.contentSecondary)),
             ],
           ),
         ],
@@ -346,8 +559,7 @@ class B2BSiteSelectorScreen extends ConsumerStatefulWidget {
       _B2BSiteSelectorScreenState();
 }
 
-class _B2BSiteSelectorScreenState
-    extends ConsumerState<B2BSiteSelectorScreen> {
+class _B2BSiteSelectorScreenState extends ConsumerState<B2BSiteSelectorScreen> {
   int _selected = 0;
 
   Future<void> _confirm(List<SiteOption> sites) async {
@@ -359,7 +571,11 @@ class _B2BSiteSelectorScreenState
       confirmLabel: 'Confirm',
     );
     if ((ok ?? false) && mounted) {
-      context.push('/b2b/checkout');
+      // Persist the site onto the quotation draft so checkout shows it.
+      ref
+          .read(b2bQuotationCartProvider.notifier)
+          .setDeliveryLocation('${choice.name} (${choice.city})');
+      context.go('/b2b/cart/checkout');
     }
   }
 

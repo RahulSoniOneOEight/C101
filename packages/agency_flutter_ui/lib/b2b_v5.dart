@@ -10,11 +10,10 @@ part of 'agency_flutter_ui.dart';
 /// All colours/spacing/radius resolve through the shared design system.
 
 /// Shared grid extent for the compact trade product tile so B2B Home, the
-/// Catalogue and Trade Offers & Deals render the **same** card height. Sized to
-/// the card's actual content (badge + image + brand/title + tiers + price +
-/// stepper/Cart-Plus/RFQ-Plus row) so no blank space appears beneath the last
-/// action.
-const double kB2bProductCardExtent = 334;
+/// Catalogue and Trade Offers & Deals render the **same** card height. The
+/// usable height is divided equally between product media and purchase details,
+/// keeping the tile dense without unused trailing space.
+const double kB2bProductCardExtent = 300;
 
 // ---------------------------------------------------------------------------
 // B2B / CartPlusIconButton  (5 states)
@@ -512,167 +511,186 @@ class TradeProductCardCompact extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(AgencyRadius.sm),
-            child: Stack(
-              children: <Widget>[
-                _Thumb(imageUrl: imageUrl, size: null, height: 168),
-                Positioned(
-                  top: AgencySpacing.sm,
-                  left: AgencySpacing.sm,
-                  right: AgencySpacing.sm,
-                  child: Row(
-                    children: <Widget>[
-                      // V5: a single trust badge only — the discount. Stock is
-                      // shown via the out-of-stock state, not a second pill.
-                      if (outOfStock)
-                        _Pill(
-                          label: 'Out of stock',
-                          background: colors.feedbackError,
-                          foreground: colors.contentInverse,
-                        )
-                      else if (savingsLabel != null)
-                        _Pill(
-                          label: savingsLabel!,
-                          background: colors.promotion,
-                          foreground: colors.promotionInverse,
-                        ),
-                    ],
-                  ),
+          Expanded(
+            child: SizedBox.expand(
+              key: const Key('tradeCardImage'),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(AgencyRadius.sm),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    _Thumb(imageUrl: imageUrl),
+                    Positioned(
+                      top: AgencySpacing.sm,
+                      left: AgencySpacing.sm,
+                      right: AgencySpacing.sm,
+                      child: Row(
+                        children: <Widget>[
+                          // V5: a single trust badge only — the discount. Stock is
+                          // shown via the out-of-stock state, not a second pill.
+                          if (outOfStock)
+                            _Pill(
+                              label: 'Out of stock',
+                              background: colors.feedbackError,
+                              foreground: colors.contentInverse,
+                            )
+                          else if (savingsLabel != null)
+                            _Pill(
+                              label: savingsLabel!,
+                              background: colors.promotion,
+                              foreground: colors.promotionInverse,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: AgencySpacing.xs),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  brand ?? '',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style:
-                      TextStyle(fontSize: 10, color: colors.contentSecondary),
-                ),
-              ),
-              if (moqLabel != null)
-                Text(moqLabel!,
-                    style: TextStyle(
-                        fontSize: 10, color: colors.contentSecondary)),
-            ],
-          ),
-          InkWell(
-            onTap: onTap,
-            child: SizedBox(
-              height: 28,
-              child: Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.15,
-                  fontWeight: FontWeight.w600,
-                  color: colors.contentPrimary,
-                ),
-              ),
-            ),
-          ),
-          if (tiers.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AgencySpacing.xs),
-            Row(
-              children: <Widget>[
-                for (var i = 0; i < tiers.length; i++) ...<Widget>[
-                  if (i > 0) const SizedBox(width: AgencySpacing.xs),
-                  Expanded(
-                    child: InkWell(
-                      onTap: (outOfStock || onTierSelected == null)
-                          ? null
-                          : () => onTierSelected!(i),
-                      borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 3),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: i == selectedTierIndex
-                              ? colors.actionPrimary
-                              : colors.surfaceInteractive,
-                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                        ),
+          Expanded(
+            child: SizedBox.expand(
+              key: const Key('tradeCardDetails'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
                         child: Text(
-                          '${tiers[i].quantity}',
+                          brand ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: i == selectedTierIndex
-                                ? colors.contentInverse
-                                : colors.contentPrimary,
-                          ),
+                              fontSize: 10, color: colors.contentSecondary),
+                        ),
+                      ),
+                      if (moqLabel != null)
+                        Text(moqLabel!,
+                            style: TextStyle(
+                                fontSize: 10, color: colors.contentSecondary)),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: onTap,
+                    child: SizedBox(
+                      height: 28,
+                      child: Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.contentPrimary,
                         ),
                       ),
                     ),
                   ),
-                ],
-              ],
-            ),
-          ],
-          const SizedBox(height: AgencySpacing.xs),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: <Widget>[
-              Flexible(
-                flex: 2,
-                child: Text(
-                  unitPriceLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: colors.actionPrimary,
+                  if (tiers.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: AgencySpacing.xs),
+                    Row(
+                      children: <Widget>[
+                        for (var i = 0; i < tiers.length; i++) ...<Widget>[
+                          if (i > 0) const SizedBox(width: AgencySpacing.xs),
+                          Expanded(
+                            child: InkWell(
+                              onTap: (outOfStock || onTierSelected == null)
+                                  ? null
+                                  : () => onTierSelected!(i),
+                              borderRadius:
+                                  BorderRadius.circular(AgencyRadius.sm),
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 3),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: i == selectedTierIndex
+                                      ? colors.actionPrimary
+                                      : colors.surfaceInteractive,
+                                  borderRadius:
+                                      BorderRadius.circular(AgencyRadius.sm),
+                                ),
+                                child: Text(
+                                  '${tiers[i].quantity}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: i == selectedTierIndex
+                                        ? colors.contentInverse
+                                        : colors.contentPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                  const Spacer(),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: <Widget>[
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          unitPriceLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: colors.actionPrimary,
+                          ),
+                        ),
+                      ),
+                      if (mrpLabel != null) ...<Widget>[
+                        const SizedBox(width: AgencySpacing.xs),
+                        Flexible(
+                          flex: 1,
+                          child: Text(
+                            mrpLabel!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colors.contentSecondary,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                ),
-              ),
-              if (mrpLabel != null) ...<Widget>[
-                const SizedBox(width: AgencySpacing.xs),
-                Flexible(
-                  flex: 1,
-                  child: Text(
-                    mrpLabel!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: colors.contentSecondary,
-                      decoration: TextDecoration.lineThrough,
+                  const SizedBox(height: AgencySpacing.xs),
+                  SizedBox(
+                    key: const Key('tradeCardActions'),
+                    height: 40,
+                    child: Row(
+                      children: <Widget>[
+                        QuantityStepper(
+                          value: quantity,
+                          compact: true,
+                          onChanged: onQuantityChanged,
+                        ),
+                        const Spacer(),
+                        CartPlusIconButton(
+                          size: 40,
+                          state: outOfStock
+                              ? CartPlusState.unavailable
+                              : CartPlusState.normal,
+                          onPressed: outOfStock ? null : onAdd,
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: AgencySpacing.xs),
-          SizedBox(
-            key: const Key('tradeCardActions'),
-            height: 40,
-            child: Row(
-              children: <Widget>[
-                QuantityStepper(
-                  value: quantity,
-                  compact: true,
-                  onChanged: onQuantityChanged,
-                ),
-                const Spacer(),
-                CartPlusIconButton(
-                  size: 40,
-                  state: outOfStock
-                      ? CartPlusState.unavailable
-                      : CartPlusState.normal,
-                  onPressed: outOfStock ? null : onAdd,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -740,18 +758,17 @@ class MerchandisingUnitCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Thumb extends StatelessWidget {
-  const _Thumb({this.imageUrl, this.size, this.height});
+  const _Thumb({this.imageUrl, this.size});
 
   final String? imageUrl;
   final double? size;
-  final double? height;
 
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
     return Container(
       width: size,
-      height: height ?? size,
+      height: size,
       decoration: BoxDecoration(
         color: colors.surfacePage,
         borderRadius: BorderRadius.circular(AgencyRadius.sm),

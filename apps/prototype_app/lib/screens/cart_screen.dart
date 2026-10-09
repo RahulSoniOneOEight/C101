@@ -51,19 +51,7 @@ class CartScreen extends ConsumerWidget {
                 const EmptyView(message: 'Your cart is empty')
               else ...<Widget>[
                 for (final item in items)
-                  PinCartLine(
-                    title: item.title,
-                    subtitle: item.unitPrice?.formatted,
-                    quantity: item.quantity,
-                    onIncrement: () => ref
-                        .read(cartProvider.notifier)
-                        .updateQuantity(item.id, item.quantity + 1),
-                    onDecrement: () => ref
-                        .read(cartProvider.notifier)
-                        .updateQuantity(item.id, item.quantity - 1),
-                    onRemove: () =>
-                        ref.read(cartProvider.notifier).removeItem(item.id),
-                  ),
+                  _CartLineWithDeals(item: item, catalogue: products),
                 const SizedBox(height: AgencySpacing.md),
                 CheckoutSummary(
                   subtotal: cart?.total?.formatted ?? '—',
@@ -154,6 +142,111 @@ class CartScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+/// A cart line with a per-SKU "Related deals" expander: tapping reveals a
+/// horizontal rail of related products for that item.
+class _CartLineWithDeals extends ConsumerStatefulWidget {
+  const _CartLineWithDeals({required this.item, required this.catalogue});
+
+  final CartLineItem item;
+  final List<Product> catalogue;
+
+  @override
+  ConsumerState<_CartLineWithDeals> createState() =>
+      _CartLineWithDealsState();
+}
+
+class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
+  bool _open = false;
+
+  List<Product> get _related {
+    final line = widget.item;
+    final candidates = widget.catalogue
+        .where((p) => p.id != line.id && (p.variantId ?? p.id) != line.id)
+        .toList();
+    // Same-brand products first, then the rest.
+    final brand = line.title.split(' ').first.toLowerCase();
+    candidates.sort((a, b) {
+      final sa = (a.brand?.toLowerCase() == brand) ? 1 : 0;
+      final sb = (b.brand?.toLowerCase() == brand) ? 1 : 0;
+      return sb.compareTo(sa);
+    });
+    return candidates.take(6).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final related = _related;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        PinCartLine(
+          title: item.title,
+          subtitle: item.unitPrice?.formatted,
+          quantity: item.quantity,
+          onIncrement: () => ref
+              .read(cartProvider.notifier)
+              .updateQuantity(item.id, item.quantity + 1),
+          onDecrement: () => ref
+              .read(cartProvider.notifier)
+              .updateQuantity(item.id, item.quantity - 1),
+          onRemove: () => ref.read(cartProvider.notifier).removeItem(item.id),
+        ),
+        if (related.isNotEmpty)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _open = !_open),
+              icon: Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
+              label: Text(_open ? 'Hide related deals' : 'Related deals'),
+            ),
+          ),
+        if (_open)
+          SizedBox(
+            height: 244,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: related.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: AgencySpacing.sm),
+              itemBuilder: (context, i) {
+                final p = related[i];
+                return SizedBox(
+                  width: 150,
+                  child: ProductCard(
+                    title: p.title,
+                    priceLabel: p.price?.formatted ?? 'Price on request',
+                    previousPriceLabel: p.mrp?.formatted,
+                    discountLabel: p.discountPercent == null
+                        ? null
+                        : '${p.discountPercent}% off',
+                    imageUrl: p.thumbnail,
+                    brand: p.brand,
+                    badges: p.badges,
+                    variant: ProductCardVariant.compact,
+                    onPressed: () => context.push('/product/${p.id}'),
+                    onAddToCart: () async {
+                      await ref.read(cartProvider.notifier).addItem(
+                          offerId: p.offerId ?? '',
+                          variantId: p.variantId ?? p.id,
+                          quantity: 1);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Added to cart')),
+                        );
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        const Divider(height: AgencySpacing.lg),
+      ],
     );
   }
 }

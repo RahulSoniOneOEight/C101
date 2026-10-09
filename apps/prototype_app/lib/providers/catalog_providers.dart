@@ -7,6 +7,7 @@ import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../domain/review_catalogue.dart';
 
 /// Storefront categories from the client brief, rendered icon-led on the home
 /// screen. Placeholder data until a category API is wired.
@@ -246,13 +247,16 @@ final composedProductOffersProvider =
   final selectedId =
       (data['commercial']?['selected_seller']?['id']) as String?;
   return offers.map((o) {
+    final unit = (o['unit_amount_minor'] as num?)?.toInt() ?? 0;
+    final list = (o['list_amount_minor'] as num?)?.toInt();
+    final currency = (o['currency_code'] as String?) ?? 'INR';
     return ProductSeller(
       id: o['id'] as String? ?? '',
       name: o['seller_name'] as String? ?? 'Seller',
-      price: Money(
-        amount: (o['unit_amount_minor'] as num?)?.toInt() ?? 0,
-        currencyCode: (o['currency_code'] as String?) ?? 'INR',
-      ),
+      price: Money(amount: unit, currencyCode: currency),
+      mrp: list != null && list > unit
+          ? Money(amount: list, currencyCode: currency)
+          : null,
       isBestPrice: o['id'] == selectedId,
     );
   }).toList();
@@ -329,33 +333,69 @@ final recentlyViewedProvider =
     NotifierProvider<RecentlyViewedNotifier, List<String>>(
         RecentlyViewedNotifier.new);
 
+/// Category-appropriate banner imagery (Pexels) for the home / Browse category
+/// banners. Falls back to a general trade shot for "All".
+const Map<String, String> _categoryBannerImages = <String, String>{
+  'Bathroom & Plumbing':
+      'https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Tiles & Plywood':
+      'https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Electrical':
+      'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Agriculture & Seeds':
+      'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Pumps & Machines':
+      'https://images.pexels.com/photos/175709/pexels-photo-175709.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'Construction':
+      'https://images.pexels.com/photos/1216589/pexels-photo-1216589.jpeg?auto=compress&cs=tinysrgb&w=940',
+};
+
+/// Banner image for a home/Browse category (changes per category).
+String categoryBannerImage(String? label) =>
+    _categoryBannerImages[label] ??
+    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&w=940';
+
 /// Home scroll-feed modules, derived from the catalog. Placeholder structure
 /// until a merchandising backend is wired.
 final homeModulesProvider =
     Provider.autoDispose<List<MerchandisingModule>>((ref) {
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
-  final swimlane = products.take(3).toList();
+
+  // Flash Deals / Best Sellers are deterministic collections over the
+  // catalogue; badges come from the product itself (review enrichment) so the
+  // rails and the "See All" collection filters agree.
+  final flashPool = products.where((p) => inFlashDeals(p.id)).toList();
+  final bestPool = products.where((p) => inBestSellers(p.id)).toList();
+  final flashDeals =
+      (flashPool.isNotEmpty ? flashPool : products).take(8).toList();
+  final bestSellers =
+      (bestPool.isNotEmpty ? bestPool : products.skip(2)).take(8).toList();
+
+  // Recommended + the special "Recently viewed" split slot.
   final recentlyViewed = ref
       .watch(recentlyViewedProvider)
       .map((id) => products.where((p) => p.id == id).firstOrNull)
       .whereType<Product>()
       .toList();
-  final splitProducts = recentlyViewed.isNotEmpty
-      ? recentlyViewed.take(2).toList()
-      : products.take(2).toList();
+  final splitProducts = (recentlyViewed.isNotEmpty
+          ? recentlyViewed.take(2)
+          : products.take(2))
+      .toList();
+  final recommended = products.take(5).toList();
+
   return <MerchandisingModule>[
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
       title: 'Flash Deals',
       tag: 'Up to 60% OFF',
-      products: swimlane,
+      products: flashDeals,
     ),
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
       title: 'Best Sellers',
       tag: 'Most Loved',
-      products: swimlane,
+      products: bestSellers,
     ),
     MerchandisingModule(
       type: MerchandisingModuleType.secondaryBanner,
@@ -370,7 +410,7 @@ final homeModulesProvider =
     MerchandisingModule(
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',
-      products: products.take(5).toList(),
+      products: recommended,
       splitSlot: SplitSlot(
         label: 'Recently viewed',
         products: splitProducts,

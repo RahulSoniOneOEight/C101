@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/notification_bell.dart';
@@ -52,7 +53,14 @@ extension on BrowseSort {
 /// Marketplace **Browse** tab: search + category filters + sort/filter
 /// (brand, price, key items) over a long-scrolling product grid.
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({super.key});
+  const BrowseScreen({this.initialTag, this.initialCategory, super.key});
+
+  /// Optional collection tag carried from a home module's "See All" or a
+  /// banner tap (e.g. "Flash Deals", "Best Sellers", "Clearance Sale").
+  final String? initialTag;
+
+  /// Optional category label to pre-select.
+  final String? initialCategory;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
@@ -68,6 +76,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const List<String> _keyItems = <String>[
     'On discount',
     'Bestseller',
+    'Flash Deal',
+    'Clearance',
+    'New',
     'Premium',
     'Highly rated',
     'Free delivery',
@@ -83,6 +94,31 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   int _visible = _pageSize;
 
   int get _activeFilterCount => _brands.length + _prices.length + _keys.length;
+
+  @override
+  void initState() {
+    super.initState();
+    _category = widget.initialCategory;
+    final tag = widget.initialTag;
+    if (tag != null) _keys.addAll(_keysForTag(tag));
+  }
+
+  /// Maps a home collection tag onto the Browse "key item" filter set so that
+  /// "See All" / banner taps land on the catalogue with the filter applied.
+  static Set<String> _keysForTag(String tag) {
+    final lower = tag.toLowerCase();
+    if (lower.contains('best')) return <String>{'Bestseller'};
+    if (lower.contains('clearance')) return <String>{'Clearance'};
+    if (lower.contains('flash') ||
+        lower.contains('limited') ||
+        lower.contains('deal') ||
+        lower.contains('sale')) {
+      return <String>{'Flash Deal'};
+    }
+    if (lower.contains('new')) return <String>{'New'};
+    if (lower.contains('premium')) return <String>{'Premium'};
+    return <String>{};
+  }
 
   @override
   void dispose() {
@@ -139,6 +175,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         'On discount' => p.discountPercent != null,
         'Bestseller' =>
           p.badges.any((b) => b.toLowerCase().contains('bestseller')),
+        'Flash Deal' =>
+          p.badges.any((b) => b.toLowerCase().contains('limited deal')),
+        'Clearance' =>
+          p.badges.any((b) => b.toLowerCase().contains('clearance')),
+        'New' => p.badges.any((b) => b.toLowerCase() == 'new'),
         'Premium' => p.badges.any((b) => b.toLowerCase().contains('premium')),
         'Highly rated' => (p.rating ?? 0) >= 4.5,
         'Free delivery' =>
@@ -188,15 +229,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             child: CustomScrollView(
               slivers: <Widget>[
                 SliverToBoxAdapter(child: _searchBar()),
+                SliverToBoxAdapter(child: _browseBanner()),
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverToBoxAdapter(child: _sortFilterRow()),
+                if (results.isNotEmpty)
+                  SliverToBoxAdapter(child: _recommendedStrip()),
                 if (results.isEmpty)
-                  const SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.all(AgencySpacing.xl),
-                      child: Center(child: Text('No products match')),
-                    ),
-                  )
+                  SliverToBoxAdapter(child: _noResults(products))
                 else
                   SliverPadding(
                     padding: const EdgeInsets.all(AgencySpacing.md),
@@ -365,6 +404,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Widget _card(Product product) {
+    final wishlisted = ref.watch(wishlistProvider).contains(product.id);
     return ProductCard(
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
@@ -377,7 +417,158 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       badges: product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
-      onAddToCart: () => context.push('/product/${product.id}'),
+      onAddToCart: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        await ref.read(cartProvider.notifier).addItem(
+            offerId: product.offerId ?? '',
+            variantId: product.variantId ?? product.id,
+            quantity: 1);
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Added to cart')),
+        );
+      },
+      wishlisted: wishlisted,
+      onWishlist: () =>
+          ref.read(wishlistProvider.notifier).toggle(product.id),
+    );
+  }
+
+  /// Shown when the filters/search yield nothing: suggested filters + a few
+  /// products so Browse is never a dead end.
+  Widget _noResults(List<Product> products) {
+    final colors = _colors(context);
+    final suggestions = products.take(4).toList();
+    return Padding(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.search_off, color: colors.contentSecondary, size: 32),
+          const SizedBox(height: AgencySpacing.sm),
+          Text('No products match your search',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.md),
+          Text('Try a suggested filter',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.sm),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.sm,
+            children: <Widget>[
+              for (final key in _keyItems.take(5))
+                ActionChip(
+                  label: Text(key, style: const TextStyle(fontSize: 12)),
+                  onPressed: () => setState(() {
+                    _keys
+                      ..clear()
+                      ..add(key);
+                    _resetPaging();
+                  }),
+                ),
+            ],
+          ),
+          if (suggestions.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.lg),
+            Text('Popular products',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.contentPrimary)),
+            const SizedBox(height: AgencySpacing.sm),
+            for (final p in suggestions) _card(p),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// A clickable category banner shown at the top of the Browse scroll.
+  Widget _browseBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+      child: MerchandisingBanner(
+        imageUrl: categoryBannerImage(_category),
+        title: _category ?? 'Browse the catalogue',
+        subtitle: 'Top picks in this aisle',
+        ctaLabel: 'Best sellers',
+        onCta: () => setState(() {
+          _keys
+            ..clear()
+            ..add('Bestseller');
+          _resetPaging();
+        }),
+      ),
+    );
+  }
+
+  /// "Recommended for you" horizontal rail inside the Browse scroll. The rail
+  /// follows the selected category (falls back to the full catalogue).
+  Widget _recommendedStrip() {
+    final products = ref.watch(productsProvider).value ?? const <Product>[];
+    final byCategory = filterProductsByHomeCategory(products, _category);
+    final items =
+        (byCategory.isNotEmpty ? byCategory : products).take(8).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
+              AgencySpacing.md, AgencySpacing.sm),
+          child: SectionHeader(
+            title: 'Recommended for you',
+            tag: _category,
+          ),
+        ),
+        SizedBox(
+          height: 252,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
+            itemCount: items.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(width: AgencySpacing.sm),
+            itemBuilder: (context, i) {
+              final p = items[i];
+              return SizedBox(
+                width: 160,
+                child: ProductCard(
+                  title: p.title,
+                  priceLabel: p.price?.formatted ?? 'Price on request',
+                  previousPriceLabel: p.mrp?.formatted,
+                  discountLabel: p.discountPercent == null
+                      ? null
+                      : '${p.discountPercent}% off',
+                  imageUrl: p.thumbnail,
+                  brand: p.brand,
+                  badges: p.badges,
+                  variant: ProductCardVariant.compact,
+                  onPressed: () => context.push('/product/${p.id}'),
+                  onAddToCart: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await ref.read(cartProvider.notifier).addItem(
+                        offerId: p.offerId ?? '',
+                        variantId: p.variantId ?? p.id,
+                        quantity: 1);
+                    if (!mounted) return;
+                    messenger.showSnackBar(
+                      const SnackBar(content: Text('Added to cart')),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

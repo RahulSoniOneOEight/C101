@@ -102,6 +102,14 @@ class _B2BQuickOrderCenterScreenState
   final Map<String, int> _draftQty = <String, int>{};
 
   @override
+  void initState() {
+    super.initState();
+    // Default to the first procurement list so the grid is never empty on open.
+    final lists = ref.read(procurementListsProvider);
+    if (lists.isNotEmpty) _selectedListIds.add(lists.first.id);
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     _searchFocus.dispose();
@@ -192,7 +200,7 @@ class _B2BQuickOrderCenterScreenState
         actions: <Widget>[
           IconButton(
             tooltip: 'Cart',
-            onPressed: () => context.push('/b2b/quotation-cart'),
+            onPressed: () => context.go('/b2b/cart'),
             icon: Badge(
               isLabelVisible: cart.skuCount > 0,
               label: Text('${cart.skuCount}'),
@@ -371,7 +379,7 @@ class _B2BQuickOrderCenterScreenState
             ),
           ),
           TextButton(
-            onPressed: () => context.push('/b2b/quotation-cart'),
+            onPressed: () => context.go('/b2b/cart'),
             child: const Text('View Cart →'),
           ),
         ],
@@ -491,7 +499,7 @@ class _ProcurementListDetailScreenState
         );
     PinToast.show(context, 'Added $count items to your order',
         tone: PinToastTone.success);
-    context.push('/b2b/quotation-cart');
+    context.go('/b2b/cart');
   }
 
   void _addAll(ProcurementList list) {
@@ -503,7 +511,7 @@ class _ProcurementListDetailScreenState
         .addProcurementItems(list.items, quantities: _quantities);
     PinToast.show(context, 'Added ${list.itemCount} items to your order',
         tone: PinToastTone.success);
-    context.push('/b2b/quotation-cart');
+    context.go('/b2b/cart');
   }
 
   Widget _itemRow(

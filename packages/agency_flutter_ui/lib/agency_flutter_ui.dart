@@ -228,8 +228,7 @@ class AgencyColors extends ThemeExtension<AgencyColors> {
           Color.lerp(promotionInverse, other.promotionInverse, t)!,
       trust: Color.lerp(trust, other.trust, t)!,
       trustSubtle: Color.lerp(trustSubtle, other.trustSubtle, t)!,
-      promotionSubtle:
-          Color.lerp(promotionSubtle, other.promotionSubtle, t)!,
+      promotionSubtle: Color.lerp(promotionSubtle, other.promotionSubtle, t)!,
     );
   }
 }
@@ -313,6 +312,8 @@ class ProductCard extends StatelessWidget {
     this.variant = ProductCardVariant.compact,
     this.onPressed,
     this.onAddToCart,
+    this.wishlisted = false,
+    this.onWishlist,
     this.state = CommerceFixture.defaultState,
     super.key,
   });
@@ -330,6 +331,8 @@ class ProductCard extends StatelessWidget {
   final ProductCardVariant variant;
   final VoidCallback? onPressed;
   final VoidCallback? onAddToCart;
+  final bool wishlisted;
+  final VoidCallback? onWishlist;
   final CommerceFixture state;
 
   @override
@@ -349,60 +352,63 @@ class ProductCard extends StatelessWidget {
     return Semantics(
       button: onPressed != null && !unavailable,
       label: '$title, $priceLabel',
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: unavailable ? null : onPressed,
-          child: Padding(
-            padding: const EdgeInsets.all(AgencySpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _image(context),
-                const SizedBox(height: AgencySpacing.sm),
-                if (brand != null)
-                  Text(
-                    brand!,
-                    style: AgencyText.label
-                        .copyWith(color: context.colors.contentSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                SizedBox(
-                  height: variant == ProductCardVariant.large ? 36 : 34,
-                  child: Text(
-                    title,
-                    style: AgencyText.label.copyWith(
-                      color: context.colors.contentPrimary,
-                      fontSize: variant == ProductCardVariant.large ? 14 : 13,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+      child: SizedBox(
+        height: variant == ProductCardVariant.large ? 296 : 248,
+        child: Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: unavailable ? null : onPressed,
+            child: Padding(
+              padding: const EdgeInsets.all(AgencySpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: _image(context)),
+                  const SizedBox(height: AgencySpacing.sm),
+                  if (brand != null)
+                    Text(
+                      brand!,
+                      style: AgencyText.label
+                          .copyWith(color: context.colors.contentSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  SizedBox(
+                    height: variant == ProductCardVariant.large ? 36 : 34,
+                    child: Text(
+                      title,
+                      style: AgencyText.label.copyWith(
+                        color: context.colors.contentPrimary,
+                        fontSize: variant == ProductCardVariant.large ? 14 : 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AgencySpacing.xs),
-                _priceRow(context, unavailable: unavailable),
-                if (rating != null) ...[
                   const SizedBox(height: AgencySpacing.xs),
-                  _ratingRow(context),
+                  _priceRow(context, unavailable: unavailable),
+                  if (rating != null) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    _ratingRow(context),
+                  ],
+                  if (variant == ProductCardVariant.large &&
+                      deliveryNote != null) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    Text(
+                      deliveryNote!,
+                      style: AgencyText.label
+                          .copyWith(color: context.colors.contentSecondary),
+                    ),
+                  ],
+                  if (unavailable) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    const Text('Out of stock', style: AgencyText.label),
+                  ],
                 ],
-                if (variant == ProductCardVariant.large &&
-                    deliveryNote != null) ...[
-                  const SizedBox(height: AgencySpacing.xs),
-                  Text(
-                    deliveryNote!,
-                    style: AgencyText.label
-                        .copyWith(color: context.colors.contentSecondary),
-                  ),
-                ],
-                if (unavailable) ...[
-                  const SizedBox(height: AgencySpacing.xs),
-                  const Text('Out of stock', style: AgencyText.label),
-                ],
-              ],
+              ),
             ),
           ),
         ),
@@ -445,17 +451,23 @@ class ProductCard extends StatelessWidget {
                       Flexible(
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: _pill(
-                            badges.first,
-                            colors.trust,
-                            colors.contentInverse,
+                          child: Wrap(
+                            spacing: AgencySpacing.xs,
+                            runSpacing: 2,
+                            children: <Widget>[
+                              for (final badge in badges.take(1))
+                                _pill(
+                                  badge,
+                                  _badgeColor(badge, colors),
+                                  colors.contentInverse,
+                                ),
+                            ],
                           ),
                         ),
                       ),
                     if (badges.isNotEmpty && discountLabel != null)
                       const SizedBox(width: AgencySpacing.xs),
-                    if (badges.isEmpty && discountLabel != null)
-                      const Spacer(),
+                    if (badges.isEmpty && discountLabel != null) const Spacer(),
                     if (discountLabel != null)
                       _pill(
                         discountLabel!,
@@ -465,10 +477,49 @@ class ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
+            if (onWishlist != null)
+              Positioned(
+                right: AgencySpacing.xs,
+                bottom: AgencySpacing.xs,
+                child: Material(
+                  color: colors.surfaceRaised.withValues(alpha: 0.92),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    onTap: onWishlist,
+                    customBorder: const CircleBorder(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: Icon(
+                        wishlisted ? Icons.favorite : Icons.favorite_border,
+                        size: 16,
+                        color: wishlisted
+                            ? colors.promotion
+                            : colors.contentSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
     );
+  }
+
+  /// Badge colour by label: deals/clearance/sale read as promotion (red),
+  /// new/premium use the action/warning accents, everything else is trust
+  /// (green).
+  Color _badgeColor(String label, AgencyColors colors) {
+    final l = label.toLowerCase();
+    if (l.contains('deal') ||
+        l.contains('clear') ||
+        l.contains('sale') ||
+        l.contains('flash')) {
+      return colors.promotion;
+    }
+    if (l.contains('new')) return colors.actionPrimary;
+    if (l.contains('premium')) return colors.feedbackWarning;
+    return colors.trust;
   }
 
   Widget _priceRow(BuildContext context, {required bool unavailable}) {
@@ -1147,27 +1198,40 @@ class MerchandisingBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Text(
                     title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AgencyText.title.copyWith(
                       color: colors.contentInverse,
+                      fontSize: 16,
                     ),
                   ),
                   if (subtitle != null) ...<Widget>[
-                    const SizedBox(height: AgencySpacing.xs),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AgencyText.body.copyWith(
                         color: colors.contentInverse,
+                        fontSize: 12,
                       ),
                     ),
                   ],
                   if (ctaLabel != null) ...<Widget>[
-                    const SizedBox(height: AgencySpacing.sm),
+                    const SizedBox(height: AgencySpacing.xs),
                     FilledButton(
                       onPressed: onCta,
-                      child: Text(ctaLabel!),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 32),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child:
+                          Text(ctaLabel!, style: const TextStyle(fontSize: 12)),
                     ),
                   ],
                 ],
@@ -1229,7 +1293,6 @@ class SplitMerchandisingTile extends StatelessWidget {
         padding: const EdgeInsets.all(AgencySpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: <Widget>[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1246,11 +1309,20 @@ class SplitMerchandisingTile extends StatelessWidget {
                 ),
               ),
             ),
-            for (final child in children)
-              Padding(
-                padding: const EdgeInsets.only(top: AgencySpacing.sm),
-                child: child,
+            const SizedBox(height: AgencySpacing.sm),
+            // The special slot shares the composition grid cell with large
+            // product cards, so its items expand to fill the height instead of
+            // leaving dead space below two fixed-height previews.
+            Expanded(
+              child: Column(
+                children: <Widget>[
+                  for (var i = 0; i < children.length; i++) ...<Widget>[
+                    if (i > 0) const SizedBox(height: AgencySpacing.sm),
+                    Expanded(child: children[i]),
+                  ],
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -1346,23 +1418,23 @@ class CompactProductItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(AgencyRadius.sm),
-      child: Container(
-        height: 80,
-        padding: const EdgeInsets.all(AgencySpacing.xs),
-        decoration: BoxDecoration(
-          color: colors.surfaceInteractive,
-          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            SizedBox(
-              width: 52,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AgencyRadius.sm),
+    return SizedBox(
+      height: 132,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AgencyRadius.md),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surfaceInteractive,
+            borderRadius: BorderRadius.circular(AgencyRadius.md),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // ~70% of the tile is product imagery.
+              Expanded(
+                flex: 7,
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
@@ -1376,12 +1448,11 @@ class CompactProductItem extends StatelessWidget {
                           ),
                     if (discountLabel != null)
                       Positioned(
-                        top: 2,
-                        left: 2,
-                        right: 2,
+                        top: 4,
+                        left: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 3, vertical: 1),
+                              horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
                             color: colors.promotion,
                             borderRadius:
@@ -1395,49 +1466,53 @@ class CompactProductItem extends StatelessWidget {
                               height: 1.2,
                               fontWeight: FontWeight.w600,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: AgencyText.label.copyWith(
-                        color: colors.contentPrimary,
-                        fontSize: 12,
-                        height: 1.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Row(
+              // Remaining ~30%: price, name and the quick-add action.
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                  child: Row(
                     children: <Widget>[
                       Expanded(
-                        child: Text(
-                          priceLabel,
-                          style: AgencyText.label.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentPrimary,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                priceLabel,
+                                style: AgencyText.label.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.contentPrimary,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                title,
+                                style: AgencyText.label.copyWith(
+                                  color: colors.contentSecondary,
+                                  fontSize: 10,
+                                  height: 1.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       if (onAdd != null) ...<Widget>[
-                        const SizedBox(width: AgencySpacing.xs),
+                        const SizedBox(width: 4),
                         InkWell(
                           onTap: onAdd,
                           borderRadius: BorderRadius.circular(AgencyRadius.sm),
@@ -1455,10 +1530,10 @@ class CompactProductItem extends StatelessWidget {
                       ],
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

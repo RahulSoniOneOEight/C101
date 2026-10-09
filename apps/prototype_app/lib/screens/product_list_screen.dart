@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/home_header.dart';
@@ -57,6 +58,38 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   void _openProduct(Product product) => context.push('/product/${product.id}');
 
+  bool _isWishlisted(Product product) =>
+      ref.watch(wishlistProvider).contains(product.id);
+
+  Future<void> _toggleWishlist(Product product) async {
+    await ref.read(wishlistProvider.notifier).toggle(product.id);
+    if (!mounted) return;
+    final saved = ref.read(wishlistProvider).contains(product.id);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(saved ? 'Saved to wishlist' : 'Removed from wishlist')),
+    );
+  }
+
+  void _openCategory(String? label) => context.push(
+      label == null ? '/browse' : '/browse?category=${Uri.encodeComponent(label)}');
+
+  /// Opens Browse pre-filtered to the collection behind a module or banner.
+  VoidCallback _openTag(String tag) =>
+      () => context.push('/browse?tag=${Uri.encodeComponent(tag)}');
+
+  /// "See All" target for a headed module. Flash Deals / Best Sellers open the
+  /// matching Browse filter; other sections open the full catalogue.
+  VoidCallback? _seeAllFor(MerchandisingModule module) {
+    if (module.title == null) return null;
+    final tag = switch (module.title) {
+      'Flash Deals' => 'Flash Deals',
+      'Best Sellers' => 'Best Sellers',
+      _ => null,
+    };
+    return tag == null ? () => context.push('/browse') : _openTag(tag);
+  }
+
   @override
   Widget build(BuildContext context) {
     final modules = ref.watch(homeModulesProvider);
@@ -108,33 +141,32 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                   padding: const EdgeInsets.all(AgencySpacing.md),
                   child: HomeHeader(
                     onSearch: () => context.push('/search'),
-                    onLocation: () =>
-                        ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Address selection is not part of this prototype yet')),
-                    ),
+                    onLocation: () => context.push('/addresses'),
+                    onHeroTap: (tag) => context.push(
+                        '/browse?tag=${Uri.encodeComponent(tag)}'),
                   ),
                 ),
                 for (final module in modules)
-                  if (module.type == MerchandisingModuleType.productComposition)
-                    _catalogSection(filtered)
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AgencySpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          MerchandisingModuleView(
-                            module: module,
-                            onProductTap: _openProduct,
-                            onAddToCart: _addToCart,
-                          ),
-                          const SizedBox(height: AgencySpacing.md),
-                        ],
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AgencySpacing.md),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        MerchandisingModuleView(
+                          module: module,
+                          onProductTap: _openProduct,
+                          onAddToCart: _addToCart,
+                          onSeeAll: _seeAllFor(module),
+                          onBannerTap: _openTag('Clearance Sale'),
+                          onToggleWishlist: _toggleWishlist,
+                          isWishlisted: _isWishlisted,
+                        ),
+                        const SizedBox(height: AgencySpacing.md),
+                      ],
                     ),
+                  ),
+                _catalogSection(filtered),
               ],
             ),
           );
@@ -160,6 +192,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          MerchandisingBanner(
+            imageUrl: categoryBannerImage(_category),
+            title: _category ?? 'Shop by category',
+            subtitle: 'Top picks in this aisle',
+            ctaLabel: 'Explore',
+            onCta: () => _openCategory(_category),
+          ),
+          const SizedBox(height: AgencySpacing.sm),
           CategoryIconRail(
             categories: rail,
             selectedLabel: _category ?? 'All',
@@ -241,10 +281,14 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           : '${product.discountPercent}% off',
       imageUrl: product.thumbnail,
       brand: product.brand,
-      badges: product.badges,
+      badges: product.badges.isEmpty
+          ? const <String>['Assured']
+          : product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => _openProduct(product),
       onAddToCart: () => _addToCart(product),
+      wishlisted: _isWishlisted(product),
+      onWishlist: () => _toggleWishlist(product),
     );
   }
 }

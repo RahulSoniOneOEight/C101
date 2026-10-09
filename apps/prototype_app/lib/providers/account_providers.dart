@@ -109,13 +109,17 @@ final defaultAddressProvider = Provider<SavedAddress?>((ref) {
 class WishlistNotifier extends Notifier<List<String>> {
   @override
   List<String> build() {
-    final store = ref.read(localStoreProvider);
-    if (!store.hasWishlist()) {
-      const seed = <String>['prod_drill', 'prod_grinder', 'prod_tiles'];
-      store.writeWishlist(seed);
-      return seed;
+    try {
+      final store = ref.read(localStoreProvider);
+      if (!store.hasWishlist()) {
+        const seed = <String>['prod_drill', 'prod_grinder', 'prod_tiles'];
+        store.writeWishlist(seed);
+        return seed;
+      }
+      return store.readWishlist();
+    } catch (_) {
+      return const <String>[];
     }
-    return store.readWishlist();
   }
 
   bool contains(String id) => state.contains(id);
@@ -124,13 +128,17 @@ class WishlistNotifier extends Notifier<List<String>> {
     if (state.contains(id)) return;
     final next = <String>[id, ...state];
     state = next;
-    await _store(ref).writeWishlist(next);
+    try {
+      await _store(ref).writeWishlist(next);
+    } catch (_) {/* in-memory only */}
   }
 
   Future<void> remove(String id) async {
     final next = state.where((s) => s != id).toList();
     state = next;
-    await _store(ref).writeWishlist(next);
+    try {
+      await _store(ref).writeWishlist(next);
+    } catch (_) {/* in-memory only */}
   }
 
   Future<void> toggle(String id) =>

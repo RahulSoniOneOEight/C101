@@ -52,8 +52,8 @@ void main() {
     expect(find.text('New Procurement List'), findsOneWidget);
     expect(find.text('List Name'), findsOneWidget);
     expect(find.text('ADD PRODUCTS'), findsOneWidget);
-    expect(find.text('Scan'), findsOneWidget);
-    expect(find.text('Upload'), findsOneWidget);
+    expect(find.text('Scan'), findsNothing);
+    expect(find.text('Upload list'), findsOneWidget);
     expect(find.text('Save Changes'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).at(0), 'Monsoon Essentials');
@@ -66,7 +66,7 @@ void main() {
     expect(addIcon, findsWidgets);
     await tester.tap(addIcon.first);
     await tester.pumpAndSettle();
-    expect(find.text('SKUS IN THIS LIST'), findsOneWidget);
+    expect(find.textContaining('SKUS IN THIS LIST'), findsOneWidget);
 
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
@@ -99,6 +99,8 @@ void main() {
         .quantity;
 
     await tester.tap(find.byIcon(Icons.add).first);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Changes', skipOffstage: false));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();

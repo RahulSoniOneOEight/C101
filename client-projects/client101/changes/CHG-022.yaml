@@ -1,0 +1,59 @@
+change_id: CHG-022
+revision: 1
+request: >-
+  Refine the B2B home merchandising experience for the hosted staging pilot. The Quick Order
+  preview must render procurement-list products as a horizontally scrollable 2x2 grid with four
+  SKU tiles visible at a time. Seeded procurement lists must contain at least eight orderable SKUs,
+  with one representative list containing twelve. B2B browse-category product tiles must use an
+  explicit 50/50 image-to-details layout so the available card area is used consistently without
+  trailing empty space.
+type: ux
+extends:
+- CHG-017
+affected_capabilities:
+- b2b-home
+- b2b-quick-order
+- b2b-procurement-lists
+- b2b-catalogue
+affected_domains:
+- commerce-merchandising
+affected_surfaces:
+- customer-app.b2b.home
+- customer-app.b2b.catalogue
+affected_entities:
+- procurement-list
+- trade-product
+affected_events: []
+decisions:
+  D-022-01: quick-order-home-preview-is-horizontal-2x2-grid
+  D-022-02: seeded-lists-contain-eight-to-twelve-orderable-skus
+  D-022-03: compact-trade-product-card-uses-equal-image-and-details-regions
+required_tests:
+- The B2B Home Quick Order grid has two rows, two visible columns and horizontal scrolling.
+- Every seeded procurement list resolves at least eight unique catalogue SKUs and one resolves twelve.
+- Existing untouched three-item pilot seed lists migrate to the expanded fixtures without replacing buyer-edited lists.
+- The compact trade product card image and details regions each consume half of the usable card height.
+- B2B home and catalogue render without overflow at supported phone widths.
+- flutter analyze and flutter test pass.
+constraints:
+- Seeded catalogue and procurement records remain explicit staging fixtures and test data.
+- Buyer-created or buyer-edited procurement lists are not overwritten by fixture migration.
+- Shared product-card changes remain consistent across B2B home, catalogue and offer surfaces.
+- Canonical entity ownership and backend pricing are unchanged.
+- Production release remains unauthorized.
+approval_required: false
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-09'
+  scope: prototype-and-hosted-staging-ui-only
+  human_visual_review_required: true
+production_release_authorized: false
+validation:
+  flutter_analyze: passed
+  flutter_tests: 125-passed
+  visual_evidence:
+  - apps/prototype_app/test/goldens/b2b_home.png
+  - apps/prototype_app/test/goldens/b2b_catalogue.png
+  - apps/prototype_app/test/goldens/list_editor.png
+  responsive_widths_px: [320, 334, 360, 390, 400, 430]
+status: validated-awaiting-human-visual-review

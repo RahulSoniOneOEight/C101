@@ -13,18 +13,70 @@ import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/app_notification.dart';
 import 'package:prototype_app/domain/models.dart';
+import 'package:prototype_app/providers/catalog_providers.dart';
+import 'package:prototype_app/providers/b2b_trade_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
+import 'package:prototype_app/router/app_router.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
+import 'package:prototype_app/screens/b2b_browse_screens.dart';
+import 'package:prototype_app/screens/b2b_procurement_lists_screen.dart';
+import 'package:prototype_app/screens/b2b_project_screens.dart';
+import 'package:prototype_app/screens/b2b_support_screens.dart';
+import 'package:prototype_app/screens/d2c_shell.dart';
 import 'package:prototype_app/screens/b2c_flow_screens.dart';
 import 'package:prototype_app/screens/notifications_screen.dart';
+import 'package:prototype_app/screens/product_detail_screen.dart';
 import 'package:prototype_app/screens/product_list_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeExperienceApi extends ExperienceApi {
   _FakeExperienceApi() : super(Dio());
+
   @override
-  Future<List<Product>> getComposedProducts({int limit = 50, int offset = 0}) async =>
-      const <Product>[];
+  Future<List<Product>> getComposedProducts(
+          {int limit = 50, int offset = 0}) async =>
+      demoProducts;
+
+  @override
+  Future<Product> getComposedProduct(String productId) async =>
+      demoProducts.firstWhere((p) => p.id == productId);
+
+  /// Detail-shaped payload: best offer nested under `commercial.selected_seller`
+  /// (the contract the product page consumes).
+  @override
+  Future<Map<String, dynamic>> getProduct(String productId) async {
+    final p = demoProducts.firstWhere((x) => x.id == productId);
+    final best = <String, dynamic>{
+      'id': p.offerId ?? 'offer_best',
+      'seller_name': 'BuildMaster Supplies',
+      'variant_id': p.variantId ?? p.id,
+      'currency_code': 'INR',
+      'unit_amount_minor': p.price?.amount ?? 71190,
+      'list_amount_minor': p.mrp?.amount ?? 79100,
+      'in_stock': true,
+    };
+    return <String, dynamic>{
+      'id': p.id,
+      'title': p.title,
+      'thumbnail': p.thumbnail,
+      'variants': <dynamic>[
+        <String, dynamic>{'id': p.variantId ?? p.id},
+      ],
+      'offers': <dynamic>[
+        best,
+        <String, dynamic>{
+          'id': 'offer_2',
+          'seller_name': 'BuildMart Supplies',
+          'variant_id': p.variantId ?? p.id,
+          'currency_code': 'INR',
+          'unit_amount_minor': ((p.price?.amount ?? 71190) * 1.04).round(),
+          'list_amount_minor': ((p.price?.amount ?? 71190) * 1.04).round(),
+          'in_stock': true,
+        },
+      ],
+      'commercial': <String, dynamic>{'selected_seller': best},
+    };
+  }
 }
 
 class _GoldenNotifications extends NotificationsNotifier {
@@ -61,18 +113,22 @@ class _GoldenNotifications extends NotificationsNotifier {
 Future<void> _capture(WidgetTester tester, String name) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   await tester.pumpAndSettle();
-  await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+  await expectLater(
+      find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
 }
 
 void main() {
   testWidgets('onboarding', (t) async {
-    await t.pumpWidget(MaterialApp(theme: AgencyTheme.light(), home: const OnboardingScreen()));
+    await t.pumpWidget(MaterialApp(
+        theme: AgencyTheme.light(), home: const OnboardingScreen()));
     await _capture(t, 'onboarding');
   });
 
   testWidgets('login', (t) async {
     await t.pumpWidget(
-      ProviderScope(child: MaterialApp(theme: AgencyTheme.light(), home: const LoginScreen())),
+      ProviderScope(
+          child: MaterialApp(
+              theme: AgencyTheme.light(), home: const LoginScreen())),
     );
     await _capture(t, 'login');
   });
@@ -82,7 +138,8 @@ void main() {
       overrides: [notificationsProvider.overrideWith(_GoldenNotifications.new)],
       child: MaterialApp(
         theme: AgencyTheme.light(),
-        home: const NotificationsScreen(audience: NotificationAudience.b2b, loadOnOpen: false),
+        home: const NotificationsScreen(
+            audience: NotificationAudience.b2b, loadOnOpen: false),
       ),
     ));
     await _capture(t, 'notifications_b2b');
@@ -96,9 +153,26 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
       ],
-      child: MaterialApp(theme: AgencyTheme.light(), home: const ProductListScreen()),
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const ProductListScreen()),
     ));
     await _capture(t, 'home');
+  });
+
+  testWidgets('product detail', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
+      ],
+      child: MaterialApp(
+        theme: AgencyTheme.light(),
+        home: ProductDetailScreen(productId: demoProducts.first.id),
+      ),
+    ));
+    await _capture(t, 'product_detail');
   });
 
   testWidgets('b2b home', (t) async {
@@ -109,8 +183,134 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
       ],
-      child: MaterialApp(theme: AgencyTheme.light(), home: const B2BHomeScreen()),
+      child:
+          MaterialApp(theme: AgencyTheme.light(), home: const B2BHomeScreen()),
     ));
     await _capture(t, 'b2b_home');
+  });
+
+  testWidgets('b2b catalogue', (t) async {
+    await t.pumpWidget(ProviderScope(
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BCatalogueScreen()),
+    ));
+    await _capture(t, 'b2b_catalogue');
+  });
+
+  testWidgets('b2b checkout', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    final product = container.read(tradeCatalogueProvider).first;
+    container.read(b2bQuotationCartProvider.notifier).addTradeProduct(product);
+    container
+        .read(b2bQuotationCartProvider.notifier)
+        .setDeliveryLocation('Site B — Warehouse (Pune)');
+    final router = container.read(appRouterProvider);
+    addTearDown(router.dispose);
+    addTearDown(container.dispose);
+    await t.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp.router(
+        theme: AgencyTheme.light(),
+        routerConfig: router,
+      ),
+    ));
+    router.go('/b2b/cart/checkout');
+    await _capture(t, 'b2b_checkout');
+  });
+
+  testWidgets('b2b approvals', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BApprovalsScreen()),
+    ));
+    await _capture(t, 'b2b_approvals');
+  });
+
+  testWidgets('b2b team roles', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BTeamRolesScreen()),
+    ));
+    await _capture(t, 'b2b_team');
+  });
+
+  testWidgets('b2b projects', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BProjectsListScreen()),
+    ));
+    await _capture(t, 'b2b_projects');
+  });
+
+  testWidgets('browse', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
+      ],
+      child:
+          MaterialApp(theme: AgencyTheme.light(), home: const BrowseScreen()),
+    ));
+    await _capture(t, 'browse');
+  });
+
+  testWidgets('split tile', (t) async {
+    await t.pumpWidget(MaterialApp(
+      theme: AgencyTheme.light(),
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(AgencySpacing.md),
+          child: SizedBox(
+            height: 320,
+            child: SplitMerchandisingTile(
+              sectionLabel: 'Recently viewed',
+              children: <Widget>[
+                CompactProductItem(
+                  title: 'Ceramic Floor Tiles 600x600 Matt',
+                  priceLabel: '₹1,150',
+                  discountLabel: '23% off',
+                  onAdd: () {},
+                ),
+                CompactProductItem(
+                  title: 'CPVC Pipe 3/4 in',
+                  priceLabel: '₹840',
+                  discountLabel: '16% off',
+                  onAdd: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ));
+    await _capture(t, 'split_tile');
+  });
+
+  testWidgets('list editor', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+        theme: AgencyTheme.light(),
+        home: const ProcurementListEditorScreen(listId: 'pl_seasonal'),
+      ),
+    ));
+    await _capture(t, 'list_editor');
   });
 }

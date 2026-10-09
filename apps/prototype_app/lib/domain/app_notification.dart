@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 /// centre can serve both the consumer (B2C) and trade (B2B) experiences.
 enum NotificationAudience { b2c, b2b }
 
-/// Category of a notification — drives the leading icon.
-enum NotificationKind { order, offer, credit, account, system }
+/// Category of a notification — drives the leading icon and card accent.
+enum NotificationKind { order, deal, launch, offer, credit, account, system }
 
 /// A single in-app notification.
 class AppNotification {
@@ -44,7 +44,8 @@ class AppNotification {
       timeLabel: _relativeTime(createdAt),
       kind: switch (template) {
         'order_confirmed_v1' || 'delivery_update_v1' => NotificationKind.order,
-        'product_launch_v1' || 'price_drop_v1' => NotificationKind.offer,
+        'price_drop_v1' || 'best_deal_v1' => NotificationKind.deal,
+        'product_launch_v1' || 'new_launch_v1' => NotificationKind.launch,
         _ => NotificationKind.system,
       },
       read: json['read_at'] != null,
@@ -55,10 +56,24 @@ class AppNotification {
 
   IconData get icon => switch (kind) {
         NotificationKind.order => Icons.local_shipping_outlined,
+        NotificationKind.deal => Icons.local_offer_outlined,
+        NotificationKind.launch => Icons.rocket_launch_outlined,
         NotificationKind.offer => Icons.percent,
         NotificationKind.credit => Icons.account_balance_wallet_outlined,
         NotificationKind.account => Icons.badge_outlined,
         NotificationKind.system => Icons.notifications_outlined,
+      };
+
+  /// A sensible destination when the payload carries no explicit deep link.
+  String get destination => deepLink ??
+      switch (kind) {
+        NotificationKind.order => '/orders',
+        NotificationKind.deal || NotificationKind.offer =>
+          '/browse?tag=Flash%20Deals',
+        NotificationKind.launch => '/browse?tag=New%20Arrivals',
+        NotificationKind.credit => '/account',
+        NotificationKind.account => '/account',
+        NotificationKind.system => '/notifications',
       };
 
   AppNotification copyWith({bool? read}) => AppNotification(

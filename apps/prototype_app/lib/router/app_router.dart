@@ -62,7 +62,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: <RouteBase>[
               GoRoute(
                 path: '/browse',
-                builder: (context, state) => const BrowseScreen(),
+                builder: (context, state) => BrowseScreen(
+                  initialTag: state.uri.queryParameters['tag'],
+                  initialCategory: state.uri.queryParameters['category'],
+                ),
               ),
             ],
           ),
@@ -193,8 +196,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: '/b2b/orders',
-                builder: (context, state) => const B2BOrdersScreen(),
+                path: '/b2b/cart',
+                builder: (context, state) => const B2BQuotationCartScreen(),
+                routes: <RouteBase>[
+                  GoRoute(
+                    path: 'checkout',
+                    builder: (context, state) => const B2BCheckoutScreen(),
+                  ),
+                  GoRoute(
+                    path: 'confirm',
+                    builder: (context, state) => const B2BConfirmOrderScreen(),
+                  ),
+                ],
               ),
             ],
           ),
@@ -293,16 +306,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const B2BAcceptQuoteScreen(),
       ),
       GoRoute(
+        path: '/b2b/orders',
+        builder: (context, state) => const B2BOrdersScreen(),
+      ),
+      GoRoute(
         path: '/b2b/quotation-cart',
-        builder: (context, state) => const B2BQuotationCartScreen(),
+        redirect: (context, state) => '/b2b/cart',
       ),
       GoRoute(
         path: '/b2b/checkout',
-        builder: (context, state) => const B2BCheckoutScreen(),
+        redirect: (context, state) => '/b2b/cart/checkout',
       ),
       GoRoute(
         path: '/b2b/confirm',
-        builder: (context, state) => const B2BConfirmOrderScreen(),
+        redirect: (context, state) => '/b2b/cart/confirm',
       ),
       // ---- B2B projects & sites ----
       GoRoute(
@@ -311,8 +328,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/b2b/projects/:id',
-        builder: (context, state) => B2BProjectDetailScreen(
-            projectName: state.pathParameters['id'] ?? 'Project'),
+        builder: (context, state) =>
+            B2BProjectDetailScreen(projectId: state.pathParameters['id'] ?? ''),
       ),
       GoRoute(
         path: '/b2b/material-list',

@@ -11,12 +11,16 @@ class HomeHeader extends StatelessWidget {
     this.locationLabel = 'Bhiwadi, Rajasthan 301019',
     this.onSearch,
     this.onLocation,
+    this.onHeroTap,
     super.key,
   });
 
   final String locationLabel;
   final VoidCallback? onSearch;
   final VoidCallback? onLocation;
+
+  /// Invoked with a collection tag when a hero banner is tapped.
+  final void Function(String tag)? onHeroTap;
 
   @override
   Widget build(BuildContext context) {
@@ -94,16 +98,25 @@ class HomeHeader extends StatelessWidget {
               title: 'Monsoon Ready',
               subtitle: 'Up to 40% off waterproofing',
               color: colors.actionPrimary,
+              onTap: onHeroTap == null
+                  ? null
+                  : () => onHeroTap!('Flash Deals'),
             ),
             _HeroBanner(
               title: 'Bulk Savings',
               subtitle: 'Dealer pricing on 10,000+ SKUs',
               color: colors.trust,
+              onTap: onHeroTap == null
+                  ? null
+                  : () => onHeroTap!('Best Sellers'),
             ),
             _HeroBanner(
               title: 'Free Delivery',
               subtitle: 'On orders above ₹2,000',
               color: colors.promotion,
+              onTap: onHeroTap == null
+                  ? null
+                  : () => onHeroTap!('Clearance Sale'),
             ),
           ],
         ),
@@ -117,36 +130,56 @@ class _HeroBanner extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.color,
+    this.onTap,
   });
   final String title;
   final String subtitle;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Container(
-      padding: const EdgeInsets.all(AgencySpacing.md),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AgencyRadius.lg),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          Text(title,
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: colors.contentInverse)),
-          const SizedBox(height: AgencySpacing.xs),
-          Text(subtitle,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: colors.contentInverse.withValues(alpha: 0.9))),
-        ],
+    return Material(
+      color: color,
+      clipBehavior: Clip.antiAlias,
+      borderRadius: BorderRadius.circular(AgencyRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AgencySpacing.md),
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: colors.contentInverse)),
+                    const SizedBox(height: AgencySpacing.xs),
+                    Text(subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: colors.contentInverse
+                                .withValues(alpha: 0.9))),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios,
+                  size: 14, color: colors.contentInverse),
+            ],
+          ),
+        ),
       ),
     );
   }

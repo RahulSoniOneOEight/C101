@@ -5,6 +5,8 @@
 /// than throwing during deserialization.
 library;
 
+import 'review_catalogue.dart';
+
 /// A monetary amount expressed in a currency's minor unit (e.g. paise for INR,
 /// cents for USD).
 class Money {
@@ -143,10 +145,36 @@ class Product {
     final variants = (json['variants'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .toList();
-    final best = json['best_price'] as Map<String, dynamic>?;
+    final commercial = json['commercial'] as Map<String, dynamic>?;
+    // The list endpoint returns `best_price`; the detail endpoint nests the same
+    // best-price offer under `commercial.selected_seller`. Accept both.
+    final best = (json['best_price'] ??
+        commercial?['selected_seller']) as Map<String, dynamic>?;
     final num? bestAmount = best?['unit_amount_minor'] as num?;
+    final num? listAmount = best?['list_amount_minor'] as num?;
+    final currency = best?['currency_code'] as String? ?? 'INR';
+    final hasDiscount =
+        bestAmount != null && listAmount != null && listAmount.toInt() > bestAmount.toInt();
+    final id = json['id'] as String? ?? '';
+    final jsonBadges =
+        (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
+            const <String>[];
+
+    // Review-only enrichment: derive a stable list price and tags when the
+    // catalogue seed provides neither (see `domain/review_catalogue.dart`).
+    final Money? mrp;
+    if (hasDiscount) {
+      mrp = Money(amount: listAmount.toInt(), currencyCode: currency);
+    } else if (bestAmount != null) {
+      final marked = (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
+          .round();
+      mrp = Money(amount: marked, currencyCode: currency);
+    } else {
+      mrp = null;
+    }
+
     return Product(
-      id: json['id'] as String? ?? '',
+      id: id,
       title: json['title'] as String? ?? '',
       description: json['description'] as String?,
       thumbnail: json['thumbnail'] as String?,
@@ -155,12 +183,36 @@ class Product {
       offerId: best?['id'] as String?,
       price: bestAmount == null
           ? null
-          : Money(
-              amount: bestAmount.toInt(),
-              currencyCode: best?['currency_code'] as String? ?? 'INR',
-            ),
+          : Money(amount: bestAmount.toInt(), currencyCode: currency),
+      mrp: mrp,
+      badges: jsonBadges.isNotEmpty ? jsonBadges : reviewTags(id),
     );
   }
+
+  /// Copies this product with selective overrides (used to attach the
+  /// merchandising trust badge for a given home module).
+  Product copyWith({
+    String? variantId,
+    String? offerId,
+    Money? price,
+    Money? mrp,
+    List<String>? badges,
+  }) =>
+      Product(
+        id: id,
+        title: title,
+        description: description,
+        thumbnail: thumbnail,
+        variantId: variantId ?? this.variantId,
+        offerId: offerId ?? this.offerId,
+        price: price ?? this.price,
+        mrp: mrp ?? this.mrp,
+        brand: brand,
+        rating: rating,
+        reviewCount: reviewCount,
+        badges: badges ?? this.badges,
+        deliveryNote: deliveryNote,
+      );
 
   /// Original / compare-at price (struck through on the card).
   final Money? mrp;
