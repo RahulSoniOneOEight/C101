@@ -6,6 +6,7 @@ import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/b2b_trade_models.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/b2b_trade_providers.dart';
+import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2b_quick_order_screen.dart';
 import 'package:prototype_app/screens/b2b_quote_screens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,6 +20,16 @@ void main() {
     expect(lists.map((l) => l.title).toList(),
         <String>['Seasonal', 'Kitchen Works', 'Floor Essentials']);
     expect(lists.every((l) => l.items.isNotEmpty), isTrue);
+    expect(lists.map((l) => l.items.length).toList(), <int>[12, 8, 8]);
+    expect(
+        lists.every(
+            (l) => l.items.map((i) => i.sku).toSet().length == l.items.length),
+        isTrue);
+    final catalogueIds =
+        container.read(tradeCatalogueProvider).map((p) => p.product.id).toSet();
+    expect(
+        lists.every((l) => l.items.every((i) => catalogueIds.contains(i.sku))),
+        isTrue);
     expect(
         lists
             .every((l) => l.sourceType == ProcurementListSourceType.buyerSaved),
@@ -39,18 +50,18 @@ void main() {
 
     expect(c1.read(listsSaveStateProvider), ListsSaveState.idle);
     await c1.read(procurementListsProvider.notifier).addSku(
-          'pl_seasonal',
+          'pl_kitchen',
           const ProcurementListItem(
-              sku: 'prod_drill', name: 'Cordless Drill Kit 18V', quantity: 2),
+              sku: 'prod_led', name: 'LED Bulb 9W Cool White', quantity: 20),
         );
 
     // Save state + the SKU now shows in the normal list view.
     expect(c1.read(listsSaveStateProvider), ListsSaveState.saved);
     expect(
         c1
-            .read(procurementListProvider('pl_seasonal'))!
+            .read(procurementListProvider('pl_kitchen'))!
             .items
-            .any((i) => i.sku == 'prod_drill'),
+            .any((i) => i.sku == 'prod_led'),
         isTrue);
 
     // A fresh container over the same store sees the saved SKU.
@@ -60,10 +71,58 @@ void main() {
     addTearDown(c2.dispose);
     expect(
         c2
-            .read(procurementListProvider('pl_seasonal'))!
+            .read(procurementListProvider('pl_kitchen'))!
             .items
-            .any((i) => i.sku == 'prod_drill'),
+            .any((i) => i.sku == 'prod_led'),
         isTrue);
+  });
+
+  test('untouched legacy lists expand without overwriting buyer edits',
+      () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final store = LocalStore(prefs);
+    await store.writeProcurementLists(const <ProcurementList>[
+      ProcurementList(
+        id: 'pl_seasonal',
+        title: 'Seasonal',
+        description: 'Peak-season electrical demand',
+        sourceType: ProcurementListSourceType.buyerSaved,
+        items: <ProcurementListItem>[
+          ProcurementListItem(
+              sku: 'prod_led', name: 'LED Bulb 9W Cool White', quantity: 20),
+          ProcurementListItem(
+              sku: 'prod_mcb', name: 'MCB 32A Single Pole', quantity: 10),
+          ProcurementListItem(
+              sku: 'prod_wire', name: 'Copper Wire 1.5sqmm', quantity: 5),
+        ],
+      ),
+      ProcurementList(
+        id: 'pl_kitchen',
+        title: 'My Kitchen Works',
+        description: 'Buyer renamed list',
+        sourceType: ProcurementListSourceType.buyerSaved,
+        items: <ProcurementListItem>[
+          ProcurementListItem(
+              sku: 'prod_bibcock', name: 'Bib Cock', quantity: 10),
+          ProcurementListItem(
+              sku: 'prod_cpvc', name: 'CPVC Pipe', quantity: 50),
+          ProcurementListItem(
+              sku: 'prod_ballvalve', name: 'Ball Valve', quantity: 10),
+        ],
+      ),
+    ]);
+
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    addTearDown(container.dispose);
+    final lists = container.read(procurementListsProvider);
+
+    expect(lists.firstWhere((l) => l.id == 'pl_seasonal').items, hasLength(12));
+    final edited = lists.firstWhere((l) => l.id == 'pl_kitchen');
+    expect(edited.title, 'My Kitchen Works');
+    expect(edited.items, hasLength(3));
   });
 
   test('catalogue products expose multiple sellers with a best price', () {
@@ -187,6 +246,50 @@ void main() {
     expect(find.byTooltip('Account'), findsOneWidget);
   });
 
+  testWidgets('B2B home Quick Order is a horizontally scrollable 2x2 grid',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const B2BHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final gridFinder = find.byKey(const Key('b2bHomeQuickOrderGrid'));
+    final grid = tester.widget<GridView>(gridFinder);
+    final delegate =
+        grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(grid.scrollDirection, Axis.horizontal);
+    expect(delegate.crossAxisCount, 2);
+
+    final gridRect = tester.getRect(gridFinder);
+    final cards = find.descendant(
+        of: gridFinder, matching: find.byType(CompactQuickOrderSkuCard));
+    final visibleCards = cards.evaluate().where((element) {
+      final box = element.renderObject! as RenderBox;
+      return (box.localToGlobal(Offset.zero) & box.size).overlaps(gridRect);
+    });
+    expect(visibleCards, hasLength(4));
+
+    final scrollable =
+        find.descendant(of: gridFinder, matching: find.byType(Scrollable));
+    final before = tester.state<ScrollableState>(scrollable).position.pixels;
+    await tester.drag(gridFinder, const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    final after = tester.state<ScrollableState>(scrollable).position.pixels;
+    expect(after, greaterThan(before));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
       'Quick Order Center operates lists: selection + grid, no management controls',
       (tester) async {
@@ -235,9 +338,9 @@ void main() {
       ),
     );
 
-    // Seasonal has 3 items, all selected by default.
-    expect(find.text('3 of 3 items selected'), findsOneWidget);
-    expect(find.text('Add Selected to Order (3)'), findsOneWidget);
+    // Seasonal has 12 items, all selected by default.
+    expect(find.text('12 of 12 items selected'), findsOneWidget);
+    expect(find.text('Add Selected to Order (12)'), findsOneWidget);
     expect(find.text('Add All to Order'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

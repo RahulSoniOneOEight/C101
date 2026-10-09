@@ -100,6 +100,8 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.add).first);
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Save Changes', skipOffstage: false));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
 

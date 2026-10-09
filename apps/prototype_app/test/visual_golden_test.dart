@@ -16,6 +16,7 @@ import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
+import 'package:prototype_app/screens/b2b_browse_screens.dart';
 import 'package:prototype_app/screens/b2b_procurement_lists_screen.dart';
 import 'package:prototype_app/screens/b2b_project_screens.dart';
 import 'package:prototype_app/screens/b2b_support_screens.dart';
@@ -30,7 +31,8 @@ class _FakeExperienceApi extends ExperienceApi {
   _FakeExperienceApi() : super(Dio());
 
   @override
-  Future<List<Product>> getComposedProducts({int limit = 50, int offset = 0}) async =>
+  Future<List<Product>> getComposedProducts(
+          {int limit = 50, int offset = 0}) async =>
       demoProducts;
 
   @override
@@ -109,18 +111,22 @@ class _GoldenNotifications extends NotificationsNotifier {
 Future<void> _capture(WidgetTester tester, String name) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
   await tester.pumpAndSettle();
-  await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
+  await expectLater(
+      find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
 }
 
 void main() {
   testWidgets('onboarding', (t) async {
-    await t.pumpWidget(MaterialApp(theme: AgencyTheme.light(), home: const OnboardingScreen()));
+    await t.pumpWidget(MaterialApp(
+        theme: AgencyTheme.light(), home: const OnboardingScreen()));
     await _capture(t, 'onboarding');
   });
 
   testWidgets('login', (t) async {
     await t.pumpWidget(
-      ProviderScope(child: MaterialApp(theme: AgencyTheme.light(), home: const LoginScreen())),
+      ProviderScope(
+          child: MaterialApp(
+              theme: AgencyTheme.light(), home: const LoginScreen())),
     );
     await _capture(t, 'login');
   });
@@ -130,7 +136,8 @@ void main() {
       overrides: [notificationsProvider.overrideWith(_GoldenNotifications.new)],
       child: MaterialApp(
         theme: AgencyTheme.light(),
-        home: const NotificationsScreen(audience: NotificationAudience.b2b, loadOnOpen: false),
+        home: const NotificationsScreen(
+            audience: NotificationAudience.b2b, loadOnOpen: false),
       ),
     ));
     await _capture(t, 'notifications_b2b');
@@ -144,7 +151,8 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
       ],
-      child: MaterialApp(theme: AgencyTheme.light(), home: const ProductListScreen()),
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const ProductListScreen()),
     ));
     await _capture(t, 'home');
   });
@@ -173,9 +181,18 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
       ],
-      child: MaterialApp(theme: AgencyTheme.light(), home: const B2BHomeScreen()),
+      child:
+          MaterialApp(theme: AgencyTheme.light(), home: const B2BHomeScreen()),
     ));
     await _capture(t, 'b2b_home');
+  });
+
+  testWidgets('b2b catalogue', (t) async {
+    await t.pumpWidget(ProviderScope(
+      child: MaterialApp(
+          theme: AgencyTheme.light(), home: const B2BCatalogueScreen()),
+    ));
+    await _capture(t, 'b2b_catalogue');
   });
 
   testWidgets('b2b approvals', (t) async {
@@ -219,7 +236,8 @@ void main() {
         sharedPreferencesProvider.overrideWithValue(prefs),
         experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
       ],
-      child: MaterialApp(theme: AgencyTheme.light(), home: const BrowseScreen()),
+      child:
+          MaterialApp(theme: AgencyTheme.light(), home: const BrowseScreen()),
     ));
     await _capture(t, 'browse');
   });

@@ -134,7 +134,12 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
         store.writeProcurementLists(seed); // first-run seed (fire-and-forget)
         return seed;
       }
-      return store.readProcurementLists();
+      final persisted = store.readProcurementLists();
+      final migrated = _migrateLegacySeedLists(persisted);
+      if (migrated.$2) {
+        store.writeProcurementLists(migrated.$1); // one-time fixture migration
+      }
+      return migrated.$1;
     } catch (_) {
       // No store available (e.g. a bare unit-test container): in-memory only.
       return _seedLists();
@@ -300,6 +305,15 @@ List<ProcurementList> _seedLists() => <ProcurementList>[
             ('prod_led', 'LED Bulb 9W Cool White', 20),
             ('prod_mcb', 'MCB 32A Single Pole', 10),
             ('prod_wire', 'Copper Wire 1.5sqmm', 5),
+            ('prod_switch', 'Anchor Switch 6A', 20),
+            ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
+            ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
+            ('prod_ballvalve', 'Ball Valve 25mm', 10),
+            ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
+            ('prod_paint', 'Emulsion Paint 20L', 4),
+            ('prod_drill', 'Cordless Drill Kit 18V', 2),
+            ('prod_grinder', 'Angle Grinder 4 in', 2),
+            ('prod_fittings', 'Bathroom Fittings Set', 4),
           ],
           campaignRef: 'CAM-SEASON-26'),
       _list(
@@ -310,6 +324,11 @@ List<ProcurementList> _seedLists() => <ProcurementList>[
         ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
         ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
         ('prod_ballvalve', 'Ball Valve 25mm', 10),
+        ('prod_fittings', 'Bathroom Fittings Set', 4),
+        ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
+        ('prod_paint', 'Emulsion Paint 20L', 4),
+        ('prod_drill', 'Cordless Drill Kit 18V', 2),
+        ('prod_grinder', 'Angle Grinder 4 in', 2),
       ]),
       _list(
           'pl_floor',
@@ -319,8 +338,69 @@ List<ProcurementList> _seedLists() => <ProcurementList>[
         ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
         ('prod_paint', 'Emulsion Paint 20L', 4),
         ('prod_fittings', 'Bathroom Fittings Set', 4),
+        ('prod_drill', 'Cordless Drill Kit 18V', 2),
+        ('prod_grinder', 'Angle Grinder 4 in', 2),
+        ('prod_ballvalve', 'Ball Valve 25mm', 10),
+        ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
+        ('prod_wire', 'Copper Wire 1.5sqmm', 5),
       ]),
     ];
+
+/// Expands only the untouched three-item pilot fixtures. Any buyer rename,
+/// quantity change, add or removal makes the legacy signature differ and is
+/// therefore preserved rather than overwritten.
+(List<ProcurementList>, bool) _migrateLegacySeedLists(
+    List<ProcurementList> persisted) {
+  const legacy = <String, Map<String, int>>{
+    'pl_seasonal': <String, int>{
+      'prod_led': 20,
+      'prod_mcb': 10,
+      'prod_wire': 5,
+    },
+    'pl_kitchen': <String, int>{
+      'prod_bibcock': 10,
+      'prod_cpvc': 50,
+      'prod_ballvalve': 10,
+    },
+    'pl_floor': <String, int>{
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_fittings': 4,
+    },
+  };
+  final expanded = <String, ProcurementList>{
+    for (final list in _seedLists()) list.id: list,
+  };
+  var changed = false;
+  final result = <ProcurementList>[
+    for (final list in persisted)
+      if (_matchesLegacyFixture(
+          list, legacy[list.id], expanded[list.id]?.title))
+        expanded[list.id]!
+      else
+        list,
+  ];
+  for (var i = 0; i < persisted.length; i++) {
+    if (!identical(persisted[i], result[i])) {
+      changed = true;
+      break;
+    }
+  }
+  return (result, changed);
+}
+
+bool _matchesLegacyFixture(
+    ProcurementList list, Map<String, int>? signature, String? originalTitle) {
+  if (signature == null ||
+      list.title != originalTitle ||
+      list.items.length != signature.length) {
+    return false;
+  }
+  for (final item in list.items) {
+    if (signature[item.sku] != item.quantity) return false;
+  }
+  return true;
+}
 
 /// The quick-order presets shown on the B2B Home — the kept list names.
 final quickOrderPresetsProvider = Provider<List<String>>((ref) =>
@@ -476,6 +556,8 @@ const Map<String, String> _categoryThumb = <String, String>{
       'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=600',
   'sanitary':
       'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=600',
+  'agri':
+      'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=600',
 };
 
 TradeProduct _tp({
@@ -709,6 +791,50 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       stock: 130,
       categoryId: 'sanitary',
       tiers: const [(4, 2450), (10, 2320), (20, 2240)],
+    ),
+    _tp(
+      id: 'prod_washbasin',
+      title: 'Premium Ceramic Wash Basin',
+      brand: 'CERA',
+      price: 3200,
+      mrp: 3890,
+      moq: 2,
+      stock: 74,
+      categoryId: 'sanitary',
+      tiers: const [(2, 3200), (5, 3050), (10, 2920)],
+    ),
+    _tp(
+      id: 'prod_adhesive',
+      title: 'Tile Adhesive 20kg',
+      brand: 'MYK Laticrete',
+      price: 780,
+      mrp: 925,
+      moq: 5,
+      stock: 260,
+      categoryId: 'paints',
+      tiers: const [(5, 780), (20, 735), (50, 698)],
+    ),
+    _tp(
+      id: 'prod_hose',
+      title: 'Reinforced Garden Hose 30m',
+      brand: 'Jain',
+      price: 1450,
+      mrp: 1780,
+      moq: 4,
+      stock: 118,
+      categoryId: 'agri',
+      tiers: const [(4, 1450), (10, 1375), (25, 1290)],
+    ),
+    _tp(
+      id: 'prod_pump',
+      title: 'Agricultural Water Pump 1HP',
+      brand: 'Kirloskar',
+      price: 6200,
+      mrp: 7490,
+      moq: 2,
+      stock: 42,
+      categoryId: 'agri',
+      tiers: const [(2, 6200), (5, 5940), (10, 5680)],
     ),
   ];
   return <TradeProduct>[for (final p in base) _withSellers(p)];

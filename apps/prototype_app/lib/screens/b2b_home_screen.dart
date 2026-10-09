@@ -112,33 +112,45 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                       TextStyle(fontSize: 13, color: colours.contentSecondary)),
             )
           else
-            SizedBox(
-              height: 150,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: products.length,
-                separatorBuilder: (_, __) =>
-                    const SizedBox(width: AgencySpacing.sm),
-                itemBuilder: (context, i) {
-                  final p = products[i];
-                  final qty = _quickQty[p.product.id] ?? p.moq;
-                  return SizedBox(
-                    width: 150,
-                    child: CompactQuickOrderSkuCard(
-                      title: p.product.title,
-                      sku: p.product.id,
-                      priceLabel: p.tradePrice.formatted,
-                      imageUrl: p.product.thumbnail,
-                      quantity: qty,
-                      minQuantity: 1,
-                      onQuantityChanged: (v) =>
-                          setState(() => _quickQty[p.product.id] = v),
-                      onAdd: () => _addProduct(p, qty),
-                      onTap: () => context.push('/b2b/pdp/${p.product.id}'),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Two rows × two visible columns. Further SKUs continue on the
+                // horizontal axis, preserving four immediately visible tiles.
+                const gap = AgencySpacing.sm;
+                final tileWidth = (constraints.maxWidth - gap) / 2;
+                return SizedBox(
+                  // Two 130px cards plus the inter-row gap. This preserves the
+                  // component's 44px cart target without clipping.
+                  height: 268,
+                  child: GridView.builder(
+                    key: const Key('b2bHomeQuickOrderGrid'),
+                    scrollDirection: Axis.horizontal,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: gap,
+                      crossAxisSpacing: gap,
+                      mainAxisExtent: tileWidth,
                     ),
-                  );
-                },
-              ),
+                    itemCount: products.length,
+                    itemBuilder: (context, i) {
+                      final p = products[i];
+                      final qty = _quickQty[p.product.id] ?? p.moq;
+                      return CompactQuickOrderSkuCard(
+                        title: p.product.title,
+                        sku: p.product.id,
+                        priceLabel: p.tradePrice.formatted,
+                        imageUrl: p.product.thumbnail,
+                        quantity: qty,
+                        minQuantity: 1,
+                        onQuantityChanged: (v) =>
+                            setState(() => _quickQty[p.product.id] = v),
+                        onAdd: () => _addProduct(p, qty),
+                        onTap: () => context.push('/b2b/pdp/${p.product.id}'),
+                      );
+                    },
+                  ),
+                );
+              },
             ),
           const SizedBox(height: AgencySpacing.sm),
           SizedBox(
@@ -334,9 +346,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         ? catalogue
         : catalogue.where((p) => p.categoryId == _catId).toList();
     final shown = filtered.take(_catVisible).toList();
-    final catalogueLink = _catId == null
-        ? '/b2b/catalogue'
-        : '/b2b/catalogue?category=$_catId';
+    final catalogueLink =
+        _catId == null ? '/b2b/catalogue' : '/b2b/catalogue?category=$_catId';
     return MerchandisingUnitCard(
       title: 'Browse categories',
       onSeeAll: () => context.push(catalogueLink),
@@ -384,8 +395,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
               child: Text('No products in this category yet.',
-                  style: TextStyle(
-                      fontSize: 13, color: colours.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 13, color: colours.contentSecondary)),
             )
           else
             GridView.builder(

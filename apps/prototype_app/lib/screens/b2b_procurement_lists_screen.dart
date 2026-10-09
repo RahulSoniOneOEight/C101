@@ -314,14 +314,17 @@ class _ProcurementListEditorScreenState
   List<TradeProduct> _addable(List<TradeProduct> catalogue) {
     final q = _search.text.trim().toLowerCase();
     final inList = _items.map((i) => i.sku).toSet();
-    return catalogue.where((p) {
-      if (inList.contains(p.product.id)) return false;
-      if (_catId != null && p.categoryId != _catId) return false;
-      if (q.isEmpty) return true;
-      return p.product.title.toLowerCase().contains(q) ||
-          (p.product.brand ?? '').toLowerCase().contains(q) ||
-          p.product.id.toLowerCase().contains(q);
-    }).take(_addVisible).toList();
+    return catalogue
+        .where((p) {
+          if (inList.contains(p.product.id)) return false;
+          if (_catId != null && p.categoryId != _catId) return false;
+          if (q.isEmpty) return true;
+          return p.product.title.toLowerCase().contains(q) ||
+              (p.product.brand ?? '').toLowerCase().contains(q) ||
+              p.product.id.toLowerCase().contains(q);
+        })
+        .take(_addVisible)
+        .toList();
   }
 
   /// Whether more addable products exist beyond those currently shown.
@@ -662,17 +665,27 @@ class _ProcurementListEditorScreenState
                       value: item.quantity,
                       min: 1,
                       compact: true,
+                      dense: true,
                       onChanged: (v) => _setDefaultQty(item.sku, v),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => _remove(item.sku),
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: AgencySpacing.xs,
+                            vertical: AgencySpacing.xs),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text('Remove',
+                          style: TextStyle(
+                              fontSize: 12, color: colors.feedbackError)),
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-          TextButton(
-            onPressed: () => _remove(item.sku),
-            child: Text('Remove',
-                style: TextStyle(fontSize: 12, color: colors.feedbackError)),
           ),
         ],
       ),

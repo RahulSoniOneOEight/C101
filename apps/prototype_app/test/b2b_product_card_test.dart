@@ -48,6 +48,13 @@ void main() {
       expect(trailingGap, lessThan(20),
           reason: 'card should end shortly after the last action');
       expect(trailingGap, greaterThan(0));
+
+      final imageRect =
+          tester.getRect(find.byKey(const Key('tradeCardImage')).first);
+      final detailsRect =
+          tester.getRect(find.byKey(const Key('tradeCardDetails')).first);
+      expect((imageRect.height - detailsRect.height).abs(), lessThan(1),
+          reason: 'image and details should each use half the card body');
     });
 
     testWidgets(
