@@ -54,6 +54,12 @@ validation:
   - server-version-8.0
   - db-list-buildkart_tryton
   - admin-login-session-granted
+  session_fix:
+  - symptom-post-login-rpc-401
+  - cause-trytond-session-cookie-scoped-to-database-path
+  - fix-nginx-proxy-cookie-path-rewrite-to-erp-prefix
+  - authenticated-rpc-200-with-cookie
+  - unauthenticated-rpc-401-control
   existing_services:
   - experience-health-ok
   - customer-api-200

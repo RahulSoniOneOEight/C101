@@ -44,6 +44,10 @@ http {
     location = /erp { return 301 /erp/; }
     location /erp/ {
       if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      # trytond scopes its session cookie to the database path (/<db>). Since the
+      # client is served under /erp/, re-scope the cookie so the browser returns
+      # it for /erp/<db>/ requests.
+      proxy_cookie_path ~^/(.*)$ /erp/$1;
       proxy_pass http://tryton_api/;
     }
 
