@@ -143,8 +143,16 @@ class Product {
     final variants = (json['variants'] as List<dynamic>? ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .toList();
-    final best = json['best_price'] as Map<String, dynamic>?;
+    final commercial = json['commercial'] as Map<String, dynamic>?;
+    // The list endpoint returns `best_price`; the detail endpoint nests the same
+    // best-price offer under `commercial.selected_seller`. Accept both.
+    final best = (json['best_price'] ??
+        commercial?['selected_seller']) as Map<String, dynamic>?;
     final num? bestAmount = best?['unit_amount_minor'] as num?;
+    final num? listAmount = best?['list_amount_minor'] as num?;
+    final currency = best?['currency_code'] as String? ?? 'INR';
+    final hasDiscount =
+        bestAmount != null && listAmount != null && listAmount.toInt() > bestAmount.toInt();
     return Product(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -155,12 +163,37 @@ class Product {
       offerId: best?['id'] as String?,
       price: bestAmount == null
           ? null
-          : Money(
-              amount: bestAmount.toInt(),
-              currencyCode: best?['currency_code'] as String? ?? 'INR',
-            ),
+          : Money(amount: bestAmount.toInt(), currencyCode: currency),
+      mrp: hasDiscount
+          ? Money(amount: listAmount.toInt(), currencyCode: currency)
+          : null,
     );
   }
+
+  /// Copies this product with selective overrides (used to attach the
+  /// merchandising trust badge for a given home module).
+  Product copyWith({
+    String? variantId,
+    String? offerId,
+    Money? price,
+    Money? mrp,
+    List<String>? badges,
+  }) =>
+      Product(
+        id: id,
+        title: title,
+        description: description,
+        thumbnail: thumbnail,
+        variantId: variantId ?? this.variantId,
+        offerId: offerId ?? this.offerId,
+        price: price ?? this.price,
+        mrp: mrp ?? this.mrp,
+        brand: brand,
+        rating: rating,
+        reviewCount: reviewCount,
+        badges: badges ?? this.badges,
+        deliveryNote: deliveryNote,
+      );
 
   /// Original / compare-at price (struck through on the card).
   final Money? mrp;

@@ -52,7 +52,14 @@ extension on BrowseSort {
 /// Marketplace **Browse** tab: search + category filters + sort/filter
 /// (brand, price, key items) over a long-scrolling product grid.
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({super.key});
+  const BrowseScreen({this.initialTag, this.initialCategory, super.key});
+
+  /// Optional collection tag carried from a home module's "See All" or a
+  /// banner tap (e.g. "Flash Deals", "Best Sellers", "Clearance Sale").
+  final String? initialTag;
+
+  /// Optional category label to pre-select.
+  final String? initialCategory;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
@@ -83,6 +90,29 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   int _visible = _pageSize;
 
   int get _activeFilterCount => _brands.length + _prices.length + _keys.length;
+
+  @override
+  void initState() {
+    super.initState();
+    _category = widget.initialCategory;
+    final tag = widget.initialTag;
+    if (tag != null) _keys.addAll(_keysForTag(tag));
+  }
+
+  /// Maps a home collection tag onto the Browse "key item" filter set so that
+  /// "See All" / banner taps land on the catalogue with the filter applied.
+  static Set<String> _keysForTag(String tag) {
+    final lower = tag.toLowerCase();
+    if (lower.contains('best')) return <String>{'Bestseller'};
+    if (lower.contains('premium')) return <String>{'Premium'};
+    if (lower.contains('clearance') ||
+        lower.contains('flash') ||
+        lower.contains('deal') ||
+        lower.contains('sale')) {
+      return <String>{'On discount'};
+    }
+    return <String>{};
+  }
 
   @override
   void dispose() {

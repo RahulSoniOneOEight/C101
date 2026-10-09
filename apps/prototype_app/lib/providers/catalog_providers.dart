@@ -246,13 +246,16 @@ final composedProductOffersProvider =
   final selectedId =
       (data['commercial']?['selected_seller']?['id']) as String?;
   return offers.map((o) {
+    final unit = (o['unit_amount_minor'] as num?)?.toInt() ?? 0;
+    final list = (o['list_amount_minor'] as num?)?.toInt();
+    final currency = (o['currency_code'] as String?) ?? 'INR';
     return ProductSeller(
       id: o['id'] as String? ?? '',
       name: o['seller_name'] as String? ?? 'Seller',
-      price: Money(
-        amount: (o['unit_amount_minor'] as num?)?.toInt() ?? 0,
-        currencyCode: (o['currency_code'] as String?) ?? 'INR',
-      ),
+      price: Money(amount: unit, currencyCode: currency),
+      mrp: list != null && list > unit
+          ? Money(amount: list, currencyCode: currency)
+          : null,
       isBestPrice: o['id'] == selectedId,
     );
   }).toList();
@@ -335,27 +338,50 @@ final homeModulesProvider =
     Provider.autoDispose<List<MerchandisingModule>>((ref) {
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
-  final swimlane = products.take(3).toList();
+
+  // Flash Deals: biggest discounts first (falls back to catalogue order).
+  final discounted = products.where((p) => (p.discountPercent ?? 0) > 0).toList()
+    ..sort((a, b) =>
+        (b.discountPercent ?? 0).compareTo(a.discountPercent ?? 0));
+  final flashDeals = (discounted.isNotEmpty ? discounted : products)
+      .take(6)
+      .map((p) => p.copyWith(badges: <String>['Flash Deal']))
+      .toList();
+
+  // Best Sellers: a distinct slice so the two rails do not repeat.
+  final bestSource = products.length > 2 ? products.skip(2) : products;
+  final bestSellers = bestSource
+      .take(6)
+      .map((p) => p.copyWith(badges: <String>['Best Seller']))
+      .toList();
+
+  // Recommended + the special "Recently viewed" split slot.
   final recentlyViewed = ref
       .watch(recentlyViewedProvider)
       .map((id) => products.where((p) => p.id == id).firstOrNull)
       .whereType<Product>()
       .toList();
-  final splitProducts = recentlyViewed.isNotEmpty
-      ? recentlyViewed.take(2).toList()
-      : products.take(2).toList();
+  final splitProducts = (recentlyViewed.isNotEmpty
+          ? recentlyViewed.take(2)
+          : products.take(2))
+      .toList();
+  final recommended = products
+      .take(5)
+      .map((p) => p.copyWith(badges: <String>['Assured']))
+      .toList();
+
   return <MerchandisingModule>[
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
       title: 'Flash Deals',
       tag: 'Up to 60% OFF',
-      products: swimlane,
+      products: flashDeals,
     ),
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
       title: 'Best Sellers',
       tag: 'Most Loved',
-      products: swimlane,
+      products: bestSellers,
     ),
     MerchandisingModule(
       type: MerchandisingModuleType.secondaryBanner,
@@ -370,7 +396,7 @@ final homeModulesProvider =
     MerchandisingModule(
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',
-      products: products.take(5).toList(),
+      products: recommended,
       splitSlot: SplitSlot(
         label: 'Recently viewed',
         products: splitProducts,

@@ -11,6 +11,7 @@ class MerchandisingModuleView extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onBannerTap,
     super.key,
   });
 
@@ -18,6 +19,7 @@ class MerchandisingModuleView extends StatelessWidget {
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final VoidCallback? onBannerTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,7 @@ class MerchandisingModuleView extends StatelessWidget {
           title: banner.title,
           subtitle: banner.subtitle,
           ctaLabel: banner.ctaLabel,
+          onCta: onBannerTap,
         );
       case MerchandisingModuleType.productCarousel:
         return _headed(
@@ -128,6 +131,7 @@ class HomeScrollFeed extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onBannerTap,
     super.key,
   });
 
@@ -136,6 +140,7 @@ class HomeScrollFeed extends StatelessWidget {
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final VoidCallback? onBannerTap;
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +157,7 @@ class HomeScrollFeed extends StatelessWidget {
             onProductTap: onProductTap,
             onSeeAll: onSeeAll,
             onAddToCart: onAddToCart,
+            onBannerTap: onBannerTap,
           ),
           const SizedBox(height: AgencySpacing.md),
         ],

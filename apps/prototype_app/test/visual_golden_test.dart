@@ -13,18 +13,62 @@ import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/app_notification.dart';
 import 'package:prototype_app/domain/models.dart';
+import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2c_flow_screens.dart';
 import 'package:prototype_app/screens/notifications_screen.dart';
+import 'package:prototype_app/screens/product_detail_screen.dart';
 import 'package:prototype_app/screens/product_list_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeExperienceApi extends ExperienceApi {
   _FakeExperienceApi() : super(Dio());
+
   @override
   Future<List<Product>> getComposedProducts({int limit = 50, int offset = 0}) async =>
-      const <Product>[];
+      demoProducts;
+
+  @override
+  Future<Product> getComposedProduct(String productId) async =>
+      demoProducts.firstWhere((p) => p.id == productId);
+
+  /// Detail-shaped payload: best offer nested under `commercial.selected_seller`
+  /// (the contract the product page consumes).
+  @override
+  Future<Map<String, dynamic>> getProduct(String productId) async {
+    final p = demoProducts.firstWhere((x) => x.id == productId);
+    final best = <String, dynamic>{
+      'id': p.offerId ?? 'offer_best',
+      'seller_name': 'BuildMaster Supplies',
+      'variant_id': p.variantId ?? p.id,
+      'currency_code': 'INR',
+      'unit_amount_minor': p.price?.amount ?? 71190,
+      'list_amount_minor': p.mrp?.amount ?? 79100,
+      'in_stock': true,
+    };
+    return <String, dynamic>{
+      'id': p.id,
+      'title': p.title,
+      'thumbnail': p.thumbnail,
+      'variants': <dynamic>[
+        <String, dynamic>{'id': p.variantId ?? p.id},
+      ],
+      'offers': <dynamic>[
+        best,
+        <String, dynamic>{
+          'id': 'offer_2',
+          'seller_name': 'BuildMart Supplies',
+          'variant_id': p.variantId ?? p.id,
+          'currency_code': 'INR',
+          'unit_amount_minor': ((p.price?.amount ?? 71190) * 1.04).round(),
+          'list_amount_minor': ((p.price?.amount ?? 71190) * 1.04).round(),
+          'in_stock': true,
+        },
+      ],
+      'commercial': <String, dynamic>{'selected_seller': best},
+    };
+  }
 }
 
 class _GoldenNotifications extends NotificationsNotifier {
@@ -99,6 +143,22 @@ void main() {
       child: MaterialApp(theme: AgencyTheme.light(), home: const ProductListScreen()),
     ));
     await _capture(t, 'home');
+  });
+
+  testWidgets('product detail', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
+      ],
+      child: MaterialApp(
+        theme: AgencyTheme.light(),
+        home: ProductDetailScreen(productId: demoProducts.first.id),
+      ),
+    ));
+    await _capture(t, 'product_detail');
   });
 
   testWidgets('b2b home', (t) async {

@@ -62,7 +62,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: <RouteBase>[
               GoRoute(
                 path: '/browse',
-                builder: (context, state) => const BrowseScreen(),
+                builder: (context, state) => BrowseScreen(
+                  initialTag: state.uri.queryParameters['tag'],
+                  initialCategory: state.uri.queryParameters['category'],
+                ),
               ),
             ],
           ),
