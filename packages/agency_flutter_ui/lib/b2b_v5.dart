@@ -758,18 +758,17 @@ class MerchandisingUnitCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _Thumb extends StatelessWidget {
-  const _Thumb({this.imageUrl, this.size, this.height});
+  const _Thumb({this.imageUrl, this.size});
 
   final String? imageUrl;
   final double? size;
-  final double? height;
 
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
     return Container(
       width: size,
-      height: height ?? size,
+      height: size,
       decoration: BoxDecoration(
         color: colors.surfacePage,
         borderRadius: BorderRadius.circular(AgencyRadius.sm),
