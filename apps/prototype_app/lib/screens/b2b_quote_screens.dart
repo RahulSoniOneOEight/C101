@@ -1549,9 +1549,18 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () => overLimit
-                        ? _submitForApproval()
-                        : context.push('/b2b/confirm'),
+                    onPressed: () async {
+                      final router = GoRouter.of(context);
+                      if (overLimit) {
+                        await _submitForApproval();
+                        return;
+                      }
+                      final order = await ref
+                          .read(b2bOrdersProvider.notifier)
+                          .placeOrder(cart);
+                      if (!mounted) return;
+                      if (order != null) router.push('/b2b/confirm');
+                    },
                     style: FilledButton.styleFrom(
                       backgroundColor:
                           overLimit ? colors.feedbackWarning : colors.actionPrimary,
@@ -1680,7 +1689,16 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
-    final cart = ref.watch(b2bQuotationCartProvider);
+    final order = ref.watch(b2bOrdersProvider).firstOrNull;
+    final lines = order?.lines ?? const <B2BOrderLine>[];
+    final subtotalAmount = lines.fold<int>(0, (sum, l) => sum + l.total.amount);
+    final subtotal = Money(amount: subtotalAmount, currencyCode: 'INR');
+    final gst = Money(
+        amount: (subtotalAmount * 18 / 100).round(), currencyCode: 'INR');
+    final total =
+        Money(amount: subtotal.amount + gst.amount, currencyCode: 'INR');
+    final reference =
+        (order?.reference ?? 'Order #PO-3392').replaceFirst('Order #', '');
     return Scaffold(
       appBar: AppBar(title: const Text('Order Confirmed')),
       body: ListView(
@@ -1699,13 +1717,13 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AgencySpacing.xs),
           Center(
-            child: Text('PO-3392 · GST invoice raised',
+            child: Text('$reference · GST invoice raised',
                 style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
           ),
           const SizedBox(height: AgencySpacing.lg),
-          _confirmLine(context, 'Subtotal', cart.subtotal.formatted),
-          _confirmLine(context, 'GST 18%', cart.gst.formatted),
-          _confirmLine(context, 'Total', cart.total.formatted, bold: true),
+          _confirmLine(context, 'Subtotal', subtotal.formatted),
+          _confirmLine(context, 'GST 18%', gst.formatted),
+          _confirmLine(context, 'Total', total.formatted, bold: true),
           const SizedBox(height: AgencySpacing.lg),
           SizedBox(
             width: double.infinity,

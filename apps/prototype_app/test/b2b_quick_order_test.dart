@@ -93,6 +93,25 @@ void main() {
         order.lines.map((l) => l.sku).toSet());
   });
 
+  test('placing a business order persists it and clears the cart', () async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final product = container.read(tradeCatalogueProvider).first;
+    container
+        .read(b2bQuotationCartProvider.notifier)
+        .addTradeProduct(product, quantity: 3);
+    final before = container.read(b2bOrdersProvider).length;
+
+    final order = await container
+        .read(b2bOrdersProvider.notifier)
+        .placeOrder(container.read(b2bQuotationCartProvider));
+
+    expect(order, isNotNull);
+    expect(container.read(b2bOrdersProvider).length, before + 1);
+    expect(container.read(b2bOrdersProvider).first.reference, order!.reference);
+    expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
+  });
+
   test('B2B quotation cart upserts lines and computes GST totals', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);

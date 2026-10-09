@@ -40,6 +40,10 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   /// How many catalogue products the "Browse categories" unit has revealed.
   int _catVisible = 4;
 
+  /// Selected trade-category id for the inline "Browse categories" filter
+  /// (null = All). Drives the banner image and the product grid.
+  String? _catId;
+
   @override
   Widget build(BuildContext context) {
     final catalogue = ref.watch(tradeCatalogueProvider);
@@ -320,19 +324,35 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   Widget _categoriesUnit(List<TradeProduct> catalogue) {
     final colours = context.colors;
     final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final selectedLabel = _catId == null
+        ? null
+        : tradeCategories
+            .where((c) => c.id == _catId)
+            .map((c) => c.label)
+            .firstOrNull;
+    final filtered = _catId == null
+        ? catalogue
+        : catalogue.where((p) => p.categoryId == _catId).toList();
+    final shown = filtered.take(_catVisible).toList();
+    final catalogueLink = _catId == null
+        ? '/b2b/catalogue'
+        : '/b2b/catalogue?category=$_catId';
     return MerchandisingUnitCard(
       title: 'Browse categories',
-      onSeeAll: () => context.push('/b2b/catalogue'),
+      onSeeAll: () => context.push(catalogueLink),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl:
-                'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
-            title: 'Trade catalogue',
-            subtitle: 'Negotiated tiers · MOQ · GST invoicing',
-            ctaLabel: 'Browse',
-            onCta: () => context.push('/b2b/catalogue'),
+            imageUrl: b2bCategoryBannerImage(_catId),
+            title: selectedLabel == null
+                ? 'Trade catalogue'
+                : '$selectedLabel supplies',
+            subtitle: selectedLabel == null
+                ? 'Negotiated tiers · MOQ · GST invoicing'
+                : 'Wholesale rates for $selectedLabel',
+            ctaLabel: 'Catalogue',
+            onCta: () => context.push(catalogueLink),
           ),
           const SizedBox(height: AgencySpacing.sm),
           // Icon-led single-select categories — same icons + format as B2C.
@@ -342,48 +362,56 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
               for (final c in tradeCategories)
                 Category(label: c.label, icon: c.icon),
             ],
-            onSelected: (c) {
-              if (c.label == 'All') {
-                context.push('/b2b/catalogue');
-                return;
-              }
-              final match =
-                  tradeCategories.where((t) => t.label == c.label).toList();
-              final id = match.isEmpty ? c.label : match.first.id;
-              context.push('/b2b/catalogue?category=$id');
-            },
+            selectedLabel: selectedLabel ?? 'All',
+            onSelected: (c) => setState(() {
+              _catId = c.label == 'All'
+                  ? null
+                  : tradeCategories
+                      .firstWhere((t) => t.label == c.label,
+                          orElse: () => tradeCategories.first)
+                      .id;
+              _catVisible = 4;
+            }),
           ),
           const SizedBox(height: AgencySpacing.sm),
-          Text('Products',
+          Text(selectedLabel == null ? 'Products' : '$selectedLabel products',
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: colours.contentPrimary)),
           const SizedBox(height: AgencySpacing.xs),
-          GridView.builder(
-            shrinkWrap: true,
-            primary: false,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: AgencySpacing.sm,
-              crossAxisSpacing: AgencySpacing.sm,
-              mainAxisExtent: kB2bProductCardExtent,
+          if (shown.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
+              child: Text('No products in this category yet.',
+                  style: TextStyle(
+                      fontSize: 13, color: colours.contentSecondary)),
+            )
+          else
+            GridView.builder(
+              shrinkWrap: true,
+              primary: false,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: AgencySpacing.sm,
+                crossAxisSpacing: AgencySpacing.sm,
+                mainAxisExtent: kB2bProductCardExtent,
+              ),
+              itemCount: shown.length,
+              itemBuilder: (context, i) => _productCard(shown[i]),
             ),
-            itemCount: catalogue.take(_catVisible).length,
-            itemBuilder: (context, i) => _productCard(catalogue[i]),
-          ),
           const SizedBox(height: AgencySpacing.sm),
           PinWorkflowAction(
-            label: _catVisible < catalogue.length
+            label: _catVisible < filtered.length
                 ? 'Load more products'
                 : 'Open full catalogue',
             hierarchy: PinWorkflowHierarchy.secondary,
             onPressed: () {
-              if (_catVisible < catalogue.length) {
+              if (_catVisible < filtered.length) {
                 setState(() => _catVisible += 4);
               } else {
-                context.push('/b2b/catalogue');
+                context.push(catalogueLink);
               }
             },
           ),

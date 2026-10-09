@@ -52,6 +52,20 @@ class B2BOrderLine {
         amount: unitPrice.amount * quantity,
         currencyCode: unitPrice.currencyCode,
       );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'sku': sku,
+        'name': name,
+        'quantity': quantity,
+        'unit_price': unitPrice.toJson(),
+      };
+
+  factory B2BOrderLine.fromJson(Map<String, dynamic> j) => B2BOrderLine(
+        sku: j['sku'] as String? ?? '',
+        name: j['name'] as String? ?? '',
+        quantity: (j['quantity'] as num?)?.toInt() ?? 1,
+        unitPrice: _moneyFromJson(j['unit_price']),
+      );
 }
 
 /// A previous B2B order available for quick reorder.
@@ -72,6 +86,25 @@ class B2BOrder {
   final String itemSummary;
   final Money total;
   final List<B2BOrderLine> lines;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'reference': reference,
+        'date_label': dateLabel,
+        'item_summary': itemSummary,
+        'total': total.toJson(),
+        'lines': lines.map((l) => l.toJson()).toList(),
+      };
+
+  factory B2BOrder.fromJson(Map<String, dynamic> j) => B2BOrder(
+        reference: j['reference'] as String? ?? '',
+        dateLabel: j['date_label'] as String? ?? '',
+        itemSummary: j['item_summary'] as String? ?? '',
+        total: _moneyFromJson(j['total']),
+        lines: (j['lines'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map(B2BOrderLine.fromJson)
+            .toList(),
+      );
 }
 
 /// A seller (supplier) offer for a trade product.

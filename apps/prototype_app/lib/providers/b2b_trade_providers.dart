@@ -15,6 +15,28 @@ class TradeCategory {
   final IconData icon;
 }
 
+/// Category-appropriate banner imagery (Pexels) for the B2B catalogue / category
+/// banners. Keys match [TradeCategory.id]; falls back to a general trade shot.
+const Map<String, String> _categoryBanner = <String, String>{
+  'plumbing':
+      'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'electricals':
+      'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'sanitary':
+      'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'paints':
+      'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'hardware':
+      'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
+  'agri':
+      'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=940',
+};
+
+/// Banner image for a B2B category (changes per category).
+String b2bCategoryBannerImage(String? categoryId) =>
+    _categoryBanner[categoryId] ??
+    'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940';
+
 class TradeDashboard {
   const TradeDashboard({
     required this.categories,
@@ -934,3 +956,62 @@ final b2bQuotationCartProvider =
     NotifierProvider<B2BQuotationCartNotifier, B2BQuotationCart>(
   B2BQuotationCartNotifier.new,
 );
+
+/// The buyer's placed purchase-order history, persisted across sessions and
+/// seeded once from the dashboard's repeat orders.
+class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
+  @override
+  List<B2BOrder> build() {
+    try {
+      final store = ref.read(localStoreProvider);
+      if (!store.hasB2bOrders()) {
+        final seed = ref.read(tradeDashboardProvider).repeatOrders;
+        store.writeB2bOrders(seed); // first-run seed (fire-and-forget)
+        return seed;
+      }
+      return store.readB2bOrders();
+    } catch (_) {
+      return ref.read(tradeDashboardProvider).repeatOrders;
+    }
+  }
+
+  Future<void> _commit(List<B2BOrder> next) async {
+    state = next;
+    try {
+      await ref.read(localStoreProvider).writeB2bOrders(next);
+    } catch (_) {
+      // Persistence unavailable — the in-memory history still stands.
+    }
+  }
+
+  /// Convert the quotation cart into a placed order, prepend it to the history
+  /// and clear the cart. Returns the new order (or null for an empty cart).
+  Future<B2BOrder?> placeOrder(B2BQuotationCart cart, {String? poRef}) async {
+    if (cart.isEmpty) return null;
+    final reference = poRef ?? 'Order #PO-${3400 + state.length}';
+    final order = B2BOrder(
+      reference: reference,
+      dateLabel: 'Today',
+      itemSummary:
+          '${cart.lines.length} ${cart.lines.length == 1 ? 'item' : 'items'}',
+      total: cart.total,
+      lines: <B2BOrderLine>[
+        for (final line in cart.lines)
+          B2BOrderLine(
+            sku: line.sku,
+            name: line.name,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+          ),
+      ],
+    );
+    await _commit(<B2BOrder>[order, ...state]);
+    ref.read(b2bQuotationCartProvider.notifier).clear();
+    return order;
+  }
+
+  B2BOrder? get latest => state.isEmpty ? null : state.first;
+}
+
+final b2bOrdersProvider =
+    NotifierProvider<B2BOrdersNotifier, List<B2BOrder>>(B2BOrdersNotifier.new);

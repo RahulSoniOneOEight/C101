@@ -232,6 +232,14 @@ class LocalStore {
   Future<void> writeProjects(List<ProjectSummary> projects) =>
       _writeList(_projectsKey, projects.map((p) => p.toJson()).toList());
 
+  // ---- B2B order history (placed purchase orders) --------------------------
+  static const String _b2bOrdersKey = 'b2b_orders_v1';
+
+  bool hasB2bOrders() => _prefs.containsKey(_b2bOrdersKey);
+  List<B2BOrder> readB2bOrders() => _readList(_b2bOrdersKey, B2BOrder.fromJson);
+  Future<void> writeB2bOrders(List<B2BOrder> orders) =>
+      _writeList(_b2bOrdersKey, orders.map((o) => o.toJson()).toList());
+
   List<T> _readList<T>(String key, T Function(Map<String, dynamic>) fromJson) {
     final raw = _prefs.getString(key);
     if (raw == null) return const [];

@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../domain/b2b_trade_models.dart';
-import '../domain/models.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 
@@ -659,15 +657,7 @@ class B2BOrdersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = <B2BOrder>[
-      ...ref.watch(tradeDashboardProvider).repeatOrders,
-      const B2BOrder(
-        reference: 'Order #PO-3350',
-        dateLabel: '12 Sep',
-        itemSummary: '11 items',
-        total: Money(amount: 6410000, currencyCode: 'INR'),
-      ),
-    ];
+    final orders = ref.watch(b2bOrdersProvider);
     const statuses = <(String, PinOrderTone)>[
       ('Delivered', PinOrderTone.success),
       ('Shipped', PinOrderTone.neutral),

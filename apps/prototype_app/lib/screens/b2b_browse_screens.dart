@@ -118,6 +118,23 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
               ),
             ),
             SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+                child: MerchandisingBanner(
+                  imageUrl: b2bCategoryBannerImage(_categoryId),
+                  title: title,
+                  subtitle: 'Trade rates · MOQ · GST invoicing',
+                  ctaLabel: 'Filters',
+                  onCta: () => setState(() {
+                    _dealsOnly = true;
+                    _seasonalOnly = false;
+                    _resetPaging();
+                  }),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
               child: SizedBox(
                 height: 48,
                 child: ListView(
