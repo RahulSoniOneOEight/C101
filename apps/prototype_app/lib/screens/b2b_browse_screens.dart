@@ -1,6 +1,7 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
 import '../providers/b2b_trade_providers.dart';
@@ -37,6 +38,13 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   late bool _seasonalOnly = widget.seasonalOnly;
   String _query = '';
   int _visible = _pageSize;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _resetPaging() => _visible = _pageSize;
 
@@ -93,6 +101,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
                 child: TextField(
+                  controller: _searchController,
                   decoration: InputDecoration(
                     hintText: 'Search products, SKU',
                     prefixIcon: const Icon(Icons.search),
@@ -135,12 +144,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
               ),
             ),
             if (filtered.isEmpty)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(AgencySpacing.xl),
-                  child: Center(child: Text('No products match')),
-                ),
-              )
+              SliverToBoxAdapter(child: _noResults(context, products))
             else
               SliverPadding(
                 padding: const EdgeInsets.all(AgencySpacing.md),
@@ -211,6 +215,105 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                         ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Shown when a search/filter yields nothing: suggested searches plus a few
+  /// products so the catalogue is never a dead end.
+  Widget _noResults(BuildContext context, List<TradeProduct> products) {
+    final colors = _colorsOf(context);
+    final suggestions = _query.trim().isEmpty
+        ? const <String>['Tiles', 'Wire', 'Paint', 'LED', 'Valve', 'Drill']
+        : <String>[_query.trim(), 'Tiles', 'Wire', 'Paint', 'Drill'];
+    final pool = (_categoryId == null
+            ? products
+            : products.where((p) => p.categoryId == _categoryId).toList())
+        .take(4)
+        .toList();
+    return Padding(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(Icons.search_off, color: colors.contentSecondary, size: 32),
+          const SizedBox(height: AgencySpacing.sm),
+          Text('No products match',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.md),
+          Text('Suggested searches',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.sm),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.sm,
+            children: <Widget>[
+              for (final s in suggestions)
+                ActionChip(
+                  label: Text(s, style: const TextStyle(fontSize: 12)),
+                  onPressed: () => setState(() {
+                    _searchController.text = s;
+                    _query = s;
+                    _resetPaging();
+                  }),
+                ),
+            ],
+          ),
+          if (pool.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.lg),
+            Text('Popular products',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.contentPrimary)),
+            const SizedBox(height: AgencySpacing.sm),
+            for (final p in pool) _resultRow(context, colors, p),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _resultRow(
+      BuildContext context, AgencyColors colors, TradeProduct p) {
+    return InkWell(
+      onTap: () => context.push('/b2b/pdp/${p.product.id}'),
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colors.surfacePage,
+                borderRadius: BorderRadius.circular(AgencyRadius.sm),
+              ),
+              child: Icon(Icons.image_outlined,
+                  size: 20, color: colors.contentSecondary),
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: Text(p.product.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13, color: colors.contentPrimary)),
+            ),
+            Text(p.tradePrice.formatted,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: colors.actionPrimary)),
           ],
         ),
       ),

@@ -196,8 +196,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
-                path: '/b2b/orders',
-                builder: (context, state) => const B2BOrdersScreen(),
+                path: '/b2b/cart',
+                builder: (context, state) => const B2BQuotationCartScreen(),
               ),
             ],
           ),
@@ -294,6 +294,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/b2b/accept-quote',
         builder: (context, state) => const B2BAcceptQuoteScreen(),
+      ),
+      GoRoute(
+        path: '/b2b/orders',
+        builder: (context, state) => const B2BOrdersScreen(),
       ),
       GoRoute(
         path: '/b2b/quotation-cart',

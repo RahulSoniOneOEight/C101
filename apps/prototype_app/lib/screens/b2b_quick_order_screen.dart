@@ -102,6 +102,14 @@ class _B2BQuickOrderCenterScreenState
   final Map<String, int> _draftQty = <String, int>{};
 
   @override
+  void initState() {
+    super.initState();
+    // Default to the first procurement list so the grid is never empty on open.
+    final lists = ref.read(procurementListsProvider);
+    if (lists.isNotEmpty) _selectedListIds.add(lists.first.id);
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     _searchFocus.dispose();

@@ -23,7 +23,7 @@ class B2BShell extends StatelessWidget {
         items: const <BottomNavItem>[
           BottomNavItem(label: 'Trade', icon: Icons.storefront_outlined),
           BottomNavItem(label: 'Credit', icon: Icons.credit_card_outlined),
-          BottomNavItem(label: 'Orders', icon: Icons.inventory_2_outlined),
+          BottomNavItem(label: 'Cart', icon: Icons.shopping_cart_outlined),
           BottomNavItem(label: 'Account', icon: Icons.person_outline),
         ],
         currentIndex: navigationShell.currentIndex,

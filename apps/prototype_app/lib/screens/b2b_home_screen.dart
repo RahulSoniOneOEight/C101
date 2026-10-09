@@ -37,6 +37,9 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   /// The active Trade Offers & Deals collection shown in the Home preview.
   String? _activeOfferId;
 
+  /// How many catalogue products the "Browse categories" unit has revealed.
+  int _catVisible = 4;
+
   @override
   Widget build(BuildContext context) {
     final catalogue = ref.watch(tradeCatalogueProvider);
@@ -105,33 +108,33 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                       TextStyle(fontSize: 13, color: colours.contentSecondary)),
             )
           else
-            GridView.builder(
-              shrinkWrap: true,
-              primary: false,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: AgencySpacing.sm,
-                crossAxisSpacing: AgencySpacing.sm,
-                mainAxisExtent: 144,
+            SizedBox(
+              height: 150,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: products.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AgencySpacing.sm),
+                itemBuilder: (context, i) {
+                  final p = products[i];
+                  final qty = _quickQty[p.product.id] ?? p.moq;
+                  return SizedBox(
+                    width: 150,
+                    child: CompactQuickOrderSkuCard(
+                      title: p.product.title,
+                      sku: p.product.id,
+                      priceLabel: p.tradePrice.formatted,
+                      imageUrl: p.product.thumbnail,
+                      quantity: qty,
+                      minQuantity: 1,
+                      onQuantityChanged: (v) =>
+                          setState(() => _quickQty[p.product.id] = v),
+                      onAdd: () => _addProduct(p, qty),
+                      onTap: () => context.push('/b2b/pdp/${p.product.id}'),
+                    ),
+                  );
+                },
               ),
-              itemCount: products.length,
-              itemBuilder: (context, i) {
-                final p = products[i];
-                final qty = _quickQty[p.product.id] ?? p.moq;
-                return CompactQuickOrderSkuCard(
-                  title: p.product.title,
-                  sku: p.product.id,
-                  priceLabel: p.tradePrice.formatted,
-                  imageUrl: p.product.thumbnail,
-                  quantity: qty,
-                  minQuantity: 1,
-                  onQuantityChanged: (v) =>
-                      setState(() => _quickQty[p.product.id] = v),
-                  onAdd: () => _addProduct(p, qty),
-                  onTap: () => context.push('/b2b/pdp/${p.product.id}'),
-                );
-              },
             ),
           const SizedBox(height: AgencySpacing.sm),
           SizedBox(
@@ -323,6 +326,15 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          MerchandisingBanner(
+            imageUrl:
+                'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
+            title: 'Trade catalogue',
+            subtitle: 'Negotiated tiers · MOQ · GST invoicing',
+            ctaLabel: 'Browse',
+            onCta: () => context.push('/b2b/catalogue'),
+          ),
+          const SizedBox(height: AgencySpacing.sm),
           // Icon-led single-select categories — same icons + format as B2C.
           CategoryIconRail(
             categories: <Category>[
@@ -358,14 +370,22 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
               crossAxisSpacing: AgencySpacing.sm,
               mainAxisExtent: kB2bProductCardExtent,
             ),
-            itemCount: catalogue.take(4).length,
+            itemCount: catalogue.take(_catVisible).length,
             itemBuilder: (context, i) => _productCard(catalogue[i]),
           ),
           const SizedBox(height: AgencySpacing.sm),
           PinWorkflowAction(
-            label: 'Load more products',
+            label: _catVisible < catalogue.length
+                ? 'Load more products'
+                : 'Open full catalogue',
             hierarchy: PinWorkflowHierarchy.secondary,
-            onPressed: () => context.push('/b2b/catalogue'),
+            onPressed: () {
+              if (_catVisible < catalogue.length) {
+                setState(() => _catVisible += 4);
+              } else {
+                context.push('/b2b/catalogue');
+              }
+            },
           ),
         ],
       ),

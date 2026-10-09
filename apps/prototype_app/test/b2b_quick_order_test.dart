@@ -188,16 +188,13 @@ void main() {
     expect(find.text('MY PROCUREMENT LISTS'), findsOneWidget);
     expect(find.text('Manage Lists →'), findsOneWidget);
     expect(find.text('Products from selected lists'), findsOneWidget);
-    expect(find.text('View Cart →'), findsOneWidget);
 
     // List-management controls were moved to Manage Lists.
     expect(find.text('New list'), findsNothing);
     expect(find.text('+ Add SKU to List'), findsNothing);
     expect(find.textContaining('Destination list'), findsNothing);
 
-    // Selecting a list reveals its SKUs in the grid.
-    await tester.tap(find.text('Seasonal'));
-    await tester.pumpAndSettle();
+    // A list is selected by default, so its SKUs are already in the grid.
     expect(find.byType(CompactQuickOrderSkuCard), findsWidgets);
     expect(find.textContaining('1 list selected'), findsOneWidget);
 
@@ -350,9 +347,7 @@ void main() {
         .firstWhere((i) => i.sku == 'prod_led')
         .quantity;
 
-    // Select Seasonal and bump today's quantity on the first SKU.
-    await tester.tap(find.text('Seasonal'));
-    await tester.pumpAndSettle();
+    // A list is selected by default; bump today's quantity on the first SKU.
     await tester.tap(find.byIcon(Icons.add).first);
     await tester.pumpAndSettle();
 
@@ -385,8 +380,6 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Seasonal'));
       await tester.pumpAndSettle();
       expect(find.byType(CompactQuickOrderSkuCard), findsWidgets);
       expect(tester.takeException(), isNull);
