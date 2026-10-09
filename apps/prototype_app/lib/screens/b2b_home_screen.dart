@@ -64,7 +64,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                     context.push('/notifications?audience=b2b'),
                 notificationCount: ref.watch(
                     unreadNotificationsProvider(NotificationAudience.b2b)),
-                onCartTap: () => context.push('/b2b/quotation-cart'),
+                onCartTap: () => context.go('/b2b/cart'),
                 onAccountTap: () => context.go('/b2b/account'),
               ),
             ),
@@ -208,7 +208,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
     for (final p in products) {
       cart.addTradeProduct(p, quantity: _quickQty[p.product.id] ?? p.moq);
     }
-    context.push('/b2b/quotation-cart');
+    context.go('/b2b/cart');
   }
 
   // ---- Buy Again ----------------------------------------------------------
@@ -482,7 +482,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
               ),
             ),
             FilledButton(
-              onPressed: () => context.push('/b2b/quotation-cart'),
+              onPressed: () => context.go('/b2b/cart'),
               style: FilledButton.styleFrom(
                 backgroundColor: colours.actionPrimary,
               ),

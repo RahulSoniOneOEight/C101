@@ -6,6 +6,7 @@ import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/b2b_trade_models.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/b2b_trade_providers.dart';
+import 'package:prototype_app/router/app_router.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2b_quick_order_screen.dart';
 import 'package:prototype_app/screens/b2b_quote_screens.dart';
@@ -161,6 +162,17 @@ void main() {
         .addTradeProduct(product, quantity: 3);
     final before = container.read(b2bOrdersProvider).length;
 
+    final blocked = await container
+        .read(b2bOrdersProvider.notifier)
+        .placeOrder(container.read(b2bQuotationCartProvider));
+    expect(blocked, isNull);
+    expect(container.read(b2bOrdersProvider), hasLength(before));
+    expect(container.read(b2bQuotationCartProvider).isEmpty, isFalse);
+
+    container
+        .read(b2bQuotationCartProvider.notifier)
+        .setDeliveryLocation('Site B — Warehouse (Pune)');
+
     final order = await container
         .read(b2bOrdersProvider.notifier)
         .placeOrder(container.read(b2bQuotationCartProvider));
@@ -168,6 +180,7 @@ void main() {
     expect(order, isNotNull);
     expect(container.read(b2bOrdersProvider).length, before + 1);
     expect(container.read(b2bOrdersProvider).first.reference, order!.reference);
+    expect(order.deliveryLocation, 'Site B — Warehouse (Pune)');
     expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
   });
 
@@ -244,6 +257,97 @@ void main() {
     expect(find.text('Search products, SKU'), findsNothing);
     expect(find.byTooltip('Cart'), findsOneWidget);
     expect(find.byTooltip('Account'), findsOneWidget);
+  });
+
+  testWidgets('cart and checkout retain B2B navigation and can return home',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    final router = container.read(appRouterProvider);
+    addTearDown(router.dispose);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          theme: AgencyTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+
+    router.go('/b2b/cart');
+    await tester.pumpAndSettle();
+    expect(find.text('Quotation Cart'), findsOneWidget);
+    expect(find.byType(AppBottomNavigation), findsOneWidget);
+
+    router.go('/b2b/cart/checkout');
+    await tester.pumpAndSettle();
+    expect(find.text('Business Checkout'), findsOneWidget);
+    expect(find.byType(AppBottomNavigation), findsOneWidget);
+    expect(find.byTooltip('B2B Home'), findsOneWidget);
+
+    router.go('/b2b/cart/confirm');
+    await tester.pumpAndSettle();
+    expect(find.text('Order Confirmed'), findsOneWidget);
+    expect(find.byType(AppBottomNavigation), findsOneWidget);
+
+    await tester.tap(find.text('Trade'));
+    await tester.pumpAndSettle();
+    expect(find.byType(B2BHomeScreen), findsOneWidget);
+  });
+
+  testWidgets('checkout selects a saved site or accepts a new delivery site',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const B2BCheckoutScreen(),
+        ),
+      ),
+    );
+    final context = tester.element(find.byType(B2BCheckoutScreen));
+    final container = ProviderScope.containerOf(context);
+    final product = container.read(tradeCatalogueProvider).first;
+    container.read(b2bQuotationCartProvider.notifier).addTradeProduct(product);
+    await tester.pumpAndSettle();
+
+    expect(find.text('No delivery site selected'), findsOneWidget);
+    final blocked = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Select delivery site to continue'));
+    expect(blocked.onPressed, isNull);
+
+    await tester.tap(find.text('Choose from saved sites'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved delivery sites'), findsOneWidget);
+    await tester.tap(find.text('Site B — Warehouse'));
+    await tester.pumpAndSettle();
+    expect(find.text('Site B — Warehouse (Pune)'), findsOneWidget);
+    expect(container.read(b2bQuotationCartProvider).deliveryLocation,
+        'Site B — Warehouse (Pune)');
+    expect(find.text('Place Business Order'), findsOneWidget);
+
+    await tester.tap(find.text('Enter a new delivery site'));
+    await tester.pumpAndSettle();
+    expect(find.text('New delivery site'), findsOneWidget);
+    await tester.enterText(
+        find.byType(TextFormField).at(0), 'Baner project site');
+    await tester.enterText(
+        find.byType(TextFormField).at(1), '45 High Street, Baner, Pune 411045');
+    await tester.tap(find.text('Use this site'));
+    await tester.pumpAndSettle();
+
+    const newSite = 'Baner project site — 45 High Street, Baner, Pune 411045';
+    expect(find.text(newSite), findsOneWidget);
+    expect(container.read(b2bQuotationCartProvider).deliveryLocation, newSite);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('B2B home Quick Order is a horizontally scrollable 2x2 grid',

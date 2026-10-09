@@ -1111,9 +1111,12 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
   }
 
   /// Convert the quotation cart into a placed order, prepend it to the history
-  /// and clear the cart. Returns the new order (or null for an empty cart).
+  /// and clear the cart. Returns null for an empty cart or when no delivery
+  /// site has been selected.
   Future<B2BOrder?> placeOrder(B2BQuotationCart cart, {String? poRef}) async {
-    if (cart.isEmpty) return null;
+    if (cart.isEmpty || cart.deliveryLocation?.trim().isEmpty != false) {
+      return null;
+    }
     final reference = poRef ?? 'Order #PO-${3400 + state.length}';
     final order = B2BOrder(
       reference: reference,
@@ -1121,6 +1124,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
       itemSummary:
           '${cart.lines.length} ${cart.lines.length == 1 ? 'item' : 'items'}',
       total: cart.total,
+      deliveryLocation: cart.deliveryLocation,
       lines: <B2BOrderLine>[
         for (final line in cart.lines)
           B2BOrderLine(

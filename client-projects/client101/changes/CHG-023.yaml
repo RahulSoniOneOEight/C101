@@ -1,0 +1,70 @@
+change_id: CHG-023
+revision: 1
+request: >-
+  Correct the B2B cart-to-order journey for the hosted staging pilot. Quotation Cart, Business
+  Checkout and Order Confirmation must remain inside the B2B shell so the Trade/Home, Credit, Cart
+  and Account navigation remains available. Checkout must let the buyer choose an existing saved
+  delivery site or enter a new delivery site, persist that choice on the quotation draft, require a
+  delivery site before order placement, and carry the selected location into the placed-order
+  projection and confirmation.
+type: workflow-ux
+extends:
+- CHG-017
+- CHG-022
+affected_capabilities:
+- b2b-cart
+- b2b-checkout
+- b2b-order-placement
+- delivery-site-selection
+affected_domains:
+- commerce
+- commerce-merchandising
+affected_surfaces:
+- customer-app.b2b.cart
+- customer-app.b2b.checkout
+- customer-app.b2b.order-confirmation
+affected_entities:
+- quotation-cart
+- delivery-site
+- order-projection
+affected_events: []
+decisions:
+  D-023-01: cart-checkout-confirmation-remain-in-b2b-shell
+  D-023-02: checkout-supports-saved-and-one-time-new-delivery-sites
+  D-023-03: selected-delivery-location-is-required-and-projected-to-order
+required_tests:
+- Cart, checkout and confirmation render with the persistent B2B bottom navigation.
+- The Trade/Home navigation returns to the B2B home from cart and checkout.
+- A buyer can select any saved site and the quotation draft persists the selection.
+- A buyer can enter a new site name and full address and use it for delivery.
+- Order placement is unavailable until a delivery site is selected.
+- The placed order and confirmation retain the selected delivery location.
+- flutter analyze and flutter test pass.
+constraints:
+- Delivery sites remain staging fixtures or buyer-entered test data.
+- This change adds a backward-compatible order projection field and does not change canonical
+  commerce or logistics ownership.
+- No production logistics booking or address validation is authorized.
+- Production release remains unauthorized.
+approval_required: false
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-09'
+  scope: prototype-and-hosted-staging-ui-only
+  human_visual_review_required: true
+production_release_authorized: false
+validation:
+  flutter_analyze: passed
+  flutter_tests: 128-passed
+  visual_evidence:
+  - apps/prototype_app/test/goldens/b2b_checkout.png
+  navigation_checks:
+  - quotation-cart-in-b2b-shell
+  - checkout-in-b2b-shell
+  - confirmation-in-b2b-shell
+  delivery_site_checks:
+  - saved-site-selection-persists-to-draft
+  - new-site-entry-persists-to-draft
+  - missing-site-blocks-order-placement
+  - selected-site-projects-to-placed-order
+status: validated-awaiting-human-visual-review

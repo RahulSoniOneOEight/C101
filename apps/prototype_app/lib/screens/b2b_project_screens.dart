@@ -122,8 +122,10 @@ class _NewProjectDialogState extends State<_NewProjectDialog> {
           onPressed: () {
             final name = _name.text.trim();
             if (name.isEmpty) return;
-            Navigator.of(context).pop(
-                (name, _location.text.trim().isEmpty ? 'Pune' : _location.text.trim()));
+            Navigator.of(context).pop((
+              name,
+              _location.text.trim().isEmpty ? 'Pune' : _location.text.trim()
+            ));
           },
           child: const Text('Create'),
         ),
@@ -463,8 +465,8 @@ class B2BMaterialListScreen extends ConsumerWidget {
         sku: line.sku,
         name: line.name,
         quantity: line.quantity,
-        unitPrice: Money(
-            amount: line.unitPriceRupees * 100, currencyCode: 'INR'),
+        unitPrice:
+            Money(amount: line.unitPriceRupees * 100, currencyCode: 'INR'),
       );
       added++;
     }
@@ -475,7 +477,7 @@ class B2BMaterialListScreen extends ConsumerWidget {
     }
     PinToast.show(context, '$added lines added to the quotation cart',
         tone: PinToastTone.success);
-    context.push('/b2b/quotation-cart');
+    context.go('/b2b/cart');
   }
 }
 
@@ -535,8 +537,8 @@ class _MaterialRow extends StatelessWidget {
                       color: colors.contentPrimary)),
               const SizedBox(height: 2),
               Text('/unit',
-                  style: TextStyle(
-                      fontSize: 10, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 10, color: colors.contentSecondary)),
             ],
           ),
         ],
@@ -557,8 +559,7 @@ class B2BSiteSelectorScreen extends ConsumerStatefulWidget {
       _B2BSiteSelectorScreenState();
 }
 
-class _B2BSiteSelectorScreenState
-    extends ConsumerState<B2BSiteSelectorScreen> {
+class _B2BSiteSelectorScreenState extends ConsumerState<B2BSiteSelectorScreen> {
   int _selected = 0;
 
   Future<void> _confirm(List<SiteOption> sites) async {
@@ -574,7 +575,7 @@ class _B2BSiteSelectorScreenState
       ref
           .read(b2bQuotationCartProvider.notifier)
           .setDeliveryLocation('${choice.name} (${choice.city})');
-      context.push('/b2b/checkout');
+      context.go('/b2b/cart/checkout');
     }
   }
 

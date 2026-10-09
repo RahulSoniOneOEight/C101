@@ -14,7 +14,9 @@ import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/app_notification.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
+import 'package:prototype_app/providers/b2b_trade_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
+import 'package:prototype_app/router/app_router.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2b_browse_screens.dart';
 import 'package:prototype_app/screens/b2b_procurement_lists_screen.dart';
@@ -193,6 +195,31 @@ void main() {
           theme: AgencyTheme.light(), home: const B2BCatalogueScreen()),
     ));
     await _capture(t, 'b2b_catalogue');
+  });
+
+  testWidgets('b2b checkout', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    );
+    final product = container.read(tradeCatalogueProvider).first;
+    container.read(b2bQuotationCartProvider.notifier).addTradeProduct(product);
+    container
+        .read(b2bQuotationCartProvider.notifier)
+        .setDeliveryLocation('Site B — Warehouse (Pune)');
+    final router = container.read(appRouterProvider);
+    addTearDown(router.dispose);
+    addTearDown(container.dispose);
+    await t.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp.router(
+        theme: AgencyTheme.light(),
+        routerConfig: router,
+      ),
+    ));
+    router.go('/b2b/cart/checkout');
+    await _capture(t, 'b2b_checkout');
   });
 
   testWidgets('b2b approvals', (t) async {

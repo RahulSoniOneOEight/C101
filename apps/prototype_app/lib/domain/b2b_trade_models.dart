@@ -79,6 +79,7 @@ class B2BOrder {
     required this.itemSummary,
     required this.total,
     this.lines = const <B2BOrderLine>[],
+    this.deliveryLocation,
   });
 
   final String reference;
@@ -86,6 +87,7 @@ class B2BOrder {
   final String itemSummary;
   final Money total;
   final List<B2BOrderLine> lines;
+  final String? deliveryLocation;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'reference': reference,
@@ -93,6 +95,7 @@ class B2BOrder {
         'item_summary': itemSummary,
         'total': total.toJson(),
         'lines': lines.map((l) => l.toJson()).toList(),
+        if (deliveryLocation != null) 'delivery_location': deliveryLocation,
       };
 
   factory B2BOrder.fromJson(Map<String, dynamic> j) => B2BOrder(
@@ -104,6 +107,7 @@ class B2BOrder {
             .whereType<Map<String, dynamic>>()
             .map(B2BOrderLine.fromJson)
             .toList(),
+        deliveryLocation: j['delivery_location'] as String?,
       );
 }
 

@@ -372,7 +372,7 @@ class _B2BCreditScreenState extends ConsumerState<B2BCreditScreen> {
         SizedBox(
           width: double.infinity,
           child: FilledButton(
-            onPressed: () => context.push('/b2b/checkout'),
+            onPressed: () => context.go('/b2b/cart/checkout'),
             style: FilledButton.styleFrom(
               backgroundColor: colors.actionPrimary,
               minimumSize: const Size.fromHeight(48),
@@ -681,7 +681,7 @@ class B2BOrdersScreen extends ConsumerWidget {
                     ref
                         .read(b2bQuotationCartProvider.notifier)
                         .addRepeatOrder(orders[i]);
-                    context.push('/b2b/quotation-cart');
+                    context.go('/b2b/cart');
                   },
                 ),
                 const Spacer(),
