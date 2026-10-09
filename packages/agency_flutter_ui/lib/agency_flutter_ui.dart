@@ -228,8 +228,7 @@ class AgencyColors extends ThemeExtension<AgencyColors> {
           Color.lerp(promotionInverse, other.promotionInverse, t)!,
       trust: Color.lerp(trust, other.trust, t)!,
       trustSubtle: Color.lerp(trustSubtle, other.trustSubtle, t)!,
-      promotionSubtle:
-          Color.lerp(promotionSubtle, other.promotionSubtle, t)!,
+      promotionSubtle: Color.lerp(promotionSubtle, other.promotionSubtle, t)!,
     );
   }
 }
@@ -353,60 +352,63 @@ class ProductCard extends StatelessWidget {
     return Semantics(
       button: onPressed != null && !unavailable,
       label: '$title, $priceLabel',
-      child: Card(
-        margin: EdgeInsets.zero,
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: unavailable ? null : onPressed,
-          child: Padding(
-            padding: const EdgeInsets.all(AgencySpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Expanded(child: _image(context)),
-                const SizedBox(height: AgencySpacing.sm),
-                if (brand != null)
-                  Text(
-                    brand!,
-                    style: AgencyText.label
-                        .copyWith(color: context.colors.contentSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                SizedBox(
-                  height: variant == ProductCardVariant.large ? 36 : 34,
-                  child: Text(
-                    title,
-                    style: AgencyText.label.copyWith(
-                      color: context.colors.contentPrimary,
-                      fontSize: variant == ProductCardVariant.large ? 14 : 13,
-                      height: 1.3,
-                      fontWeight: FontWeight.w600,
+      child: SizedBox(
+        height: variant == ProductCardVariant.large ? 296 : 248,
+        child: Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: unavailable ? null : onPressed,
+            child: Padding(
+              padding: const EdgeInsets.all(AgencySpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: _image(context)),
+                  const SizedBox(height: AgencySpacing.sm),
+                  if (brand != null)
+                    Text(
+                      brand!,
+                      style: AgencyText.label
+                          .copyWith(color: context.colors.contentSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  SizedBox(
+                    height: variant == ProductCardVariant.large ? 36 : 34,
+                    child: Text(
+                      title,
+                      style: AgencyText.label.copyWith(
+                        color: context.colors.contentPrimary,
+                        fontSize: variant == ProductCardVariant.large ? 14 : 13,
+                        height: 1.3,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AgencySpacing.xs),
-                _priceRow(context, unavailable: unavailable),
-                if (rating != null) ...[
                   const SizedBox(height: AgencySpacing.xs),
-                  _ratingRow(context),
+                  _priceRow(context, unavailable: unavailable),
+                  if (rating != null) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    _ratingRow(context),
+                  ],
+                  if (variant == ProductCardVariant.large &&
+                      deliveryNote != null) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    Text(
+                      deliveryNote!,
+                      style: AgencyText.label
+                          .copyWith(color: context.colors.contentSecondary),
+                    ),
+                  ],
+                  if (unavailable) ...[
+                    const SizedBox(height: AgencySpacing.xs),
+                    const Text('Out of stock', style: AgencyText.label),
+                  ],
                 ],
-                if (variant == ProductCardVariant.large &&
-                    deliveryNote != null) ...[
-                  const SizedBox(height: AgencySpacing.xs),
-                  Text(
-                    deliveryNote!,
-                    style: AgencyText.label
-                        .copyWith(color: context.colors.contentSecondary),
-                  ),
-                ],
-                if (unavailable) ...[
-                  const SizedBox(height: AgencySpacing.xs),
-                  const Text('Out of stock', style: AgencyText.label),
-                ],
-              ],
+              ),
             ),
           ),
         ),
@@ -465,8 +467,7 @@ class ProductCard extends StatelessWidget {
                       ),
                     if (badges.isNotEmpty && discountLabel != null)
                       const SizedBox(width: AgencySpacing.xs),
-                    if (badges.isEmpty && discountLabel != null)
-                      const Spacer(),
+                    if (badges.isEmpty && discountLabel != null) const Spacer(),
                     if (discountLabel != null)
                       _pill(
                         discountLabel!,
@@ -491,8 +492,9 @@ class ProductCard extends StatelessWidget {
                       child: Icon(
                         wishlisted ? Icons.favorite : Icons.favorite_border,
                         size: 16,
-                        color:
-                            wishlisted ? colors.promotion : colors.contentSecondary,
+                        color: wishlisted
+                            ? colors.promotion
+                            : colors.contentSecondary,
                       ),
                     ),
                   ),
@@ -1225,12 +1227,11 @@ class MerchandisingBanner extends StatelessWidget {
                       onPressed: onCta,
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(0, 32),
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         visualDensity: VisualDensity.compact,
                       ),
-                      child: Text(ctaLabel!,
-                          style: const TextStyle(fontSize: 12)),
+                      child:
+                          Text(ctaLabel!, style: const TextStyle(fontSize: 12)),
                     ),
                   ],
                 ],
@@ -1417,118 +1418,122 @@ class CompactProductItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(AgencyRadius.md),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: colors.surfaceInteractive,
-          borderRadius: BorderRadius.circular(AgencyRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // ~70% of the tile is product imagery.
-            Expanded(
-              flex: 7,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  imageUrl == null
-                      ? ColoredBox(color: colors.surfaceRaised)
-                      : Image.network(
-                          imageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              ColoredBox(color: colors.surfaceRaised),
-                        ),
-                  if (discountLabel != null)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: colors.promotion,
-                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                        ),
-                        child: Text(
-                          discountLabel!,
-                          style: AgencyText.label.copyWith(
-                            color: colors.promotionInverse,
-                            fontSize: 9,
-                            height: 1.2,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Remaining ~30%: price, name and the quick-add action.
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
-                child: Row(
+    return SizedBox(
+      height: 132,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AgencyRadius.md),
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surfaceInteractive,
+            borderRadius: BorderRadius.circular(AgencyRadius.md),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              // ~70% of the tile is product imagery.
+              Expanded(
+                flex: 7,
+                child: Stack(
+                  fit: StackFit.expand,
                   children: <Widget>[
-                    Expanded(
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              priceLabel,
-                              style: AgencyText.label.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: colors.contentPrimary,
-                                fontSize: 12,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              title,
-                              style: AgencyText.label.copyWith(
-                                color: colors.contentSecondary,
-                                fontSize: 10,
-                                height: 1.1,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (onAdd != null) ...<Widget>[
-                      const SizedBox(width: 4),
-                      InkWell(
-                        onTap: onAdd,
-                        borderRadius: BorderRadius.circular(AgencyRadius.sm),
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: colors.actionPrimary,
-                            shape: BoxShape.circle,
+                    imageUrl == null
+                        ? ColoredBox(color: colors.surfaceRaised)
+                        : Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                ColoredBox(color: colors.surfaceRaised),
                           ),
-                          child: Icon(Icons.add,
-                              size: 16, color: colors.contentInverse),
+                    if (discountLabel != null)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: colors.promotion,
+                            borderRadius:
+                                BorderRadius.circular(AgencyRadius.sm),
+                          ),
+                          child: Text(
+                            discountLabel!,
+                            style: AgencyText.label.copyWith(
+                              color: colors.promotionInverse,
+                              fontSize: 9,
+                              height: 1.2,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
-                    ],
                   ],
                 ),
               ),
-            ),
-          ],
+              // Remaining ~30%: price, name and the quick-add action.
+              Expanded(
+                flex: 3,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                priceLabel,
+                                style: AgencyText.label.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.contentPrimary,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                title,
+                                style: AgencyText.label.copyWith(
+                                  color: colors.contentSecondary,
+                                  fontSize: 10,
+                                  height: 1.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (onAdd != null) ...<Widget>[
+                        const SizedBox(width: 4),
+                        InkWell(
+                          onTap: onAdd,
+                          borderRadius: BorderRadius.circular(AgencyRadius.sm),
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: colors.actionPrimary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.add,
+                                size: 16, color: colors.contentInverse),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
