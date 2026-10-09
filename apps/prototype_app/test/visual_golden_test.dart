@@ -16,6 +16,7 @@ import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
+import 'package:prototype_app/screens/b2b_procurement_lists_screen.dart';
 import 'package:prototype_app/screens/b2b_project_screens.dart';
 import 'package:prototype_app/screens/b2b_support_screens.dart';
 import 'package:prototype_app/screens/d2c_shell.dart';
@@ -253,5 +254,18 @@ void main() {
       ),
     ));
     await _capture(t, 'split_tile');
+  });
+
+  testWidgets('list editor', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: MaterialApp(
+        theme: AgencyTheme.light(),
+        home: const ProcurementListEditorScreen(listId: 'pl_seasonal'),
+      ),
+    ));
+    await _capture(t, 'list_editor');
   });
 }

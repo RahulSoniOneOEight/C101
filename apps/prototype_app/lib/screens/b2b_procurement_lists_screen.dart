@@ -266,6 +266,12 @@ class _ProcurementListEditorScreenState
   final List<ProcurementListItem> _items = <ProcurementListItem>[];
   bool _dirty = false;
 
+  /// Browse category for the add-products section (null = All).
+  String? _catId;
+
+  /// How many addable catalogue products are currently revealed.
+  int _addVisible = 6;
+
   bool get _isEdit => widget.listId != null;
 
   @override
@@ -302,18 +308,35 @@ class _ProcurementListEditorScreenState
 
   // ---- adding products -----------------------------------------------------
 
-  List<TradeProduct> _matches(List<TradeProduct> catalogue) {
+  /// Catalogue products that can be added: filtered by the browse category and
+  /// the search box, excluding SKUs already in the list. Shown by default so
+  /// browsing works without typing.
+  List<TradeProduct> _addable(List<TradeProduct> catalogue) {
     final q = _search.text.trim().toLowerCase();
-    if (q.isEmpty) return const <TradeProduct>[];
     final inList = _items.map((i) => i.sku).toSet();
-    return catalogue
-        .where((p) =>
-            !inList.contains(p.product.id) &&
-            (p.product.title.toLowerCase().contains(q) ||
-                (p.product.brand ?? '').toLowerCase().contains(q) ||
-                p.product.id.toLowerCase().contains(q)))
-        .take(6)
-        .toList();
+    return catalogue.where((p) {
+      if (inList.contains(p.product.id)) return false;
+      if (_catId != null && p.categoryId != _catId) return false;
+      if (q.isEmpty) return true;
+      return p.product.title.toLowerCase().contains(q) ||
+          (p.product.brand ?? '').toLowerCase().contains(q) ||
+          p.product.id.toLowerCase().contains(q);
+    }).take(_addVisible).toList();
+  }
+
+  /// Whether more addable products exist beyond those currently shown.
+  bool _hasMoreAddable(List<TradeProduct> catalogue) {
+    final q = _search.text.trim().toLowerCase();
+    final inList = _items.map((i) => i.sku).toSet();
+    return catalogue.where((p) {
+          if (inList.contains(p.product.id)) return false;
+          if (_catId != null && p.categoryId != _catId) return false;
+          if (q.isEmpty) return true;
+          return p.product.title.toLowerCase().contains(q) ||
+              (p.product.brand ?? '').toLowerCase().contains(q) ||
+              p.product.id.toLowerCase().contains(q);
+        }).length >
+        _addVisible;
   }
 
   void _addProduct(TradeProduct p) {
@@ -405,7 +428,14 @@ class _ProcurementListEditorScreenState
   Widget build(BuildContext context) {
     final colors = _colors(context);
     final catalogue = ref.watch(tradeCatalogueProvider);
-    final matches = _matches(catalogue);
+    final addable = _addable(catalogue);
+    final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final selectedCatLabel = _catId == null
+        ? null
+        : tradeCategories
+            .where((c) => c.id == _catId)
+            .map((c) => c.label)
+            .firstOrNull;
 
     return PopScope(
       canPop: !_dirty,
@@ -474,6 +504,24 @@ class _ProcurementListEditorScreenState
               ),
             ),
             const SizedBox(height: AgencySpacing.sm),
+            CategoryIconRail(
+              categories: <Category>[
+                const Category(label: 'All', icon: Icons.apps_outlined),
+                for (final c in tradeCategories)
+                  Category(label: c.label, icon: c.icon),
+              ],
+              selectedLabel: selectedCatLabel ?? 'All',
+              onSelected: (c) => setState(() {
+                _catId = c.label == 'All'
+                    ? null
+                    : tradeCategories
+                        .firstWhere((t) => t.label == c.label,
+                            orElse: () => tradeCategories.first)
+                        .id;
+                _addVisible = 6;
+              }),
+            ),
+            const SizedBox(height: AgencySpacing.sm),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -487,8 +535,16 @@ class _ProcurementListEditorScreenState
                 ),
               ),
             ),
-            if (matches.isNotEmpty) ...<Widget>[
-              const SizedBox(height: AgencySpacing.sm),
+            const SizedBox(height: AgencySpacing.sm),
+            if (addable.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: AgencySpacing.sm),
+                child: Text(
+                    'No more products match — try another search or category.',
+                    style: TextStyle(
+                        fontSize: 13, color: colors.contentSecondary)),
+              )
+            else ...<Widget>[
               Container(
                 decoration: BoxDecoration(
                   color: colors.surfaceRaised,
@@ -499,7 +555,7 @@ class _ProcurementListEditorScreenState
                   type: MaterialType.transparency,
                   child: Column(
                     children: <Widget>[
-                      for (final p in matches)
+                      for (final p in addable)
                         ListTile(
                           dense: true,
                           leading: _thumb(context, p.product.thumbnail),
@@ -521,9 +577,17 @@ class _ProcurementListEditorScreenState
                   ),
                 ),
               ),
+              if (_hasMoreAddable(catalogue))
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => setState(() => _addVisible += 6),
+                    child: const Text('Show more products'),
+                  ),
+                ),
             ],
             const SizedBox(height: AgencySpacing.lg),
-            Text('SKUS IN THIS LIST',
+            Text('SKUS IN THIS LIST (${_items.length})',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -540,14 +604,6 @@ class _ProcurementListEditorScreenState
               )
             else
               for (final item in _items) _itemRow(colors, item),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: () => _searchFocus.requestFocus(),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Another SKU'),
-              ),
-            ),
             const SizedBox(height: AgencySpacing.md),
             SizedBox(
               width: double.infinity,

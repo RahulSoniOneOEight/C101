@@ -66,7 +66,7 @@ void main() {
     expect(addIcon, findsWidgets);
     await tester.tap(addIcon.first);
     await tester.pumpAndSettle();
-    expect(find.text('SKUS IN THIS LIST'), findsOneWidget);
+    expect(find.textContaining('SKUS IN THIS LIST'), findsOneWidget);
 
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
