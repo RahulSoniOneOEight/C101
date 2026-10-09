@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/invoice_file.dart';
 import '../domain/account_models.dart';
 import '../providers/account_providers.dart';
 import '../providers/pilot_providers.dart';
@@ -913,12 +912,12 @@ class _GstInvoicesScreenState extends ConsumerState<GstInvoicesScreen> {
   Future<void> _download(BuildContext context, Invoice inv) async {
     final gst = ref.read(gstProvider);
     try {
-      final file =
-          File('${Directory.systemTemp.path}/buildkart_${inv.number}.pdf');
-      await file.writeAsString(_buildInvoicePdf(inv, gst));
+      final message = await saveInvoiceFile(
+        'buildkart_${inv.number}.pdf',
+        _buildInvoicePdf(inv, gst),
+      );
       if (context.mounted) {
-        PinToast.show(context, 'Invoice saved to ${file.path}',
-            tone: PinToastTone.success);
+        PinToast.show(context, message, tone: PinToastTone.success);
       }
     } catch (e) {
       if (context.mounted) {
