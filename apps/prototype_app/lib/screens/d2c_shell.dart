@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/notification_bell.dart';
@@ -75,6 +76,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const List<String> _keyItems = <String>[
     'On discount',
     'Bestseller',
+    'Flash Deal',
+    'Clearance',
+    'New',
     'Premium',
     'Highly rated',
     'Free delivery',
@@ -104,13 +108,15 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   static Set<String> _keysForTag(String tag) {
     final lower = tag.toLowerCase();
     if (lower.contains('best')) return <String>{'Bestseller'};
-    if (lower.contains('premium')) return <String>{'Premium'};
-    if (lower.contains('clearance') ||
-        lower.contains('flash') ||
+    if (lower.contains('clearance')) return <String>{'Clearance'};
+    if (lower.contains('flash') ||
+        lower.contains('limited') ||
         lower.contains('deal') ||
         lower.contains('sale')) {
-      return <String>{'On discount'};
+      return <String>{'Flash Deal'};
     }
+    if (lower.contains('new')) return <String>{'New'};
+    if (lower.contains('premium')) return <String>{'Premium'};
     return <String>{};
   }
 
@@ -169,6 +175,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         'On discount' => p.discountPercent != null,
         'Bestseller' =>
           p.badges.any((b) => b.toLowerCase().contains('bestseller')),
+        'Flash Deal' =>
+          p.badges.any((b) => b.toLowerCase().contains('limited deal')),
+        'Clearance' =>
+          p.badges.any((b) => b.toLowerCase().contains('clearance')),
+        'New' => p.badges.any((b) => b.toLowerCase() == 'new'),
         'Premium' => p.badges.any((b) => b.toLowerCase().contains('premium')),
         'Highly rated' => (p.rating ?? 0) >= 4.5,
         'Free delivery' =>
@@ -218,8 +229,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             child: CustomScrollView(
               slivers: <Widget>[
                 SliverToBoxAdapter(child: _searchBar()),
+                SliverToBoxAdapter(child: _browseBanner()),
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverToBoxAdapter(child: _sortFilterRow()),
+                if (results.isNotEmpty)
+                  SliverToBoxAdapter(child: _recentlyViewedStrip()),
                 if (results.isEmpty)
                   const SliverToBoxAdapter(
                     child: Padding(
@@ -395,6 +409,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   }
 
   Widget _card(Product product) {
+    final wishlisted = ref.watch(wishlistProvider).contains(product.id);
     return ProductCard(
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
@@ -407,7 +422,80 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       badges: product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
-      onAddToCart: () => context.push('/product/${product.id}'),
+      onAddToCart: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        await ref.read(cartProvider.notifier).addItem(
+            offerId: product.offerId ?? '',
+            variantId: product.variantId ?? product.id,
+            quantity: 1);
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Added to cart')),
+        );
+      },
+      wishlisted: wishlisted,
+      onWishlist: () =>
+          ref.read(wishlistProvider.notifier).toggle(product.id),
+    );
+  }
+
+  /// A clickable category banner shown at the top of the Browse scroll.
+  Widget _browseBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+      child: MerchandisingBanner(
+        imageUrl:
+            'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
+        title: _category ?? 'Browse the catalogue',
+        subtitle: 'Top picks in this aisle',
+        ctaLabel: 'Best sellers',
+        onCta: () => setState(() {
+          _keys
+            ..clear()
+            ..add('Bestseller');
+          _resetPaging();
+        }),
+      ),
+    );
+  }
+
+  /// Split merchandising tile (Recently viewed) inside the Browse scroll.
+  Widget _recentlyViewedStrip() {
+    final products = ref.watch(productsProvider).value ?? const <Product>[];
+    final recentIds = ref.watch(recentlyViewedProvider);
+    final recent = recentIds
+        .map((id) => products.where((p) => p.id == id).firstOrNull)
+        .whereType<Product>()
+        .take(2)
+        .toList();
+    final shown = recent.isNotEmpty ? recent : products.take(2).toList();
+    if (shown.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+      child: SizedBox(
+        height: 210,
+        child: SplitMerchandisingTile(
+          sectionLabel: 'Recently viewed',
+          children: <Widget>[
+            for (final p in shown)
+              CompactProductItem(
+                title: p.title,
+                priceLabel: p.price?.formatted ?? '',
+                discountLabel: p.discountPercent == null
+                    ? null
+                    : '${p.discountPercent}% off',
+                imageUrl: p.thumbnail,
+                onPressed: () => context.push('/product/${p.id}'),
+                onAdd: () => ref.read(cartProvider.notifier).addItem(
+                    offerId: p.offerId ?? '',
+                    variantId: p.variantId ?? p.id,
+                    quantity: 1),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

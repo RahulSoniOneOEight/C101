@@ -18,6 +18,7 @@ import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2b_project_screens.dart';
 import 'package:prototype_app/screens/b2b_support_screens.dart';
+import 'package:prototype_app/screens/d2c_shell.dart';
 import 'package:prototype_app/screens/b2c_flow_screens.dart';
 import 'package:prototype_app/screens/notifications_screen.dart';
 import 'package:prototype_app/screens/product_detail_screen.dart';
@@ -207,5 +208,18 @@ void main() {
           theme: AgencyTheme.light(), home: const B2BProjectsListScreen()),
     ));
     await _capture(t, 'b2b_projects');
+  });
+
+  testWidgets('browse', (t) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await t.pumpWidget(ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        experienceApiProvider.overrideWithValue(_FakeExperienceApi()),
+      ],
+      child: MaterialApp(theme: AgencyTheme.light(), home: const BrowseScreen()),
+    ));
+    await _capture(t, 'browse');
   });
 }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/status_views.dart';
@@ -24,7 +25,24 @@ class ProductDetailScreen extends ConsumerWidget {
       }
     });
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        actions: <Widget>[
+          Consumer(builder: (context, ref, _) {
+            final saved = ref.watch(wishlistProvider).contains(productId);
+            return IconButton(
+              tooltip: saved ? 'Remove from wishlist' : 'Save to wishlist',
+              onPressed: () =>
+                  ref.read(wishlistProvider.notifier).toggle(productId),
+              icon: Icon(saved ? Icons.favorite : Icons.favorite_border,
+                  color: saved
+                      ? Theme.of(context)
+                          .extension<AgencyColors>()
+                          ?.promotion
+                      : null),
+            );
+          }),
+        ],
+      ),
       body: product.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => ErrorView(

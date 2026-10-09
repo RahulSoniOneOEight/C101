@@ -5,6 +5,8 @@
 /// than throwing during deserialization.
 library;
 
+import 'review_catalogue.dart';
+
 /// A monetary amount expressed in a currency's minor unit (e.g. paise for INR,
 /// cents for USD).
 class Money {
@@ -153,8 +155,26 @@ class Product {
     final currency = best?['currency_code'] as String? ?? 'INR';
     final hasDiscount =
         bestAmount != null && listAmount != null && listAmount.toInt() > bestAmount.toInt();
+    final id = json['id'] as String? ?? '';
+    final jsonBadges =
+        (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
+            const <String>[];
+
+    // Review-only enrichment: derive a stable list price and tags when the
+    // catalogue seed provides neither (see `domain/review_catalogue.dart`).
+    final Money? mrp;
+    if (hasDiscount) {
+      mrp = Money(amount: listAmount.toInt(), currencyCode: currency);
+    } else if (bestAmount != null) {
+      final marked = (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
+          .round();
+      mrp = Money(amount: marked, currencyCode: currency);
+    } else {
+      mrp = null;
+    }
+
     return Product(
-      id: json['id'] as String? ?? '',
+      id: id,
       title: json['title'] as String? ?? '',
       description: json['description'] as String?,
       thumbnail: json['thumbnail'] as String?,
@@ -164,9 +184,8 @@ class Product {
       price: bestAmount == null
           ? null
           : Money(amount: bestAmount.toInt(), currencyCode: currency),
-      mrp: hasDiscount
-          ? Money(amount: listAmount.toInt(), currencyCode: currency)
-          : null,
+      mrp: mrp,
+      badges: jsonBadges.isNotEmpty ? jsonBadges : reviewTags(id),
     );
   }
 

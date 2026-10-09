@@ -7,6 +7,7 @@ import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../domain/review_catalogue.dart';
 
 /// Storefront categories from the client brief, rendered icon-led on the home
 /// screen. Placeholder data until a category API is wired.
@@ -339,21 +340,15 @@ final homeModulesProvider =
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
 
-  // Flash Deals: biggest discounts first (falls back to catalogue order).
-  final discounted = products.where((p) => (p.discountPercent ?? 0) > 0).toList()
-    ..sort((a, b) =>
-        (b.discountPercent ?? 0).compareTo(a.discountPercent ?? 0));
-  final flashDeals = (discounted.isNotEmpty ? discounted : products)
-      .take(6)
-      .map((p) => p.copyWith(badges: <String>['Flash Deal']))
-      .toList();
-
-  // Best Sellers: a distinct slice so the two rails do not repeat.
-  final bestSource = products.length > 2 ? products.skip(2) : products;
-  final bestSellers = bestSource
-      .take(6)
-      .map((p) => p.copyWith(badges: <String>['Best Seller']))
-      .toList();
+  // Flash Deals / Best Sellers are deterministic collections over the
+  // catalogue; badges come from the product itself (review enrichment) so the
+  // rails and the "See All" collection filters agree.
+  final flashPool = products.where((p) => inFlashDeals(p.id)).toList();
+  final bestPool = products.where((p) => inBestSellers(p.id)).toList();
+  final flashDeals =
+      (flashPool.isNotEmpty ? flashPool : products).take(8).toList();
+  final bestSellers =
+      (bestPool.isNotEmpty ? bestPool : products.skip(2)).take(8).toList();
 
   // Recommended + the special "Recently viewed" split slot.
   final recentlyViewed = ref
@@ -365,10 +360,7 @@ final homeModulesProvider =
           ? recentlyViewed.take(2)
           : products.take(2))
       .toList();
-  final recommended = products
-      .take(5)
-      .map((p) => p.copyWith(badges: <String>['Assured']))
-      .toList();
+  final recommended = products.take(5).toList();
 
   return <MerchandisingModule>[
     MerchandisingModule(
