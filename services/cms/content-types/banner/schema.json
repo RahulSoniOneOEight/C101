@@ -1,0 +1,44 @@
+{
+  "kind": "collectionType",
+  "collectionName": "banners",
+  "info": {
+    "singularName": "banner",
+    "pluralName": "banners",
+    "displayName": "Banner",
+    "description": "B2C/B2B marketing banner: hero, secondary, campaign. Editorial only."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "contentKey": { "type": "string", "required": true, "unique": true },
+    "audience": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b", "both"],
+      "default": "both",
+      "required": true
+    },
+    "placement": { "type": "string", "required": true },
+    "title": { "type": "string", "required": true },
+    "subtitle": { "type": "string" },
+    "ctaLabel": { "type": "string" },
+    "ctaTargetType": {
+      "type": "enumeration",
+      "enum": ["route", "product", "category", "collection", "url"],
+      "default": "route"
+    },
+    "ctaTargetId": { "type": "string" },
+    "imageMobile": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "imageTablet": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "imageDesktop": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "imageAltText": { "type": "string", "required": true },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" },
+    "timezone": { "type": "string", "default": "Asia/Kolkata" },
+    "priority": { "type": "integer", "default": 0 },
+    "segments": { "type": "json" }
+  }
+}

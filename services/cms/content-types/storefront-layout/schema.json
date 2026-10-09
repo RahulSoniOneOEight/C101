@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "storefront_layouts",
+  "info": {
+    "singularName": "storefront-layout",
+    "pluralName": "storefront-layouts",
+    "displayName": "Storefront Layout",
+    "description": "Ordered, approved module composition for one home surface and audience."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "layoutKey": { "type": "string", "required": true, "unique": true },
+    "channel": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b"],
+      "required": true
+    },
+    "modules": {
+      "type": "dynamiczone",
+      "components": [
+        "layout.hero-banner",
+        "layout.category-rail",
+        "layout.product-carousel",
+        "layout.product-composition",
+        "layout.split-merchandising",
+        "layout.offer-collection",
+        "layout.rich-editorial",
+        "layout.trust-row"
+      ],
+      "required": true
+    },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" },
+    "fallbackLayout": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::storefront-layout.storefront-layout"
+    }
+  }
+}
