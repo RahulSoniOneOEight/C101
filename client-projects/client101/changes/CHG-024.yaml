@@ -1,0 +1,70 @@
+change_id: CHG-024
+revision: 1
+request: >-
+  Add a browser-accessible BuildKart web app for the hosted staging pilot. The web app reuses the
+  Flutter customer experience and staging Experience API, supports direct/deep-link navigation,
+  retains allowlist-only simulated OTP authentication, and is deployed to Firebase Hosting in the
+  existing buildkart-staging project.
+type: surface-and-hosting
+extends:
+- CHG-018
+- CHG-023
+affected_capabilities:
+- pilot-authentication
+- customer-browse
+- b2c-checkout
+- b2b-procurement
+- account-self-service
+affected_domains:
+- experience
+- identity
+- hosted-staging
+affected_surfaces:
+- customer-app.web
+affected_integrations:
+- experience-api
+- firebase-hosting
+decisions:
+  D-024-01: flutter-web-reuses-the-reviewed-customer-app
+  D-024-02: firebase-hosting-in-buildkart-staging-is-the-initial-browser-edge
+  D-024-03: web-access-remains-allowlist-only-with-simulated-otp
+  D-024-04: web-invoice-download-uses-browser-download-instead-of-device-filesystem
+required_tests:
+- Flutter web release build succeeds with staging HTTPS endpoints.
+- Hosted root and deep links return the Flutter application.
+- Experience API CORS preflight allows browser authorization and JSON requests.
+- An allowlisted tester can complete challenge and OTP verification from the hosted origin.
+- Core B2C and B2B routes render without browser-only runtime errors.
+- Existing Flutter analysis and automated tests pass.
+constraints:
+- Staging and simulated providers only; test_data remains true.
+- No production release or production Firebase project is authorized.
+- Access remains limited by the existing hosted pilot allowlist.
+- Tester identities, Firebase credentials and local environment files must not be committed.
+- Browser push notifications are not part of this increment.
+approval_required: false
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-09'
+  scope: hosted-staging-web-only
+  human_visual_review_required: true
+validation:
+  flutter_analyze: passed
+  flutter_tests: 128-passed
+  flutter_web_release_build: passed
+  hosting_deploy: firebase-hosting-buildkart-staging
+  hosted_url: https://buildkart-staging.web.app
+  http_checks:
+  - root-200
+  - deep-link-200
+  - manifest-200
+  - main-dart-js-200
+  cors_checks:
+  - preflight-204-with-allow-origin
+  - post-response-allow-origin-header
+  browser_login_checks:
+  - challenge-201-from-web-origin
+  - otp-verify-200-from-web-origin
+  - display-name-matches-email-local-part
+status: validated-awaiting-human-visual-review
+production_release_authorized: false

@@ -35,6 +35,7 @@ build/
 # Generated / runtime artifacts
 output/
 storybook-static/
+.firebase/
 *.db
 *.sqlite
 *.sqlite3

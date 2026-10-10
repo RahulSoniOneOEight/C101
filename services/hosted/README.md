@@ -153,6 +153,35 @@ bun services/hosted/scripts/populate-tryton.ts carts.json
 allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
 `order_summary.created_at` (staging dummy data only).
 
+## Browser web app (staging)
+
+The same Flutter customer app is published as a staging web app so testers can use BuildKart from a
+browser without installing the APK. It reuses the hosted Experience API and the same allowlist-only
+simulated-OTP login, so no separate account or secret is introduced.
+
+| Item | Value |
+|---|---|
+| Hosting | Firebase Hosting site `buildkart-staging` |
+| URL | `https://buildkart-staging.web.app` |
+| Config | `firebase.json` + `.firebaserc` at the repo root |
+
+Build and deploy (config lives at the repo root, so run from there):
+
+```sh
+cd apps/prototype_app
+flutter build web --release \
+  --dart-define=BUILDKART_ENVIRONMENT=staging \
+  --dart-define=EXPERIENCE_API_BASE_URL=https://api-staging.pinakaplay.cloud \
+  --dart-define=MEDUSA_BASE_URL=https://api-staging.pinakaplay.cloud
+cd ../..
+firebase deploy --only hosting --project buildkart-staging
+```
+
+Notes: the Experience API already allows the browser origin (`access-control-allow-origin: *`) and
+answers CORS preflight. Web invoice download triggers a client-side file download instead of the
+native temporary-file path. Browser push notifications are out of scope for this increment, and the
+deployment remains staging-only (`test_data: true`, no production release).
+
 ## Backups
 
 Install `age`, place the backup recipient in `/etc/buildkart/backup-age-recipient`, and run
