@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "category_editorials",
+  "info": {
+    "singularName": "category-editorial",
+    "pluralName": "category-editorials",
+    "displayName": "Category Editorial",
+    "description": "Localized category heading, hero and guide content linked to a commerce category id."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "categoryId": { "type": "string", "required": true, "unique": true },
+    "heading": { "type": "string", "required": true },
+    "description": { "type": "text" },
+    "heroImage": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "heroAltText": { "type": "string" },
+    "inspirationBlocks": { "type": "richtext" },
+    "buyingGuides": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::faq-article.faq-article"
+    }
+  }
+}

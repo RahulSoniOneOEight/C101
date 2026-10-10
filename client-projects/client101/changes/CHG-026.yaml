@@ -1,0 +1,62 @@
+change_id: CHG-026
+revision: 1
+request: >-
+  Introduce an editorial CMS (Strapi v5, proposed) as a bounded, provider-neutral content service for
+  the B2C and B2B storefronts, and organize the four backends (Medusa, Mercur, Strapi, Tryton) as
+  bounded-context services behind the Experience API composition layer. The CMS owns editorial
+  content only and delivers it through GET /v1/content/app-shell; it never owns price, stock, seller
+  terms, orders, payment or credit.
+type: architecture-and-provider
+extends:
+- CHG-017
+- CHG-018
+affected_capabilities:
+- editorial-content
+- storefront-composition
+- composed-read-models
+affected_domains:
+- content
+- commerce
+- marketplace
+- erp
+- experience
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- experience-api.content
+affected_entities:
+- editorial-app-content
+- app-content-bundle
+affected_integrations:
+- strapi-webhook-to-content-adapter
+- experience-api-content-endpoint
+affected_events:
+- content.published
+- content.unpublished
+decisions:
+  D-026-01: cms-owns-editorial-content-only
+  D-026-02: content-delivered-through-experience-api-app-shell-endpoint
+  D-026-03: strapi-runs-as-a-separate-service-with-its-own-database
+  D-026-04: backends-are-bounded-context-services-behind-one-composition-layer
+required_tests:
+- Published content is returned by GET /v1/content/app-shell; drafts are never returned.
+- The content bundle carries locale, version/source and freshness metadata.
+- Duplicate and out-of-order publish webhooks are harmless (idempotent).
+- CMS outage serves last-valid published content or a clean fallback without blocking commerce.
+- CMS cannot read or write price, stock, seller, order, payment or credit state.
+- No per-product CMS request occurs on product grids (no N+1).
+- Existing analysis and automated tests pass.
+constraints:
+- Provider selection (Strapi) and the backend organisation are proposals requiring human approval.
+- Staging-only: test_data remains true; no production release.
+- CMS credentials and admin tokens must never ship in the Flutter/web clients.
+- Master-catalogue ownership (Q-005A) remains open and unchanged by this change.
+- Media/DAM authority (Strapi media library vs separate DAM) remains an open decision.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-10'
+  scope: design-and-scaffold-only
+  human_visual_review_required: true
+production_release_authorized: false
+status: implementation-requested

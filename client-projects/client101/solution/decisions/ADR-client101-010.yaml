@@ -1,0 +1,43 @@
+decision_id: ADR-client101-010
+client_id: client101
+title: Organise backends as bounded-context services behind a composition layer
+status: proposed
+context: >-
+  BuildKart runs four backends — Medusa (commerce), Mercur (marketplace), Tryton (ERP) and an
+  editorial CMS (Strapi proposed). Without an explicit organisation, ownership drifts (duplicated
+  product data, CMS holding price/stock, clients joining systems directly) and the provider
+  boundaries in the data contract are lost.
+decision: >-
+  Organise each backend as one bounded-context runtime with a single writer per field. Run Mercur as
+  a Medusa plugin/module set (one service), Tryton and Strapi as separate services, and expose all
+  cross-system composition exclusively through the Experience API (BFF). Integrate asynchronously via
+  transactional outbox events with inbox deduplication, and keep editorial content in the CMS only.
+alternatives:
+- Single monolithic backend owning all domains (rejected: loses bounded ownership and provider substitution).
+- Clients integrating each backend directly (rejected: ungoverned joins, duplicated logic, credential exposure).
+- Two-way product synchronization between Medusa and Strapi (rejected: duplication and conflict risk).
+consequences:
+- One writer per field; provider-specific behavior stays behind adapters.
+- The Experience API is the only surface clients call; it may compose but never becomes a second canonical writer.
+- Each backend keeps its own database; no shared tables across bounded contexts.
+- Material changes to ownership require a Data Contract update, an ADR and a Change Contract.
+affected_capabilities:
+- commerce-catalogue
+- marketplace-offers
+- erp-inventory
+- editorial-content
+- composed-read-models
+affected_domains:
+- commerce
+- marketplace
+- erp
+- content
+- experience
+evidence_refs:
+- docs/architecture/buildkart-backend-organisation.md
+- docs/architecture/shared-backend-api-matrix.md
+- docs/architecture/BuildKart-Strapi-Medusa-CMS-Evaluation.md
+- client-projects/client101/contracts/data-contract.yaml
+- client-projects/client101/solution/solution-contract.yaml
+approved_by: null
+approved_at: null

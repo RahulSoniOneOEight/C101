@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "curated_collections",
+  "info": {
+    "singularName": "curated-collection",
+    "pluralName": "curated-collections",
+    "displayName": "Curated Collection",
+    "description": "Editorially ordered product selection. Live product data is resolved by commerce."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "collectionKey": { "type": "string", "required": true, "unique": true },
+    "audience": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b", "both"],
+      "default": "both",
+      "required": true
+    },
+    "title": { "type": "string", "required": true },
+    "tag": { "type": "string" },
+    "placement": { "type": "string" },
+    "productIds": { "type": "json" },
+    "selectionRule": { "type": "string" },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" },
+    "fallbackBehavior": {
+      "type": "enumeration",
+      "enum": ["omit-unavailable", "hide-collection", "use-fallback-collection"],
+      "default": "omit-unavailable"
+    }
+  }
+}
