@@ -1,0 +1,84 @@
+change_id: CHG-027
+revision: 1
+request: >-
+  Build a branded, task-oriented BuildKart Operations Console for commerce, marketplace and CMS
+  operations. Extend the authenticated Medusa/Mercur operator panel rather than duplicating its
+  product, order, seller and offer capabilities; add a command centre, governed merchandising
+  workspace, integration-health visibility and audit evidence. Introduce Strapi v5 as the editorial
+  content owner behind server-side adapters. Tryton inventory, warehouse, invoicing and accounting
+  operations are explicitly deferred.
+type: workflow-ux-integration
+extends:
+- CHG-017
+- CHG-026
+affected_capabilities:
+- commerce-operations
+- marketplace-operations
+- editorial-content
+- storefront-merchandising
+- operational-observability
+- privileged-audit
+affected_domains:
+- commerce
+- marketplace
+- content
+- experience
+affected_surfaces:
+- operator-console.command-centre
+- operator-console.orders
+- operator-console.catalogue
+- operator-console.merchandising
+- operator-console.sellers
+- operator-console.offers
+- operator-console.exceptions
+- operator-console.audit
+affected_entities:
+- product
+- order
+- seller
+- offer
+- merchandising-campaign
+- editorial-app-content
+- privileged-audit-record
+affected_integrations:
+- medusa-admin-api
+- mercur-admin-api
+- strapi-content-adapter
+- app-shell-content-projection
+affected_events:
+- content.published
+- content.unpublished
+decisions:
+  D-027-01: organize-navigation-by-operator-task-not-provider
+  D-027-02: reuse-and-extend-the-authenticated-mercur-admin-panel
+  D-027-03: route-all-content-mutations-through-a-server-side-strapi-adapter
+  D-027-04: preserve-medusa-mercur-and-strapi-canonical-ownership
+  D-027-05: defer-tryton-and-finance-operations
+  D-027-06: require-preview-reason-idempotency-and-audit-for-publication-actions
+required_tests:
+- Admin panel typecheck, lint and production build pass.
+- Commerce and marketplace built-in routes remain reachable after navigation customization.
+- CMS health failure degrades the console without blocking commerce or marketplace operations.
+- Draft content is not returned by the customer-facing published content endpoint.
+- B2C and B2B content remain separately targetable.
+- Duplicate content commands with the same idempotency key are harmless.
+- Publish and unpublish actions require an operator reason and produce audit evidence.
+- Product references are stable identifiers and no live price, stock or seller terms are copied into CMS.
+- Tryton mutation controls are absent from the first-release console.
+- No credentials, tokens or local environment files are committed.
+constraints:
+- Staging and test data only; test_data remains true.
+- Production release is not authorized.
+- CMS owns editorial content only.
+- Medusa owns products, variants, prices, carts and orders.
+- Mercur owns sellers and seller offers.
+- Master-catalogue ownership question Q-005A remains unchanged.
+- Advanced rich-content administration may deep-link to Strapi; common merchandising tasks remain in the BuildKart console.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-11'
+  scope: staging-end-to-end-first-release
+  human_visual_review_required: true
+production_release_authorized: false
+status: implementation-requested
