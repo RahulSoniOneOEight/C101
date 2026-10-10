@@ -1,0 +1,69 @@
+change_id: CHG-025
+revision: 1
+request: >-
+  Expose the real Tryton ERP web client (SAO) for the hosted staging pilot so operators can use the
+  ERP from a browser. The Tryton server already runs headless as a JSON-RPC backend; this adds the
+  official SAO client assets to the Tryton image, enables trytond's built-in web server static root,
+  and routes the client through the operator hostname under /erp/ behind the existing edge policy.
+type: surface-and-hosting
+extends:
+- CHG-018
+- CHG-019
+affected_capabilities:
+- erp-operations
+- operator-console
+affected_domains:
+- erp
+- hosted-staging
+affected_surfaces:
+- operator-app.erp-web-client
+affected_integrations:
+- tryton
+decisions:
+  D-025-01: serve-official-sao-client-from-trytond-static-root
+  D-025-02: expose-erp-ui-under-operator-hostname-on-a-subpath
+  D-025-03: erp-ui-authenticates-with-tryton-credentials-not-medusa-accounts
+required_tests:
+- Tryton image builds with the pinned SAO client and its runtime dependencies.
+- GET on the operator /erp/ path returns the SAO client HTML.
+- SAO static assets resolve under /erp/.
+- SAO JSON-RPC to /erp/rpc/ reaches trytond.
+- The customer hostname returns 404 for /erp/.
+- Existing backend and experience-api tests still pass.
+constraints:
+- Staging only; no production release.
+- ERP data remains synthetic/staging.
+- The deployment stays bounded to the operator hostname; no new public hostname is introduced.
+- Cloudflare Access remains deferred; the ERP UI is protected only by Tryton's own login.
+approval_required: false
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-09'
+  scope: hosted-staging-erp-ui-only
+  human_visual_review_required: true
+validation:
+  tryton_image_build: passed
+  sao_version: 8.0.12
+  sao_npm_packages_installed: 177
+  nginx_config_test: passed
+  http_checks:
+  - erp-ui-200
+  - sao-assets-200
+  - customer-host-erp-404
+  rpc_checks:
+  - server-version-8.0
+  - db-list-buildkart_tryton
+  - admin-login-session-granted
+  session_fix:
+  - symptom-post-login-rpc-401
+  - cause-trytond-session-cookie-scoped-to-database-path
+  - fix-nginx-proxy-cookie-path-rewrite-to-erp-prefix
+  - authenticated-rpc-200-with-cookie
+  - unauthenticated-rpc-401-control
+  existing_services:
+  - experience-health-ok
+  - customer-api-200
+  - ops-dashboard-200
+  - ops-seller-200
+status: validated-awaiting-human-visual-review
+production_release_authorized: false

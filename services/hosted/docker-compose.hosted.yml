@@ -159,6 +159,7 @@ services:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
     depends_on:
       experience-api: {condition: service_healthy}
+      tryton: {condition: service_started}
     networks: [private, coolify]
     labels:
       traefik.enable: "true"

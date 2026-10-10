@@ -48,6 +48,32 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
 
+## ERP web client (Tryton / SAO)
+
+The real Tryton web client (SAO) is served by trytond's built-in web server and routed through the
+operator hostname under `/erp/`:
+
+| Item | Value |
+|---|---|
+| URL | `https://ops-staging.pinakaplay.cloud/erp/` |
+| Database | `buildkart_tryton` |
+| Login | `admin` (password = `TRYTOND_ADMIN_PASSWORD` in `/etc/buildkart/secrets/tryton.env`) |
+
+How it works:
+
+- `services/tryton/Dockerfile` pins the official `tryton-sao-<version>.tgz` (matching the `trytond`
+  series in `requirements.txt`) and installs its runtime `node_modules`.
+- `trytond.conf` sets `[web] root = /opt/tryton/sao`, which makes trytond serve `index.html` and
+  static assets in addition to JSON-RPC.
+- `nginx.conf.template` routes only `/erp/` on the operator hostname to `tryton:8000` and strips the
+  prefix. SAO posts to a **relative** `/rpc/` path, so `/erp/rpc/` maps onto trytond's root RPC
+  endpoint. The customer hostname 404s `/erp/`.
+- The host file `/etc/buildkart/trytond.conf` is bind-mounted over the image config, so it must also
+  carry the `[web] root` line.
+
+The ERP UI uses Tryton's own accounts (not the Medusa/Mercur logins) and stays behind the operator
+hostname; Cloudflare Access is still deferred, so it is protected only by Tryton's login.
+
 ## B2B vs B2C
 
 - The app's B2C and B2B shells are backed by **pilot roles** (`customer` vs `b2b_buyer` /
