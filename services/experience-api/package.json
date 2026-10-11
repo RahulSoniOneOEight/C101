@@ -24,6 +24,7 @@
     "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
     "test:acceptance": "bun run src/scripts/hosted-acceptance.ts",
     "test:notifications": "bun run src/scripts/notification-test.ts",
+    "test:cms-content": "bun run src/scripts/cms-content-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {

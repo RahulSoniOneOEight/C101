@@ -1,0 +1,12 @@
+{
+  "collectionName": "components_layout_split_merchandising",
+  "info": { "displayName": "Split merchandising" },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "body": { "type": "text" },
+    "image": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "imageAltText": { "type": "string", "required": true },
+    "actionLabel": { "type": "string" },
+    "actionUri": { "type": "string" }
+  }
+}

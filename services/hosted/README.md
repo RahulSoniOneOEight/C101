@@ -1,7 +1,7 @@
 # Hosted staging pilot deployment
 
 This package deploys the bounded BuildKart staging pilot. It does not authorize production release.
-PostgreSQL, Redis, NATS, Tryton, Medusa, worker metrics and the Experience API have no
+PostgreSQL, Redis, NATS, Strapi, Tryton, Medusa, worker metrics and the Experience API have no
 host-published ports; only the internal `proxy` (nginx) is reachable from the edge.
 
 ## Edge topology
@@ -20,10 +20,13 @@ moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
 `docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
 the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
 
-## Operator / admin console
+## BuildKart Operations Console
 
-The operator hostname also serves the Mercur **admin** and **vendor** dashboards and the Medusa
-admin/auth APIs, routed by nginx to `medusa-api`:
+The operator hostname serves the branded BuildKart Operations Console by extending Mercur's
+authenticated admin panel. Navigation is organized by operator task rather than provider: Command
+Centre, Orders, Catalogue, Merchandising, Sellers, Offers, System Health and Operation Audit. The
+native Medusa/Mercur pages remain canonical for commerce and marketplace operations; custom pages
+use authenticated `/admin/buildkart/*` routes for CMS commands.
 
 | Path | Surface |
 |---|---|
@@ -47,6 +50,22 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
+
+### Editorial CMS
+
+Strapi is private-network-only and is not exposed on the customer or operator hostname. Common
+merchandising work is performed in `/dashboard/` and routed server-side:
+
+```text
+BuildKart Operations Console
+  -> authenticated Medusa /admin/buildkart/merchandising/*
+  -> private Strapi /api/buildkart/*
+  -> buildkart_cms database
+```
+
+Content commands require an operator reason and idempotency key and append an audit record. A CMS
+outage disables merchandising changes without blocking commerce or marketplace operations. Advanced
+Strapi administration is not exposed in this staging increment.
 
 ## ERP web client (Tryton / SAO)
 
@@ -117,6 +136,7 @@ Create these root-owned files on the VPS with mode `0600`:
 - `/etc/buildkart/secrets/medusa.env`
 - `/etc/buildkart/secrets/tryton.env`
 - `/etc/buildkart/secrets/experience-api.env`
+- `/etc/buildkart/secrets/cms.env`
 - `/etc/buildkart/secrets/firebase-admin.json`  (only when enabling FCM)
 
 Use `secrets/*.env.example` only as a field list. Never copy real values into Git.
@@ -138,6 +158,8 @@ export PUBLIC_OPS_HOSTNAME=ops-staging.example.com
 docker compose -f docker-compose.hosted.yml config
 docker compose -f docker-compose.hosted.yml build
 docker compose -f docker-compose.hosted.yml up -d postgres redis nats
+docker compose -f docker-compose.hosted.yml up cms-db-init
+docker compose -f docker-compose.hosted.yml up -d cms
 docker compose -f docker-compose.hosted.yml up medusa-migrate
 docker compose -f docker-compose.hosted.yml up -d
 docker compose -f docker-compose.hosted.yml ps

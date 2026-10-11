@@ -1,0 +1,8 @@
+{
+  "collectionName": "components_layout_rich_editorials",
+  "info": { "displayName": "Rich editorial" },
+  "attributes": {
+    "title": { "type": "string" },
+    "body": { "type": "richtext", "required": true }
+  }
+}

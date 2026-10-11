@@ -1,0 +1,13 @@
+{
+  "collectionName": "components_layout_product_compositions",
+  "info": { "displayName": "Product composition" },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "productIds": { "type": "json", "required": true },
+    "presentation": {
+      "type": "enumeration",
+      "enum": ["grid", "feature", "compact"],
+      "default": "grid"
+    }
+  }
+}

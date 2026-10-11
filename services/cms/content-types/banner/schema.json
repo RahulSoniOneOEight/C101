@@ -39,6 +39,7 @@
     "endsAt": { "type": "datetime" },
     "timezone": { "type": "string", "default": "Asia/Kolkata" },
     "priority": { "type": "integer", "default": 0 },
+    "version": { "type": "integer", "default": 1, "min": 1, "required": true },
     "segments": { "type": "json" }
   }
 }

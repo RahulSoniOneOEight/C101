@@ -112,6 +112,39 @@ services:
       postgres: {condition: service_healthy}
     networks: [private]
 
+  cms-db-init:
+    image: postgres:16.15-alpine
+    restart: "no"
+    env_file: /etc/buildkart/secrets/postgres.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        existing="$$(psql -h postgres -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atc
+        "select 1 from pg_database where datname = 'buildkart_cms'")";
+        if [ "$$existing" != "1" ]; then
+          createdb -h postgres -U "$$POSTGRES_USER" buildkart_cms;
+        fi
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [private]
+
+  cms:
+    build: ../cms
+    image: buildkart-hosted-pilot-cms
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/cms.env
+    volumes:
+      - cms_uploads:/opt/buildkart-cms/public/uploads
+    depends_on:
+      cms-db-init: {condition: service_completed_successfully}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:1337/api/buildkart/health',{headers:{'x-buildkart-cms-key':process.env.CMS_INTERNAL_KEY}}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+
   experience-api:
     image: buildkart-hosted-pilot-experience-api
     build: ../experience-api
@@ -191,6 +224,7 @@ volumes:
   postgres_data:
   redis_data:
   nats_data:
+  cms_uploads:
 
 networks:
   # Backend services only; no route to the public internet or the host.

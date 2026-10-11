@@ -1,0 +1,37 @@
+{
+  "name": "buildkart-cms",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BuildKart editorial and merchandising CMS",
+  "scripts": {
+    "build": "strapi build",
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "strapi": "strapi"
+  },
+  "dependencies": {
+    "@strapi/strapi": "5.57.0",
+    "pg": "8.16.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-router-dom": "6.30.6",
+    "styled-components": "6.1.19"
+  },
+  "overrides": {
+    "axios": "1.20.0",
+    "dompurify": "3.4.16",
+    "handlebars": "4.7.10",
+    "markdown-it": "14.3.1",
+    "nodemailer": "10.1.0",
+    "postcss": "8.5.29",
+    "sharp": "0.35.5",
+    "webpack-dev-middleware": "7.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0 <=24.x.x",
+    "npm": ">=6.0.0"
+  },
+  "strapi": {
+    "uuid": "7ec2571d-3c14-4a16-9ad9-13aa3184e7d7"
+  }
+}

@@ -220,6 +220,10 @@ paths:
       - name: placement
         in: query
         schema: {type: string}
+      - name: audience
+        in: query
+        description: Editorial audience. `both` returns only content explicitly shared across B2C and B2B.
+        schema: {type: string, enum: [b2c, b2b, both], default: both}
       responses:
         '200':
           description: Editorial content projection; absence or staleness cannot manufacture transactional data.
@@ -1407,20 +1411,22 @@ components:
       required: [id, content_type, placement, locale, title, body, version, test_data]
       properties:
         id: {type: string}
-        content_type: {type: string, enum: [banner, onboarding, help, faq, campaign-copy, legal-link]}
+        content_type: {type: string, enum: [banner, onboarding, help, faq, campaign_copy, legal_link]}
         placement: {type: string}
         locale: {type: string, enum: [en-IN, hi-IN]}
         title: {type: string}
         body: {type: string}
         action_label: {type: [string, 'null']}
         action_uri: {type: [string, 'null']}
-        version: {type: string}
+        version: {type: integer, minimum: 1}
         test_data: {type: boolean}
     AppContentBundle:
       type: object
-      required: [locale, items, generated_at, source, freshness]
+      required: [locale, audience, placement, items, generated_at, source, freshness]
       properties:
         locale: {type: string, enum: [en-IN, hi-IN]}
+        audience: {type: string, enum: [b2c, b2b, both]}
+        placement: {type: [string, 'null']}
         items: {type: array, items: {$ref: '#/components/schemas/AppContentItem'}}
         generated_at: {type: string, format: date-time}
         source: {type: string, description: CMS identifier or governed seed; never a transactional owner.}

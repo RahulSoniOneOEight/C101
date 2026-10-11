@@ -1,0 +1,7 @@
+{
+  "collectionName": "components_layout_trust_rows",
+  "info": { "displayName": "Trust row" },
+  "attributes": {
+    "items": { "type": "json", "required": true }
+  }
+}

@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: BuildKart Admin API
+  version: 1.0.0-draft
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+  description: >-
+    Authenticated, operator-facing API for BuildKart Operations. Provider databases are never
+    exposed. Medusa/Mercur remain canonical for commerce and marketplace data; Strapi remains
+    canonical for editorial content. All responses in this release are staging test data.
+servers:
+- url: https://ops-staging.pinakaplay.cloud
+  description: Staging only; production release is not authorized.
+security:
+- sessionCookie: []
+tags:
+- name: Command Centre
+  description: Provider-neutral operational counts and queue entry points.
+- name: Merchandising
+  description: Governed editorial draft, publication and rollback commands.
+- name: Audit
+  description: Immutable evidence for privileged CMS commands.
+paths:
+  /admin/buildkart/snapshot:
+    get:
+      operationId: getOperationsSnapshot
+      summary: Get command-centre counts
+      tags: [Command Centre]
+      responses:
+        '200':
+          description: Provider-neutral operational snapshot.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OperationsSnapshot'}
+        '401': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/merchandising/health:
+    get:
+      operationId: getMerchandisingHealth
+      summary: Check the private CMS adapter
+      tags: [Merchandising]
+      responses:
+        '200':
+          description: CMS is reachable through the server-side adapter.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CmsHealth'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/merchandising/{type}:
+    parameters:
+    - $ref: '#/components/parameters/ContentType'
+    get:
+      operationId: listMerchandisingContent
+      summary: List draft or published merchandising documents
+      description: Requires content.view.
+      tags: [Merchandising]
+      parameters:
+      - name: status
+        in: query
+        schema: {type: string, enum: [draft, published], default: draft}
+      responses:
+        '200':
+          description: Content list with source status.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ContentList'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+    post:
+      operationId: createMerchandisingContent
+      summary: Create a draft merchandising document
+      description: Requires content.edit. The command is idempotent and audited.
+      tags: [Merchandising]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ContentCommand'}
+      responses:
+        '201':
+          description: Draft created or the prior command result replayed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommandResult'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/merchandising/{type}/{documentId}:
+    parameters:
+    - $ref: '#/components/parameters/ContentType'
+    - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: updateMerchandisingContent
+      summary: Update a draft merchandising document
+      description: Requires content.edit. The command is idempotent and audited.
+      tags: [Merchandising]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ContentCommand'}
+      responses:
+        '200':
+          description: Draft updated or the prior command result replayed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommandResult'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/merchandising/{type}/{documentId}/publish:
+    parameters:
+    - $ref: '#/components/parameters/ContentType'
+    - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: publishMerchandisingContent
+      summary: Publish a reviewed merchandising document
+      description: Requires content.publish (operations_admin or merchandising_approver).
+      tags: [Merchandising]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PublicationCommand'}
+      responses:
+        '200':
+          description: Content published or the prior command result replayed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommandResult'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/merchandising/{type}/{documentId}/unpublish:
+    parameters:
+    - $ref: '#/components/parameters/ContentType'
+    - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: unpublishMerchandisingContent
+      summary: Return published content to draft
+      description: Requires content.publish. The reason is retained as rollback evidence.
+      tags: [Merchandising]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PublicationCommand'}
+      responses:
+        '200':
+          description: Content unpublished or the prior command result replayed.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CommandResult'}
+        '400': {$ref: '#/components/responses/Problem'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '404': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+  /admin/buildkart/audit:
+    get:
+      operationId: listOperationAudit
+      summary: List immutable CMS command evidence
+      description: Requires audit.view.
+      tags: [Audit]
+      parameters:
+      - name: limit
+        in: query
+        schema: {type: integer, minimum: 1, maximum: 200, default: 100}
+      responses:
+        '200':
+          description: Newest audit records first.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AuditList'}
+        '401': {$ref: '#/components/responses/Problem'}
+        '403': {$ref: '#/components/responses/Problem'}
+        '503': {$ref: '#/components/responses/Problem'}
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Medusa admin session; cookie name is deployment-configurable.
+  parameters:
+    ContentType:
+      name: type
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [banners, campaigns, curated-collections, storefront-layouts]
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema: {type: string, minLength: 1}
+  responses:
+    Problem:
+      description: Request rejected.
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    OperationsSnapshot:
+      type: object
+      required: [counts, sources, observed_at, test_data]
+      properties:
+        counts:
+          type: object
+          required: [orders, products, sellers, offers]
+          properties:
+            orders: {type: integer, minimum: 0}
+            products: {type: integer, minimum: 0}
+            sellers: {type: integer, minimum: 0}
+            offers: {type: integer, minimum: 0}
+        sources:
+          type: object
+          required: [commerce, marketplace]
+          properties:
+            commerce: {type: string, const: medusa}
+            marketplace: {type: string, const: mercur}
+        observed_at: {type: string, format: date-time}
+        test_data: {type: boolean, const: true}
+    CmsHealth:
+      type: object
+      required: [status, service, environment, test_data]
+      properties:
+        status: {type: string, const: ok}
+        service: {type: string, const: buildkart-cms}
+        environment: {type: string}
+        test_data: {type: boolean, const: true}
+    ContentCommand:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, reason, data]
+      properties:
+        idempotency_key: {type: string, format: uuid}
+        reason: {type: string, minLength: 3, maxLength: 500}
+        data: {type: object, additionalProperties: true}
+    PublicationCommand:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, reason]
+      properties:
+        idempotency_key: {type: string, format: uuid}
+        reason: {type: string, minLength: 3, maxLength: 500}
+    CmsDocument:
+      type: object
+      required: [documentId]
+      properties:
+        documentId: {type: string}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+        publishedAt: {type: [string, 'null'], format: date-time}
+      additionalProperties: true
+    ContentList:
+      type: object
+      required: [data, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/CmsDocument'}}
+        meta:
+          type: object
+          required: [count, test_data]
+          properties:
+            status: {type: string, enum: [draft, published]}
+            count: {type: integer, minimum: 0}
+            test_data: {type: boolean, const: true}
+    CommandResult:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          oneOf:
+          - {$ref: '#/components/schemas/CmsDocument'}
+          - {type: array, items: {$ref: '#/components/schemas/CmsDocument'}}
+          - {type: 'null'}
+        meta:
+          type: object
+          required: [commandId]
+          properties:
+            commandId: {type: string, format: uuid}
+            idempotentReplay: {type: boolean}
+            test_data: {type: boolean, const: true}
+    AuditRecord:
+      allOf:
+      - $ref: '#/components/schemas/CmsDocument'
+      - type: object
+        required: [commandId, correlationId, actorId, action, entityType, reason, outcome, testData]
+        properties:
+          commandId: {type: string, format: uuid}
+          correlationId: {type: string}
+          actorId: {type: string}
+          action: {type: string, enum: [create, update, publish, unpublish]}
+          entityType: {type: string}
+          entityId: {type: string}
+          reason: {type: string}
+          outcome: {type: string, enum: [succeeded, failed]}
+          testData: {type: boolean, const: true}
+    AuditList:
+      type: object
+      required: [data, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/AuditRecord'}}
+        meta:
+          type: object
+          required: [count, test_data]
+          properties:
+            count: {type: integer, minimum: 0}
+            test_data: {type: boolean, const: true}
+    Problem:
+      type: object
+      properties:
+        type: {type: string}
+        message: {type: string}
+        code: {type: string}

@@ -509,6 +509,19 @@ export type Routes = {
                 subscribe: typeof import("@medusajs/medusa/api/admin/workflows-executions/[workflow_id]/subscribe/route");
             };
         };
+        buildkart: {
+            audit: typeof import("../src/api/admin/buildkart/audit/route");
+            merchandising: {
+                $type: typeof import("../src/api/admin/buildkart/merchandising/[type]/route") & {
+                    $documentId: typeof import("../src/api/admin/buildkart/merchandising/[type]/[documentId]/route") & {
+                        publish: typeof import("../src/api/admin/buildkart/merchandising/[type]/[documentId]/publish/route");
+                        unpublish: typeof import("../src/api/admin/buildkart/merchandising/[type]/[documentId]/unpublish/route");
+                    };
+                };
+                health: typeof import("../src/api/admin/buildkart/merchandising/health/route");
+            };
+            snapshot: typeof import("../src/api/admin/buildkart/snapshot/route");
+        };
         custom: typeof import("../src/api/admin/custom/route");
     };
     auth: {

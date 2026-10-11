@@ -36,6 +36,8 @@ build/
 output/
 storybook-static/
 .firebase/
+.strapi/
+.strapi-updater.json
 *.db
 *.sqlite
 *.sqlite3

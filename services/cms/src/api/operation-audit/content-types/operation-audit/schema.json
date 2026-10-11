@@ -1,0 +1,34 @@
+{
+  "kind": "collectionType",
+  "collectionName": "cms_operation_audit",
+  "info": {
+    "singularName": "operation-audit",
+    "pluralName": "operation-audits",
+    "displayName": "CMS Operation Audit",
+    "description": "Append-only evidence for BuildKart CMS commands."
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {
+    "content-manager": { "visible": false },
+    "content-type-builder": { "visible": false }
+  },
+  "attributes": {
+    "commandId": { "type": "string", "required": true, "unique": true },
+    "correlationId": { "type": "string", "required": true },
+    "actorId": { "type": "string", "required": true },
+    "action": { "type": "string", "required": true },
+    "entityType": { "type": "string", "required": true },
+    "entityId": { "type": "string" },
+    "reason": { "type": "text", "required": true },
+    "beforeState": { "type": "json" },
+    "afterState": { "type": "json" },
+    "outcome": {
+      "type": "enumeration",
+      "enum": ["succeeded", "failed"],
+      "required": true
+    },
+    "testData": { "type": "boolean", "default": true, "required": true }
+  }
+}

@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
       react(),
       mercurDashboardPlugin({
         medusaConfigPath: '../../packages/api/medusa-config.ts',
+        name: 'BuildKart Operations',
+        logo: '/dashboard/buildkart-mark.svg',
         ...(backendUrl ? { backendUrl } : {}),
       }),
     ],

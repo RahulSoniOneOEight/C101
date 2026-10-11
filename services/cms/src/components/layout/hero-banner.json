@@ -1,0 +1,8 @@
+{
+  "collectionName": "components_layout_hero_banners",
+  "info": { "displayName": "Hero banner" },
+  "attributes": {
+    "internalName": { "type": "string", "required": true },
+    "banner": { "type": "relation", "relation": "oneToOne", "target": "api::banner.banner" }
+  }
+}

@@ -18,7 +18,8 @@ import { ReservationStore } from "./store/reservation-store.js";
 import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
-import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
+import type { AppLocale } from "./content/app-content.js";
+import { CmsContentProvider, type ContentAudience } from "./content/cms-content.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
@@ -47,6 +48,7 @@ const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
+const cmsContent = new CmsContentProvider({ baseUrl: config.cmsBaseUrl, internalKey: config.cmsInternalKey });
 const nats = new NatsPublisher(config.natsUrl, {
   user: config.natsUser,
   password: config.natsPassword,
@@ -685,19 +687,32 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   }
 
   if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {
-    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const requestedLocale = url.searchParams.get("locale") ?? "en-IN";
+    if (requestedLocale !== "en-IN" && requestedLocale !== "hi-IN") {
+      return problem(400, "unsupported-locale", "Supported locales are en-IN and hi-IN.");
+    }
+    const locale = requestedLocale as AppLocale;
     const placement = url.searchParams.get("placement");
-    const items = placement ? resolveContent(placement, locale) : appContent.filter((c) => c.locale === locale);
+    const requestedAudience = url.searchParams.get("audience") ?? "both";
+    if (requestedAudience !== "b2c" && requestedAudience !== "b2b" && requestedAudience !== "both") {
+      return problem(400, "unsupported-audience", "Supported audiences are b2c, b2b and both.");
+    }
+    const projection = await cmsContent.resolve({
+      locale,
+      placement,
+      audience: requestedAudience as ContentAudience,
+    });
     return json({
       locale,
       placement: placement ?? null,
-      items,
+      audience: requestedAudience,
+      items: projection.items,
       generated_at: new Date().toISOString(),
-      source: "governed-editorial-seed",
+      source: projection.source,
       freshness: {
-        source: "governed-editorial-seed",
-        observed_at: new Date().toISOString(),
-        stale: false,
+        source: projection.source,
+        observed_at: projection.observedAt,
+        stale: projection.stale,
       },
     });
   }

@@ -1,0 +1,9 @@
+{
+  "collectionName": "components_layout_offer_collections",
+  "info": { "displayName": "Offer collection" },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "offerIds": { "type": "json", "required": true },
+    "itemLimit": { "type": "integer", "default": 10, "min": 1, "max": 30 }
+  }
+}

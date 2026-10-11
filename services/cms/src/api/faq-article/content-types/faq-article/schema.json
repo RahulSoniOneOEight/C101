@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "faq_articles",
+  "info": {
+    "singularName": "faq-article",
+    "pluralName": "faq-articles",
+    "displayName": "FAQ / Help Article",
+    "description": "Supporting content: FAQ, help, legal/policy and inspiration articles."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "articleKey": { "type": "string", "required": true, "unique": true },
+    "contentKind": {
+      "type": "enumeration",
+      "enum": ["faq", "help", "legal", "onboarding", "inspiration"],
+      "default": "faq",
+      "required": true
+    },
+    "audience": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b", "both"],
+      "default": "both",
+      "required": true
+    },
+    "title": { "type": "string", "required": true },
+    "body": { "type": "richtext" },
+    "effectiveVersion": { "type": "string" },
+    "effectiveAt": { "type": "datetime" }
+  }
+}

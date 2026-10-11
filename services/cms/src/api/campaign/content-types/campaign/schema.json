@@ -1,0 +1,46 @@
+{
+  "kind": "collectionType",
+  "collectionName": "merchandising_campaigns",
+  "info": {
+    "singularName": "campaign",
+    "pluralName": "campaigns",
+    "displayName": "Merchandising Campaign",
+    "description": "Operational grouping for scheduled B2C/B2B merchandising content."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "campaignKey": { "type": "string", "required": true, "unique": true },
+    "name": { "type": "string", "required": true },
+    "objective": { "type": "text" },
+    "audience": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b", "both"],
+      "default": "both",
+      "required": true
+    },
+    "workflowStatus": {
+      "type": "enumeration",
+      "enum": ["planning", "ready_for_review", "approved", "scheduled", "live", "expired", "archived"],
+      "default": "planning",
+      "required": true
+    },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" },
+    "timezone": { "type": "string", "default": "Asia/Kolkata" },
+    "owner": { "type": "string" },
+    "approver": { "type": "string" },
+    "notes": { "type": "text" },
+    "banners": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::banner.banner"
+    },
+    "collections": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::curated-collection.curated-collection"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "collectionName": "components_layout_product_carousels",
+  "info": { "displayName": "Product carousel" },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "productIds": { "type": "json" },
+    "collection": { "type": "relation", "relation": "oneToOne", "target": "api::curated-collection.curated-collection" },
+    "itemLimit": { "type": "integer", "default": 10, "min": 1, "max": 30 }
+  }
+}
