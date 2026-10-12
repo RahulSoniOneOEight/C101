@@ -1,8 +1,9 @@
 # BuildKart CMS service (Strapi v5 — proposed)
 
-**Status:** Content-type and component schemas are defined and validated. **The service itself is
-not deployed and is not wired into any compose file.** Provider selection is confirmed as Strapi by
-the human requester (see `client-projects/client101/changes/CHG-026.yaml` and
+**Status:** Service skeleton with validated schemas. The app structure exists and is wired into the
+hosted compose definition, but **it has not been installed, booted or deployed**, and it is not
+published at the edge. Provider selection is confirmed as Strapi by the human requester (see
+`client-projects/client101/changes/CHG-026.yaml` and
 `client-projects/client101/changes/CHG-031.yaml`); the backend organisation proposal is unchanged.
 
 ## Purpose
@@ -66,8 +67,9 @@ a `curated-collection`, and live price/stock are resolved by commerce at read ti
 
 Strapi is not installed in this repository, so a broken reference would otherwise fail only at CMS
 boot. `python tooling/validate_cms_schemas.py` fails closed on unresolved component or content-type
-references, missing `draftAndPublish`/`i18n`, duplicate identifiers, and any schema that declares a
-transactional field (price, stock, seller, order, payment, credit). It runs in contract validation.
+references, missing `draftAndPublish`/`i18n`, duplicate identifiers, any schema that declares a
+transactional field (price, stock, seller, order, payment, credit), and any content type missing its
+Strapi `routes`/`controllers`/`services` files. It runs in contract validation.
 
 ## Delivery mapping
 
@@ -79,9 +81,27 @@ transactional field (price, stock, seller, order, payment, credit). It runs in c
 
 ## Files
 
-- `content-types/` — Strapi v5 content-type schemas (reference model for the adapter contract).
+- `config/` — Strapi server, admin, api, database, middleware and plugin configuration.
+- `src/api/` — one folder per content type holding its `content-types/<name>/schema.json` plus
+  `routes`, `controllers` and `services`.
 - `src/components/` — Strapi v5 component schemas used by layout and category composition.
+- `Dockerfile`, `.dockerignore` — container build (Node, not Bun: the Strapi toolchain and its React
+  admin do not run reliably under Bun).
 - `.env.example` — required environment keys (no secrets).
+
+## Running
+
+```sh
+cd services/cms
+npm install
+npm run develop          # local authoring, http://localhost:1337/admin
+npm run build && npm run start   # production-shaped
+```
+
+The hosted definition builds this image as `buildkart-hosted-pilot-cms`, reads its environment from
+`/etc/buildkart/secrets/cms.env`, and creates the `buildkart_cms` database. It joins the **private**
+network only: exposing the Strapi admin at the edge requires the deferred access layer (Cloudflare
+Access plus operator RBAC hardening), so it is currently reachable only by the content adapter.
 
 ## Non-goals
 

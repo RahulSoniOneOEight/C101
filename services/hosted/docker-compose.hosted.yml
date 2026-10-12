@@ -144,6 +144,25 @@ services:
       experience-api: {condition: service_healthy}
     networks: [private, egress]
 
+  # Editorial CMS (Strapi v5). Owns editorial content only, in its own database.
+  # Not published at the edge: exposing the Strapi admin requires the deferred access layer
+  # (Cloudflare Access and operator RBAC hardening), so it stays reachable only on the private
+  # network for the Experience API content adapter.
+  cms:
+    image: buildkart-hosted-pilot-cms
+    build: ../cms
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/cms.env
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:1337/_health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
   # Internal reverse proxy: host-based privilege policy + rate limiting. Public only through Traefik.
   proxy:
     image: nginx:1.27-alpine

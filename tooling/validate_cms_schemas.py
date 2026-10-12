@@ -92,6 +92,41 @@ def declared_content_types() -> dict[str, Path]:
     return types
 
 
+def assert_app_layout() -> int:
+    """A Strapi app only boots if its config, package metadata and per-type API files exist."""
+    for name in ("package.json", "tsconfig.json", "Dockerfile", ".dockerignore", ".env.example"):
+        assert (CMS / name).exists(), f"services/cms/{name} is required for a runnable Strapi app"
+
+    package = load(CMS / "package.json")
+    dependencies = package.get("dependencies") or {}
+    assert "@strapi/strapi" in dependencies, "package.json must depend on @strapi/strapi"
+    assert "build" in (package.get("scripts") or {}), "package.json must expose a build script"
+
+    for config_name in ("admin", "api", "database", "middlewares", "plugins", "server"):
+        config_path = CMS / "config" / f"{config_name}.ts"
+        assert config_path.exists(), f"missing Strapi config: config/{config_name}.ts"
+
+    api_root = CMS / "src" / "api"
+    assert api_root.exists(), "missing src/api for Strapi content-type APIs"
+
+    checked = 0
+    for api_dir in sorted(path for path in api_root.iterdir() if path.is_dir()):
+        name = api_dir.name
+        for kind in ("routes", "controllers", "services"):
+            file = api_dir / kind / f"{name}.ts"
+            assert file.exists(), (
+                f"missing {kind} file for content type '{name}': {file.relative_to(ROOT)}"
+            )
+        schema_path = api_dir / "content-types" / name / "schema.json"
+        assert schema_path.exists(), (
+            f"content type '{name}' must declare content-types/{name}/schema.json"
+        )
+        checked += 1
+
+    assert checked, "no Strapi content-type APIs found"
+    return checked
+
+
 def main() -> None:
     if not CMS.exists():
         print("CMS directory not found; nothing to validate.")
@@ -177,10 +212,12 @@ def main() -> None:
         "CMS schemas must not declare transactional fields: " + ", ".join(sorted(forbidden))
     )
 
+    apis = assert_app_layout()
+
     print(
         "CMS schema validation passed: "
         f"{len(content_types)} content types, {len(components)} components, "
-        f"{len(references)} resolved references."
+        f"{len(references)} resolved references, {apis} Strapi content-type APIs."
     )
 
 
