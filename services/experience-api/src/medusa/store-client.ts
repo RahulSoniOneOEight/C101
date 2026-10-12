@@ -18,6 +18,12 @@ export interface StoreProduct {
 const PRODUCT_FIELDS =
   "id,title,thumbnail,description,handle,variants.id,variants.title,variants.sku";
 
+export interface StoreProductCategory {
+  id: string;
+  name: string;
+  handle?: string | null;
+}
+
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
 
 export interface StoreOffer {
@@ -149,6 +155,27 @@ export class MedusaStoreClient {
       offset: String(offset),
       fields: PRODUCT_FIELDS,
     });
+    const data = await this.getJson<{ products: StoreProduct[] }>(
+      `/store/products?${params.toString()}`,
+    );
+    return data.products;
+  }
+
+  /** Store-visible product categories, used to resolve curated category collections. */
+  async listProductCategories(limit = 200): Promise<StoreProductCategory[]> {
+    const params = new URLSearchParams({
+      limit: String(limit),
+      fields: "id,name,handle",
+    });
+    const data = await this.getJson<{ product_categories: StoreProductCategory[] }>(
+      `/store/product-categories?${params.toString()}`,
+    );
+    return data.product_categories;
+  }
+
+  async listProductsByCategory(categoryId: string, limit = 12): Promise<StoreProduct[]> {
+    const params = new URLSearchParams({ limit: String(limit), fields: PRODUCT_FIELDS });
+    params.append("category_id[]", categoryId);
     const data = await this.getJson<{ products: StoreProduct[] }>(
       `/store/products?${params.toString()}`,
     );

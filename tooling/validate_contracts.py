@@ -14,6 +14,8 @@ from yaml.constructor import ConstructorError
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "client-projects" / "client101" / "contracts"
 OPENAPI_PATH = CONTRACTS / "openapi" / "buildkart-experience-v1.yaml"
+MERCHANDISING_PATH = CONTRACTS / "openapi" / "buildkart-merchandising-presets-v1.yaml"
+MERCHANDISING_OFFERS_PATH = CONTRACTS / "openapi" / "buildkart-merchandising-offers-v1.yaml"
 ASYNCAPI_PATH = CONTRACTS / "asyncapi" / "buildkart-events-v1.yaml"
 DATA_CONTRACT_PATH = CONTRACTS / "data-contract.yaml"
 FIXTURES = CONTRACTS / "fixtures"
@@ -145,6 +147,8 @@ def main() -> None:
         "/v1/auth/otp/verify",
         "/v1/products",
         "/v1/products/{productId}",
+        "/v1/collections/{collectionKey}",
+        "/v1/admin/collections",
         "/v1/content/app-shell",
         "/v1/carts",
         "/v1/carts/{cartId}/lines",
@@ -197,10 +201,123 @@ def main() -> None:
     assert reconciliation["bank_receipt_claimed"] is False
     assert {reconciliation[key]["system"] for key in ("order", "allocation", "reservation", "movement", "accounting")} == {"medusa", "mercur", "tryton"}
 
+    merchandising = load_yaml(MERCHANDISING_PATH)
+    assert merchandising.get("openapi") == "3.1.0"
+    assert merchandising["info"]["version"].endswith("-draft")
+    assert_local_refs_resolve(merchandising)
+    assert_unique_operation_ids(merchandising)
+    validate_fixture(
+        merchandising, "merchandising-presets.json", "MerchandisingPresetCatalogue"
+    )
+
+    presets = json.loads(
+        (FIXTURES / "merchandising-presets.json").read_text(encoding="utf-8")
+    )
+    assert presets["change_id"] == "CHG-029"
+    assert presets["funding_source"] == "marketplace"
+    assert presets["test_data"] is True
+    assert presets["payment_mode"] == "simulated"
+
+    promotion_codes = {promotion["code"] for promotion in presets["promotions"]}
+    assert len(promotion_codes) == len(presets["promotions"]), "duplicate promotion code"
+    campaign_keys = {campaign["campaign_key"] for campaign in presets["campaigns"]}
+    assert len(campaign_keys) == len(presets["campaigns"]), "duplicate campaign key"
+    for promotion in presets["promotions"]:
+        assert promotion["funding_source"] == "marketplace", "promotion must be marketplace funded"
+        assert (
+            promotion["value"] <= presets["discount_ceiling_percent"]
+        ), f"discount exceeds ceiling: {promotion['code']}"
+        assert (
+            promotion["campaign_key"] in campaign_keys
+        ), f"promotion references unknown campaign: {promotion['code']}"
+        for rule in promotion["rules"]:
+            assert rule["attribute"], f"rule missing attribute: {promotion['code']}"
+            assert rule["operator"] in {"gte", "lte", "gt", "lt", "eq", "in"}, (
+                f"unsupported operator: {rule['operator']}"
+            )
+            assert rule["values"], f"rule missing values: {promotion['code']}"
+
+    free_shipping = next(
+        promotion
+        for promotion in presets["promotions"]
+        if promotion["code"] == "BK-STG-PROMO-FREESHIP"
+    )
+    subtotal_rule = next(
+        (rule for rule in free_shipping["rules"] if rule["attribute"] == "subtotal"), None
+    )
+    assert subtotal_rule is not None, "free shipping must declare a cart-value gate"
+    assert subtotal_rule["operator"] == "gte"
+    assert subtotal_rule["values"] == ["10000"], "free shipping gate must be INR 10000"
+    assert not free_shipping["deferred_conditions"], (
+        "the free-shipping cart-value gate is enforced and must not be deferred"
+    )
+    for campaign in presets["campaigns"]:
+        assert campaign["funding_source"] == "marketplace", "campaign must be marketplace funded"
+        for code in campaign["promotion_codes"]:
+            assert code in promotion_codes, f"campaign references unknown promotion: {code}"
+
+    collection_keys = {collection["collection_key"] for collection in presets["collections"]}
+    assert len(collection_keys) == len(presets["collections"]), "duplicate collection key"
+    for collection in presets["collections"]:
+        assert collection["categories"], f"collection has no categories: {collection['collection_key']}"
+    for element in presets["content"]:
+        assert element["locale"] in {"en-IN", "hi-IN"}, f"unknown locale: {element['id']}"
+
+    # --- CHG-030 offer lab -----------------------------------------------------------------
+    merchandising_offers = load_yaml(MERCHANDISING_OFFERS_PATH)
+    assert merchandising_offers.get("openapi") == "3.1.0"
+    assert merchandising_offers["info"]["version"].endswith("-draft")
+    assert_local_refs_resolve(merchandising_offers)
+    assert_unique_operation_ids(merchandising_offers)
+    validate_fixture(
+        merchandising_offers, "merchandising-offers.json", "MerchandisingOfferCatalogue"
+    )
+
+    offers = json.loads(
+        (FIXTURES / "merchandising-offers.json").read_text(encoding="utf-8")
+    )
+    assert offers["change_id"] == "CHG-030"
+    assert offers["funding_source"] == "marketplace"
+    assert offers["campaign"]["funding_source"] == "marketplace"
+
+    percentage_mechanics = {"order-percentage", "items-percentage", "shipping-percentage"}
+    offer_codes = {offer["code"] for offer in offers["offers"]}
+    assert len(offer_codes) == len(offers["offers"]), "duplicate offer code"
+
+    triggers = {offer["trigger"] for offer in offers["offers"]}
+    assert triggers == {"automatic", "code"}, "the offer lab must cover both trigger types"
+
+    for offer in offers["offers"]:
+        assert offer["funding_source"] == "marketplace", f"not marketplace funded: {offer['code']}"
+        assert offer["mechanic"] in {
+            "order-percentage",
+            "items-percentage",
+            "items-fixed",
+            "free-shipping",
+            "shipping-percentage",
+            "buyget",
+        }, f"unknown mechanic: {offer['mechanic']}"
+        if offer["mechanic"] in percentage_mechanics:
+            assert (
+                offer["value"] <= offers["discount_ceiling_percent"]
+            ), f"discount exceeds ceiling: {offer['code']}"
+        if offer["mechanic"] == "free-shipping":
+            assert offer["value"] == 100, (
+                f"{offer['code']}: free shipping must be 100, never a fixed zero discount"
+            )
+
+    # A promotion-level item-quantity rule is not evaluable; quantity gates must be per line.
+    assert not any(
+        offer["min_quantity"] is not None and offer["target"]["type"] == "order"
+        for offer in offers["offers"]
+    ), "quantity gates must target line items, not the order"
+
     print(
         "Contract validation passed: "
-        f"{len(openapi['paths'])} API paths, "
-        f"{len(asyncapi['channels'])} event channels, 9 fixtures."
+        f"{len(openapi['paths'])} experience paths, "
+        f"{len(merchandising['paths'])} merchandising paths, "
+        f"{len(merchandising_offers['paths'])} merchandising offer paths, "
+        f"{len(asyncapi['channels'])} event channels, 11 fixtures."
     )
 
 

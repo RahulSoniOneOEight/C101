@@ -509,6 +509,10 @@ export type Routes = {
                 subscribe: typeof import("@medusajs/medusa/api/admin/workflows-executions/[workflow_id]/subscribe/route");
             };
         };
+        buildkart: {
+            merchandisingOffers: typeof import("../src/api/admin/buildkart/merchandising-offers/route");
+            merchandisingPresets: typeof import("../src/api/admin/buildkart/merchandising-presets/route");
+        };
         custom: typeof import("../src/api/admin/custom/route");
     };
     auth: {
