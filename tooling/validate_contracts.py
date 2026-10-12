@@ -285,7 +285,10 @@ def main() -> None:
     assert len(offer_codes) == len(offers["offers"]), "duplicate offer code"
 
     triggers = {offer["trigger"] for offer in offers["offers"]}
-    assert triggers == {"automatic", "code"}, "the offer lab must cover both trigger types"
+    assert triggers <= {"automatic", "code"}, f"unknown trigger: {triggers}"
+    assert "automatic" not in triggers, (
+        "the seeded offer lab must be code-triggered while the pilot is live"
+    )
 
     for offer in offers["offers"]:
         assert offer["funding_source"] == "marketplace", f"not marketplace funded: {offer['code']}"
@@ -311,6 +314,27 @@ def main() -> None:
         offer["min_quantity"] is not None and offer["target"]["type"] == "order"
         for offer in offers["offers"]
     ), "quantity gates must target line items, not the order"
+
+    # De-overlap: the ceiling is per-promotion, so the seeded set must not be able to compound
+    # past it. At most one order-wide percentage offer, and distinct line-item scopes.
+    order_offers = [o for o in offers["offers"] if o["mechanic"] == "order-percentage"]
+    assert len(order_offers) <= 1, "at most one order-wide percentage offer is allowed"
+
+    line_scopes = [
+        o["target"]["reference"]
+        for o in offers["offers"]
+        if o["mechanic"] in {"items-percentage", "items-fixed"}
+    ]
+    assert len(set(line_scopes)) == len(line_scopes), (
+        f"line-item offers must target distinct categories: {line_scopes}"
+    )
+
+    line_rates = [o["value"] for o in offers["offers"] if o["mechanic"] == "items-percentage"]
+    worst_case = (order_offers[0]["value"] if order_offers else 0) + max(line_rates or [0])
+    assert worst_case <= offers["discount_ceiling_percent"], (
+        f"worst-case cumulative discount {worst_case}% exceeds the "
+        f"{offers['discount_ceiling_percent']}% ceiling"
+    )
 
     print(
         "Contract validation passed: "
