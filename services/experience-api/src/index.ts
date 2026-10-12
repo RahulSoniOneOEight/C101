@@ -19,6 +19,7 @@ import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
+import { resolveLayout } from "./content/storefront-layout.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
@@ -688,15 +689,33 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
     const placement = url.searchParams.get("placement");
     const items = placement ? resolveContent(placement, locale) : appContent.filter((c) => c.locale === locale);
+
+    // CHG-032: the optional layout projection. Absence is not an error.
+    const channelParam = url.searchParams.get("channel");
+    const channel =
+      channelParam === "b2c" || channelParam === "b2b" ? channelParam : null;
+    const layout = channel ? resolveLayout(channel, locale) : undefined;
+    const generatedAt = new Date().toISOString();
+
     return json({
       locale,
+      ...(channel ? { channel } : {}),
       placement: placement ?? null,
       items,
-      generated_at: new Date().toISOString(),
+      ...(layout
+        ? {
+            layout: {
+              ...layout,
+              generated_at: generatedAt,
+              source: "governed-editorial-seed",
+            },
+          }
+        : {}),
+      generated_at: generatedAt,
       source: "governed-editorial-seed",
       freshness: {
         source: "governed-editorial-seed",
-        observed_at: new Date().toISOString(),
+        observed_at: generatedAt,
         stale: false,
       },
     });

@@ -185,6 +185,57 @@ def main() -> None:
     validate_fixture(openapi, "staging-simulated-order.json", "Order")
     validate_fixture(openapi, "staging-order-reconciliation.json", "StagingOrderReconciliation")
     validate_fixture(openapi, "app-content.json", "AppContentBundle")
+    validate_fixture(openapi, "storefront-layout.json", "StorefrontLayout")
+
+    # --- CHG-032 storefront layout delivery ---------------------------------------------------
+    storefront_layout = json.loads(
+        (FIXTURES / "storefront-layout.json").read_text(encoding="utf-8")
+    )
+    schema = openapi["components"]["schemas"]
+    module_types = set(schema["StorefrontLayoutModule"]["properties"]["type"]["enum"])
+    membership_modes = set(schema["StorefrontModuleMembership"]["properties"]["mode"]["enum"])
+
+    assert storefront_layout["channel"] in {"b2c", "b2b"}
+    assert storefront_layout["locale"] in {"en-IN", "hi-IN"}
+    assert storefront_layout["modules"], "a layout must compose at least one module"
+
+    modules = {module["module_key"]: module for module in storefront_layout["modules"]}
+    assert len(modules) == len(storefront_layout["modules"]), "duplicate module_key in layout"
+
+    for module in storefront_layout["modules"]:
+        assert module["type"] in module_types, f"unknown module type: {module['type']}"
+        membership = module.get("membership")
+        if membership is not None:
+            assert membership["mode"] in membership_modes, (
+                f"unknown membership mode: {membership['mode']}"
+            )
+            if membership["mode"] == "curated-collection":
+                assert membership.get("collection_key"), (
+                    f"{module['module_key']}: curated membership must reference a collection key"
+                )
+
+    # Merchandising labels are editorial and must survive as delivered fields.
+    best_deals = modules["home-best-deals"]
+    assert best_deals["type"] == "offer-collection"
+    assert best_deals["title"] == "Best Deals"
+    assert best_deals["tag"], "the Best Deals module must carry its editorial badge"
+
+    # Ownership guard: the layout must never inline priced or transactional product data.
+    forbidden = {"price", "amount", "total", "mrp", "stock", "inventory", "seller_id", "commission"}
+    leaked: list[str] = []
+
+    def walk(value: object, path: str) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in forbidden:
+                    leaked.append(f"{path}.{key}" if path else key)
+                walk(child, f"{path}.{key}" if path else key)
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                walk(child, f"{path}[{index}]")
+
+    walk(storefront_layout, "")
+    assert not leaked, f"storefront layout must not inline transactional fields: {sorted(set(leaked))}"
 
     staging_order = json.loads(
         (FIXTURES / "staging-simulated-order.json").read_text(encoding="utf-8")
@@ -341,7 +392,7 @@ def main() -> None:
         f"{len(openapi['paths'])} experience paths, "
         f"{len(merchandising['paths'])} merchandising paths, "
         f"{len(merchandising_offers['paths'])} merchandising offer paths, "
-        f"{len(asyncapi['channels'])} event channels, 11 fixtures."
+        f"{len(asyncapi['channels'])} event channels, 12 fixtures."
     )
 
 

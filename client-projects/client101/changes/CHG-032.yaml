@@ -1,0 +1,61 @@
+change_id: CHG-032
+revision: 1
+request: >-
+  Extend the editorial delivery projection so a storefront layout composed of CMS modules can reach
+  the apps. Today GET /v1/content/app-shell returns only a flat list of AppContentItems, so an
+  approved storefront-layout, its ordered modules and their merchandising labels cannot be delivered
+  even though the CMS can author them. Add a channel- and audience-aware layout projection to the
+  content bundle, with module membership carried as a reference that commerce resolves.
+type: editorial-delivery-projection
+extends:
+- CHG-026
+- CHG-031
+affected_capabilities:
+- editorial-content
+- storefront-composition
+affected_domains:
+- content
+- experience
+- commerce
+affected_surfaces:
+- customer-app.b2c
+- customer-app.b2b
+- experience-api.content
+affected_entities:
+- app-content-bundle
+- storefront-layout
+- layout-module
+affected_integrations:
+- experience-api-content-endpoint
+- experience-api-collection-resolution
+affected_events: []
+decisions:
+  D-032-01: app-shell-carries-an-optional-storefront-layout-alongside-flat-editorial-items
+  D-032-02: the-layout-projection-is-channel-and-audience-aware
+  D-032-03: module-membership-is-delivered-as-a-reference-resolved-by-commerce-not-as-copied-products
+  D-032-04: merchandising-labels-and-badges-are-delivered-as-editorial-fields
+  D-032-05: an-absent-or-unapproved-layout-omits-the-layout-and-never-blocks-commerce
+  D-032-06: the-flat-editorial-item-list-remains-backward-compatible
+required_tests:
+- A published layout for a channel and locale is returned with its modules in order.
+- A draft or absent layout omits the layout field rather than failing the request.
+- Module membership is a reference (collection key or staged ids), never an inlined product list with price.
+- Module labels and badges are delivered as editorial fields.
+- A layout from another channel is not returned.
+- The flat items list is unchanged for existing consumers.
+- The layout seed matches the reviewed fixture and the existing contract validators remain green.
+constraints:
+- Staging and repository scope; the CMS service is still not deployed by this change.
+- Staging-only: test_data remains true; no production release.
+- The CMS owns editorial composition and labels only; price, stock, seller, order, payment and credit remain commerce-owned.
+- Membership resolution stays with commerce; the content projection never inlines priced product data.
+- No CMS credentials, tokens or secrets are committed.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-13'
+  scope: repository-change-and-pull-request-only
+  human_visual_review_required: false
+production_release_authorized: false
+status: implementation-requested

@@ -25,6 +25,7 @@
     "test:acceptance": "bun run src/scripts/hosted-acceptance.ts",
     "test:notifications": "bun run src/scripts/notification-test.ts",
     "test:merchandising-content": "bun run src/scripts/merchandising-content-test.ts",
+    "test:storefront-layout": "bun run src/scripts/storefront-layout-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {
