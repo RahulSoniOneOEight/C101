@@ -179,6 +179,49 @@ bun services/hosted/scripts/populate-tryton.ts carts.json
 allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
 `order_summary.created_at` (staging dummy data only).
 
+## Marketplace merchandising (CHG-029 / CHG-030)
+
+Governed staging merchandising data: curated collections, campaigns, marketplace-funded promotions
+and the engine-verified offer lab. Idempotent, staging-only, and blocked outside
+`BUILDKART_ENVIRONMENT=staging` (which the backend image already sets). It never links a promotion
+to a seller.
+
+Run after migrations and the catalog seed. The `medusa-api` container's working directory is
+`/app/packages/api`, so the package scripts run directly:
+
+```sh
+# Apply (safe to re-run; creates or updates in place)
+docker compose -f docker-compose.hosted.yml exec -T medusa-api \
+  npm run configure:staging-merchandising
+
+# Verify against the deployed database
+docker compose -f docker-compose.hosted.yml exec -T medusa-api \
+  npm run test:merchandising-engine
+docker compose -f docker-compose.hosted.yml exec -T medusa-api \
+  npm run test:merchandising-offers
+```
+
+`test:staging-merchandising` is a repo-time check only: it compares the declarations against the
+reviewed fixtures under `client-projects/`, which are not copied into the image. Run it from a
+checkout, not inside the container.
+
+Read-only operator surfaces, both on the `/dashboard/` console and the ops hostname:
+
+| Path | Content |
+|---|---|
+| `/admin/buildkart/merchandising-presets` | collections, promotions, campaigns, campaign content |
+| `/admin/buildkart/merchandising-offers` | offer lab with mechanic, trigger and enforced condition |
+
+> **Live-pilot behaviour.** Every seeded offer is code-triggered, so nothing is discounted until a
+> tester applies a code. Switching any offer to `automatic` makes it apply to real pilot carts
+> immediately, not only to test data.
+
+> **Discount ceiling.** The ceiling is enforced per promotion, so the seeded set is arranged so the
+> worst case cannot exceed it: at most one order-wide percentage offer, distinct categories for
+> line-item offers, and order rate + largest line rate <= the ceiling. Fixed-amount and buyget
+> offers are bounded by the line amount and the free unit quantity rather than by a rate.
+> `assertOfferInvariants` and contract validation both fail if that arrangement is broken.
+
 ## Browser web app (staging)
 
 The same Flutter customer app is published as a staging web app so testers can use BuildKart from a

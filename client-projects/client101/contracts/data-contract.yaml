@@ -8,6 +8,14 @@ governed_amendments:
   revision: 1
   status: bounded-hosted-staging-authorized
   scope: pilot-identity-session-notification-and-delivery-projections
+- change_contract: CHG-028
+  revision: 1
+  status: bounded-staging-implementation-requested
+  scope: staging-commission-presets-and-seller-settlement-statements
+- change_contract: CHG-029
+  revision: 1
+  status: bounded-staging-implementation-requested
+  scope: merchandising-presets-promotions-campaigns-and-campaign-content
 entities:
   - name: order
     canonical_owner: commerce
@@ -88,6 +96,7 @@ entities:
     notes:
     - Editorial content is non-transactional and cannot determine eligibility or success.
     - CMS provider selection and DAM workflows remain outside the bounded staging order increment.
+    - CHG-029 adds campaign banner, campaign-copy and trade-program elements; they remain editorial and cannot determine discount eligibility.
   - name: business-account
     canonical_owner: commerce
     consumers: [erp, analytics]
@@ -128,6 +137,27 @@ entities:
     projections: [erp-payout-reconciliation]
     notes:
     - No payout-provider or bank-transfer execution is introduced by CHG-028.
+  - name: merchandising-collection
+    canonical_owner: marketplace
+    consumers: [commerce, experience, operations]
+    projections: [experience-collection-resolution, operator-merchandising-catalogue]
+    notes:
+    - CHG-029 adds curated manual collection presets; existing dynamic registry keys are unchanged.
+    - The registry references its owning service and never computes rankings itself.
+  - name: promotion
+    canonical_owner: commerce
+    consumers: [experience, marketplace, finance, operations]
+    projections: [experience-cart-adjustment, operator-merchandising-catalogue]
+    notes:
+    - CHG-029 presets are marketplace-funded and evaluated by the real Medusa discount engine in bounded staging.
+    - Funding, stacking, GST and commission treatment remain subject to Finance/Tax approval.
+    - Promotion discounts must not modify the CHG-028 reconciled settlement fixtures.
+  - name: campaign
+    canonical_owner: commerce
+    consumers: [experience, operations]
+    projections: [operator-merchandising-catalogue]
+    notes:
+    - CHG-029 campaigns group promotions and carry a staging-only budget; no production ledger posting.
   - name: pilot-identity
     canonical_owner: experience-api-staging-only
     consumers: [customer-apps, operations]

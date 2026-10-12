@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: BuildKart Experience API
-  version: 0.3.0-draft
+  version: 0.4.0-draft
   description: >-
     CHG-017 marketplace-order baseline with the CHG-018 bounded hosted-pilot identity amendment.
     Development/staging may use explicitly labelled simulated payment and OTP; provider payment,
@@ -32,6 +32,8 @@ tags:
   description: Audited integration exception operations.
 - name: Content
   description: Editorial app-shell content only; never transactional eligibility or success.
+- name: Collections
+  description: Governed dynamic and manual collection definitions and composition.
 - name: Notifications
   description: Per-user staging inbox, read state and allowlisted Android device registrations.
 security:
@@ -227,6 +229,40 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AppContentBundle'}
         '404': {$ref: '#/components/responses/Problem'}
+  /v1/collections/{collectionKey}:
+    get:
+      summary: Resolve a governed dynamic or manual collection
+      tags: [Collections]
+      operationId: resolveCollection
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: collectionKey
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: >-
+            Governed collection definition with composed items. Resolution never computes rankings
+            itself and falls back to a declared key when unresolved.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CollectionResolution'}
+        '502': {$ref: '#/components/responses/Problem'}
+  /v1/admin/collections:
+    get:
+      summary: List governed collection definitions
+      tags: [Collections]
+      operationId: listCollectionDefinitions
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Governed collection registry; definition-only and non-transactional.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CollectionRegistry'}
+        '401': {$ref: '#/components/responses/Problem'}
   /v1/products:
     get:
       summary: List composed products with best-price offers
@@ -1402,6 +1438,45 @@ components:
         bank_receipt_claimed: {type: boolean, const: false}
         reconciled: {type: boolean}
         mismatch_codes: {type: array, items: {type: string}}
+    CollectionDefinition:
+      type: object
+      required: [collection_key, type, source, fallback, enabled, status]
+      properties:
+        collection_key: {type: string}
+        type: {type: string, enum: [dynamic, manual]}
+        source: {type: string, description: Owning service; the registry never computes rankings itself.}
+        parameters: {type: object, additionalProperties: true}
+        fallback:
+          type: [object, 'null']
+          required: [collection_key]
+          properties:
+            collection_key: {type: string}
+        enabled: {type: boolean}
+        status: {type: string, enum: [enabled, disabled, deferred]}
+    CollectionRegistry:
+      type: object
+      required: [collections, environment, test_data]
+      properties:
+        collections:
+          type: array
+          items: {$ref: '#/components/schemas/CollectionDefinition'}
+        environment: {$ref: '#/components/schemas/Environment'}
+        test_data: {type: boolean}
+        correlation_id: {type: string, format: uuid}
+    CollectionResolution:
+      type: object
+      required: [collection_key, source, status, fallback, items, environment, test_data]
+      properties:
+        collection_key: {type: string}
+        source: {type: string}
+        status: {type: string, enum: [enabled, disabled, deferred]}
+        fallback: {type: boolean, description: True when the declared fallback key resolved instead.}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ComposedProduct'}
+        environment: {$ref: '#/components/schemas/Environment'}
+        test_data: {type: boolean, const: true}
+        correlation_id: {type: string, format: uuid}
     AppContentItem:
       type: object
       required: [id, content_type, placement, locale, title, body, version, test_data]

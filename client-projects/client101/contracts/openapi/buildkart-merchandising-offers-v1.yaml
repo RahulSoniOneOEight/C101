@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: BuildKart Merchandising Offers Staging API
+  version: 0.1.0-draft
+  description: >-
+    Read-only operator contract for the CHG-030 bounded-staging offer lab. Each offer records the
+    Medusa promotion mechanic it maps to, whether it is automatic or code-triggered, and the
+    conditions the engine enforces. Medusa owns promotions, campaigns and budgets. The contract
+    cannot activate or discount anything and is prohibited in production. Every offer is
+    marketplace-funded, so no offer may declare a seller funding source.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+- url: https://ops-staging.pinakaplay.cloud
+  description: Bounded hosted staging operator surface
+tags:
+- name: Merchandising
+  description: Read-only staging preset and offer catalogues; never transactional eligibility.
+security:
+- bearerAuth: []
+paths:
+  /admin/buildkart/merchandising-offers:
+    get:
+      operationId: listMerchandisingOffers
+      summary: List the bounded-staging offer lab
+      tags: [Merchandising]
+      responses:
+        '200':
+          description: Read-only staging offer catalogue
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MerchandisingOfferCatalogue'}
+        '401': {description: Missing or invalid operator authentication}
+        '404': {description: Route is unavailable outside bounded staging}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    MerchandisingOfferMechanic:
+      type: string
+      enum: [order-percentage, items-percentage, items-fixed, free-shipping, shipping-percentage, buyget]
+    MerchandisingOfferTrigger:
+      type: string
+      enum: [automatic, code]
+    MerchandisingOfferTarget:
+      type: object
+      required: [type, reference]
+      properties:
+        type: {type: string, enum: [order, items, shipping_methods]}
+        reference: {type: [string, 'null']}
+    MerchandisingOfferCampaign:
+      type: object
+      required:
+      - campaign_key
+      - title
+      - budget_amount_minor
+      - currency_code
+      - starts_at
+      - ends_at
+      - funding_source
+      - policy_pending
+      - test_data
+      properties:
+        campaign_key: {type: string}
+        title: {type: string}
+        budget_amount_minor: {type: integer, minimum: 0}
+        currency_code: {type: string, const: inr}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        funding_source: {type: string, const: marketplace}
+        policy_pending: {type: boolean, const: true}
+        test_data: {type: boolean, const: true}
+    MerchandisingOffer:
+      type: object
+      required:
+      - code
+      - title
+      - mechanic
+      - trigger
+      - value
+      - usage_limit
+      - target
+      - subtotal_threshold
+      - min_quantity
+      - customer_group
+      - max_quantity
+      - apply_to_quantity
+      - buy_rules_min_quantity
+      - funding_source
+      - policy_pending
+      - test_data
+      properties:
+        code: {type: string}
+        title: {type: string}
+        mechanic: {$ref: '#/components/schemas/MerchandisingOfferMechanic'}
+        trigger: {$ref: '#/components/schemas/MerchandisingOfferTrigger'}
+        value:
+          type: number
+          minimum: 0
+          description: >-
+            Percent for percentage mechanics (at most the discount ceiling), a currency amount for
+            fixed mechanics, and 100 for free shipping and buyget.
+        usage_limit: {type: integer, minimum: 1}
+        target: {$ref: '#/components/schemas/MerchandisingOfferTarget'}
+        subtotal_threshold:
+          type: [number, 'null']
+          description: Enforced promotion-level rule on the cart subtotal, in currency major units.
+        min_quantity:
+          type: [integer, 'null']
+          description: Enforced per-line-item quantity gate.
+        customer_group: {type: [string, 'null']}
+        max_quantity: {type: [integer, 'null']}
+        apply_to_quantity: {type: [integer, 'null']}
+        buy_rules_min_quantity: {type: [integer, 'null']}
+        funding_source: {type: string, const: marketplace}
+        policy_pending: {type: boolean, const: true}
+        test_data: {type: boolean, const: true}
+    MerchandisingOfferCatalogue:
+      type: object
+      required:
+      - change_id
+      - environment
+      - generated_at
+      - funding_source
+      - discount_ceiling_percent
+      - test_data
+      - payment_mode
+      - campaign
+      - offers
+      properties:
+        change_id: {type: string, const: CHG-030}
+        environment: {type: string, const: staging}
+        generated_at: {type: string, format: date-time}
+        funding_source: {type: string, const: marketplace}
+        discount_ceiling_percent: {type: number, const: 10}
+        test_data: {type: boolean, const: true}
+        payment_mode: {type: string, const: simulated}
+        campaign: {$ref: '#/components/schemas/MerchandisingOfferCampaign'}
+        offers:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/MerchandisingOffer'}

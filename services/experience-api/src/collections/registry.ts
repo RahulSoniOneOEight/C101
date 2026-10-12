@@ -70,6 +70,53 @@ export const collections: CollectionDefinition[] = [
     enabled: true,
     status: "enabled",
   },
+  // CHG-029 curated staging collections. Curated by the operator by category; the resolver
+  // fetches from the owning commerce service and never computes rankings itself.
+  {
+    collection_key: "monsoon-site-essentials",
+    type: "manual",
+    source: "medusa_categories",
+    parameters: {
+      category_names: ["Building Materials", "Safety Gear"],
+      limit: 12,
+    },
+    fallback: { collection_key: "new_arrivals" },
+    enabled: true,
+    status: "enabled",
+  },
+  {
+    collection_key: "power-tool-week",
+    type: "manual",
+    source: "medusa_categories",
+    parameters: { category_names: ["Power Tools"], limit: 12 },
+    fallback: { collection_key: "new_arrivals" },
+    enabled: true,
+    status: "enabled",
+  },
+  {
+    collection_key: "plumbing-refresh",
+    type: "manual",
+    source: "medusa_categories",
+    parameters: {
+      category_names: ["Pipes & Fittings", "Faucets & Showers"],
+      limit: 12,
+    },
+    fallback: { collection_key: "new_arrivals" },
+    enabled: true,
+    status: "enabled",
+  },
+  {
+    collection_key: "electrical-safety",
+    type: "manual",
+    source: "medusa_categories",
+    parameters: {
+      category_names: ["Wiring & Cables", "Lighting", "Switches & Sockets"],
+      limit: 12,
+    },
+    fallback: { collection_key: "new_arrivals" },
+    enabled: true,
+    status: "enabled",
+  },
 ];
 
 export function getCollection(key: string): CollectionDefinition | undefined {

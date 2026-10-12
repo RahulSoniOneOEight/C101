@@ -83,3 +83,19 @@ critical_cross_domain_flows:
   - marketplace
   - operations
   - finance
+- id: merchandising-collection-to-storefront
+  domains:
+  - marketplace
+  - experience
+  - commerce
+- id: promotion-to-cart-adjustment
+  domains:
+  - commerce
+  - experience
+  - marketplace
+  - finance
+- id: campaign-to-merchandising-catalogue
+  domains:
+  - commerce
+  - operations
+  - content

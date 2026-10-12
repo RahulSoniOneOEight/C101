@@ -1,0 +1,69 @@
+change_id: CHG-030
+revision: 1
+request: >-
+  Implement a verified offer-pattern library for bounded staging covering the standard Medusa
+  offer families: percentage and fixed discounts targeted at the order or at line items, free
+  shipping, buy-X-get-Y, customer-group gating, per-line quantity gating, cart-value thresholds,
+  and the three campaign budget modes. Each pattern declares whether it is automatic or
+  code-triggered. Every pattern must be proven against the installed promotion engine rather than
+  taken from documentation, because several commonly published configurations are wrong for this
+  version.
+type: marketplace-promotion-patterns
+extends:
+- CHG-029
+affected_capabilities:
+- promotions
+- cart-merchandising
+affected_domains:
+- commerce
+- marketplace
+affected_surfaces:
+- operator-console.merchandising
+- customer-app
+- web-store
+affected_entities:
+- promotion
+- campaign
+affected_integrations:
+- medusa-promotion-engine
+affected_events: []
+decisions:
+  D-030-01: offer-patterns-are-declared-once-and-proven-against-the-installed-engine
+  D-030-02: free-shipping-is-a-100-percent-shipping-method-discount-not-a-fixed-zero-value
+  D-030-03: line-item-sku-targeting-uses-items-variant-sku-because-product-variants-is-not-in-the-cart-context
+  D-030-04: quantity-gates-apply-per-line-item-and-cannot-express-a-cart-total-unit-count
+  D-030-05: a-campaign-carries-exactly-one-budget-so-global-plus-per-customer-uses-promotion-limit-plus-use-by-attribute
+  D-030-06: use-by-attribute-budgets-require-a-customer-id-in-the-compute-context
+  D-030-07: automatic-versus-code-trigger-is-expression-only-and-does-not-change-the-discount-mechanic
+  D-030-08: every-pattern-remains-marketplace-funded-and-staging-only
+required_tests:
+- An order-level percentage discount applies to every eligible line of a cart.
+- A fixed discount targeted by SKU applies only to the matching line and resolves through items.variant.sku.
+- Free shipping expressed as a 100 percent shipping-method discount removes the full shipping amount.
+- Free shipping expressed as a fixed zero discount removes nothing and must not be used as a pattern.
+- A buyget promotion grants the configured free quantity once the buy rule quantity is met.
+- A customer-group rule applies the discount to members and blocks non-members.
+- A per-line quantity gate discounts only the lines meeting the quantity threshold.
+- A cart-value threshold blocks the discount below the configured subtotal.
+- A global usage budget and a global spend budget both stop the promotion when exceeded.
+- A use_by_attribute budget requires a customer id and raises a clear error when it is absent.
+- A campaign rejects a second budget because exactly one budget per campaign is allowed.
+- Every seeded pattern remains marketplace-funded with no seller link.
+constraints:
+- Bounded staging and synthetic data only.
+- The discount values, thresholds and budgets are pilot presets, not approved commercial terms.
+- Medusa remains the canonical owner of promotions, campaigns and budgets.
+- One campaign budget per campaign; combined global and per-customer limits use promotion limit plus use_by_attribute.
+- use_by_attribute budgets require a customer identifier in the compute context; guest carts without one error.
+- Minimum item quantity cannot be expressed as a cart-total unit count.
+- No payout, transfer, loyalty or production ledger posting.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-12'
+  scope: repository-change-and-pull-request-only
+  evidence: engine-verified-against-promotion-module-2-20-1
+  human_visual_review_required: false
+production_release_authorized: false
+status: implementation-requested

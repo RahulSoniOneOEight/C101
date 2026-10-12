@@ -41,9 +41,11 @@ bun install
 cd packages/api
 bunx medusa db:migrate
 bun run seed
-# CHG-028 only: persistent simulated seller statements + governed pilot commission presets.
+# CHG-028: persistent simulated seller statements + governed pilot commission presets.
 # Requires BUILDKART_ENVIRONMENT=staging and is blocked in production.
 BUILDKART_ENVIRONMENT=staging bun run configure:staging-finance
+# CHG-029 / CHG-030: merchandising presets and the offer lab. Idempotent, staging-only.
+BUILDKART_ENVIRONMENT=staging bun run configure:staging-merchandising
 bun run build     # production-shaped compile (medusa build)
 bun run start     # production server (no watcher) — faster than `bun run dev`
 ```
