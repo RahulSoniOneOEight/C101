@@ -29,6 +29,11 @@ import {
   type MerchandisingPromotionPreset,
 } from "../staging-merchandising/presets";
 import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime";
+import {
+  STAGING_OFFER_CAMPAIGN,
+  STAGING_OFFERS,
+  buildOffer,
+} from "../staging-merchandising/offer-patterns";
 
 interface CampaignRecord {
   id: string;
@@ -103,6 +108,9 @@ export default async function configureStagingMerchandising({ container }: ExecA
       ...MERCHANDISING_PROMOTION_PRESETS.filter(
         (preset) => preset.target.type === "category",
       ).map((preset) => preset.target.reference),
+      ...STAGING_OFFERS.map((offer) => offer.categoryReference).filter(
+        (name): name is string => Boolean(name),
+      ),
     ]),
   ];
   const categories = await productService.listProductCategories({ name: categoryNames });
@@ -245,6 +253,146 @@ export default async function configureStagingMerchandising({ container }: ExecA
       },
     });
     logger.info(`Created staging promotion ${preset.code}.`);
+  }
+
+  // 5. CHG-030 offer lab — one campaign plus engine-verified offer patterns.
+  const [existingOfferCampaign] = await promotionService.listCampaigns(
+    { campaign_identifier: STAGING_OFFER_CAMPAIGN.campaignKey },
+    { relations: ["budget"] },
+  );
+  const offerBudgetLimit = budgetAmountMajor(STAGING_OFFER_CAMPAIGN.budgetAmountMinor);
+  let offerCampaignId: string;
+
+  if (existingOfferCampaign) {
+    const budgetUpdate = existingOfferCampaign.budget?.id
+      ? { budget: { id: existingOfferCampaign.budget.id, limit: offerBudgetLimit } }
+      : {};
+    if (!existingOfferCampaign.budget?.id) {
+      throw new Error(
+        `Staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey} has no budget. Delete and reconfigure it.`,
+      );
+    }
+    await updateCampaignsWorkflow(container).run({
+      input: {
+        campaignsData: [
+          {
+            id: existingOfferCampaign.id,
+            name: STAGING_OFFER_CAMPAIGN.title,
+            starts_at: new Date(STAGING_OFFER_CAMPAIGN.startsAt),
+            ends_at: new Date(STAGING_OFFER_CAMPAIGN.endsAt),
+            ...budgetUpdate,
+          },
+        ],
+      },
+    });
+    offerCampaignId = existingOfferCampaign.id;
+    logger.info(`Updated staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey}.`);
+  } else {
+    const { result } = await createCampaignsWorkflow(container).run({
+      input: {
+        campaignsData: [
+          {
+            name: STAGING_OFFER_CAMPAIGN.title,
+            campaign_identifier: STAGING_OFFER_CAMPAIGN.campaignKey,
+            starts_at: new Date(STAGING_OFFER_CAMPAIGN.startsAt),
+            ends_at: new Date(STAGING_OFFER_CAMPAIGN.endsAt),
+            budget: {
+              type: "spend" as const,
+              limit: offerBudgetLimit,
+              currency_code: STAGING_OFFER_CAMPAIGN.currencyCode,
+            },
+          },
+        ],
+      },
+    });
+    offerCampaignId = result[0].id;
+    logger.info(`Created staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey}.`);
+  }
+
+  for (const offer of STAGING_OFFERS) {
+    let categoryId: string | undefined;
+    if (offer.categoryReference) {
+      categoryId = categoryByName.get(offer.categoryReference)?.id;
+      if (!categoryId) {
+        throw new Error(
+          `${offer.code} references unknown category '${offer.categoryReference}'.`,
+        );
+      }
+    }
+
+    const payload = buildOffer({
+      code: offer.code,
+      mechanic: offer.mechanic,
+      value: offer.value,
+      automatic: offer.trigger === "automatic",
+      usageLimit: offer.usageLimit,
+      categoryId,
+      sku: offer.sku,
+      minQuantity: offer.minQuantity,
+      subtotalThreshold: offer.subtotalThreshold,
+      customerGroupId: offer.customerGroup ? tradeGroup.id : undefined,
+      maxQuantity: offer.maxQuantity,
+      applyToQuantity: offer.applyToQuantity,
+      buyRulesMinQuantity: offer.buyRulesMinQuantity,
+    }) as Record<string, unknown> & {
+      code: string;
+      is_automatic: boolean;
+      limit?: number;
+      rules?: PromotionRuleInput[];
+    };
+
+    const [existingOffer] = (await promotionService.listPromotions(
+      { code: offer.code },
+      { relations: ["rules", "rules.values"] },
+    )) as PromotionRecord[];
+
+    if (existingOffer) {
+      const { data: sellerLinks } = await query.graph({
+        entity: "promotion_seller",
+        fields: ["promotion_id"],
+        filters: { promotion_id: existingOffer.id },
+      });
+      if (sellerLinks.length > 0) {
+        throw new Error(
+          `${offer.code} is seller-linked but CHG-030 offers are marketplace-funded.`,
+        );
+      }
+
+      await updatePromotionsWorkflow(container).run({
+        input: {
+          promotionsData: [
+            {
+              id: existingOffer.id,
+              status: "active",
+              is_automatic: payload.is_automatic,
+              limit: payload.limit,
+            },
+          ],
+        },
+      });
+      if (existingOffer.campaign_id !== offerCampaignId) {
+        await addOrRemoveCampaignPromotionsWorkflow(container).run({
+          input: { id: offerCampaignId, add: [existingOffer.id] },
+        });
+      }
+      await syncPromotionRules(
+        container,
+        promotionService,
+        existingOffer,
+        payload.rules ?? [],
+      );
+      logger.info(`Updated staging offer ${offer.code}.`);
+      continue;
+    }
+
+    await createPromotionsWorkflow(container).run({
+      input: {
+        promotionsData: [
+          { ...payload, campaign_id: offerCampaignId } as never,
+        ],
+      },
+    });
+    logger.info(`Created staging offer ${offer.code}.`);
   }
 
   logger.info(

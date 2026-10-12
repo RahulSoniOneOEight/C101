@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "client-projects" / "client101" / "contracts"
 OPENAPI_PATH = CONTRACTS / "openapi" / "buildkart-experience-v1.yaml"
 MERCHANDISING_PATH = CONTRACTS / "openapi" / "buildkart-merchandising-presets-v1.yaml"
+MERCHANDISING_OFFERS_PATH = CONTRACTS / "openapi" / "buildkart-merchandising-offers-v1.yaml"
 ASYNCAPI_PATH = CONTRACTS / "asyncapi" / "buildkart-events-v1.yaml"
 DATA_CONTRACT_PATH = CONTRACTS / "data-contract.yaml"
 FIXTURES = CONTRACTS / "fixtures"
@@ -262,11 +263,61 @@ def main() -> None:
     for element in presets["content"]:
         assert element["locale"] in {"en-IN", "hi-IN"}, f"unknown locale: {element['id']}"
 
+    # --- CHG-030 offer lab -----------------------------------------------------------------
+    merchandising_offers = load_yaml(MERCHANDISING_OFFERS_PATH)
+    assert merchandising_offers.get("openapi") == "3.1.0"
+    assert merchandising_offers["info"]["version"].endswith("-draft")
+    assert_local_refs_resolve(merchandising_offers)
+    assert_unique_operation_ids(merchandising_offers)
+    validate_fixture(
+        merchandising_offers, "merchandising-offers.json", "MerchandisingOfferCatalogue"
+    )
+
+    offers = json.loads(
+        (FIXTURES / "merchandising-offers.json").read_text(encoding="utf-8")
+    )
+    assert offers["change_id"] == "CHG-030"
+    assert offers["funding_source"] == "marketplace"
+    assert offers["campaign"]["funding_source"] == "marketplace"
+
+    percentage_mechanics = {"order-percentage", "items-percentage", "shipping-percentage"}
+    offer_codes = {offer["code"] for offer in offers["offers"]}
+    assert len(offer_codes) == len(offers["offers"]), "duplicate offer code"
+
+    triggers = {offer["trigger"] for offer in offers["offers"]}
+    assert triggers == {"automatic", "code"}, "the offer lab must cover both trigger types"
+
+    for offer in offers["offers"]:
+        assert offer["funding_source"] == "marketplace", f"not marketplace funded: {offer['code']}"
+        assert offer["mechanic"] in {
+            "order-percentage",
+            "items-percentage",
+            "items-fixed",
+            "free-shipping",
+            "shipping-percentage",
+            "buyget",
+        }, f"unknown mechanic: {offer['mechanic']}"
+        if offer["mechanic"] in percentage_mechanics:
+            assert (
+                offer["value"] <= offers["discount_ceiling_percent"]
+            ), f"discount exceeds ceiling: {offer['code']}"
+        if offer["mechanic"] == "free-shipping":
+            assert offer["value"] == 100, (
+                f"{offer['code']}: free shipping must be 100, never a fixed zero discount"
+            )
+
+    # A promotion-level item-quantity rule is not evaluable; quantity gates must be per line.
+    assert not any(
+        offer["min_quantity"] is not None and offer["target"]["type"] == "order"
+        for offer in offers["offers"]
+    ), "quantity gates must target line items, not the order"
+
     print(
         "Contract validation passed: "
         f"{len(openapi['paths'])} experience paths, "
         f"{len(merchandising['paths'])} merchandising paths, "
-        f"{len(asyncapi['channels'])} event channels, 10 fixtures."
+        f"{len(merchandising_offers['paths'])} merchandising offer paths, "
+        f"{len(asyncapi['channels'])} event channels, 11 fixtures."
     )
 
 

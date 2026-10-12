@@ -15,6 +15,7 @@ import {
   OFFER_PATTERNS,
   STAGING_OFFERS,
   assertOfferInvariants,
+  merchandisingOfferCatalogue,
 } from "../staging-merchandising/offer-patterns";
 
 // --- environment guard ------------------------------------------------------------------------
@@ -121,4 +122,23 @@ assert.equal(
 console.log(
   `staging-merchandising-test: PASS (offer lab declares ${STAGING_OFFERS.length} offers across ` +
     `${OFFER_PATTERNS.length} patterns)`,
+);
+
+// --- CHG-030 offer lab must not drift from the reviewed contract fixture -----------------------
+const offersFixturePath = path.resolve(
+  __dirname,
+  "../../../../../../client-projects/client101/contracts/fixtures/merchandising-offers.json",
+);
+const offersFixture = JSON.parse(readFileSync(offersFixturePath, "utf8")) as Record<
+  string,
+  unknown
+>;
+const offersCatalogue = merchandisingOfferCatalogue() as unknown as Record<string, unknown>;
+assert.deepEqual(
+  withoutGeneratedAt(offersCatalogue),
+  withoutGeneratedAt(offersFixture),
+  "offer lab drifted from the reviewed merchandising-offers fixture",
+);
+console.log(
+  `staging-merchandising-test: PASS (offer catalogue matches the reviewed fixture, ${STAGING_OFFERS.length} offers)`,
 );

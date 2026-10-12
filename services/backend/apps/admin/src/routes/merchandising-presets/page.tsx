@@ -43,6 +43,12 @@ export default function MerchandisingPresetsPage() {
     })),
   );
 
+  const offersQuery = useQuery({
+    queryKey: ["buildkart", "staging-merchandising-offers"],
+    queryFn: () => client.admin.buildkart.merchandisingOffers.query({}),
+  });
+  const offers = offersQuery.data?.offers ?? [];
+
   return (
     <SingleColumnPage>
       <div className="flex flex-col gap-y-3">
@@ -312,6 +318,86 @@ export default function MerchandisingPresetsPage() {
                   ))}
                 </Table.Body>
               </Table>
+            </Container>
+
+            <Container className="overflow-hidden p-0">
+              <div className="border-b border-ui-border-base px-6 py-4">
+                <Heading level="h2">Offer lab</Heading>
+                <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                  Engine-verified offer patterns. Each row states the mechanic it maps to, whether
+                  it is automatic or code-triggered, and the conditions the engine enforces.
+                </Text>
+              </div>
+              {offersQuery.isError || offers.length === 0 ? (
+                <Text size="small" className="px-6 py-6 text-ui-fg-subtle">
+                  The offer lab is unavailable outside bounded staging.
+                </Text>
+              ) : (
+                <Table>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>Offer</Table.HeaderCell>
+                      <Table.HeaderCell>Mechanic</Table.HeaderCell>
+                      <Table.HeaderCell>Trigger</Table.HeaderCell>
+                      <Table.HeaderCell className="text-right">Value</Table.HeaderCell>
+                      <Table.HeaderCell>Target</Table.HeaderCell>
+                      <Table.HeaderCell>Enforced condition</Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {offers.map((offer) => {
+                      const conditions = [
+                        offer.subtotal_threshold !== null
+                          ? `subtotal >= ${offer.subtotal_threshold}`
+                          : null,
+                        offer.min_quantity !== null ? `line qty >= ${offer.min_quantity}` : null,
+                        offer.customer_group !== null
+                          ? `group = ${offer.customer_group}`
+                          : null,
+                        offer.apply_to_quantity !== null
+                          ? `free ${offer.apply_to_quantity} of ${offer.buy_rules_min_quantity}`
+                          : null,
+                      ].filter(Boolean);
+
+                      return (
+                        <Table.Row key={offer.code}>
+                          <Table.Cell>
+                            <Text size="small" weight="plus">
+                              {offer.code}
+                            </Text>
+                            <Text size="xsmall" className="text-ui-fg-muted">
+                              {offer.title}
+                            </Text>
+                          </Table.Cell>
+                          <Table.Cell>{offer.mechanic}</Table.Cell>
+                          <Table.Cell>
+                            <StatusBadge
+                              color={offer.trigger === "automatic" ? "green" : "grey"}
+                            >
+                              {offer.trigger}
+                            </StatusBadge>
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {offer.mechanic === "free-shipping"
+                              ? "free shipping"
+                              : offer.mechanic === "items-fixed"
+                                ? money(offer.value, "inr")
+                                : `${offer.value}%`}
+                          </Table.Cell>
+                          <Table.Cell>
+                            {offer.target.reference ?? offer.target.type}
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Text size="small" className="text-ui-fg-subtle">
+                              {conditions.length ? conditions.join("; ") : "—"}
+                            </Text>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
+                  </Table.Body>
+                </Table>
+              )}
             </Container>
           </>
         )}

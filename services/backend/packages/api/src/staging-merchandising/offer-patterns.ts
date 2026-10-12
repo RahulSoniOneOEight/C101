@@ -390,6 +390,65 @@ export const STAGING_OFFER_CAMPAIGN = {
 };
 
 /**
+ * Contract-shaped catalogue for the CHG-030 offer lab, returned by the read-only operator route.
+ */
+export function merchandisingOfferCatalogue() {
+  const targetTypeFor = (offer: StagingOffer): "order" | "items" | "shipping_methods" => {
+    switch (offer.mechanic) {
+      case "order-percentage":
+        return "order";
+      case "free-shipping":
+      case "shipping-percentage":
+        return "shipping_methods";
+      default:
+        return "items";
+    }
+  };
+
+  return {
+    change_id: "CHG-030" as const,
+    environment: "staging" as const,
+    generated_at: new Date().toISOString(),
+    funding_source: "marketplace" as const,
+    discount_ceiling_percent: DISCOUNT_CEILING_PERCENT,
+    test_data: true as const,
+    payment_mode: "simulated" as const,
+    campaign: {
+      campaign_key: STAGING_OFFER_CAMPAIGN.campaignKey,
+      title: STAGING_OFFER_CAMPAIGN.title,
+      budget_amount_minor: STAGING_OFFER_CAMPAIGN.budgetAmountMinor,
+      currency_code: STAGING_OFFER_CAMPAIGN.currencyCode,
+      starts_at: STAGING_OFFER_CAMPAIGN.startsAt,
+      ends_at: STAGING_OFFER_CAMPAIGN.endsAt,
+      funding_source: STAGING_OFFER_CAMPAIGN.fundingSource,
+      policy_pending: true as const,
+      test_data: true as const,
+    },
+    offers: STAGING_OFFERS.map((offer) => ({
+      code: offer.code,
+      title: offer.title,
+      mechanic: offer.mechanic,
+      trigger: offer.trigger,
+      value: offer.value,
+      usage_limit: offer.usageLimit,
+      target: {
+        type: targetTypeFor(offer),
+        reference: offer.categoryReference ?? offer.sku ?? null,
+      },
+      subtotal_threshold: offer.subtotalThreshold ?? null,
+      min_quantity: offer.minQuantity ?? null,
+      customer_group: offer.customerGroup ?? null,
+      max_quantity: offer.maxQuantity ?? null,
+      apply_to_quantity: offer.applyToQuantity ?? null,
+      buy_rules_min_quantity: offer.buyRulesMinQuantity ?? null,
+      funding_source: offer.fundingSource,
+      policy_pending: true as const,
+      test_data: true as const,
+    })),
+  };
+}
+
+/**
  * Fail closed if any declared offer is marketplace-unfunded, references an unknown campaign,
  * duplicates a code, or cannot be built into a valid engine payload.
  */
