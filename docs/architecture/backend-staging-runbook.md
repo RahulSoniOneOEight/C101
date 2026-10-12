@@ -41,7 +41,10 @@ bun install
 cd packages/api
 bunx medusa db:migrate
 bun run seed
-# CHG-029 / CHG-030 merchandising presets and the offer lab. Idempotent, staging-only.
+# CHG-028: persistent simulated seller statements + governed pilot commission presets.
+# Requires BUILDKART_ENVIRONMENT=staging and is blocked in production.
+BUILDKART_ENVIRONMENT=staging bun run configure:staging-finance
+# CHG-029 / CHG-030: merchandising presets and the offer lab. Idempotent, staging-only.
 BUILDKART_ENVIRONMENT=staging bun run configure:staging-merchandising
 bun run build     # production-shaped compile (medusa build)
 bun run start     # production server (no watcher) — faster than `bun run dev`
@@ -49,6 +52,10 @@ bun run start     # production server (no watcher) — faster than `bun run dev`
 
 `bun run dev` (`medusa develop`) is the hot-reload watcher and is **not** representative of production
 performance. Use `bun run build && bun run start` for load tests.
+
+`configure:staging-finance` is idempotent. It sets the Mercur global commission to 10%, adds
+Building Materials at 8% and Power Tools at 12%, excludes GST and shipping, and upserts four
+read-only statement fixtures. It does not create payout accounts, transfers or Tryton postings.
 
 ## Experience API (shared backend)
 

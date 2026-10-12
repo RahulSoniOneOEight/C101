@@ -15,10 +15,11 @@ const paymentRuntime = resolvePaymentRuntime(process.env)
 //   scripts/bundle-dashboards.mjs during `build`. The compiled config runs from the
 //   artifact root, so __dirname points there.
 const dashboardAppDir = (name: string) => {
+  const source = path.resolve(process.cwd(), `../../apps/${name}`)
   const bundled = path.join(process.cwd(), '.medusa', 'server', 'dashboards', name)
-  return fs.existsSync(bundled)
-    ? bundled
-    : path.resolve(process.cwd(), `../../apps/${name}`)
+  // Prefer workspace source even when a stale build artifact exists. Artifact-only hosts do not
+  // contain ../../apps, so they still fall back to the bundled dashboards.
+  return fs.existsSync(source) ? source : bundled
 }
 
 module.exports = withMercur({
@@ -75,6 +76,9 @@ module.exports = withMercur({
         ],
       },
     }] : []),
+    {
+      resolve: './src/modules/marketplace-settlement',
+    },
     {
       resolve: '@mercurjs/core/modules/admin-ui',
       options: {

@@ -1,7 +1,35 @@
+import { validateAndTransformQuery } from "@medusajs/framework";
 import { PolicyOperation } from "@medusajs/framework/utils";
 import { defineMiddlewares } from "@medusajs/medusa";
+import { AdminGetSettlementStatementsParams } from "./admin/buildkart/settlement-statements/validators";
 
 const routes = [
+  {
+    method: ["GET"],
+    matcher: "/admin/buildkart/settlement-statements",
+    middlewares: [
+      validateAndTransformQuery(AdminGetSettlementStatementsParams, {
+        defaults: [],
+        isList: true,
+      }),
+    ],
+    policies: [
+      {
+        resource: "commission_line",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
+    method: ["GET"],
+    matcher: "/admin/buildkart/settlement-statements/:id",
+    policies: [
+      {
+        resource: "commission_line",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
   {
     method: ["GET"],
     matcher: "/admin/buildkart/merchandising-presets",

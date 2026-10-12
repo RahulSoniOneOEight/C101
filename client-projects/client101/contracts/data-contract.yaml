@@ -8,6 +8,10 @@ governed_amendments:
   revision: 1
   status: bounded-hosted-staging-authorized
   scope: pilot-identity-session-notification-and-delivery-projections
+- change_contract: CHG-028
+  revision: 1
+  status: bounded-staging-implementation-requested
+  scope: staging-commission-presets-and-seller-settlement-statements
 - change_contract: CHG-029
   revision: 1
   status: bounded-staging-implementation-requested
@@ -117,17 +121,22 @@ entities:
     canonical_owner: marketplace
     consumers: [erp]
     projections: [erp-commission]
-    notes: []
+    notes:
+    - CHG-028 adds bounded-staging Mercur presets only: global 10 percent, Building Materials 8 percent and Power Tools 12 percent.
+    - Staging presets exclude tax and shipping and are not approved production commercial terms.
   - name: seller-settlement
     canonical_owner: marketplace
     consumers: [erp]
     projections: [erp-settlement]
-    notes: []
+    notes:
+    - CHG-028 adds a persistent read-only operator projection containing synthetic statement fixtures.
+    - Every fixture is test_data and explicitly prohibits payout execution and Tryton posting.
   - name: seller-payout-reconciliation
     canonical_owner: marketplace
     consumers: [erp, analytics]
     projections: [erp-payout-reconciliation]
-    notes: []
+    notes:
+    - No payout-provider or bank-transfer execution is introduced by CHG-028.
   - name: merchandising-collection
     canonical_owner: marketplace
     consumers: [commerce, experience, operations]
@@ -142,7 +151,7 @@ entities:
     notes:
     - CHG-029 presets are marketplace-funded and evaluated by the real Medusa discount engine in bounded staging.
     - Funding, stacking, GST and commission treatment remain subject to Finance/Tax approval.
-    - Promotion discounts must not modify the CHG-028 reconciled settlement fixtures once CHG-028 lands.
+    - Promotion discounts must not modify the CHG-028 reconciled settlement fixtures.
   - name: campaign
     canonical_owner: commerce
     consumers: [experience, operations]

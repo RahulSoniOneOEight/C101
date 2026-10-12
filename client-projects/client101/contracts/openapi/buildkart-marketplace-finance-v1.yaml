@@ -1,0 +1,157 @@
+openapi: 3.1.0
+info:
+  title: BuildKart Marketplace Finance Staging API
+  version: 0.1.0-staging
+  description: >-
+    Read-only operator contract for CHG-028 simulated seller settlement statements. Mercur owns the
+    underlying marketplace finance entities. The contract cannot initiate payouts and is prohibited
+    in production.
+servers:
+- url: https://ops-staging.pinakaplay.cloud
+  description: Bounded hosted staging operator surface
+security:
+- bearerAuth: []
+paths:
+  /admin/buildkart/settlement-statements:
+    get:
+      operationId: listStagingSettlementStatements
+      summary: List persistent simulated seller settlement statements
+      parameters:
+      - in: query
+        name: seller_id
+        schema: {type: string}
+      - in: query
+        name: status
+        schema:
+          $ref: '#/components/schemas/SettlementStatementStatus'
+      responses:
+        '200':
+          description: Read-only bounded-staging statement list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [statements, count, test_data, payment_mode, payout_execution_authorized]
+                properties:
+                  statements:
+                    type: array
+                    items: {$ref: '#/components/schemas/SettlementStatement'}
+                  count: {type: integer, minimum: 0}
+                  test_data: {type: boolean, const: true}
+                  payment_mode: {type: string, const: simulated}
+                  payout_execution_authorized: {type: boolean, const: false}
+        '401': {description: Missing or invalid operator authentication}
+        '404': {description: Route is unavailable outside bounded staging}
+  /admin/buildkart/settlement-statements/{id}:
+    get:
+      operationId: getStagingSettlementStatement
+      summary: Retrieve one persistent simulated seller settlement statement
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Read-only bounded-staging statement
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [statement, test_data, payment_mode, payout_execution_authorized]
+                properties:
+                  statement: {$ref: '#/components/schemas/SettlementStatement'}
+                  test_data: {type: boolean, const: true}
+                  payment_mode: {type: string, const: simulated}
+                  payout_execution_authorized: {type: boolean, const: false}
+        '401': {description: Missing or invalid operator authentication}
+        '404': {description: Statement is absent or route is unavailable outside bounded staging}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SettlementStatementStatus:
+      type: string
+      enum: [calculated, reviewed, held]
+    SettlementLine:
+      type: object
+      required:
+      - orderReference
+      - categoryName
+      - grossAmountMinor
+      - refundAmountMinor
+      - commissionRatePercent
+      - commissionAmountMinor
+      - adjustmentAmountMinor
+      - payableAmountMinor
+      properties:
+        orderReference: {type: string}
+        categoryName: {type: string}
+        grossAmountMinor: {type: integer}
+        refundAmountMinor: {type: integer}
+        commissionRatePercent: {type: number}
+        commissionAmountMinor: {type: integer}
+        adjustmentAmountMinor: {type: integer}
+        payableAmountMinor: {type: integer}
+    CommissionPolicySnapshot:
+      type: object
+      required: [change_id, global_percent, category_overrides, include_tax, include_shipping]
+      properties:
+        change_id: {type: string, const: CHG-028}
+        global_percent: {type: number, const: 10}
+        category_overrides:
+          type: object
+          required: [Building Materials, Power Tools]
+          properties:
+            Building Materials: {type: number, const: 8}
+            Power Tools: {type: number, const: 12}
+        include_tax: {type: boolean, const: false}
+        include_shipping: {type: boolean, const: false}
+    SettlementStatement:
+      type: object
+      required:
+      - id
+      - statement_number
+      - seller_id
+      - seller_name
+      - period_start
+      - period_end
+      - generated_at
+      - currency_code
+      - gross_amount_minor
+      - refund_amount_minor
+      - commission_amount_minor
+      - adjustment_amount_minor
+      - payable_amount_minor
+      - status
+      - lines
+      - policy_snapshot
+      - test_data
+      - payment_mode
+      - payout_execution_authorized
+      properties:
+        id: {type: string}
+        statement_number: {type: string}
+        seller_id: {type: string}
+        seller_name: {type: string}
+        period_start: {type: string, format: date-time}
+        period_end: {type: string, format: date-time}
+        generated_at: {type: string, format: date-time}
+        currency_code: {type: string, const: inr}
+        gross_amount_minor: {type: integer}
+        refund_amount_minor: {type: integer}
+        commission_amount_minor: {type: integer}
+        adjustment_amount_minor: {type: integer}
+        payable_amount_minor: {type: integer}
+        status: {$ref: '#/components/schemas/SettlementStatementStatus'}
+        lines:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/SettlementLine'}
+        policy_snapshot: {$ref: '#/components/schemas/CommissionPolicySnapshot'}
+        test_data: {type: boolean, const: true}
+        payment_mode: {type: string, const: simulated}
+        payout_execution_authorized: {type: boolean, const: false}
