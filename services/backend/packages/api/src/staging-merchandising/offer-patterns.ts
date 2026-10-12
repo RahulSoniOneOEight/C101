@@ -302,24 +302,29 @@ export interface StagingOffer {
 
 export const STAGING_OFFERS: StagingOffer[] = [
   {
+    // The only order-wide offer. Its value and the item-percentage values below are reserved so
+    // their worst-case sum never exceeds DISCOUNT_CEILING_PERCENT.
     code: "BK-STG-OFFER-ORDER10",
-    title: "Staging order 10% off",
+    title: "Staging order 5% off",
     campaignKey: "BK-STG-CAMP-OFFER-LAB",
     mechanic: "order-percentage",
     trigger: "code",
-    value: 10,
+    value: 5,
     usageLimit: 300,
     fundingSource: "marketplace",
     testData: true,
   },
   {
+    // Item-scoped rather than order-scoped: a second order-wide offer would consume the whole
+    // ceiling and leave no room for the line-level offers.
     code: "BK-STG-OFFER-CART8",
-    title: "Staging 8% off above INR 15,000",
+    title: "Staging 5% off Pipes & Fittings above INR 15,000",
     campaignKey: "BK-STG-CAMP-OFFER-LAB",
-    mechanic: "order-percentage",
+    mechanic: "items-percentage",
     trigger: "code",
-    value: 8,
+    value: 5,
     usageLimit: 300,
+    categoryReference: "Pipes & Fittings",
     subtotalThreshold: 15000,
     fundingSource: "marketplace",
     testData: true,
@@ -338,11 +343,11 @@ export const STAGING_OFFERS: StagingOffer[] = [
   },
   {
     code: "BK-STG-OFFER-QTY3",
-    title: "Staging 8% off lines of 3 or more",
+    title: "Staging 5% off lines of 3 or more",
     campaignKey: "BK-STG-CAMP-OFFER-LAB",
     mechanic: "items-percentage",
-    trigger: "automatic",
-    value: 8,
+    trigger: "code",
+    value: 5,
     usageLimit: 300,
     categoryReference: "Building Materials",
     minQuantity: 3,
@@ -369,7 +374,7 @@ export const STAGING_OFFERS: StagingOffer[] = [
     title: "Staging free shipping for trade accounts",
     campaignKey: "BK-STG-CAMP-OFFER-LAB",
     mechanic: "free-shipping",
-    trigger: "automatic",
+    trigger: "code",
     value: 100,
     usageLimit: 300,
     customerGroup: "trade-verified",
@@ -492,13 +497,67 @@ export function assertOfferInvariants(): void {
     });
   }
 
-  if (!STAGING_OFFERS.some((offer) => offer.trigger === "automatic")) {
-    throw new Error("The offer lab must include at least one automatic offer.");
+  // The offer lab must not auto-apply discounts to live pilot carts.
+  const automatic = STAGING_OFFERS.filter((offer) => offer.trigger === "automatic");
+  if (automatic.length) {
+    throw new Error(
+      `Offer lab must be code-triggered while the pilot is live: ${automatic
+        .map((offer) => offer.code)
+        .join(", ")}`,
+    );
   }
   if (!STAGING_OFFERS.some((offer) => offer.trigger === "code")) {
     throw new Error("The offer lab must include at least one code-triggered offer.");
   }
   if (!OFFER_PATTERNS.some((pattern) => pattern.id === "buyget")) {
     throw new Error("The pattern catalogue must document the buyget pattern.");
+  }
+
+  assertDiscountCeilingInvariant();
+}
+
+/**
+ * De-overlap guarantee: the ceiling is enforced per promotion, so the seeded set must be arranged
+ * such that the worst-case cumulative rate on any line cannot exceed the ceiling.
+ *
+ *  - at most one order-wide percentage offer,
+ *  - line-item percentage offers target distinct categories,
+ *  - order-wide + the largest line-item percentage never exceed the ceiling.
+ *
+ * Fixed-amount and buyget offers are excluded: they are bounded by the line amount and the free
+ * unit quantity respectively, not by a rate.
+ */
+export function assertDiscountCeilingInvariant(): void {
+  const orderOffers = STAGING_OFFERS.filter(
+    (offer) => offer.mechanic === "order-percentage",
+  );
+  if (orderOffers.length > 1) {
+    throw new Error(
+      `At most one order-wide percentage offer is allowed; found ${orderOffers
+        .map((offer) => offer.code)
+        .join(", ")}`,
+    );
+  }
+
+  const lineOffers = STAGING_OFFERS.filter(
+    (offer) => offer.mechanic === "items-percentage" || offer.mechanic === "items-fixed",
+  );
+  const scopes = lineOffers.map((offer) => offer.categoryReference ?? "unscoped");
+  if (new Set(scopes).size !== scopes.length) {
+    throw new Error(
+      `Line-item offers must target distinct categories: ${scopes.join(", ")}`,
+    );
+  }
+
+  const orderRate = orderOffers[0]?.value ?? 0;
+  const maxLineRate = STAGING_OFFERS.filter(
+    (offer) => offer.mechanic === "items-percentage",
+  ).reduce((max, offer) => Math.max(max, offer.value), 0);
+
+  if (orderRate + maxLineRate > DISCOUNT_CEILING_PERCENT) {
+    throw new Error(
+      `Worst-case cumulative discount ${orderRate}% + ${maxLineRate}% exceeds the ` +
+        `${DISCOUNT_CEILING_PERCENT}% ceiling.`,
+    );
   }
 }

@@ -111,8 +111,52 @@ export default async function merchandisingPromotionEngineTest({ container }: Ex
     throw new Error("Trade free shipping must not apply to non-members.");
   }
 
+  // --- CHG-030: de-overlap. The worst case is the order-wide offer plus one line offer; their
+  // cumulative discount must not exceed the ceiling on the affected line.
+  const productService = container.resolve(Modules.PRODUCT) as {
+    listProductCategories(
+      filters: Record<string, unknown>,
+    ): Promise<{ id: string; name: string }[]>;
+  };
+  const [materials] = await productService.listProductCategories({ name: "Building Materials" });
+
+  const lineSubtotal = 500;
+  const overlap = (
+    await promotionService.computeActions(
+      ["BK-STG-OFFER-ORDER10", "BK-STG-OFFER-QTY3"],
+      {
+        currency_code: "inr",
+        subtotal: lineSubtotal,
+        items: [
+          {
+            id: "overlap_line",
+            quantity: 5,
+            subtotal: lineSubtotal,
+            variant: { id: "overlap_variant", sku: "OVERLAP" },
+            product: { categories: [{ id: materials.id }] },
+          },
+        ],
+        shipping_methods: [],
+      } as never,
+    )
+  ).filter(
+    (action) =>
+      action.action === "addItemAdjustment" &&
+      (action.code === "BK-STG-OFFER-ORDER10" || action.code === "BK-STG-OFFER-QTY3"),
+  );
+
+  const cumulative = overlap.reduce((total, action) => total + Number(action.amount ?? 0), 0);
+  const ceilingAmount = (lineSubtotal * 10) / 100;
+  if (cumulative > ceilingAmount + 0.001) {
+    throw new Error(
+      `Cumulative discount ${cumulative} exceeds the 10% ceiling (${ceilingAmount}) for the ` +
+        "order-wide plus line-item combination.",
+    );
+  }
+
   logger.info(
     `merchandising-promotion-engine-test: PASS (free shipping applies at subtotal ${threshold}, ` +
-      `blocked at ${threshold - 1}; trade free shipping covers the full amount for members only)`,
+      `blocked at ${threshold - 1}; trade free shipping covers the full amount for members only; ` +
+      `order+line cumulative ${cumulative} within the ${ceilingAmount} ceiling)`,
   );
 }

@@ -112,12 +112,13 @@ console.log(
 assertOfferInvariants();
 assert.equal(STAGING_OFFERS.length, 6);
 assert.equal(
-  STAGING_OFFERS.filter((offer) => offer.trigger === "automatic").length > 0,
-  true,
+  STAGING_OFFERS.filter((offer) => offer.trigger === "automatic").length,
+  0,
+  "the seeded offer lab must be code-triggered while the pilot is live",
 );
 assert.equal(
-  STAGING_OFFERS.filter((offer) => offer.trigger === "code").length > 0,
-  true,
+  STAGING_OFFERS.filter((offer) => offer.trigger === "code").length,
+  STAGING_OFFERS.length,
 );
 console.log(
   `staging-merchandising-test: PASS (offer lab declares ${STAGING_OFFERS.length} offers across ` +
