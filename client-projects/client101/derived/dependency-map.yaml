@@ -73,3 +73,13 @@ critical_cross_domain_flows:
   - integration
   - erp
   - finance
+- id: commission-policy-to-marketplace-order-lines
+  domains:
+  - marketplace
+  - commerce
+  - finance
+- id: staging-settlement-statement-to-operator-console
+  domains:
+  - marketplace
+  - operations
+  - finance

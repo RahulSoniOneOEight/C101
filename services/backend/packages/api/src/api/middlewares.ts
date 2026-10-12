@@ -1,5 +1,37 @@
+import { validateAndTransformQuery } from "@medusajs/framework";
+import { PolicyOperation } from "@medusajs/framework/utils";
 import { defineMiddlewares } from "@medusajs/medusa";
+import { AdminGetSettlementStatementsParams } from "./admin/buildkart/settlement-statements/validators";
 
-export default defineMiddlewares({
-    routes: [],
-});
+const routes = [
+  {
+    method: ["GET"],
+    matcher: "/admin/buildkart/settlement-statements",
+    middlewares: [
+      validateAndTransformQuery(AdminGetSettlementStatementsParams, {
+        defaults: [],
+        isList: true,
+      }),
+    ],
+    policies: [
+      {
+        resource: "commission_line",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
+    method: ["GET"],
+    matcher: "/admin/buildkart/settlement-statements/:id",
+    policies: [
+      {
+        resource: "commission_line",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  // Mercur 2.3 supports route policies at runtime. The app still carries the older
+  // Medusa middleware declaration, so keep this compatibility cast local.
+];
+
+export default defineMiddlewares(routes as never);

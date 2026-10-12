@@ -182,8 +182,10 @@ projected to ERP/logistics, and visible through authorised customer and operator
 ### GAP-P0-08 — Seller operational surfaces
 
 - **Classification / priority:** Missing; P0 for marketplace launch.
-- **Current evidence:** Required seller journeys exist in `journey-graph.yaml:857-1503`, but no seller
-  application package or routes exist.
+- **Current evidence:** Required seller journeys exist in `journey-graph.yaml:857-1503`. CHG-028 adds
+  persistent, reconciled statement fixtures and an operator-only read model for bounded staging;
+  every record is marked simulated and payout execution is disabled. This is not a production
+  settlement workflow or seller-facing statement surface.
 - **Canonical owner:** Mercur for seller/onboarding/offers/allocations/commission/settlement; linked
   verification, Tryton, logistics and payments boundaries.
 - **Missing models/APIs/events:** seller/KYC/document, catalogue mapping/offer/tier, seller order,

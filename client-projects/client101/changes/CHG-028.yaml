@@ -1,0 +1,69 @@
+change_id: CHG-028
+revision: 1
+request: >-
+  Add bounded-staging marketplace commission presets and persistent read-only seller settlement
+  statement fixtures. Mercur remains the canonical owner of commission and seller settlement data.
+  The presets are a 10 percent global rate, an 8 percent Building Materials category override and a
+  12 percent Power Tools category override. Commission excludes GST and shipping. Statement records
+  are explicitly test data and cannot initiate or represent a real payout.
+type: marketplace-finance-rule-and-workflow
+extends:
+- CHG-017
+- CHG-019
+affected_capabilities:
+- marketplace-commission-management
+- marketplace-settlement-management
+- finance-operations
+affected_domains:
+- marketplace
+- finance
+- operations
+affected_surfaces:
+- operator-console.commissions
+- operator-console.settlement-statements
+affected_entities:
+- commission
+- seller-settlement
+affected_integrations:
+- mercur-commission-engine
+- operator-settlement-statement-read-model
+affected_events: []
+decisions:
+  D-028-01: bounded-staging-global-commission-is-10-percent
+  D-028-02: building-materials-is-8-percent-and-power-tools-is-12-percent
+  D-028-03: commission-excludes-gst-and-shipping
+  D-028-04: persistent-statement-fixtures-are-read-only-and-test-data
+  D-028-05: payout-execution-remains-disabled-and-unauthorized
+required_tests:
+- The commission seed is idempotent and leaves exactly one global default rate.
+- Building Materials resolves to 8 percent and Power Tools resolves to 12 percent.
+- Other categories fall back to the 10 percent global rate.
+- All three presets exclude tax and shipping from the commission base.
+- Dummy statement totals reconcile as gross minus refunds minus commission plus adjustments equals payable.
+- Every dummy statement reports test_data true and payout_execution_authorized false.
+- The admin settlement API is read-only and unavailable in production.
+- The operator page labels every statement as simulated and exposes no payout command.
+- Existing backend, admin-panel and governance validation remains green.
+constraints:
+- Bounded staging and synthetic data only.
+- The percentages are pilot presets, not approved production commercial terms.
+- Mercur remains the canonical commission and seller-settlement owner.
+- Tryton settlement accounting projection is not posted by this increment.
+- No payout account, provider transfer, bank movement or payout webhook is created.
+- No secrets, seller bank data or customer production data are committed.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-12'
+  scope: repository-change-and-pull-request-only
+  human_selected_presets:
+    global_percent: 10
+    category_overrides:
+      Building Materials: 8
+      Power Tools: 12
+    include_tax: false
+    include_shipping: false
+  human_visual_review_required: true
+production_release_authorized: false
+status: implementation-requested
