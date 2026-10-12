@@ -22,6 +22,8 @@
     "predeploy": "medusa db:migrate",
     "seed": "medusa exec ./src/scripts/seed.ts",
     "configure:simulated-payment": "medusa exec ./src/scripts/configure-simulated-payment.ts",
+    "configure:staging-merchandising": "medusa exec ./src/scripts/configure-staging-merchandising.ts",
+    "test:staging-merchandising": "bun run ./src/scripts/staging-merchandising-test.ts",
     "test:payment-safety": "bun run ./src/scripts/payment-safety-test.ts",
     "start": "medusa start",
     "dev": "medusa develop",

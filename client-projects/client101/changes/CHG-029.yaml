@@ -45,6 +45,7 @@ decisions:
   D-029-04: campaigns-group-promotions-and-carry-a-staging-only-budget
   D-029-05: cms-campaign-elements-are-editorial-only-and-cannot-determine-eligibility
   D-029-06: promotion-discounts-do-not-modify-chg-028-reconciled-settlement-fixtures
+  D-029-07: engine-unsupported-conditions-are-recorded-in-deferred-conditions-and-not-enforced
 required_tests:
 - The preset seed is idempotent and leaves exactly four curated collections, four promotions and two campaigns.
 - Each promotion resolves through the Medusa promotion engine and produces a cart adjustment in staging.
@@ -52,6 +53,7 @@ required_tests:
 - No promotion exceeds the bounded staging discount ceiling and every record reports test_data true.
 - Applying a preset promotion leaves the CHG-028 settlement statement fixtures unchanged.
 - Every collection preset references an existing product category from the seeded category tree.
+- Every condition the promotion engine cannot enforce is recorded in deferredConditions with a reason.
 - Promotions, campaigns and collection presets are unavailable in production.
 - Editorial campaign elements resolve by placement and locale, falling back hi-IN to en-IN.
 - Existing backend, admin-panel, experience-api and governance validation remains green.

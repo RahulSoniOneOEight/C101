@@ -42,6 +42,30 @@ export class CollectionResolver {
         const items = await Promise.all(ids.map((id) => this.medusa.getProduct(id).catch(() => null)));
         return { collection, items: items.filter(Boolean) as StoreProduct[], fallback: false };
       }
+      case "medusa_categories": {
+        const names = (collection.parameters.category_names as string[]) ?? [];
+        const limit = Number(collection.parameters.limit ?? 12);
+        if (!names.length) return this.fallbackTo(key);
+        const categories = await this.medusa.listProductCategories();
+        const categoryIds = categories
+          .filter((category) => names.includes(category.name))
+          .map((category) => category.id);
+        if (!categoryIds.length) return this.fallbackTo(key);
+        const lists = await Promise.all(
+          categoryIds.map((id) => this.medusa.listProductsByCategory(id, limit)),
+        );
+        const seen = new Set<string>();
+        const items: StoreProduct[] = [];
+        for (const list of lists) {
+          for (const product of list) {
+            if (items.length >= limit) break;
+            if (seen.has(product.id)) continue;
+            seen.add(product.id);
+            items.push(product);
+          }
+        }
+        return { collection, items, fallback: false };
+      }
       default:
         return this.fallbackTo(key);
     }

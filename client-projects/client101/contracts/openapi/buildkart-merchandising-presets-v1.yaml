@@ -61,11 +61,16 @@ components:
       properties:
         type:
           type: string
-          enum: [category, collection, product, product_type, seller, order_subtotal]
+          enum: [category, collection, product, product_type, seller, shipping_methods]
         reference: {type: string}
-        min_quantity: {type: integer, minimum: 1}
-        min_subtotal_minor: {type: integer, minimum: 0}
         customer_group: {type: string}
+    DeferredCondition:
+      type: object
+      required: [condition, value, reason]
+      properties:
+        condition: {type: string}
+        value: {type: string}
+        reason: {type: string}
     MerchandisingPromotionPreset:
       type: object
       required:
@@ -81,6 +86,7 @@ components:
       - funding_source
       - policy_pending
       - test_data
+      - deferred_conditions
       properties:
         code: {type: string}
         campaign_key: {type: string}
@@ -94,6 +100,12 @@ components:
         funding_source: {type: string, const: marketplace}
         policy_pending: {type: boolean, const: true}
         test_data: {type: boolean, const: true}
+        deferred_conditions:
+          type: array
+          description: >-
+            Conditions intended by policy but not enforceable by the Medusa promotion engine.
+            They are recorded for review and must not be assumed to be enforced.
+          items: {$ref: '#/components/schemas/DeferredCondition'}
     MerchandisingCampaignPreset:
       type: object
       required:
