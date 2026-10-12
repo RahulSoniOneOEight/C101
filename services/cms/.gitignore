@@ -1,0 +1,14 @@
+node_modules
+build
+dist
+.cache
+.tmp
+.strapi
+.strapi-updater.json
+.env
+.env.*
+!.env.example
+*.log
+# npm is used only to mirror the container build; the lockfile is not committed while the
+# service is still a skeleton, to keep the review diff to schemas and configuration.
+package-lock.json

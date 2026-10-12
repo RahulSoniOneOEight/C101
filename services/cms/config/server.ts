@@ -1,6 +1,11 @@
-type Env = (key: string, fallback?: string) => string;
+/** Strapi's env helper exposes typed accessors, not just string lookup. */
+interface Env {
+  (key: string, fallback?: string): string;
+  int(key: string, fallback?: number): number;
+  array(key: string): string[];
+}
 
-export default ({ env }: { env: Env & { int: (k: string, f?: number) => number; array: (k: string) => string[] } }) => ({
+export default ({ env }: { env: Env }) => ({
   host: env("HOST", "0.0.0.0"),
   port: env.int("PORT", 1337),
   app: {

@@ -1,4 +1,9 @@
-type Env = (key: string, fallback?: string) => string;
+/** Strapi's env helper exposes typed accessors, not just string lookup. */
+interface Env {
+  (key: string, fallback?: string): string;
+  int(key: string, fallback?: number): number;
+  bool(key: string, fallback?: boolean): boolean;
+}
 
 /**
  * The CMS owns editorial content in its own database. It never reaches into the commerce,

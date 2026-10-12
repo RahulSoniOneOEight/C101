@@ -17,6 +17,7 @@ RUN npm install --no-audit --no-fund
 
 COPY config ./config
 COPY src ./src
+COPY public ./public
 
 RUN npm run build
 
@@ -33,6 +34,7 @@ RUN npm install --omit=dev --no-audit --no-fund
 COPY --from=build /opt/cms/dist ./dist
 COPY --from=build /opt/cms/config ./config
 COPY --from=build /opt/cms/src ./src
+COPY --from=build /opt/cms/public ./public
 
 EXPOSE 1337
 
