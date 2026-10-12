@@ -1,0 +1,185 @@
+{
+  "change_id": "CHG-029",
+  "environment": "staging",
+  "generated_at": "2026-10-12T00:00:00Z",
+  "funding_source": "marketplace",
+  "discount_ceiling_percent": 10,
+  "test_data": true,
+  "payment_mode": "simulated",
+  "collections": [
+    {
+      "collection_key": "monsoon-site-essentials",
+      "title": "Monsoon Site Essentials",
+      "type": "manual",
+      "categories": ["Building Materials", "Safety Gear"],
+      "enabled": true,
+      "status": "enabled",
+      "test_data": true
+    },
+    {
+      "collection_key": "power-tool-week",
+      "title": "Power Tool Week",
+      "type": "manual",
+      "categories": ["Power Tools"],
+      "enabled": true,
+      "status": "enabled",
+      "test_data": true
+    },
+    {
+      "collection_key": "plumbing-refresh",
+      "title": "Plumbing Refresh",
+      "type": "manual",
+      "categories": ["Pipes & Fittings", "Faucets & Showers"],
+      "enabled": true,
+      "status": "enabled",
+      "test_data": true
+    },
+    {
+      "collection_key": "electrical-safety",
+      "title": "Electrical Safety",
+      "type": "manual",
+      "categories": ["Wiring & Cables", "Lighting", "Switches & Sockets"],
+      "enabled": true,
+      "status": "enabled",
+      "test_data": true
+    }
+  ],
+  "promotions": [
+    {
+      "code": "BK-STG-PROMO-TOOLS10",
+      "campaign_key": "BK-STG-CAMP-POWER-TOOL-WEEK",
+      "application_method": "percentage",
+      "value": 10,
+      "target": {"type": "category", "reference": "Power Tools"},
+      "automatic": false,
+      "starts_at": "2026-10-20T00:00:00Z",
+      "ends_at": "2026-11-03T23:59:59Z",
+      "usage_limit": 500,
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    },
+    {
+      "code": "BK-STG-PROMO-PLY-BULK",
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "application_method": "percentage",
+      "value": 5,
+      "target": {"type": "category", "reference": "Plywood & Boards", "min_quantity": 10},
+      "automatic": true,
+      "starts_at": "2026-10-15T00:00:00Z",
+      "ends_at": "2026-11-30T23:59:59Z",
+      "usage_limit": 200,
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    },
+    {
+      "code": "BK-STG-PROMO-FREESHIP",
+      "campaign_key": "BK-STG-CAMP-POWER-TOOL-WEEK",
+      "application_method": "free_shipping",
+      "value": 0,
+      "target": {"type": "order_subtotal", "reference": "cart", "min_subtotal_minor": 500000},
+      "automatic": false,
+      "starts_at": "2026-10-20T00:00:00Z",
+      "ends_at": "2026-11-03T23:59:59Z",
+      "usage_limit": 500,
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    },
+    {
+      "code": "BK-STG-PROMO-SAFETY-B2B",
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "application_method": "percentage",
+      "value": 7,
+      "target": {"type": "category", "reference": "Safety Gear", "customer_group": "trade-verified"},
+      "automatic": false,
+      "starts_at": "2026-10-15T00:00:00Z",
+      "ends_at": "2026-11-30T23:59:59Z",
+      "usage_limit": 150,
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    }
+  ],
+  "campaigns": [
+    {
+      "campaign_key": "BK-STG-CAMP-POWER-TOOL-WEEK",
+      "title": "Power Tool Week",
+      "promotion_codes": ["BK-STG-PROMO-TOOLS10", "BK-STG-PROMO-FREESHIP"],
+      "budget_amount_minor": 50000000,
+      "currency_code": "inr",
+      "starts_at": "2026-10-20T00:00:00Z",
+      "ends_at": "2026-11-03T23:59:59Z",
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    },
+    {
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "title": "Site Ready",
+      "promotion_codes": ["BK-STG-PROMO-PLY-BULK", "BK-STG-PROMO-SAFETY-B2B"],
+      "budget_amount_minor": 40000000,
+      "currency_code": "inr",
+      "starts_at": "2026-10-15T00:00:00Z",
+      "ends_at": "2026-11-30T23:59:59Z",
+      "funding_source": "marketplace",
+      "policy_pending": true,
+      "test_data": true
+    }
+  ],
+  "content": [
+    {
+      "id": "content_campaign_power_tool_week_en_in",
+      "content_type": "campaign-copy",
+      "placement": "collection.power-tool-week.hero",
+      "locale": "en-IN",
+      "title": "Power Tool Week — 10% off",
+      "body": "Staging campaign. 10% off Power Tools and free shipping over ₹5,000. Simulated discount, no real charge.",
+      "action_label": "Shop Power Tools",
+      "action_uri": "/collections/power-tool-week",
+      "version": "test-v1",
+      "campaign_key": "BK-STG-CAMP-POWER-TOOL-WEEK",
+      "test_data": true
+    },
+    {
+      "id": "content_campaign_site_ready_banner_en_in",
+      "content_type": "banner",
+      "placement": "home.campaign-strip",
+      "locale": "en-IN",
+      "title": "Site Ready savings",
+      "body": "Bulk plywood and verified-trade safety gear offers for staging review.",
+      "action_label": "View offers",
+      "action_uri": "/collections/monsoon-site-essentials",
+      "version": "test-v1",
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "test_data": true
+    },
+    {
+      "id": "content_campaign_site_ready_banner_hi_in",
+      "content_type": "banner",
+      "placement": "home.campaign-strip",
+      "locale": "hi-IN",
+      "title": "साइट रेडी बचत",
+      "body": "स्टेजिंग समीक्षा के लिए थोक प्लाईवुड और सत्यापित व्यापार सुरक्षा उपकरण ऑफ़र।",
+      "action_label": "ऑफ़र देखें",
+      "action_uri": "/collections/monsoon-site-essentials",
+      "version": "test-v1",
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "test_data": true
+    },
+    {
+      "id": "content_onboarding_trade_program_en_in",
+      "content_type": "onboarding",
+      "placement": "onboarding.trade-program",
+      "locale": "en-IN",
+      "title": "Join the BuildKart trade program",
+      "body": "Add your GSTIN and delivery sites to unlock trade pricing and campaign eligibility in staging.",
+      "action_label": "Start",
+      "action_uri": "/onboarding/business",
+      "version": "test-v1",
+      "campaign_key": "BK-STG-CAMP-SITE-READY",
+      "test_data": true
+    }
+  ]
+}

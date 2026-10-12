@@ -1,0 +1,82 @@
+change_id: CHG-029
+revision: 1
+request: >-
+  Add a bounded-staging merchandising preset pack: curated collections, marketplace-funded
+  promotions evaluated by the real Medusa discount engine, campaigns that group those promotions,
+  and editorial CMS campaign elements. The pack is declarative and reviewable, every record is
+  test data, and promotion discounts are explicitly excluded from the CHG-028 settlement fixtures
+  until Finance approves discount funding and GST treatment.
+type: marketplace-merchandising-and-editorial-content
+extends:
+- CHG-014
+- CHG-017
+- CHG-022
+- CHG-028
+affected_capabilities:
+- promotions
+- catalogue
+- cart-merchandising
+- content-operations
+affected_domains:
+- commerce
+- marketplace
+- experience
+- content
+- operations
+affected_surfaces:
+- operator-console.merchandising
+- customer-app
+- web-store
+- b2b
+affected_entities:
+- merchandising-collection
+- promotion
+- campaign
+- editorial-app-content
+affected_integrations:
+- medusa-promotion-engine
+- experience-app-shell-content
+- dynamic-collection-registry
+affected_events: []
+decisions:
+  D-029-01: promotions-use-the-real-medusa-discount-engine-in-bounded-staging
+  D-029-02: promotions-are-marketplace-funded-and-recorded-as-policy-pending
+  D-029-03: collection-presets-are-curated-records-and-do-not-alter-dynamic-registry-keys
+  D-029-04: campaigns-group-promotions-and-carry-a-staging-only-budget
+  D-029-05: cms-campaign-elements-are-editorial-only-and-cannot-determine-eligibility
+  D-029-06: promotion-discounts-do-not-modify-chg-028-reconciled-settlement-fixtures
+required_tests:
+- The preset seed is idempotent and leaves exactly four curated collections, four promotions and two campaigns.
+- Each promotion resolves through the Medusa promotion engine and produces a cart adjustment in staging.
+- Every promotion and campaign is marketplace-funded; no preset records a seller funding source.
+- No promotion exceeds the bounded staging discount ceiling and every record reports test_data true.
+- Applying a preset promotion leaves the CHG-028 settlement statement fixtures unchanged.
+- Every collection preset references an existing product category from the seeded category tree.
+- Promotions, campaigns and collection presets are unavailable in production.
+- Editorial campaign elements resolve by placement and locale, falling back hi-IN to en-IN.
+- Existing backend, admin-panel, experience-api and governance validation remains green.
+constraints:
+- Bounded staging and synthetic data only.
+- The discounts and budgets are pilot presets, not approved production commercial terms.
+- Medusa remains the canonical owner of promotions and campaigns; Mercur owns curated collections.
+- Editorial CMS content is non-transactional and cannot determine price, stock or eligibility.
+- Promotion funding, stacking, GST and commission treatment remain subject to Finance/Tax approval.
+- CHG-028 is still in review on a separate branch; this change is based on main and its
+  settlement-exclusion test applies once CHG-028 lands.
+- No payout account, provider transfer, bank movement, loyalty points or production ledger posting.
+- No secrets, seller bank data or customer production data are committed.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-12'
+  scope: repository-change-and-pull-request-only
+  human_selected_presets:
+    promotion_depth: real-medusa-discount-engine
+    funding_source: marketplace-funded
+    branch_scope: separate-from-chg-028
+    discount_ceiling_percent: 10
+    preset_list_approved: true
+  human_visual_review_required: true
+production_release_authorized: false
+status: implementation-requested

@@ -14,6 +14,7 @@ from yaml.constructor import ConstructorError
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "client-projects" / "client101" / "contracts"
 OPENAPI_PATH = CONTRACTS / "openapi" / "buildkart-experience-v1.yaml"
+MERCHANDISING_PATH = CONTRACTS / "openapi" / "buildkart-merchandising-presets-v1.yaml"
 ASYNCAPI_PATH = CONTRACTS / "asyncapi" / "buildkart-events-v1.yaml"
 DATA_CONTRACT_PATH = CONTRACTS / "data-contract.yaml"
 FIXTURES = CONTRACTS / "fixtures"
@@ -145,6 +146,8 @@ def main() -> None:
         "/v1/auth/otp/verify",
         "/v1/products",
         "/v1/products/{productId}",
+        "/v1/collections/{collectionKey}",
+        "/v1/admin/collections",
         "/v1/content/app-shell",
         "/v1/carts",
         "/v1/carts/{cartId}/lines",
@@ -197,10 +200,52 @@ def main() -> None:
     assert reconciliation["bank_receipt_claimed"] is False
     assert {reconciliation[key]["system"] for key in ("order", "allocation", "reservation", "movement", "accounting")} == {"medusa", "mercur", "tryton"}
 
+    merchandising = load_yaml(MERCHANDISING_PATH)
+    assert merchandising.get("openapi") == "3.1.0"
+    assert merchandising["info"]["version"].endswith("-draft")
+    assert_local_refs_resolve(merchandising)
+    assert_unique_operation_ids(merchandising)
+    validate_fixture(
+        merchandising, "merchandising-presets.json", "MerchandisingPresetCatalogue"
+    )
+
+    presets = json.loads(
+        (FIXTURES / "merchandising-presets.json").read_text(encoding="utf-8")
+    )
+    assert presets["change_id"] == "CHG-029"
+    assert presets["funding_source"] == "marketplace"
+    assert presets["test_data"] is True
+    assert presets["payment_mode"] == "simulated"
+
+    promotion_codes = {promotion["code"] for promotion in presets["promotions"]}
+    assert len(promotion_codes) == len(presets["promotions"]), "duplicate promotion code"
+    campaign_keys = {campaign["campaign_key"] for campaign in presets["campaigns"]}
+    assert len(campaign_keys) == len(presets["campaigns"]), "duplicate campaign key"
+    for promotion in presets["promotions"]:
+        assert promotion["funding_source"] == "marketplace", "promotion must be marketplace funded"
+        assert (
+            promotion["value"] <= presets["discount_ceiling_percent"]
+        ), f"discount exceeds ceiling: {promotion['code']}"
+        assert (
+            promotion["campaign_key"] in campaign_keys
+        ), f"promotion references unknown campaign: {promotion['code']}"
+    for campaign in presets["campaigns"]:
+        assert campaign["funding_source"] == "marketplace", "campaign must be marketplace funded"
+        for code in campaign["promotion_codes"]:
+            assert code in promotion_codes, f"campaign references unknown promotion: {code}"
+
+    collection_keys = {collection["collection_key"] for collection in presets["collections"]}
+    assert len(collection_keys) == len(presets["collections"]), "duplicate collection key"
+    for collection in presets["collections"]:
+        assert collection["categories"], f"collection has no categories: {collection['collection_key']}"
+    for element in presets["content"]:
+        assert element["locale"] in {"en-IN", "hi-IN"}, f"unknown locale: {element['id']}"
+
     print(
         "Contract validation passed: "
-        f"{len(openapi['paths'])} API paths, "
-        f"{len(asyncapi['channels'])} event channels, 9 fixtures."
+        f"{len(openapi['paths'])} experience paths, "
+        f"{len(merchandising['paths'])} merchandising paths, "
+        f"{len(asyncapi['channels'])} event channels, 10 fixtures."
     )
 
 
