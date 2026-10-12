@@ -1,0 +1,192 @@
+"""Validates the CMS content-type and component schemas under services/cms.
+
+Strapi is not installed in this repository, so a broken reference (a content type pointing at a
+component or content type that does not exist) would otherwise fail only at CMS boot. This script
+fails closed on:
+
+  1. a component reference (`layout.foo`) with no matching component schema,
+  2. a relation target (`api::type.type`) with no matching content type,
+  3. a content type missing draftAndPublish or i18n,
+  4. a CMS schema that declares a transactional field (price, stock, seller, order, payment, credit),
+  5. a duplicate component or content-type identifier.
+
+CMS ownership rule: the CMS owns editorial content only and must never own transactional state.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+from typing import Any, Iterator
+
+ROOT = Path(__file__).resolve().parents[1]
+CMS = ROOT / "services" / "cms"
+
+# Fields the CMS must never own, checked case-insensitively against attribute names.
+FORBIDDEN_ATTRIBUTE_TOKENS = (
+    "price",
+    "unitprice",
+    "stock",
+    "inventory",
+    "stocklevel",
+    "seller",
+    "sellertier",
+    "order",
+    "orderid",
+    "payment",
+    "paymentstatus",
+    "credit",
+    "creditlimit",
+    "commission",
+    "payout",
+    "settlement",
+    "invoice",
+)
+
+COMPONENT_REF = re.compile(r"^[a-z0-9-]+\.[a-z0-9-]+$")
+RELATION_TARGET = re.compile(r"^api::([a-z0-9-]+)\.([a-z0-9-]+)$")
+
+
+def load(path: Path) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        raise AssertionError(f"{path.relative_to(ROOT)} is not valid JSON: {error}") from error
+
+
+def iter_attributes(schema: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
+    for name, attribute in (schema.get("attributes") or {}).items():
+        if isinstance(attribute, dict):
+            yield name, attribute
+
+
+def declared_components() -> dict[str, Path]:
+    """Component identity is its folder-and-file path in Strapi dot notation,
+    e.g. layout/offer-collection -> layout.offer-collection."""
+    components: dict[str, Path] = {}
+    for path in sorted((CMS / "src" / "components").rglob("*.json")):
+        relative = path.relative_to(CMS / "src" / "components").with_suffix("")
+        key = ".".join(relative.parts)
+        if key in components:
+            raise AssertionError(f"duplicate component '{key}': {path.relative_to(ROOT)}")
+        components[key] = path
+    return components
+
+
+def declared_content_types() -> dict[str, Path]:
+    """Content type identity is the schema's own singularName, e.g. category-editorial."""
+    types: dict[str, Path] = {}
+    for path in sorted(CMS.rglob("schema.json")):
+        schema = load(path)
+        singular = (schema.get("info") or {}).get("singularName")
+        if not singular:
+            raise AssertionError(f"{path.relative_to(ROOT)} has no info.singularName")
+        if singular in types:
+            raise AssertionError(
+                f"duplicate content type '{singular}': {path.relative_to(ROOT)} and "
+                f"{types[singular].relative_to(ROOT)}"
+            )
+        types[singular] = path
+    return types
+
+
+def main() -> None:
+    if not CMS.exists():
+        print("CMS directory not found; nothing to validate.")
+        return
+
+    components = declared_components()
+    content_types = declared_content_types()
+    if not content_types:
+        print("No CMS content types declared; nothing to validate.")
+        return
+
+    references: list[str] = []
+    forbidden: list[str] = []
+
+    for singular, path in content_types.items():
+        schema = load(path)
+        relative = path.relative_to(ROOT)
+
+        options = schema.get("options") or {}
+        assert options.get("draftAndPublish") is True, (
+            f"{relative}: content types must enable draftAndPublish"
+        )
+        i18n = (schema.get("pluginOptions") or {}).get("i18n") or {}
+        assert i18n.get("localized") is True, f"{relative}: content types must enable i18n"
+
+        for name, attribute in iter_attributes(schema):
+            attribute_type = attribute.get("type")
+
+            if attribute_type == "component":
+                component = attribute.get("component")
+                assert component, f"{relative}: attribute '{name}' has no component"
+                references.append(f"{relative}:{name} -> {component}")
+                assert component in components, (
+                    f"{relative}: attribute '{name}' references missing component '{component}'"
+                )
+            elif attribute_type == "dynamiczone":
+                zone_components = attribute.get("components") or []
+                assert zone_components, (
+                    f"{relative}: dynamiczone '{name}' must declare components"
+                )
+                for component in zone_components:
+                    references.append(f"{relative}:{name} -> {component}")
+                    assert component in components, (
+                        f"{relative}: attribute '{name}' references missing component '{component}'"
+                    )
+            elif attribute_type == "relation":
+                target = attribute.get("target")
+                assert target, f"{relative}: relation '{name}' has no target"
+                match = RELATION_TARGET.match(str(target))
+                assert match, f"{relative}: relation '{name}' has malformed target '{target}'"
+                target_type = match.group(1)
+                references.append(f"{relative}:{name} -> {target}")
+                assert target_type in content_types, (
+                    f"{relative}: relation '{name}' targets unknown content type '{target}'"
+                )
+
+            normalised = re.sub(r"[^a-z0-9]", "", str(name).lower())
+            for token in FORBIDDEN_ATTRIBUTE_TOKENS:
+                if token in normalised:
+                    forbidden.append(f"{relative}:{name}")
+
+    for component_key, path in components.items():
+        schema = load(path)
+        relative = path.relative_to(ROOT)
+        assert (schema.get("info") or {}).get("displayName"), (
+            f"{relative}: component must declare info.displayName"
+        )
+        for name, attribute in iter_attributes(schema):
+            if attribute.get("type") == "relation":
+                target = attribute.get("target")
+                match = RELATION_TARGET.match(str(target))
+                assert match, f"{relative}: relation '{name}' has malformed target '{target}'"
+                references.append(f"{relative}:{name} -> {target}")
+                assert match.group(1) in content_types, (
+                    f"{relative}: relation '{name}' targets unknown content type '{target}'"
+                )
+            normalised = re.sub(r"[^a-z0-9]", "", str(name).lower())
+            for token in FORBIDDEN_ATTRIBUTE_TOKENS:
+                if token in normalised:
+                    forbidden.append(f"{relative}:{name}")
+
+    assert not forbidden, (
+        "CMS schemas must not declare transactional fields: " + ", ".join(sorted(forbidden))
+    )
+
+    print(
+        "CMS schema validation passed: "
+        f"{len(content_types)} content types, {len(components)} components, "
+        f"{len(references)} resolved references."
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except AssertionError as error:
+        print(f"CMS schema validation failed: {error}", file=sys.stderr)
+        raise SystemExit(1) from error

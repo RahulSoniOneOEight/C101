@@ -1,0 +1,23 @@
+{
+  "collectionName": "components_layout_offer_collections",
+  "info": {
+    "displayName": "Offer collection",
+    "description": "Merchandising rail of offers. The label is editorial; offer membership and any discount are commerce-owned."
+  },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "tag": {
+      "type": "string",
+      "description": "Optional badge shown with the rail, for example Best Deals."
+    },
+    "offerIds": { "type": "json", "required": true },
+    "collection": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::curated-collection.curated-collection"
+    },
+    "itemLimit": { "type": "integer", "default": 10, "min": 1, "max": 30 },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" }
+  }
+}
