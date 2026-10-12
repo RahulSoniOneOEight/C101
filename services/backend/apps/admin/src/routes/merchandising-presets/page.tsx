@@ -57,7 +57,8 @@ export default function MerchandisingPresetsPage() {
             <Text size="small" className="max-w-3xl text-ui-fg-subtle">
               Read-only view of the reviewed staging preset pack. Promotions are evaluated by the
               Medusa discount engine and are funded by the marketplace, so no seller is charged.
-              This page cannot create, activate or discount anything.
+              Free shipping applies only to carts at or above ₹10,000. This page cannot create,
+              activate or discount anything.
             </Text>
           </div>
           <div className="grid grid-cols-2 gap-4 px-6 py-4 md:grid-cols-4">
@@ -163,6 +164,7 @@ export default function MerchandisingPresetsPage() {
                     <Table.HeaderCell className="text-right">Value</Table.HeaderCell>
                     <Table.HeaderCell>Trigger</Table.HeaderCell>
                     <Table.HeaderCell>Campaign</Table.HeaderCell>
+                    <Table.HeaderCell>Enforced condition</Table.HeaderCell>
                     <Table.HeaderCell>Funding</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
@@ -188,6 +190,18 @@ export default function MerchandisingPresetsPage() {
                       </Table.Cell>
                       <Table.Cell>{promotion.automatic ? "automatic" : "code"}</Table.Cell>
                       <Table.Cell>{promotion.campaign_key}</Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" className="text-ui-fg-subtle">
+                          {promotion.rules.length
+                            ? promotion.rules
+                                .map(
+                                  (rule) =>
+                                    `${rule.attribute} ${rule.operator} ${rule.values.join("/")}`,
+                                )
+                                .join("; ")
+                            : "—"}
+                        </Text>
+                      </Table.Cell>
                       <Table.Cell>
                         <StatusBadge color="blue">{promotion.funding_source}</StatusBadge>
                       </Table.Cell>

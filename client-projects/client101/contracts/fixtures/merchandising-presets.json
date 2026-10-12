@@ -52,12 +52,13 @@
       "value": 10,
       "target": {"type": "category", "reference": "Power Tools"},
       "automatic": false,
-      "starts_at": "2026-10-20T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-03T23:59:59Z",
       "usage_limit": 500,
       "funding_source": "marketplace",
       "policy_pending": true,
       "test_data": true,
+      "rules": [],
       "deferred_conditions": []
     },
     {
@@ -67,12 +68,13 @@
       "value": 5,
       "target": {"type": "category", "reference": "Plywood & Boards"},
       "automatic": true,
-      "starts_at": "2026-10-15T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-30T23:59:59Z",
       "usage_limit": 200,
       "funding_source": "marketplace",
       "policy_pending": true,
       "test_data": true,
+      "rules": [],
       "deferred_conditions": [
         {
           "condition": "min_quantity",
@@ -88,19 +90,21 @@
       "value": 0,
       "target": {"type": "shipping_methods", "reference": "shipping_methods"},
       "automatic": false,
-      "starts_at": "2026-10-20T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-03T23:59:59Z",
       "usage_limit": 500,
       "funding_source": "marketplace",
       "policy_pending": true,
       "test_data": true,
-      "deferred_conditions": [
+      "rules": [
         {
-          "condition": "min_subtotal_minor",
-          "value": "500000",
-          "reason": "No supported promotion rule attribute evaluates a cart subtotal threshold. The pilot applies free shipping without the minimum-order-value gate."
+          "attribute": "subtotal",
+          "operator": "gte",
+          "values": ["10000"],
+          "description": "Free shipping applies only when the cart subtotal reaches INR 10,000 (cart subtotal is in major units)."
         }
-      ]
+      ],
+      "deferred_conditions": []
     },
     {
       "code": "BK-STG-PROMO-SAFETY-B2B",
@@ -113,12 +117,13 @@
         "customer_group": "trade-verified"
       },
       "automatic": false,
-      "starts_at": "2026-10-15T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-30T23:59:59Z",
       "usage_limit": 150,
       "funding_source": "marketplace",
       "policy_pending": true,
       "test_data": true,
+      "rules": [],
       "deferred_conditions": []
     }
   ],
@@ -129,7 +134,7 @@
       "promotion_codes": ["BK-STG-PROMO-TOOLS10", "BK-STG-PROMO-FREESHIP"],
       "budget_amount_minor": 50000000,
       "currency_code": "inr",
-      "starts_at": "2026-10-20T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-03T23:59:59Z",
       "funding_source": "marketplace",
       "policy_pending": true,
@@ -141,7 +146,7 @@
       "promotion_codes": ["BK-STG-PROMO-PLY-BULK", "BK-STG-PROMO-SAFETY-B2B"],
       "budget_amount_minor": 40000000,
       "currency_code": "inr",
-      "starts_at": "2026-10-15T00:00:00Z",
+      "starts_at": "2026-10-10T00:00:00Z",
       "ends_at": "2026-11-30T23:59:59Z",
       "funding_source": "marketplace",
       "policy_pending": true,
@@ -155,7 +160,7 @@
       "placement": "collection.power-tool-week.hero",
       "locale": "en-IN",
       "title": "Power Tool Week — 10% off",
-      "body": "Staging campaign. 10% off Power Tools and free shipping. Simulated discount, no real charge.",
+      "body": "Staging campaign. 10% off Power Tools, plus free shipping on carts over ₹10,000. Simulated discount, no real charge.",
       "action_label": "Shop Power Tools",
       "action_uri": "/collections/power-tool-week",
       "version": "test-v1",

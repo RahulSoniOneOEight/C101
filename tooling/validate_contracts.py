@@ -229,6 +229,27 @@ def main() -> None:
         assert (
             promotion["campaign_key"] in campaign_keys
         ), f"promotion references unknown campaign: {promotion['code']}"
+        for rule in promotion["rules"]:
+            assert rule["attribute"], f"rule missing attribute: {promotion['code']}"
+            assert rule["operator"] in {"gte", "lte", "gt", "lt", "eq", "in"}, (
+                f"unsupported operator: {rule['operator']}"
+            )
+            assert rule["values"], f"rule missing values: {promotion['code']}"
+
+    free_shipping = next(
+        promotion
+        for promotion in presets["promotions"]
+        if promotion["code"] == "BK-STG-PROMO-FREESHIP"
+    )
+    subtotal_rule = next(
+        (rule for rule in free_shipping["rules"] if rule["attribute"] == "subtotal"), None
+    )
+    assert subtotal_rule is not None, "free shipping must declare a cart-value gate"
+    assert subtotal_rule["operator"] == "gte"
+    assert subtotal_rule["values"] == ["10000"], "free shipping gate must be INR 10000"
+    assert not free_shipping["deferred_conditions"], (
+        "the free-shipping cart-value gate is enforced and must not be deferred"
+    )
     for campaign in presets["campaigns"]:
         assert campaign["funding_source"] == "marketplace", "campaign must be marketplace funded"
         for code in campaign["promotion_codes"]:

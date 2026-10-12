@@ -8,9 +8,10 @@
  * Prohibited outside `BUILDKART_ENVIRONMENT=staging`.
  */
 import type { ExecArgs } from "@medusajs/framework/types";
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { ContainerRegistrationKeys, Modules, RuleType } from "@medusajs/framework/utils";
 import {
   addOrRemoveCampaignPromotionsWorkflow,
+  batchPromotionRulesWorkflow,
   createCampaignsWorkflow,
   createCustomerGroupsWorkflow,
   createPromotionsWorkflow,
@@ -24,6 +25,7 @@ import {
   MERCHANDISING_PROMOTION_PRESETS,
   TRADE_CUSTOMER_GROUP_NAME,
   assertPresetInvariants,
+  budgetAmountMajor,
   type MerchandisingPromotionPreset,
 } from "../staging-merchandising/presets";
 import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime";
@@ -31,12 +33,31 @@ import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime"
 interface CampaignRecord {
   id: string;
   campaign_identifier: string;
+  budget?: { id: string; limit: number | null } | null;
+}
+
+interface PromotionRuleRecord {
+  id: string;
+  attribute: string;
+  operator: string;
+  values?: { value: string }[] | string[];
 }
 
 interface PromotionRecord {
   id: string;
   code: string;
   campaign_id: string | null;
+  rules?: PromotionRuleRecord[];
+}
+
+/** Attributes this change owns. Operator-added rules on other attributes are left untouched. */
+const MANAGED_RULE_ATTRIBUTES = new Set(["subtotal", "customer.groups.id"]);
+
+interface PromotionRuleInput {
+  attribute: string;
+  operator: "gt" | "lt" | "eq" | "ne" | "in" | "lte" | "gte";
+  values: string[];
+  description?: string;
 }
 
 export default async function configureStagingMerchandising({ container }: ExecArgs) {
@@ -53,8 +74,14 @@ export default async function configureStagingMerchandising({ container }: ExecA
   const productService = container.resolve(Modules.PRODUCT);
   const customerService = container.resolve(Modules.CUSTOMER);
   const promotionService = container.resolve(Modules.PROMOTION) as {
-    listCampaigns(filters: Record<string, unknown>): Promise<CampaignRecord[]>;
-    listPromotions(filters: Record<string, unknown>): Promise<PromotionRecord[]>;
+    listCampaigns(
+      filters: Record<string, unknown>,
+      config?: Record<string, unknown>,
+    ): Promise<CampaignRecord[]>;
+    listPromotions(
+      filters: Record<string, unknown>,
+      config?: Record<string, unknown>,
+    ): Promise<PromotionRecord[]>;
   };
 
   // 1. Trade customer group used by the B2B promotion rule.
@@ -90,9 +117,11 @@ export default async function configureStagingMerchandising({ container }: ExecA
   // 3. Campaigns. A campaign budget caps marketplace-funded spend in staging.
   const campaignIdByKey = new Map<string, string>();
   for (const preset of MERCHANDISING_CAMPAIGN_PRESETS) {
-    const [existing] = await promotionService.listCampaigns({
-      campaign_identifier: preset.campaignKey,
-    });
+    const [existing] = await promotionService.listCampaigns(
+      { campaign_identifier: preset.campaignKey },
+      { relations: ["budget"] },
+    );
+    const budgetLimit = budgetAmountMajor(preset.budgetAmountMinor);
     const campaignsData = {
       name: preset.title,
       campaign_identifier: preset.campaignKey,
@@ -100,13 +129,18 @@ export default async function configureStagingMerchandising({ container }: ExecA
       ends_at: new Date(preset.endsAt),
       budget: {
         type: "spend" as const,
-        limit: preset.budgetAmountMinor,
+        // Medusa compares spend budgets against discounted amounts in major units.
+        limit: budgetLimit,
         currency_code: preset.currencyCode,
       },
     };
 
     if (existing) {
-      // Budget type and currency are immutable after creation, so update only mutable fields.
+      // Budget type and currency are immutable after creation. `limit` is mutable, but must be
+      // addressed through the budget's own id rather than re-declared inline.
+      const budgetUpdate = existing.budget?.id
+        ? { budget: { id: existing.budget.id, limit: budgetLimit } }
+        : {};
       await updateCampaignsWorkflow(container).run({
         input: {
           campaignsData: [
@@ -115,10 +149,17 @@ export default async function configureStagingMerchandising({ container }: ExecA
               name: preset.title,
               starts_at: new Date(preset.startsAt),
               ends_at: new Date(preset.endsAt),
+              ...budgetUpdate,
             },
           ],
         },
       });
+      // A campaign created before the budget existed still needs one.
+      if (!existing.budget?.id) {
+        throw new Error(
+          `Staging campaign ${preset.campaignKey} has no budget. Delete and reconfigure the campaign.`,
+        );
+      }
       campaignIdByKey.set(preset.campaignKey, existing.id);
       logger.info(`Updated staging campaign ${preset.campaignKey}.`);
     } else {
@@ -141,7 +182,10 @@ export default async function configureStagingMerchandising({ container }: ExecA
       throw new Error(`${preset.code} references an unconfigured campaign.`);
     }
 
-    const [existing] = await promotionService.listPromotions({ code: preset.code });
+    const [existing] = (await promotionService.listPromotions(
+      { code: preset.code },
+      { relations: ["rules", "rules.values"] },
+    )) as PromotionRecord[];
     if (existing) {
       // Marketplace-funded presets must never carry a seller link.
       const { data: sellerLinks } = await query.graph({
@@ -174,6 +218,12 @@ export default async function configureStagingMerchandising({ container }: ExecA
           input: { id: campaignId, add: [existing.id] },
         });
       }
+      await syncPromotionRules(
+        container,
+        promotionService,
+        existing,
+        desiredPromotionRules(preset, tradeGroup.id),
+      );
       logger.info(`Updated staging promotion ${preset.code}.`);
       continue;
     }
@@ -189,7 +239,7 @@ export default async function configureStagingMerchandising({ container }: ExecA
             limit: preset.usageLimit,
             campaign_id: campaignId,
             application_method: applicationMethodFor(preset, categoryByName),
-            rules: promotionRulesFor(preset, tradeGroup.id),
+            rules: desiredPromotionRules(preset, tradeGroup.id),
           },
         ],
       },
@@ -237,19 +287,78 @@ function applicationMethodFor(
   };
 }
 
-/** Promotion-level rules; the B2B preset is restricted to the trade customer group. */
-function promotionRulesFor(
+/** Promotion-level rules the engine enforces: preset gates plus the optional trade group gate. */
+function desiredPromotionRules(
   preset: MerchandisingPromotionPreset,
   tradeGroupId: string,
-) {
-  if (!preset.target.customerGroup) {
-    return [];
-  }
-  return [
-    {
+): PromotionRuleInput[] {
+  const rules: PromotionRuleInput[] = preset.rules.map((rule) => ({
+    attribute: rule.attribute,
+    operator: rule.operator,
+    values: rule.values,
+    description: rule.description,
+  }));
+
+  if (preset.target.customerGroup) {
+    rules.push({
       attribute: "customer.groups.id",
-      operator: "in" as const,
+      operator: "in",
       values: [tradeGroupId],
+      description: `Restricted to the ${preset.target.customerGroup} customer group.`,
+    });
+  }
+
+  return rules;
+}
+
+/** Reconcile only the rules CHG-029 owns, leaving operator-added rules on other attributes intact. */
+async function syncPromotionRules(
+  container: ExecArgs["container"],
+  promotionService: {
+    listPromotions(
+      filters: Record<string, unknown>,
+      config?: Record<string, unknown>,
+    ): Promise<PromotionRecord[]>;
+  },
+  existing: PromotionRecord,
+  desired: PromotionRuleInput[],
+): Promise<void> {
+  const [, refreshed] = (await promotionService.listPromotions(
+    { id: existing.id },
+    { relations: ["rules", "rules.values"] },
+  )) as PromotionRecord[];
+
+  const currentRules = refreshed?.rules ?? existing.rules ?? [];
+  const valuesOf = (rule: PromotionRuleRecord): string[] =>
+    (rule.values ?? []).map((value) =>
+      typeof value === "string" ? value : value.value,
+    );
+  const sameRule = (a: PromotionRuleInput, b: PromotionRuleRecord) =>
+    a.attribute === b.attribute &&
+    a.operator === b.operator &&
+    JSON.stringify(a.values) === JSON.stringify(valuesOf(b));
+
+  const managedExisting = currentRules.filter((rule) =>
+    MANAGED_RULE_ATTRIBUTES.has(rule.attribute),
+  );
+  const deleteIds = managedExisting
+    .filter((rule) => !desired.some((want) => sameRule(want, rule)))
+    .map((rule) => rule.id);
+  const create = desired.filter(
+    (want) => !managedExisting.some((rule) => sameRule(want, rule)),
+  );
+
+  if (!deleteIds.length && !create.length) {
+    return;
+  }
+
+  await batchPromotionRulesWorkflow(container).run({
+    input: {
+      id: existing.id,
+      // Required: without `rule_type` the rule step is a no-op.
+      rule_type: RuleType.RULES,
+      create,
+      delete: deleteIds,
     },
-  ];
+  });
 }

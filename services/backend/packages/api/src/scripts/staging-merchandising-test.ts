@@ -7,6 +7,7 @@ import {
   MERCHANDISING_COLLECTION_PRESETS,
   MERCHANDISING_PROMOTION_PRESETS,
   assertPresetInvariants,
+  budgetAmountMajor,
   merchandisingPresetCatalogue,
 } from "../staging-merchandising/presets";
 import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime";
@@ -45,8 +46,7 @@ for (const campaign of MERCHANDISING_CAMPAIGN_PRESETS) {
   assert.equal(campaign.fundingSource, "marketplace");
 }
 
-// The two engine-unsupported conditions must stay explicit so they cannot be mistaken for
-// enforced behaviour.
+// Conditions the engine enforces (rules) versus policy intent it cannot (deferred conditions).
 const deferred = new Map(
   MERCHANDISING_PROMOTION_PRESETS.map((promotion) => [
     promotion.code,
@@ -55,8 +55,28 @@ const deferred = new Map(
 );
 assert.deepEqual(deferred.get("BK-STG-PROMO-TOOLS10"), []);
 assert.deepEqual(deferred.get("BK-STG-PROMO-PLY-BULK"), ["min_quantity"]);
-assert.deepEqual(deferred.get("BK-STG-PROMO-FREESHIP"), ["min_subtotal_minor"]);
+assert.deepEqual(deferred.get("BK-STG-PROMO-FREESHIP"), []);
 assert.deepEqual(deferred.get("BK-STG-PROMO-SAFETY-B2B"), []);
+
+const freeShipping = MERCHANDISING_PROMOTION_PRESETS.find(
+  (promotion) => promotion.code === "BK-STG-PROMO-FREESHIP",
+)!;
+assert.equal(freeShipping.rules.length, 1);
+assert.equal(freeShipping.rules[0].attribute, "subtotal");
+assert.equal(freeShipping.rules[0].operator, "gte");
+assert.deepEqual(freeShipping.rules[0].values, ["10000"]);
+
+// Only the free-shipping preset gates on cart value; the others declare no extra rules.
+for (const promotion of MERCHANDISING_PROMOTION_PRESETS) {
+  if (promotion.code === "BK-STG-PROMO-FREESHIP") continue;
+  assert.deepEqual(promotion.rules, [], `${promotion.code} should declare no extra rules`);
+}
+
+// Budgets are declared in minor units and converted to Medusa major units at the boundary.
+for (const campaign of MERCHANDISING_CAMPAIGN_PRESETS) {
+  assert.ok(campaign.budgetAmountMinor > 0);
+  assert.equal(budgetAmountMajor(campaign.budgetAmountMinor) * 100, campaign.budgetAmountMinor);
+}
 
 // --- catalogue matches the reviewed contract fixture -------------------------------------------
 const fixturePath = path.resolve(
@@ -78,5 +98,6 @@ assert.deepEqual(
 );
 
 console.log(
-  "staging-merchandising-test: PASS (4 collections, 4 marketplace-funded promotions, 2 campaigns, 2 deferred conditions)",
+  "staging-merchandising-test: PASS (4 collections, 4 marketplace-funded promotions, 2 campaigns, " +
+    "1 enforced subtotal gate, 1 deferred condition)",
 );

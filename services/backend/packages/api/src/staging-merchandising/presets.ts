@@ -37,6 +37,17 @@ export interface DeferredCondition {
   reason: string;
 }
 
+/**
+ * A rule the Medusa engine actually enforces. Attribute paths are resolved against the cart
+ * context, so numeric cart fields such as `subtotal` are valid gate targets.
+ */
+export interface MerchandisingPromotionRule {
+  attribute: string;
+  operator: "gte" | "lte" | "gt" | "lt" | "eq" | "in";
+  values: string[];
+  description: string;
+}
+
 export interface MerchandisingPromotionPreset {
   code: string;
   campaignKey: string;
@@ -51,6 +62,9 @@ export interface MerchandisingPromotionPreset {
   fundingSource: typeof MERCHANDISING_FUNDING_SOURCE;
   policyPending: true;
   testData: true;
+  /** Conditions the engine enforces. */
+  rules: MerchandisingPromotionRule[];
+  /** Policy intent the engine cannot enforce; never assumed active. */
   deferredConditions: DeferredCondition[];
 }
 
@@ -138,12 +152,13 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     value: 10,
     target: { type: "category", reference: "Power Tools" },
     automatic: false,
-    startsAt: "2026-10-20T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-03T23:59:59Z",
     usageLimit: 500,
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
     testData: true,
+    rules: [],
     deferredConditions: [],
   },
   {
@@ -153,12 +168,13 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     value: 5,
     target: { type: "category", reference: "Plywood & Boards" },
     automatic: true,
-    startsAt: "2026-10-15T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-30T23:59:59Z",
     usageLimit: 200,
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
     testData: true,
+    rules: [],
     deferredConditions: [
       {
         condition: "min_quantity",
@@ -175,20 +191,22 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     value: 0,
     target: { type: "shipping_methods", reference: "shipping_methods" },
     automatic: false,
-    startsAt: "2026-10-20T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-03T23:59:59Z",
     usageLimit: 500,
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
     testData: true,
-    deferredConditions: [
+    rules: [
       {
-        condition: "min_subtotal_minor",
-        value: "500000",
-        reason:
-          "No supported promotion rule attribute evaluates a cart subtotal threshold. The pilot applies free shipping without the minimum-order-value gate.",
+        attribute: "subtotal",
+        operator: "gte",
+        values: ["10000"],
+        description:
+          "Free shipping applies only when the cart subtotal reaches INR 10,000 (cart subtotal is in major units).",
       },
     ],
+    deferredConditions: [],
   },
   {
     code: "BK-STG-PROMO-SAFETY-B2B",
@@ -201,12 +219,13 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
       customerGroup: TRADE_CUSTOMER_GROUP_NAME,
     },
     automatic: false,
-    startsAt: "2026-10-15T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-30T23:59:59Z",
     usageLimit: 150,
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
     testData: true,
+    rules: [],
     deferredConditions: [],
   },
 ];
@@ -218,7 +237,7 @@ export const MERCHANDISING_CAMPAIGN_PRESETS: MerchandisingCampaignPreset[] = [
     promotionCodes: ["BK-STG-PROMO-TOOLS10", "BK-STG-PROMO-FREESHIP"],
     budgetAmountMinor: 50_000_000,
     currencyCode: "inr",
-    startsAt: "2026-10-20T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-03T23:59:59Z",
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
@@ -230,7 +249,7 @@ export const MERCHANDISING_CAMPAIGN_PRESETS: MerchandisingCampaignPreset[] = [
     promotionCodes: ["BK-STG-PROMO-PLY-BULK", "BK-STG-PROMO-SAFETY-B2B"],
     budgetAmountMinor: 40_000_000,
     currencyCode: "inr",
-    startsAt: "2026-10-15T00:00:00Z",
+    startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-30T23:59:59Z",
     fundingSource: MERCHANDISING_FUNDING_SOURCE,
     policyPending: true,
@@ -245,7 +264,7 @@ export const MERCHANDISING_CONTENT_PRESETS: MerchandisingContentPreset[] = [
     placement: "collection.power-tool-week.hero",
     locale: "en-IN",
     title: "Power Tool Week — 10% off",
-    body: "Staging campaign. 10% off Power Tools and free shipping. Simulated discount, no real charge.",
+    body: "Staging campaign. 10% off Power Tools, plus free shipping on carts over ₹10,000. Simulated discount, no real charge.",
     actionLabel: "Shop Power Tools",
     actionUri: "/collections/power-tool-week",
     version: "test-v1",
@@ -294,6 +313,29 @@ export const MERCHANDISING_CONTENT_PRESETS: MerchandisingContentPreset[] = [
 ];
 
 /**
+ * Contract expresses budgets in minor units (consistent with the finance statements), while
+ * Medusa campaign budgets and cart totals are in currency major units. Convert at the boundary.
+ */
+export function budgetAmountMajor(minor: number): number {
+  return minor / 100;
+}
+
+/**
+ * Read the enforced cart-value threshold (currency major units) from a preset's rules.
+ * Returns null when the preset declares no numeric cart-value gate.
+ */
+export function merchandisingThresholdMajor(
+  preset: MerchandisingPromotionPreset,
+): number | null {
+  const rule = preset.rules.find((candidate) => candidate.attribute === "subtotal");
+  if (!rule || !rule.values.length) {
+    return null;
+  }
+  const threshold = Number(rule.values[0]);
+  return Number.isFinite(threshold) ? threshold : null;
+}
+
+/**
  * Fail closed when a preset would breach the discount ceiling, declare a non-marketplace funding
  * source, or reference a campaign that does not exist.
  */
@@ -330,6 +372,9 @@ export function assertPresetInvariants(): void {
   for (const campaign of MERCHANDISING_CAMPAIGN_PRESETS) {
     if (campaign.fundingSource !== MERCHANDISING_FUNDING_SOURCE) {
       throw new Error(`${campaign.campaignKey} must be marketplace-funded.`);
+    }
+    if (budgetAmountMajor(campaign.budgetAmountMinor) <= 0) {
+      throw new Error(`${campaign.campaignKey} must declare a positive budget.`);
     }
     for (const code of campaign.promotionCodes) {
       if (!promotionCodes.has(code)) {
@@ -383,6 +428,7 @@ export function merchandisingPresetCatalogue() {
       funding_source: promotion.fundingSource,
       policy_pending: promotion.policyPending,
       test_data: true as const,
+      rules: promotion.rules,
       deferred_conditions: promotion.deferredConditions,
     })),
     campaigns: MERCHANDISING_CAMPAIGN_PRESETS.map((campaign) => ({
