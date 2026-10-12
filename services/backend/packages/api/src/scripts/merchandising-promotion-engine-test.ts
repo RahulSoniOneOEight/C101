@@ -47,31 +47,72 @@ export default async function merchandisingPromotionEngineTest({ container }: Ex
   const atThreshold = await compute(threshold);
   const belowThreshold = await compute(threshold - 1);
 
-  const appliedAtThreshold = atThreshold.find(
-    (action) => action.action === "addShippingMethodAdjustment",
+  const appliedAtThreshold = atThreshold.filter(
+    (action) => action.action === "addShippingMethodAdjustment" && action.code === freeShipping.code,
   );
-  const appliedBelow = belowThreshold.find(
-    (action) => action.action === "addShippingMethodAdjustment",
+  const appliedBelow = belowThreshold.filter(
+    (action) => action.action === "addShippingMethodAdjustment" && action.code === freeShipping.code,
   );
 
-  if (!appliedAtThreshold) {
+  if (!appliedAtThreshold.length) {
     throw new Error(
       `Free shipping did not apply at subtotal ${threshold}. Is the campaign active and configured?`,
     );
   }
-  if (Math.abs(Number(appliedAtThreshold.amount) - 199) > 0.001) {
+  if (Math.abs(Number(appliedAtThreshold[0].amount) - 199) > 0.001) {
     throw new Error(
-      `Expected full shipping discount of 199 at subtotal ${threshold}; got ${appliedAtThreshold.amount}.`,
+      `Expected full shipping discount of 199 at subtotal ${threshold}; got ${appliedAtThreshold[0].amount}.`,
     );
   }
-  if (appliedBelow) {
+  if (appliedBelow.length) {
     throw new Error(
       `Free shipping applied below the threshold at subtotal ${threshold - 1}; the gate is not enforced.`,
     );
   }
 
+  // --- CHG-030: the seeded trade free-shipping offer must be free, not a partial discount ------
+  const customerService = container.resolve(Modules.CUSTOMER) as {
+    listCustomerGroups(filters: Record<string, unknown>): Promise<{ id: string }[]>;
+  };
+  const [tradeGroup] = await customerService.listCustomerGroups({ name: "trade-verified" });
+
+  const vipContext = (member: boolean) => ({
+    currency_code: "inr",
+    subtotal: 5000,
+    items: [],
+    shipping_methods: [{ id: "sm_vip_test", subtotal: 199 }],
+    customer: {
+      id: member ? "cus_member" : "cus_guest",
+      groups: member ? [{ id: tradeGroup.id }] : [],
+    },
+  });
+
+  const vipMember = (
+    await promotionService.computeActions(["BK-STG-OFFER-VIPSHIP"], vipContext(true))
+  ).filter(
+    (action) =>
+      action.action === "addShippingMethodAdjustment" &&
+      action.code === "BK-STG-OFFER-VIPSHIP",
+  );
+  const vipGuest = (
+    await promotionService.computeActions(["BK-STG-OFFER-VIPSHIP"], vipContext(false))
+  ).filter(
+    (action) =>
+      action.action === "addShippingMethodAdjustment" &&
+      action.code === "BK-STG-OFFER-VIPSHIP",
+  );
+
+  if (Math.abs(Number(vipMember[0]?.amount) - 199) > 0.001) {
+    throw new Error(
+      `Trade free shipping must cover the full 199 shipping amount; got ${vipMember[0]?.amount}.`,
+    );
+  }
+  if (vipGuest.length) {
+    throw new Error("Trade free shipping must not apply to non-members.");
+  }
+
   logger.info(
     `merchandising-promotion-engine-test: PASS (free shipping applies at subtotal ${threshold}, ` +
-      `blocked at ${threshold - 1})`,
+      `blocked at ${threshold - 1}; trade free shipping covers the full amount for members only)`,
   );
 }

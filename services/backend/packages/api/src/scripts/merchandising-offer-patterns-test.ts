@@ -282,11 +282,12 @@ export default async function merchandisingOfferPatternsTest({ container }: Exec
       `threw=${threwWithoutCustomer} applied=${withCustomer.length}`,
     );
 
-    // 11. Per-customer group gate.
+    // 11. Per-customer group gate. Exercised on items: the seeded automatic trade free-shipping
+    // offer competes for the shipping method, so a shipping-based check would be masked by it.
     const vip = await create(
       buildOffer({
         code: "OFFTEST-VIP",
-        mechanic: "shipping-percentage",
+        mechanic: "items-percentage",
         value: 10,
         automatic: true,
         customerGroupId: group.id,
@@ -294,9 +295,9 @@ export default async function merchandisingOfferPatternsTest({ container }: Exec
     );
     const vipCtx = (member: boolean) => ({
       currency_code: "inr",
-      subtotal: 1000,
+      subtotal: 100,
       items: [item("v", 1, "A")],
-      shipping_methods: [{ id: "smv", subtotal: 100 }],
+      shipping_methods: [],
       customer: { id: member ? "cus_m" : "cus_n", groups: member ? [{ id: group.id }] : [] },
     });
     const vipIn = await appliedFor("OFFTEST-VIP", vipCtx(true));

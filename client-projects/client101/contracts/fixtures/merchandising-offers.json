@@ -110,10 +110,10 @@
     },
     {
       "code": "BK-STG-OFFER-VIPSHIP",
-      "title": "Staging 10% off shipping for trade accounts",
-      "mechanic": "shipping-percentage",
+      "title": "Staging free shipping for trade accounts",
+      "mechanic": "free-shipping",
       "trigger": "automatic",
-      "value": 10,
+      "value": 100,
       "usage_limit": 300,
       "target": {"type": "shipping_methods", "reference": null},
       "subtotal_threshold": null,

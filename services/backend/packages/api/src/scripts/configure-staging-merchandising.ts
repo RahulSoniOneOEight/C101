@@ -53,6 +53,22 @@ interface PromotionRecord {
   code: string;
   campaign_id: string | null;
   rules?: PromotionRuleRecord[];
+  application_method?: ApplicationMethodRecord;
+}
+
+interface ApplicationMethodRecord {
+  id: string;
+  type: string;
+  target_type: string;
+  allocation: string | null;
+  value: number | null;
+}
+
+interface DesiredApplicationMethod {
+  type: string;
+  target_type: string;
+  allocation?: string;
+  value?: number;
 }
 
 /** Attributes this change owns. Operator-added rules on other attributes are left untouched. */
@@ -192,7 +208,7 @@ export default async function configureStagingMerchandising({ container }: ExecA
 
     const [existing] = (await promotionService.listPromotions(
       { code: preset.code },
-      { relations: ["rules", "rules.values"] },
+      { relations: ["rules", "rules.values", "application_method"] },
     )) as PromotionRecord[];
     if (existing) {
       // Marketplace-funded presets must never carry a seller link.
@@ -231,6 +247,13 @@ export default async function configureStagingMerchandising({ container }: ExecA
         promotionService,
         existing,
         desiredPromotionRules(preset, tradeGroup.id),
+      );
+      await syncApplicationMethod(
+        container,
+        promotionService,
+        existing.id,
+        preset.code,
+        applicationMethodFor(preset, categoryByName),
       );
       logger.info(`Updated staging promotion ${preset.code}.`);
       continue;
@@ -343,7 +366,7 @@ export default async function configureStagingMerchandising({ container }: ExecA
 
     const [existingOffer] = (await promotionService.listPromotions(
       { code: offer.code },
-      { relations: ["rules", "rules.values"] },
+      { relations: ["rules", "rules.values", "application_method"] },
     )) as PromotionRecord[];
 
     if (existingOffer) {
@@ -380,6 +403,13 @@ export default async function configureStagingMerchandising({ container }: ExecA
         promotionService,
         existingOffer,
         payload.rules ?? [],
+      );
+      await syncApplicationMethod(
+        container,
+        promotionService,
+        existingOffer.id,
+        offer.code,
+        payload.application_method as DesiredApplicationMethod,
       );
       logger.info(`Updated staging offer ${offer.code}.`);
       continue;
@@ -457,6 +487,54 @@ function desiredPromotionRules(
   }
 
   return rules;
+}
+
+/**
+ * Reconcile a promotion's application method value. Changing the method's `type` or `target_type`
+ * alters the discount mechanic and is rejected rather than silently half-applied.
+ */
+async function syncApplicationMethod(
+  container: ExecArgs["container"],
+  promotionService: {
+    listPromotions(
+      filters: Record<string, unknown>,
+      config?: Record<string, unknown>,
+    ): Promise<PromotionRecord[]>;
+  },
+  promotionId: string,
+  code: string,
+  desired: DesiredApplicationMethod,
+): Promise<void> {
+  const [current] = (await promotionService.listPromotions(
+    { id: promotionId },
+    { relations: ["application_method"] },
+  )) as PromotionRecord[];
+
+  const applicationMethod = current?.application_method;
+  if (!applicationMethod) {
+    return;
+  }
+
+  if (
+    applicationMethod.type !== desired.type ||
+    applicationMethod.target_type !== desired.target_type
+  ) {
+    throw new Error(
+      `${code}: application method changed from ${applicationMethod.type}/` +
+        `${applicationMethod.target_type} to ${desired.type}/${desired.target_type}. ` +
+        "This changes the discount mechanic; delete and reconfigure the promotion.",
+    );
+  }
+
+  if (desired.value === undefined || Number(applicationMethod.value) === Number(desired.value)) {
+    return;
+  }
+
+  await updatePromotionsWorkflow(container).run({
+    input: {
+      promotionsData: [{ id: promotionId, application_method: { value: desired.value } }],
+    },
+  });
 }
 
 /** Reconcile only the rules CHG-029 owns, leaving operator-added rules on other attributes intact. */
