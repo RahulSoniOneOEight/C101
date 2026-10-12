@@ -11,6 +11,11 @@ import {
   merchandisingPresetCatalogue,
 } from "../staging-merchandising/presets";
 import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime";
+import {
+  OFFER_PATTERNS,
+  STAGING_OFFERS,
+  assertOfferInvariants,
+} from "../staging-merchandising/offer-patterns";
 
 // --- environment guard ------------------------------------------------------------------------
 assert.equal(isStagingMerchandisingEnabled({ NODE_ENV: "development" }), false);
@@ -100,4 +105,20 @@ assert.deepEqual(
 console.log(
   "staging-merchandising-test: PASS (4 collections, 4 marketplace-funded promotions, 2 campaigns, " +
     "1 enforced subtotal gate, 1 deferred condition)",
+);
+
+// CHG-030 offer-pattern declarations.
+assertOfferInvariants();
+assert.equal(STAGING_OFFERS.length, 6);
+assert.equal(
+  STAGING_OFFERS.filter((offer) => offer.trigger === "automatic").length > 0,
+  true,
+);
+assert.equal(
+  STAGING_OFFERS.filter((offer) => offer.trigger === "code").length > 0,
+  true,
+);
+console.log(
+  `staging-merchandising-test: PASS (offer lab declares ${STAGING_OFFERS.length} offers across ` +
+    `${OFFER_PATTERNS.length} patterns)`,
 );
