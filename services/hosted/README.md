@@ -212,13 +212,15 @@ Read-only operator surfaces, both on the `/dashboard/` console and the ops hostn
 | `/admin/buildkart/merchandising-presets` | collections, promotions, campaigns, campaign content |
 | `/admin/buildkart/merchandising-offers` | offer lab with mechanic, trigger and enforced condition |
 
-> **Live-pilot behaviour.** Two offers are `automatic` (`BK-STG-OFFER-QTY3`, 8% off Building
-> Materials lines of 3+, and `BK-STG-OFFER-VIPSHIP`, free shipping for trade accounts). They apply
-> to real pilot carts as soon as the script runs, not only to test data.
+> **Live-pilot behaviour.** Every seeded offer is code-triggered, so nothing is discounted until a
+> tester applies a code. Switching any offer to `automatic` makes it apply to real pilot carts
+> immediately, not only to test data.
 
-> **Discount ceiling.** The 10% ceiling is enforced per promotion, not cumulatively. Overlapping
-> automatic and code offers on the same scope can exceed it. Resolve before enabling production
-> pricing.
+> **Discount ceiling.** The ceiling is enforced per promotion, so the seeded set is arranged so the
+> worst case cannot exceed it: at most one order-wide percentage offer, distinct categories for
+> line-item offers, and order rate + largest line rate <= the ceiling. Fixed-amount and buyget
+> offers are bounded by the line amount and the free unit quantity rather than by a rate.
+> `assertOfferInvariants` and contract validation both fail if that arrangement is broken.
 
 ## Browser web app (staging)
 
