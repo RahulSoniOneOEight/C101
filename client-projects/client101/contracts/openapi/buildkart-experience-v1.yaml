@@ -210,7 +210,7 @@ paths:
         '404': {$ref: '#/components/responses/Problem'}
   /v1/content/app-shell:
     get:
-      summary: Get provider-neutral editorial app content
+      summary: Get provider-neutral editorial app content and the storefront layout
       tags: [Content]
       operationId: getAppShellContent
       parameters:
@@ -222,9 +222,18 @@ paths:
       - name: placement
         in: query
         schema: {type: string}
+      - name: channel
+        in: query
+        schema: {type: string, enum: [b2c, b2b]}
+      - name: audience
+        in: query
+        schema: {type: string, enum: [b2c, b2b, both]}
       responses:
         '200':
-          description: Editorial content projection; absence or staleness cannot manufacture transactional data.
+          description: >-
+            Editorial content projection; absence or staleness cannot manufacture transactional data.
+            The optional layout carries editorial composition only - membership is a reference that
+            commerce resolves, never inlined priced products.
           content:
             application/json:
               schema: {$ref: '#/components/schemas/AppContentBundle'}
@@ -1496,10 +1505,75 @@ components:
       required: [locale, items, generated_at, source, freshness]
       properties:
         locale: {type: string, enum: [en-IN, hi-IN]}
+        channel: {type: string, enum: [b2c, b2b], description: Echoes the requested channel when supplied.}
         items: {type: array, items: {$ref: '#/components/schemas/AppContentItem'}}
+        layout: {$ref: '#/components/schemas/StorefrontLayout'}
         generated_at: {type: string, format: date-time}
         source: {type: string, description: CMS identifier or governed seed; never a transactional owner.}
         freshness: {$ref: '#/components/schemas/SourceFreshness'}
+    StorefrontLayoutModule:
+      type: object
+      required: [type, module_key]
+      properties:
+        type:
+          type: string
+          enum:
+          - hero-banner
+          - category-rail
+          - product-carousel
+          - product-composition
+          - split-merchandising
+          - offer-collection
+          - rich-editorial
+          - trust-row
+          - category-banner
+        module_key: {type: string, description: Stable key for this module instance within the layout.}
+        title: {type: string}
+        tag: {type: string, description: Editorial badge such as Best Deals.}
+        body: {type: string}
+        presentation: {type: string, enum: [grid, feature, compact]}
+        position: {type: string, enum: [top, inline, bottom]}
+        priority: {type: integer}
+        image_uri: {type: string, format: uri-reference}
+        image_alt: {type: string}
+        action_label: {type: string}
+        action_uri: {type: string, format: uri-reference}
+        category_reference: {type: string}
+        banner_reference: {type: string}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        membership: {$ref: '#/components/schemas/StorefrontModuleMembership'}
+    StorefrontModuleMembership:
+      type: object
+      required: [mode]
+      description: >-
+        How the module's products or offers are chosen. Always a reference: commerce resolves
+        membership at read time and owns price, stock and eligibility.
+      properties:
+        mode: {type: string, enum: [staged-ids, curated-collection, none]}
+        collection_key: {type: string, description: Resolved through the governed collection endpoint.}
+        item_ids: {type: array, items: {type: string}}
+        item_limit: {type: integer, minimum: 1}
+    StorefrontLayout:
+      type: object
+      description: >-
+        Editorial composition for one storefront surface. Omitted from the bundle when no approved
+        layout exists for the channel and locale; absence never blocks commerce and is not an error.
+      required: [layout_key, channel, locale, modules, generated_at, source, test_data]
+      properties:
+        layout_key: {type: string}
+        channel: {type: string, enum: [b2c, b2b]}
+        locale: {type: string, enum: [en-IN, hi-IN]}
+        modules:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/StorefrontLayoutModule'}
+        starts_at: {type: string, format: date-time}
+        ends_at: {type: string, format: date-time}
+        fallback_layout_key: {type: [string, 'null']}
+        generated_at: {type: string, format: date-time}
+        source: {type: string}
+        test_data: {type: boolean, const: true}
     IntegrationException:
       type: object
       required:

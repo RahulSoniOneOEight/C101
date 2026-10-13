@@ -1,0 +1,64 @@
+{
+  "layout_key": "b2c-home",
+  "channel": "b2c",
+  "locale": "en-IN",
+  "generated_at": "2026-10-13T00:00:00Z",
+  "source": "governed-editorial-seed",
+  "test_data": true,
+  "starts_at": "2026-10-01T00:00:00Z",
+  "ends_at": "2026-12-31T23:59:59Z",
+  "fallback_layout_key": null,
+  "modules": [
+    {
+      "type": "hero-banner",
+      "module_key": "home-hero",
+      "banner_reference": "banner-welcome-en-in"
+    },
+    {
+      "type": "category-rail",
+      "module_key": "home-categories",
+      "title": "Shop by department",
+      "membership": {
+        "mode": "staged-ids",
+        "item_ids": ["pcat_construction", "pcat_bathroom-plumbing"],
+        "item_limit": 8
+      }
+    },
+    {
+      "type": "offer-collection",
+      "module_key": "home-best-deals",
+      "title": "Best Deals",
+      "tag": "Up to 60% off",
+      "membership": {
+        "mode": "curated-collection",
+        "collection_key": "power-tool-week",
+        "item_limit": 10
+      },
+      "starts_at": "2026-10-10T00:00:00Z",
+      "ends_at": "2026-11-03T23:59:59Z"
+    },
+    {
+      "type": "product-carousel",
+      "module_key": "home-new-arrivals",
+      "title": "New arrivals",
+      "membership": {
+        "mode": "staged-ids",
+        "item_ids": ["BK-STG-ORDER-1001", "BK-STG-ORDER-1002"],
+        "item_limit": 10
+      }
+    },
+    {
+      "type": "trust-row",
+      "module_key": "home-trust",
+      "title": "Why BuildKart"
+    },
+    {
+      "type": "category-banner",
+      "module_key": "cat-construction-promo",
+      "category_reference": "pcat_construction",
+      "banner_reference": "content_campaign_site_ready_banner_en_in",
+      "position": "top",
+      "priority": 10
+    }
+  ]
+}
