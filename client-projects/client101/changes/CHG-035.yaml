@@ -80,4 +80,13 @@ implementation_request:
   scope: bounded-hosted-staging-admin-refinement
   human_visual_review_required: true
 production_release_authorized: false
-status: implementation-requested
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Mercur Admin production build passed.
+  - Medusa API production build passed.
+  - Route type generation passed.
+  - Five focused unit tests passed across live catalogue reconciliation and the CMS operator client.
+  hosted_deployment: pending
+  human_visual_review: pending
+status: implemented-awaiting-hosted-review

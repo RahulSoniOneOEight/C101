@@ -29,7 +29,9 @@ admin/auth APIs, routed by nginx to `medusa-api`:
 | Path | Surface |
 |---|---|
 | `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
-| `/dashboard/content` | Native Content workspace backed by private Strapi |
+| `/dashboard/merchandising` | Common Merchandising overview for editorial and commerce tools |
+| `/dashboard/content` | Native Editorial content workspace backed by private Strapi |
+| `/dashboard/merchandising-presets` | Governed preset baseline compared with live Medusa records |
 | `/seller/` | Mercur vendor (seller) dashboard |
 | `/admin/*`, `/auth/*`, `/vendor/*`, `/static/*` | Medusa admin/auth/vendor APIs and uploads |
 
@@ -50,11 +52,14 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
 
-The admin sidebar's **Content** workspace provides one routine operator experience for commerce and
-editorial work. It groups storefront layouts, banners, curated collections, category editorial,
-product editorial, and help/articles. Operators explicitly save a draft, then publish or unpublish
-it as a separate action. The dashboard browser never calls Strapi and never receives a Strapi token:
-the authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
+The admin sidebar's **Merchandising** workspace provides one routine operator experience for commerce
+and editorial work. Its overview links to native Medusa promotion, campaign and collection editors,
+while nested **Editorial content** groups storefront layouts, banners, curated collections, category
+editorial, product editorial, and help/articles. Operators explicitly save a draft in a Medusa drawer,
+then publish or unpublish it through a separate confirmed action. **Preset review** compares the
+governed staging baseline with live Medusa promotion and campaign IDs without creating a duplicate
+write path. The dashboard browser never calls Strapi and never receives a Strapi token: the
+authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
 private `cms` service. Strapi remains the editorial system of record; commerce remains authoritative
 for products, price, inventory, sellers, orders, payments, credit, commissions, and payouts.
 

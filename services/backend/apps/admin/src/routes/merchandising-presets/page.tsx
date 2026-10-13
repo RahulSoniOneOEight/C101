@@ -1,17 +1,19 @@
 import { Tag } from "@medusajs/icons";
-import { Container, Heading, StatusBadge, Table, Text } from "@medusajs/ui";
+import { Button, Container, Heading, StatusBadge, Table, Text } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import type { InferClientOutput } from "@mercurjs/client";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { client } from "../../lib/client";
 
 // The dashboard SDK requires route metadata beside the page component.
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
-  label: "Merchandising presets",
+  label: "Preset review",
   icon: Tag,
-  rank: 61,
+  rank: 2,
+  nested: "/merchandising",
 };
 
 type CatalogueResponse = InferClientOutput<
@@ -53,19 +55,25 @@ export default function MerchandisingPresetsPage() {
     <SingleColumnPage>
       <div className="flex flex-col gap-y-3">
         <Container className="divide-y p-0">
-          <div className="flex flex-col gap-3 px-6 py-5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Heading level="h1">Merchandising presets</Heading>
-              <StatusBadge color="orange">Simulated staging data</StatusBadge>
-              <StatusBadge color="blue">Marketplace-funded</StatusBadge>
-              <StatusBadge color="grey">No seller funding</StatusBadge>
+          <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Heading level="h1">Preset review</Heading>
+                <StatusBadge color="orange">Simulated staging data</StatusBadge>
+                <StatusBadge color="blue">Marketplace-funded</StatusBadge>
+                <StatusBadge color="grey">No seller funding</StatusBadge>
+              </div>
+              <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
+                Compare the reviewed baseline with live Medusa records. Baselines stay read-only;
+                use the native promotion and campaign screens to make controlled commerce updates,
+                and Editorial content for Strapi-owned presentation.
+              </Text>
             </div>
-            <Text size="small" className="max-w-3xl text-ui-fg-subtle">
-              Read-only view of the reviewed staging preset pack. Promotions are evaluated by the
-              Medusa discount engine and are funded by the marketplace, so no seller is charged.
-              Free shipping applies only to carts at or above ₹10,000. This page cannot create,
-              activate or discount anything.
-            </Text>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="secondary" size="small"><Link to="/merchandising">Overview</Link></Button>
+              <Button asChild variant="secondary" size="small"><Link to="/content">Editorial content</Link></Button>
+              <Button asChild size="small"><Link to="/promotions">Manage promotions</Link></Button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4 px-6 py-4 md:grid-cols-4">
             <div>
@@ -172,6 +180,8 @@ export default function MerchandisingPresetsPage() {
                     <Table.HeaderCell>Campaign</Table.HeaderCell>
                     <Table.HeaderCell>Enforced condition</Table.HeaderCell>
                     <Table.HeaderCell>Funding</Table.HeaderCell>
+                    <Table.HeaderCell>Live record</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Action</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -211,6 +221,20 @@ export default function MerchandisingPresetsPage() {
                       <Table.Cell>
                         <StatusBadge color="blue">{promotion.funding_source}</StatusBadge>
                       </Table.Cell>
+                      <Table.Cell>
+                        <StatusBadge color={promotion.live ? "green" : "red"}>
+                          {promotion.live?.status ?? "missing"}
+                        </StatusBadge>
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {promotion.live ? (
+                          <Button asChild variant="secondary" size="small">
+                            <Link to={`/promotions/${promotion.live.id}`}>Open</Link>
+                          </Button>
+                        ) : (
+                          <Text size="xsmall" className="text-ui-fg-muted">Reconfigure seed</Text>
+                        )}
+                      </Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
@@ -228,6 +252,8 @@ export default function MerchandisingPresetsPage() {
                     <Table.HeaderCell>Promotions</Table.HeaderCell>
                     <Table.HeaderCell className="text-right">Budget</Table.HeaderCell>
                     <Table.HeaderCell>Window</Table.HeaderCell>
+                    <Table.HeaderCell>Live record</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Action</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -249,6 +275,18 @@ export default function MerchandisingPresetsPage() {
                         {new Date(campaign.starts_at).toLocaleDateString("en-IN")} –{" "}
                         {new Date(campaign.ends_at).toLocaleDateString("en-IN")}
                       </Table.Cell>
+                      <Table.Cell>
+                        <StatusBadge color={campaign.live ? "green" : "red"}>
+                          {campaign.live ? "configured" : "missing"}
+                        </StatusBadge>
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {campaign.live ? (
+                          <Button asChild variant="secondary" size="small">
+                            <Link to={`/campaigns/${campaign.live.id}`}>Open</Link>
+                          </Button>
+                        ) : null}
+                      </Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
@@ -266,6 +304,7 @@ export default function MerchandisingPresetsPage() {
                     <Table.HeaderCell>Title</Table.HeaderCell>
                     <Table.HeaderCell>Categories</Table.HeaderCell>
                     <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Editorial collection</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -280,6 +319,11 @@ export default function MerchandisingPresetsPage() {
                       <Table.Cell>{collection.categories.join(", ")}</Table.Cell>
                       <Table.Cell>
                         <StatusBadge color="green">{collection.status}</StatusBadge>
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <Button asChild variant="secondary" size="small">
+                          <Link to="/content?kind=curated-collection&locale=en-IN">Review</Link>
+                        </Button>
                       </Table.Cell>
                     </Table.Row>
                   ))}
@@ -301,6 +345,7 @@ export default function MerchandisingPresetsPage() {
                     <Table.HeaderCell>Type</Table.HeaderCell>
                     <Table.HeaderCell>Locale</Table.HeaderCell>
                     <Table.HeaderCell>Title</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Action</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -314,6 +359,11 @@ export default function MerchandisingPresetsPage() {
                       <Table.Cell>{element.content_type}</Table.Cell>
                       <Table.Cell>{element.locale}</Table.Cell>
                       <Table.Cell>{element.title}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        <Button asChild variant="secondary" size="small">
+                          <Link to="/content">Open content</Link>
+                        </Button>
+                      </Table.Cell>
                     </Table.Row>
                   ))}
                 </Table.Body>
@@ -342,6 +392,8 @@ export default function MerchandisingPresetsPage() {
                       <Table.HeaderCell className="text-right">Value</Table.HeaderCell>
                       <Table.HeaderCell>Target</Table.HeaderCell>
                       <Table.HeaderCell>Enforced condition</Table.HeaderCell>
+                      <Table.HeaderCell>Live record</Table.HeaderCell>
+                      <Table.HeaderCell className="text-right">Action</Table.HeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
@@ -391,6 +443,18 @@ export default function MerchandisingPresetsPage() {
                             <Text size="small" className="text-ui-fg-subtle">
                               {conditions.length ? conditions.join("; ") : "—"}
                             </Text>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <StatusBadge color={offer.live ? "green" : "red"}>
+                              {offer.live?.status ?? "missing"}
+                            </StatusBadge>
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            {offer.live ? (
+                              <Button asChild variant="secondary" size="small">
+                                <Link to={`/promotions/${offer.live.id}`}>Open</Link>
+                              </Button>
+                            ) : null}
                           </Table.Cell>
                         </Table.Row>
                       );

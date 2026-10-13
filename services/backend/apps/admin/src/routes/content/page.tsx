@@ -2,6 +2,7 @@ import { Tag } from "@medusajs/icons";
 import {
   Button,
   Container,
+  Drawer,
   Heading,
   Input,
   Select,
@@ -10,19 +11,22 @@ import {
   Text,
   Textarea,
   toast,
+  usePrompt,
 } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import type { InferClientOutput } from "@mercurjs/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { client } from "../../lib/client";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
-  label: "Content",
+  label: "Editorial content",
   icon: Tag,
-  rank: 60,
+  rank: 1,
+  nested: "/merchandising",
 };
 
 const CONTENT_KINDS = [
@@ -155,8 +159,15 @@ function FieldInput({
 
 export default function ContentPage() {
   const queryClient = useQueryClient();
-  const [kind, setKind] = useState<ContentKind>("storefront-layout");
-  const [locale, setLocale] = useState<"en-IN" | "hi-IN">("en-IN");
+  const prompt = usePrompt();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedKind = searchParams.get("kind");
+  const kind = CONTENT_KINDS.some((item) => item.kind === requestedKind)
+    ? requestedKind as ContentKind
+    : "storefront-layout";
+  const locale: "en-IN" | "hi-IN" = searchParams.get("locale") === "hi-IN"
+    ? "hi-IN"
+    : "en-IN";
   const [editing, setEditing] = useState<ContentDocument | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -174,6 +185,14 @@ export default function ContentPage() {
     setEditing(null);
     setFormValues({});
   }, [kind, locale]);
+
+  const selectKind = (nextKind: ContentKind) => {
+    setSearchParams({ kind: nextKind, locale });
+  };
+
+  const selectLocale = (nextLocale: "en-IN" | "hi-IN") => {
+    setSearchParams({ kind, locale: nextLocale });
+  };
 
   const mutation = useMutation({
     mutationFn: (input: {
@@ -218,6 +237,23 @@ export default function ContentPage() {
     }
   };
 
+  const changePublication = async (
+    document: ContentDocument,
+    operation: "publish" | "unpublish",
+  ) => {
+    const key = displayValue(document, content?.definition.keyField ?? "documentId");
+    const confirmed = await prompt({
+      title: operation === "publish" ? "Publish editorial changes?" : "Unpublish this content?",
+      description: operation === "publish"
+        ? `${key} will become eligible for storefront delivery after validation and cache invalidation.`
+        : `${key} will be removed from live CMS delivery. Governed fallback behavior still applies.`,
+      confirmText: operation === "publish" ? "Publish" : "Unpublish",
+      cancelText: "Cancel",
+      variant: operation === "publish" ? "confirmation" : "danger",
+    });
+    if (confirmed) mutation.mutate({ operation, documentId: document.documentId });
+  };
+
   const publishedCount = documents.filter((document) => document.publicationStatus === "published").length;
   const modifiedCount = documents.filter((document) => document.publicationStatus === "modified").length;
   const draftCount = documents.filter((document) => document.publicationStatus === "draft").length;
@@ -238,16 +274,24 @@ export default function ContentPage() {
                 products, price, inventory, sellers, orders and finance remain commerce-owned.
               </Text>
             </div>
-            <div className="w-36">
-              <Select value={locale} onValueChange={(value) => setLocale(value as "en-IN" | "hi-IN")}>
-                <Select.Trigger data-testid="content-locale-select">
-                  <Select.Value />
-                </Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="en-IN">English (India)</Select.Item>
-                  <Select.Item value="hi-IN">Hindi (India)</Select.Item>
-                </Select.Content>
-              </Select>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="secondary" size="small">
+                <Link to="/merchandising">Overview</Link>
+              </Button>
+              <Button asChild variant="secondary" size="small">
+                <Link to="/merchandising-presets">Preset review</Link>
+              </Button>
+              <div className="w-36">
+                <Select value={locale} onValueChange={(value) => selectLocale(value as "en-IN" | "hi-IN")}>
+                  <Select.Trigger data-testid="content-locale-select">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="en-IN">English (India)</Select.Item>
+                    <Select.Item value="hi-IN">Hindi (India)</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
             </div>
           </div>
           <div className="grid gap-2 px-6 py-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -256,7 +300,7 @@ export default function ContentPage() {
                 key={item.kind}
                 variant={kind === item.kind ? "primary" : "secondary"}
                 className="h-auto justify-start px-4 py-3 text-left"
-                onClick={() => setKind(item.kind)}
+                onClick={() => selectKind(item.kind)}
                 data-testid={`content-kind-${item.kind}`}
               >
                 <span className="flex flex-col items-start">
@@ -285,37 +329,6 @@ export default function ContentPage() {
               <div><Text size="xsmall" className="text-ui-fg-subtle">Published</Text><Text size="large" weight="plus">{publishedCount}</Text></div>
               <div><Text size="xsmall" className="text-ui-fg-subtle">Modified drafts</Text><Text size="large" weight="plus">{modifiedCount}</Text></div>
               <div><Text size="xsmall" className="text-ui-fg-subtle">Unpublished drafts</Text><Text size="large" weight="plus">{draftCount}</Text></div>
-            </div>
-          </Container>
-        ) : null}
-
-        {showEditor && content ? (
-          <Container className="divide-y p-0">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-              <div>
-                <Heading level="h2">{editing ? "Edit draft" : "Create draft"}</Heading>
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Saving never publishes automatically. Review the draft, then use Publish in the list.
-                </Text>
-              </div>
-              <Button variant="secondary" size="small" onClick={() => setShowEditor(false)} data-testid="content-cancel-edit">
-                Cancel
-              </Button>
-            </div>
-            <div className="grid gap-5 px-6 py-5 md:grid-cols-2">
-              {content.definition.fields.map((field) => (
-                <FieldInput
-                  key={field.name}
-                  field={field}
-                  value={formValues[field.name] ?? ""}
-                  onChange={(value) => setFormValues((current) => ({ ...current, [field.name]: value }))}
-                />
-              ))}
-            </div>
-            <div className="flex justify-end px-6 py-4">
-              <Button onClick={saveDraft} isLoading={mutation.isPending} data-testid="content-save-draft">
-                Save draft
-              </Button>
             </div>
           </Container>
         ) : null}
@@ -349,9 +362,9 @@ export default function ContentPage() {
                       <div className="flex justify-end gap-2">
                         <Button variant="secondary" size="small" onClick={() => openEdit(document)} data-testid={`content-edit-${document.documentId}`}>Edit</Button>
                         {document.publicationStatus === "published" ? (
-                          <Button variant="secondary" size="small" onClick={() => mutation.mutate({ operation: "unpublish", documentId: document.documentId })} isLoading={mutation.isPending} data-testid={`content-unpublish-${document.documentId}`}>Unpublish</Button>
+                          <Button variant="secondary" size="small" onClick={() => changePublication(document, "unpublish")} isLoading={mutation.isPending} data-testid={`content-unpublish-${document.documentId}`}>Unpublish</Button>
                         ) : (
-                          <Button size="small" onClick={() => mutation.mutate({ operation: "publish", documentId: document.documentId })} isLoading={mutation.isPending} data-testid={`content-publish-${document.documentId}`}>Publish</Button>
+                          <Button size="small" onClick={() => changePublication(document, "publish")} isLoading={mutation.isPending} data-testid={`content-publish-${document.documentId}`}>Publish</Button>
                         )}
                       </div>
                     </Table.Cell>
@@ -361,6 +374,37 @@ export default function ContentPage() {
             </Table>
           )}
         </Container>
+
+        <Drawer open={showEditor} onOpenChange={(open) => setShowEditor(open)}>
+          <Drawer.Content>
+            <Drawer.Header>
+              <Drawer.Title>{editing ? "Edit draft" : "Create draft"}</Drawer.Title>
+              <Drawer.Description>
+                Changes are saved as a draft. Publishing remains a separate confirmed action.
+              </Drawer.Description>
+            </Drawer.Header>
+            <Drawer.Body>
+              <div className="flex flex-col gap-y-5 py-2">
+                {content?.definition.fields.map((field) => (
+                  <FieldInput
+                    key={field.name}
+                    field={field}
+                    value={formValues[field.name] ?? ""}
+                    onChange={(value) => setFormValues((current) => ({ ...current, [field.name]: value }))}
+                  />
+                ))}
+              </div>
+            </Drawer.Body>
+            <Drawer.Footer>
+              <Drawer.Close asChild>
+                <Button variant="secondary" size="small" data-testid="content-cancel-edit">Cancel</Button>
+              </Drawer.Close>
+              <Button onClick={saveDraft} isLoading={mutation.isPending} size="small" data-testid="content-save-draft">
+                Save draft
+              </Button>
+            </Drawer.Footer>
+          </Drawer.Content>
+        </Drawer>
       </div>
     </SingleColumnPage>
   );
