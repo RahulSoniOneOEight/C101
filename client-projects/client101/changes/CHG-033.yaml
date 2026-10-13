@@ -1,5 +1,5 @@
 change_id: CHG-033
-revision: 2
+revision: 3
 request: >-
   Replace the storefront-layout seed as the preferred delivery source with a private Strapi v5
   adapter. Published layouts must be fetched in bulk through the Experience API, validated at the
@@ -71,4 +71,6 @@ implementation_request:
   scope: staging-implementation-and-deployment-attempt
   human_visual_review_required: false
 production_release_authorized: false
+implementation_evidence:
+- client-projects/client101/evidence/CHG-033/hosted-cms-delivery-acceptance.md
 status: staging-implemented-awaiting-human-review
