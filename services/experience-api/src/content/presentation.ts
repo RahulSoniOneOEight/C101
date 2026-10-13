@@ -144,7 +144,8 @@ export const categoryPresentationSeed: CategoryPresentationSeed[] = [
       "https://images.pexels.com/photos/175709/pexels-photo-175709.jpeg?auto=compress&cs=tinysrgb&w=940",
   },
   {
-    category_name: "Construction",
+    // Matches the deployed Medusa root category name; the app-facing label stays "Construction".
+    category_name: "Building & Construction",
     label: "Construction",
     short_text: "Cement, steel, tools and site supplies",
     icon_key: "construction",

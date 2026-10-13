@@ -148,7 +148,9 @@ export const categorySeed: CategorySeed[] = [
     heading: "Pumps & Machines",
   },
   {
-    categoryId: "Construction",
+    // The deployed Medusa root is named "Building & Construction"; the app-facing label is
+    // "Construction". Replace categoryId with the commerce id once it is captured.
+    categoryId: "Building & Construction",
     displayLabel: "Construction",
     shortText: "Cement, steel, tools and site supplies",
     iconKey: "construction",
