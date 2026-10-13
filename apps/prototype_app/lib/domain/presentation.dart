@@ -1,0 +1,239 @@
+/// Backend-delivered storefront presentation — hero/campaign banners and root
+/// category labels, icons and imagery.
+///
+/// Commerce owns category identity and hierarchy; the Experience API composes a
+/// Medusa category with published CMS presentation. These models only carry the
+/// editorial presentation, never price, stock or seller data.
+library;
+
+import 'package:flutter/material.dart';
+
+/// A banner returned by `GET /v1/content/presentation`.
+class StorefrontBanner {
+  const StorefrontBanner({
+    required this.contentKey,
+    required this.placement,
+    required this.title,
+    required this.themeKey,
+    this.body,
+    this.imageUrl,
+    this.actionLabel,
+    this.actionUri,
+    this.priority = 0,
+  });
+
+  final String contentKey;
+  final String placement;
+  final String title;
+  final String themeKey;
+  final String? body;
+  final String? imageUrl;
+  final String? actionLabel;
+  final String? actionUri;
+  final int priority;
+
+  factory StorefrontBanner.fromJson(Map<String, dynamic> json) {
+    return StorefrontBanner(
+      contentKey: json['content_key'] as String? ?? '',
+      placement: json['placement'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      themeKey: json['theme_key'] as String? ?? 'primary',
+      body: json['body'] as String?,
+      imageUrl: json['image_uri'] as String?,
+      actionLabel: json['action_label'] as String?,
+      actionUri: json['action_uri'] as String?,
+      priority: (json['priority'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// A root category composed by the Experience API.
+class StorefrontCategory {
+  const StorefrontCategory({
+    required this.id,
+    required this.name,
+    required this.label,
+    required this.iconKey,
+    this.slug,
+    this.shortText,
+    this.bannerImageUrl,
+  });
+
+  /// Commerce category id (Medusa).
+  final String id;
+  final String name;
+  final String label;
+  final String iconKey;
+  final String? slug;
+  final String? shortText;
+  final String? bannerImageUrl;
+
+  factory StorefrontCategory.fromJson(Map<String, dynamic> json) {
+    return StorefrontCategory(
+      id: json['category_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      label: json['label'] as String? ?? json['name'] as String? ?? '',
+      iconKey: json['icon_key'] as String? ?? 'category',
+      slug: json['slug'] as String?,
+      shortText: json['short_text'] as String?,
+      bannerImageUrl: json['banner_image_uri'] as String?,
+    );
+  }
+}
+
+/// The full presentation payload.
+class StorefrontPresentation {
+  const StorefrontPresentation({
+    required this.banners,
+    required this.categories,
+  });
+
+  final List<StorefrontBanner> banners;
+  final List<StorefrontCategory> categories;
+
+  factory StorefrontPresentation.fromJson(Map<String, dynamic> json) {
+    return StorefrontPresentation(
+      banners: (json['banners'] as List? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(StorefrontBanner.fromJson)
+          .toList(),
+      categories: (json['categories'] as List? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(StorefrontCategory.fromJson)
+          .toList(),
+    );
+  }
+
+  List<StorefrontBanner> bannersFor(String placement) =>
+      banners.where((b) => b.placement == placement).toList();
+
+  StorefrontCategory? categoryByLabel(String? label) {
+    if (label == null) return null;
+    for (final category in categories) {
+      if (category.label == label || category.name == label) return category;
+    }
+    return null;
+  }
+}
+
+/// Resolve an allowlisted icon key to a design-system icon. Unknown keys fall
+/// back to a neutral category icon so the rail never renders a broken glyph.
+IconData categoryIconFor(String iconKey) {
+  switch (iconKey) {
+    case 'bathroom-plumbing':
+      return Icons.bathtub_outlined;
+    case 'tiles-plywood':
+      return Icons.grid_view_outlined;
+    case 'electrical':
+      return Icons.electrical_services_outlined;
+    case 'agriculture':
+      return Icons.grass_outlined;
+    case 'pumps-machines':
+      return Icons.precision_manufacturing_outlined;
+    case 'construction':
+      return Icons.construction_outlined;
+    default:
+      return Icons.category_outlined;
+  }
+}
+
+/// Governed fallback mirroring the backend seed so the app is usable offline and
+/// before CMS content exists. The backend remains the routine source.
+const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
+  StorefrontBanner(
+    contentKey: 'hero-monsoon-ready',
+    placement: 'home.hero',
+    title: 'Monsoon Ready',
+    body: 'Up to 40% off waterproofing',
+    actionLabel: 'Shop now',
+    actionUri: '/browse?tag=Flash%20Deals',
+    themeKey: 'primary',
+    priority: 30,
+  ),
+  StorefrontBanner(
+    contentKey: 'hero-bulk-savings',
+    placement: 'home.hero',
+    title: 'Bulk Savings',
+    body: 'Dealer pricing on 10,000+ SKUs',
+    actionLabel: 'Shop now',
+    actionUri: '/browse?tag=Best%20Sellers',
+    themeKey: 'trust',
+    priority: 20,
+  ),
+  StorefrontBanner(
+    contentKey: 'hero-free-delivery',
+    placement: 'home.hero',
+    title: 'Free Delivery',
+    body: 'On orders above ₹2,000',
+    actionLabel: 'Shop now',
+    actionUri: '/browse?tag=Clearance%20Sale',
+    themeKey: 'promotion',
+    priority: 10,
+  ),
+  StorefrontBanner(
+    contentKey: 'secondary-clearance-sale',
+    placement: 'home.campaign-strip',
+    title: 'Clearance Sale',
+    body: 'Up to 70% off select items',
+    imageUrl:
+        'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
+    actionLabel: 'Shop Now',
+    actionUri: '/browse?tag=Clearance%20Sale',
+    themeKey: 'promotion',
+    priority: 10,
+  ),
+];
+
+const List<StorefrontCategory> fallbackCategories = <StorefrontCategory>[
+  StorefrontCategory(
+    id: 'fallback-bathroom',
+    name: 'Bathroom & Plumbing',
+    label: 'Bathroom & Plumbing',
+    iconKey: 'bathroom-plumbing',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
+    id: 'fallback-tiles',
+    name: 'Tiles & Plywood',
+    label: 'Tiles & Plywood',
+    iconKey: 'tiles-plywood',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
+    id: 'fallback-electrical',
+    name: 'Electrical',
+    label: 'Electrical',
+    iconKey: 'electrical',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
+    id: 'fallback-agriculture',
+    name: 'Agriculture & Seeds',
+    label: 'Agriculture & Seeds',
+    iconKey: 'agriculture',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
+    id: 'fallback-pumps',
+    name: 'Pumps & Machines',
+    label: 'Pumps & Machines',
+    iconKey: 'pumps-machines',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/175709/pexels-photo-175709.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
+    id: 'fallback-construction',
+    name: 'Construction',
+    label: 'Construction',
+    iconKey: 'construction',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/1216589/pexels-photo-1216589.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+];
+
+const String fallbackCategoryBannerImage =
+    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&w=940';

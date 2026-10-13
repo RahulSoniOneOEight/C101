@@ -15,6 +15,23 @@
   },
   "attributes": {
     "categoryId": { "type": "string", "required": true, "unique": true },
+    "displayLabel": { "type": "string" },
+    "shortText": { "type": "string" },
+    "iconKey": {
+      "type": "enumeration",
+      "enum": [
+        "bathroom-plumbing",
+        "tiles-plywood",
+        "electrical",
+        "agriculture",
+        "pumps-machines",
+        "construction",
+        "category"
+      ],
+      "default": "category"
+    },
+    "externalBannerImageUrl": { "type": "string" },
+    "bannerImageAltText": { "type": "string" },
     "heading": { "type": "string", "required": true },
     "description": { "type": "text" },
     "heroImage": { "type": "media", "multiple": false, "allowedTypes": ["images"] },

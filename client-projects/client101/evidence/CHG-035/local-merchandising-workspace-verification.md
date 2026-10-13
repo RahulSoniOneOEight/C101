@@ -16,6 +16,16 @@
   IDs and statuses.
 - Added links from governed baselines to existing native Medusa promotion and campaign editors;
   no duplicate commerce write API was introduced.
+- Delivered the app's hero/campaign banners and root category presentation from the backend:
+  a new authenticated `GET /v1/content/presentation` composes Medusa-owned root categories with
+  published Strapi banner and category editorial records.
+- Category presentation now carries a localized label, supporting text, allowlisted `iconKey` and
+  banner image; commerce category id, hierarchy and product membership remain Medusa-owned.
+- Added `externalImageUrl` / `externalBannerImageUrl` (HTTPS-validated) to bridge current staging
+  creative until media upload is approved, and a `themeKey` for banner colour.
+- Added an idempotent CMS bootstrap that publishes the current hero banners and root category
+  presentation so operators can edit them without a code change; operator edits are never
+  overwritten.
 
 ## Ownership and security checks
 
@@ -39,6 +49,15 @@
   - undeployed offer patterns are reported as missing without changing baseline definitions;
   - CMS operator secret, mutation-envelope and safe-error tests remain green.
 - `git diff --check`: passed.
+- Experience API `bun run typecheck`: passed.
+- Experience API `test:presentation`: passed (banners and category presentation delivered from
+  backend, CMS overrides the governed seed, fallback preserved, no transactional leakage).
+- Existing Experience API checks `test:cms-content`, `test:storefront-layout` and
+  `test:merchandising-content` still pass. `test:cms-content-store` needs a local Postgres and is
+  unchanged.
+- Flutter `flutter analyze lib`: no issues. Flutter `flutter test`: 131 tests passed, including the
+  new presentation model test and the existing golden set.
+- Strapi `npm run build`: passed.
 
 ## Pending review
 

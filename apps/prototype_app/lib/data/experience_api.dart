@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/app_config.dart';
 import '../domain/models.dart';
 import '../domain/app_notification.dart';
+import '../domain/presentation.dart';
 
 /// Client for the shared BuildKart Experience API (`:9020`), which composes Medusa/Mercur/Tryton.
 /// This is the canonical client for the pilot: it consumes composed responses and the dummy
@@ -77,6 +78,19 @@ class ExperienceApi {
     _dio.options.headers.remove('Authorization');
     await _secureStorage.delete(key: _sessionTokenKey);
     await _secureStorage.delete(key: _sessionExpiryKey);
+  }
+
+  /// Backend storefront presentation: hero/campaign banners and root category
+  /// labels, icons and imagery. Commerce data is composed server-side.
+  Future<StorefrontPresentation> getPresentation({
+    String locale = 'en-IN',
+    String channel = 'b2c',
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/content/presentation',
+      queryParameters: {'locale': locale, 'channel': channel},
+    );
+    return StorefrontPresentation.fromJson(res.data!);
   }
 
   Future<List<dynamic>> getCollection(String key) async {

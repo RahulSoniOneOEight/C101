@@ -11,7 +11,7 @@ export const CMS_CONTENT_KINDS = [
 
 export type CmsContentKind = (typeof CMS_CONTENT_KINDS)[number];
 export type CmsPublicationStatus = "draft" | "published" | "modified";
-export type CmsFieldType = "string" | "text" | "richtext" | "enum" | "datetime" | "integer" | "json";
+export type CmsFieldType = "string" | "text" | "richtext" | "enum" | "datetime" | "integer" | "url" | "json";
 
 export interface CmsContentField {
   name: string;

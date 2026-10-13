@@ -9,6 +9,7 @@ type ContentFieldType =
   | "enum"
   | "datetime"
   | "integer"
+  | "url"
   | "json";
 
 interface ContentField {
@@ -84,7 +85,19 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         options: ["route", "product", "category", "collection", "url"],
       },
       { name: "ctaTargetId", label: "Action target", type: "string" },
+      {
+        name: "externalImageUrl",
+        label: "External image URL",
+        type: "url",
+        description: "HTTPS staging creative. Existing Strapi media remains preferred when present.",
+      },
       { name: "imageAltText", label: "Image alternative text", type: "string", required: true },
+      {
+        name: "themeKey",
+        label: "Color theme",
+        type: "enum",
+        options: ["primary", "trust", "promotion", "neutral"],
+      },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
       { name: "timezone", label: "Timezone", type: "string" },
@@ -131,6 +144,29 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
     titleField: "heading",
     fields: [
       { name: "categoryId", label: "Commerce category id", type: "string", required: true },
+      { name: "displayLabel", label: "Display label", type: "string" },
+      { name: "shortText", label: "Supporting text", type: "string" },
+      {
+        name: "iconKey",
+        label: "App icon",
+        type: "enum",
+        options: [
+          "bathroom-plumbing",
+          "tiles-plywood",
+          "electrical",
+          "agriculture",
+          "pumps-machines",
+          "construction",
+          "category",
+        ],
+      },
+      {
+        name: "externalBannerImageUrl",
+        label: "Category banner image URL",
+        type: "url",
+        description: "HTTPS staging creative used until media upload is enabled.",
+      },
+      { name: "bannerImageAltText", label: "Category banner alternative text", type: "string" },
       { name: "heading", label: "Heading", type: "string", required: true },
       { name: "description", label: "Description", type: "text" },
       { name: "heroAltText", label: "Hero alternative text", type: "string" },
@@ -267,6 +303,18 @@ function sanitizeData(definition: ContentKindDefinition, value: unknown): JsonRe
   const output: JsonRecord = {};
   for (const [key, fieldValue] of Object.entries(input)) {
     if (!allowed.has(key)) throw new Error(`Field '${key}' is not editable for ${definition.kind}.`);
+    const field = definition.fields.find((candidate) => candidate.name === key);
+    if (field?.type === "url" && fieldValue !== null && fieldValue !== "") {
+      let parsed: URL;
+      try {
+        parsed = new URL(String(fieldValue));
+      } catch {
+        throw new Error(`Field '${key}' must be a valid HTTPS URL.`);
+      }
+      if (parsed.protocol !== "https:") {
+        throw new Error(`Field '${key}' must be a valid HTTPS URL.`);
+      }
+    }
     output[key] = fieldValue;
   }
   assertNoCommerceFields(output);

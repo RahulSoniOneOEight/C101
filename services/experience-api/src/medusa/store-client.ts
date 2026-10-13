@@ -22,6 +22,10 @@ export interface StoreProductCategory {
   id: string;
   name: string;
   handle?: string | null;
+  parent_category_id?: string | null;
+  rank?: number | null;
+  is_active?: boolean | null;
+  is_internal?: boolean | null;
 }
 
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
@@ -165,7 +169,7 @@ export class MedusaStoreClient {
   async listProductCategories(limit = 200): Promise<StoreProductCategory[]> {
     const params = new URLSearchParams({
       limit: String(limit),
-      fields: "id,name,handle",
+      fields: "id,name,handle,parent_category_id,rank,is_active,is_internal",
     });
     const data = await this.getJson<{ product_categories: StoreProductCategory[] }>(
       `/store/product-categories?${params.toString()}`,

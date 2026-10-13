@@ -1,5 +1,4 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_config.dart';
@@ -7,20 +6,49 @@ import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../domain/presentation.dart';
 import '../domain/review_catalogue.dart';
 
-/// Storefront categories from the client brief, rendered icon-led on the home
-/// screen. Placeholder data until a category API is wired.
-final categoriesProvider = Provider<List<Category>>((ref) => const <Category>[
-      Category(label: 'Bathroom & Plumbing', icon: Icons.bathtub_outlined),
-      Category(label: 'Tiles & Plywood', icon: Icons.grid_view_outlined),
-      Category(label: 'Electrical', icon: Icons.electrical_services_outlined),
-      Category(label: 'Agriculture & Seeds', icon: Icons.grass_outlined),
-      Category(
-          label: 'Pumps & Machines',
-          icon: Icons.precision_manufacturing_outlined),
-      Category(label: 'Construction', icon: Icons.construction_outlined),
-    ]);
+/// Backend storefront presentation (hero/campaign banners and root category
+/// presentation). Never throws: on failure it resolves to the governed fallback
+/// so the storefront stays usable offline and before CMS content exists.
+final storefrontPresentationProvider =
+    FutureProvider<StorefrontPresentation>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getPresentation();
+  } catch (_) {
+    return const StorefrontPresentation(
+      banners: fallbackBanners,
+      categories: fallbackCategories,
+    );
+  }
+});
+
+/// Synchronous presentation accessor that always returns a usable value.
+final presentationProvider = Provider<StorefrontPresentation>((ref) {
+  return ref.watch(storefrontPresentationProvider).value ??
+      const StorefrontPresentation(
+        banners: fallbackBanners,
+        categories: fallbackCategories,
+      );
+});
+
+/// Root category rail labels and icons, delivered by the Experience API and
+/// composed from commerce category identity plus CMS presentation.
+final categoriesProvider = Provider<List<Category>>((ref) {
+  final categories = ref.watch(presentationProvider).categories;
+  return categories
+      .map((category) => Category(
+            label: category.label,
+            icon: categoryIconFor(category.iconKey),
+          ))
+      .toList();
+});
+
+/// Home hero carousel banners, priority-ordered by the backend.
+final heroBannersProvider = Provider<List<StorefrontBanner>>((ref) {
+  return ref.watch(presentationProvider).bannersFor('home.hero');
+});
 
 /// Offline demo catalog used when the Medusa backend is unreachable and there
 /// is no cached catalog. Mirrors the reference BuildKart profile so the
@@ -186,13 +214,20 @@ List<Product> filterProductsByHomeCategory(
   if (label == null) return products;
   HomeCategoryFilter? match;
   for (final filter in homeCategoryFilters) {
-    if (filter.label == label) {
+    if (filter.label.toLowerCase() == label.toLowerCase()) {
       match = filter;
       break;
     }
   }
-  if (match == null) return products;
-  final keywords = match.keywords;
+  // A backend label that is not in the reviewed keyword map still filters, using
+  // the label's own words, so a CMS rename never sends the user to an empty grid.
+  final keywords = match?.keywords ??
+      label
+          .toLowerCase()
+          .split(RegExp(r'[^a-z0-9]+'))
+          .where((word) => word.length > 2)
+          .toList();
+  if (keywords.isEmpty) return products;
   return products.where((product) {
     final haystack = '${product.title} ${product.brand ?? ''}'.toLowerCase();
     return keywords.any(haystack.contains);
@@ -350,10 +385,14 @@ const Map<String, String> _categoryBannerImages = <String, String>{
       'https://images.pexels.com/photos/1216589/pexels-photo-1216589.jpeg?auto=compress&cs=tinysrgb&w=940',
 };
 
-/// Banner image for a home/Browse category (changes per category).
-String categoryBannerImage(String? label) =>
-    _categoryBannerImages[label] ??
-    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&w=940';
+/// Banner image for a home/Browse category. Prefers the backend presentation
+/// for the category, then the reviewed static map, then a generic trade shot.
+final categoryBannerImageProvider = Provider.family<String, String?>((ref, label) {
+  final match = ref.watch(presentationProvider).categoryByLabel(label);
+  return match?.bannerImageUrl ??
+      _categoryBannerImages[label] ??
+      fallbackCategoryBannerImage;
+});
 
 /// Home scroll-feed modules, derived from the catalog. Placeholder structure
 /// until a merchandising backend is wired.

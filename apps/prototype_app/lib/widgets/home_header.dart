@@ -1,7 +1,12 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 
+import '../domain/presentation.dart';
+
 /// The B2C home header stack: location → search → trust row → hero carousel.
+///
+/// Hero banners are backend-managed presentation. When [banners] is empty the
+/// governed fallback is used, so the header never renders without content.
 ///
 /// The category rail is deliberately *not* part of the header: category
 /// selection now lives below the second promotional banner, directly above the
@@ -9,18 +14,59 @@ import 'package:flutter/material.dart';
 class HomeHeader extends StatelessWidget {
   const HomeHeader({
     this.locationLabel = 'Bhiwadi, Rajasthan 301019',
+    this.banners = const <StorefrontBanner>[],
     this.onSearch,
     this.onLocation,
-    this.onHeroTap,
+    this.onBannerTap,
     super.key,
   });
 
   final String locationLabel;
+
+  /// Hero banners for this surface, ordered by the backend.
+  final List<StorefrontBanner> banners;
   final VoidCallback? onSearch;
   final VoidCallback? onLocation;
 
-  /// Invoked with a collection tag when a hero banner is tapped.
-  final void Function(String tag)? onHeroTap;
+  /// Invoked with the tapped banner so the caller can follow its action target.
+  final void Function(StorefrontBanner banner)? onBannerTap;
+
+  static const List<StorefrontBanner> _fallback = <StorefrontBanner>[
+    StorefrontBanner(
+      contentKey: 'hero-monsoon-ready',
+      placement: 'home.hero',
+      title: 'Monsoon Ready',
+      body: 'Up to 40% off waterproofing',
+      themeKey: 'primary',
+    ),
+    StorefrontBanner(
+      contentKey: 'hero-bulk-savings',
+      placement: 'home.hero',
+      title: 'Bulk Savings',
+      body: 'Dealer pricing on 10,000+ SKUs',
+      themeKey: 'trust',
+    ),
+    StorefrontBanner(
+      contentKey: 'hero-free-delivery',
+      placement: 'home.hero',
+      title: 'Free Delivery',
+      body: 'On orders above ₹2,000',
+      themeKey: 'promotion',
+    ),
+  ];
+
+  Color _themeColor(AgencyColors colors, String themeKey) {
+    switch (themeKey) {
+      case 'trust':
+        return colors.trust;
+      case 'promotion':
+        return colors.promotion;
+      case 'neutral':
+        return colors.surfaceInteractive;
+      default:
+        return colors.actionPrimary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,34 +136,19 @@ class HomeHeader extends StatelessWidget {
                 label: 'Easy returns', icon: Icons.assignment_return_outlined),
           ],
         ),
-        // Hero carousel
+        // Hero carousel — backend-managed banners, governed fallback when absent.
         PinCarousel(
           height: 128,
           children: <Widget>[
-            _HeroBanner(
-              title: 'Monsoon Ready',
-              subtitle: 'Up to 40% off waterproofing',
-              color: colors.actionPrimary,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Flash Deals'),
-            ),
-            _HeroBanner(
-              title: 'Bulk Savings',
-              subtitle: 'Dealer pricing on 10,000+ SKUs',
-              color: colors.trust,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Best Sellers'),
-            ),
-            _HeroBanner(
-              title: 'Free Delivery',
-              subtitle: 'On orders above ₹2,000',
-              color: colors.promotion,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Clearance Sale'),
-            ),
+            for (final banner in (banners.isEmpty ? _fallback : banners))
+              _HeroBanner(
+                title: banner.title,
+                subtitle: banner.body ?? '',
+                color: _themeColor(colors, banner.themeKey),
+                onTap: onBannerTap == null
+                    ? null
+                    : () => onBannerTap!(banner),
+              ),
           ],
         ),
       ],

@@ -20,6 +20,12 @@ import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CmsContentAdapter } from "./content/cms-adapter.js";
+import {
+  composeStorefrontCategories,
+  resolveSeedBanners,
+  type ComposedCategory,
+} from "./content/presentation.js";
+import type { StorefrontChannel } from "./content/storefront-layout.js";
 import { verifyCmsWebhook } from "./content/cms-webhook.js";
 import { CmsContentStore } from "./store/cms-content-store.js";
 import { CollectionResolver } from "./collections/resolver.js";
@@ -774,6 +780,76 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         observed_at: layoutResolution?.observedAt ?? generatedAt,
         stale: layoutResolution?.stale ?? false,
       },
+    });
+  }
+
+  if (url.pathname === "/v1/content/presentation" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const channelParam = url.searchParams.get("channel");
+    const channel: StorefrontChannel = channelParam === "b2b" ? "b2b" : "b2c";
+
+    const bannerResolution = await cmsContent.resolveBanners(channel, locale);
+    const banners = bannerResolution.items.length
+      ? bannerResolution.items
+      : resolveSeedBanners(channel, locale);
+    const bannerSource = bannerResolution.items.length
+      ? bannerResolution.source
+      : "governed-editorial-seed";
+
+    let categories: ComposedCategory[] = [];
+    let categorySource = "unavailable";
+    let categoryObservedAt = bannerResolution.observedAt;
+    let categoryStale = bannerResolution.stale;
+    try {
+      const [editorialResolution, medusaCategories] = await Promise.all([
+        cmsContent.resolveCategoryEditorials(locale),
+        medusa.listProductCategories(),
+      ]);
+      const roots = medusaCategories
+        .filter(
+          (category) =>
+            !category.parent_category_id &&
+            category.is_active !== false &&
+            category.is_internal !== true,
+        )
+        .sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0))
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          handle: category.handle ?? null,
+        }));
+      categories = composeStorefrontCategories(roots, editorialResolution.items);
+      categorySource = editorialResolution.source;
+      categoryObservedAt = editorialResolution.observedAt;
+      categoryStale = editorialResolution.stale;
+    } catch (error) {
+      console.warn("[experience-api] category presentation failed:", (error as Error).message);
+      categorySource = "unavailable";
+      categoryStale = true;
+    }
+
+    const generatedAt = new Date().toISOString();
+    return json({
+      locale,
+      channel,
+      banners,
+      categories,
+      generated_at: generatedAt,
+      source: `${bannerSource}+category:${categorySource}`,
+      freshness: {
+        banners: {
+          source: bannerSource,
+          observed_at: bannerResolution.observedAt,
+          stale: bannerResolution.stale,
+        },
+        categories: {
+          source: categorySource,
+          observed_at: categoryObservedAt,
+          stale: categoryStale,
+        },
+      },
+      test_data: true,
+      correlation_id: correlationId(req),
     });
   }
 

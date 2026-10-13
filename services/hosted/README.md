@@ -63,6 +63,16 @@ authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted
 private `cms` service. Strapi remains the editorial system of record; commerce remains authoritative
 for products, price, inventory, sellers, orders, payments, credit, commissions, and payouts.
 
+The customer app no longer hardcodes its hero/campaign banners or root category labels and icons.
+`GET /v1/content/presentation?locale=<l>&channel=<b2c|b2b>` composes Medusa-owned root categories
+with published Strapi `banner` and `category-editorial` records: labels, supporting text, an
+allowlisted `iconKey`, banner imagery and a colour theme. Commerce category id, hierarchy and product
+membership are never editorial. When CMS presentation is absent or unavailable the Experience API
+returns the governed fallback seed, so the storefront keeps working. The current banners and root
+categories are seeded into the CMS on bootstrap so an operator can edit them without a code change;
+media upload remains deferred, so creative is referenced by an HTTPS URL (`externalImageUrl` /
+`externalBannerImageUrl`) until an approved DAM workflow exists.
+
 ## ERP web client (Tryton / SAO)
 
 The real Tryton web client (SAO) is served by trytond's built-in web server and routed through the

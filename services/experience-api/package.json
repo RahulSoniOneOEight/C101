@@ -28,6 +28,7 @@
     "test:storefront-layout": "bun run src/scripts/storefront-layout-test.ts",
     "test:cms-content": "bun run src/scripts/cms-content-test.ts",
     "test:cms-content-store": "bun run src/scripts/cms-content-store-test.ts",
+    "test:presentation": "bun run src/scripts/presentation-test.ts",
     "test:load": "bun run src/scripts/load-test.ts"
   },
   "dependencies": {

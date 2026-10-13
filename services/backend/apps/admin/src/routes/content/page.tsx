@@ -148,7 +148,7 @@ function FieldInput({
       ) : (
         <Input
           data-testid={testId}
-          type={field.type === "datetime" ? "datetime-local" : field.type === "integer" ? "number" : "text"}
+          type={field.type === "datetime" ? "datetime-local" : field.type === "integer" ? "number" : field.type === "url" ? "url" : "text"}
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />

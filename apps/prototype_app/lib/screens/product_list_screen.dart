@@ -140,10 +140,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 Padding(
                   padding: const EdgeInsets.all(AgencySpacing.md),
                   child: HomeHeader(
+                    banners: ref.watch(heroBannersProvider),
                     onSearch: () => context.push('/search'),
                     onLocation: () => context.push('/addresses'),
-                    onHeroTap: (tag) => context.push(
-                        '/browse?tag=${Uri.encodeComponent(tag)}'),
+                    onBannerTap: (banner) {
+                      final uri = banner.actionUri;
+                      if (uri != null && uri.isNotEmpty) context.push(uri);
+                    },
                   ),
                 ),
                 for (final module in modules)
@@ -193,7 +196,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl: categoryBannerImage(_category),
+            imageUrl: ref.watch(categoryBannerImageProvider(_category)),
             title: _category ?? 'Shop by category',
             subtitle: 'Top picks in this aisle',
             ctaLabel: 'Explore',
