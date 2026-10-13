@@ -147,6 +147,25 @@ Traefik discovers the `proxy` by label and issues certificates automatically. Ve
 that the **customer** hostname returns `404` for `/metrics`, `/ops`, `/v1/admin/*`, `/v1/ops/*`,
 payment simulation and shipment advancement, while the operator hostname reaches them.
 
+## Editorial CMS (Strapi v5)
+
+The `cms` service builds `buildkart-hosted-pilot-cms` from `services/cms`, reads its environment from
+`/etc/buildkart/secrets/cms.env` (template at `services/hosted/secrets/cms.env.example`), and uses
+the `buildkart_cms` database created by `postgres-init`.
+
+It joins the **private** network only. Exposing the Strapi admin at the edge requires the deferred
+access layer (Cloudflare Access plus operator RBAC hardening), so it is not reachable from the public
+hostnames today.
+
+```sh
+# Bring it up after the datastores
+docker compose -f docker-compose.hosted.yml up -d --build cms
+docker compose -f docker-compose.hosted.yml logs -f cms
+```
+
+Editorial content only: no price, stock, seller, order, payment or credit data is stored here, and
+the CMS never reaches the commerce, marketplace or ERP databases.
+
 ## Post-deploy acceptance gate
 
 Run the automated hosted acceptance checklist against the deployed staging endpoint before any
