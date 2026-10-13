@@ -1,6 +1,9 @@
+import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prototype_app/domain/merchandising.dart';
 import 'package:prototype_app/domain/presentation.dart';
+import 'package:prototype_app/widgets/merchandising_sections.dart';
 
 void main() {
   test('parses the backend presentation payload', () {
@@ -47,6 +50,33 @@ void main() {
     expect(categoryIconFor('bathroom-plumbing'), Icons.bathtub_outlined);
     expect(categoryIconFor('<script>'), Icons.category_outlined);
     expect(categoryIconFor(''), Icons.category_outlined);
+  });
+
+  testWidgets('campaign strip follows the backend banner action target',
+      (tester) async {
+    String? followed;
+    const module = MerchandisingModule(
+      type: MerchandisingModuleType.secondaryBanner,
+      banner: MerchandisingBannerData(
+        imageUrl: 'https://example.com/clearance.jpg',
+        title: 'Clearance Sale',
+        subtitle: 'Up to 70% off select items',
+        ctaLabel: 'Shop Now',
+        actionUri: '/browse?tag=Clearance%20Sale',
+      ),
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      theme: AgencyTheme.light(),
+      home: Scaffold(
+        body: MerchandisingModuleView(
+          module: module,
+          onBannerAction: (uri) => followed = uri,
+        ),
+      ),
+    ));
+    await tester.tap(find.text('Shop Now'));
+    expect(followed, '/browse?tag=Clearance%20Sale');
   });
 
   test('governed fallback mirrors the shipped hero banners and categories', () {

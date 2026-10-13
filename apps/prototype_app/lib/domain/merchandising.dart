@@ -11,19 +11,22 @@ enum MerchandisingModuleType {
   productComposition,
 }
 
-/// Image-led banner content (secondary / contextual banners).
+/// Image-led banner content (secondary / contextual banners). All fields are
+/// backend-managed presentation; `actionUri` is the backend action target.
 class MerchandisingBannerData {
   const MerchandisingBannerData({
     required this.imageUrl,
     required this.title,
     this.subtitle,
     this.ctaLabel,
+    this.actionUri,
   });
 
   final String imageUrl;
   final String title;
   final String? subtitle;
   final String? ctaLabel;
+  final String? actionUri;
 }
 
 /// The special (sixth) slot in a product-composition module — a merchandising

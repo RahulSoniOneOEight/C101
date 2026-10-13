@@ -162,6 +162,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                           onAddToCart: _addToCart,
                           onSeeAll: _seeAllFor(module),
                           onBannerTap: _openTag('Clearance Sale'),
+                          onBannerAction: (uri) => context.push(uri),
                           onToggleWishlist: _toggleWishlist,
                           isWishlisted: _isWishlisted,
                         ),

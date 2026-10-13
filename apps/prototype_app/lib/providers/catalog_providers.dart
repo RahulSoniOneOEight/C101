@@ -394,8 +394,13 @@ final categoryBannerImageProvider = Provider.family<String, String?>((ref, label
       fallbackCategoryBannerImage;
 });
 
-/// Home scroll-feed modules, derived from the catalog. Placeholder structure
-/// until a merchandising backend is wired.
+/// Governed fallback creative for the campaign strip when the backend
+/// presentation is unavailable.
+const String _clearanceBannerImage =
+    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940';
+
+/// Home scroll-feed modules, derived from the catalog. Module ordering is local
+/// until a layout-driven scroll feed is wired; banner presentation is backend-driven.
 final homeModulesProvider =
     Provider.autoDispose<List<MerchandisingModule>>((ref) {
   final products = ref.watch(productsProvider).value ?? const <Product>[];
@@ -423,6 +428,11 @@ final homeModulesProvider =
       .toList();
   final recommended = products.take(5).toList();
 
+  // The campaign strip is backend-managed presentation. Fall back to the
+  // governed defaults when the API is unavailable.
+  final campaignStrip =
+      ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
+
   return <MerchandisingModule>[
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
@@ -439,11 +449,11 @@ final homeModulesProvider =
     MerchandisingModule(
       type: MerchandisingModuleType.secondaryBanner,
       banner: MerchandisingBannerData(
-        imageUrl:
-            'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-        title: 'Clearance Sale',
-        subtitle: 'Up to 70% off select items',
-        ctaLabel: 'Shop Now',
+        imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
+        title: campaignStrip?.title ?? 'Clearance Sale',
+        subtitle: campaignStrip?.body ?? 'Up to 70% off select items',
+        ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
+        actionUri: campaignStrip?.actionUri,
       ),
     ),
     MerchandisingModule(

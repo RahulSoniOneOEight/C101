@@ -12,6 +12,7 @@ class MerchandisingModuleView extends StatelessWidget {
     this.onSeeAll,
     this.onAddToCart,
     this.onBannerTap,
+    this.onBannerAction,
     this.onToggleWishlist,
     this.isWishlisted,
     super.key,
@@ -22,6 +23,10 @@ class MerchandisingModuleView extends StatelessWidget {
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
   final VoidCallback? onBannerTap;
+
+  /// Follows the backend banner's action target. Preferred over [onBannerTap]
+  /// whenever the banner carries an [MerchandisingBannerData.actionUri].
+  final void Function(String uri)? onBannerAction;
   final void Function(Product product)? onToggleWishlist;
   final bool Function(Product product)? isWishlisted;
 
@@ -30,12 +35,15 @@ class MerchandisingModuleView extends StatelessWidget {
     switch (module.type) {
       case MerchandisingModuleType.secondaryBanner:
         final banner = module.banner!;
+        final actionUri = banner.actionUri;
         return MerchandisingBanner(
           imageUrl: banner.imageUrl,
           title: banner.title,
           subtitle: banner.subtitle,
           ctaLabel: banner.ctaLabel,
-          onCta: onBannerTap,
+          onCta: actionUri != null && onBannerAction != null
+              ? () => onBannerAction!(actionUri)
+              : onBannerTap,
         );
       case MerchandisingModuleType.productCarousel:
         return _headed(
@@ -139,6 +147,7 @@ class HomeScrollFeed extends StatelessWidget {
     this.onSeeAll,
     this.onAddToCart,
     this.onBannerTap,
+    this.onBannerAction,
     this.onToggleWishlist,
     this.isWishlisted,
     super.key,
@@ -150,6 +159,7 @@ class HomeScrollFeed extends StatelessWidget {
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
   final VoidCallback? onBannerTap;
+  final void Function(String uri)? onBannerAction;
   final void Function(Product product)? onToggleWishlist;
   final bool Function(Product product)? isWishlisted;
 
@@ -169,6 +179,7 @@ class HomeScrollFeed extends StatelessWidget {
             onSeeAll: onSeeAll,
             onAddToCart: onAddToCart,
             onBannerTap: onBannerTap,
+            onBannerAction: onBannerAction,
             onToggleWishlist: onToggleWishlist,
             isWishlisted: isWishlisted,
           ),
