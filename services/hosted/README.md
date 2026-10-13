@@ -29,6 +29,7 @@ admin/auth APIs, routed by nginx to `medusa-api`:
 | Path | Surface |
 |---|---|
 | `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
+| `/dashboard/content` | Native Content workspace backed by private Strapi |
 | `/seller/` | Mercur vendor (seller) dashboard |
 | `/admin/*`, `/auth/*`, `/vendor/*`, `/static/*` | Medusa admin/auth/vendor APIs and uploads |
 
@@ -48,6 +49,14 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
+
+The admin sidebar's **Content** workspace provides one routine operator experience for commerce and
+editorial work. It groups storefront layouts, banners, curated collections, category editorial,
+product editorial, and help/articles. Operators explicitly save a draft, then publish or unpublish
+it as a separate action. The dashboard browser never calls Strapi and never receives a Strapi token:
+the authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
+private `cms` service. Strapi remains the editorial system of record; commerce remains authoritative
+for products, price, inventory, sellers, orders, payments, credit, commissions, and payouts.
 
 ## ERP web client (Tryton / SAO)
 
@@ -180,13 +189,17 @@ Initial staging administration and adapter setup:
    update, delete, publish, upload or admin permissions to this token.
 3. Put the token in `/etc/buildkart/secrets/experience-api.env` as `CMS_API_TOKEN`. Put the same
    random `CMS_WEBHOOK_SECRET` in both `experience-api.env` and `cms.env`.
-4. Recreate the two services so they read the secret-managed values:
+4. Generate a separate random `CMS_OPERATOR_SECRET` and put the same value in `medusa.env` and
+   `cms.env`. This authenticates only Medusa's private CMS facade and must not be reused as the
+   Content API token, webhook secret, JWT secret, or cookie secret.
+5. Recreate the services so they read the secret-managed values:
 
    ```sh
-   docker compose -f docker-compose.hosted.yml up -d --build cms experience-api
+   docker compose -f docker-compose.hosted.yml up -d --build cms experience-api medusa-api
    ```
 
-5. Author and publish a layout. Verify delivery and then unpublish it to verify omission:
+6. Open `https://ops-staging.pinakaplay.cloud/dashboard/content` with a Mercur administrator. Save a
+   draft, verify that the live API is unchanged, publish it, and then unpublish it to verify omission:
 
    ```sh
    curl -fsS 'https://api-staging.pinakaplay.cloud/v1/content/app-shell?locale=en-IN&channel=b2c'

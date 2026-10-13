@@ -1,5 +1,6 @@
 import { createHash, createHmac } from "node:crypto";
 import type { Core } from "@strapi/strapi";
+import { ensureCmsOperatorAudit, registerCmsOperatorRoutes } from "./operator-content";
 
 const EDITORIAL_UIDS = new Set([
   "api::banner.banner",
@@ -105,6 +106,7 @@ async function deliverWebhook(
 
 export default {
   register({ strapi }: { strapi: Core.Strapi }) {
+    registerCmsOperatorRoutes(strapi);
     strapi.documents.use(async (context, next) => {
       const result = await next();
       const uid = String(context.uid);
@@ -125,5 +127,8 @@ export default {
       }
       return result;
     });
+  },
+  async bootstrap({ strapi }: { strapi: Core.Strapi }) {
+    await ensureCmsOperatorAudit(strapi);
   },
 };
