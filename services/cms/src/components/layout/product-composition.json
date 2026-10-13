@@ -5,6 +5,7 @@
     "description": "Fixed product arrangement, for example a recommended block with a split feature tile."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "title": { "type": "string", "required": true },
     "tag": { "type": "string" },
     "productIds": { "type": "json", "required": true },

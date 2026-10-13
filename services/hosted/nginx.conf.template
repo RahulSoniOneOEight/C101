@@ -57,6 +57,10 @@ http {
       proxy_pass http://experience_api;
     }
 
+    # Service-to-service webhook receiver. Strapi calls the Experience API directly on the private
+    # Docker network; neither public hostname may forward this path.
+    location ^~ /v1/internal/ { return 404; }
+
     location /v1/ {
       limit_req zone=pilot_api burst=30 nodelay;
       proxy_pass http://experience_api;

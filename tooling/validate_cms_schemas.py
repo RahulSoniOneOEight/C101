@@ -78,7 +78,10 @@ def declared_components() -> dict[str, Path]:
 def declared_content_types() -> dict[str, Path]:
     """Content type identity is the schema's own singularName, e.g. category-editorial."""
     types: dict[str, Path] = {}
-    for path in sorted(CMS.rglob("schema.json")):
+    # Restrict discovery to the canonical application API tree. A local Strapi installation brings
+    # hundreds of dependency-owned `schema.json` files under node_modules; those are not BuildKart
+    # content types and must not make repository validation environment-dependent.
+    for path in sorted((CMS / "src" / "api").rglob("schema.json")):
         schema = load(path)
         singular = (schema.get("info") or {}).get("singularName")
         if not singular:
@@ -194,6 +197,11 @@ def main() -> None:
         assert (schema.get("info") or {}).get("displayName"), (
             f"{relative}: component must declare info.displayName"
         )
+        if component_key.startswith("layout."):
+            module_key = (schema.get("attributes") or {}).get("moduleKey") or {}
+            assert module_key.get("type") == "string" and module_key.get("required") is True, (
+                f"{relative}: layout components must declare required string moduleKey"
+            )
         for name, attribute in iter_attributes(schema):
             if attribute.get("type") == "relation":
                 target = attribute.get("target")

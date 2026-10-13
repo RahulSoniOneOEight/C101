@@ -1,7 +1,7 @@
-# BuildKart CMS service (Strapi v5 — proposed)
+# BuildKart CMS service (Strapi v5)
 
-**Status:** Service skeleton with validated schemas. The app structure exists and is wired into the
-hosted compose definition, but **it has not been installed, booted or deployed**, and it is not
+**Status:** The service has been installed, built and booted against PostgreSQL; all six content
+types and nine components materialised successfully. It is wired into hosted staging but is not
 published at the edge. Provider selection is confirmed as Strapi by the human requester (see
 `client-projects/client101/changes/CHG-026.yaml` and
 `client-projects/client101/changes/CHG-031.yaml`); the backend organisation proposal is unchanged.
@@ -21,8 +21,7 @@ Experience API content adapter
    ├─ verify webhook signature
    ├─ idempotency + version record
    ├─ invalidate cache
-   ├─ trigger Meilisearch reindex where needed
-   └─ update editorial projection
+    └─ update editorial projection
    ▼
 GET /v1/content/app-shell?locale=&channel=&audience=   ← Flutter / web consume this only
 ```
@@ -65,8 +64,7 @@ a `curated-collection`, and live price/stock are resolved by commerce at read ti
 
 ## Validating the schemas
 
-Strapi is not installed in this repository, so a broken reference would otherwise fail only at CMS
-boot. `python tooling/validate_cms_schemas.py` fails closed on unresolved component or content-type
+`python tooling/validate_cms_schemas.py` fails closed on unresolved component or content-type
 references, missing `draftAndPublish`/`i18n`, duplicate identifiers, any schema that declares a
 transactional field (price, stock, seller, order, payment, credit), and any content type missing its
 Strapi `routes`/`controllers`/`services` files. It runs in contract validation.
@@ -100,8 +98,15 @@ npm run build && npm run start   # production-shaped
 
 The hosted definition builds this image as `buildkart-hosted-pilot-cms`, reads its environment from
 `/etc/buildkart/secrets/cms.env`, and creates the `buildkart_cms` database. It joins the **private**
-network only: exposing the Strapi admin at the edge requires the deferred access layer (Cloudflare
-Access plus operator RBAC hardening), so it is currently reachable only by the content adapter.
+network only. A loopback-only host binding supports an SSH tunnel for initial administration;
+exposing the Strapi admin at the edge still requires the deferred access layer (Cloudflare Access
+plus operator RBAC hardening).
+
+The Experience API reads only published documents with a secret-managed read-only API token. Strapi
+publishes timestamped HMAC-SHA256 invalidation notifications to the private
+`/v1/internal/cms/webhooks` endpoint. Duplicate notifications are recorded once, older events cannot
+overwrite newer state, unpublish revokes the matching last-valid projection, and CMS failure falls
+back to a non-revoked durable projection or the governed seed.
 
 ## Non-goals
 

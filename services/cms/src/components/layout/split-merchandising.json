@@ -5,6 +5,7 @@
     "description": "Image and copy block with an optional call to action."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "title": { "type": "string", "required": true },
     "body": { "type": "text" },
     "image": { "type": "media", "multiple": false, "allowedTypes": ["images"] },

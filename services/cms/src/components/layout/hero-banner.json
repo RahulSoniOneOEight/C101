@@ -5,6 +5,7 @@
     "description": "Places an approved banner record at the top of a layout. Editorial only."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "internalName": { "type": "string", "required": true },
     "banner": {
       "type": "relation",

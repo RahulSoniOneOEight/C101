@@ -61,6 +61,11 @@ export interface Config {
   firebaseProjectId: string;
   fcmDeliveryEnabled: boolean;
   notificationTemplatesApproved: boolean;
+  cmsBaseUrl?: string;
+  cmsApiToken?: string;
+  cmsWebhookSecret?: string;
+  cmsCacheTtlSeconds: number;
+  cmsWebhookToleranceSeconds: number;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -153,6 +158,14 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   }
 
   const nats = parseNats(env.NATS_URL);
+  const cmsBaseUrl = env.CMS_BASE_URL?.trim().replace(/\/$/, "") || undefined;
+  const cmsApiToken = env.CMS_API_TOKEN?.trim() || undefined;
+  const cmsWebhookSecret = env.CMS_WEBHOOK_SECRET?.trim() || undefined;
+  if (cmsBaseUrl && (!cmsApiToken || !cmsWebhookSecret)) {
+    throw new Error(
+      "CMS_API_TOKEN and CMS_WEBHOOK_SECRET are required when CMS_BASE_URL is configured.",
+    );
+  }
 
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
@@ -193,5 +206,18 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     firebaseProjectId,
     fcmDeliveryEnabled,
     notificationTemplatesApproved,
+    cmsBaseUrl,
+    cmsApiToken,
+    cmsWebhookSecret,
+    cmsCacheTtlSeconds: positiveInteger(
+      env.CMS_CACHE_TTL_SECONDS,
+      60,
+      "CMS_CACHE_TTL_SECONDS",
+    ),
+    cmsWebhookToleranceSeconds: positiveInteger(
+      env.CMS_WEBHOOK_TOLERANCE_SECONDS,
+      300,
+      "CMS_WEBHOOK_TOLERANCE_SECONDS",
+    ),
   };
 }

@@ -19,7 +19,9 @@ import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
-import { resolveLayout } from "./content/storefront-layout.js";
+import { CmsContentAdapter } from "./content/cms-adapter.js";
+import { verifyCmsWebhook } from "./content/cms-webhook.js";
+import { CmsContentStore } from "./store/cms-content-store.js";
 import { CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
@@ -48,6 +50,15 @@ const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
+const cmsContentStore = new CmsContentStore(config.experienceDatabaseUrl);
+const cmsContent = new CmsContentAdapter(
+  {
+    baseUrl: config.cmsBaseUrl,
+    apiToken: config.cmsApiToken,
+    cacheTtlSeconds: config.cmsCacheTtlSeconds,
+  },
+  cmsContentStore,
+);
 const nats = new NatsPublisher(config.natsUrl, {
   user: config.natsUser,
   password: config.natsPassword,
@@ -406,6 +417,45 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  // Private-network-only Strapi publish/unpublish receiver. Authentication is the timestamped
+  // HMAC signature; nginx blocks /v1/internal at both public hostnames.
+  if (url.pathname === "/v1/internal/cms/webhooks" && req.method === "POST") {
+    if (!config.cmsWebhookSecret) return problem(404, "not-found");
+    const rawBody = await req.text();
+    if (rawBody.length > 65536) return problem(413, "payload-too-large");
+    const verified = verifyCmsWebhook(
+      rawBody,
+      req.headers,
+      config.cmsWebhookSecret,
+      new Date(),
+      config.cmsWebhookToleranceSeconds,
+    );
+    if (!verified.ok) return problem(verified.status, verified.reason);
+    try {
+      const payload = verified.payload;
+      const recorded = await cmsContentStore.recordWebhook({
+        eventId: payload.event_id,
+        eventVersion: payload.version,
+        action: payload.event === "entry.publish" ? "publish" : "unpublish",
+        uid: payload.uid,
+        documentId: payload.document_id,
+        occurredAt: payload.occurred_at,
+      });
+      if (recorded.applied) cmsContent.invalidate(payload.uid, payload.document_id);
+      return json({
+        accepted: true,
+        duplicate: recorded.duplicate,
+        applied: recorded.applied,
+        event_id: payload.event_id,
+        correlation_id: cid,
+        test_data: true,
+      }, recorded.duplicate ? 200 : 202);
+    } catch (error) {
+      console.warn("[experience-api] CMS webhook persistence failed:", (error as Error).message);
+      return problem(503, "cms-webhook-store-unavailable");
+    }
+  }
+
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
   // Local legacy integration runs without that configuration retain their existing operator access.
   const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
@@ -429,6 +479,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       nats: nats.connected ? "connected" : "disconnected",
       identity_store: identityStore,
       pilot_user_count: pilotDirectory.users.length,
+      cms_adapter: cmsContent.enabled ? "configured" : "governed-seed-fallback",
       test_data: config.environment !== "production",
       correlation_id: cid,
     }, identityStore === "connected" ? 200 : 503);
@@ -449,6 +500,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       ["correlation", correlation.poolStats()],
       ["notification", notifications.poolStats()],
       ["privileged_audit", privilegedAudit.poolStats()],
+      ["cms_content", cmsContentStore.poolStats()],
     ];
     const lines: string[] = [
       `buildkart_process_cpu_percent ${proc.cpu_percent}`,
@@ -694,8 +746,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const channelParam = url.searchParams.get("channel");
     const channel =
       channelParam === "b2c" || channelParam === "b2b" ? channelParam : null;
-    const layout = channel ? resolveLayout(channel, locale) : undefined;
+    const layoutResolution = channel ? await cmsContent.resolveLayout(channel, locale) : undefined;
+    const layout = layoutResolution?.layout;
     const generatedAt = new Date().toISOString();
+    const source = layoutResolution
+      ? `${layoutResolution.source}+governed-editorial-seed`
+      : "governed-editorial-seed";
 
     return json({
       locale,
@@ -707,18 +763,27 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             layout: {
               ...layout,
               generated_at: generatedAt,
-              source: "governed-editorial-seed",
+              source: layoutResolution.source,
             },
           }
         : {}),
       generated_at: generatedAt,
-      source: "governed-editorial-seed",
+      source,
       freshness: {
-        source: "governed-editorial-seed",
-        observed_at: generatedAt,
-        stale: false,
+        source,
+        observed_at: layoutResolution?.observedAt ?? generatedAt,
+        stale: layoutResolution?.stale ?? false,
       },
     });
+  }
+
+  const cmsMediaMatch = url.pathname.match(/^\/v1\/content\/media\/(.+)$/);
+  if (cmsMediaMatch && req.method === "GET") {
+    try {
+      return await cmsContent.readMedia(decodeURIComponent(cmsMediaMatch[1]));
+    } catch {
+      return problem(404, "media-not-found");
+    }
   }
 
   // GET /v1/collections/{key} — resolve a dynamic collection

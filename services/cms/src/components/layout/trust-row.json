@@ -5,6 +5,7 @@
     "description": "Static assurance strip, for example GST invoices, verified sellers, easy returns."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "items": { "type": "json", "required": true }
   }
 }

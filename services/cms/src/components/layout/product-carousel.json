@@ -5,6 +5,7 @@
     "description": "Ordered product rail. Membership comes from staged ids or a curated collection; live price and stock are resolved by commerce."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "title": { "type": "string", "required": true },
     "tag": {
       "type": "string",

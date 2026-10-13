@@ -5,6 +5,7 @@
     "description": "Long-form editorial block."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "title": { "type": "string" },
     "body": { "type": "richtext", "required": true }
   }

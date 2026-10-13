@@ -5,6 +5,7 @@
     "description": "Editorial promo banner attached to a commerce category surface. The banner carries copy, media, scheduling and priority; the category and any discount remain commerce-owned."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "internalName": { "type": "string", "required": true },
     "categoryId": { "type": "string", "required": true },
     "banner": {
