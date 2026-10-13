@@ -30,11 +30,10 @@ ENV PORT=1337
 WORKDIR /opt/cms
 
 COPY package.json ./
+COPY tsconfig.json ./
 COPY --from=build /opt/cms/node_modules ./node_modules
 
 COPY --from=build /opt/cms/dist ./dist
-COPY --from=build /opt/cms/config ./config
-COPY --from=build /opt/cms/src ./src
 COPY --from=build /opt/cms/public ./public
 
 EXPOSE 1337
