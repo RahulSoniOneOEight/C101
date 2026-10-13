@@ -155,7 +155,9 @@ The `cms` service builds `buildkart-hosted-pilot-cms` from `services/cms`, reads
 `/etc/buildkart/secrets/cms.env` (template at `services/hosted/secrets/cms.env.example`), and uses
 the `buildkart_cms` database created by `postgres-init`.
 
-It joins the **private** network and binds `127.0.0.1:1337` only for SSH-tunnel administration.
+It joins the **private** application network plus a dedicated `cms_admin` bridge required for Docker
+to realize the `127.0.0.1:1337` binding. No other application or public proxy service joins that
+bridge. The binding is used only for SSH-tunnel administration.
 Exposing the Strapi admin at the edge requires the deferred access layer (Cloudflare Access plus
 operator RBAC hardening), so it is not reachable from the public hostnames today.
 
