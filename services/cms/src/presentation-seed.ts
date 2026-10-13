@@ -164,7 +164,9 @@ export const categorySeed: CategorySeed[] = [
  * operator edit always wins. Fail-soft: a seeding error is logged and never blocks startup.
  */
 export async function seedStorefrontPresentation(strapi: Core.Strapi): Promise<void> {
-  if (process.env.NODE_ENV === "production") return;
+  // The CMS image runs with NODE_ENV=production for its runtime shape, so the environment marker
+  // (not NODE_ENV) decides whether the governed staging seed runs. Absent marker = seed.
+  if (process.env.BUILDKART_ENVIRONMENT === "production") return;
   try {
     const banners = strapi.documents("api::banner.banner" as never);
     for (const seed of bannerSeed) {
