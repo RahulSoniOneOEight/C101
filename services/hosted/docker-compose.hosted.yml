@@ -119,6 +119,7 @@ services:
     env_file: /etc/buildkart/secrets/experience-api.env
     environment:
       PORT: "9020"
+      CMS_BASE_URL: http://cms:1337
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -153,6 +154,11 @@ services:
     build: ../cms
     restart: unless-stopped
     env_file: /etc/buildkart/secrets/cms.env
+    environment:
+      CMS_WEBHOOK_URL: http://experience-api:9020/v1/internal/cms/webhooks
+    # Loopback only: permits an SSH tunnel for initial admin/API-token setup without edge exposure.
+    ports:
+      - "127.0.0.1:1337:1337"
     depends_on:
       postgres: {condition: service_healthy}
     networks: [private]

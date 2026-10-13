@@ -1,0 +1,28 @@
+name: CMS validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/cms/**"
+      - "tooling/validate_cms_schemas.py"
+      - ".github/workflows/cms.yml"
+  pull_request:
+    paths:
+      - "services/cms/**"
+      - "tooling/validate_cms_schemas.py"
+      - ".github/workflows/cms.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Strapi build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/cms
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --tag buildkart-cms:ci .

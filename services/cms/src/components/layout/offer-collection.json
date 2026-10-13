@@ -5,6 +5,7 @@
     "description": "Merchandising rail of offers. The label is editorial; offer membership and any discount are commerce-owned."
   },
   "attributes": {
+    "moduleKey": { "type": "string", "required": true },
     "title": { "type": "string", "required": true },
     "tag": {
       "type": "string",

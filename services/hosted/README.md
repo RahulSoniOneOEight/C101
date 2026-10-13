@@ -1,8 +1,9 @@
 # Hosted staging pilot deployment
 
 This package deploys the bounded BuildKart staging pilot. It does not authorize production release.
-PostgreSQL, Redis, NATS, Tryton, Medusa, worker metrics and the Experience API have no
-host-published ports; only the internal `proxy` (nginx) is reachable from the edge.
+PostgreSQL, Redis, NATS, Tryton, Medusa, worker metrics and the Experience API have no externally
+published ports; only the internal `proxy` (nginx) is reachable from the edge. Strapi binds to VPS
+loopback only so an administrator can use an SSH tunnel without exposing it publicly.
 
 ## Edge topology
 
@@ -117,6 +118,7 @@ Create these root-owned files on the VPS with mode `0600`:
 - `/etc/buildkart/secrets/medusa.env`
 - `/etc/buildkart/secrets/tryton.env`
 - `/etc/buildkart/secrets/experience-api.env`
+- `/etc/buildkart/secrets/cms.env`
 - `/etc/buildkart/secrets/firebase-admin.json`  (only when enabling FCM)
 
 Use `secrets/*.env.example` only as a field list. Never copy real values into Git.
@@ -153,15 +155,47 @@ The `cms` service builds `buildkart-hosted-pilot-cms` from `services/cms`, reads
 `/etc/buildkart/secrets/cms.env` (template at `services/hosted/secrets/cms.env.example`), and uses
 the `buildkart_cms` database created by `postgres-init`.
 
-It joins the **private** network only. Exposing the Strapi admin at the edge requires the deferred
-access layer (Cloudflare Access plus operator RBAC hardening), so it is not reachable from the public
-hostnames today.
+It joins the **private** network and binds `127.0.0.1:1337` only for SSH-tunnel administration.
+Exposing the Strapi admin at the edge requires the deferred access layer (Cloudflare Access plus
+operator RBAC hardening), so it is not reachable from the public hostnames today.
 
 ```sh
 # Bring it up after the datastores
 docker compose -f docker-compose.hosted.yml up -d --build cms
 docker compose -f docker-compose.hosted.yml logs -f cms
 ```
+
+Initial staging administration and adapter setup:
+
+1. From an administrator workstation, tunnel the VPS loopback binding:
+
+   ```sh
+   ssh -L 1337:127.0.0.1:1337 <vps-user>@<vps-host>
+   ```
+
+2. Open `http://127.0.0.1:1337/admin`, create the first Strapi administrator and create a read-only
+   API token with `find`/`findOne` access to the six editorial content types. Do not grant create,
+   update, delete, publish, upload or admin permissions to this token.
+3. Put the token in `/etc/buildkart/secrets/experience-api.env` as `CMS_API_TOKEN`. Put the same
+   random `CMS_WEBHOOK_SECRET` in both `experience-api.env` and `cms.env`.
+4. Recreate the two services so they read the secret-managed values:
+
+   ```sh
+   docker compose -f docker-compose.hosted.yml up -d --build cms experience-api
+   ```
+
+5. Author and publish a layout. Verify delivery and then unpublish it to verify omission:
+
+   ```sh
+   curl -fsS 'https://api-staging.pinakaplay.cloud/v1/content/app-shell?locale=en-IN&channel=b2c'
+   docker compose -f docker-compose.hosted.yml logs --since=10m cms experience-api
+   ```
+
+The adapter requests `status=published`, validates and maps only editorial fields, persists a
+last-valid projection in `buildkart_experience`, and never sends the Strapi token to a client.
+Publish/unpublish notifications are timestamped HMAC-SHA256 messages sent directly across the
+private network. `/v1/internal/*` is hard-blocked by nginx on both public hostnames. CMS media is
+read through `/v1/content/media/{fileName}`, so the private CMS origin is not disclosed.
 
 Editorial content only: no price, stock, seller, order, payment or credit data is stored here, and
 the CMS never reaches the commerce, marketplace or ERP databases.

@@ -1,0 +1,72 @@
+change_id: CHG-033
+revision: 1
+request: >-
+  Replace the storefront-layout seed as the preferred delivery source with a private Strapi v5
+  adapter. Published layouts must be fetched in bulk through the Experience API, validated at the
+  editorial boundary, cached durably as a last-valid projection and invalidated by authenticated,
+  replay-safe publish/unpublish webhooks. Keep the governed seed only as a clean fallback before a
+  CMS projection has ever been observed.
+type: editorial-cms-delivery-integration
+extends:
+- CHG-026
+- CHG-031
+- CHG-032
+affected_capabilities:
+- editorial-content
+- storefront-composition
+- content-delivery-resilience
+affected_domains:
+- content
+- experience
+affected_surfaces:
+- cms.admin
+- experience-api.content
+- customer-app.b2c
+- customer-app.b2b
+affected_entities:
+- storefront-layout
+- layout-module
+- cms-webhook-receipt
+- cms-content-projection
+affected_integrations:
+- strapi-content-types-to-experience-adapter
+- strapi-webhook-to-content-adapter
+affected_events:
+- cms.entry.publish
+- cms.entry.unpublish
+decisions:
+  D-033-01: experience-api-is-the-only-client-facing-cms-boundary
+  D-033-02: only-published-strapi-documents-are-deliverable
+  D-033-03: cms-webhooks-use-hmac-sha256-over-timestamp-and-raw-body
+  D-033-04: duplicate-webhooks-are-deduplicated-by-event-id-and-out-of-order-delivery-only-invalidates-cache
+  D-033-05: the-last-valid-projection-is-persisted-in-the-experience-database
+  D-033-06: a-confirmed-unpublish-revokes-the-last-valid-projection
+  D-033-07: cms-outage-never-blocks-commerce-and-may-use-last-valid-or-the-governed-seed
+  D-033-08: stable-module-keys-are-authored-in-cms-and-strapi-row-ids-are-not-public-contract-keys
+  D-033-09: cms-media-is-read-through-the-experience-api-and-the-private-cms-origin-is-not-disclosed
+required_tests:
+- A published B2C layout maps from a Strapi response into the existing StorefrontLayout contract.
+- Draft content is never requested or delivered.
+- Curated collection and staged-id membership remain references without price, stock or seller data.
+- A valid signed publish webhook is accepted once and duplicate delivery is idempotent.
+- Missing, expired, malformed and incorrectly signed webhooks are rejected.
+- Publish invalidation forces a refresh; unpublish invalidation revokes matching last-valid content.
+- A CMS outage serves a non-revoked last-valid projection and otherwise uses the governed seed.
+- A successful CMS response with no approved layout omits layout instead of restoring the seed.
+- The private CMS and internal webhook path are not exposed through the public reverse proxy.
+constraints:
+- Staging only; no production release or production content migration.
+- CMS owns labels, media, composition and schedule only.
+- Commerce continues to own membership resolution, ranking, price, stock, seller terms, orders,
+  payments, credit, commission and payouts.
+- No CMS API token or webhook secret is committed or returned to a client.
+- Webhooks carry invalidation facts only; they do not directly replace the published projection.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-13'
+  scope: staging-implementation-and-deployment-attempt
+  human_visual_review_required: false
+production_release_authorized: false
+status: implementation-requested

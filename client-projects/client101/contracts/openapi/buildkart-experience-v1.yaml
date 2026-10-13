@@ -238,6 +238,24 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AppContentBundle'}
         '404': {$ref: '#/components/responses/Problem'}
+  /v1/content/media/{fileName}:
+    get:
+      summary: Read an approved CMS media asset without exposing the private CMS origin
+      tags: [Content]
+      operationId: getCmsMedia
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: fileName
+        in: path
+        required: true
+        schema: {type: string, pattern: '^[A-Za-z0-9._-]+$'}
+      responses:
+        '200':
+          description: CMS-authored media with a short public cache lifetime.
+          content:
+            image/*:
+              schema: {type: string, format: binary}
+        '404': {$ref: '#/components/responses/Problem'}
   /v1/collections/{collectionKey}:
     get:
       summary: Resolve a governed dynamic or manual collection

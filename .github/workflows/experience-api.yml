@@ -35,6 +35,7 @@ jobs:
       # local staging stack (Medusa/Mercur, PostgreSQL, NATS, Tryton) and run
       # against a live deployment, not in CI.
       - run: bun run typecheck
+      - run: bun run test:cms-content
 
   payment-guard:
     name: Medusa payment production guard

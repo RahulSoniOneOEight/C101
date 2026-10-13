@@ -19,7 +19,8 @@ COPY config ./config
 COPY src ./src
 COPY public ./public
 
-RUN npm run build
+RUN npm run build \
+  && npm prune --omit=dev --no-audit --no-fund
 
 FROM node:22.22.0-bookworm-slim AS runtime
 
@@ -29,7 +30,7 @@ ENV PORT=1337
 WORKDIR /opt/cms
 
 COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund
+COPY --from=build /opt/cms/node_modules ./node_modules
 
 COPY --from=build /opt/cms/dist ./dist
 COPY --from=build /opt/cms/config ./config
