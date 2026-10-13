@@ -148,7 +148,8 @@ services:
   # Editorial CMS (Strapi v5). Owns editorial content only, in its own database.
   # Not published at the edge: exposing the Strapi admin requires the deferred access layer
   # (Cloudflare Access and operator RBAC hardening), so it stays reachable only on the private
-  # network for the Experience API content adapter.
+  # network for the Experience API content adapter. A dedicated bridge exists only so Docker can
+  # realize the loopback-bound SSH-tunnel port; no public service joins that bridge.
   cms:
     image: buildkart-hosted-pilot-cms
     build: ../cms
@@ -161,7 +162,7 @@ services:
       - "127.0.0.1:1337:1337"
     depends_on:
       postgres: {condition: service_healthy}
-    networks: [private]
+    networks: [private, cms_admin]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:1337/_health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -223,6 +224,9 @@ networks:
     internal: true
   # Outbound-only for FCM/provider calls when enabled.
   egress:
+  # Dedicated host bridge for the CMS loopback binding. The private network alone is `internal`,
+  # which intentionally suppresses Docker host port publication.
+  cms_admin:
   # Coolify's existing Traefik network (created by Coolify).
   coolify:
     external: true
