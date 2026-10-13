@@ -20,9 +20,49 @@ jobs:
   build:
     name: Strapi build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: buildkart_cms
+          POSTGRES_USER: buildkart
+          POSTGRES_PASSWORD: buildkart-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U buildkart -d buildkart_cms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     defaults:
       run:
         working-directory: services/cms
     steps:
       - uses: actions/checkout@v4
       - run: docker build --tag buildkart-cms:ci .
+      - name: Boot compiled runtime
+        run: |
+          docker run --detach --name buildkart-cms-ci --network host \
+            --env NODE_ENV=production \
+            --env HOST=0.0.0.0 \
+            --env PORT=1337 \
+            --env DATABASE_CLIENT=postgres \
+            --env DATABASE_HOST=127.0.0.1 \
+            --env DATABASE_PORT=5432 \
+            --env DATABASE_NAME=buildkart_cms \
+            --env DATABASE_USERNAME=buildkart \
+            --env DATABASE_PASSWORD=buildkart-ci \
+            --env APP_KEYS=ci-key-a,ci-key-b,ci-key-c,ci-key-d \
+            --env API_TOKEN_SALT=ci-api-token-salt \
+            --env ADMIN_JWT_SECRET=ci-admin-jwt-secret \
+            --env TRANSFER_TOKEN_SALT=ci-transfer-token-salt \
+            --env JWT_SECRET=ci-jwt-secret \
+            buildkart-cms:ci
+          for attempt in $(seq 1 30); do
+            if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:1337/_health || true)" = "204" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs buildkart-cms-ci
+          exit 1
