@@ -37,6 +37,16 @@
 - The CMS bootstrap published the governed presentation seed (`[cms-seed] storefront presentation
   seed ensured`). Existing operator records were not overwritten.
 
+## Post-deploy refinement (commit `49b9d53`)
+
+- The campaign strip (`home.campaign-strip`, "Clearance Sale") is now driven by the backend banner
+  instead of hardcoded Flutter values: image, title, subtitle, action label and action target.
+  Verified in the served `main.dart.js` (`home.campaign-strip`, `/v1/content/presentation`).
+- The strip follows the backend `action_uri` when present, falling back to the previous local tag
+  behaviour when it is absent.
+- Still outstanding: the hero carousel renders title, subtitle and colour but not the banner image,
+  so a hero `externalImageUrl` change is not yet visible in the app.
+
 ## Web app
 
 - The Flutter web app was rebuilt with staging defines and deployed to Firebase Hosting
