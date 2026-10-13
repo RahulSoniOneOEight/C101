@@ -57,6 +57,7 @@ jobs:
             --env ADMIN_JWT_SECRET=ci-admin-jwt-secret \
             --env TRANSFER_TOKEN_SALT=ci-transfer-token-salt \
             --env JWT_SECRET=ci-jwt-secret \
+            --env ENCRYPTION_KEY=ci-encryption-key \
             buildkart-cms:ci
           for attempt in $(seq 1 30); do
             if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:1337/_health || true)" = "204" ]; then
