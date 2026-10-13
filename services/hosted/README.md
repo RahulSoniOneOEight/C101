@@ -138,6 +138,11 @@ The base Compose file does not mount Firebase credentials. After approval:
 docker compose -f docker-compose.hosted.yml -f docker-compose.fcm.yml up -d event-workers
 ```
 
+After FCM has been enabled, include `-f docker-compose.fcm.yml` in **every** later Compose operation
+that can recreate `experience-api`, `event-workers`, `proxy`, or their dependencies. Running those
+operations with only the base file removes the credential mount while the enabled runtime correctly
+fails closed.
+
 ## Bring-up
 
 Provide the two hostnames (for example in a `.env` next to this file) and start the stack:
