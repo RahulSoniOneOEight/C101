@@ -1,9 +1,40 @@
-import { validateAndTransformQuery } from "@medusajs/framework";
+import { validateAndTransformBody, validateAndTransformQuery } from "@medusajs/framework";
 import { PolicyOperation } from "@medusajs/framework/utils";
 import { defineMiddlewares } from "@medusajs/medusa";
 import { AdminGetSettlementStatementsParams } from "./admin/buildkart/settlement-statements/validators";
+import {
+  AdminGetCmsContent,
+  AdminMutateCmsContent,
+} from "./admin/buildkart/content/validators";
 
 const routes = [
+  {
+    method: ["GET"],
+    matcher: "/admin/buildkart/content",
+    middlewares: [
+      validateAndTransformQuery(AdminGetCmsContent, {
+        defaults: [],
+        isList: true,
+      }),
+    ],
+    policies: [
+      {
+        resource: "promotion",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/content",
+    middlewares: [validateAndTransformBody(AdminMutateCmsContent)],
+    policies: [
+      {
+        resource: "promotion",
+        operation: PolicyOperation.update,
+      },
+    ],
+  },
   {
     method: ["GET"],
     matcher: "/admin/buildkart/settlement-statements",
