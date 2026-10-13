@@ -10,7 +10,7 @@ umask 077
 mkdir -p "$BACKUP_DIR"
 recipient="$(cat "$RECIPIENT_FILE")"
 
-for database in buildkart buildkart_experience buildkart_tryton; do
+for database in buildkart buildkart_experience buildkart_tryton buildkart_cms; do
   output="$BACKUP_DIR/${database}-${STAMP}.dump.age"
   docker compose -f "$COMPOSE_FILE" exec -T postgres \
     sh -c 'pg_dump -U "$POSTGRES_USER" -Fc "$1"' -- "$database" \
