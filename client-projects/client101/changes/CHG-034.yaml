@@ -1,0 +1,76 @@
+change_id: CHG-034
+revision: 1
+request: >-
+  Give marketplace operators one logically organised administration console for commerce and CMS.
+  Add a native Content workspace to the existing authenticated Mercur Admin panel while retaining
+  Strapi as the private editorial system of record and preserving commerce ownership boundaries.
+type: unified-operator-console
+extends:
+- CHG-019
+- CHG-031
+- CHG-033
+affected_capabilities:
+- operator-administration
+- editorial-content
+- storefront-composition
+- marketplace-merchandising
+affected_domains:
+- experience
+- content
+- commerce
+affected_surfaces:
+- mercur.admin
+- cms.operator-api
+- cms.admin
+affected_entities:
+- banner
+- storefront-layout
+- curated-collection
+- product-editorial
+- category-editorial
+- faq-article
+- cms-operator-audit
+affected_integrations:
+- mercur-admin-to-medusa-content-facade
+- medusa-content-facade-to-private-strapi
+- strapi-webhook-to-experience-adapter
+affected_events:
+- cms.entry.publish
+- cms.entry.unpublish
+decisions:
+  D-034-01: mercur-admin-is-the-single-routine-operator-ui-for-commerce-and-editorial-content
+  D-034-02: strapi-remains-the-editorial-system-of-record-and-its-admin-is-break-glass-only
+  D-034-03: the-browser-never-receives-a-strapi-token-or-operator-secret
+  D-034-04: medusa-exposes-an-authenticated-typed-admin-facade-and-calls-strapi-over-the-private-network
+  D-034-05: the-content-workspace-groups-layouts-banners-collections-category-product-and-help-content
+  D-034-06: editors-save-drafts-explicitly-and-publish-or-unpublish-as-separate-actions
+  D-034-07: every-cms-mutation-records-actor-correlation-action-document-locale-and-payload-hash
+  D-034-08: editorial-input-is-allowlisted-by-content-kind-and-transactional-fields-are-rejected
+  D-034-09: layout-module-order-and-reference-membership-remain-editorial-references-not-commerce-data
+  D-034-10: cms-write-access-reuses-the-existing-admin-rbac-boundary-for-bounded-staging
+required_tests:
+- An authenticated commerce administrator can open Content from the Mercur sidebar without a second login.
+- An unauthenticated caller cannot read or mutate the Medusa CMS facade.
+- The Content workspace lists all six governed CMS content kinds and distinguishes draft from published.
+- An operator can create and update a draft without changing the live storefront.
+- Publish invalidates the Experience API projection and makes the reviewed change live.
+- Unpublish removes the corresponding live projection without restoring stale content.
+- Invalid content kinds, unknown fields, commerce-owned fields and malformed payloads are rejected.
+- Strapi credentials remain server-side and neither responses nor built assets contain them.
+- Every write, publish and unpublish action creates an immutable audit row with the Medusa actor id.
+- The existing commerce admin pages, authentication and seller dashboard continue to work.
+constraints:
+- Staging only; no production release or production content migration.
+- No iframe and no direct browser-to-Strapi API calls.
+- No price, inventory, seller terms, orders, payments, credit, commission or payout ownership in CMS.
+- Media upload and full Strapi plugin parity are deferred; existing media references are preserved.
+- The private Strapi admin remains available through SSH tunnel for break-glass recovery only.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-13'
+  scope: bounded-hosted-staging-unified-admin
+  human_visual_review_required: true
+production_release_authorized: false
+status: implementation-requested
