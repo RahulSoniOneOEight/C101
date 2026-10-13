@@ -1,10 +1,12 @@
 change_id: CHG-035
-revision: 1
+revision: 2
 request: >-
   Refine the common commerce and CMS administration experience into one logically organised,
   Medusa-native Merchandising workspace. Operators must be able to review and update editorial
   items, compare governed merchandising presets with live commerce records, and open promotions,
-  campaigns, collections and categories in their authoritative native editors.
+  campaigns, collections and categories in their authoritative native editors. The hero banners,
+  category banners, category display names, supporting text and approved icons currently rendered
+  in the customer app must be delivered from the backend rather than hardcoded in Flutter.
 type: operator-merchandising-workspace-refinement
 extends:
 - CHG-029
@@ -35,6 +37,8 @@ affected_entities:
 - category-editorial
 - product-editorial
 - faq-article
+- category-presentation
+- storefront-banner
 - promotion
 - campaign
 - merchandising-preset
@@ -54,6 +58,12 @@ decisions:
   D-035-06: cms-remains-editorial-only-and-commerce-remains-authoritative-for-transactional-fields
   D-035-07: dangerous-publish-and-unpublish-actions-require-explicit-operator-confirmation
   D-035-08: raw-json-is-limited-to-structured-layout-fields-until-a-governed-module-builder-is-approved
+  D-035-09: medusa-owns-category-identity-hierarchy-and-product-membership
+  D-035-10: cms-owns-localized-category-label-text-icon-key-and-banner-presentation
+  D-035-11: experience-api-composes-medusa-category-records-with-published-cms-presentation
+  D-035-12: flutter-consumes-presentation-through-experience-api-with-reviewed-offline-fallbacks
+  D-035-13: icon-keys-are-allowlisted-and-resolved-to-app-design-system-icons
+  D-035-14: https-image-references-bridge-current-staging-creative-until-media-upload-is-approved
 required_tests:
 - One Merchandising sidebar entry provides overview, editorial content and preset review navigation.
 - Existing `/content` and `/merchandising-presets` links remain compatible or redirect safely.
@@ -65,6 +75,10 @@ required_tests:
 - Preset and offer-lab screens never directly mutate promotion values, budgets or funding.
 - Invalid and commerce-owned CMS fields remain rejected by the server boundary.
 - Admin, CMS and backend builds pass with no second UI framework or hardcoded visual tokens.
+- Existing app hero banners are returned by the Experience API and rendered from backend payloads.
+- Root category names, supporting text, icons and banner images are returned by the Experience API.
+- Missing or invalid CMS presentation falls back without blocking category navigation or commerce.
+- Flutter no longer treats its embedded hero/category presentation as the routine live source.
 constraints:
 - Staging only; no production release or production content migration.
 - Use `@medusajs/ui`, `@medusajs/icons` and public Mercur dashboard primitives only.
