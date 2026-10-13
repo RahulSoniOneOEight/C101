@@ -161,6 +161,10 @@ def main() -> None:
             if attribute_type == "component":
                 component = attribute.get("component")
                 assert component, f"{relative}: attribute '{name}' has no component"
+                assert "repeat" not in attribute, (
+                    f"{relative}: attribute '{name}' uses invalid Strapi key 'repeat'; "
+                    "use 'repeatable'"
+                )
                 references.append(f"{relative}:{name} -> {component}")
                 assert component in components, (
                     f"{relative}: attribute '{name}' references missing component '{component}'"
