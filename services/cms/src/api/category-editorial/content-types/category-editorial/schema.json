@@ -22,7 +22,7 @@
     "inspirationBlocks": { "type": "richtext" },
     "banners": {
       "type": "component",
-      "repeat": true,
+      "repeatable": true,
       "component": "layout.category-banner",
       "description": "Promo banners shown on the category surface, ordered by priority."
     },
