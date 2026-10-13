@@ -1,5 +1,5 @@
 change_id: CHG-034
-revision: 1
+revision: 2
 request: >-
   Give marketplace operators one logically organised administration console for commerce and CMS.
   Add a native Content workspace to the existing authenticated Mercur Admin panel while retaining
@@ -73,4 +73,6 @@ implementation_request:
   scope: bounded-hosted-staging-unified-admin
   human_visual_review_required: true
 production_release_authorized: false
-status: implementation-requested
+implementation_evidence:
+- client-projects/client101/evidence/CHG-034/hosted-unified-admin-acceptance.md
+status: staging-implemented-awaiting-human-review
