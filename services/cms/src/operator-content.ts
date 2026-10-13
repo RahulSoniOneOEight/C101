@@ -353,7 +353,7 @@ async function listHandler(strapi: Core.Strapi, ctx: Context): Promise<void> {
   const service = documents(strapi, definition);
   const [drafts, published] = await Promise.all([
     service.findMany({ status: "draft", locale, populate: "*", sort: ["updatedAt:desc"], limit: 100 }),
-    service.findMany({ status: "published", locale, fields: ["documentId", "updatedAt"], limit: 100 }),
+    service.findMany({ status: "published", locale, limit: 100 }),
   ]);
   const publishedById = new Map(published.map((item) => [String(item.documentId), item]));
   ctx.body = {
