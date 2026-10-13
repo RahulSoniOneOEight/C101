@@ -1,0 +1,64 @@
+change_id: CHG-031
+revision: 1
+request: >-
+  Build the editorial component library the CMS content types already reference but do not define,
+  and add the key merchandising components needed to configure storefront properties such as a B2C
+  "Best Deals" rail and per-category banners. Strapi remains the editor-facing CMS: it owns editorial
+  content only and never price, stock, seller terms, orders, payment or credit. Merchandising labels,
+  badges and composition are CMS-owned; membership, ranking and eligibility remain commerce-owned.
+type: editorial-cms-component-build
+extends:
+- CHG-026
+affected_capabilities:
+- editorial-content
+- storefront-composition
+affected_domains:
+- content
+- commerce
+- experience
+affected_surfaces:
+- cms.admin
+- customer-app.b2c
+- customer-app.b2b
+- experience-api.content
+affected_entities:
+- storefront-layout
+- layout-module
+- category-banner
+- curated-collection
+affected_integrations:
+- strapi-content-types-to-experience-adapter
+affected_events: []
+decisions:
+  D-031-01: strapi-remains-the-approved-editorial-cms-provider
+  D-031-02: every-component-referenced-by-a-content-type-must-exist-and-be-validated
+  D-031-03: cms-owns-merchandising-labels-composition-and-schedule-only
+  D-031-04: product-membership-and-ranking-remain-commerce-owned-and-are-referenced-not-copied
+  D-031-05: category-banners-are-repeatable-components-on-the-category-editorial-type
+  D-031-06: offer-and-carousel-modules-carry-a-tag-attribute-for-badges-such-as-best-deals
+  D-031-07: components-live-at-the-canonical-strapi-v5-path
+  D-031-08: cms-remains-unable-to-own-transactional-state
+required_tests:
+- The component validation script reports every component reference as resolved.
+- storefront-layout module references resolve to existing component schemas.
+- category-editorial resolves its repeated category-banner component.
+- Every content-type relation target resolves to a declared content type.
+- Every CMS content type retains draftAndPublish and i18n.
+- No CMS schema declares a price, stock, seller, order, payment or credit field.
+- Existing contract, approval and evidence validators remain green.
+constraints:
+- Staging and scaffold scope; the CMS service itself is not deployed by this change.
+- Strapi provider selection is confirmed by the human requester; the backend organisation is unchanged.
+- The CMS owns editorial content only; transactional ownership is unaffected.
+- Master-catalogue ownership (Q-005A) and DAM authority remain open.
+- No CMS credentials, tokens or secrets are committed.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-13'
+  scope: repository-change-and-pull-request-only
+  human_selected_provider: strapi
+  human_visual_review_required: false
+production_release_authorized: false
+status: implementation-requested

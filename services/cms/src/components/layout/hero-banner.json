@@ -1,0 +1,15 @@
+{
+  "collectionName": "components_layout_hero_banners",
+  "info": {
+    "displayName": "Hero banner",
+    "description": "Places an approved banner record at the top of a layout. Editorial only."
+  },
+  "attributes": {
+    "internalName": { "type": "string", "required": true },
+    "banner": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::banner.banner"
+    }
+  }
+}

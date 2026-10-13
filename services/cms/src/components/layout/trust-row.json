@@ -1,0 +1,10 @@
+{
+  "collectionName": "components_layout_trust_rows",
+  "info": {
+    "displayName": "Trust row",
+    "description": "Static assurance strip, for example GST invoices, verified sellers, easy returns."
+  },
+  "attributes": {
+    "items": { "type": "json", "required": true }
+  }
+}

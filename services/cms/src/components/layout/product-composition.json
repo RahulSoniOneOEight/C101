@@ -1,0 +1,17 @@
+{
+  "collectionName": "components_layout_product_compositions",
+  "info": {
+    "displayName": "Product composition",
+    "description": "Fixed product arrangement, for example a recommended block with a split feature tile."
+  },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "tag": { "type": "string" },
+    "productIds": { "type": "json", "required": true },
+    "presentation": {
+      "type": "enumeration",
+      "enum": ["grid", "feature", "compact"],
+      "default": "grid"
+    }
+  }
+}

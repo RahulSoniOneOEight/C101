@@ -1,0 +1,12 @@
+{
+  "collectionName": "components_layout_category_rails",
+  "info": {
+    "displayName": "Category rail",
+    "description": "Horizontal category navigation. Labels are editorial; the tree is commerce-owned."
+  },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "categoryIds": { "type": "json", "required": true },
+    "itemLimit": { "type": "integer", "default": 8, "min": 1, "max": 20 }
+  }
+}

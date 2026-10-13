@@ -1,9 +1,9 @@
 # BuildKart CMS service (Strapi v5 — proposed)
 
-**Status:** Design scaffold only. **Not deployed, not wired into any compose file.** Provider
-selection and the backend organisation are proposals awaiting human approval (see
-`client-projects/client101/changes/CHG-026.yaml` and
-`docs/architecture/buildkart-backend-organisation.md`).
+**Status:** Content-type and component schemas are defined and validated. **The service itself is
+not deployed and is not wired into any compose file.** Provider selection is confirmed as Strapi by
+the human requester (see `client-projects/client101/changes/CHG-026.yaml` and
+`client-projects/client101/changes/CHG-031.yaml`); the backend organisation proposal is unchanged.
 
 ## Purpose
 
@@ -41,6 +41,34 @@ Clients never receive Strapi admin credentials and never call Strapi directly.
 
 All types enable **Draft & Publish** and **i18n** (`en-IN`, `hi-IN`).
 
+## Components
+
+Layout modules compose a `storefront-layout`; `layout.category-banner` composes the per-category
+editorial surface. Merchandising labels and badges live here (CMS-owned); membership and any
+discount stay in commerce.
+
+| Component | Purpose |
+|---|---|
+| `layout.hero-banner` | places an approved `banner` record at the top of a layout |
+| `layout.category-rail` | category navigation; labels are editorial, the tree is commerce |
+| `layout.product-carousel` | ordered product rail with an optional `tag` badge, e.g. Best Deals |
+| `layout.product-composition` | fixed product arrangement with `grid`/`feature`/`compact` presentation |
+| `layout.split-merchandising` | image and copy block with an optional call to action |
+| `layout.offer-collection` | merchandising rail of offers with an optional `tag` badge |
+| `layout.rich-editorial` | long-form editorial block |
+| `layout.trust-row` | static assurance strip |
+| `layout.category-banner` | promo banner attached to a category surface, with position, priority and schedule |
+
+Merchandising membership is always a *reference*, never a copy: modules carry staged ids or relate to
+a `curated-collection`, and live price/stock are resolved by commerce at read time.
+
+## Validating the schemas
+
+Strapi is not installed in this repository, so a broken reference would otherwise fail only at CMS
+boot. `python tooling/validate_cms_schemas.py` fails closed on unresolved component or content-type
+references, missing `draftAndPublish`/`i18n`, duplicate identifiers, and any schema that declares a
+transactional field (price, stock, seller, order, payment, credit). It runs in contract validation.
+
 ## Delivery mapping
 
 `/v1/content/app-shell` returns an `AppContentBundle`:
@@ -52,6 +80,7 @@ All types enable **Draft & Publish** and **i18n** (`en-IN`, `hi-IN`).
 ## Files
 
 - `content-types/` — Strapi v5 content-type schemas (reference model for the adapter contract).
+- `src/components/` — Strapi v5 component schemas used by layout and category composition.
 - `.env.example` — required environment keys (no secrets).
 
 ## Non-goals

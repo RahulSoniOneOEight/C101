@@ -20,6 +20,12 @@
     "heroImage": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
     "heroAltText": { "type": "string" },
     "inspirationBlocks": { "type": "richtext" },
+    "banners": {
+      "type": "component",
+      "repeat": true,
+      "component": "layout.category-banner",
+      "description": "Promo banners shown on the category surface, ordered by priority."
+    },
     "buyingGuides": {
       "type": "relation",
       "relation": "oneToMany",

@@ -1,0 +1,24 @@
+{
+  "collectionName": "components_layout_category_banners",
+  "info": {
+    "displayName": "Category banner",
+    "description": "Editorial promo banner attached to a commerce category surface. The banner carries copy, media, scheduling and priority; the category and any discount remain commerce-owned."
+  },
+  "attributes": {
+    "internalName": { "type": "string", "required": true },
+    "categoryId": { "type": "string", "required": true },
+    "banner": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::banner.banner"
+    },
+    "position": {
+      "type": "enumeration",
+      "enum": ["top", "inline", "bottom"],
+      "default": "top"
+    },
+    "priority": { "type": "integer", "default": 0 },
+    "startsAt": { "type": "datetime" },
+    "endsAt": { "type": "datetime" }
+  }
+}
