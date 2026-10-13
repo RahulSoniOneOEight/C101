@@ -1,5 +1,5 @@
 change_id: CHG-033
-revision: 1
+revision: 2
 request: >-
   Replace the storefront-layout seed as the preferred delivery source with a private Strapi v5
   adapter. Published layouts must be fetched in bulk through the Experience API, validated at the
@@ -44,6 +44,7 @@ decisions:
   D-033-07: cms-outage-never-blocks-commerce-and-may-use-last-valid-or-the-governed-seed
   D-033-08: stable-module-keys-are-authored-in-cms-and-strapi-row-ids-are-not-public-contract-keys
   D-033-09: cms-media-is-read-through-the-experience-api-and-the-private-cms-origin-is-not-disclosed
+  D-033-10: the-cms-database-is-included-in-encrypted-staging-backups-and-restore-proof
 required_tests:
 - A published B2C layout maps from a Strapi response into the existing StorefrontLayout contract.
 - Draft content is never requested or delivered.
@@ -54,6 +55,7 @@ required_tests:
 - A CMS outage serves a non-revoked last-valid projection and otherwise uses the governed seed.
 - A successful CMS response with no approved layout omits layout instead of restoring the seed.
 - The private CMS and internal webhook path are not exposed through the public reverse proxy.
+- An encrypted buildkart_cms backup restores successfully into a throwaway database.
 constraints:
 - Staging only; no production release or production content migration.
 - CMS owns labels, media, composition and schedule only.
@@ -69,4 +71,4 @@ implementation_request:
   scope: staging-implementation-and-deployment-attempt
   human_visual_review_required: false
 production_release_authorized: false
-status: implementation-requested
+status: staging-implemented-awaiting-human-review
