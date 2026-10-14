@@ -157,7 +157,7 @@ control or consumer exists but the full loop is incomplete; **Pending** = propos
 | Inventory availability and stock movement | ERP/Tryton | Tryton inventory operation | Medusa/Mercur consumes projection and shows status | Governance/integration pending; avoid parallel writes |
 | Promotion mechanics/eligibility/limits | Commerce/Medusa | Native Promotion editor | Merchandising overview and banners link/read only | Live |
 | Campaign grouping/budget/activation | Commerce/Medusa | Native Campaign editor | Merchandising overview and CMS content link/read only | Live in staging scope |
-| Governed promotion/campaign presets | Governed configuration | Change contract plus reviewed configuration change | Preset review is read-only | Read-only by design |
+| Staging bootstrap configuration | Governed configuration | Reviewed fixture/seed change creates native records | No routine preset UI; operators use the resulting native records | Staging/test only |
 | Seller identity/lifecycle/team | Marketplace/Mercur | Native Seller controls | Orders, offers and finance display read-only seller data | Live |
 | Customer/customer-group data | Commerce/Medusa | Native Customer controls | Editorial targeting may reference approved groups only | Live; targeting use pending |
 | Cart and checkout state | Commerce | Customer journey/API workflow | Admin/CMS may inspect but cannot edit editorially | Prototype/staging |
@@ -200,7 +200,7 @@ Make the overview an operational dashboard rather than a link directory.
 | Live storefront | Active hero, campaign strip, layout and category presentation by channel/locale | Preview live |
 | Upcoming | Scheduled starts/ends in the operator's timezone | Review schedule |
 | Delivery health | CMS connectivity, projection freshness, last webhook, last successful refresh | Inspect diagnostics |
-| Commerce context | Promotion/campaign state and preset exceptions | Open native Medusa editor |
+| Commerce configuration | Links to Promotions, Campaigns and Collections | Open native Medusa editor |
 
 The page must clearly show **Staging**, selected **channel** (`b2c`/`b2b`) and **locale** (`en-IN`/
 `hi-IN`). Environment cannot be inferred only from the URL or badge colour.

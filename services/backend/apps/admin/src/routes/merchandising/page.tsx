@@ -3,7 +3,7 @@ import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import type { InferClientOutput } from "@mercurjs/client";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { client } from "../../lib/client";
 
@@ -37,11 +37,18 @@ const workspaceCards = [
     action: "Manage campaigns",
   },
   {
-    title: "Catalog structure",
+    title: "Commerce collections",
     owner: "Medusa",
-    description: "Maintain category hierarchy and commerce collection membership in their native editors.",
+    description: "Maintain collection identity and product membership in the native collection editor.",
     to: "/collections",
     action: "Manage commerce collections",
+  },
+  {
+    title: "Categories",
+    owner: "Medusa",
+    description: "Maintain category identity, hierarchy and product membership in the native category editor.",
+    to: "/categories",
+    action: "Manage categories",
   },
 ] as const;
 
@@ -57,16 +64,6 @@ const editorialKinds = [
 type ContentResponse = InferClientOutput<typeof client.admin.buildkart.content.query>;
 
 export default function MerchandisingPage() {
-  const presetsQuery = useQuery({
-    queryKey: ["buildkart", "staging-merchandising-presets"],
-    queryFn: () => client.admin.buildkart.merchandisingPresets.query({}),
-  });
-  const offersQuery = useQuery({
-    queryKey: ["buildkart", "staging-merchandising-offers"],
-    queryFn: () => client.admin.buildkart.merchandisingOffers.query({}),
-  });
-  const presets = presetsQuery.data;
-  const offers = offersQuery.data?.offers ?? [];
   const contentQueries = useQueries({
     queries: editorialKinds.map((kind) => ({
       queryKey: ["buildkart", "cms-content", kind, "en-IN"],
@@ -87,11 +84,6 @@ export default function MerchandisingPage() {
   const draftOnly = contentDocuments.filter(
     (document) => document.publicationStatus === "draft",
   ).length;
-  const configuredPromotions = [
-    ...(presets?.promotions ?? []),
-    ...offers,
-  ].filter((item) => item.live !== null).length;
-  const declaredPromotions = (presets?.promotions.length ?? 0) + offers.length;
 
   return (
     <SingleColumnPage>
@@ -109,14 +101,9 @@ export default function MerchandisingPage() {
                 property. Editorial data stays in the private CMS; commerce stays in Medusa.
               </Text>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild variant="secondary" size="small">
-                <Link to="/merchandising-presets">Review presets</Link>
-              </Button>
-              <Button asChild size="small">
-                <Link to="/content">Manage editorial content</Link>
-              </Button>
-            </div>
+            <Button asChild size="small">
+              <Link to="/content">Manage editorial content</Link>
+            </Button>
           </div>
           <div className="grid gap-4 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
@@ -128,8 +115,8 @@ export default function MerchandisingPage() {
               <Text size="large" weight="plus">{contentLoading ? "—" : publishedContent}</Text>
             </div>
             <div>
-              <Text size="xsmall" className="text-ui-fg-subtle">Promotions configured</Text>
-              <Text size="large" weight="plus">{configuredPromotions}/{declaredPromotions}</Text>
+              <Text size="xsmall" className="text-ui-fg-subtle">Draft editorial items</Text>
+              <Text size="large" weight="plus">{contentLoading ? "—" : draftOnly}</Text>
             </div>
             <div>
               <Text size="xsmall" className="text-ui-fg-subtle">Content service</Text>
@@ -147,14 +134,14 @@ export default function MerchandisingPage() {
             <div>
               <Heading level="h2">Needs attention</Heading>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                English (India) editorial state and governed commerce configuration.
+                English (India) editorial items that are not currently published.
               </Text>
             </div>
             <Button asChild variant="secondary" size="small">
               <Link to="/content?status=modified">Open content library</Link>
             </Button>
           </div>
-          <div className="grid gap-5 px-6 py-5 md:grid-cols-3">
+          <div className="grid gap-5 px-6 py-5 md:grid-cols-2">
             <div>
               <Text size="small" weight="plus">{needsReview} modified drafts</Text>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
@@ -165,14 +152,6 @@ export default function MerchandisingPage() {
               <Text size="small" weight="plus">{draftOnly} unpublished drafts</Text>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
                 New records awaiting validation and publication.
-              </Text>
-            </div>
-            <div>
-              <Text size="small" weight="plus">
-                {Math.max(0, declaredPromotions - configuredPromotions)} missing live promotions
-              </Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Presets without a matching live Medusa record.
               </Text>
             </div>
           </div>
