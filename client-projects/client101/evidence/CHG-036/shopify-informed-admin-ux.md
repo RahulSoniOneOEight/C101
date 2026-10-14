@@ -1,9 +1,9 @@
 # Shopify-informed Mercur Admin UX
 
 **Date:** 14 October 2026  
-**Change contract:** CHG-036 revision 3  
-**Scope:** Bounded Phase 1 local implementation  
-**Status:** Implemented locally; awaiting human visual review; not deployed; production unauthorized
+**Change contract:** CHG-036 revision 4
+**Scope:** Bounded Phase 1 implementation
+**Status:** Deployed to staging; awaiting human visual review; production unauthorized
 
 ## Benchmark
 
@@ -58,7 +58,8 @@ Patterns adopted:
 - `bun run build` passed in `services/backend/apps/admin`.
 - Build emitted the pre-existing large-chunk advisory only; no build error.
 - `git diff --check` passed.
-- CHG-036 revision 3 parsed as valid YAML.
+- CHG-036 revision 4 parsed as valid YAML.
+- Release `b317a08` is deployed to staging; see `hosted-staging-deployment.md`.
 
 ## Deferred
 
@@ -67,5 +68,5 @@ Patterns adopted:
 - Governed visual layout builder and drag/reorder.
 - DAM/media upload, targeting and personalization.
 - Least-privilege role split and broader edge access.
-- Hosted staging deployment and human visual acceptance.
+- Human visual acceptance of the hosted staging release.
 - Production release; `production_release_authorized` remains false.

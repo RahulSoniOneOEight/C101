@@ -1,12 +1,12 @@
 change_id: CHG-036
-revision: 3
+revision: 4
 request: >-
   Define a best-practice operating model and phased implementation approach for the common Mercur
   administration console and its private Strapi CMS boundary. Improve operator navigation,
   content discovery, editing, preview, review, publication safety, delivery visibility, RBAC and
   auditability while preserving the existing commerce/content ownership split. Classify and
-  sequence the remaining storefront-content delivery gaps without authorizing implementation or
-  production release. Enforce one authoritative routine edit control for each property so the same
+  sequence the remaining storefront-content delivery gaps without authorizing production release.
+  Enforce one authoritative routine edit control for each property so the same
   value cannot be changed from competing admin or CMS controls.
 type: admin-cms-operating-model-and-implementation-approach
 extends:
@@ -120,7 +120,34 @@ implementation:
   - Mercur Admin production build passed.
   - Mercur Admin ESLint passed with no warnings or errors.
   - CHG-036 YAML validation and git diff whitespace validation passed.
-  hosted_deployment: not-requested
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T17:05:00Z'
+    release_commit: b317a08
+    release_worktree: /opt/buildkart-releases/b317a08
+    previous_release: /opt/buildkart-releases/274174e
+    recreated_services:
+    - medusa-api
+    preserved_services:
+    - experience-api
+    - cms
+    - postgres
+    - redis
+    - nats
+    - tryton
+    - medusa-worker
+    - event-workers
+    - proxy
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API container is healthy with zero restarts.
+    - Experience API container remained healthy with zero restarts.
+    - Merchandising and Editorial content routes return HTTP 200.
+    - The served admin bundle contains the CHG-036 interface labels.
+    - Unauthenticated operator content access returns HTTP 401 on the operator host.
+    - The customer host hides the privileged content path with HTTP 404.
+    - The public presentation projection remains available.
 implementation_evidence:
 - client-projects/client101/evidence/CHG-036/shopify-informed-admin-ux.md
-status: bounded-phase-1-implemented-awaiting-human-visual-review
+- client-projects/client101/evidence/CHG-036/hosted-staging-deployment.md
+status: bounded-phase-1-deployed-to-staging-awaiting-human-visual-review

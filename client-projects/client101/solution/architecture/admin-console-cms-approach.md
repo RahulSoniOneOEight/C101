@@ -1,6 +1,6 @@
 # Admin Console and CMS Approach
 
-**Change proposal:** CHG-036 revision 3  
+**Change proposal:** CHG-036 revision 4
 **Stage:** Multi-surface prototype  
 **Status:** Proposed for human review; no implementation or production authorization
 
