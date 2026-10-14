@@ -97,7 +97,7 @@ different properties and therefore different controls; neither screen may edit t
 | Campaign budget, grouping and activation | Native Medusa Campaign editor | Merchandising overview shows read-only state and a native-editor link |
 | Commerce collection membership | Native Medusa Collection editor | CMS can reference the collection key but cannot maintain a competing member list |
 | FAQ/help title and body | Mercur Editorial > Help/article editor, persisted in Strapi | Customer surfaces consume published projection and do not edit it |
-| Publication action | Mercur Editorial publication control | Edit drawers save drafts only; lists and contextual widgets link to the same publication action |
+| Publication action | Mercur Editorial publication control | Full-page editors save drafts only; lists and contextual widgets link to the same publication action |
 
 Before adding any field, update this ownership map with: property name, canonical owner, authoritative
 editor route, backing API, consumer and read-only appearances. CI and review should reject overlapping
@@ -218,9 +218,10 @@ Replace the current six large selector buttons and basic table with a native sea
 - row action menu for Edit, Preview, Duplicate to locale, Publish/Unpublish and View history;
 - empty, loading, permission-denied and CMS-unavailable states with recovery guidance.
 
-Use a routed drawer for simple banner/category/help edits so browser history, deep links and refreshes
-work correctly. Use a full-page editor for layouts because module composition, preview and validation
-need more space than a drawer.
+Use a route-based full-page editor for every governed content type. This keeps browser history, deep
+links, refreshes and unsaved-change protection predictable while leaving enough space for future
+preview and validation. Routine fields appear first; permissioned advanced/recovery fields remain
+separate and visually subordinate.
 
 ### Native commerce pages
 
@@ -236,12 +237,12 @@ Add only contextual, read-only editorial widgets or rows to native product/categ
 
 | Content type | Routine editor | Recommended controls | Ownership guardrail |
 |---|---|---|---|
-| Banner | Routed drawer | placement, audience, locale, copy, CTA, approved theme, image reference/alt text, priority, start/end, preview | Cannot define discount eligibility or price |
+| Banner | Full-page editor | placement, audience, locale, copy, CTA, approved theme, image reference/alt text, priority, start/end, preview | Cannot define discount eligibility or price |
 | Storefront layout | Full page module builder | approved module palette, reorder, references, per-module validation, responsive preview | Stores references/composition only |
-| Category presentation | Routed drawer from content or category context | read-only Medusa category, display label, short text, icon allowlist, image/alt text | Category id, hierarchy and membership remain Medusa-owned |
-| Product editorial | Product-context drawer/detail | read-only product identity, subtitle, guidance, SEO, locale completeness | SKU, variants, offers, price and stock remain commerce-owned |
+| Category presentation | Full-page editor from content or category context | read-only Medusa category, display label, short text, icon allowlist, image/alt text | Category id, hierarchy and membership remain Medusa-owned |
+| Product editorial | Full-page editor from product context | read-only product identity, subtitle, guidance, SEO, locale completeness | SKU, variants, offers, price and stock remain commerce-owned |
 | Curated collection | Full detail page | key, copy, commerce-collection reference and missing-reference validation | Must not expose a second editable product-membership list |
-| Help/article | Full detail or wide drawer | title, summary, body, audience, locale, preview and links | No transactional outcomes or policy invention without approval |
+| Help/article | Full-page editor | title, summary, body, audience, locale, preview and links | No transactional outcomes or policy invention without approval |
 
 Raw JSON remains available only in a permissioned advanced/recovery view until the governed layout
 module builder exists. It must not be the routine editing experience.

@@ -17,35 +17,40 @@ export const config: RouteConfig = {
 const workspaceCards = [
   {
     title: "Editorial content",
-    owner: "Strapi",
+    owner: "Editorial",
+    ownerColor: "blue",
     description: "Manage every customer-facing editorial property from one native content library.",
     to: "/content",
     action: "Manage content",
   },
   {
     title: "Promotions",
-    owner: "Medusa",
+    owner: "Commerce",
+    ownerColor: "grey",
     description: "Create discount mechanics, eligibility rules, usage limits and activation status.",
     to: "/promotions",
     action: "Manage promotions",
   },
   {
     title: "Campaigns",
-    owner: "Medusa",
+    owner: "Commerce",
+    ownerColor: "grey",
     description: "Manage promotion groups, commercial schedules and marketplace-funded budgets.",
     to: "/campaigns",
     action: "Manage campaigns",
   },
   {
     title: "Commerce collections",
-    owner: "Medusa",
+    owner: "Commerce",
+    ownerColor: "grey",
     description: "Maintain collection identity and product membership in the native collection editor.",
     to: "/collections",
     action: "Manage commerce collections",
   },
   {
     title: "Categories",
-    owner: "Medusa",
+    owner: "Commerce",
+    ownerColor: "grey",
     description: "Maintain category identity, hierarchy and product membership in the native category editor.",
     to: "/categories",
     action: "Manage categories",
@@ -74,7 +79,8 @@ export default function MerchandisingPage() {
     (query) => (query.data as ContentResponse | undefined)?.documents ?? [],
   );
   const contentLoading = contentQueries.some((query) => query.isPending);
-  const contentUnavailable = contentQueries.some((query) => query.isError);
+  const failedContentQueries = contentQueries.filter((query) => query.isError).length;
+  const contentUnavailable = failedContentQueries === contentQueries.length;
   const publishedContent = contentDocuments.filter(
     (document) => document.publicationStatus === "published",
   ).length;
@@ -94,7 +100,7 @@ export default function MerchandisingPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <Heading level="h1">Merchandising</Heading>
                 <StatusBadge color="orange">Staging</StatusBadge>
-                <StatusBadge color="blue">Common admin workspace</StatusBadge>
+                <StatusBadge color="blue">Operator workspace</StatusBadge>
               </div>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
                 Start with what needs attention, then open the one authoritative editor for the
@@ -121,8 +127,14 @@ export default function MerchandisingPage() {
             <div>
               <Text size="xsmall" className="text-ui-fg-subtle">Content service</Text>
               <div className="mt-1">
-                <StatusBadge color={contentUnavailable ? "red" : contentLoading ? "orange" : "green"}>
-                  {contentUnavailable ? "Unavailable" : contentLoading ? "Checking" : "Connected"}
+                <StatusBadge color={contentUnavailable ? "red" : failedContentQueries || contentLoading ? "orange" : "green"}>
+                  {contentUnavailable
+                    ? "Unavailable"
+                    : failedContentQueries
+                      ? "Partially available"
+                      : contentLoading
+                        ? "Checking"
+                        : "Connected"}
                 </StatusBadge>
               </div>
             </div>
@@ -138,32 +150,42 @@ export default function MerchandisingPage() {
               </Text>
             </div>
             <Button asChild variant="secondary" size="small">
-              <Link to="/content?status=modified">Open content library</Link>
+              <Link to="/content">Open content library</Link>
             </Button>
           </div>
-          <div className="grid gap-5 px-6 py-5 md:grid-cols-2">
-            <div>
-              <Text size="small" weight="plus">{needsReview} modified drafts</Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Saved changes that are not yet customer-facing.
-              </Text>
+          <div className="grid gap-3 px-6 py-5 md:grid-cols-2">
+            <div className="flex items-start justify-between gap-4 rounded-md border border-ui-border-base p-4">
+              <div>
+                <Text size="small" weight="plus">{needsReview} modified drafts</Text>
+                <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                  Saved changes that are not yet customer-facing.
+                </Text>
+              </div>
+              <Button asChild variant="secondary" size="small">
+                <Link to="/content?status=modified">View</Link>
+              </Button>
             </div>
-            <div>
-              <Text size="small" weight="plus">{draftOnly} unpublished drafts</Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                New records awaiting validation and publication.
-              </Text>
+            <div className="flex items-start justify-between gap-4 rounded-md border border-ui-border-base p-4">
+              <div>
+                <Text size="small" weight="plus">{draftOnly} unpublished drafts</Text>
+                <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                  New records awaiting validation and publication.
+                </Text>
+              </div>
+              <Button asChild variant="secondary" size="small">
+                <Link to="/content?status=draft">View</Link>
+              </Button>
             </div>
           </div>
         </Container>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {workspaceCards.map((card) => (
             <Container key={card.title} className="flex flex-col justify-between gap-5 p-6">
               <div>
                 <div className="flex items-center justify-between gap-3">
                   <Heading level="h2">{card.title}</Heading>
-                  <StatusBadge color={card.owner === "Strapi" ? "blue" : "grey"}>{card.owner}</StatusBadge>
+                  <StatusBadge color={card.ownerColor}>{card.owner}</StatusBadge>
                 </div>
                 <Text size="small" className="mt-2 text-ui-fg-subtle">{card.description}</Text>
               </div>
@@ -177,24 +199,11 @@ export default function MerchandisingPage() {
           ))}
         </div>
 
-        <Container className="divide-y p-0">
-          <div className="px-6 py-4">
-            <Heading level="h2">How updates work</Heading>
-          </div>
-          <div className="grid gap-5 px-6 py-5 md:grid-cols-3">
-            <div>
-              <Text size="small" weight="plus">1. Edit</Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">Save editorial changes as drafts or update commerce records in their native Medusa forms.</Text>
-            </div>
-            <div>
-              <Text size="small" weight="plus">2. Review</Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">Validate the draft, confirm its locale and review the live commerce context.</Text>
-            </div>
-            <div>
-              <Text size="small" weight="plus">3. Publish or activate</Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">Publish CMS content explicitly; use Medusa activation controls for promotions and campaigns.</Text>
-            </div>
-          </div>
+        <Container className="px-6 py-4">
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            Draft saves never publish automatically. Editorial publication stays explicit, while
+            promotions, campaigns, collection membership and category hierarchy use native Medusa controls.
+          </Text>
         </Container>
       </div>
     </SingleColumnPage>

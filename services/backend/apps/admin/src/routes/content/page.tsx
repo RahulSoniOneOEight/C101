@@ -2,26 +2,37 @@ import { ArchiveBox, ArrowUpTray, PencilSquare, Tag } from "@medusajs/icons";
 import {
   Button,
   Container,
-  Drawer,
   Heading,
-  Hint,
   Input,
   Label,
   Select,
   StatusBadge,
   Table,
   Text,
-  Textarea,
   toast,
   usePrompt,
 } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { ActionMenu, SingleColumnPage } from "@mercurjs/dashboard-shared";
-import type { InferClientOutput } from "@mercurjs/client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { client } from "../../lib/client";
+import {
+  CONTENT_KINDS,
+  CONTENT_LOCALES,
+  PAGE_SIZE,
+  contentDocumentRoute,
+  displayValue,
+  isContentKind,
+  statusColor,
+  statusLabel,
+  type ContentDocument,
+  type ContentKind,
+  type ContentLocale,
+  type ContentResponse,
+  type StatusFilter,
+} from "./content-model";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
@@ -31,206 +42,23 @@ export const config: RouteConfig = {
   nested: "/merchandising",
 };
 
-const CONTENT_KINDS = [
-  {
-    kind: "storefront-layout",
-    label: "Home layouts",
-    description: "Page composition and module order",
-    delivery: "Partial",
-    deliveryColor: "orange",
-  },
-  {
-    kind: "banner",
-    label: "Banners",
-    description: "Hero and campaign presentation",
-    delivery: "Live",
-    deliveryColor: "green",
-  },
-  {
-    kind: "category-editorial",
-    label: "Category presentation",
-    description: "Labels, icons and category imagery",
-    delivery: "Live",
-    deliveryColor: "green",
-  },
-  {
-    kind: "product-editorial",
-    label: "Product editorial",
-    description: "Guidance, supporting copy and SEO",
-    delivery: "Consumer pending",
-    deliveryColor: "grey",
-  },
-  {
-    kind: "curated-collection",
-    label: "Curated collections",
-    description: "Editorial collection references",
-    delivery: "Partial",
-    deliveryColor: "orange",
-  },
-  {
-    kind: "faq-article",
-    label: "Help & articles",
-    description: "FAQ, policy and onboarding content",
-    delivery: "Consumer pending",
-    deliveryColor: "grey",
-  },
-] as const;
-
-const PAGE_SIZE = 20;
-
-type ContentKind = (typeof CONTENT_KINDS)[number]["kind"];
-type ContentResponse = InferClientOutput<typeof client.admin.buildkart.content.query>;
-type ContentDocument = ContentResponse["documents"][number];
-type ContentField = ContentResponse["definition"]["fields"][number];
-type PublicationStatus = ContentDocument["publicationStatus"];
-type StatusFilter = PublicationStatus | "all";
-
-function statusColor(status: PublicationStatus): "green" | "orange" | "grey" {
-  if (status === "published") return "green";
-  if (status === "modified") return "orange";
-  return "grey";
-}
-
-function statusLabel(status: PublicationStatus): string {
-  if (status === "modified") return "Changes not published";
-  if (status === "draft") return "Draft";
-  return "Published";
-}
-
-function displayValue(document: ContentDocument, field: string): string {
-  const value = document[field];
-  return typeof value === "string" && value.trim() ? value : "—";
-}
-
-function toFormValue(field: ContentField, value: unknown): string {
-  if (value === null || value === undefined) return "";
-  if (field.type === "json") return JSON.stringify(value, null, 2);
-  if (field.type === "datetime") {
-    const date = new Date(String(value));
-    return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 16);
-  }
-  return String(value);
-}
-
-function initialForm(fields: ContentField[], document?: ContentDocument): Record<string, string> {
-  return Object.fromEntries(
-    fields.map((field) => {
-      const existing = document?.[field.name];
-      const fallback = field.type === "enum" ? field.options?.[0] ?? "" : "";
-      return [field.name, toFormValue(field, existing ?? fallback)];
-    }),
-  );
-}
-
-function parseForm(fields: ContentField[], values: Record<string, string>): Record<string, unknown> {
-  return Object.fromEntries(
-    fields.map((field) => {
-      const raw = values[field.name]?.trim() ?? "";
-      if (!raw) return [field.name, null];
-      if (field.type === "integer") {
-        const parsed = Number.parseInt(raw, 10);
-        if (!Number.isFinite(parsed)) throw new Error(`${field.label} must be a whole number.`);
-        return [field.name, parsed];
-      }
-      if (field.type === "json") {
-        try {
-          return [field.name, JSON.parse(raw) as unknown];
-        } catch {
-          throw new Error(`${field.label} must contain valid JSON.`);
-        }
-      }
-      if (field.type === "datetime") {
-        const parsed = new Date(raw);
-        if (Number.isNaN(parsed.getTime())) {
-          throw new Error(`${field.label} must contain a valid date and time.`);
-        }
-        return [field.name, parsed.toISOString()];
-      }
-      return [field.name, raw];
-    }),
-  );
-}
-
-function FieldInput({
-  field,
-  value,
-  onChange,
-}: {
-  field: ContentField;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const inputId = `content-field-${field.name}`;
-  const descriptionId = field.description ? `${inputId}-description` : undefined;
-
-  return (
-    <div className="flex flex-col gap-y-2">
-      <div>
-        <Label htmlFor={inputId} size="small" weight="plus">
-          {field.label}{field.required ? " *" : ""}
-        </Label>
-        {field.description ? (
-          <Text id={descriptionId} size="xsmall" className="text-ui-fg-subtle">
-            {field.description}
-          </Text>
-        ) : null}
-      </div>
-      {field.type === "enum" ? (
-        <Select value={value} onValueChange={onChange}>
-          <Select.Trigger id={inputId} aria-describedby={descriptionId} data-testid={inputId}>
-            <Select.Value placeholder={`Select ${field.label.toLowerCase()}`} />
-          </Select.Trigger>
-          <Select.Content>
-            {(field.options ?? []).map((option) => (
-              <Select.Item key={option} value={option}>
-                {option}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select>
-      ) : field.type === "text" || field.type === "richtext" || field.type === "json" ? (
-        <Textarea
-          id={inputId}
-          aria-describedby={descriptionId}
-          data-testid={inputId}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          rows={field.type === "json" ? 10 : 5}
-          placeholder={field.type === "json" ? "Enter valid structured JSON" : undefined}
-        />
-      ) : (
-        <Input
-          id={inputId}
-          aria-describedby={descriptionId}
-          data-testid={inputId}
-          type={
-            field.type === "datetime"
-              ? "datetime-local"
-              : field.type === "integer"
-                ? "number"
-                : field.type === "url"
-                  ? "url"
-                  : "text"
-          }
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      )}
-    </div>
-  );
-}
+type LibraryItem = {
+  kind: ContentKind;
+  kindLabel: string;
+  response: ContentResponse;
+  document: ContentDocument;
+};
 
 export default function ContentPage() {
   const queryClient = useQueryClient();
   const prompt = usePrompt();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedKind = searchParams.get("kind");
-  const kind = CONTENT_KINDS.some((item) => item.kind === requestedKind)
-    ? requestedKind as ContentKind
-    : "storefront-layout";
-  const locale: "en-IN" | "hi-IN" = searchParams.get("locale") === "hi-IN"
-    ? "hi-IN"
-    : "en-IN";
+  const [newDocumentKind, setNewDocumentKind] = useState<ContentKind>("banner");
+
+  const requestedKind = searchParams.get("kind") ?? undefined;
+  const kind: ContentKind | "all" = isContentKind(requestedKind) ? requestedKind : "all";
+  const locale: ContentLocale = searchParams.get("locale") === "hi-IN" ? "hi-IN" : "en-IN";
   const requestedStatus = searchParams.get("status");
   const status: StatusFilter = requestedStatus === "published"
     || requestedStatus === "modified"
@@ -241,29 +69,59 @@ export default function ContentPage() {
   const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const [editing, setEditing] = useState<ContentDocument | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, string>>({});
-  const [initialValues, setInitialValues] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const queryKey = useMemo(() => ["buildkart", "cms-content", kind, locale], [kind, locale]);
-  const contentQuery = useQuery({
-    queryKey,
-    queryFn: () => client.admin.buildkart.content.query({ kind, locale }),
+  const contentQueries = useQueries({
+    queries: CONTENT_KINDS.map((item) => ({
+      queryKey: ["buildkart", "cms-content", item.kind, locale],
+      queryFn: () => client.admin.buildkart.content.query({ kind: item.kind, locale }),
+    })),
   });
-  const content = contentQuery.data as ContentResponse | undefined;
-  const documents = useMemo(() => content?.documents ?? [], [content]);
-  const selectedKind = CONTENT_KINDS.find((item) => item.kind === kind)!;
+
+  const libraryItems: LibraryItem[] = CONTENT_KINDS.flatMap((item, index) => {
+    const response = contentQueries[index].data as ContentResponse | undefined;
+    if (!response) return [];
+    return response.documents.map((document) => ({
+      kind: item.kind,
+      kindLabel: item.label,
+      response,
+      document,
+    }));
+  });
+
+  const typeCounts = Object.fromEntries(
+    CONTENT_KINDS.map((item, index) => [
+      item.kind,
+      (contentQueries[index].data as ContentResponse | undefined)?.documents.length ?? 0,
+    ]),
+  ) as Record<ContentKind, number>;
+
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
+    return libraryItems
+      .filter((item) => kind === "all" || item.kind === kind)
+      .filter((item) => status === "all" || item.document.publicationStatus === status)
+      .filter((item) => {
+        if (!term) return true;
+        const title = displayValue(item.document, item.response.definition.titleField).toLocaleLowerCase();
+        const key = displayValue(item.document, item.response.definition.keyField).toLocaleLowerCase();
+        return title.includes(term)
+          || key.includes(term)
+          || item.document.documentId.toLocaleLowerCase().includes(term)
+          || item.kindLabel.toLocaleLowerCase().includes(term);
+      })
+      .sort(
+        (left, right) => new Date(right.document.updatedAt).getTime()
+          - new Date(left.document.updatedAt).getTime(),
+      );
+  }, [kind, libraryItems, search, status]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleItems = filteredItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   const updateParams = (values: Record<string, string | null>, resetPage = false) => {
-    if (Object.hasOwn(values, "kind") || Object.hasOwn(values, "locale")) {
-      setShowEditor(false);
-      setEditing(null);
-      setFormValues({});
-      setInitialValues({});
-      setFormError(null);
-    }
     const next = new URLSearchParams(searchParams);
     Object.entries(values).forEach(([key, value]) => {
       if (!value || value === "all") next.delete(key);
@@ -273,110 +131,31 @@ export default function ContentPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const filteredDocuments = useMemo(() => {
-    const term = search.trim().toLocaleLowerCase();
-    return documents
-      .filter((document) => status === "all" || document.publicationStatus === status)
-      .filter((document) => {
-        if (!term || !content) return true;
-        const title = displayValue(document, content.definition.titleField).toLocaleLowerCase();
-        const key = displayValue(document, content.definition.keyField).toLocaleLowerCase();
-        return title.includes(term) || key.includes(term) || document.documentId.toLocaleLowerCase().includes(term);
-      })
-      .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
-  }, [content, documents, search, status]);
-
-  const pageCount = Math.max(1, Math.ceil(filteredDocuments.length / PAGE_SIZE));
-  const currentPage = Math.min(page, pageCount);
-  const visibleDocuments = filteredDocuments.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
   const mutation = useMutation({
     mutationFn: (input: {
-      operation: "create-draft" | "update-draft" | "publish" | "unpublish";
-      documentId?: string;
-      data?: Record<string, unknown>;
-    }) => client.admin.buildkart.content.mutate({ kind, locale, ...input }),
+      kind: ContentKind;
+      operation: "publish" | "unpublish";
+      documentId: string;
+    }) => client.admin.buildkart.content.mutate({
+      ...input,
+      locale,
+    }),
     onSuccess: async (_result, input) => {
-      await queryClient.invalidateQueries({ queryKey });
-      const verb = input.operation === "unpublish"
-        ? "Content unpublished"
-        : input.operation === "publish"
-          ? "Content published"
-          : "Draft saved";
-      toast.success(verb);
-      if (input.operation === "create-draft" || input.operation === "update-draft") {
-        setShowEditor(false);
-        setEditing(null);
-        setFormValues({});
-        setInitialValues({});
-        setFormError(null);
-      }
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "cms-content", input.kind, locale],
+      });
+      toast.success(input.operation === "publish" ? "Content published" : "Content unpublished");
     },
-    onError: (error, input) => {
-      const message = error instanceof Error ? error.message : "Content operation failed.";
-      toast.error(message);
-      if (input.operation === "create-draft" || input.operation === "update-draft") {
-        setFormError(message);
-      }
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Content operation failed.");
     },
   });
 
-  const openEditor = (document?: ContentDocument) => {
-    if (!content) return;
-    const values = initialForm(content.definition.fields, document);
-    setEditing(document ?? null);
-    setFormValues(values);
-    setInitialValues(values);
-    setFormError(null);
-    setShowEditor(true);
-  };
-
-  const isDirty = showEditor
-    && JSON.stringify(formValues) !== JSON.stringify(initialValues);
-
-  const requestCloseEditor = async () => {
-    if (!isDirty) {
-      setShowEditor(false);
-      return;
-    }
-    const confirmed = await prompt({
-      title: "Discard unsaved draft changes?",
-      description: "Your changes have not been saved to the CMS draft.",
-      confirmText: "Discard changes",
-      cancelText: "Continue editing",
-      variant: "danger",
-    });
-    if (confirmed) {
-      setShowEditor(false);
-      setFormError(null);
-    }
-  };
-
-  const saveDraft = () => {
-    if (!content) return;
-    try {
-      const data = parseForm(content.definition.fields, formValues);
-      setFormError(null);
-      mutation.mutate({
-        operation: editing ? "update-draft" : "create-draft",
-        documentId: editing?.documentId,
-        data,
-      });
-    } catch (error) {
-      const message = (error as Error).message;
-      setFormError(message);
-      toast.error(message);
-    }
-  };
-
   const changePublication = async (
-    document: ContentDocument,
+    item: LibraryItem,
     operation: "publish" | "unpublish",
   ) => {
-    const key = displayValue(document, content?.definition.keyField ?? "documentId");
+    const key = displayValue(item.document, item.response.definition.keyField);
     const confirmed = await prompt({
       title: operation === "publish" ? "Publish editorial changes?" : "Unpublish this content?",
       description: operation === "publish"
@@ -386,220 +165,243 @@ export default function ContentPage() {
       cancelText: "Cancel",
       variant: operation === "publish" ? "confirmation" : "danger",
     });
-    if (confirmed) mutation.mutate({ operation, documentId: document.documentId });
+    if (confirmed) {
+      mutation.mutate({
+        kind: item.kind,
+        operation,
+        documentId: item.document.documentId,
+      });
+    }
   };
 
-  const publishedCount = documents.filter((document) => document.publicationStatus === "published").length;
-  const modifiedCount = documents.filter((document) => document.publicationStatus === "modified").length;
-  const draftCount = documents.filter((document) => document.publicationStatus === "draft").length;
-  const routineFields = content?.definition.fields.filter((field) => field.type !== "json") ?? [];
-  const structuredFields = content?.definition.fields.filter((field) => field.type === "json") ?? [];
+  const isPending = contentQueries.some((query) => query.isPending);
+  const failedQueries = contentQueries.filter((query) => query.isError).length;
+  const allUnavailable = failedQueries === contentQueries.length;
+  const publishedCount = libraryItems.filter(
+    (item) => item.document.publicationStatus === "published",
+  ).length;
+  const modifiedCount = libraryItems.filter(
+    (item) => item.document.publicationStatus === "modified",
+  ).length;
+  const draftCount = libraryItems.filter(
+    (item) => item.document.publicationStatus === "draft",
+  ).length;
+  const createKind = kind === "all" ? newDocumentKind : kind;
 
   return (
     <SingleColumnPage>
       <div className="flex flex-col gap-y-3">
         <Container className="divide-y p-0">
-          <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-start md:justify-between">
+          <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="max-w-3xl">
               <div className="flex flex-wrap items-center gap-2">
                 <Heading level="h1">Editorial content</Heading>
                 <StatusBadge color="orange">Staging</StatusBadge>
-                <StatusBadge color="blue">Private CMS</StatusBadge>
               </div>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
-                One authoritative editor for storefront presentation. Commerce-owned products,
-                prices, inventory, promotions and taxonomy stay in their native Medusa controls.
+                Find, filter and edit storefront presentation from one library. Commerce-owned
+                products, pricing, promotions and taxonomy remain in their native controls.
               </Text>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="secondary" size="small">
-                <Link to="/merchandising">Overview</Link>
-              </Button>
-              <div className="w-40">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="min-w-48">
+                <Label htmlFor="new-content-type" size="xsmall">New content type</Label>
                 <Select
-                  value={locale}
-                  onValueChange={(value) => updateParams({ locale: value }, true)}
+                  value={createKind}
+                  onValueChange={(value) => setNewDocumentKind(value as ContentKind)}
+                  disabled={kind !== "all"}
                 >
-                  <Select.Trigger aria-label="Content locale" data-testid="content-locale-select">
+                  <Select.Trigger id="new-content-type" aria-label="New content type">
                     <Select.Value />
                   </Select.Trigger>
                   <Select.Content>
-                    <Select.Item value="en-IN">English (India)</Select.Item>
-                    <Select.Item value="hi-IN">Hindi (India)</Select.Item>
+                    {CONTENT_KINDS.map((item) => (
+                      <Select.Item key={item.kind} value={item.kind}>{item.label}</Select.Item>
+                    ))}
                   </Select.Content>
                 </Select>
               </div>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4 px-6 py-4">
-            <div>
-              <Text size="xsmall" className="text-ui-fg-subtle">Published</Text>
-              <Text size="large" weight="plus">{publishedCount}</Text>
-            </div>
-            <div>
-              <Text size="xsmall" className="text-ui-fg-subtle">Needs review</Text>
-              <Text size="large" weight="plus">{modifiedCount}</Text>
-            </div>
-            <div>
-              <Text size="xsmall" className="text-ui-fg-subtle">Draft only</Text>
-              <Text size="large" weight="plus">{draftCount}</Text>
-            </div>
-          </div>
-        </Container>
-
-        <div className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)]">
-          <Container className="h-fit divide-y p-0">
-            <div className="px-5 py-4">
-              <Heading level="h2">Content types</Heading>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Choose the customer-facing property you want to manage.
-              </Text>
-            </div>
-            <div className="flex flex-col gap-1 p-2">
-              {CONTENT_KINDS.map((item) => (
-                <Button
-                  key={item.kind}
-                  variant={kind === item.kind ? "secondary" : "transparent"}
-                  className="h-auto w-full justify-start px-3 py-3 text-left"
-                  onClick={() => updateParams({ kind: item.kind }, true)}
-                  data-testid={`content-kind-${item.kind}`}
-                >
-                  <span className="flex w-full flex-col items-start gap-1">
-                    <span className="flex w-full items-center justify-between gap-2">
-                      <span>{item.label}</span>
-                      <StatusBadge color={item.deliveryColor}>{item.delivery}</StatusBadge>
-                    </span>
-                    <span className="text-xs font-normal text-ui-fg-subtle">{item.description}</span>
-                  </span>
-                </Button>
-              ))}
-            </div>
-            <div className="px-5 py-4">
-              <Text size="xsmall" className="text-ui-fg-subtle">
-                Strapi stores approved editorial fields privately. Operators do not need a separate CMS login.
-              </Text>
-            </div>
-          </Container>
-
-          <Container className="overflow-hidden p-0">
-            <div className="flex flex-col gap-3 border-b border-ui-border-base px-6 py-4 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Heading level="h2">{content?.definition.label ?? selectedKind.label}</Heading>
-                  <StatusBadge color={selectedKind.deliveryColor}>{selectedKind.delivery}</StatusBadge>
-                </div>
-                <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                  {content?.definition.description ?? selectedKind.description}
-                </Text>
-              </div>
               <Button
                 size="small"
-                onClick={() => openEditor()}
-                disabled={!content}
+                onClick={() => navigate(contentDocumentRoute(createKind, "new", locale))}
+                disabled={allUnavailable}
                 data-testid="content-create-draft"
               >
                 Create draft
               </Button>
             </div>
-
-            <div className="grid gap-3 border-b border-ui-border-base px-6 py-4 md:grid-cols-[minmax(0,1fr)_12rem]">
-              <div>
-                <Label htmlFor="content-search" size="xsmall">Search this content type</Label>
-                <Input
-                  id="content-search"
-                  value={search}
-                  onChange={(event) => updateParams({ q: event.target.value }, true)}
-                  placeholder="Search by title, key or document ID"
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <Label htmlFor="content-status-filter" size="xsmall">Publication status</Label>
-                <Select
-                  value={status}
-                  onValueChange={(value) => updateParams({ status: value }, true)}
-                >
-                  <Select.Trigger id="content-status-filter" aria-label="Publication status">
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="all">All statuses</Select.Item>
-                    <Select.Item value="published">Published</Select.Item>
-                    <Select.Item value="modified">Changes not published</Select.Item>
-                    <Select.Item value="draft">Draft</Select.Item>
-                  </Select.Content>
-                </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4 px-6 py-4 lg:grid-cols-4">
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">Needs review</Text>
+              <Text size="large" weight="plus">{isPending ? "—" : modifiedCount}</Text>
+            </div>
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">Draft only</Text>
+              <Text size="large" weight="plus">{isPending ? "—" : draftCount}</Text>
+            </div>
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">Published</Text>
+              <Text size="large" weight="plus">{isPending ? "—" : publishedCount}</Text>
+            </div>
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">Content service</Text>
+              <div className="mt-1">
+                <StatusBadge color={allUnavailable ? "red" : failedQueries ? "orange" : isPending ? "orange" : "green"}>
+                  {allUnavailable ? "Unavailable" : failedQueries ? "Partially available" : isPending ? "Checking" : "Connected"}
+                </StatusBadge>
               </div>
             </div>
+          </div>
+        </Container>
 
-            {contentQuery.isPending ? (
-              <Text size="small" className="px-6 py-10 text-ui-fg-subtle">Loading content…</Text>
-            ) : contentQuery.isError || !content ? (
-              <div className="px-6 py-10">
-                <Heading level="h3">Content is unavailable</Heading>
-                <Text size="small" className="mt-1 text-ui-fg-error">
-                  The private CMS could not be reached or this account lacks content permission.
-                </Text>
-              </div>
-            ) : documents.length === 0 ? (
-              <div className="px-6 py-10">
-                <Heading level="h3">No {content.definition.label.toLowerCase()} yet</Heading>
-                <Text size="small" className="mt-1 text-ui-fg-subtle">
-                  Create the first {locale} draft. Nothing becomes customer-facing until it is published.
-                </Text>
-              </div>
-            ) : filteredDocuments.length === 0 ? (
-              <div className="px-6 py-10">
-                <Heading level="h3">No matching content</Heading>
-                <Text size="small" className="mt-1 text-ui-fg-subtle">
-                  Change the search or publication-status filter to see more results.
-                </Text>
+        <Container className="overflow-hidden p-0">
+          <div className="overflow-x-auto border-b border-ui-border-base px-4 pt-3">
+            <div className="flex min-w-max gap-1" role="tablist" aria-label="Content type">
+              <Button
+                variant={kind === "all" ? "secondary" : "transparent"}
+                size="small"
+                onClick={() => updateParams({ kind: null }, true)}
+                role="tab"
+                aria-selected={kind === "all"}
+              >
+                All <span className="text-ui-fg-subtle">{libraryItems.length}</span>
+              </Button>
+              {CONTENT_KINDS.map((item) => (
                 <Button
-                  variant="secondary"
+                  key={item.kind}
+                  variant={kind === item.kind ? "secondary" : "transparent"}
                   size="small"
-                  className="mt-4"
-                  onClick={() => updateParams({ q: null, status: null }, true)}
+                  onClick={() => updateParams({ kind: item.kind }, true)}
+                  role="tab"
+                  aria-selected={kind === item.kind}
+                  data-testid={`content-kind-${item.kind}`}
                 >
-                  Clear filters
+                  {item.label} <span className="text-ui-fg-subtle">{typeCounts[item.kind]}</span>
                 </Button>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.HeaderCell>Title</Table.HeaderCell>
-                        <Table.HeaderCell>Key</Table.HeaderCell>
-                        <Table.HeaderCell>Status</Table.HeaderCell>
-                        <Table.HeaderCell>Updated</Table.HeaderCell>
-                        <Table.HeaderCell className="w-12"><span className="sr-only">Actions</span></Table.HeaderCell>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {visibleDocuments.map((document) => (
-                        <Table.Row key={document.documentId}>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 border-b border-ui-border-base px-6 py-4 md:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+            <div>
+              <Label htmlFor="content-search" size="xsmall">Search content</Label>
+              <Input
+                id="content-search"
+                value={search}
+                onChange={(event) => updateParams({ q: event.target.value }, true)}
+                placeholder="Search title, key, document ID or type"
+                autoComplete="off"
+              />
+            </div>
+            <div>
+              <Label htmlFor="content-status-filter" size="xsmall">Publication status</Label>
+              <Select value={status} onValueChange={(value) => updateParams({ status: value }, true)}>
+                <Select.Trigger id="content-status-filter" aria-label="Publication status">
+                  <Select.Value />
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="all">All statuses</Select.Item>
+                  <Select.Item value="published">Published</Select.Item>
+                  <Select.Item value="modified">Changes not published</Select.Item>
+                  <Select.Item value="draft">Draft</Select.Item>
+                </Select.Content>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="content-locale-filter" size="xsmall">Locale</Label>
+              <Select value={locale} onValueChange={(value) => updateParams({ locale: value }, true)}>
+                <Select.Trigger id="content-locale-filter" aria-label="Content locale">
+                  <Select.Value />
+                </Select.Trigger>
+                <Select.Content>
+                  {CONTENT_LOCALES.map((item) => (
+                    <Select.Item key={item.value} value={item.value}>{item.label}</Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
+            </div>
+          </div>
+
+          {isPending && libraryItems.length === 0 ? (
+            <Text size="small" className="px-6 py-10 text-ui-fg-subtle">Loading content…</Text>
+          ) : allUnavailable ? (
+            <div className="px-6 py-10">
+              <Heading level="h3">Content is unavailable</Heading>
+              <Text size="small" className="mt-1 text-ui-fg-error">
+                The private content service could not be reached or this account lacks permission.
+              </Text>
+            </div>
+          ) : libraryItems.length === 0 ? (
+            <div className="px-6 py-10">
+              <Heading level="h3">No editorial content yet</Heading>
+              <Text size="small" className="mt-1 text-ui-fg-subtle">
+                Create the first {locale} draft. Nothing becomes customer-facing until it is published.
+              </Text>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="px-6 py-10">
+              <Heading level="h3">No matching content</Heading>
+              <Text size="small" className="mt-1 text-ui-fg-subtle">
+                Change the search, content type or publication-status filter to see more results.
+              </Text>
+              <Button
+                variant="secondary"
+                size="small"
+                className="mt-4"
+                onClick={() => updateParams({ q: null, status: null, kind: null }, true)}
+              >
+                Clear filters
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <Table className="min-w-[52rem]">
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>Title and key</Table.HeaderCell>
+                      <Table.HeaderCell>Type</Table.HeaderCell>
+                      <Table.HeaderCell>Status</Table.HeaderCell>
+                      <Table.HeaderCell>Locale</Table.HeaderCell>
+                      <Table.HeaderCell>Updated</Table.HeaderCell>
+                      <Table.HeaderCell className="sticky right-0 w-12 bg-ui-bg-base">
+                        <span className="sr-only">Actions</span>
+                      </Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {visibleItems.map((item) => {
+                      const route = contentDocumentRoute(item.kind, item.document.documentId, locale);
+                      return (
+                        <Table.Row key={`${item.kind}:${item.document.documentId}`}>
                           <Table.Cell>
-                            <Text size="small" weight="plus">
-                              {displayValue(document, content.definition.titleField)}
-                            </Text>
+                            <Link to={route} className="block max-w-72 hover:text-ui-fg-interactive">
+                              <Text size="small" weight="plus">
+                                {displayValue(item.document, item.response.definition.titleField)}
+                              </Text>
+                              <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                                {displayValue(item.document, item.response.definition.keyField)}
+                              </Text>
+                            </Link>
                           </Table.Cell>
                           <Table.Cell>
-                            <Text size="small" className="text-ui-fg-subtle">
-                              {displayValue(document, content.definition.keyField)}
-                            </Text>
+                            <Text size="small">{item.kindLabel}</Text>
                           </Table.Cell>
                           <Table.Cell>
-                            <StatusBadge color={statusColor(document.publicationStatus)}>
-                              {statusLabel(document.publicationStatus)}
+                            <StatusBadge color={statusColor(item.document.publicationStatus)}>
+                              {statusLabel(item.document.publicationStatus)}
                             </StatusBadge>
                           </Table.Cell>
                           <Table.Cell>
-                            <Text size="small" className="text-ui-fg-subtle">
-                              {new Date(document.updatedAt).toLocaleString("en-IN")}
-                            </Text>
+                            <Text size="small">{item.document.locale}</Text>
                           </Table.Cell>
                           <Table.Cell>
+                            <Text size="small" className="text-ui-fg-subtle">
+                              {new Date(item.document.updatedAt).toLocaleString("en-IN")}
+                            </Text>
+                          </Table.Cell>
+                          <Table.Cell className="sticky right-0 bg-ui-bg-base">
                             <ActionMenu
                               groups={[
                                 {
@@ -607,17 +409,17 @@ export default function ContentPage() {
                                     {
                                       label: "Edit draft",
                                       icon: <PencilSquare />,
-                                      onClick: () => openEditor(document),
+                                      to: route,
                                     },
                                   ],
                                 },
                                 {
-                                  actions: document.publicationStatus === "published"
+                                  actions: item.document.publicationStatus === "published"
                                     ? [
                                         {
                                           label: "Unpublish",
                                           icon: <ArchiveBox />,
-                                          onClick: () => { void changePublication(document, "unpublish"); },
+                                          onClick: () => { void changePublication(item, "unpublish"); },
                                           disabled: mutation.isPending,
                                         },
                                       ]
@@ -625,7 +427,7 @@ export default function ContentPage() {
                                         {
                                           label: "Publish",
                                           icon: <ArrowUpTray />,
-                                          onClick: () => { void changePublication(document, "publish"); },
+                                          onClick: () => { void changePublication(item, "publish"); },
                                           disabled: mutation.isPending,
                                         },
                                       ],
@@ -634,118 +436,45 @@ export default function ContentPage() {
                             />
                           </Table.Cell>
                         </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table>
-                </div>
-                <div className="flex flex-col gap-3 border-t border-ui-border-base px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <Text size="xsmall" className="text-ui-fg-subtle">
-                    Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredDocuments.length)} of {filteredDocuments.length}
-                  </Text>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      disabled={currentPage <= 1}
-                      onClick={() => updateParams({ page: String(currentPage - 1) })}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      disabled={currentPage >= pageCount}
-                      onClick={() => updateParams({ page: String(currentPage + 1) })}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </Container>
-        </div>
-
-        <Drawer
-          open={showEditor}
-          onOpenChange={(open) => {
-            if (open) setShowEditor(true);
-            else void requestCloseEditor();
-          }}
-        >
-          <Drawer.Content>
-            <Drawer.Header>
-              <Drawer.Title>{editing ? "Edit draft" : "Create draft"}</Drawer.Title>
-              <Drawer.Description>
-                {selectedKind.label} · {locale}. Saving updates only the CMS draft; publishing is a separate action.
-              </Drawer.Description>
-            </Drawer.Header>
-            <Drawer.Body>
-              <div className="flex flex-col gap-y-6 py-2">
-                {formError ? (
-                  <div role="alert" className="rounded-md border border-ui-border-error bg-ui-bg-base px-4 py-3">
-                    <Text size="small" weight="plus" className="text-ui-fg-error">Draft could not be saved</Text>
-                    <Hint variant="error" className="mt-1">{formError}</Hint>
-                  </div>
-                ) : null}
-
-                <div className="flex flex-col gap-y-5">
-                  {routineFields.map((field) => (
-                    <FieldInput
-                      key={field.name}
-                      field={field}
-                      value={formValues[field.name] ?? ""}
-                      onChange={(value) => {
-                        setFormError(null);
-                        setFormValues((current) => ({ ...current, [field.name]: value }));
-                      }}
-                    />
-                  ))}
-                </div>
-
-                {structuredFields.length > 0 ? (
-                  <div className="flex flex-col gap-y-5 border-t border-ui-border-base pt-5">
-                    <div>
-                      <Heading level="h3">Advanced structured content</Heading>
-                      <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                        Temporary expert control until the governed visual module builder is available.
-                      </Text>
-                    </div>
-                    {structuredFields.map((field) => (
-                      <FieldInput
-                        key={field.name}
-                        field={field}
-                        value={formValues[field.name] ?? ""}
-                        onChange={(value) => {
-                          setFormError(null);
-                          setFormValues((current) => ({ ...current, [field.name]: value }));
-                        }}
-                      />
-                    ))}
-                  </div>
-                ) : null}
+                      );
+                    })}
+                  </Table.Body>
+                </Table>
               </div>
-            </Drawer.Body>
-            <Drawer.Footer>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={() => { void requestCloseEditor(); }}
-                data-testid="content-cancel-edit"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={saveDraft}
-                isLoading={mutation.isPending}
-                size="small"
-                data-testid="content-save-draft"
-              >
-                Save draft
-              </Button>
-            </Drawer.Footer>
-          </Drawer.Content>
-        </Drawer>
+              <div className="flex flex-col gap-3 border-t border-ui-border-base px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredItems.length)} of {filteredItems.length}
+                </Text>
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={currentPage <= 1}
+                    onClick={() => updateParams({ page: String(currentPage - 1) })}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={currentPage >= pageCount}
+                    onClick={() => updateParams({ page: String(currentPage + 1) })}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </Container>
+
+        <Container className="px-6 py-4">
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            Editorial presentation is managed here. Product membership, category hierarchy,
+            prices, inventory, promotions and campaigns remain editable only in their native
+            Medusa controls.
+          </Text>
+        </Container>
       </div>
     </SingleColumnPage>
   );
