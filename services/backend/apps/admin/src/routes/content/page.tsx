@@ -14,7 +14,7 @@ import {
 } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { ActionMenu, SingleColumnPage } from "@mercurjs/dashboard-shared";
-import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { client } from "../../lib/client";
@@ -27,26 +27,18 @@ import {
   isContentKind,
   statusColor,
   statusLabel,
-  type ContentDocument,
   type ContentKind,
   type ContentLocale,
-  type ContentResponse,
   type StatusFilter,
 } from "./content-model";
+import { useContentLibrary, type ContentLibraryItem } from "./use-content-library";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Editorial content",
   icon: Tag,
-  rank: 1,
+  rank: 2,
   nested: "/merchandising",
-};
-
-type LibraryItem = {
-  kind: ContentKind;
-  kindLabel: string;
-  response: ContentResponse;
-  document: ContentDocument;
 };
 
 export default function ContentPage() {
@@ -69,30 +61,13 @@ export default function ContentPage() {
   const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
-  const contentQueries = useQueries({
-    queries: CONTENT_KINDS.map((item) => ({
-      queryKey: ["buildkart", "cms-content", item.kind, locale],
-      queryFn: () => client.admin.buildkart.content.query({ kind: item.kind, locale }),
-    })),
-  });
-
-  const libraryItems: LibraryItem[] = CONTENT_KINDS.flatMap((item, index) => {
-    const response = contentQueries[index].data as ContentResponse | undefined;
-    if (!response) return [];
-    return response.documents.map((document) => ({
-      kind: item.kind,
-      kindLabel: item.label,
-      response,
-      document,
-    }));
-  });
-
-  const typeCounts = Object.fromEntries(
-    CONTENT_KINDS.map((item, index) => [
-      item.kind,
-      (contentQueries[index].data as ContentResponse | undefined)?.documents.length ?? 0,
-    ]),
-  ) as Record<ContentKind, number>;
+  const {
+    items: libraryItems,
+    typeCounts,
+    isPending,
+    failedQueries,
+    allUnavailable,
+  } = useContentLibrary(locale);
 
   const filteredItems = useMemo(() => {
     const term = search.trim().toLocaleLowerCase();
@@ -152,7 +127,7 @@ export default function ContentPage() {
   });
 
   const changePublication = async (
-    item: LibraryItem,
+    item: ContentLibraryItem,
     operation: "publish" | "unpublish",
   ) => {
     const key = displayValue(item.document, item.response.definition.keyField);
@@ -174,9 +149,6 @@ export default function ContentPage() {
     }
   };
 
-  const isPending = contentQueries.some((query) => query.isPending);
-  const failedQueries = contentQueries.filter((query) => query.isError).length;
-  const allUnavailable = failedQueries === contentQueries.length;
   const publishedCount = libraryItems.filter(
     (item) => item.document.publicationStatus === "published",
   ).length;
