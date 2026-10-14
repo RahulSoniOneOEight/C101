@@ -1,8 +1,8 @@
 # Efficient Merchandising Console — Phase 1
 
 **Date:** 15 October 2026
-**Change contract:** CHG-038 revision 1
-**Status:** Implemented locally; hosted staging deployment pending; production unauthorized
+**Change contract:** CHG-038 revision 2
+**Status:** Deployed to staging; awaiting human visual review; production unauthorized
 
 ## Implemented
 
@@ -44,8 +44,9 @@
 - `bun run lint` passed in `services/backend/apps/admin`.
 - `bun run build` passed in `services/backend/apps/admin`.
 - The build emitted only the existing large-chunk advisory.
-- CHG-038 revision 1 parsed as valid YAML.
+- CHG-038 revision 2 parsed as valid YAML.
 - `git diff --check` passed.
+- Release `fc5178d` is deployed to staging; see `hosted-staging-deployment.md`.
 
 ## Deferred checkpoint scope
 

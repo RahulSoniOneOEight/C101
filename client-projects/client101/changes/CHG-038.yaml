@@ -1,5 +1,5 @@
 change_id: CHG-038
-revision: 1
+revision: 2
 request: >-
   Refine the Mercur Merchandising console into an efficient operator-first workspace. Implement
   Phase 1 only: a responsive action-oriented overview, a unified editorial content library and a
@@ -85,8 +85,28 @@ implementation:
   - Commerce collection product membership is not exposed in the editorial editor.
   - Mercur Admin ESLint and production build passed.
   - CHG-038 YAML and git diff whitespace validation passed.
-  hosted_deployment: pending
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T20:34:43Z'
+    release_commit: fc5178d
+    release_worktree: /opt/buildkart-releases/fc5178d
+    previous_release: /opt/buildkart-releases/9c07a35
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, Editorial content and full-page draft-create routes return HTTP 200.
+    - Served bundle contains the unified library and full-page editor labels.
+    - Served bundle does not contain Preset Review or preset-derived overview labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - create-and-save-a-bounded-test-draft-without-publishing
+    - edit-and-save-an-existing-draft-without-publishing
+    - verify-keyboard-save-and-unsaved-navigation-protection
+    - verify-library-and-editor-layout-at-1024px-and-wide-desktop
 implementation_evidence:
 - client-projects/client101/evidence/CHG-038/phase-1-local-verification.md
-status: implemented-awaiting-hosted-staging-review
+- client-projects/client101/evidence/CHG-038/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
 production_release_authorized: false
