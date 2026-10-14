@@ -1,8 +1,8 @@
 # Native Console Configuration Consolidation
 
 **Date:** 15 October 2026
-**Change contract:** CHG-037 revision 1
-**Status:** Implemented locally; hosted staging deployment pending; production unauthorized
+**Change contract:** CHG-037 revision 2
+**Status:** Deployed to staging; awaiting human visual review; production unauthorized
 
 ## Operator model
 
@@ -36,6 +36,7 @@ console sections:
 - The build emitted only the existing large-chunk advisory.
 - No Preset Review label or preset/offer catalogue query remains in the Admin UI source.
 - `git diff --check` passed.
-- CHG-037 revision 1 parsed as valid YAML.
+- CHG-037 revision 2 parsed as valid YAML.
+- Release `9c07a35` is deployed to staging; see `hosted-staging-deployment.md`.
 
 No production release was authorized or performed.

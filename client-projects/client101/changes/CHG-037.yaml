@@ -1,5 +1,5 @@
 change_id: CHG-037
-revision: 1
+revision: 2
 request: >-
   Remove the standalone Preset Review operator surface. Staging presets are bootstrap and test
   configuration only; operators must manage the resulting promotions, campaigns, commerce
@@ -65,7 +65,22 @@ implementation:
   - Mercur Admin ESLint passed with no warnings or errors.
   - Mercur Admin production build passed.
   - CHG-037 YAML and git diff whitespace validation passed.
-  hosted_deployment: pending
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T19:44:01Z'
+    release_commit: 9c07a35
+    release_worktree: /opt/buildkart-releases/9c07a35
+    previous_release: /opt/buildkart-releases/b317a08
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, Editorial content and legacy redirect routes return HTTP 200.
+    - Served bundle contains native Collections and Categories configuration links.
+    - Served bundle does not contain Preset Review, Review presets or preset-derived overview labels.
+    - Internal reconciliation API remains authenticated on the operator host and hidden on the customer host.
 implementation_evidence:
 - client-projects/client101/evidence/CHG-037/native-console-configuration.md
-status: implemented-awaiting-hosted-staging-review
+- client-projects/client101/evidence/CHG-037/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
