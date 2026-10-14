@@ -1,8 +1,8 @@
 # Merchandising Navigation and Operational Views — Local Verification
 
 **Date:** 15 October 2026
-**Change contract:** CHG-039 revision 1
-**Status:** Implemented locally; hosted staging deployment pending; production unauthorized
+**Change contract:** CHG-039 revision 2
+**Status:** Deployed to staging; awaiting human visual review; production unauthorized
 
 ## Implemented
 
@@ -41,8 +41,9 @@
 
 - `bun run lint` passed in `services/backend/apps/admin`.
 - `bun run build` passed in `services/backend/apps/admin`.
-- CHG-039 revision 1 parsed as valid YAML.
+- CHG-039 revision 2 parsed as valid YAML.
 - `git diff --check` passed.
+- Release `e8c9240` is deployed to staging; see `hosted-staging-deployment.md`.
 
 ## Deferred checkpoint scope
 

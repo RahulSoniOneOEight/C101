@@ -1,5 +1,5 @@
 change_id: CHG-039
-revision: 1
+revision: 2
 request: >-
   Make the left-hand Mercur sidebar the primary navigation for the Merchandising workspace. Add
   one horizontal-tab level inside each selected page and incorporate the useful operational
@@ -86,8 +86,30 @@ implementation:
   - Content activity states that it is not an actor-level audit trail.
   - Mercur Admin ESLint and production build passed.
   - CHG-039 YAML and git diff whitespace validation passed.
-  hosted_deployment: pending
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T21:02:22Z'
+    release_commit: e8c9240
+    release_worktree: /opt/buildkart-releases/e8c9240
+    previous_release: /opt/buildkart-releases/fc5178d
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, overview, review-queue, delivery-status, content-activity and content routes return HTTP 200.
+    - Served bundle contains the new navigation and operational view labels.
+    - Served bundle does not contain Preset Review or preset-derived labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - verify-left-sidebar-group-and-child-navigation
+    - verify-page-local-horizontal-tabs-persist-in-url
+    - verify-overview-needs-attention-scheduled-recently-changed-tabs
+    - verify-review-queue-lists-real-draft-and-modified-records
+    - verify-delivery-status-claims-no-storefront-receipt
+    - verify-content-activity-is-labelled-as-non-audit
 implementation_evidence:
 - client-projects/client101/evidence/CHG-039/navigation-local-verification.md
-status: implemented-awaiting-hosted-staging-review
+- client-projects/client101/evidence/CHG-039/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
 production_release_authorized: false
