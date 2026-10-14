@@ -1,0 +1,126 @@
+change_id: CHG-036
+revision: 3
+request: >-
+  Define a best-practice operating model and phased implementation approach for the common Mercur
+  administration console and its private Strapi CMS boundary. Improve operator navigation,
+  content discovery, editing, preview, review, publication safety, delivery visibility, RBAC and
+  auditability while preserving the existing commerce/content ownership split. Classify and
+  sequence the remaining storefront-content delivery gaps without authorizing implementation or
+  production release. Enforce one authoritative routine edit control for each property so the same
+  value cannot be changed from competing admin or CMS controls.
+type: admin-cms-operating-model-and-implementation-approach
+extends:
+- CHG-034
+- CHG-035
+affected_capabilities:
+- operator-administration
+- editorial-content
+- storefront-composition
+- content-delivery-resilience
+- security-and-audit
+affected_domains:
+- experience
+- content
+- commerce
+- marketplace
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.content
+- mercur.admin.native-commerce-editors
+- cms.operator-api
+- cms.admin.break-glass
+- experience-api.content
+- customer-app.b2c
+- customer-app.b2b
+affected_entities:
+- storefront-layout
+- banner
+- curated-collection
+- category-editorial
+- product-editorial
+- faq-article
+- cms-operator-audit
+- cms-content-projection
+affected_integrations:
+- mercur-admin-to-medusa-content-facade
+- medusa-content-facade-to-private-strapi
+- strapi-webhook-to-experience-adapter
+- experience-api-to-customer-app
+proposed_decisions:
+  D-036-01: mercur-admin-remains-the-routine-operator-interface-and-strapi-admin-remains-break-glass-only
+  D-036-02: navigation-is-organised-by-operator-task-and-business-outcome-not-provider-or-database-model
+  D-036-03: environment-channel-and-locale-context-remain-visible-throughout-editorial-workflows
+  D-036-04: simple-records-use-native-data-table-detail-and-routed-drawer-patterns
+  D-036-05: complex-layout-composition-uses-a-dedicated-governed-module-builder-not-routine-raw-json
+  D-036-06: preview-validation-and-change-summary-precede-every-publish-or-scheduled-activation
+  D-036-07: author-review-publish-and-administration-permissions-are-separated-and-enforced-server-side
+  D-036-08: delivery-health-cache-freshness-and-last-successful-publication-are-visible-to-authorized-operators
+  D-036-09: native-mercur-and-medusa-pages-are-extended-additively-and-not-forked-or-duplicated
+  D-036-10: content-controls-use-medusa-ui-dashboard-shared-primitives-and-the-typed-sdk-only
+  D-036-11: current-draft-modified-published-states-are-hardened-before-any-expanded-approval-workflow
+  D-036-12: hero-layout-product-help-and-collection-delivery-gaps-are-closed-before-adding-personalization
+  D-036-13: media-upload-remains-deferred-until-a-dam-and-asset-governance-decision-is-approved
+  D-036-14: b2b-pricing-payments-and-production-release-remain-separate-governed-commerce-security-workstreams
+  D-036-15: every-property-has-one-authoritative-routine-edit-control-and-all-other-surfaces-are-read-only-context-or-links
+  D-036-16: a-governed-control-ownership-map-prevents-overlapping-editors-and-split-brain-property-values
+required_tests:
+- The routine operator can complete content tasks without seeing or authenticating to Strapi.
+- Navigation distinguishes editorial presentation from commerce-owned products, taxonomy, offers,
+  pricing, inventory, promotions, sellers, orders and finance.
+- Every editorial list supports search, filters, pagination, locale context, channel context and
+  publication-status visibility using native Mercur patterns.
+- Closing an editor with unsaved changes warns the operator and never silently discards a draft.
+- A stale write is rejected or explicitly reconciled instead of overwriting another operator's work.
+- Publish presents validation results and a change summary and requires explicit confirmation.
+- The preview represents the same Experience API projection and fallbacks used by the customer app.
+- RBAC is enforced by the Medusa facade and private CMS boundary, not only by hidden UI controls.
+- Each mutation remains idempotent, correlated and represented by an immutable audit record.
+- CMS or projection failure is visible to operators while customer commerce remains available through
+  the approved last-valid or governed fallback behavior.
+- Product editorial, help content, curated membership and layout composition are not marked complete
+  until an application consumer and acceptance evidence exist.
+- No property is editable from more than one routine operator surface; contextual appearances resolve
+  to the same authoritative editor or remain read-only.
+- Layout references select an existing banner, collection, category or product identity and never
+  duplicate the referenced entity's editable properties.
+- Admin UI uses only Medusa UI tokens, public dashboard-shared primitives and the typed SDK.
+- Keyboard, focus, labels, error association, status semantics and target sizes pass WCAG 2.2 AA checks.
+constraints:
+- Implementation authorization is limited to the bounded Phase 1 Mercur Admin UX refinement;
+  later layout-builder, preview, media, targeting and production phases require separate review.
+- No iframe and no direct browser-to-Strapi API call.
+- No duplicate commerce write model in CMS.
+- No price, inventory, seller terms, orders, payments, credit, commission or payout ownership in CMS.
+- Strapi credentials, operator secrets and webhook signing material remain server-side.
+- Media upload and DAM selection remain deferred.
+- Staging only; production release remains unauthorized.
+approval_required: true
+human_approvals: []
+production_release_authorized: false
+approach_artifact: client-projects/client101/solution/architecture/admin-console-cms-approach.md
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-14'
+  scope: bounded-phase-1-mercur-admin-content-index-and-operational-overview
+  human_visual_review_required: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  allowed_now:
+  - Shopify-informed Merchandising overview information hierarchy using existing APIs.
+  - Search, status filter, locale context and clearer content-type navigation in Editorial content.
+  - Native row action menu, field labels, error summary and unsaved-draft close protection.
+  - Documentation and tests for the bounded refinement.
+  deferred:
+  - Layout builder and drag-and-drop composition.
+  - Draft storefront preview and content change diff.
+  - DAM/media upload.
+  - Targeting and personalization.
+  - Production deployment.
+  local_verification:
+  - Mercur Admin production build passed.
+  - Mercur Admin ESLint passed with no warnings or errors.
+  - CHG-036 YAML validation and git diff whitespace validation passed.
+  hosted_deployment: not-requested
+implementation_evidence:
+- client-projects/client101/evidence/CHG-036/shopify-informed-admin-ux.md
+status: bounded-phase-1-implemented-awaiting-human-visual-review
