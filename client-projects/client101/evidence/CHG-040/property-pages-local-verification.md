@@ -1,8 +1,8 @@
 # Property-first Editorial Pages — Local Verification
 
 **Date:** 15 October 2026
-**Change contract:** CHG-040 revision 1
-**Status:** Implemented locally; hosted staging deployment pending; production unauthorized
+**Change contract:** CHG-040 revision 2
+**Status:** Deployed to staging; awaiting human visual review; production unauthorized
 
 ## Implemented
 
@@ -56,8 +56,9 @@ remain drafts by default; they are persisted only when the full-page editor is s
 - `bun run lint` passed in `services/backend/apps/admin`.
 - `bun run build` passed in `services/backend/apps/admin`.
 - The bundle does not contain `New content type`, the generic `Create draft`, or preset labels.
-- CHG-040 revision 1 parsed as valid YAML.
+- CHG-040 revision 2 parsed as valid YAML.
 - `git diff --check` passed.
+- Release `f57ba86` is deployed to staging; see `hosted-staging-deployment.md`.
 
 ## Deferred checkpoint scope
 

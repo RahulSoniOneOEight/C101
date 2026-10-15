@@ -1,5 +1,5 @@
 change_id: CHG-040
-revision: 1
+revision: 2
 request: >-
   Replace the generic Editorial content creation experience with property-first navigation and
   pages. Expose Banners, Storefront layouts, Category presentation, Product editorial, Collection
@@ -82,8 +82,31 @@ implementation:
   - The legacy content root redirects to the appropriate property page.
   - Mercur Admin ESLint and production build passed.
   - CHG-040 YAML and git diff whitespace validation passed.
-  hosted_deployment: pending
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-15T07:05:45Z'
+    release_commit: f57ba86
+    release_worktree: /opt/buildkart-releases/f57ba86
+    previous_release: /opt/buildkart-releases/e8c9240
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - All six property pages, operational pages, legacy content root and draft-editor route return HTTP 200.
+    - Served bundle contains all six direct property labels and property-level status labels.
+    - Served bundle does not contain the generic New content type or Create draft controls.
+    - Served bundle does not contain Preset Review or preset-derived labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - verify-all-six-properties-appear-directly-under-merchandising
+    - verify-each-property-page-has-the-correct-contextual-new-action
+    - verify-status-tabs-search-locale-and-pagination-at-wide-and-1024px
+    - verify-editor-back-navigation-returns-to-the-property-page
+    - verify-publish-and-unpublish-remain-explicit-confirmed-actions
+    - verify-legacy-content-root-redirects-to-banners
 implementation_evidence:
 - client-projects/client101/evidence/CHG-040/property-pages-local-verification.md
-status: implemented-awaiting-hosted-staging-review
+- client-projects/client101/evidence/CHG-040/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
 production_release_authorized: false
