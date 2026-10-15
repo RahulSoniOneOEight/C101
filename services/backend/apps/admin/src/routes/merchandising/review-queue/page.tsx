@@ -1,5 +1,4 @@
 import {
-  Button,
   Container,
   Heading,
   Label,
@@ -9,7 +8,7 @@ import {
 } from "@medusajs/ui";
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { ContentOperationsTable, PageTabs } from "../../content/content-operations";
 import { CONTENT_LOCALES, type ContentLocale } from "../../content/content-model";
 import { useContentLibrary } from "../../content/use-content-library";
@@ -17,7 +16,7 @@ import { useContentLibrary } from "../../content/use-content-library";
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Review queue",
-  rank: 3,
+  rank: 8,
   nested: "/merchandising",
 };
 
@@ -71,25 +70,18 @@ export default function ReviewQueuePage() {
                 separate actions; diff and reviewer assignment are not yet available.
               </Text>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="min-w-48">
-                <Label htmlFor="review-locale" size="xsmall">Working locale</Label>
-                <Select value={locale} onValueChange={updateLocale}>
-                  <Select.Trigger id="review-locale" aria-label="Review locale">
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Content>
-                    {CONTENT_LOCALES.map((item) => (
-                      <Select.Item key={item.value} value={item.value}>{item.label}</Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select>
-              </div>
-              <Button asChild variant="secondary" size="small">
-                <Link to={`/content?locale=${locale}&status=${view === "all" ? "modified" : view}`}>
-                  Open publication controls
-                </Link>
-              </Button>
+            <div className="min-w-48">
+              <Label htmlFor="review-locale" size="xsmall">Working locale</Label>
+              <Select value={locale} onValueChange={updateLocale}>
+                <Select.Trigger id="review-locale" aria-label="Review locale">
+                  <Select.Value />
+                </Select.Trigger>
+                <Select.Content>
+                  {CONTENT_LOCALES.map((item) => (
+                    <Select.Item key={item.value} value={item.value}>{item.label}</Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 px-6 py-4 md:grid-cols-3">

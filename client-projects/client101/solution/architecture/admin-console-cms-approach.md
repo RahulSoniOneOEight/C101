@@ -205,18 +205,24 @@ Make the overview an operational dashboard rather than a link directory.
 The page must clearly show **Staging**, selected **channel** (`b2c`/`b2b`) and **locale** (`en-IN`/
 `hi-IN`). Environment cannot be inferred only from the URL or badge colour.
 
-### Content library
+### Property-first editorial navigation
 
-Replace the current six large selector buttons and basic table with a native searchable data table:
+Use the Mercur left sidebar as the primary content-property navigation. Banners, Storefront layouts,
+Category presentation, Product editorial, Collection presentation and Help and articles are direct
+children of Merchandising rather than choices in a generic create selector. Each property page uses
+the same native resource-table pattern:
 
-- persistent content-type navigation or tabs;
-- search by title/key;
-- filters for status, locale, channel, placement and schedule;
-- pagination and stable URL query parameters;
-- sortable updated/published timestamps;
+- a contextual `New <property>` action; new records remain drafts until explicitly published;
+- one page-local tab level for All, Needs review, Draft only and Published;
+- search by title/key/context;
+- locale selection, pagination and stable URL query parameters;
+- updated and schedule context;
 - status text plus badge;
-- row action menu for Edit, Preview, Duplicate to locale, Publish/Unpublish and View history;
+- explicit Edit and Publish/Unpublish row actions;
 - empty, loading, permission-denied and CMS-unavailable states with recovery guidance.
+
+The legacy content-library root redirects to the Banners property page. Preview, duplicate-to-locale,
+history and richer schedule filters remain later governed capabilities rather than inactive controls.
 
 Use a route-based full-page editor for every governed content type. This keeps browser history, deep
 links, refreshes and unsaved-change protection predictable while leaving enough space for future
@@ -241,7 +247,7 @@ Add only contextual, read-only editorial widgets or rows to native product/categ
 | Storefront layout | Full page module builder | approved module palette, reorder, references, per-module validation, responsive preview | Stores references/composition only |
 | Category presentation | Full-page editor from content or category context | read-only Medusa category, display label, short text, icon allowlist, image/alt text | Category id, hierarchy and membership remain Medusa-owned |
 | Product editorial | Full-page editor from product context | read-only product identity, subtitle, guidance, SEO, locale completeness | SKU, variants, offers, price and stock remain commerce-owned |
-| Curated collection | Full detail page | key, copy, commerce-collection reference and missing-reference validation | Must not expose a second editable product-membership list |
+| Collection presentation | Full detail page | key, copy, commerce-collection reference and missing-reference validation | Must not expose a second editable product-membership list |
 | Help/article | Full-page editor | title, summary, body, audience, locale, preview and links | No transactional outcomes or policy invention without approval |
 
 Raw JSON remains available only in a permissioned advanced/recovery view until the governed layout

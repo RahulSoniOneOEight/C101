@@ -16,7 +16,7 @@ import { useContentLibrary } from "../../content/use-content-library";
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Content activity",
-  rank: 5,
+  rank: 10,
   nested: "/merchandising",
 };
 

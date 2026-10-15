@@ -20,7 +20,7 @@ import { useContentLibrary } from "../../content/use-content-library";
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Delivery status",
-  rank: 4,
+  rank: 9,
   nested: "/merchandising",
 };
 

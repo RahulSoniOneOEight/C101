@@ -5,6 +5,8 @@ export const CONTENT_KINDS = [
   {
     kind: "storefront-layout",
     label: "Storefront layouts",
+    singularLabel: "storefront layout",
+    route: "/merchandising/storefront-layouts",
     description: "Page composition and governed module order",
     delivery: "Partial",
     deliveryColor: "orange",
@@ -12,6 +14,8 @@ export const CONTENT_KINDS = [
   {
     kind: "banner",
     label: "Banners",
+    singularLabel: "banner",
+    route: "/merchandising/banners",
     description: "Hero, strip and campaign presentation",
     delivery: "Live",
     deliveryColor: "green",
@@ -19,6 +23,8 @@ export const CONTENT_KINDS = [
   {
     kind: "category-editorial",
     label: "Category presentation",
+    singularLabel: "category presentation",
+    route: "/merchandising/category-presentation",
     description: "Localized labels, guidance and category imagery",
     delivery: "Live",
     deliveryColor: "green",
@@ -26,6 +32,8 @@ export const CONTENT_KINDS = [
   {
     kind: "product-editorial",
     label: "Product editorial",
+    singularLabel: "product editorial",
+    route: "/merchandising/product-editorial",
     description: "Guidance, supporting copy and SEO",
     delivery: "Consumer pending",
     deliveryColor: "grey",
@@ -33,6 +41,8 @@ export const CONTENT_KINDS = [
   {
     kind: "curated-collection",
     label: "Collection presentation",
+    singularLabel: "collection presentation",
+    route: "/merchandising/collection-presentation",
     description: "Editorial framing around commerce-owned product membership",
     delivery: "Partial",
     deliveryColor: "orange",
@@ -40,6 +50,8 @@ export const CONTENT_KINDS = [
   {
     kind: "faq-article",
     label: "Help and articles",
+    singularLabel: "help article",
+    route: "/merchandising/help-articles",
     description: "FAQ, policy and onboarding content",
     delivery: "Consumer pending",
     deliveryColor: "grey",
@@ -67,6 +79,11 @@ export function isContentKind(value: string | undefined): value is ContentKind {
 
 export function contentKind(kind: ContentKind) {
   return CONTENT_KINDS.find((item) => item.kind === kind)!;
+}
+
+export function contentKindRoute(kind: ContentKind, locale?: ContentLocale): string {
+  const route = contentKind(kind).route;
+  return locale && locale !== "en-IN" ? `${route}?locale=${encodeURIComponent(locale)}` : route;
 }
 
 export function statusColor(status: PublicationStatus): "green" | "orange" | "grey" {

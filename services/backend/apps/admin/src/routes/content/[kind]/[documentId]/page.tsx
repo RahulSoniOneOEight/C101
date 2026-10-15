@@ -15,6 +15,7 @@ import {
   CONTENT_LOCALES,
   contentDocumentRoute,
   contentKind,
+  contentKindRoute,
   displayValue,
   initialForm,
   isContentKind,
@@ -147,7 +148,7 @@ function DraftEditor({
     (field) => field.type === "json"
       && !(kind === "curated-collection" && field.name === "productIds"),
   );
-  const libraryRoute = `/content?${new URLSearchParams({ kind, locale }).toString()}`;
+  const libraryRoute = contentKindRoute(kind, locale);
   const title = creating
     ? `Create ${kindConfig.label.toLocaleLowerCase()} draft`
     : displayValue(document!, content.definition.titleField);
@@ -159,8 +160,8 @@ function DraftEditor({
           <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 max-w-3xl">
               <Text size="xsmall" className="text-ui-fg-subtle">
-                <Link to={libraryRoute} className="hover:text-ui-fg-interactive">Editorial content</Link>
-                {" / "}{kindConfig.label}
+                <Link to={libraryRoute} className="hover:text-ui-fg-interactive">{kindConfig.label}</Link>
+                {" / Draft editor"}
               </Text>
               <div className="mt-1 flex flex-wrap items-center gap-2">
                 <Heading level="h1">{title}</Heading>
@@ -179,7 +180,7 @@ function DraftEditor({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button asChild variant="secondary" size="small">
-                <Link to={libraryRoute}>Back to library</Link>
+                <Link to={libraryRoute}>Back to {kindConfig.label.toLocaleLowerCase()}</Link>
               </Button>
               <Button
                 size="small"
@@ -325,7 +326,7 @@ export default function ContentDocumentPage() {
   const document = content?.documents.find(
     (candidate) => candidate.documentId === documentId,
   );
-  const libraryRoute = `/content?${new URLSearchParams({ kind, locale }).toString()}`;
+  const libraryRoute = contentKindRoute(kind, locale);
 
   if (!routeKind || !documentId) {
     return (
@@ -336,7 +337,7 @@ export default function ContentDocumentPage() {
             Open the content library and choose a governed content type.
           </Text>
           <Button asChild variant="secondary" size="small" className="mt-4">
-            <Link to="/content">Back to content library</Link>
+            <Link to="/merchandising/banners">Back to banners</Link>
           </Button>
         </Container>
       </SingleColumnPage>
@@ -363,7 +364,7 @@ export default function ContentDocumentPage() {
             this account lacks permission.
           </Text>
           <Button asChild variant="secondary" size="small" className="mt-4">
-            <Link to={libraryRoute}>Back to content library</Link>
+            <Link to={libraryRoute}>Back to property page</Link>
           </Button>
         </Container>
       </SingleColumnPage>

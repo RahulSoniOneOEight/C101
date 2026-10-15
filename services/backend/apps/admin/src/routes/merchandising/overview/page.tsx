@@ -30,14 +30,6 @@ export const config: RouteConfig = {
 
 const workspaceCards = [
   {
-    title: "Editorial content",
-    owner: "Editorial",
-    ownerColor: "blue",
-    description: "Manage customer-facing presentation in the unified content library.",
-    to: "/content",
-    action: "Manage content",
-  },
-  {
     title: "Promotions",
     owner: "Commerce",
     ownerColor: "grey",
@@ -215,7 +207,7 @@ export default function MerchandisingOverviewPage() {
               </Text>
             </div>
             <Button asChild variant="secondary" size="small">
-              <Link to={`/content?locale=${locale}`}>Open content library</Link>
+              <Link to={`/merchandising/review-queue?locale=${locale}`}>Open review queue</Link>
             </Button>
           </div>
           {isPending && items.length === 0 ? (
@@ -238,7 +230,15 @@ export default function MerchandisingOverviewPage() {
           )}
         </Container>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div>
+          <div className="mb-3 px-1">
+            <Heading level="h2">Authoritative commerce controls</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Editorial properties are available directly in the left menu. Use these native
+              Medusa controls for commerce-owned rules and membership.
+            </Text>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {workspaceCards.map((card) => (
             <Container key={card.title} className="flex flex-col justify-between gap-5 p-6">
               <div>
@@ -256,6 +256,7 @@ export default function MerchandisingOverviewPage() {
               </Button>
             </Container>
           ))}
+          </div>
         </div>
 
         <Container className="px-6 py-4">
