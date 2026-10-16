@@ -23,23 +23,80 @@ export type BannerPreviewPresentation = NonNullable<BannerPreviewResponse["prese
 export const IST_TIMEZONE = "Asia/Kolkata";
 
 /**
- * Placements the storefront actually renders.
+ * Placements the storefront actually renders, scoped to the channel whose surface consumes them.
  *
- * This mirrors the app's hard-coded slot keys: `home.hero` is read by the home header carousel
- * (`bannersFor('home.hero')`) and `home.campaign-strip` by the secondary-banner merchandising module
- * (`bannersFor('home.campaign-strip').firstOrNull`). The CMS stores `placement` as free text, so a
- * value outside this list is accepted, published, and then never rendered. The studio therefore
- * offers only these, and labels anything else as unrecognised instead of inventing a slot.
+ * This mirrors the app's hard-coded slot keys: `home.hero` is read by the B2C home header carousel
+ * (`bannersFor('home.hero')`) and `home.campaign-strip` by the B2C secondary-banner merchandising
+ * module (`bannersFor('home.campaign-strip').firstOrNull`). The CMS stores `placement` as free text,
+ * so a value outside this list is accepted, published, and then never rendered.
+ *
+ * B2B deliberately has no entries: the B2B app renders no CMS banners today (no hero slot, and its
+ * category banner is a hard-coded app image), so offering a B2B placement would offer a control that
+ * does nothing. Category banners are not banners either — they belong to the Category presentation
+ * property (`category-editorial`), which already owns that image.
  */
-export const SUPPORTED_PLACEMENTS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "home.hero", label: "Home → Hero" },
-  { value: "home.campaign-strip", label: "Home → Campaign strip" },
+export interface PlacementOption {
+  value: string;
+  label: string;
+  channel: "b2c" | "b2b";
+  /** The audience a banner in this slot must carry: the slot belongs to one channel. */
+  audience: "b2c" | "b2b";
+}
+
+export const SUPPORTED_PLACEMENTS: ReadonlyArray<PlacementOption> = [
+  { value: "home.hero", label: "B2C · Home", channel: "b2c", audience: "b2c" },
+  {
+    value: "home.campaign-strip",
+    label: "B2C · Campaign banner",
+    channel: "b2c",
+    audience: "b2c",
+  },
 ];
+
+/** Where category banners are actually edited, so the studio can point at the one authoritative page. */
+export const CATEGORY_PRESENTATION_ROUTE = "/merchandising/category-presentation";
 
 const SUPPORTED_PLACEMENT_VALUES = new Set(SUPPORTED_PLACEMENTS.map((item) => item.value));
 
 export function isRecognisedPlacement(value: unknown): boolean {
   return typeof value === "string" && SUPPORTED_PLACEMENT_VALUES.has(value.trim());
+}
+
+export function supportedPlacement(value: unknown): PlacementOption | undefined {
+  return typeof value === "string"
+    ? SUPPORTED_PLACEMENTS.find((item) => item.value === value.trim())
+    : undefined;
+}
+
+/**
+ * Audiences a banner may carry for a placement. A recognised placement belongs to exactly one
+ * channel, so "B2B + B2C" is not offered: it was the option that let a banner claim a channel whose
+ * surface does not render it. An unrecognised placement keeps the full list, because we do not know
+ * what consumes it.
+ */
+export function audienceOptionsForPlacement(placement: unknown): Array<{ value: string; label: string }> {
+  const option = supportedPlacement(placement);
+  if (!option) {
+    return [
+      { value: "both", label: AUDIENCE_LABELS.both },
+      { value: "b2c", label: AUDIENCE_LABELS.b2c },
+      { value: "b2b", label: AUDIENCE_LABELS.b2b },
+    ];
+  }
+  return [{ value: option.audience, label: AUDIENCE_LABELS[option.audience] }];
+}
+
+/** The audience a banner should be saved with. Legacy values normalise to the placement's channel. */
+export function audienceForPlacement(placement: unknown, current: string): string {
+  const option = supportedPlacement(placement);
+  return option ? option.audience : current;
+}
+
+/** True when a stored audience does not match its placement's channel and will change on next save. */
+export function hasLegacyAudience(placement: unknown, current: string): boolean {
+  const option = supportedPlacement(placement);
+  if (!option || !current) return false;
+  return current !== option.audience;
 }
 
 export const AUDIENCE_LABELS: Record<string, string> = {
@@ -335,7 +392,8 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     name: form.name.trim() || null,
     contentKey: form.contentKey.trim(),
     placement: form.placement.trim(),
-    audience: form.audience,
+    // A recognised placement belongs to one channel, so a legacy "both" value normalises on save.
+    audience: audienceForPlacement(form.placement, form.audience),
     title: form.title.trim(),
     subtitle: form.subtitle.trim() || null,
     ctaLabel: form.ctaLabel.trim() || null,

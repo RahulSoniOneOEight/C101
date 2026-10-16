@@ -16,6 +16,7 @@ import {
 } from "@medusajs/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { client } from "../../../lib/client";
 import {
   CONTENT_LOCALES,
@@ -26,6 +27,7 @@ import {
   type ContentResponse,
 } from "../content-model";
 import {
+  CATEGORY_PRESENTATION_ROUTE,
   CTA_TARGET_LABELS,
   CTA_TARGET_TYPES,
   EMPTY_BANNER_FORM,
@@ -33,9 +35,12 @@ import {
   PREVIEW_DEVICES,
   SUPPORTED_PLACEMENTS,
   THEME_LABELS,
+  audienceForPlacement,
   audienceLabel,
+  audienceOptionsForPlacement,
   bannerTitle,
   formFromDocument,
+  hasLegacyAudience,
   isRecognisedPlacement,
   localeLabel,
   placementLabel,
@@ -120,6 +125,16 @@ export function BannerEditor({
     () => alternateQuery.data?.documents.find((item) => item.documentId === documentId),
     [alternateQuery.data, documentId],
   );
+
+  // A placement belongs to one channel, so its audience list has a single entry. A stored legacy value
+  // is added back so the field never shows blank, and is normalised on the next save.
+  const audienceSelectOptions = useMemo(() => {
+    const options = audienceOptionsForPlacement(form.placement);
+    if (form.audience && !options.some((option) => option.value === form.audience)) {
+      return [...options, { value: form.audience, label: `${audienceLabel(form.audience)} (current)` }];
+    }
+    return options;
+  }, [form.audience, form.placement]);
 
   // The page remounts this editor per record (`key`), so initial state is enough: no reset effect.
 
@@ -389,7 +404,13 @@ export function BannerEditor({
                         ? "Where the home screen renders this banner. Membership and ordering stay in storefront layouts."
                         : "This placement is not rendered by the app. Choose a supported slot so the banner can appear."}
                     >
-                      <Select value={form.placement} onValueChange={(value) => update({ placement: value })}>
+                      <Select
+                        value={form.placement}
+                        onValueChange={(value) => update({
+                          placement: value,
+                          audience: audienceForPlacement(value, form.audience),
+                        })}
+                      >
                         <Select.Trigger id="banner-placement"><Select.Value /></Select.Trigger>
                         <Select.Content>
                           {placementOptions(form.placement).map((option) => (
@@ -398,13 +419,20 @@ export function BannerEditor({
                         </Select.Content>
                       </Select>
                     </Field>
-                    <Field id="banner-audience" label="Audience">
+                    <Field
+                      id="banner-audience"
+                      label="Audience"
+                      description={hasLegacyAudience(form.placement, form.audience)
+                        ? `Saved as ${audienceLabel(form.audience)}. Saving sets it to `
+                          + `${audienceLabel(audienceForPlacement(form.placement, form.audience))} to match the placement.`
+                        : "Set by the placement, because each slot belongs to one channel."}
+                    >
                       <Select value={form.audience} onValueChange={(value) => update({ audience: value })}>
                         <Select.Trigger id="banner-audience"><Select.Value /></Select.Trigger>
                         <Select.Content>
-                          <Select.Item value="both">B2B + B2C</Select.Item>
-                          <Select.Item value="b2c">B2C customers</Select.Item>
-                          <Select.Item value="b2b">B2B buyers</Select.Item>
+                          {audienceSelectOptions.map((option) => (
+                            <Select.Item key={option.value} value={option.value}>{option.label}</Select.Item>
+                          ))}
                         </Select.Content>
                       </Select>
                     </Field>
@@ -418,14 +446,17 @@ export function BannerEditor({
                         </Select.Content>
                       </Select>
                     </Field>
-                    <Field
-                      id="banner-channel"
-                      label="Channel"
-                      description="Not stored per banner today. Channel comes from the storefront layout."
-                    >
-                      <Input id="banner-channel" value="Governed by storefront layout" disabled readOnly />
-                    </Field>
                   </div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Category banners are not edited here — they are owned by{" "}
+                    <Link
+                      to={CATEGORY_PRESENTATION_ROUTE}
+                      className="text-ui-fg-interactive hover:underline"
+                    >
+                      Category presentation
+                    </Link>
+                    . B2B slots are not offered yet because the B2B app does not render CMS banners.
+                  </Text>
                 </section>
 
                 <section className="flex flex-col gap-y-5">

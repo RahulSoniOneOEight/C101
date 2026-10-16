@@ -24,6 +24,7 @@ import {
   type ContentLocale,
 } from "../content-model";
 import {
+  CATEGORY_PRESENTATION_ROUTE,
   LIFECYCLE_META,
   STUDIO_TABS,
   SUPPORTED_PLACEMENTS,
@@ -527,8 +528,15 @@ export function BannerStudioPage() {
             Status comes from one rule: publication plus the stored schedule. Draft is not published,
             Scheduled opens later, Live is open now, Historical means the end time has passed, and a
             published banner with newer edits is marked "Changes not published". Status never claims a
-            banner is being served — audience, channel and storefront-layout placement are separate.
-            The list is loaded one language at a time, which is why Language sits with the filters.
+            banner is being served — audience and storefront-layout placement are separate. The list is
+            loaded one language at a time, which is why Language sits with the filters.
+          </Text>
+          <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+            Placements are limited to the B2C slots the app renders. Category banners are owned by{" "}
+            <Link to={CATEGORY_PRESENTATION_ROUTE} className="text-ui-fg-interactive hover:underline">
+              Category presentation
+            </Link>
+            , and B2B slots are not offered yet because the B2B app does not render CMS banners.
           </Text>
         </Container>
       </div>

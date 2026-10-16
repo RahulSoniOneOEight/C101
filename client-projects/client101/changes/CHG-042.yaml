@@ -1,5 +1,5 @@
 change_id: CHG-042
-revision: 5
+revision: 6
 request: >-
   Improve the BuildKart Ops Console Merchandising > Banners page using the supplied Banner studio
   HTML demo as the visual and interaction reference: compact header and counts, placement/audience/
@@ -94,6 +94,12 @@ decisions_approved_rev5:
   approved_at_utc: '2026-10-16'
   D-042-15: placements are limited to the slots the storefront actually renders; the studio must not present a slot that does not exist.
   D-042-16: an unrecognised placement is labelled as such in the row, the editor and the filter, instead of being hidden or renamed.
+decisions_approved_rev6:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-17: placements are scoped to the channel whose surface renders them; only B2C Home and B2C Campaign banner are offered.
+  D-042-18: category banners are not banners; the studio links to the Category presentation property instead of duplicating its image.
+  D-042-19: audience is derived from the placement, so "B2B + B2C" is no longer offered; a stored legacy value normalises on the next save and is shown as such beforehand.
 supersedes:
   - "CHG-038 and CHG-040 routed full-page editor decision applies to the banner kind only: the banner editor is now a modal dialog over the Banners page. The other five properties keep routed editors."
   - "A deep-linkable query parameter replaces the routed editor URL for banners so refresh, browser Back and unsaved-change protection still hold."

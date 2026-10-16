@@ -287,6 +287,54 @@ holding to elsewhere.
 The unrecognised-placement warning has no live data to exercise it against, because no banner in staging
 uses an unknown placement. It is covered by type-level reasoning and the build, not by a rendered case.
 
+## Revision 6 — channel-scoped placements
+
+Requested change: the banner page should present B2C Home, B2C Category and B2C Campaign banner, keep the
+B2B category banners separate, and not offer both as one combined option set.
+
+Two facts shaped what could be built:
+
+- **Category banners are not banners.** Their image is owned by `category-editorial`
+  (`externalBannerImageUrl`, `bannerImageAltText`, `heroImage`), which is already a sidebar property
+  ("Category presentation"). Adding a `category.*` placement to the banner type would create a second
+  editable control for the same image, breaking the one-authoritative-editor rule.
+- **B2B renders no CMS banners at all.** No hero slot exists in the B2B app, and its category banner is
+  `b2bCategoryBannerImage()` — a hard-coded image map in `b2b_trade_providers.dart`. A B2B placement
+  would be selectable, saveable and publishable while changing nothing, which is the same defect as the
+  removed "Home → Campaign".
+
+### Shipped
+
+- **Placements are channel-scoped.** `SUPPORTED_PLACEMENTS` now carries a channel and the audience the
+  slot requires, and holds only B2C entries: `B2C · Home` (`home.hero`) and `B2C · Campaign banner`
+  (`home.campaign-strip`).
+- **Category banners point at their real owner.** Both the studio footer and the editor link to
+  Category presentation and state that the image is edited there.
+- **Audience follows the placement.** A recognised placement offers its channel's audience only, so
+  "B2B + B2C" is no longer selectable. A stored legacy value such as `both` is shown as
+  "(current)" with an explanation that saving will set it to the placement's channel, so the change is
+  visible before it happens rather than silent.
+- **The separate read-only Channel field was removed**, because the placement label already names the
+  channel and the two contradicted each other ("B2C · Home" beside "Governed by storefront layout").
+- B2B is stated as not-yet-offered, with the reason, instead of being omitted without explanation.
+
+### Known consequence
+
+Eight seeded rows are stored as `audience: both`. They keep delivering unchanged until an operator saves
+them, at which point they normalise to `b2c`. For B2C delivery nothing changes (`b2c` is a subset of
+`both`); for B2B nothing changes either, because the B2B app renders no CMS banners. The editor says so
+before the save.
+
+### Verified on staging
+
+- Served bundle contains `B2C · Home`, `B2C · Campaign banner` and the Category presentation link.
+- The retired `Home → Hero` label is absent.
+
+### Not verified
+
+No banner in staging carries a legacy `both` audience change to observe end to end, and the audience
+normalisation is exercised only through the serialiser. It remains unproven against live data.
+
 ## Known limitations and deviations (deliberate)
 
 Recorded so nothing is mistaken for finished work:
