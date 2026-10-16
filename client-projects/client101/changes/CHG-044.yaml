@@ -136,18 +136,31 @@ implementation:
     - Drag-and-drop ordering, which is currently move up and down.
     - Client-side validation on the raw JSON property page.
     - Storefront consumption of sections, which is phase 3; until then the editor configures something no customer sees.
+  phase_3a:
+    commit: 139f9b8
+    delivered:
+    - 'MedusaStoreClient.listProductsByCollection, the product-resolution counterpart to listProductsByCategory.'
+    - 'resolveSectionProducts: resolves a section collection reference into products at read time, recursively for group children, honouring the declared limit and defaulting to 12.'
+    - Products resolve to identity, handle and thumbnail only; price and stock stay where the storefront already reads them.
+    - A failing or empty collection explains itself and cannot fail the shell; empty collections are reported in layout.empty_collections.
+    - Non-collection sources (buy_again, schemes, best-selling) are labelled rather than silently empty.
+    verified:
+    - section-products-test, layout-sections-test and presentation-test all PASS; typecheck clean.
+    - 'End to end: before adding products the payload reported empty_collections; after adding a product to the collection via the admin API, all three B2C sections returned that product with badges and limits intact.'
+    not_done:
+    - Phase 3b, the storefront rendering half. The app has no layout consumption at all, so nothing here is customer-visible yet.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T20:17:00Z'
-    release_commit: f6e3f5d
-    release_worktree: /opt/buildkart-releases/f6e3f5d
-    previous_release: /opt/buildkart-releases/cc5b2f6
+    deployed_at_utc: '2026-10-16T20:42:00Z'
+    release_commit: 139f9b8
+    release_worktree: /opt/buildkart-releases/139f9b8
+    previous_release: /opt/buildkart-releases/f6e3f5d
     recreated_services:
-    - cms
-    - medusa-api
+    - experience-api
 implementation_evidence:
 - client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
 - client-projects/client101/evidence/CHG-044/phase-1-layout-sections.md
 - client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
-status: phase-2-deployed-awaiting-review
+- client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
+status: phase-3a-deployed-awaiting-review
 production_release_authorized: false
