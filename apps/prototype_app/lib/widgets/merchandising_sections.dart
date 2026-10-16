@@ -38,6 +38,7 @@ class MerchandisingModuleView extends StatelessWidget {
         final actionUri = banner.actionUri;
         return MerchandisingBanner(
           imageUrl: banner.imageUrl,
+          imageAlt: banner.imageAlt,
           title: banner.title,
           subtitle: banner.subtitle,
           ctaLabel: banner.ctaLabel,

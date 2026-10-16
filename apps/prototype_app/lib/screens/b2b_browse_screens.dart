@@ -126,6 +126,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 child: MerchandisingBanner(
                   imageUrl: ref.watch(b2bCategoryBannerImageProvider(_categoryId)) ??
                       fallbackCategoryBannerImage,
+                  imageAlt: ref.watch(b2bCategoryBannerAltProvider(_categoryId)),
                   title: title,
                   subtitle: 'Trade rates · MOQ · GST invoicing',
                   ctaLabel: 'Filters',

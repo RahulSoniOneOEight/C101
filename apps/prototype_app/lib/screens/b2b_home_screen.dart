@@ -359,6 +359,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
           MerchandisingBanner(
             imageUrl: ref.watch(b2bCategoryBannerImageProvider(_catId)) ??
                 fallbackCategoryBannerImage,
+            imageAlt: ref.watch(b2bCategoryBannerAltProvider(_catId)),
             title: selectedLabel == null
                 ? 'Trade catalogue'
                 : '$selectedLabel supplies',

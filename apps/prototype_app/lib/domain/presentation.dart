@@ -17,6 +17,7 @@ class StorefrontBanner {
     required this.themeKey,
     this.body,
     this.imageUrl,
+    this.imageAlt,
     this.actionLabel,
     this.actionUri,
     this.priority = 0,
@@ -28,6 +29,9 @@ class StorefrontBanner {
   final String themeKey;
   final String? body;
   final String? imageUrl;
+
+  /// CMS alternative text for the creative. Delivered as `image_alt`; required on published banners.
+  final String? imageAlt;
   final String? actionLabel;
   final String? actionUri;
   final int priority;
@@ -40,6 +44,7 @@ class StorefrontBanner {
       themeKey: json['theme_key'] as String? ?? 'primary',
       body: json['body'] as String?,
       imageUrl: json['image_uri'] as String?,
+      imageAlt: json['image_alt'] as String?,
       actionLabel: json['action_label'] as String?,
       actionUri: json['action_uri'] as String?,
       priority: (json['priority'] as num?)?.toInt() ?? 0,
@@ -57,6 +62,7 @@ class StorefrontCategory {
     this.slug,
     this.shortText,
     this.bannerImageUrl,
+    this.bannerImageAlt,
   });
 
   /// Commerce category id (Medusa).
@@ -68,6 +74,9 @@ class StorefrontCategory {
   final String? shortText;
   final String? bannerImageUrl;
 
+  /// CMS alternative text for the category banner, delivered as `banner_image_alt`.
+  final String? bannerImageAlt;
+
   factory StorefrontCategory.fromJson(Map<String, dynamic> json) {
     return StorefrontCategory(
       id: json['category_id'] as String? ?? '',
@@ -77,6 +86,7 @@ class StorefrontCategory {
       slug: json['slug'] as String?,
       shortText: json['short_text'] as String?,
       bannerImageUrl: json['banner_image_uri'] as String?,
+      bannerImageAlt: json['banner_image_alt'] as String?,
     );
   }
 }

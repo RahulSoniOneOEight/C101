@@ -17,6 +17,7 @@ class MerchandisingBannerData {
   const MerchandisingBannerData({
     required this.imageUrl,
     required this.title,
+    this.imageAlt,
     this.subtitle,
     this.ctaLabel,
     this.actionUri,
@@ -24,6 +25,10 @@ class MerchandisingBannerData {
 
   final String imageUrl;
   final String title;
+
+  /// CMS alternative text for [imageUrl]. Passed to the image's semantic label so a screen reader
+  /// announces the creative instead of skipping it.
+  final String? imageAlt;
   final String? subtitle;
   final String? ctaLabel;
   final String? actionUri;

@@ -1164,6 +1164,7 @@ class MerchandisingBanner extends StatelessWidget {
   const MerchandisingBanner({
     required this.imageUrl,
     required this.title,
+    this.imageAlt,
     this.subtitle,
     this.ctaLabel,
     this.onCta,
@@ -1172,6 +1173,10 @@ class MerchandisingBanner extends StatelessWidget {
 
   final String imageUrl;
   final String title;
+
+  /// CMS alternative text. Without it the creative is decorative to a screen reader, which is wrong
+  /// for an image that carries an offer.
+  final String? imageAlt;
   final String? subtitle;
   final String? ctaLabel;
   final VoidCallback? onCta;
@@ -1189,6 +1194,7 @@ class MerchandisingBanner extends StatelessWidget {
             Image.network(
               imageUrl,
               fit: BoxFit.cover,
+              semanticLabel: imageAlt,
               errorBuilder: (_, __, ___) =>
                   ColoredBox(color: colors.surfaceInteractive),
             ),

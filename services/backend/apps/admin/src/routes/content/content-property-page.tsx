@@ -71,6 +71,8 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
     ? requestedView
     : "all";
   const search = searchParams.get("q") ?? "";
+  // Channel only applies to category details, which now holds independent B2C and B2B sets.
+  const channelFilter = kind === "category-editorial" ? searchParams.get("channel") ?? "" : "";
   const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const queryKey = ["buildkart", "cms-content", kind, locale];
@@ -94,6 +96,7 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
   const term = search.trim().toLocaleLowerCase();
   const filteredItems = items
     .filter((item) => view === "all" || item.document.publicationStatus === view)
+    .filter((item) => (channelFilter ? item.document.channel === channelFilter : true))
     .filter((item) => {
       if (!term) return true;
       return displayValue(item.document, item.response.definition.titleField).toLocaleLowerCase().includes(term)
@@ -217,7 +220,7 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
               { value: "published", label: "Published", count: counts.published, to: tabRoute("published") },
             ]}
           />
-          <div className="grid gap-3 border-b border-ui-border-base px-6 py-4 md:grid-cols-[minmax(0,1fr)_12rem]">
+          <div className={`grid gap-3 border-b border-ui-border-base px-6 py-4 ${kind === "category-editorial" ? "md:grid-cols-[minmax(0,1fr)_12rem_10rem]" : "md:grid-cols-[minmax(0,1fr)_12rem]"}`}>
             <div>
               <Label htmlFor={`${kind}-search`} size="xsmall">Search {config.label.toLocaleLowerCase()}</Label>
               <Input
@@ -241,6 +244,24 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
                 </Select.Content>
               </Select>
             </div>
+            {kind === "category-editorial" ? (
+              <div>
+                <Label htmlFor={`${kind}-channel`} size="xsmall">Channel</Label>
+                <Select
+                  value={channelFilter || "all"}
+                  onValueChange={(value) => updateParams({ channel: value === "all" ? null : value }, true)}
+                >
+                  <Select.Trigger id={`${kind}-channel`} aria-label="Category details channel">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="all">B2C and B2B</Select.Item>
+                    <Select.Item value="b2c">B2C only</Select.Item>
+                    <Select.Item value="b2b">B2B only</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
+            ) : null}
           </div>
 
           {contentQuery.isPending ? (

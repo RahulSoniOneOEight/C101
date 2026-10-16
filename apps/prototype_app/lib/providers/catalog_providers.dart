@@ -419,6 +419,11 @@ final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, l
   return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageUrl;
 });
 
+/// CMS alternative text for the B2B category banner, or null when none is authored.
+final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, label) {
+  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageAlt;
+});
+
 /// Governed fallback creative for the campaign strip when the backend
 /// presentation is unavailable.
 const String _clearanceBannerImage =
@@ -475,6 +480,7 @@ final homeModulesProvider =
       type: MerchandisingModuleType.secondaryBanner,
       banner: MerchandisingBannerData(
         imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
+        imageAlt: campaignStrip?.imageAlt,
         title: campaignStrip?.title ?? 'Clearance Sale',
         subtitle: campaignStrip?.body ?? 'Up to 70% off select items',
         ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
