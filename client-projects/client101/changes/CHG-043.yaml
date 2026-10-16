@@ -1,5 +1,5 @@
 change_id: CHG-043
-revision: 1
+revision: 2
 request: >-
   Remove category banners from the Category presentation property and manage them on the Banner page
   instead, with B2C and B2B treated as separate sets in both categories and banners. Stop the B2B app
@@ -77,6 +77,23 @@ decisions_proposed:
   D-043-04: the delivery payload keeps its existing category shape so the B2C app is untouched by the ownership move.
   D-043-05: B2B stops hard-coding only when the app consumes channel=b2b; until then the B2B placement is labelled not-yet-rendered.
   D-043-06: the six existing category banner images migrate into banner records before the fields are removed.
+decisions_approved_rev2:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-043-07: the banner type carries the channel, so the audience field is removed from the banner entirely.
+  D-043-08: banner types become explicit and channel-prefixed — b2c.home.hero, b2c.home.campaign-strip, b2c.category.banner, b2b.category.banner — and the existing placement values migrate to them.
+  D-043-09: the placement-to-channel registry lives in one shared contract consumed by both the console and the delivery adapter, so the two can never disagree.
+  D-043-10: the Live tab lists every published, in-window banner of every type; type filtering stays in the filters, not the tabs.
+banner_types:
+- "b2c.home.hero — B2C · Home"
+- "b2c.home.campaign-strip — B2C · Campaign banner"
+- "b2c.category.banner — B2C · Category banner (requires a category reference)"
+- "b2b.category.banner — B2B · Category banner (requires a category reference)"
+consequences:
+- "audience removal is destructive: the column and its stored values are dropped, so it must be migrated away only after delivery derives the channel from the type."
+- "the five existing banner rows carry home.hero and home.campaign-strip and must be re-pointed at the channel-prefixed values."
+- "delivery currently filters by audience; it must instead filter by the placement's channel, using the shared registry."
+- "the Live tab already lists all types today, because tabs filter by lifecycle rather than placement; this is confirmed, not changed."
 phases:
   phase_1_cms_and_delivery:
   - Add categoryId to the banner content type and channel to category-editorial.
