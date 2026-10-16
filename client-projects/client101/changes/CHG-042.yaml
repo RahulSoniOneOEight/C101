@@ -147,8 +147,40 @@ implementation_request:
   human_approval_required_before_code: false
 implementation:
   branch: feat/medusa-native-merchandising-admin
-  hosted_deployment: not-started
-implementation_evidence:
-- client-projects/client101/evidence/CHG-042/banner-studio-inspection.md
-status: approved-implementation-in-progress
+  local_verification:
+  - Empty optional JSON still normalises to null (CHG-041 regression case is in the CMS CI check).
+  - The banner `name` attribute was added additively and the CMS build passes.
+  - Duplicate, concurrency token and preview clients have unit coverage; the operator client suite passes 6 tests.
+  - Mercur Admin lint and production build pass; Experience API typecheck passes; Medusa API build passes.
+  - Banner studio, preview, duplicate and concurrency were exercised against the compiled runtime.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-16T10:43:00Z'
+    release_commit: 13941b2
+    release_worktree: /opt/buildkart-releases/13941b2
+    previous_release: /opt/buildkart-releases/e4a1f32
+    recreated_services:
+    - cms
+    - medusa-api
+    - experience-api
+    new_secret: EXPERIENCE_OPERATOR_SECRET (dedicated to the private preview projection)
+    fcm_overlay_preserved: true
+    verification:
+    - Banner studio routes return HTTP 200 including the Scheduled tab.
+    - Served bundle carries the real Banner studio labels and none of the demo's fabricated data.
+    - The customer host returns 404 for /v1/internal/content/preview and the route rejects a wrong bearer token with 401.
+    - Public presentation is unchanged and not stale.
+    - Duplicate creates a draft-only copy; a stale save is rejected with 409; the audit rows are recorded.
+    - cms, medusa-api and experience-api are healthy with zero restarts.
+    pending_human_checks:
+    - verify-header-counts-and-tabs
+    - verify-filters-and-eligibility-columns
+    - verify-grouped-editor-destination-and-schedule
+    - verify-live-preview-and-device-modes
+    - verify-draft-save-then-duplicate-then-publish
+    - verify-concurrent-edit-guard
+  implementation_evidence:
+  - client-projects/client101/evidence/CHG-042/banner-studio-inspection.md
+  - client-projects/client101/evidence/CHG-042/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
