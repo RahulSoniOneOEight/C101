@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/b2b_trade_models.dart';
+import '../domain/presentation.dart';
 import 'b2b_trade_providers.dart';
+import 'catalog_providers.dart';
 
 /// The kind of a backend-configured offer/deal collection.
 enum TradeOfferType {
@@ -47,6 +49,19 @@ class TradeOfferCollection {
   final String? schemeLabel;
 
   bool get isScheme => type == TradeOfferType.schemes;
+
+  TradeOfferCollection copyWith({String? title}) => TradeOfferCollection(
+        id: id,
+        title: title ?? this.title,
+        description: description,
+        type: type,
+        icon: icon,
+        accent: accent,
+        displayOrder: displayOrder,
+        productIds: productIds,
+        featuredOnHome: featuredOnHome,
+        schemeLabel: schemeLabel,
+      );
 }
 
 /// All offer/deal collections (backend-configurable fixture).
@@ -120,15 +135,54 @@ final tradeOfferCollectionsProvider =
   ];
 });
 
-/// The collections featured on the B2B Home preview (ordered).
+/// The collections featured on the B2B Home preview, driven by the backend layout when one is
+/// published for the b2b channel.
+///
+/// The layout's `trade_offers` group declares which categories appear, in what order, under what label
+/// and whether they are visible. Only the *presentation* comes from the layout: product membership
+/// still resolves through the governed offers path, so nothing is copied into the layout.
+///
+/// With no layout configured the governed local defaults are used unchanged, so the home never
+/// renders empty because an operator has not authored a layout yet.
 final featuredTradeOffersProvider = Provider<List<TradeOfferCollection>>((ref) {
-  final list = ref
-      .watch(tradeOfferCollectionsProvider)
-      .where((c) => c.featuredOnHome)
-      .toList()
+  final collections = ref.watch(tradeOfferCollectionsProvider);
+
+  final sections =
+      ref.watch(b2bLayoutSectionsProvider).value ?? const <StorefrontSection>[];
+  final group = sections
+      .where((s) => s.placement == 'trade_offers' && s.visible)
+      .firstOrNull;
+
+  if (group != null && group.children.isNotEmpty) {
+    final byId = <String, TradeOfferCollection>{
+      for (final collection in collections) collection.id: collection,
+    };
+    final configured = <TradeOfferCollection>[];
+    for (final child in group.children) {
+      if (!child.visible) continue;
+      final collectionId = _tradeOfferPlacementToCollection[child.placement];
+      final collection = collectionId == null ? null : byId[collectionId];
+      if (collection == null) continue;
+      configured.add(collection.copyWith(title: child.displayTitle));
+    }
+    if (configured.isNotEmpty) return configured;
+  }
+
+  final fallback = collections.where((c) => c.featuredOnHome).toList()
     ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
-  return list;
+  return fallback;
 });
+
+/// Layout placement to local offer collection.
+///
+/// A layout section references content by placement; the trade rail renders a local collection with its
+/// own icon and accent. An unmapped placement is skipped rather than guessed at, so a section the app
+/// cannot render never appears as an empty tile.
+const Map<String, String> _tradeOfferPlacementToCollection = <String, String>{
+  'seasonal': 'off_seasonal',
+  'best_deals': 'off_best_deals',
+  'schemes': 'off_schemes',
+};
 
 /// The catalogue products assigned to a collection (deduped, catalogue order).
 final tradeOffersForCollectionProvider =

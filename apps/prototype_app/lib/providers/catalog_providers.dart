@@ -442,6 +442,19 @@ final layoutSectionsProvider =
   }
 });
 
+/// Storefront layout sections for the B2B storefront, delivered by the backend.
+///
+/// Separate from the B2C provider because a layout is authored per channel; the B2B home reads this
+/// one so an operator-configured order, label or visibility actually reaches the trade surfaces.
+final b2bLayoutSectionsProvider =
+    FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2b');
+  } catch (_) {
+    return const <StorefrontSection>[];
+  }
+});
+
 /// Products for one layout section, resolved from its commerce collection.
 ///
 /// The section stores a reference; commerce resolves membership, so adding a product to the collection

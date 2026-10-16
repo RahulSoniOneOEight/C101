@@ -32,7 +32,7 @@ already_present:
 - Storefront sections that already match the requested placements: Flash Deals, Best Sellers, Recommended (B2C); Buy Again and Trade Offers and Deals with Seasonal, Best Deals, Schemes (B2B).
 missing:
 - A section-based layout editor: no placement registry, product-source selection, drag ordering, enable/disable, banner association, per-section scheduling or preview.
-- Storefront consumption of the layout: section order and content are decided in the app today.
+- Storefront consumption of the layout: section order and content were decided in the app; both the B2C and B2B homes now read the published layout (phase 3b/3c), with local defaults only as fallback.
 - Collection-scoped manual product ordering: no rank exists on the collection-product link.
 - Real Buy Again: currently a fixture; no customer-scoped source, and no reorder revalidation.
 - Real Schemes: currently a fixture with title, detail and badge only.
@@ -176,8 +176,8 @@ implementation:
     verified: flutter analyze clean; 140 tests pass, including a new banner and See All test; app rebuilt and redeployed to Firebase.
   remaining:
     b2b_wiring:
-      status: not-done
-      reason: The provider requests the b2c channel and the B2B home builds its sections locally; no B2B sections exist in the CMS. Needs the B2B layout authored and the B2B home restructured.
+      status: app-consumption-done
+      reason: The app now fetches channel=b2b and the trade-offer categories take their order, labels and visibility from the published layout; a B2B layout is authored and delivered on staging. The B2B Buy Again and Trade Offers screens still build content beyond the featured categories, and Buy Again remains a fixture.
     collection_ordering:
       status: not-done
       reason: A Medusa collection-product link has no rank field, so phase 4 needs new persistence plus drag and drop. Nothing existing can be reused.
@@ -204,10 +204,26 @@ implementation:
       reason: Nobody has opened the storefront and looked at it.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T21:25:00Z'
-    release_commit: 53796f4
+    deployed_at_utc: '2026-10-17T00:35:00Z'
+    release_commit: 03a49e0
     release_worktree: /opt/buildkart-releases/139f9b8
     previous_release: /opt/buildkart-releases/f6e3f5d
+  staging_content:
+    b2b_layout:
+      layout_key: b2b-home
+      channel: b2b
+      document_id: xn8k13b0j9p6vpwub5pnjg4f
+      sections: [buy_again, trade_offers]
+      children: [seasonal, best_deals, schemes]
+    collections_created:
+    - handle: seasonal-offers
+      id: pcol_01M53AN7GEGEX35SJRDE20F3BD
+    - handle: trade-best-deals
+      id: pcol_01M53AN7M1ZAF0AWVRYM8X7CMB
+  delivery_defect_fixed_not_released:
+    issue: The normaliser read label from the section title and never from the authored label, so an operator's label was discarded on delivery.
+    fix: label resolves from label, then title, then the registry label.
+    state: source-only; takes effect on the next experience-api release, which was not performed.
     recreated_services:
     - experience-api
     - medusa-api
@@ -220,6 +236,7 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
 - client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
 - client-projects/client101/evidence/CHG-044/phase-3b-storefront-consumption.md
+- client-projects/client101/evidence/CHG-044/phase-3c-b2b-consumption.md
 - client-projects/client101/evidence/CHG-044/pending-items.md
-status: pending-items-closed-and-remaining-documented
+status: b2b-consumption-deployed-awaiting-review
 production_release_authorized: false

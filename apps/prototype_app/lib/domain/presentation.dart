@@ -109,6 +109,7 @@ class StorefrontSection {
     this.seeAllUri,
     this.bannerReference,
     this.visible = true,
+    this.children = const <StorefrontSection>[],
   });
 
   final String placement;
@@ -127,6 +128,9 @@ class StorefrontSection {
   final String? bannerReference;
   final bool visible;
 
+  /// Children of a group section (Trade Offers & Deals), in declared order.
+  final List<StorefrontSection> children;
+
   String get displayTitle => (title != null && title!.trim().isNotEmpty) ? title! : label;
 
   factory StorefrontSection.fromJson(Map<String, dynamic> json) {
@@ -142,8 +146,20 @@ class StorefrontSection {
       seeAllUri: json['see_all_uri'] as String?,
       bannerReference: json['banner_reference'] as String?,
       visible: json['visible'] as bool? ?? true,
+      children: _parseChildSections(json['children']),
     );
   }
+}
+
+/// Reads the nested sections of a group section. Group children are sections themselves, but they are
+/// delivered as a direct array rather than under a `sections` key.
+List<StorefrontSection> _parseChildSections(dynamic children) {
+  if (children is! List) return const <StorefrontSection>[];
+  return children
+      .whereType<Map<String, dynamic>>()
+      .map(StorefrontSection.fromJson)
+      .where((section) => section.placement.isNotEmpty)
+      .toList();
 }
 
 /// Reads the sections out of an app-shell `layout` payload. Returns empty when absent, so a storefront

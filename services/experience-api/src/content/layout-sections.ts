@@ -214,7 +214,10 @@ function normaliseOne(
 
   const section: StorefrontLayoutSection = {
     placement,
-    label: text(entry.title) ?? type.label,
+    // The operator's own label wins when they set one. Falling straight back to the title meant a
+    // label authored in the editor was silently discarded, so the storefront showed a heading the
+    // operator had replaced.
+    label: text(entry.label) ?? text(entry.title) ?? type.label,
     source: type.source,
     ...(text(entry.title) ? { title: text(entry.title) } : {}),
     ...(text(entry.subtitle) ? { subtitle: text(entry.subtitle) } : {}),
