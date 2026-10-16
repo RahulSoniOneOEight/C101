@@ -57,8 +57,14 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         name: "modules",
         label: "Ordered modules",
         type: "json",
-        required: true,
-        description: "JSON array of governed layout components. Use stable moduleKey values and commerce references only.",
+        description: "Raw recovery format. Prefer sections for routine merchandising.",
+      },
+      {
+        name: "sections",
+        label: "Merchandising sections",
+        type: "json",
+        description:
+          "Ordered sections: placement, title, subtitle, badge, collection reference, limit, see-all target, banner reference, visibility and schedule.",
       },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },

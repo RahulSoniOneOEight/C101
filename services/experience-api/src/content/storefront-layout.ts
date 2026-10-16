@@ -10,6 +10,7 @@
  */
 
 import type { AppLocale } from "./app-content.js";
+import type { StorefrontLayoutSection } from "./layout-sections.js";
 
 export type StorefrontChannel = "b2c" | "b2b";
 
@@ -56,6 +57,11 @@ export interface StorefrontLayout {
   channel: StorefrontChannel;
   locale: AppLocale;
   modules: StorefrontLayoutModule[];
+  /**
+   * Ordered merchandising sections. These are the authorable surface; `modules` remains as the raw
+   * recovery format during the transition.
+   */
+  sections?: StorefrontLayoutSection[];
   starts_at?: string;
   ends_at?: string;
   fallback_layout_key: string | null;

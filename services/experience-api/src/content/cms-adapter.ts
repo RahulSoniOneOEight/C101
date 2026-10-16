@@ -7,6 +7,10 @@ import {
   type StorefrontModuleMembership,
   type StorefrontModuleType,
 } from "./storefront-layout.js";
+import {
+  normaliseLayoutSections,
+  type StorefrontLayoutSection,
+} from "./layout-sections.js";
 import type { StoredCmsProjection } from "../store/cms-content-store.js";
 import {
   categoryBannerPlacement,
@@ -374,9 +378,13 @@ function mapLayout(
   const modules = rawModules
     .map((module) => mapModule(module, now))
     .filter((module): module is StorefrontLayoutModule => Boolean(module));
-  if (!modules.length || new Set(modules.map((module) => module.module_key)).size !== modules.length) {
+  if (modules.length && new Set(modules.map((module) => module.module_key)).size !== modules.length) {
     return undefined;
   }
+  // Sections are the authorable surface. A layout may carry sections alone; modules stay supported as
+  // the recovery format, so a layout is invalid only when it carries neither.
+  const { sections } = normaliseLayoutSections(entity.sections, channel, now);
+  if (!modules.length && !sections.length) return undefined;
   const fallback = relation(entity.fallbackLayout);
   return {
     documentId,
@@ -386,6 +394,7 @@ function mapLayout(
       channel,
       locale,
       modules,
+      ...(sections.length ? { sections } : {}),
       ...(text(entity.startsAt) ? { starts_at: text(entity.startsAt) } : {}),
       ...(text(entity.endsAt) ? { ends_at: text(entity.endsAt) } : {}),
       fallback_layout_key: text(fallback?.layoutKey) ?? null,

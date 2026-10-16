@@ -781,8 +781,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return new Response(null, { status: 204 });
   }
 
-  if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {
-    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+  if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
     const placement = url.searchParams.get("placement");
     const items = placement ? resolveContent(placement, locale) : appContent.filter((c) => c.locale === locale);
 
@@ -806,6 +805,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         ? {
             layout: {
               ...layout,
+              // Always present so a consumer can rely on it being an array, empty when an operator has
+              // not configured sections for this channel yet.
+              sections: layout.sections ?? [],
               generated_at: generatedAt,
               source: layoutResolution.source,
             },
