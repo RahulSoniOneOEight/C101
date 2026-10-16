@@ -25,6 +25,7 @@ import {
   displayValue,
   statusColor,
   statusLabel,
+  type ContentDocument,
   type ContentKind,
   type ContentLocale,
   type ContentResponse,
@@ -130,6 +131,11 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
     const query = next.toString();
     return `${config.route}${query ? `?${query}` : ""}`;
   };
+
+  const editorRouteFor = (document: ContentDocument): string =>
+    kind === "storefront-layout"
+      ? `/merchandising/storefront-layouts/${encodeURIComponent(document.documentId)}?locale=${encodeURIComponent(locale)}`
+      : contentDocumentRoute(kind, document.documentId, locale);
 
   const mutation = useMutation({
     mutationFn: (input: {
@@ -309,7 +315,7 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
                   </Table.Header>
                   <Table.Body>
                     {visibleItems.map((item) => {
-                      const editorRoute = contentDocumentRoute(kind, item.document.documentId, locale);
+                      const editorRoute = editorRouteFor(item.document);
                       return (
                         <Table.Row key={item.document.documentId}>
                           <Table.Cell>
