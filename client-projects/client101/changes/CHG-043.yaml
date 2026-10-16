@@ -156,14 +156,30 @@ implementation:
     - The console bundle carries all four types, the category picker and the Category details rename.
   not_done_on_purpose:
   - Publishing the B2B app to Firebase Hosting, which needs credentials unavailable here.
-  phase_3_status: implemented-in-code-not-deployed
+  phase_3_status: implemented-and-deployed
   phase_3:
     commit: 528c849
     changed:
     - The B2B presentation now requests channel=b2b instead of always b2c.
     - The hard-coded per-category B2B banner map is deleted; the screens read the CMS image and fall back to the shared placeholder.
+    deployed:
+      hosting: Firebase Hosting site buildkart-staging
+      url: https://buildkart-staging.web.app
+      config: firebase.json and .firebaserc at the repository root
+      note: Firebase credentials were used for the app deploy; Cloudflare is not involved in hosting the app.
     verified: flutter analyze clean; 135 tests pass, including three new cases asserting the requested channel and the null-when-unauthored behaviour.
-    not_verified: not deployed to Firebase Hosting; no visual confirmation; no B2B category banner exists in the CMS yet.
+    not_verified: no browser confirmation of a rendered B2B CMS banner or of the announced alt text.
+  alt_text:
+    fixed: StorefrontBanner.imageAlt, StorefrontCategory.bannerImageAlt and MerchandisingBannerData.imageAlt now carry the CMS alternative text to the image semantic label.
+    applies_to: the B2C campaign strip and the B2B category banners.
+  channel_filter:
+    added: Category details filters by channel because the two channels are independent sets.
+    deployed: c6756ff
+  authored_content:
+    b2b_category_banners: 6
+    b2b_category_details: 7
+    note: A category banner only attaches to a category that has a Category details record for that channel; authoring the banner alone is a silent no-op, and the console does not yet warn about it.
+    deletion: not exposed in the console.
   destructive_removal:
     release_commit: a4d37f7
     removed:
@@ -181,5 +197,6 @@ implementation:
   - client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
   - client-projects/client101/evidence/CHG-043/destructive-removal.md
   - client-projects/client101/evidence/CHG-043/b2b-cms-category-banners.md
-status: phase-3-implemented-not-deployed
+  - client-projects/client101/evidence/CHG-043/completion.md
+status: deployed-awaiting-human-review
 production_release_authorized: false
