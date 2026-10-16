@@ -183,8 +183,11 @@ export function BannerEditor({
   }, [activeLocale, documentId, editingTranslation, form, targetDocument, targetIsCreate]);
 
   const describeError = useCallback((error: unknown, fallback: string) => {
+    // Medusa rewrites a CONFLICT message to a generic string, so the status (not the text) is the
+    // reliable signal. The message check stays as a secondary guard for direct CMS responses.
+    const status = (error as { status?: number } | null)?.status;
     const message = error instanceof Error ? error.message : fallback;
-    if (/changed after you opened it/i.test(message)) {
+    if (status === 409 || /changed after you opened it/i.test(message)) {
       setConflict(true);
       return null;
     }
