@@ -31,10 +31,12 @@ import {
   EMPTY_BANNER_FORM,
   IST_TIMEZONE,
   PREVIEW_DEVICES,
+  SUPPORTED_PLACEMENTS,
   THEME_LABELS,
   audienceLabel,
   bannerTitle,
   formFromDocument,
+  isRecognisedPlacement,
   localeLabel,
   placementLabel,
   serializeBannerForm,
@@ -44,16 +46,11 @@ import {
 } from "./banner-model";
 import { BannerPreview } from "./banner-preview";
 
-const PLACEMENT_OPTIONS = [
-  { value: "home.hero", label: "Home → Hero" },
-  { value: "home.campaign-strip", label: "Home → Campaign strip" },
-];
-
 function placementOptions(current: string) {
-  if (!current || PLACEMENT_OPTIONS.some((option) => option.value === current)) {
-    return PLACEMENT_OPTIONS;
+  if (!current || SUPPORTED_PLACEMENTS.some((option) => option.value === current)) {
+    return SUPPORTED_PLACEMENTS;
   }
-  return [...PLACEMENT_OPTIONS, { value: current, label: placementLabel(current) }];
+  return [...SUPPORTED_PLACEMENTS, { value: current, label: `${placementLabel(current)} (not rendered)` }];
 }
 
 function Field({
@@ -385,7 +382,13 @@ export function BannerEditor({
                     />
                   </Field>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field id="banner-placement" label="Placement" description="Membership and ordering stay in storefront layouts.">
+                    <Field
+                      id="banner-placement"
+                      label="Placement"
+                      description={isRecognisedPlacement(form.placement)
+                        ? "Where the home screen renders this banner. Membership and ordering stay in storefront layouts."
+                        : "This placement is not rendered by the app. Choose a supported slot so the banner can appear."}
+                    >
                       <Select value={form.placement} onValueChange={(value) => update({ placement: value })}>
                         <Select.Trigger id="banner-placement"><Select.Value /></Select.Trigger>
                         <Select.Content>

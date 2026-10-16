@@ -25,13 +25,14 @@ import {
 } from "../content-model";
 import {
   LIFECYCLE_META,
-  PLACEMENT_LABELS,
   STUDIO_TABS,
+  SUPPORTED_PLACEMENTS,
   audienceLabel,
   bannerKey,
   bannerLifecycle,
   bannerTitle,
   hasUnpublishedChanges,
+  isRecognisedPlacement,
   isStudioTab,
   localeLabel,
   placementLabel,
@@ -40,7 +41,7 @@ import {
 } from "./banner-model";
 import { BannerEditor } from "./banner-editor";
 
-const PLACEMENT_FILTER_OPTIONS = Object.entries(PLACEMENT_LABELS);
+const PLACEMENT_FILTER_ALL = "all";
 
 function BannerThumb({ document }: { document: ContentDocument }) {
   const [failed, setFailed] = useState(false);
@@ -84,7 +85,10 @@ export function BannerStudioPage() {
     queryKey,
     queryFn: () => client.admin.buildkart.content.query({ kind: "banner", locale }),
   });
-  const documents = contentQuery.data?.documents ?? [];
+  const documents = useMemo(
+    () => contentQuery.data?.documents ?? [],
+    [contentQuery.data],
+  );
 
   const updateParams = (values: Record<string, string | null>, resetPage = false) => {
     const next = new URLSearchParams(searchParams);
@@ -105,6 +109,19 @@ export function BannerStudioPage() {
   const clearFilters = () => updateParams({ q: null, placement: null, audience: null }, true);
 
   const now = useMemo(() => new Date(), []);
+
+  // Filter options are the supported placements plus any placement actually present in the data, so an
+  // unrecognised value stays reachable instead of being hidden by the dropdown.
+  const placementOptions = useMemo(() => {
+    const options = new Map<string, string>(
+      SUPPORTED_PLACEMENTS.map((item) => [item.value, item.label]),
+    );
+    documents.forEach((document) => {
+      const key = typeof document.placement === "string" ? document.placement.trim() : "";
+      if (key && !options.has(key)) options.set(key, key);
+    });
+    return [...options.entries()];
+  }, [documents]);
 
   const counts: Record<BannerLifecycle, number> = {
     live: 0,
@@ -278,8 +295,8 @@ export function BannerStudioPage() {
                     <Select.Value />
                   </Select.Trigger>
                   <Select.Content>
-                    <Select.Item value="all">All placements</Select.Item>
-                    {PLACEMENT_FILTER_OPTIONS.map(([value, label]) => (
+                    <Select.Item value={PLACEMENT_FILTER_ALL}>All placements</Select.Item>
+                    {placementOptions.map(([value, label]) => (
                       <Select.Item key={value} value={value}>{label}</Select.Item>
                     ))}
                   </Select.Content>
@@ -401,6 +418,11 @@ export function BannerStudioPage() {
                             <Text size="xsmall" className="text-ui-fg-subtle">
                               {audienceLabel(document.audience)}
                             </Text>
+                            {isRecognisedPlacement(document.placement) ? null : (
+                              <Text size="xsmall" className="text-ui-fg-muted">
+                                Not rendered by the app
+                              </Text>
+                            )}
                           </Table.Cell>
                           <Table.Cell>
                             <StatusBadge color={LIFECYCLE_META[lifecycle].color}>

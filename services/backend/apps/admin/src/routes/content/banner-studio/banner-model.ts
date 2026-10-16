@@ -22,12 +22,25 @@ export type BannerPreviewPresentation = NonNullable<BannerPreviewResponse["prese
 
 export const IST_TIMEZONE = "Asia/Kolkata";
 
-export const PLACEMENT_LABELS: Record<string, string> = {
-  "home.hero": "Home → Hero",
-  "home.campaign-strip": "Home → Campaign strip",
-  "home.campaign": "Home → Campaign",
-  "category.header": "Category → Header",
-};
+/**
+ * Placements the storefront actually renders.
+ *
+ * This mirrors the app's hard-coded slot keys: `home.hero` is read by the home header carousel
+ * (`bannersFor('home.hero')`) and `home.campaign-strip` by the secondary-banner merchandising module
+ * (`bannersFor('home.campaign-strip').firstOrNull`). The CMS stores `placement` as free text, so a
+ * value outside this list is accepted, published, and then never rendered. The studio therefore
+ * offers only these, and labels anything else as unrecognised instead of inventing a slot.
+ */
+export const SUPPORTED_PLACEMENTS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "home.hero", label: "Home → Hero" },
+  { value: "home.campaign-strip", label: "Home → Campaign strip" },
+];
+
+const SUPPORTED_PLACEMENT_VALUES = new Set(SUPPORTED_PLACEMENTS.map((item) => item.value));
+
+export function isRecognisedPlacement(value: unknown): boolean {
+  return typeof value === "string" && SUPPORTED_PLACEMENT_VALUES.has(value.trim());
+}
 
 export const AUDIENCE_LABELS: Record<string, string> = {
   b2c: "B2C customers",
@@ -53,10 +66,12 @@ export const CTA_TARGET_LABELS: Record<string, string> = {
 export const CTA_TARGET_TYPES = ["route", "product", "category", "collection", "url"] as const;
 
 export function placementLabel(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) return "Unassigned placement";
+  if (typeof value !== "string" || !value.trim()) return "No placement";
   const key = value.trim();
-  if (PLACEMENT_LABELS[key]) return PLACEMENT_LABELS[key];
-  return key.replace(/\./g, " → ").replace(/\b\w/g, (character) => character.toUpperCase());
+  const supported = SUPPORTED_PLACEMENTS.find((item) => item.value === key);
+  // Unrecognised placements are shown as their raw key: it is the honest signal that this banner
+  // points at a slot the storefront does not render.
+  return supported ? supported.label : key;
 }
 
 export function audienceLabel(value: unknown): string {

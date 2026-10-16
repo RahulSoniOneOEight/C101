@@ -240,6 +240,53 @@ draft (never published) · scheduled (opens later) · live (open now) · expired
 
 Counts, colour perception and the two-row toolbar at wide desktop and ~1024px still need a human eye.
 
+## Revision 5 — fabricated placement removed
+
+An operator asked what the difference was between "Home → Campaign strip" and "Home → Campaign".
+
+**There is no difference: "Home → Campaign" did not exist.** It was a label invented in the studio's own
+placement map, together with "Category → Header":
+
+```
+"home.campaign": "Home → Campaign",      // invented
+"category.header": "Category → Header",  // invented
+```
+
+Evidence:
+
+- a repository-wide search found `home.campaign` and `category.header` in exactly one file — that label
+  map, in the admin app. No storefront code, seed, layout, preset or CMS record referenced them.
+- the live CMS holds two placements only: `home.hero` (4 banners) and `home.campaign-strip` (1).
+- the editor offered only the two real placements, so the editor and the filter dropdown disagreed.
+
+The filter dropdown was built from that map, which is how the invented values reached the screen. This
+was a real fabrication defect and it contradicted the "never invent a slot" rule this change has been
+holding to elsewhere.
+
+### Fix
+
+- `SUPPORTED_PLACEMENTS` is now the single source of truth for the slots the storefront renders, with a
+  comment naming the consuming app code for each: `home.hero` is read by the home header carousel,
+  `home.campaign-strip` by the secondary-banner module.
+- The editor and the filter both read that one list, so they can no longer disagree.
+- The filter additionally includes any placement present in the loaded data, so an unrecognised value
+  stays reachable instead of being hidden by the dropdown.
+- An unrecognised placement is now flagged: the row shows `Not rendered by the app`, the editor's field
+  help says the placement will not appear, and the option is marked `(not rendered)`.
+- `placementLabel` no longer prettifies an unknown key into something that looks official; it returns the
+  raw key so the problem is visible.
+
+### Verified on staging
+
+- Served bundle no longer contains `Category → Header`, and the placement list contains only the two
+  supported slots plus any data-derived value.
+- Live data confirms `home.hero` and `home.campaign-strip` only.
+
+### Not verified
+
+The unrecognised-placement warning has no live data to exercise it against, because no banner in staging
+uses an unknown placement. It is covered by type-level reasoning and the build, not by a rendered case.
+
 ## Known limitations and deviations (deliberate)
 
 Recorded so nothing is mistaken for finished work:
