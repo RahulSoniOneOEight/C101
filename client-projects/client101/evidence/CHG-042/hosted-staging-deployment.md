@@ -179,6 +179,67 @@ otherwise.
 Tab counts, filter combinations and the responsive behaviour at wide desktop and ~1024px still need a
 human eye; they are client-side derivations and are not covered by browser automation.
 
+## Revision 4 — one status model, two toolbar rows
+
+Requested change: clear the redundancy between the Editorial and Eligibility columns, use a smarter
+representation, put search and filters in one row with the tabs in another, and keep best practice in
+mind.
+
+### Redundancy removed
+
+The two columns were not equally justified. Every draft row rendered `Draft` / `Not published` — the
+same fact twice — and once the lifecycle tabs existed, a published row's Eligibility badge simply
+repeated the tab. The problem was presentation, not the underlying distinction.
+
+There is now **one** lifecycle model, and the tab and the row status are two projections of it:
+
+```
+draft (never published) · scheduled (opens later) · live (open now) · expired (window closed)
+```
+
+- The **Editorial** and **Eligibility** columns collapsed into a single **Status** column.
+- The only fact the lifecycle does not carry is whether a published banner has newer unpublished edits,
+  which is shown inline beside the badge as "Changes not published". That state survives the earlier
+  removal of the "Needs review" tab.
+- The `Schedule · IST` column remains and is the evidence for the derived status rather than a
+  restatement of it.
+- The tab is labelled **Historical** (a bucket) while the row badge reads **Expired** (the precise
+  reason), which is a deliberate distinction rather than an inconsistency.
+- Dead code was removed: `publicationTabFor`, `BannerItem`, `DisplayEligibility`, `DISPLAY_LABELS` and
+  `DISPLAY_COLORS`. The last two were replaced by `ELIGIBILITY_LABELS` / `ELIGIBILITY_COLORS`, typed to
+  the three values the delivery service actually returns and used only by the preview pane, which shows
+  server-computed eligibility for the draft being edited — a different question from the list row.
+
+### Layout
+
+- Row 1: lifecycle tabs, each with its count, horizontally scrollable on narrow screens.
+- Row 2: compact search plus placement, audience and language, with `Clear` appearing only when a
+  filter is active.
+- Row 3 (header): title left, `Create banner` and the total right.
+
+### Best-practice notes applied
+
+- One horizontal tab level is preserved, matching the governed navigation decision.
+- The tablist keeps `role="tablist"`/`role="tab"`/`aria-selected` and a group label, consistent with the
+  shared `PageTabs` used by the other five properties.
+- Every filter control keeps an associated label (screen-reader only, because the row is compact) and
+  self-describing values (`All placements`, `All audiences`, `English (India)`), so the control is
+  meaningful without a visible label.
+- Status colour is not the only signal: each state also carries a text label.
+- Filter, tab, search, page and editor state remain in the URL, so any view is linkable and
+  refresh-safe.
+- Empty, loading, error and permission states are unchanged.
+
+### Verified on staging
+
+- Bundle contains the single lifecycle map and no `Not published` state, and the preview still uses the
+  eligibility labels.
+- `200` on the studio route and the three non-default tab URLs.
+
+### Not verified
+
+Counts, colour perception and the two-row toolbar at wide desktop and ~1024px still need a human eye.
+
 ## Known limitations and deviations (deliberate)
 
 Recorded so nothing is mistaken for finished work:

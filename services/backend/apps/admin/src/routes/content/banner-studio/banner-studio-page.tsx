@@ -20,26 +20,23 @@ import { client } from "../../../lib/client";
 import {
   CONTENT_LOCALES,
   PAGE_SIZE,
-  statusColor,
-  statusLabel,
   type ContentDocument,
   type ContentLocale,
 } from "../content-model";
 import {
-  DISPLAY_COLORS,
-  DISPLAY_LABELS,
+  LIFECYCLE_META,
   PLACEMENT_LABELS,
   STUDIO_TABS,
   audienceLabel,
   bannerKey,
+  bannerLifecycle,
   bannerTitle,
-  displayEligibility,
+  hasUnpublishedChanges,
   isStudioTab,
   localeLabel,
   placementLabel,
   scheduleLabel,
-  studioTabFor,
-  type StudioTab,
+  type BannerLifecycle,
 } from "./banner-model";
 import { BannerEditor } from "./banner-editor";
 
@@ -73,7 +70,7 @@ export function BannerStudioPage() {
 
   const locale: ContentLocale = searchParams.get("locale") === "hi-IN" ? "hi-IN" : "en-IN";
   const requestedView = searchParams.get("view");
-  const view: StudioTab = isStudioTab(requestedView) ? requestedView : "live";
+  const view: BannerLifecycle = isStudioTab(requestedView) ? requestedView : "live";
   const search = searchParams.get("q") ?? "";
   const placementFilter = searchParams.get("placement") ?? "";
   const audienceFilter = searchParams.get("audience") ?? "";
@@ -108,21 +105,20 @@ export function BannerStudioPage() {
   const clearFilters = () => updateParams({ q: null, placement: null, audience: null }, true);
 
   const now = useMemo(() => new Date(), []);
-  const eligibilityOf = (document: ContentDocument) => displayEligibility(document, now);
 
-  const counts: Record<StudioTab, number> = {
+  const counts: Record<BannerLifecycle, number> = {
     live: 0,
     draft: 0,
     scheduled: 0,
-    historical: 0,
+    expired: 0,
   };
   documents.forEach((document) => {
-    counts[studioTabFor(document, now)] += 1;
+    counts[bannerLifecycle(document, now)] += 1;
   });
 
   const term = search.trim().toLocaleLowerCase();
   const filtered = documents
-    .filter((document) => studioTabFor(document, now) === view)
+    .filter((document) => bannerLifecycle(document, now) === view)
     .filter((document) => (placementFilter ? document.placement === placementFilter : true))
     .filter((document) => (audienceFilter
       ? typeof document.audience === "string"
@@ -197,7 +193,7 @@ export function BannerStudioPage() {
     ? documents.find((item) => item.documentId === editorDocumentId)
     : undefined;
 
-  const tabRoute = (nextView: StudioTab) => {
+  const tabRoute = (nextView: BannerLifecycle) => {
     const next = new URLSearchParams(searchParams);
     if (nextView === "live") next.delete("view");
     else next.set("view", nextView);
@@ -236,7 +232,7 @@ export function BannerStudioPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 border-t border-ui-border-base px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="border-t border-ui-border-base px-4 py-2">
             <div className="overflow-x-auto">
               <div className="flex min-w-max items-center gap-1" role="tablist" aria-label="Banner lifecycle">
                 {STUDIO_TABS.map((tab) => (
@@ -256,9 +252,11 @@ export function BannerStudioPage() {
                 ))}
               </div>
             </div>
+          </div>
 
+          <div className="border-t border-ui-border-base px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="w-full sm:w-52">
+              <div className="min-w-56 flex-1">
                 <Label htmlFor="banner-search" className="sr-only">Search banners</Label>
                 <Input
                   id="banner-search"
@@ -363,13 +361,12 @@ export function BannerStudioPage() {
           ) : (
             <>
               <div className="overflow-x-auto border-t border-ui-border-base">
-                <Table className="min-w-[62rem]">
+                <Table className="min-w-[54rem]">
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell>Banner</Table.HeaderCell>
                       <Table.HeaderCell>Placement / audience</Table.HeaderCell>
-                      <Table.HeaderCell>Editorial</Table.HeaderCell>
-                      <Table.HeaderCell>Eligibility</Table.HeaderCell>
+                      <Table.HeaderCell>Status</Table.HeaderCell>
                       <Table.HeaderCell>Schedule · IST</Table.HeaderCell>
                       <Table.HeaderCell>Updated</Table.HeaderCell>
                       <Table.HeaderCell className="sticky right-0 w-12 bg-ui-bg-base">
@@ -379,7 +376,7 @@ export function BannerStudioPage() {
                   </Table.Header>
                   <Table.Body>
                     {visible.map((document) => {
-                      const eligibility = eligibilityOf(document);
+                      const lifecycle = bannerLifecycle(document, now);
                       return (
                         <Table.Row key={document.documentId}>
                           <Table.Cell>
@@ -406,14 +403,14 @@ export function BannerStudioPage() {
                             </Text>
                           </Table.Cell>
                           <Table.Cell>
-                            <StatusBadge color={statusColor(document.publicationStatus)}>
-                              {statusLabel(document.publicationStatus)}
+                            <StatusBadge color={LIFECYCLE_META[lifecycle].color}>
+                              {LIFECYCLE_META[lifecycle].label}
                             </StatusBadge>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <StatusBadge color={DISPLAY_COLORS[eligibility]}>
-                              {DISPLAY_LABELS[eligibility]}
-                            </StatusBadge>
+                            {hasUnpublishedChanges(document) ? (
+                              <Text size="xsmall" className="mt-1 block text-ui-fg-muted">
+                                Changes not published
+                              </Text>
+                            ) : null}
                           </Table.Cell>
                           <Table.Cell>
                             <Text size="xsmall" className="text-ui-fg-subtle">
@@ -505,11 +502,11 @@ export function BannerStudioPage() {
 
         <Container className="px-6 py-3">
           <Text size="xsmall" className="text-ui-fg-subtle">
-            Live, Scheduled and Historical are derived from publication and the stored schedule, and
-            never claim a banner is being served. Historical means the end time has passed. A published
-            banner with unpublished edits stays under Live and is marked "Changes not published".
-            Placement membership and ordering stay in storefront layouts, and commerce data stays in
-            Medusa.
+            Status comes from one rule: publication plus the stored schedule. Draft is not published,
+            Scheduled opens later, Live is open now, Historical means the end time has passed, and a
+            published banner with newer edits is marked "Changes not published". Status never claims a
+            banner is being served — audience, channel and storefront-layout placement are separate.
+            The list is loaded one language at a time, which is why Language sits with the filters.
           </Text>
         </Container>
       </div>

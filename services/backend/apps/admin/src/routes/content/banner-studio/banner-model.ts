@@ -3,8 +3,6 @@ import {
   displayValue,
   type ContentDocument,
   type ContentLocale,
-  type ContentResponse,
-  type PublicationStatus,
 } from "../content-model";
 import type { InferClientOutput } from "@mercurjs/client";
 import { client } from "../../../lib/client";
@@ -75,21 +73,25 @@ export function localeLabel(value: ContentLocale): string {
   return CONTENT_LOCALES.find((item) => item.value === value)?.label ?? value;
 }
 
-/** Display eligibility is derived from publication plus the stored schedule, never from assumption. */
-export type DisplayEligibility = "not-published" | "expired" | "scheduled" | "eligible";
+/**
+ * Delivery eligibility, computed from publication plus the stored schedule.
+ *
+ * This mirrors the server gate (`inWindow` in the Experience API) from the same inputs, so the
+ * operator sees the rule that will actually be applied. It is not a claim that a banner is being
+ * rendered: audience, channel and storefront-layout membership are separate concerns.
+ */
+export type DeliveryEligibility = "eligible" | "scheduled" | "expired";
 
-export const DISPLAY_LABELS: Record<DisplayEligibility, string> = {
-  "not-published": "Not published",
-  expired: "Expired",
-  scheduled: "Scheduled",
+export const ELIGIBILITY_LABELS: Record<DeliveryEligibility, string> = {
   eligible: "Eligible",
+  scheduled: "Scheduled",
+  expired: "Expired",
 };
 
-export const DISPLAY_COLORS: Record<DisplayEligibility, "green" | "orange" | "grey" | "purple"> = {
-  "not-published": "grey",
-  expired: "grey",
-  scheduled: "purple",
+export const ELIGIBILITY_COLORS: Record<DeliveryEligibility, "green" | "purple" | "grey"> = {
   eligible: "green",
+  scheduled: "purple",
+  expired: "grey",
 };
 
 function parseDate(value: unknown): Date | null {
@@ -98,10 +100,9 @@ function parseDate(value: unknown): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-export function displayEligibility(
-  document: ContentDocument,
-  now: Date = new Date(),
-): DisplayEligibility {
+type WindowState = "not-published" | DeliveryEligibility;
+
+function windowState(document: ContentDocument, now: Date): WindowState {
   if (document.publicationStatus === "draft") return "not-published";
   const endsAt = parseDate(document.endsAt);
   if (endsAt && endsAt.getTime() <= now.getTime()) return "expired";
@@ -348,43 +349,51 @@ export function bannerKey(document: ContentDocument): string {
     : document.documentId;
 }
 
-export function publicationTabFor(status: PublicationStatus): string {
-  if (status === "modified") return "modified";
-  if (status === "published") return "published";
-  return "draft";
-}
-
 /**
- * Banner lifecycle tabs.
+ * Single lifecycle model for banners.
  *
- * Live, Draft, Scheduled and Historical replace the generic publication tabs for banners so the
- * operator's first question ("is this showing, waiting, unfinished or finished?") is answered by the
- * tab itself. A published banner with unpublished edits stays in Live and carries the
- * "Changes not published" badge, so the Needs review state is still visible rather than lost.
+ * The tab and the row status badge are two projections of this one value, so the page cannot state
+ * the same fact twice in two different vocabularies. There is deliberately no separate "editorial"
+ * column: the only part of publication state the lifecycle does not already carry is whether a
+ * published banner has newer unpublished edits, which `hasUnpublishedChanges` reports alongside.
  */
-export type StudioTab = "live" | "draft" | "scheduled" | "historical";
+export type BannerLifecycle = "draft" | "scheduled" | "live" | "expired";
 
-export const STUDIO_TABS: Array<{ value: StudioTab; label: string }> = [
+export const LIFECYCLE_META: Record<
+  BannerLifecycle,
+  { label: string; color: "grey" | "purple" | "green" | "orange" }
+> = {
+  draft: { label: "Draft", color: "grey" },
+  scheduled: { label: "Scheduled", color: "purple" },
+  live: { label: "Live", color: "green" },
+  expired: { label: "Expired", color: "orange" },
+};
+
+/** Tabs are buckets over the same lifecycle. "Historical" is the bucket name for expired banners. */
+export const STUDIO_TABS: Array<{ value: BannerLifecycle; label: string }> = [
   { value: "live", label: "Live" },
   { value: "draft", label: "Draft" },
   { value: "scheduled", label: "Scheduled" },
-  { value: "historical", label: "Historical" },
+  { value: "expired", label: "Historical" },
 ];
 
-export function isStudioTab(value: string | null): value is StudioTab {
+export function isStudioTab(value: string | null): value is BannerLifecycle {
   return STUDIO_TABS.some((tab) => tab.value === value);
 }
 
-/** Tab for a banner, derived from publication and the stored schedule only. */
-export function studioTabFor(document: ContentDocument, now: Date = new Date()): StudioTab {
-  const eligibility = displayEligibility(document, now);
-  if (eligibility === "expired") return "historical";
+/** Lifecycle from publication and the stored schedule only. */
+export function bannerLifecycle(document: ContentDocument, now: Date = new Date()): BannerLifecycle {
+  const state = windowState(document, now);
+  if (state === "expired") return "expired";
   if (document.publicationStatus === "draft") return "draft";
-  if (eligibility === "scheduled") return "scheduled";
+  if (state === "scheduled") return "scheduled";
   return "live";
 }
 
-export interface BannerItem {
-  document: ContentDocument;
-  response: ContentResponse;
+/**
+ * A published banner can carry newer draft edits. Its lifecycle stays Live (it is published) and this
+ * flag is shown beside it, so that state survives the removal of the "Needs review" tab.
+ */
+export function hasUnpublishedChanges(document: ContentDocument): boolean {
+  return document.publicationStatus === "modified";
 }

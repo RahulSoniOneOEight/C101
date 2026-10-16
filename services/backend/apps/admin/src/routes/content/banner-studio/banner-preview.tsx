@@ -2,8 +2,8 @@ import { Button, Heading, StatusBadge, Text } from "@medusajs/ui";
 import { useState } from "react";
 import type { ContentLocale } from "../content-model";
 import {
-  DISPLAY_COLORS,
-  DISPLAY_LABELS,
+  ELIGIBILITY_COLORS,
+  ELIGIBILITY_LABELS,
   localeLabel,
   themeLabel,
   type BannerPreviewResponse,
@@ -50,8 +50,8 @@ export function BannerPreview({
         <div className="flex items-center gap-2">
           <Text size="xsmall" className="text-ui-fg-subtle">{localeLabel(locale)}</Text>
           {eligibility ? (
-            <StatusBadge color={DISPLAY_COLORS[eligibility]}>
-              {DISPLAY_LABELS[eligibility]}
+            <StatusBadge color={ELIGIBILITY_COLORS[eligibility]}>
+              {ELIGIBILITY_LABELS[eligibility]}
             </StatusBadge>
           ) : null}
         </div>

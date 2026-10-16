@@ -1,5 +1,5 @@
 change_id: CHG-042
-revision: 3
+revision: 4
 request: >-
   Improve the BuildKart Ops Console Merchandising > Banners page using the supplied Banner studio
   HTML demo as the visual and interaction reference: compact header and counts, placement/audience/
@@ -83,6 +83,12 @@ decisions_approved_rev3:
   D-042-09: the Needs review tab is replaced by the in-row "Changes not published" indicator.
   D-042-10: the Create banner action sits on the right of the header and filters are compact.
   D-042-11: the duplicated count cards are replaced by the tab counts plus a total.
+decisions_approved_rev4:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-12: one lifecycle model drives banners; the tab and the row status are two projections of the same value.
+  D-042-13: the Editorial and Eligibility columns collapse into a single Status column; "Changes not published" is shown inline beside it.
+  D-042-14: tabs occupy their own row and search plus filters occupy a separate row.
 supersedes:
   - "CHG-038 and CHG-040 routed full-page editor decision applies to the banner kind only: the banner editor is now a modal dialog over the Banners page. The other five properties keep routed editors."
   - "A deep-linkable query parameter replaces the routed editor URL for banners so refresh, browser Back and unsaved-change protection still hold."
