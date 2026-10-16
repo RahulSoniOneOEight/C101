@@ -149,18 +149,42 @@ implementation:
     - 'End to end: before adding products the payload reported empty_collections; after adding a product to the collection via the admin API, all three B2C sections returned that product with badges and limits intact.'
     not_done:
     - Phase 3b, the storefront rendering half. The app has no layout consumption at all, so nothing here is customer-visible yet.
+  phase_3b:
+    commit: fc346de
+    delivered:
+    - The app now calls GET /v1/content/app-shell and reads layout sections; it previously had no layout consumption at all.
+    - 'Section order, titles, badges, limits and visibility are rendered from the layout for the B2C home.'
+    - 'GET /v1/products accepts collection_id, so a section resolves its products through the same composed path the catalogue rails use.'
+    - A section still resolving is skipped rather than rendered empty; a hidden section is not rendered.
+    - With no configured layout the previous local defaults are unchanged, so the home never goes blank.
+    verified:
+    - flutter analyze clean; 139 tests pass, including a new test asserting the layout decides order, titles, badges and visibility.
+    - App rebuilt and deployed to Firebase Hosting; the served bundle contains app-shell, flash_deals, collection_id, see_all_uri and sections; site returns 200.
+    deployed:
+      console: /opt/buildkart-releases/139f9b8
+      app: https://buildkart-staging.web.app
+    not_done:
+    - B2B is not wired; the provider requests the b2c channel and no B2B sections exist in the CMS.
+    - Per-section banner association is configured but not rendered, and the See All destination is carried but not wired to navigation.
+    - The campaign strip now renders after the layout sections rather than between the rails.
+    - No visual confirmation by a human.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T20:42:00Z'
-    release_commit: 139f9b8
+    deployed_at_utc: '2026-10-16T21:05:00Z'
+    release_commit: fc346de
     release_worktree: /opt/buildkart-releases/139f9b8
     previous_release: /opt/buildkart-releases/f6e3f5d
     recreated_services:
     - experience-api
+    - medusa-api
+    app_deployment:
+      hosting: Firebase Hosting site buildkart-staging
+      url: https://buildkart-staging.web.app
 implementation_evidence:
 - client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
 - client-projects/client101/evidence/CHG-044/phase-1-layout-sections.md
 - client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
 - client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
-status: phase-3a-deployed-awaiting-review
+- client-projects/client101/evidence/CHG-044/phase-3b-storefront-consumption.md
+status: phase-3b-deployed-awaiting-review
 production_release_authorized: false
