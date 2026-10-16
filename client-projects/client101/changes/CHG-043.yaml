@@ -155,7 +155,15 @@ implementation:
     - B2B home banners fall back to the governed seed because no B2B home type exists.
     - The console bundle carries all four types, the category picker and the Category details rename.
   not_done_on_purpose:
-  - B2B app consumption of channel=b2b.
+  - Publishing the B2B app to Firebase Hosting, which needs credentials unavailable here.
+  phase_3_status: implemented-in-code-not-deployed
+  phase_3:
+    commit: 528c849
+    changed:
+    - The B2B presentation now requests channel=b2b instead of always b2c.
+    - The hard-coded per-category B2B banner map is deleted; the screens read the CMS image and fall back to the shared placeholder.
+    verified: flutter analyze clean; 135 tests pass, including three new cases asserting the requested channel and the null-when-unauthored behaviour.
+    not_verified: not deployed to Firebase Hosting; no visual confirmation; no B2B category banner exists in the CMS yet.
   destructive_removal:
     release_commit: a4d37f7
     removed:
@@ -172,5 +180,6 @@ implementation:
   implementation_evidence:
   - client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
   - client-projects/client101/evidence/CHG-043/destructive-removal.md
-status: deployed-awaiting-human-review
+  - client-projects/client101/evidence/CHG-043/b2b-cms-category-banners.md
+status: phase-3-implemented-not-deployed
 production_release_authorized: false
