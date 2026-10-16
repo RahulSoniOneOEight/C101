@@ -91,6 +91,69 @@ class StorefrontCategory {
   }
 }
 
+/// A storefront layout section delivered by `GET /v1/content/app-shell`.
+///
+/// Sections are the backend's merchandising decision: which placements appear, in what order, with
+/// which title, badge, limit and visibility. The storefront renders what this says rather than
+/// deciding locally.
+class StorefrontSection {
+  const StorefrontSection({
+    required this.placement,
+    required this.label,
+    this.title,
+    this.subtitle,
+    this.badge,
+    this.collectionKey,
+    this.limit,
+    this.seeAllLabel,
+    this.seeAllUri,
+    this.visible = true,
+  });
+
+  final String placement;
+  final String label;
+  final String? title;
+  final String? subtitle;
+  final String? badge;
+
+  /// Commerce collection reference. The section points at it; products are resolved at read time.
+  final String? collectionKey;
+  final int? limit;
+  final String? seeAllLabel;
+  final String? seeAllUri;
+  final bool visible;
+
+  String get displayTitle => (title != null && title!.trim().isNotEmpty) ? title! : label;
+
+  factory StorefrontSection.fromJson(Map<String, dynamic> json) {
+    return StorefrontSection(
+      placement: json['placement'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      title: json['title'] as String?,
+      subtitle: json['subtitle'] as String?,
+      badge: json['badge'] as String?,
+      collectionKey: json['collection_key'] as String?,
+      limit: (json['limit'] as num?)?.toInt(),
+      seeAllLabel: json['see_all_label'] as String?,
+      seeAllUri: json['see_all_uri'] as String?,
+      visible: json['visible'] as bool? ?? true,
+    );
+  }
+}
+
+/// Reads the sections out of an app-shell `layout` payload. Returns empty when absent, so a storefront
+/// with no configured layout keeps whatever defaults it already had.
+List<StorefrontSection> parseLayoutSections(dynamic layout) {
+  if (layout is! Map<String, dynamic>) return const <StorefrontSection>[];
+  final sections = layout['sections'];
+  if (sections is! List) return const <StorefrontSection>[];
+  return sections
+      .whereType<Map<String, dynamic>>()
+      .map(StorefrontSection.fromJson)
+      .where((section) => section.placement.isNotEmpty)
+      .toList();
+}
+
 /// The full presentation payload.
 class StorefrontPresentation {
   const StorefrontPresentation({

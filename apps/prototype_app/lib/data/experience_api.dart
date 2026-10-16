@@ -111,16 +111,34 @@ class ExperienceApi {
   }
 
   /// Composed product list with best-price offer per product.
+  ///
+  /// When [collectionId] is supplied the list is scoped to that commerce collection, which is how a
+  /// storefront layout section resolves its product source. Composition (price and offer) is unchanged,
+  /// so a layout-driven rail renders exactly like a catalogue rail.
   Future<List<Product>> getComposedProducts(
-      {int limit = 50, int offset = 0}) async {
+      {int limit = 50, int offset = 0, String? collectionId}) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/products',
-      queryParameters: {'limit': limit, 'offset': offset},
+      queryParameters: <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
+        if (collectionId != null && collectionId.isNotEmpty) 'collection_id': collectionId,
+      },
     );
     return (res.data!['products'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
         .map(Product.fromComposedJson)
         .toList();
+  }
+
+  /// Storefront layout sections for a channel. Empty when no layout is configured.
+  Future<List<StorefrontSection>> getLayoutSections(
+      {String locale = 'en-IN', String channel = 'b2c'}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/content/app-shell',
+      queryParameters: <String, dynamic>{'locale': locale, 'channel': channel},
+    );
+    return parseLayoutSections(res.data!['layout']);
   }
 
   /// Composed product detail (best-price offer drives price + variant identity).

@@ -429,13 +429,99 @@ final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, lab
 const String _clearanceBannerImage =
     'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940';
 
-/// Home scroll-feed modules, derived from the catalog. Module ordering is local
-/// until a layout-driven scroll feed is wired; banner presentation is backend-driven.
+/// Storefront layout sections for the B2C storefront, delivered by the backend.
+///
+/// Empty when no layout is configured or the API is unavailable, in which case the home falls back to
+/// its local defaults rather than rendering nothing.
+final layoutSectionsProvider =
+    FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2c');
+  } catch (_) {
+    return const <StorefrontSection>[];
+  }
+});
+
+/// Products for one layout section, resolved from its commerce collection.
+///
+/// The section stores a reference; commerce resolves membership, so adding a product to the collection
+/// changes this rail with no editorial action.
+final sectionProductsProvider =
+    FutureProvider.family.autoDispose<List<Product>, StorefrontSection>((ref, section) async {
+  final collectionId = section.collectionKey;
+  if (collectionId == null || collectionId.isEmpty) return const <Product>[];
+  try {
+    return await ref.watch(experienceApiProvider).getComposedProducts(
+          limit: (section.limit != null && section.limit! > 0) ? section.limit! : 12,
+          collectionId: collectionId,
+        );
+  } catch (_) {
+    return const <Product>[];
+  }
+});
+
+/// Home scroll-feed modules.
+///
+/// When the backend delivers layout sections they decide the sections, their order, titles, badges,
+/// limits and visibility. With no configured layout the governed local defaults are used, so the home
+/// never renders empty because merchandising has not been configured yet.
 final homeModulesProvider =
     Provider.autoDispose<List<MerchandisingModule>>((ref) {
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
 
+  // The campaign strip is banner presentation, not a section, so it keeps its own source.
+  final campaignStrip =
+      ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
+  final stripModule = MerchandisingModule(
+    type: MerchandisingModuleType.secondaryBanner,
+    banner: MerchandisingBannerData(
+      imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
+      imageAlt: campaignStrip?.imageAlt,
+      title: campaignStrip?.title ?? 'Clearance Sale',
+      subtitle: campaignStrip?.body ?? 'Up to 70% off select items',
+      ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
+      actionUri: campaignStrip?.actionUri,
+    ),
+  );
+
+  // --- layout-driven ------------------------------------------------------------
+  final sections =
+      (ref.watch(layoutSectionsProvider).value ?? const <StorefrontSection>[])
+          .where((section) => section.visible)
+          .toList();
+  final layoutModules = <MerchandisingModule>[];
+  for (final section in sections) {
+    final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
+    if (sectionProducts == null) continue; // still resolving; do not render an empty rail
+    switch (section.placement) {
+      case 'flash_deals':
+      case 'best_sellers':
+      case 'seasonal':
+      case 'best_deals':
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.productCarousel,
+          title: section.displayTitle,
+          tag: section.badge,
+          products: sectionProducts,
+        ));
+      case 'recommended':
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.productComposition,
+          title: section.displayTitle,
+          tag: section.badge,
+          products: sectionProducts,
+        ));
+      default:
+        // Buy Again, Schemes and the Trade Offers group are not rendered by this surface yet.
+        break;
+    }
+  }
+  if (layoutModules.isNotEmpty) {
+    return <MerchandisingModule>[...layoutModules, stripModule];
+  }
+
+  // --- governed local defaults ---------------------------------------------------
   // Flash Deals / Best Sellers are deterministic collections over the
   // catalogue; badges come from the product itself (review enrichment) so the
   // rails and the "See All" collection filters agree.
@@ -458,11 +544,6 @@ final homeModulesProvider =
       .toList();
   final recommended = products.take(5).toList();
 
-  // The campaign strip is backend-managed presentation. Fall back to the
-  // governed defaults when the API is unavailable.
-  final campaignStrip =
-      ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
-
   return <MerchandisingModule>[
     MerchandisingModule(
       type: MerchandisingModuleType.productCarousel,
@@ -476,17 +557,7 @@ final homeModulesProvider =
       tag: 'Most Loved',
       products: bestSellers,
     ),
-    MerchandisingModule(
-      type: MerchandisingModuleType.secondaryBanner,
-      banner: MerchandisingBannerData(
-        imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
-        imageAlt: campaignStrip?.imageAlt,
-        title: campaignStrip?.title ?? 'Clearance Sale',
-        subtitle: campaignStrip?.body ?? 'Up to 70% off select items',
-        ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
-        actionUri: campaignStrip?.actionUri,
-      ),
-    ),
+    stripModule,
     MerchandisingModule(
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',

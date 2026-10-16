@@ -1326,12 +1326,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (url.pathname === "/v1/products" && req.method === "GET") {
     const limit = Number(url.searchParams.get("limit") ?? 50);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    // A storefront layout section resolves its products from a commerce collection. The section stores
+    // the reference; this resolves it here so the storefront keeps one composed-product path, with the
+    // same price and offer composition it already uses.
+    const collectionId = (url.searchParams.get("collection_id") ?? "").trim();
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
     const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
     try {
       const t0 = performance.now();
-      const products = await medusa.listProducts(limit, offset);
+      const products = collectionId
+        ? await medusa.listProductsByCollection(collectionId, limit)
+        : await medusa.listProducts(limit, offset);
       const productsMs = performance.now() - t0;
 
       const productIds = products.map((p) => p.id);
