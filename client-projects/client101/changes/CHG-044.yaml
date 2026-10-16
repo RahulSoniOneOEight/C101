@@ -118,17 +118,36 @@ implementation:
     - Real Buy Again and Schemes (phase 5).
     - Merchandising navigation reduction (phase 6).
     - The console mirror of the section registry and its divergence check, which arrive with the editor.
+  phase_2:
+    commit: f6e3f5d
+    collection_identity: 'Option A — a section references a Medusa collection id. The existing layout modules still reference the CMS curated-collection until phase 3 reconciles them.'
+    delivered:
+    - 'A section editor at /merchandising/storefront-layouts/{documentId}: ordered section cards, move up and down, add a section limited to the layout channel, and per-section display properties, source, collection, limit, See All, banner, schedule and visibility.'
+    - 'Trade Offers & Deals configures Seasonal, Best Deals and Schemes inside the group, in declared order.'
+    - 'Validation with the same rules delivery applies, blocking save and publish while there are errors and warning on non-blocking issues.'
+    - Optimistic concurrency via expectedUpdatedAt.
+    - The collection picker reuses the existing admin.collections route; no new endpoint.
+    - The console registry mirror plus tooling/validate_layout_sections.py, wired into Contract validation and proven to fail on a diverged copy.
+    verified:
+    - lint and production build clean; both registry checks pass.
+    - 'Write path proven end to end: four sections authored through the operator API, one deliberately invalid for the channel; delivery served three in stored order with labels, badges and limits intact, rejected the invalid one, and left modules untouched.'
+    - One Medusa collection was created on staging because none existed, so the picker had data.
+    not_done:
+    - Drag-and-drop ordering, which is currently move up and down.
+    - Client-side validation on the raw JSON property page.
+    - Storefront consumption of sections, which is phase 3; until then the editor configures something no customer sees.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T19:41:00Z'
-    release_commit: cc5b2f6
-    release_worktree: /opt/buildkart-releases/cc5b2f6
-    previous_release: /opt/buildkart-releases/c6756ff
+    deployed_at_utc: '2026-10-16T20:17:00Z'
+    release_commit: f6e3f5d
+    release_worktree: /opt/buildkart-releases/f6e3f5d
+    previous_release: /opt/buildkart-releases/cc5b2f6
     recreated_services:
     - cms
-    - experience-api
+    - medusa-api
 implementation_evidence:
 - client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
 - client-projects/client101/evidence/CHG-044/phase-1-layout-sections.md
-status: phase-1-deployed-awaiting-review
+- client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
+status: phase-2-deployed-awaiting-review
 production_release_authorized: false
