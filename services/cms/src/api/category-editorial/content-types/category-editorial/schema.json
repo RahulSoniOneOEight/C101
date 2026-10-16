@@ -14,7 +14,14 @@
     "i18n": { "localized": true }
   },
   "attributes": {
-    "categoryId": { "type": "string", "required": true, "unique": true },
+    "categoryId": { "type": "string", "required": true },
+    "channel": {
+      "type": "enumeration",
+      "enum": ["b2c", "b2b"],
+      "default": "b2c",
+      "required": true,
+      "description": "Channel this category presentation belongs to. B2C and B2B are independent sets."
+    },
     "displayLabel": { "type": "string" },
     "shortText": { "type": "string" },
     "iconKey": {

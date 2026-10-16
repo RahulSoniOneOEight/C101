@@ -117,5 +117,13 @@ implementation_request:
 implementation:
   branch: feat/medusa-native-merchandising-admin
   hosted_deployment: not-started
-status: proposal-awaiting-confirmation
+  progress:
+  - "Done (local, additive, not yet deployed): banner gains a categoryId attribute and definition field."
+  - "Done (local, additive, not yet deployed): category-editorial gains a required channel enum (default b2c), and the unique constraint on categoryId is relaxed so one category can hold both a B2C and a B2B record."
+  - "Done: CMS build passes and both schema files parse."
+  - "Next: channel-aware category editorials and a banner-sourced category image in the delivery adapter."
+  - "Next: the Banner studio gains the category placement, a real category picker, and the B2C/B2B grouping; Category presentation becomes Category details."
+  - "Next: migrate the six existing category banner images into banner records, then remove externalBannerImageUrl and bannerImageAltText as the final step."
+  - "Deliberately not deployed while the console and delivery are still unaware of the new fields, so staging is never left with two editable controls for one image."
+status: phase-1-in-progress-not-deployed
 production_release_authorized: false

@@ -16,6 +16,10 @@
   "attributes": {
     "contentKey": { "type": "string", "required": true, "unique": true },
     "name": { "type": "string" },
+    "categoryId": {
+      "type": "string",
+      "description": "Medusa category reference. Required for category.banner placements, ignored by other placements."
+    },
     "audience": {
       "type": "enumeration",
       "enum": ["b2c", "b2b", "both"],

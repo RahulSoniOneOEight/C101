@@ -79,6 +79,12 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         type: "string",
         description: "Operator-facing label. Never shown to customers; the heading below is customer-facing.",
       },
+      {
+        name: "categoryId",
+        label: "Category reference",
+        type: "string",
+        description: "Medusa category id. Required for a Category banner; ignored by other placements.",
+      },
       { name: "audience", label: "Audience", type: "enum", required: true, options: ["b2c", "b2b", "both"] },
       { name: "placement", label: "Placement", type: "string", required: true },
       { name: "title", label: "Title", type: "string", required: true },
@@ -149,6 +155,14 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
     keyField: "categoryId",
     titleField: "heading",
     fields: [
+      {
+        name: "channel",
+        label: "Channel",
+        type: "enum",
+        required: true,
+        options: ["b2c", "b2b"],
+        description: "B2C and B2B are independent sets. A category may have one record per channel.",
+      },
       { name: "categoryId", label: "Commerce category id", type: "string", required: true },
       { name: "displayLabel", label: "Display label", type: "string" },
       { name: "shortText", label: "Supporting text", type: "string" },
