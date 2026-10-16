@@ -168,10 +168,44 @@ implementation:
     - Per-section banner association is configured but not rendered, and the See All destination is carried but not wired to navigation.
     - The campaign strip now renders after the layout sections rather than between the rails.
     - No visual confirmation by a human.
+  closed_this_pass:
+    commit: 53796f4
+    items:
+    - A section banner_reference now resolves against the banner presentation and renders above the rail it introduces.
+    - MerchandisingModule carries the layout See All destination and label, and the home navigates to it instead of guessing from the title.
+    verified: flutter analyze clean; 140 tests pass, including a new banner and See All test; app rebuilt and redeployed to Firebase.
+  remaining:
+    b2b_wiring:
+      status: not-done
+      reason: The provider requests the b2c channel and the B2B home builds its sections locally; no B2B sections exist in the CMS. Needs the B2B layout authored and the B2B home restructured.
+    collection_ordering:
+      status: not-done
+      reason: A Medusa collection-product link has no rank field, so phase 4 needs new persistence plus drag and drop. Nothing existing can be reused.
+    drag_and_drop:
+      status: not-done
+      reason: Implemented as accessible move up and down. No drag-and-drop library is among the app dependencies, so it is a dependency decision.
+    buy_again_and_schemes:
+      status: held
+      reason: Deliberately left as labelled fixtures by prior approval; making them real is commerce work listed as an open gap in the architecture mapping.
+    navigation_reduction:
+      status: not-done-on-purpose
+      reason: RouteConfig in the dashboard SDK has no hidden flag, so meeting 'exactly two Merchandising items' requires deleting or relocating eight working pages and auditing every cross-link. Too wide to do safely here, and deleting working features should not be silent.
+    raw_json_validation:
+      status: not-done
+      reason: Only the section editor validates; the advanced JSON view can still store sections delivery will reject.
+    campaign_strip_position:
+      status: known-consequence
+      reason: The strip renders after the layout sections because it is banner presentation, not a section. Adding a campaign_strip placement would let it be ordered.
+    bootstrap_seed:
+      status: unverified
+      reason: It now creates category banner records and needs a fresh database to prove.
+    human_review:
+      status: pending-human
+      reason: Nobody has opened the storefront and looked at it.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T21:05:00Z'
-    release_commit: fc346de
+    deployed_at_utc: '2026-10-16T21:25:00Z'
+    release_commit: 53796f4
     release_worktree: /opt/buildkart-releases/139f9b8
     previous_release: /opt/buildkart-releases/f6e3f5d
     recreated_services:
@@ -186,5 +220,6 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
 - client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
 - client-projects/client101/evidence/CHG-044/phase-3b-storefront-consumption.md
-status: phase-3b-deployed-awaiting-review
+- client-projects/client101/evidence/CHG-044/pending-items.md
+status: pending-items-closed-and-remaining-documented
 production_release_authorized: false
