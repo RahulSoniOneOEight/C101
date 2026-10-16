@@ -1,5 +1,5 @@
 change_id: CHG-042
-revision: 2
+revision: 3
 request: >-
   Improve the BuildKart Ops Console Merchandising > Banners page using the supplied Banner studio
   HTML demo as the visual and interaction reference: compact header and counts, placement/audience/
@@ -70,11 +70,19 @@ decisions_approved:
   approved_at_utc: '2026-10-16'
   D-042-01: keep the existing Merchandising navigation; no media or DAM entry points in this change.
   D-042-02: keep the governed tabs (All, Needs review, Draft only, Published) and add Scheduled as a derived filter.
+  D-042-02-superseded: the banner lifecycle tabs are Live, Draft, Scheduled and Historical; the Needs review tab is replaced by an in-row indicator.
   D-042-03-superseded: the banner editor becomes a modal dialog launched from the Banners page, matching the reference demo.
   D-042-04: separate editorial status from display eligibility; never label a banner as displaying without delivery evidence.
   D-042-05: never fabricate commerce references, media, channels, crops or previews.
   D-042-06: scheduling remains publish plus a server-enforced start/end window.
   D-042-07: implement Phase 1 plus the Phase 2 authenticated preview; keep Phase 3 deferred.
+decisions_approved_rev3:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-08: banner tabs become Live, Draft, Scheduled and Historical.
+  D-042-09: the Needs review tab is replaced by the in-row "Changes not published" indicator.
+  D-042-10: the Create banner action sits on the right of the header and filters are compact.
+  D-042-11: the duplicated count cards are replaced by the tab counts plus a total.
 supersedes:
   - "CHG-038 and CHG-040 routed full-page editor decision applies to the banner kind only: the banner editor is now a modal dialog over the Banners page. The other five properties keep routed editors."
   - "A deep-linkable query parameter replaces the routed editor URL for banners so refresh, browser Back and unsaved-change protection still hold."

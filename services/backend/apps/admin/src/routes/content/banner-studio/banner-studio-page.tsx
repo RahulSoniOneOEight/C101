@@ -15,24 +15,33 @@ import {
 import { ActionMenu, SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { client } from "../../../lib/client";
-import { CONTENT_LOCALES, PAGE_SIZE, statusColor, statusLabel, type ContentDocument, type ContentLocale } from "../content-model";
-import { PageTabs } from "../content-operations";
 import {
+  CONTENT_LOCALES,
+  PAGE_SIZE,
+  statusColor,
+  statusLabel,
+  type ContentDocument,
+  type ContentLocale,
+} from "../content-model";
+import {
+  DISPLAY_COLORS,
+  DISPLAY_LABELS,
   PLACEMENT_LABELS,
+  STUDIO_TABS,
   audienceLabel,
   bannerKey,
   bannerTitle,
   displayEligibility,
-  DISPLAY_COLORS,
-  DISPLAY_LABELS,
+  isStudioTab,
+  localeLabel,
   placementLabel,
   scheduleLabel,
+  studioTabFor,
+  type StudioTab,
 } from "./banner-model";
 import { BannerEditor } from "./banner-editor";
-
-type StudioView = "all" | "modified" | "draft" | "published" | "scheduled";
 
 const PLACEMENT_FILTER_OPTIONS = Object.entries(PLACEMENT_LABELS);
 
@@ -64,12 +73,7 @@ export function BannerStudioPage() {
 
   const locale: ContentLocale = searchParams.get("locale") === "hi-IN" ? "hi-IN" : "en-IN";
   const requestedView = searchParams.get("view");
-  const view: StudioView = requestedView === "modified"
-    || requestedView === "draft"
-    || requestedView === "published"
-    || requestedView === "scheduled"
-    ? requestedView
-    : "all";
+  const view: StudioTab = isStudioTab(requestedView) ? requestedView : "live";
   const search = searchParams.get("q") ?? "";
   const placementFilter = searchParams.get("placement") ?? "";
   const audienceFilter = searchParams.get("audience") ?? "";
@@ -88,49 +92,51 @@ export function BannerStudioPage() {
   const updateParams = (values: Record<string, string | null>, resetPage = false) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(values).forEach(([key, value]) => {
-      if (!value || value === "all" || (key === "locale" && value === "en-IN")) next.delete(key);
-      else next.set(key, value);
+      if (!value || value === "all" || (key === "locale" && value === "en-IN") || (key === "view" && value === "live")) {
+        next.delete(key);
+      } else {
+        next.set(key, value);
+      }
     });
     if (resetPage) next.delete("page");
     setSearchParams(next, { replace: true });
   };
 
-  const openEditor = (documentId: string | "new") => {
-    updateParams({ editor: documentId });
-  };
-  const closeEditor = () => {
-    updateParams({ editor: null });
-  };
+  const openEditor = (documentId: string) => updateParams({ editor: documentId });
+  const closeEditor = () => updateParams({ editor: null });
+  const filtersActive = Boolean(search || placementFilter || audienceFilter);
+  const clearFilters = () => updateParams({ q: null, placement: null, audience: null }, true);
 
   const now = useMemo(() => new Date(), []);
   const eligibilityOf = (document: ContentDocument) => displayEligibility(document, now);
 
-  const counts = {
-    all: documents.length,
-    modified: documents.filter((item) => item.publicationStatus === "modified").length,
-    draft: documents.filter((item) => item.publicationStatus === "draft").length,
-    published: documents.filter((item) => item.publicationStatus === "published").length,
-    scheduled: documents.filter((item) => item.publicationStatus !== "draft")
-      .filter((item) => eligibilityOf(item) === "scheduled").length,
+  const counts: Record<StudioTab, number> = {
+    live: 0,
+    draft: 0,
+    scheduled: 0,
+    historical: 0,
   };
-  const totalPublishedOrChanged = documents.filter((item) => item.publicationStatus !== "draft").length;
+  documents.forEach((document) => {
+    counts[studioTabFor(document, now)] += 1;
+  });
 
   const term = search.trim().toLocaleLowerCase();
   const filtered = documents
-    .filter((item) => {
-      if (view === "all") return true;
-      if (view === "scheduled") return item.publicationStatus !== "draft" && eligibilityOf(item) === "scheduled";
-      return item.publicationStatus === view;
-    })
-    .filter((item) => (placementFilter ? item.placement === placementFilter : true))
-    .filter((item) => (audienceFilter
-      ? typeof item.audience === "string" && (item.audience === audienceFilter || item.audience === "both")
+    .filter((document) => studioTabFor(document, now) === view)
+    .filter((document) => (placementFilter ? document.placement === placementFilter : true))
+    .filter((document) => (audienceFilter
+      ? typeof document.audience === "string"
+        && (document.audience === audienceFilter || document.audience === "both")
       : true))
-    .filter((item) => {
+    .filter((document) => {
       if (!term) return true;
-      return [bannerTitle(item), bannerKey(item), item.documentId, placementLabel(item.placement),
-        audienceLabel(item.audience), item.publishedAt ? String(item.publishedAt) : ""]
-        .join(" ").toLocaleLowerCase().includes(term);
+      return [
+        bannerTitle(document),
+        bannerKey(document),
+        document.documentId,
+        placementLabel(document.placement),
+        audienceLabel(document.audience),
+      ].join(" ").toLocaleLowerCase().includes(term);
     })
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
 
@@ -168,7 +174,10 @@ export function BannerStudioPage() {
     },
   });
 
-  const changePublication = async (document: ContentDocument, operation: "publish" | "unpublish") => {
+  const changePublication = async (
+    document: ContentDocument,
+    operation: "publish" | "unpublish",
+  ) => {
     const label = bannerTitle(document);
     const confirmed = await prompt({
       title: operation === "publish" ? "Publish this banner?" : "Unpublish this banner?",
@@ -188,9 +197,9 @@ export function BannerStudioPage() {
     ? documents.find((item) => item.documentId === editorDocumentId)
     : undefined;
 
-  const tabRoute = (nextView: StudioView) => {
+  const tabRoute = (nextView: StudioTab) => {
     const next = new URLSearchParams(searchParams);
-    if (nextView === "all") next.delete("view");
+    if (nextView === "live") next.delete("view");
     else next.set("view", nextView);
     next.delete("page");
     next.delete("editor");
@@ -201,9 +210,9 @@ export function BannerStudioPage() {
   return (
     <SingleColumnPage>
       <div className="flex flex-col gap-y-3">
-        <Container className="divide-y p-0">
-          <div className="flex flex-col gap-4 px-6 py-5 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-3xl">
+        <Container className="overflow-hidden p-0">
+          <div className="flex flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Heading level="h1">Banner studio</Heading>
                 <StatusBadge color="orange">Staging</StatusBadge>
@@ -212,132 +221,155 @@ export function BannerStudioPage() {
                 Create the moments your customers see. Editing here changes presentation only.
               </Text>
             </div>
-            <Button
-              size="small"
-              onClick={() => openEditor("new")}
-              disabled={contentQuery.isError}
-              data-testid="create-banner"
-            >
-              Create banner
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Text size="xsmall" className="hidden text-ui-fg-subtle sm:block">
+                {contentQuery.isPending ? "" : `${documents.length} banners`}
+              </Text>
+              <Button
+                size="small"
+                onClick={() => openEditor("new")}
+                disabled={contentQuery.isError}
+                data-testid="create-banner"
+              >
+                Create banner
+              </Button>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-4 px-6 py-4 lg:grid-cols-4">
-            {([
-              ["Total banners", counts.all],
-              ["Published or changed", totalPublishedOrChanged],
-              ["Scheduled", counts.scheduled],
-              ["Drafts", counts.draft],
-            ] as Array<[string, number]>).map(([label, value]) => (
-              <div key={label}>
-                <Text size="xsmall" className="text-ui-fg-subtle">{label}</Text>
-                <Text size="large" weight="plus">{contentQuery.isPending ? "—" : value}</Text>
+
+          <div className="flex flex-col gap-3 border-t border-ui-border-base px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="overflow-x-auto">
+              <div className="flex min-w-max items-center gap-1" role="tablist" aria-label="Banner lifecycle">
+                {STUDIO_TABS.map((tab) => (
+                  <Button
+                    key={tab.value}
+                    asChild
+                    variant={view === tab.value ? "secondary" : "transparent"}
+                    size="small"
+                  >
+                    <Link to={tabRoute(tab.value)} role="tab" aria-selected={view === tab.value}>
+                      {tab.label}
+                      <span className="text-ui-fg-subtle" data-testid={`tab-count-${tab.value}`}>
+                        {contentQuery.isPending ? "—" : counts[tab.value]}
+                      </span>
+                    </Link>
+                  </Button>
+                ))}
               </div>
-            ))}
-          </div>
-        </Container>
+            </div>
 
-        <Container className="overflow-hidden p-0">
-          <PageTabs
-            label="Banner publication status"
-            active={view}
-            tabs={[
-              { value: "all", label: "All", count: counts.all, to: tabRoute("all") },
-              { value: "modified", label: "Needs review", count: counts.modified, to: tabRoute("modified") },
-              { value: "draft", label: "Draft only", count: counts.draft, to: tabRoute("draft") },
-              { value: "published", label: "Published", count: counts.published, to: tabRoute("published") },
-              { value: "scheduled", label: "Scheduled", count: counts.scheduled, to: tabRoute("scheduled") },
-            ]}
-          />
-
-          <div className="grid gap-3 border-b border-ui-border-base px-6 py-4 md:grid-cols-4">
-            <div>
-              <Label htmlFor="banner-search" size="xsmall">Search banners</Label>
-              <Input
-                id="banner-search"
-                value={search}
-                onChange={(event) => updateParams({ q: event.target.value }, true)}
-                placeholder="Name, key, placement or document ID"
-                autoComplete="off"
-              />
-            </div>
-            <div>
-              <Label htmlFor="banner-placement-filter" size="xsmall">Placement</Label>
-              <Select
-                value={placementFilter || "all"}
-                onValueChange={(value) => updateParams({ placement: value === "all" ? null : value }, true)}
-              >
-                <Select.Trigger id="banner-placement-filter"><Select.Value /></Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="all">All placements</Select.Item>
-                  {PLACEMENT_FILTER_OPTIONS.map(([value, label]) => (
-                    <Select.Item key={value} value={value}>{label}</Select.Item>
-                  ))}
-                </Select.Content>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="banner-audience-filter" size="xsmall">Audience</Label>
-              <Select
-                value={audienceFilter || "all"}
-                onValueChange={(value) => updateParams({ audience: value === "all" ? null : value }, true)}
-              >
-                <Select.Trigger id="banner-audience-filter"><Select.Value /></Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="all">All audiences</Select.Item>
-                  <Select.Item value="b2c">B2C customers</Select.Item>
-                  <Select.Item value="b2b">B2B buyers</Select.Item>
-                </Select.Content>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="banner-locale-filter" size="xsmall">Language</Label>
-              <Select
-                value={locale}
-                onValueChange={(value) => updateParams({ locale: value, editor: null }, true)}
-              >
-                <Select.Trigger id="banner-locale-filter"><Select.Value /></Select.Trigger>
-                <Select.Content>
-                  {CONTENT_LOCALES.map((item) => (
-                    <Select.Item key={item.value} value={item.value}>{item.label}</Select.Item>
-                  ))}
-                </Select.Content>
-              </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="w-full sm:w-52">
+                <Label htmlFor="banner-search" className="sr-only">Search banners</Label>
+                <Input
+                  id="banner-search"
+                  size="small"
+                  value={search}
+                  onChange={(event) => updateParams({ q: event.target.value }, true)}
+                  placeholder="Search banners"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="w-36">
+                <Label htmlFor="banner-placement-filter" className="sr-only">Filter by placement</Label>
+                <Select
+                  size="small"
+                  value={placementFilter || "all"}
+                  onValueChange={(value) => updateParams({ placement: value === "all" ? null : value }, true)}
+                >
+                  <Select.Trigger id="banner-placement-filter">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="all">All placements</Select.Item>
+                    {PLACEMENT_FILTER_OPTIONS.map(([value, label]) => (
+                      <Select.Item key={value} value={value}>{label}</Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select>
+              </div>
+              <div className="w-32">
+                <Label htmlFor="banner-audience-filter" className="sr-only">Filter by audience</Label>
+                <Select
+                  size="small"
+                  value={audienceFilter || "all"}
+                  onValueChange={(value) => updateParams({ audience: value === "all" ? null : value }, true)}
+                >
+                  <Select.Trigger id="banner-audience-filter">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="all">All audiences</Select.Item>
+                    <Select.Item value="b2c">B2C</Select.Item>
+                    <Select.Item value="b2b">B2B</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
+              <div className="w-32">
+                <Label htmlFor="banner-locale-filter" className="sr-only">Language</Label>
+                <Select
+                  size="small"
+                  value={locale}
+                  onValueChange={(value) => updateParams({ locale: value, editor: null }, true)}
+                >
+                  <Select.Trigger id="banner-locale-filter">
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    {CONTENT_LOCALES.map((item) => (
+                      <Select.Item key={item.value} value={item.value}>{item.label}</Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select>
+              </div>
+              {filtersActive ? (
+                <Button size="small" variant="transparent" onClick={clearFilters}>
+                  Clear
+                </Button>
+              ) : null}
             </div>
           </div>
 
           {contentQuery.isPending ? (
-            <Text size="small" className="px-6 py-10 text-ui-fg-subtle">Loading banners…</Text>
+            <Text size="small" className="border-t border-ui-border-base px-6 py-10 text-ui-fg-subtle">
+              Loading banners…
+            </Text>
           ) : contentQuery.isError || !contentQuery.data ? (
-            <div className="px-6 py-10">
+            <div className="border-t border-ui-border-base px-6 py-10">
               <Heading level="h3">Banners are unavailable</Heading>
               <Text size="small" className="mt-1 text-ui-fg-error">
                 The private CMS editor API could not be reached or this account lacks permission.
               </Text>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="px-6 py-10">
-              <Heading level="h3">No matching banners</Heading>
+            <div className="border-t border-ui-border-base px-6 py-10">
+              <Heading level="h3">
+                {documents.length === 0 ? "No banners yet" : `No ${STUDIO_TABS.find((tab) => tab.value === view)!.label.toLocaleLowerCase()} banners`}
+              </Heading>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
                 {documents.length === 0
                   ? "Create the first banner. It stays a draft until you publish it."
-                  : "Change the search, filters or status tab to see more banners."}
+                  : filtersActive
+                    ? "Clear the filters or switch tab to see more banners."
+                    : "Nothing in this state right now."}
               </Text>
-              {documents.length === 0 ? (
-                <Button size="small" className="mt-4" onClick={() => openEditor("new")}>
-                  Create banner
-                </Button>
-              ) : null}
+              <div className="mt-4 flex gap-2">
+                {documents.length === 0 ? (
+                  <Button size="small" onClick={() => openEditor("new")}>Create banner</Button>
+                ) : filtersActive ? (
+                  <Button size="small" variant="secondary" onClick={clearFilters}>Clear filters</Button>
+                ) : null}
+              </div>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table className="min-w-[64rem]">
+              <div className="overflow-x-auto border-t border-ui-border-base">
+                <Table className="min-w-[62rem]">
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell>Banner</Table.HeaderCell>
                       <Table.HeaderCell>Placement / audience</Table.HeaderCell>
                       <Table.HeaderCell>Editorial</Table.HeaderCell>
-                      <Table.HeaderCell>Display</Table.HeaderCell>
+                      <Table.HeaderCell>Eligibility</Table.HeaderCell>
                       <Table.HeaderCell>Schedule · IST</Table.HeaderCell>
                       <Table.HeaderCell>Updated</Table.HeaderCell>
                       <Table.HeaderCell className="sticky right-0 w-12 bg-ui-bg-base">
@@ -364,9 +396,6 @@ export function BannerStudioPage() {
                                 <Text size="xsmall" className="truncate text-ui-fg-subtle">
                                   {bannerKey(document)}
                                 </Text>
-                                {document.publicationStatus === "modified" ? (
-                                  <Text size="xsmall" className="text-ui-fg-muted">Unpublished changes</Text>
-                                ) : null}
                               </div>
                             </div>
                           </Table.Cell>
@@ -447,7 +476,7 @@ export function BannerStudioPage() {
                   </Table.Body>
                 </Table>
               </div>
-              <div className="flex flex-col gap-3 border-t border-ui-border-base px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 border-t border-ui-border-base px-6 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <Text size="xsmall" className="text-ui-fg-subtle">
                   Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
                 </Text>
@@ -474,27 +503,43 @@ export function BannerStudioPage() {
           )}
         </Container>
 
-        <Container className="px-6 py-4">
+        <Container className="px-6 py-3">
           <Text size="xsmall" className="text-ui-fg-subtle">
-            Display eligibility is derived from publication and the stored schedule. It never claims a
-            banner is being served. Placement membership and ordering stay in storefront layouts, and
-            commerce data stays in Medusa.
+            Live, Scheduled and Historical are derived from publication and the stored schedule, and
+            never claim a banner is being served. Historical means the end time has passed. A published
+            banner with unpublished edits stays under Live and is marked "Changes not published".
+            Placement membership and ordering stay in storefront layouts, and commerce data stays in
+            Medusa.
           </Text>
         </Container>
       </div>
 
-      {editorParam ? (
+      {editorParam && (editorParam === "new" || editingDocument) ? (
         <BannerEditor
           key={`${editorParam}:${locale}`}
           open
           onOpenChange={(next) => { if (!next) closeEditor(); }}
           locale={locale}
           document={editingDocument}
-          creating={!editingDocument}
+          creating={editorParam === "new"}
           onSaved={async () => {
             await queryClient.invalidateQueries({ queryKey });
           }}
         />
+      ) : null}
+
+      {editorParam && editorParam !== "new" && !editingDocument && !contentQuery.isPending ? (
+        <Container className="mt-3 border-ui-border-error px-6 py-4">
+          <Heading level="h2">That banner could not be opened</Heading>
+          <Text size="small" className="mt-1 text-ui-fg-subtle">
+            There is no {localeLabel(locale)} draft for this banner. It may exist in another language,
+            or the link may be out of date. Opening it as a new banner would risk creating a duplicate,
+            so it has been left closed.
+          </Text>
+          <Button size="small" variant="secondary" className="mt-3" onClick={closeEditor}>
+            Back to banners
+          </Button>
+        </Container>
       ) : null}
     </SingleColumnPage>
   );

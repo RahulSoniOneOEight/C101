@@ -354,6 +354,36 @@ export function publicationTabFor(status: PublicationStatus): string {
   return "draft";
 }
 
+/**
+ * Banner lifecycle tabs.
+ *
+ * Live, Draft, Scheduled and Historical replace the generic publication tabs for banners so the
+ * operator's first question ("is this showing, waiting, unfinished or finished?") is answered by the
+ * tab itself. A published banner with unpublished edits stays in Live and carries the
+ * "Changes not published" badge, so the Needs review state is still visible rather than lost.
+ */
+export type StudioTab = "live" | "draft" | "scheduled" | "historical";
+
+export const STUDIO_TABS: Array<{ value: StudioTab; label: string }> = [
+  { value: "live", label: "Live" },
+  { value: "draft", label: "Draft" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "historical", label: "Historical" },
+];
+
+export function isStudioTab(value: string | null): value is StudioTab {
+  return STUDIO_TABS.some((tab) => tab.value === value);
+}
+
+/** Tab for a banner, derived from publication and the stored schedule only. */
+export function studioTabFor(document: ContentDocument, now: Date = new Date()): StudioTab {
+  const eligibility = displayEligibility(document, now);
+  if (eligibility === "expired") return "historical";
+  if (document.publicationStatus === "draft") return "draft";
+  if (eligibility === "scheduled") return "scheduled";
+  return "live";
+}
+
 export interface BannerItem {
   document: ContentDocument;
   response: ContentResponse;
