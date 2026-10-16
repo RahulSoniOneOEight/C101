@@ -155,14 +155,19 @@ implementation:
   - Banner studio, preview, duplicate and concurrency were exercised against the compiled runtime.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-16T10:43:00Z'
-    release_commit: 13941b2
-    release_worktree: /opt/buildkart-releases/13941b2
-    previous_release: /opt/buildkart-releases/e4a1f32
+    deployed_at_utc: '2026-10-16T10:57:00Z'
+    release_commit: 5482e56
+    release_worktree: /opt/buildkart-releases/5482e56
+    previous_release: /opt/buildkart-releases/13941b2
     recreated_services:
     - cms
     - medusa-api
     - experience-api
+    follow_up_release:
+      release_commit: 5482e56
+      recreated_services:
+      - medusa-api
+      reason: 'Conflict detection branched on HTTP status instead of the message text, because Medusa rewrites CONFLICT messages.'
     new_secret: EXPERIENCE_OPERATOR_SECRET (dedicated to the private preview projection)
     fcm_overlay_preserved: true
     verification:
@@ -172,6 +177,10 @@ implementation:
     - Public presentation is unchanged and not stale.
     - Duplicate creates a draft-only copy; a stale save is rejected with 409; the audit rows are recorded.
     - cms, medusa-api and experience-api are healthy with zero restarts.
+    operator_route_verification:
+    - An authenticated operator session exercised list, preview, duplicate, stale save and correct save through the Medusa routes.
+    - A stale save returns 409 and is not applied; the correct token saves.
+    - The chain is verified end to end; only browser-level interaction remains unverified.
     pending_human_checks:
     - verify-header-counts-and-tabs
     - verify-filters-and-eligibility-columns

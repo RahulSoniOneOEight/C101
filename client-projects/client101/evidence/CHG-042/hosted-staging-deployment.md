@@ -97,6 +97,44 @@ operator:
 
 No production deployment or authorization was performed.
 
+## Operator-route verification (second round)
+
+The first round verified the CMS and Experience API layers directly. This round verified the exact HTTP
+chain the browser uses, through the Medusa operator routes with an authenticated operator session. The
+credential was read on the host; neither the password nor the session token was printed.
+
+| Step | Result |
+|---|---|
+| Operator login | `ok` |
+| `GET /admin/buildkart/content?kind=banner&locale=en-IN` | `200`, 5 documents, `name` present in the definition |
+| `POST /admin/buildkart/content/preview` | `200`, `complete: true`, `eligibility: scheduled`, `illustrative: true`, `title: Probe heading`, `action_uri: /products`, `priority: 7` |
+| `POST /admin/buildkart/content/preview` with `kind: faq-article` | `400` (banner-only in this increment) |
+| `POST /admin/buildkart/content` `duplicate-draft` | `201`, key `secondary-clearance-sale-copy`, `publishedAt: null` |
+| `POST /admin/buildkart/content` `update-draft` with a stale token | `409` and the write was not applied |
+| `POST /admin/buildkart/content` `update-draft` with the correct token | `200`, field updated |
+| Source banner publication state after every step | unchanged |
+
+The test duplicate was removed afterwards: the banner table is back to 10 rows (5 draft, 5 published)
+with no `-copy` keys.
+
+### Defect found and fixed during this round
+
+Medusa's error handler rewrites a `CONFLICT` message to a generic string. The real `409` body is:
+
+```json
+{"code":"invalid_state_error","type":"conflict","message":"The request conflicted with another request. You may retry the request with the provided Idempotency-Key."}
+```
+
+The editor originally detected a concurrent edit by matching the message text, which would never have
+matched this body — the save would still have been blocked, but the operator would have seen a
+misleading "retry with an Idempotency-Key" message instead of the reload-and-reconcile guidance. The
+editor now branches on the HTTP status (`409`) from `ClientError`, with the message pattern kept only as
+a secondary guard. Fix released as `5482e56`.
+
+The status-based branch is verified by type-level inspection (`ClientError.status`), the lint and build
+gates, and the confirmed `409` response shape above. It is not covered by browser automation, which
+remains a verification limit.
+
 ## Known limitations and deviations (deliberate)
 
 Recorded so nothing is mistaken for finished work:
