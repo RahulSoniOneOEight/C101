@@ -29,7 +29,8 @@ admin/auth APIs, routed by nginx to `medusa-api`:
 | Path | Surface |
 |---|---|
 | `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
-| `/dashboard/merchandising` | Common Merchandising overview for editorial and commerce tools |
+| `/dashboard/merchandising` | Merchandising — storefront composition: Banners and Storefront layouts (redirects here from the group root) |
+| `/dashboard/editorial` | Editorial — the individual content types: Category presentation, Product editorial, Collection presentation, Help and articles |
 | `/dashboard/content` | Native Editorial content workspace backed by private Strapi |
 | `/dashboard/merchandising-presets` | Governed preset baseline compared with live Medusa records |
 | `/seller/` | Mercur vendor (seller) dashboard |

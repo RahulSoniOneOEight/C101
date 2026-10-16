@@ -3,11 +3,11 @@ import { ContentPropertyPage } from "../../content/content-property-page";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
-  label: "Category presentation",
-  rank: 4,
-  nested: "/merchandising",
+  label: "Product editorial",
+  rank: 2,
+  nested: "/editorial",
 };
 
-export default function CategoryPresentationPage() {
-  return <ContentPropertyPage kind="category-editorial" />;
+export default function ProductEditorialPage() {
+  return <ContentPropertyPage kind="product-editorial" />;
 }

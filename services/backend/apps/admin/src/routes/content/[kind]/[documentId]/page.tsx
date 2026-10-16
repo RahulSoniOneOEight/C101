@@ -27,6 +27,7 @@ import {
   type ContentLocale,
   type ContentResponse,
 } from "../../content-model";
+import { validateStoredSections, type LayoutChannel } from "../../layout-section-model";
 
 function DraftEditor({
   kind,
@@ -89,6 +90,16 @@ function DraftEditor({
     if (mutation.isPending) return;
     try {
       const data = parseForm(content.definition.fields, formValues);
+      // The section editor blocks an invalid layout before saving; this raw JSON view is the advanced
+      // and recovery path, so it has to apply the same rules. Without this an operator could store
+      // sections that delivery silently drops, with no indication why the storefront ignored them.
+      if (kind === "storefront-layout") {
+        const channel: LayoutChannel = data.channel === "b2b" ? "b2b" : "b2c";
+        const { errors } = validateStoredSections(data.sections, channel);
+        if (errors.length > 0) {
+          throw new Error(`Layout sections would not be served: ${errors.join(" ")}`);
+        }
+      }
       setFormError(null);
       mutation.mutate(data);
     } catch (error) {
@@ -96,7 +107,7 @@ function DraftEditor({
       setFormError(message);
       toast.error(message);
     }
-  }, [content.definition.fields, formValues, mutation]);
+  }, [content.definition.fields, formValues, mutation, kind]);
 
   useEffect(() => {
     if (!createdDocumentId || isDirty) return;

@@ -96,7 +96,7 @@ const LEGACY_PLACEMENT_LABELS: Record<string, string> = {
 };
 
 /** Where category banners are actually edited, so the studio can point at the one authoritative page. */
-export const CATEGORY_DETAILS_ROUTE = "/merchandising/category-presentation";
+export const CATEGORY_DETAILS_ROUTE = "/editorial/category-presentation";
 
 const SUPPORTED_PLACEMENT_VALUES = new Set(SUPPORTED_PLACEMENTS.map((item) => item.value));
 
