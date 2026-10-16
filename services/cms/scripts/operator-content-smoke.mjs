@@ -34,7 +34,9 @@ if (!banner?.documentId) throw new Error("Expected at least one seeded banner dr
 
 const data = {};
 for (const field of list.definition.fields) {
-  if (banner[field.name] !== undefined) data[field.name] = banner[field.name];
+  // Match the draft editor's parseForm behavior: it submits every editable field and clears an
+  // empty optional field with null rather than omitting it from the mutation.
+  data[field.name] = banner[field.name] ?? null;
 }
 
 const updateResponse = await fetch(`${baseUrl}/api/operator-content/banner`, {
