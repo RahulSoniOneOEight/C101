@@ -188,11 +188,11 @@ implementation:
       status: held
       reason: Deliberately left as labelled fixtures by prior approval; making them real is commerce work listed as an open gap in the architecture mapping.
     navigation_reduction:
-      status: not-done-on-purpose
-      reason: RouteConfig in the dashboard SDK has no hidden flag, so meeting 'exactly two Merchandising items' requires deleting or relocating eight working pages and auditing every cross-link. Too wide to do safely here, and deleting working features should not be silent.
+      status: done-and-released
+      reason: Merchandising now holds Banners and Storefront layouts only. The four displaced editors moved to a new Editorial group (URLs /editorial/*, cross-links updated) and the four nav-only pages retired. RouteConfig has no hidden flag, so removal required deciding where the editors live rather than muting them.
     raw_json_validation:
-      status: not-done
-      reason: Only the section editor validates; the advanced JSON view can still store sections delivery will reject.
+      status: done
+      reason: The advanced storefront-layout JSON view now runs validateStoredSections and refuses a save delivery would reject, matching the section editor.
     campaign_strip_position:
       status: known-consequence
       reason: The strip renders after the layout sections because it is banner presentation, not a section. Adding a campaign_strip placement would let it be ordered.
@@ -204,10 +204,14 @@ implementation:
       reason: Nobody has opened the storefront and looked at it.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-17T00:35:00Z'
-    release_commit: 03a49e0
-    release_worktree: /opt/buildkart-releases/139f9b8
-    previous_release: /opt/buildkart-releases/f6e3f5d
+    deployed_at_utc: '2026-10-17T02:20:00Z'
+    release_commit: 2e14acd
+    release_worktree: /opt/buildkart-releases/2e14acd
+    previous_release: /opt/buildkart-releases/139f9b8
+    services_released:
+      experience-api: /opt/buildkart-releases/0ce1a4f
+      medusa-api: /opt/buildkart-releases/2e14acd
+    note: experience-api code is identical between the two releases; current points at 2e14acd.
   staging_content:
     b2b_layout:
       layout_key: b2b-home
@@ -220,13 +224,10 @@ implementation:
       id: pcol_01M53AN7GEGEX35SJRDE20F3BD
     - handle: trade-best-deals
       id: pcol_01M53AN7M1ZAF0AWVRYM8X7CMB
-  delivery_defect_fixed_not_released:
+  delivery_defect_fixed_and_released:
     issue: The normaliser read label from the section title and never from the authored label, so an operator's label was discarded on delivery.
     fix: label resolves from label, then title, then the registry label.
-    state: source-only; takes effect on the next experience-api release, which was not performed.
-    recreated_services:
-    - experience-api
-    - medusa-api
+    state: released in 0ce1a4f and verified on staging; the b2b seasonal section now delivers its authored label with the title intact.
     app_deployment:
       hosting: Firebase Hosting site buildkart-staging
       url: https://buildkart-staging.web.app
@@ -237,6 +238,7 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
 - client-projects/client101/evidence/CHG-044/phase-3b-storefront-consumption.md
 - client-projects/client101/evidence/CHG-044/phase-3c-b2b-consumption.md
+- client-projects/client101/evidence/CHG-044/phase-6-navigation-and-closeout.md
 - client-projects/client101/evidence/CHG-044/pending-items.md
-status: b2b-consumption-deployed-awaiting-review
+status: b2b-consumption-and-navigation-released-awaiting-review
 production_release_authorized: false
