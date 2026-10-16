@@ -135,6 +135,50 @@ The status-based branch is verified by type-level inspection (`ClientError.statu
 gates, and the confirmed `409` response shape above. It is not covered by browser automation, which
 remains a verification limit.
 
+## Revision 3 — lifecycle tabs and compact toolbar
+
+Requested change: the banner tabs should read Live, Draft, Scheduled and Historical; the create action
+should sit on the right; filters should be compact with a cleaner layout.
+
+### Shipped
+
+- Tabs are now **Live, Draft, Scheduled, Historical**, each carrying its own count. Live is the default
+  view, so `/merchandising/banners` opens on what customers see.
+- Tab membership is derived only from publication and the stored schedule: expired → Historical,
+  unpublished → Draft, published with a future start → Scheduled, otherwise → Live.
+- The **Needs review** tab was replaced by the in-row editorial badge (`Changes not published`). A
+  published banner with unpublished edits therefore stays under Live and remains clearly marked; the
+  state is not lost.
+- **Create banner** is pinned to the right of the header, with the total banner count beside it.
+- Filters are compact and single-row: small search field plus placement, audience and language selects,
+  each self-describing ("All placements", "All audiences", "English (India)") with screen-reader labels,
+  and a `Clear` action that appears only when a filter is active.
+- The four duplicated count cards were removed; counts now live in the tabs and the total in the header,
+  removing the previous double-reporting.
+- The eligibility column heading is now `Eligibility` and says so explicitly.
+- The table's duplicated "Unpublished changes" text under the name was removed because the editorial
+  badge already carries it.
+
+### Robustness fix found while reworking the page
+
+The editor previously treated any unresolved `?editor=<id>` as "create new", so opening a stale or
+another-language link could have created an unintended duplicate. The page now opens the editor only for
+`editor=new` or a resolved document, and shows an explicit "That banner could not be opened" panel
+otherwise.
+
+### Verified on staging
+
+- Active release `faecaa2`; served bundle `assets/index-D6KjqAHE.js` (new hash).
+- Bundle contains the exact tab definition `{label:"Draft"},{value:"scheduled",...},{value:"historical",label:"Historical"}`,
+  plus `Eligibility`, `Search banners`, `Clear`, `tab-count-` and the new not-found panel text.
+- `200` for `/dashboard/merchandising/banners` and for `?view=draft`, `?view=scheduled`, `?view=historical`.
+- `medusa-api` healthy after recreate and the proxy was reloaded.
+
+### Not verified
+
+Tab counts, filter combinations and the responsive behaviour at wide desktop and ~1024px still need a
+human eye; they are client-side derivations and are not covered by browser automation.
+
 ## Known limitations and deviations (deliberate)
 
 Recorded so nothing is mistaken for finished work:

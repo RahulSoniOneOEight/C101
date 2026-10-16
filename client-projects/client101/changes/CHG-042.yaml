@@ -176,6 +176,11 @@ implementation:
       recreated_services:
       - medusa-api
       reason: 'Conflict detection branched on HTTP status instead of the message text, because Medusa rewrites CONFLICT messages.'
+    follow_up_release_2:
+      release_commit: faecaa2
+      recreated_services:
+      - medusa-api
+      reason: 'Lifecycle tabs (Live, Draft, Scheduled, Historical), right-aligned Create banner action and a compact filter toolbar.'
     new_secret: EXPERIENCE_OPERATOR_SECRET (dedicated to the private preview projection)
     fcm_overlay_preserved: true
     verification:
