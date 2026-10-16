@@ -53,6 +53,8 @@ class MerchandisingModule {
     this.products = const <Product>[],
     this.banner,
     this.splitSlot,
+    this.seeAllLabel,
+    this.seeAllUri,
   });
 
   final MerchandisingModuleType type;
@@ -61,4 +63,8 @@ class MerchandisingModule {
   final List<Product> products;
   final MerchandisingBannerData? banner;
   final SplitSlot? splitSlot;
+
+  /// Where "See All" goes, when the layout configured a destination. Null means the screen decides.
+  final String? seeAllLabel;
+  final String? seeAllUri;
 }

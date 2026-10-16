@@ -490,10 +490,32 @@ final homeModulesProvider =
       (ref.watch(layoutSectionsProvider).value ?? const <StorefrontSection>[])
           .where((section) => section.visible)
           .toList();
+  final banners = ref.watch(presentationProvider).banners;
   final layoutModules = <MerchandisingModule>[];
   for (final section in sections) {
     final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
     if (sectionProducts == null) continue; // still resolving; do not render an empty rail
+
+    // A section may carry a banner managed under Merchandising → Banners. It renders above the rail so
+    // the creative and the products it introduces stay together.
+    final bannerKey = section.bannerReference;
+    if (bannerKey != null && bannerKey.isNotEmpty) {
+      final banner = banners.where((b) => b.contentKey == bannerKey).firstOrNull;
+      if (banner != null) {
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.secondaryBanner,
+          banner: MerchandisingBannerData(
+            imageUrl: banner.imageUrl ?? _clearanceBannerImage,
+            imageAlt: banner.imageAlt,
+            title: banner.title,
+            subtitle: banner.body,
+            ctaLabel: banner.actionLabel,
+            actionUri: banner.actionUri,
+          ),
+        ));
+      }
+    }
+
     switch (section.placement) {
       case 'flash_deals':
       case 'best_sellers':
@@ -504,6 +526,8 @@ final homeModulesProvider =
           title: section.displayTitle,
           tag: section.badge,
           products: sectionProducts,
+          seeAllLabel: section.seeAllLabel,
+          seeAllUri: section.seeAllUri,
         ));
       case 'recommended':
         layoutModules.add(MerchandisingModule(
@@ -511,6 +535,8 @@ final homeModulesProvider =
           title: section.displayTitle,
           tag: section.badge,
           products: sectionProducts,
+          seeAllLabel: section.seeAllLabel,
+          seeAllUri: section.seeAllUri,
         ));
       default:
         // Buy Again, Schemes and the Trade Offers group are not rendered by this surface yet.

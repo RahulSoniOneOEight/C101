@@ -106,4 +106,59 @@ void main() {
       reason: 'the badge comes from the layout, not a hardcoded local string',
     );
   });
+
+  test('a section banner renders above its rail, and See All follows the layout', () async {
+    const withBanner = StorefrontSection(
+      placement: 'flash_deals',
+      label: 'Flash Deals',
+      title: 'Tonight only',
+      collectionKey: 'col_1',
+      bannerReference: 'hero-flash',
+      seeAllUri: '/browse?tag=Flash%20Deals',
+      seeAllLabel: 'See all deals',
+    );
+    final product = demoProducts.first;
+
+    final container = ProviderContainer(
+      overrides: [
+        productsProvider.overrideWith((ref) async => demoProducts),
+        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[withBanner]),
+        sectionProductsProvider.overrideWith((ref, section) async => <Product>[product]),
+        presentationProvider.overrideWith((ref) => StorefrontPresentation(
+              banners: <StorefrontBanner>[
+                const StorefrontBanner(
+                  contentKey: 'hero-flash',
+                  placement: 'b2c.home.hero',
+                  title: 'Flash banner',
+                  themeKey: 'promotion',
+                  imageUrl: 'https://img/flash.jpg',
+                  imageAlt: 'Flash deals creative',
+                ),
+              ],
+              categories: const <StorefrontCategory>[],
+            )),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(productsProvider.future);
+    await container.read(layoutSectionsProvider.future);
+    await container.read(sectionProductsProvider(withBanner).future);
+
+    final modules = container.read(homeModulesProvider);
+    expect(
+      modules.first.type,
+      MerchandisingModuleType.secondaryBanner,
+      reason: 'the associated banner renders above the rail it introduces',
+    );
+    expect(modules.first.banner?.title, 'Flash banner');
+    expect(modules.first.banner?.imageAlt, 'Flash deals creative');
+    expect(modules[1].title, 'Tonight only');
+    expect(
+      modules[1].seeAllUri,
+      '/browse?tag=Flash%20Deals',
+      reason: 'See All follows the layout destination rather than a local tag heuristic',
+    );
+    expect(modules[1].seeAllLabel, 'See all deals');
+  });
 }

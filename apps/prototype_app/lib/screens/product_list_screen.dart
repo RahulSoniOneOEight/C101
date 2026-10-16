@@ -81,6 +81,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   /// "See All" target for a headed module. Flash Deals / Best Sellers open the
   /// matching Browse filter; other sections open the full catalogue.
   VoidCallback? _seeAllFor(MerchandisingModule module) {
+    // The layout may configure where "See All" goes; that wins over the local tag heuristic.
+    final destination = module.seeAllUri;
+    if (destination != null && destination.isNotEmpty) {
+      return () => context.push(destination);
+    }
     if (module.title == null) return null;
     final tag = switch (module.title) {
       'Flash Deals' => 'Flash Deals',

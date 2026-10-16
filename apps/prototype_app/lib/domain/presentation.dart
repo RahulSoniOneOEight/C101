@@ -107,6 +107,7 @@ class StorefrontSection {
     this.limit,
     this.seeAllLabel,
     this.seeAllUri,
+    this.bannerReference,
     this.visible = true,
   });
 
@@ -121,6 +122,9 @@ class StorefrontSection {
   final int? limit;
   final String? seeAllLabel;
   final String? seeAllUri;
+
+  /// Banner managed under Merchandising → Banners, referenced by its content key.
+  final String? bannerReference;
   final bool visible;
 
   String get displayTitle => (title != null && title!.trim().isNotEmpty) ? title! : label;
@@ -136,6 +140,7 @@ class StorefrontSection {
       limit: (json['limit'] as num?)?.toInt(),
       seeAllLabel: json['see_all_label'] as String?,
       seeAllUri: json['see_all_uri'] as String?,
+      bannerReference: json['banner_reference'] as String?,
       visible: json['visible'] as bool? ?? true,
     );
   }
