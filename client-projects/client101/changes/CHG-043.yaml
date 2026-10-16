@@ -133,14 +133,32 @@ implementation_request:
   human_approval_required_before_code: true
 implementation:
   branch: feat/medusa-native-merchandising-admin
-  hosted_deployment: not-started
-  progress:
-  - "Done (local, additive, not yet deployed): banner gains a categoryId attribute and definition field."
-  - "Done (local, additive, not yet deployed): category-editorial gains a required channel enum (default b2c), and the unique constraint on categoryId is relaxed so one category can hold both a B2C and a B2B record."
-  - "Done: CMS build passes and both schema files parse."
-  - "Next: channel-aware category editorials and a banner-sourced category image in the delivery adapter."
-  - "Next: the Banner studio gains the category placement, a real category picker, and the B2C/B2B grouping; Category presentation becomes Category details."
-  - "Next: migrate the six existing category banner images into banner records, then remove externalBannerImageUrl and bannerImageAltText as the final step."
-  - "Deliberately not deployed while the console and delivery are still unaware of the new fields, so staging is never left with two editable controls for one image."
-status: phase-1-in-progress-not-deployed
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-16T18:22:00Z'
+    release_commit: 2004219
+    release_worktree: /opt/buildkart-releases/2004219
+    previous_release: /opt/buildkart-releases/d89850d
+    recreated_services:
+    - cms
+    - medusa-api
+    - experience-api
+    migration:
+      category_channel_backfilled: 7
+      placements_repointed: 5
+      category_banners_created: 6
+      category_banners_skipped: 1
+    verification:
+    - Legacy placement values remaining in the database: 0.
+    - B2C serves 5 CMS home banners, each with its new channel-prefixed type.
+    - Category banner images are served from the new banner records with the payload shape unchanged.
+    - B2B home banners fall back to the governed seed because no B2B home type exists.
+    - The console bundle carries all four types, the category picker and the Category details rename.
+  not_done_on_purpose:
+  - Dropping the audience attribute and the two category banner fields from category details.
+  - The registry divergence check.
+  - B2B app consumption of channel=b2b.
+implementation_evidence:
+- client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
+status: phase-1-and-2-deployed-awaiting-human-review
 production_release_authorized: false
