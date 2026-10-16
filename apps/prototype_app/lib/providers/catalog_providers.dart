@@ -394,6 +394,31 @@ final categoryBannerImageProvider = Provider.family<String, String?>((ref, label
       fallbackCategoryBannerImage;
 });
 
+/// B2B storefront presentation, fetched for the b2b channel.
+///
+/// The B2B surfaces previously fell back to a hard-coded per-category image map. They now read the
+/// same CMS content the B2C surfaces read, which is the only way a B2B category banner authored in
+/// the console can actually appear.
+final b2bPresentationProvider = FutureProvider<StorefrontPresentation>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getPresentation(channel: 'b2b');
+  } catch (_) {
+    return const StorefrontPresentation(
+      banners: <StorefrontBanner>[],
+      categories: <StorefrontCategory>[],
+    );
+  }
+});
+
+/// Banner image published for a B2B category, or null when the CMS has none for that category yet.
+///
+/// Returning null is deliberate: the caller renders the shared governed placeholder rather than an
+/// invented per-category image, so an operator can tell the difference between "authored" and
+/// "not authored".
+final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, label) {
+  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageUrl;
+});
+
 /// Governed fallback creative for the campaign strip when the backend
 /// presentation is unavailable.
 const String _clearanceBannerImage =

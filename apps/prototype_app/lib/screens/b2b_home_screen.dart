@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/app_notification.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/catalog_providers.dart';
 import '../providers/notifications_providers.dart';
 import '../providers/trade_offers_providers.dart';
 import '../widgets/trade_product_tile.dart';
@@ -355,7 +357,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl: b2bCategoryBannerImage(_catId),
+            imageUrl: ref.watch(b2bCategoryBannerImageProvider(_catId)) ??
+                fallbackCategoryBannerImage,
             title: selectedLabel == null
                 ? 'Trade catalogue'
                 : '$selectedLabel supplies',
