@@ -155,10 +155,22 @@ implementation:
     - B2B home banners fall back to the governed seed because no B2B home type exists.
     - The console bundle carries all four types, the category picker and the Category details rename.
   not_done_on_purpose:
-  - Dropping the audience attribute and the two category banner fields from category details.
-  - The registry divergence check.
   - B2B app consumption of channel=b2b.
-implementation_evidence:
-- client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
-status: phase-1-and-2-deployed-awaiting-human-review
+  destructive_removal:
+    release_commit: a4d37f7
+    removed:
+    - banner.audience
+    - category-editorial.externalBannerImageUrl
+    - category-editorial.bannerImageAltText
+    registry_check: tooling/validate_banner_types.py, wired into Contract validation and proven to fail on a diverged copy
+    verification:
+    - The three columns no longer exist; category_id and channel do.
+    - Only the three channel-prefixed banner types remain in the database.
+    - Six published category banners still carry their images.
+    - B2C delivery is unchanged; B2B now returns zero home banners by design.
+    - The removed audience control is absent from the served console bundle.
+  implementation_evidence:
+  - client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
+  - client-projects/client101/evidence/CHG-043/destructive-removal.md
+status: deployed-awaiting-human-review
 production_release_authorized: false
