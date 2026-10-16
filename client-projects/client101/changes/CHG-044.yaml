@@ -91,8 +91,44 @@ implementation_request:
   human_approval_required_before_code: true
 implementation:
   branch: feat/medusa-native-merchandising-admin
-  hosted_deployment: not-started
+  approved_decisions:
+    approved_by: human-requester
+    approved_at_utc: '2026-10-17'
+    D-044-01: Merchandising shows Banners and Storefront layouts; Category details, Product editorial and Help and articles move to a separate Editorial group; Overview, Review queue, Delivery status and Content activity retire.
+    D-044-02: Native collections are used as they are; the draft/published status concept is dropped rather than invented.
+    D-044-03: Layout section model and backend delivery are built first.
+    D-044-04: Boundaries are held; fixtures are labelled honestly rather than exposed as working.
+  phase_1:
+    commit: cc5b2f6
+    delivered:
+    - 'A channel-scoped placement registry for layout sections: flash_deals, best_sellers, recommended (B2C); buy_again, trade_offers with seasonal, best_deals, schemes (B2B).'
+    - 'Delivery-side normalisation that preserves stored order and enforces channel isolation, a required source, known placements, visibility, schedule and banner acceptance, returning an issues list so a rejection is explained rather than silent.'
+    - 'storefront_layouts.sections (json) added; modules is no longer required and remains the raw recovery format.'
+    - 'GET /v1/content/app-shell always returns layout.sections as an array.'
+    - A new layout-sections test wired into the Experience API workflow.
+    verified:
+    - layout-sections-test PASS; presentation-test PASS; Experience API typecheck clean; CMS build clean; validate_cms_schemas.py passes.
+    - Live app-shell returns layout=b2c-home, sections as an empty array, modules length 4; the sections column exists.
+    open_decision:
+    - 'A section collection reference is unresolved: the brief means a Medusa collection (handle, product count, publication), while existing layout modules reference a CMS curated-collection. The phase-1 field is named neutrally and nothing is authored against it.'
+    not_done:
+    - Section editor (phase 2).
+    - Storefront consumption (phase 3).
+    - Collection-scoped manual ordering (phase 4).
+    - Real Buy Again and Schemes (phase 5).
+    - Merchandising navigation reduction (phase 6).
+    - The console mirror of the section registry and its divergence check, which arrive with the editor.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-16T19:41:00Z'
+    release_commit: cc5b2f6
+    release_worktree: /opt/buildkart-releases/cc5b2f6
+    previous_release: /opt/buildkart-releases/c6756ff
+    recreated_services:
+    - cms
+    - experience-api
 implementation_evidence:
 - client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
-status: proposal-awaiting-decisions
+- client-projects/client101/evidence/CHG-044/phase-1-layout-sections.md
+status: phase-1-deployed-awaiting-review
 production_release_authorized: false
