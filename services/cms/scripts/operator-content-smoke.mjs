@@ -38,6 +38,7 @@ for (const field of list.definition.fields) {
   // empty optional field with null rather than omitting it from the mutation.
   data[field.name] = banner[field.name] ?? null;
 }
+if (Object.hasOwn(data, "segments")) data.segments = "";
 
 const updateResponse = await fetch(`${baseUrl}/api/operator-content/banner`, {
   method: "POST",
@@ -52,6 +53,27 @@ const updateResponse = await fetch(`${baseUrl}/api/operator-content/banner`, {
 const updated = await jsonResponse(updateResponse, "banner draft update");
 if (updated.operation !== "update-draft" || updated.document?.documentId !== banner.documentId) {
   throw new Error("Banner draft update returned an unexpected document.");
+}
+if (updated.document.segments !== null) {
+  throw new Error("Expected an empty optional JSON field to be normalized to null.");
+}
+
+const failureCorrelationId = `${correlationId}-failure`;
+const failureResponse = await fetch(`${baseUrl}/api/operator-content/banner`, {
+  method: "POST",
+  headers: { ...headers, "x-correlation-id": failureCorrelationId },
+  body: JSON.stringify({
+    operation: "update-draft",
+    documentId: banner.documentId,
+    locale: "en-IN",
+    data: { priority: "not-an-integer" },
+  }),
+});
+const failureBody = await failureResponse.json();
+if (failureResponse.ok) throw new Error("Expected the invalid integer update to fail.");
+const failureMessage = failureBody?.error?.message;
+if (typeof failureMessage !== "string" || !failureMessage.includes(failureCorrelationId)) {
+  throw new Error(`Expected a safe correlation reference, received: ${JSON.stringify(failureBody)}`);
 }
 
 console.log(`operator-content update-draft passed (${correlationId})`);

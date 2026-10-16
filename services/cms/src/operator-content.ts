@@ -304,6 +304,18 @@ function sanitizeData(definition: ContentKindDefinition, value: unknown): JsonRe
   for (const [key, fieldValue] of Object.entries(input)) {
     if (!allowed.has(key)) throw new Error(`Field '${key}' is not editable for ${definition.kind}.`);
     const field = definition.fields.find((candidate) => candidate.name === key);
+    if (field?.type === "json") {
+      if (typeof fieldValue === "string" && !fieldValue.trim()) {
+        // Strapi passes an empty string through to PostgreSQL for JSON fields, where it is not valid
+        // JSON. Treat an empty optional structured field as cleared, matching the editor's blank state.
+        if (field.required) throw new Error(`Field '${key}' must contain structured JSON.`);
+        output[key] = null;
+        continue;
+      }
+      if (fieldValue !== null && typeof fieldValue !== "object") {
+        throw new Error(`Field '${key}' must contain a JSON array or object.`);
+      }
+    }
     if (field?.type === "url" && fieldValue !== null && fieldValue !== "") {
       let parsed: URL;
       try {
@@ -442,25 +454,42 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
     }
   }
 
-  const result = await mutateWithAudit(
-    strapi,
-    {
-      ...identity,
-      action: operation,
-      kind: definition.kind,
-      documentId,
-      locale,
-      payload: data ?? {},
-    },
-    async () => {
-      if (operation === "create-draft") return service.create({ locale, status: "draft", data });
-      if (operation === "update-draft") {
-        return service.update({ documentId, locale, status: "draft", data });
-      }
-      if (operation === "publish") return service.publish({ documentId, locale });
-      return service.unpublish({ documentId, locale });
-    },
-  );
+  let result: unknown;
+  try {
+    result = await mutateWithAudit(
+      strapi,
+      {
+        ...identity,
+        action: operation,
+        kind: definition.kind,
+        documentId,
+        locale,
+        payload: data ?? {},
+      },
+      async () => {
+        if (operation === "create-draft") return service.create({ locale, status: "draft", data });
+        if (operation === "update-draft") {
+          return service.update({ documentId, locale, status: "draft", data });
+        }
+        if (operation === "publish") return service.publish({ documentId, locale });
+        return service.unpublish({ documentId, locale });
+      },
+    );
+  } catch (error) {
+    strapi.log.error(
+      `[cms-operator] ${operation} failed; correlation_id=${identity.correlationId}; `
+      + `kind=${definition.kind}; document_id=${documentId ?? "new"}; error=${(error as Error).message}`,
+    );
+    ctx.status = 500;
+    ctx.body = {
+      error: {
+        status: 500,
+        name: "CmsOperatorMutationError",
+        message: `CMS content operation failed. Retry once; if it fails again, provide reference ${identity.correlationId}.`,
+      },
+    };
+    return;
+  }
 
   const refreshed = documentId
     ? await service.findOne({ documentId, locale, status: "draft", populate: "*" })

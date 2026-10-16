@@ -144,7 +144,11 @@ export function parseForm(
       }
       if (field.type === "json") {
         try {
-          return [field.name, JSON.parse(raw) as unknown];
+          const parsed = JSON.parse(raw) as unknown;
+          // A JSON textarea containing two quotes represents an empty string, not an empty
+          // structured value. Clear optional JSON instead of sending invalid database input.
+          if (parsed === "" && !field.required) return [field.name, null];
+          return [field.name, parsed];
         } catch {
           throw new Error(`${field.label} must contain valid JSON.`);
         }

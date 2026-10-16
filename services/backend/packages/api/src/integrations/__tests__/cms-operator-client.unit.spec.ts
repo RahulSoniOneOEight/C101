@@ -67,4 +67,28 @@ describe("CmsOperatorClient", () => {
       correlationId: "request_03",
     })).rejects.toThrow("CMS operator service returned HTTP 502.");
   });
+
+  it("surfaces the CMS safe correlation reference without exposing an internal error", async () => {
+    const fetchImpl = jest.fn(async () => new Response(JSON.stringify({
+      error: {
+        message: "CMS content operation failed. Retry once; if it fails again, provide reference request_04.",
+      },
+    }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    })) as unknown as typeof fetch;
+    const client = new CmsOperatorClient("http://cms:1337", "operator-secret", fetchImpl);
+
+    await expect(client.mutate("banner", {
+      operation: "update-draft",
+      documentId: "banner-doc",
+      locale: "en-IN",
+      data: { title: "Reviewed title" },
+    }, {
+      actorId: "user_01",
+      correlationId: "request_04",
+    })).rejects.toThrow(
+      "CMS content operation failed. Retry once; if it fails again, provide reference request_04.",
+    );
+  });
 });
