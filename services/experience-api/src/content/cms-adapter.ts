@@ -191,9 +191,9 @@ function actionUri(banner: JsonRecord): string | undefined {
   }
 }
 
-function mapBanner(value: unknown, now: Date): StorefrontBannerPresentation | undefined {
+function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefined {
   const banner = record(value);
-  if (!banner || !inWindow(banner, now)) return undefined;
+  if (!banner) return undefined;
   const contentKey = text(banner.contentKey);
   const placement = text(banner.placement);
   const title = text(banner.title);
@@ -216,6 +216,42 @@ function mapBanner(value: unknown, now: Date): StorefrontBannerPresentation | un
     theme_key: themeKey,
     priority: numberValue(banner.priority) ?? 0,
   };
+}
+
+function mapBanner(value: unknown, now: Date): StorefrontBannerPresentation | undefined {
+  const banner = record(value);
+  if (!banner || !inWindow(banner, now)) return undefined;
+  return mapBannerFields(banner);
+}
+
+export type StorefrontBannerEligibility = "eligible" | "scheduled" | "expired";
+
+/**
+ * Window eligibility from the stored schedule. Delivery uses `inWindow`; this exposes the same
+ * decision as a label so an operator surface can distinguish eligible, scheduled and expired
+ * without claiming that a banner is being served.
+ */
+export function bannerEligibility(value: unknown, now: Date): StorefrontBannerEligibility {
+  const banner = record(value);
+  const startsAt = banner ? text(banner.startsAt) : undefined;
+  const endsAt = banner ? text(banner.endsAt) : undefined;
+  const start = startsAt ? new Date(startsAt) : null;
+  const end = endsAt ? new Date(endsAt) : null;
+  if (end && !Number.isNaN(end.getTime()) && end.getTime() <= now.getTime()) return "expired";
+  if (start && !Number.isNaN(start.getTime()) && start.getTime() > now.getTime()) return "scheduled";
+  return "eligible";
+}
+
+/**
+ * Draft preview. Uses the same field mapping as live delivery but ignores the delivery window so an
+ * operator can inspect a scheduled or expired banner. Returns undefined when required fields are
+ * missing, which is itself useful validation feedback.
+ */
+export function buildBannerPreview(
+  value: unknown,
+  now: Date,
+): { presentation?: StorefrontBannerPresentation; eligibility: StorefrontBannerEligibility } {
+  return { presentation: mapBannerFields(value), eligibility: bannerEligibility(value, now) };
 }
 
 function mapCategoryEditorial(value: unknown): StorefrontCategoryEditorial | undefined {

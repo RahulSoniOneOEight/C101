@@ -64,6 +64,12 @@ export interface Config {
   cmsBaseUrl?: string;
   cmsApiToken?: string;
   cmsWebhookSecret?: string;
+  /**
+   * Optional private-network secret for the authenticated draft preview projection. Distinct from
+   * the CMS webhook secret and the Medusa-to-CMS operator secret so no secret is reused across
+   * purposes.
+   */
+  experienceOperatorSecret?: string;
   cmsCacheTtlSeconds: number;
   cmsWebhookToleranceSeconds: number;
 }
@@ -209,6 +215,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     cmsBaseUrl,
     cmsApiToken,
     cmsWebhookSecret,
+    experienceOperatorSecret: env.EXPERIENCE_OPERATOR_SECRET?.trim() || undefined,
     cmsCacheTtlSeconds: positiveInteger(
       env.CMS_CACHE_TTL_SECONDS,
       60,

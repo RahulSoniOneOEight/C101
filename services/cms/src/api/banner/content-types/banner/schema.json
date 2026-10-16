@@ -15,6 +15,7 @@
   },
   "attributes": {
     "contentKey": { "type": "string", "required": true, "unique": true },
+    "name": { "type": "string" },
     "audience": {
       "type": "enumeration",
       "enum": ["b2c", "b2b", "both"],

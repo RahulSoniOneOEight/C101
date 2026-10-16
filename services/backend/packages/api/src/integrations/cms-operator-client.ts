@@ -48,13 +48,23 @@ export interface CmsContentListResponse {
   documents: CmsContentDocument[];
 }
 
-export type CmsMutationOperation = "create-draft" | "update-draft" | "publish" | "unpublish";
+export type CmsMutationOperation =
+  | "create-draft"
+  | "update-draft"
+  | "duplicate-draft"
+  | "publish"
+  | "unpublish";
 
 export interface CmsMutationRequest {
   operation: CmsMutationOperation;
   documentId?: string;
   locale: string;
   data?: Record<string, unknown>;
+  /**
+   * Optimistic concurrency. When supplied, the CMS rejects the write with HTTP 409 if the stored
+   * draft changed since the operator opened it, instead of silently overwriting newer work.
+   */
+  expectedUpdatedAt?: string;
 }
 
 export interface CmsMutationResponse {
@@ -140,7 +150,11 @@ export class CmsOperatorClient {
         // Keep the status-only message; never echo HTML or credentials into the admin response.
       }
       throw new MedusaError(
-        response.status >= 500 ? MedusaError.Types.UNEXPECTED_STATE : MedusaError.Types.INVALID_DATA,
+        response.status === 409
+          ? MedusaError.Types.CONFLICT
+          : response.status >= 500
+            ? MedusaError.Types.UNEXPECTED_STATE
+            : MedusaError.Types.INVALID_DATA,
         message,
       );
     }

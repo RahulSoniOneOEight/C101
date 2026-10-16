@@ -1,5 +1,5 @@
 import type { RouteConfig } from "@mercurjs/dashboard-sdk";
-import { ContentPropertyPage } from "../../content/content-property-page";
+import { BannerStudioPage } from "../../content/banner-studio/banner-studio-page";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
@@ -9,5 +9,5 @@ export const config: RouteConfig = {
 };
 
 export default function BannersPage() {
-  return <ContentPropertyPage kind="banner" />;
+  return <BannerStudioPage />;
 }

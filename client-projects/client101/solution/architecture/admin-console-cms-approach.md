@@ -119,6 +119,7 @@ control or consumer exists but the full loop is incomplete; **Pending** = propos
 | Active locale | CMS localized record | Global Mercur Editorial locale selector | Included in list filters, editor header and preview | Live for `en-IN`/`hi-IN` records |
 | Publication status | CMS document lifecycle | Mercur Editorial document publication action | Status badge and read-only summary elsewhere | Live |
 | Banner title/body/CTA | CMS | Mercur Editorial > Banner editor | Layout and storefront previews are read-only | Live |
+| Banner internal name | CMS | Banner studio editor only | Operator-facing label; never delivered to customers | Live |
 | Banner placement/audience/priority | CMS | Mercur Editorial > Banner editor | Overview/list filters and layout references are read-only | Live; segments excluded |
 | Banner start/end schedule | CMS | Mercur Editorial > Banner editor | Upcoming calendar/overview is read-only | Partial; timezone semantics pending |
 | Banner image reference and alt text | CMS | Mercur Editorial > Banner editor | Layout and app render only | Partial; URL supported, governed alt-text control to verify |
@@ -228,6 +229,12 @@ Use a route-based full-page editor for every governed content type. This keeps b
 links, refreshes and unsaved-change protection predictable while leaving enough space for future
 preview and validation. Routine fields appear first; permissioned advanced/recovery fields remain
 separate and visually subordinate.
+
+**Banner exception (CHG-042).** The banner editor is presented as a modal dialog over the Banners
+page, matching the approved Banner studio reference. It keeps deep links and browser Back working
+through a `?editor=<documentId|new>` query parameter, retains the unsaved-change prompt, and adds an
+optimistic-concurrency token. The other five properties keep routed editors. This supersedes the
+routed-editor decision for the banner kind only.
 
 ### Native commerce pages
 

@@ -1,5 +1,5 @@
 change_id: CHG-042
-revision: 1
+revision: 2
 request: >-
   Improve the BuildKart Ops Console Merchandising > Banners page using the supplied Banner studio
   HTML demo as the visual and interaction reference: compact header and counts, placement/audience/
@@ -65,6 +65,22 @@ decisions_proposed:
   D-042-05: never fabricate commerce references, media, channels, crops or previews; label unavailable capability truthfully.
   D-042-06: scheduling remains publish plus a server-enforced start/end window; Strapi scheduled publishing is not enabled and is not simulated.
   D-042-07: implement Phase 1 scope only in this change and propose later phases separately.
+decisions_approved:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-01: keep the existing Merchandising navigation; no media or DAM entry points in this change.
+  D-042-02: keep the governed tabs (All, Needs review, Draft only, Published) and add Scheduled as a derived filter.
+  D-042-03-superseded: the banner editor becomes a modal dialog launched from the Banners page, matching the reference demo.
+  D-042-04: separate editorial status from display eligibility; never label a banner as displaying without delivery evidence.
+  D-042-05: never fabricate commerce references, media, channels, crops or previews.
+  D-042-06: scheduling remains publish plus a server-enforced start/end window.
+  D-042-07: implement Phase 1 plus the Phase 2 authenticated preview; keep Phase 3 deferred.
+supersedes:
+  - "CHG-038 and CHG-040 routed full-page editor decision applies to the banner kind only: the banner editor is now a modal dialog over the Banners page. The other five properties keep routed editors."
+  - "A deep-linkable query parameter replaces the routed editor URL for banners so refresh, browser Back and unsaved-change protection still hold."
+schema_changes:
+  - "banner: add nullable string attribute `name` (operator-facing internal name). Additive; no commerce, delivery or ownership impact."
+  - "Ownership map in admin-console-cms-approach.md updated for the new attribute."
 phases_proposed:
   phase_1_now:
   - Banner studio header, environment label and compact total/published/scheduled/draft counts.
@@ -87,6 +103,22 @@ phases_proposed:
   - Crop/focal point and device-specific creative variants.
   - Per-banner channel model.
   - Commerce-entity pickers and Campaign landing page destination type.
+phases_approved:
+  phase_1_now:
+  - Banner studio header, environment label and compact total/published/scheduled/draft counts.
+  - Search plus placement and audience filters with URL state; language already exists.
+  - Listing with theme swatch, friendly placement labels, audience, language, editorial status, display eligibility, schedule and Preview/Edit/Duplicate actions.
+  - Separate editorial status from display eligibility using publishedAt plus the schedule window.
+  - Duplicate as an additive draft-only backend operation.
+  - Modal editor grouped into details, creative, content, destination, schedule and advanced settings.
+  - Conditional destination fields with HTTPS and internal-route validation.
+  - Immediate versus chosen start time with explicit Asia/Kolkata timezone and optional end time.
+  - Pre-publication review panel showing name, environment, placement, audience, language and schedule.
+  - Truthful labelling for unavailable crop, device variants, channel and media upload.
+  - Optimistic concurrency on save and publish using an expected updatedAt.
+  phase_2_now:
+  - Authenticated draft preview projection from the Experience API, exposed only through Medusa.
+  - App, Mobile web and Desktop preview modes with language switching, labelled illustrative.
 required_tests:
 - A banner draft save does not change the currently published version.
 - A published banner with unsaved edits reports unpublished changes.
@@ -111,11 +143,12 @@ implementation_request:
   requested_by: human-requester
   requested_at_utc: '2026-10-16'
   scope: banner-studio-phase-1
-  human_approval_required_before_code: true
+  approved_scope: banner-studio-phase-1-and-phase-2-preview
+  human_approval_required_before_code: false
 implementation:
   branch: feat/medusa-native-merchandising-admin
   hosted_deployment: not-started
 implementation_evidence:
 - client-projects/client101/evidence/CHG-042/banner-studio-inspection.md
-status: proposal-awaiting-approval
+status: approved-implementation-in-progress
 production_release_authorized: false

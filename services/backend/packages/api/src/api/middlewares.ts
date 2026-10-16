@@ -5,6 +5,7 @@ import { AdminGetSettlementStatementsParams } from "./admin/buildkart/settlement
 import {
   AdminGetCmsContent,
   AdminMutateCmsContent,
+  AdminPreviewCmsContent,
 } from "./admin/buildkart/content/validators";
 
 const routes = [
@@ -32,6 +33,17 @@ const routes = [
       {
         resource: "promotion",
         operation: PolicyOperation.update,
+      },
+    ],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/content/preview",
+    middlewares: [validateAndTransformBody(AdminPreviewCmsContent)],
+    policies: [
+      {
+        resource: "promotion",
+        operation: PolicyOperation.read,
       },
     ],
   },

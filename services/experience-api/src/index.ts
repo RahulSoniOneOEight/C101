@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
@@ -19,7 +19,7 @@ import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
-import { CmsContentAdapter } from "./content/cms-adapter.js";
+import { CmsContentAdapter, buildBannerPreview } from "./content/cms-adapter.js";
 import {
   composeStorefrontCategories,
   resolveSeedBanners,
@@ -460,6 +460,44 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       console.warn("[experience-api] CMS webhook persistence failed:", (error as Error).message);
       return problem(503, "cms-webhook-store-unavailable");
     }
+  }
+
+  // Private-network-only draft preview projection. Server-to-server only: Medusa authenticates with
+  // a dedicated bearer secret. nginx blocks /v1/internal at both public hostnames, and no CMS or
+  // Experience API credential is ever returned to a browser.
+  if (url.pathname === "/v1/internal/content/preview" && req.method === "POST") {
+    if (!config.experienceOperatorSecret) return problem(404, "not-found");
+    const authorization = req.headers.get("authorization") ?? "";
+    const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const suppliedBuffer = Buffer.from(supplied);
+    const expectedBuffer = Buffer.from(config.experienceOperatorSecret);
+    const authorized = suppliedBuffer.length === expectedBuffer.length
+      && timingSafeEqual(suppliedBuffer, expectedBuffer);
+    if (!authorized) return problem(401, "unauthorized");
+
+    const rawBody = await req.text();
+    if (rawBody.length > 65536) return problem(413, "payload-too-large");
+    let parsed: { kind?: unknown; locale?: unknown; data?: unknown };
+    try {
+      parsed = JSON.parse(rawBody) as typeof parsed;
+    } catch {
+      return problem(400, "invalid-json");
+    }
+    if (parsed.kind !== "banner") return problem(400, "unsupported-content-kind");
+    const locale = parsed.locale === "hi-IN" ? "hi-IN" : "en-IN";
+    const now = new Date();
+    const preview = buildBannerPreview(parsed.data, now);
+    return json({
+      kind: "banner",
+      locale,
+      presentation: preview.presentation ?? null,
+      eligibility: preview.eligibility,
+      complete: Boolean(preview.presentation),
+      illustrative: true,
+      generated_at: now.toISOString(),
+      correlation_id: cid,
+      test_data: true,
+    });
   }
 
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
