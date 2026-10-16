@@ -1,0 +1,52 @@
+change_id: CHG-041
+revision: 1
+request: >-
+  Fix the staging banner editor failure where saving an existing banner draft returns Internal
+  Server Error. Add reproducible integration coverage for the private operator-content mutation
+  path before applying and deploying the correction.
+type: cms-draft-save-reliability-fix
+extends:
+- CHG-040
+affected_capabilities:
+- editorial-content
+- operator-administration
+- auditability
+affected_domains:
+- content
+- experience
+affected_surfaces:
+- mercur.admin.content-editor
+- medusa.admin.buildkart.content-api
+- strapi.operator-content-api
+reported_symptom:
+  environment: staging
+  operation: update-existing-banner-draft
+  operator_message: Internal Server Error
+decisions:
+  D-041-01: reproduce-the-update-through-the-compiled-strapi-runtime-before-fixing
+  D-041-02: preserve-the-private-medusa-to-cms-boundary-and-server-side-secret
+  D-041-03: return-a-safe-actionable-error-with-a-correlation-id-instead-of-an-opaque-500
+  D-041-04: retain-audit-recording-for-started-succeeded-and-failed-mutations
+required_tests:
+- A published seeded banner can be loaded through the operator-content API.
+- Updating its draft through the operator-content API succeeds.
+- The updated document is returned and remains unpublished until explicit publication.
+- A failed CMS mutation returns a safe actionable message and correlation identifier.
+- CMS build and operator mutation integration smoke test pass.
+- Mercur Admin lint and build continue to pass.
+constraints:
+- Never expose CMS credentials or production content.
+- Do not bypass server-side validation or audit logging.
+- Do not publish during the update-draft test.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-16'
+  scope: diagnose-and-fix-banner-draft-save
+  human_retest_required: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  hosted_deployment: pending
+status: diagnosis-in-progress
+production_release_authorized: false
