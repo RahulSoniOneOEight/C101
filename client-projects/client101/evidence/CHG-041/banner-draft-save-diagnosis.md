@@ -55,5 +55,21 @@ reference without database details.
 - The targeted CMS operator client Jest suite passed: 4 tests.
 - `node --check scripts/operator-content-smoke.mjs` passed.
 
+## Credential exposure and rotation
+
+A diagnostic command intended to redact the staging operator credential file matched the file's colon
+format incorrectly and printed the staging-only Mercur/Medusa admin password into the working log. The
+value was treated as compromised and rotated immediately:
+
+- the password was changed through the private auth module service; the plaintext was never written to
+  a log, commit, or application response;
+- the root-owned credential file was rewritten in place, preserving its format, `600` mode and
+  `root:root` ownership;
+- a login with the stored credential was re-verified as HTTP `200` with a token present;
+- transient helper files were removed from the host and the container.
+
+Only staging was involved; no production credential exists in that file. The correct redaction shape
+for that file is `s/^([A-Za-z]+)[[:space:]]*:.*/\1: <redacted>/`.
+
 Staging deployment and human save/reload verification remain required. No production deployment or
 authorization was performed.
