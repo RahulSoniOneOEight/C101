@@ -840,7 +840,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     let categoryStale = bannerResolution.stale;
     try {
       const [editorialResolution, medusaCategories] = await Promise.all([
-        cmsContent.resolveCategoryEditorials(locale),
+        cmsContent.resolveCategoryEditorials(channel, locale),
         medusa.listProductCategories(),
       ]);
       const roots = medusaCategories

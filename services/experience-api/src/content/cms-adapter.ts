@@ -8,6 +8,10 @@ import {
   type StorefrontModuleType,
 } from "./storefront-layout.js";
 import type { StoredCmsProjection } from "../store/cms-content-store.js";
+import {
+  categoryBannerPlacement,
+  homeBannerPlacements,
+} from "./placement-registry.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -528,11 +532,14 @@ export class CmsContentAdapter {
   }
 
   async resolveBanners(
-    audience: StorefrontChannel,
+    channel: StorefrontChannel,
     locale: AppLocale,
   ): Promise<CmsCollectionResolution<StorefrontBannerPresentation>> {
+    // Only home-surface types compose the home banner list. Category banners are resolved separately
+    // for the category surface, so they cannot leak into the hero or campaign strip.
+    const homePlacements = homeBannerPlacements(channel);
     return this.resolveCollection({
-      projectionKey: `banners:${audience}:${locale}`,
+      projectionKey: `banners:${channel}:${locale}`,
       locale,
       cache: this.bannerCache,
       fetchItems: async (candidateLocale) => {
@@ -540,7 +547,8 @@ export class CmsContentAdapter {
         return entities
           .filter((entity) => {
             const banner = record(entity);
-            return banner?.audience === audience || banner?.audience === "both";
+            return typeof banner?.placement === "string"
+              && homePlacements.has(banner.placement.trim());
           })
           .map((entity) => mapBanner(entity, this.now()))
           .filter((item): item is StorefrontBannerPresentation => Boolean(item))
@@ -550,16 +558,54 @@ export class CmsContentAdapter {
   }
 
   async resolveCategoryEditorials(
+    channel: StorefrontChannel,
     locale: AppLocale,
   ): Promise<CmsCollectionResolution<StorefrontCategoryEditorial>> {
+    const categoryPlacement = categoryBannerPlacement(channel);
     return this.resolveCollection({
-      projectionKey: `category-editorial:${locale}`,
+      projectionKey: `category-editorial:${channel}:${locale}`,
       locale,
       cache: this.categoryCache,
       fetchItems: async (candidateLocale) => {
-        const entities = await this.fetchPublishedCollection("category-editorials", candidateLocale);
+        const [entities, bannerEntities] = await Promise.all([
+          this.fetchPublishedCollection("category-editorials", candidateLocale),
+          this.fetchPublishedCollection("banners", candidateLocale),
+        ]);
+
+        // Category banners now live on the banner content type. The payload shape is unchanged so the
+        // customer app needs no update: the banner image is still published as banner_image_uri.
+        const now = this.now();
+        const bannersByCategory = new Map<string, { image?: string; alt?: string }>();
+        if (categoryPlacement) {
+          bannerEntities.forEach((entity) => {
+            const banner = record(entity);
+            if (!banner || !inWindow(banner, now)) return;
+            if (String(banner.placement ?? "").trim() !== categoryPlacement) return;
+            const categoryId = text(banner.categoryId);
+            if (!categoryId) return;
+            const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
+              ?? externalImageUri(banner.externalImageUrl);
+            bannersByCategory.set(categoryId, { image, alt: text(banner.imageAltText) });
+          });
+        }
+
         return entities
-          .map(mapCategoryEditorial)
+          .filter((entity) => {
+            const editorials = record(entity);
+            const rowChannel = text(editorials?.channel) ?? "b2c";
+            return rowChannel === channel;
+          })
+          .map((entity) => {
+            const mapped = mapCategoryEditorial(entity);
+            if (!mapped) return undefined;
+            const override = bannersByCategory.get(mapped.category_id);
+            if (!override) return mapped;
+            return {
+              ...mapped,
+              ...(override.image ? { banner_image_uri: override.image } : {}),
+              ...(override.alt ? { banner_image_alt: override.alt } : {}),
+            };
+          })
           .filter((item): item is StorefrontCategoryEditorial => Boolean(item));
       },
     });

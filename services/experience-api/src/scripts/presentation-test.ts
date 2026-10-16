@@ -36,8 +36,7 @@ const bannerResponse = {
   data: [
     {
       contentKey: "cms-hero",
-      placement: "home.hero",
-      audience: "b2c",
+      placement: "b2c.home.hero",
       title: "CMS hero",
       subtitle: "Backend managed",
       externalImageUrl: "https://images.example.com/hero.jpg",
@@ -49,19 +48,30 @@ const bannerResponse = {
       priority: 5,
     },
     {
-      contentKey: "cms-b2b-only",
-      placement: "home.hero",
-      audience: "b2b",
-      title: "Trade only",
-      imageAltText: "Trade creative",
-      priority: 99,
-    },
-    {
       // Rejected: missing Image alternative text means inaccessible media must not ship.
       contentKey: "cms-no-alt",
-      placement: "home.hero",
-      audience: "b2c",
+      placement: "b2c.home.hero",
       title: "Missing alt",
+    },
+    {
+      // A category banner must never leak into the home banner list.
+      contentKey: "cms-b2c-category-banner",
+      placement: "b2c.category.banner",
+      categoryId: "pcat_construction",
+      title: "Construction banner",
+      externalImageUrl: "https://images.example.com/category-banner.jpg",
+      imageAltText: "Construction category banner",
+      priority: 10,
+    },
+    {
+      // A B2B category banner must not reach the B2C category surface either.
+      contentKey: "cms-b2b-category-banner",
+      placement: "b2b.category.banner",
+      categoryId: "pcat_construction",
+      title: "Trade construction banner",
+      externalImageUrl: "https://images.example.com/trade-category-banner.jpg",
+      imageAltText: "Trade construction category banner",
+      priority: 99,
     },
   ],
 };
@@ -99,19 +109,30 @@ const adapter = new CmsContentAdapter(
 // --- banners ---------------------------------------------------------------------------------
 const banners = await adapter.resolveBanners("b2c", "en-IN");
 assert.equal(banners.source, "cms-strapi");
-assert.equal(banners.items.length, 1, "only the b2c/both banner with image alt text should ship");
+assert.equal(banners.items.length, 1, "only the B2C home banner with image alt text should ship");
 const hero = banners.items[0];
 assert.equal(hero.content_key, "cms-hero");
 assert.equal(hero.theme_key, "trust");
 assert.equal(hero.image_uri, "https://images.example.com/hero.jpg");
 assert.equal(hero.action_uri, "/collections/power-tool-week");
+assert.equal(
+  banners.items.some((item) => item.content_key.includes("category")),
+  false,
+  "category banners must not appear in the home banner list",
+);
 
 // --- category editorials ---------------------------------------------------------------------
 collection = "category-editorials";
-const editorials = await adapter.resolveCategoryEditorials("en-IN");
+const editorials = await adapter.resolveCategoryEditorials("b2c", "en-IN");
 assert.equal(editorials.items.length, 1);
 assert.equal(editorials.items[0].category_id, "pcat_construction");
 assert.equal(editorials.items[0].label, "Construction & Site");
+assert.equal(
+  editorials.items[0].banner_image_uri,
+  "https://images.example.com/category-banner.jpg",
+  "the B2C category banner now owns the category image",
+);
+assert.equal(editorials.items[0].banner_image_alt, "Construction category banner");
 
 // --- composition: CMS overrides the governed seed --------------------------------------------
 const composed = composeStorefrontCategories(
@@ -126,7 +147,7 @@ assert.equal(construction?.presentation_source, "cms");
 assert.equal(construction?.label, "Construction & Site");
 assert.equal(construction?.short_text, "Cement, steel and site supplies");
 assert.equal(construction?.icon_key, "construction");
-assert.equal(construction?.banner_image_uri, "https://images.example.com/construction.jpg");
+assert.equal(construction?.banner_image_uri, "https://images.example.com/category-banner.jpg");
 
 const electrical = composed.find((item) => item.category_id === "pcat_electrical");
 assert.equal(electrical?.presentation_source, "governed-editorial-seed");
@@ -148,7 +169,7 @@ const disabled = new CmsContentAdapter(
   { now: () => now },
 );
 assert.equal((await disabled.resolveBanners("b2c", "en-IN")).items.length, 0);
-assert.equal((await disabled.resolveCategoryEditorials("en-IN")).items.length, 0);
+assert.equal((await disabled.resolveCategoryEditorials("b2c", "en-IN")).items.length, 0);
 
 // --- no transactional leakage ------------------------------------------------------------------
 for (const forbidden of ["price", "stock", "inventory", "seller", "commission", "payout"]) {
