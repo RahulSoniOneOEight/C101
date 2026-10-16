@@ -22,8 +22,8 @@ export const CONTENT_KINDS = [
   },
   {
     kind: "category-editorial",
-    label: "Category presentation",
-    singularLabel: "category presentation",
+    label: "Category details",
+    singularLabel: "category detail",
     route: "/merchandising/category-presentation",
     description: "Localized labels, guidance and category imagery",
     delivery: "Live",

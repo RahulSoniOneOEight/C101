@@ -24,16 +24,15 @@ import {
   type ContentLocale,
 } from "../content-model";
 import {
-  CATEGORY_PRESENTATION_ROUTE,
+  CATEGORY_DETAILS_ROUTE,
   LIFECYCLE_META,
   STUDIO_TABS,
   SUPPORTED_PLACEMENTS,
-  audienceLabel,
   bannerKey,
   bannerLifecycle,
   bannerTitle,
   hasUnpublishedChanges,
-  isRecognisedPlacement,
+  isRenderedPlacement,
   isStudioTab,
   localeLabel,
   placementLabel,
@@ -149,7 +148,7 @@ export function BannerStudioPage() {
         bannerKey(document),
         document.documentId,
         placementLabel(document.placement),
-        audienceLabel(document.audience),
+        typeof document.categoryId === "string" ? document.categoryId : "",
       ].join(" ").toLocaleLowerCase().includes(term);
     })
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
@@ -417,9 +416,9 @@ export function BannerStudioPage() {
                           <Table.Cell>
                             <Text size="small">{placementLabel(document.placement)}</Text>
                             <Text size="xsmall" className="text-ui-fg-subtle">
-                              {audienceLabel(document.audience)}
+                              {placementLabel(document.placement)}
                             </Text>
-                            {isRecognisedPlacement(document.placement) ? null : (
+                            {isRenderedPlacement(document.placement) ? null : (
                               <Text size="xsmall" className="text-ui-fg-muted">
                                 Not rendered by the app
                               </Text>
@@ -532,11 +531,13 @@ export function BannerStudioPage() {
             loaded one language at a time, which is why Language sits with the filters.
           </Text>
           <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
-            Placements are limited to the B2C slots the app renders. Category banners are owned by{" "}
-            <Link to={CATEGORY_PRESENTATION_ROUTE} className="text-ui-fg-interactive hover:underline">
-              Category presentation
+            The banner type sets the channel: B2C Home, B2C Campaign banner, B2C Category banner and
+            B2B Category banner. Category banners are set here, one per category per channel; the
+            category label, icon and text live under{" "}
+            <Link to={CATEGORY_DETAILS_ROUTE} className="text-ui-fg-interactive hover:underline">
+              Category details
             </Link>
-            , and B2B slots are not offered yet because the B2B app does not render CMS banners.
+            .
           </Text>
         </Container>
       </div>

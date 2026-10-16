@@ -49,6 +49,16 @@ const routes = [
   },
   {
     method: ["GET"],
+    matcher: "/admin/buildkart/categories",
+    policies: [
+      {
+        resource: "promotion",
+        operation: PolicyOperation.read,
+      },
+    ],
+  },
+  {
+    method: ["GET"],
     matcher: "/admin/buildkart/settlement-statements",
     middlewares: [
       validateAndTransformQuery(AdminGetSettlementStatementsParams, {

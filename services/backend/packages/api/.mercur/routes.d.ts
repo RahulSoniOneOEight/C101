@@ -510,6 +510,7 @@ export type Routes = {
             };
         };
         buildkart: {
+            categories: typeof import("../src/api/admin/buildkart/categories/route");
             content: typeof import("../src/api/admin/buildkart/content/route") & {
                 preview: typeof import("../src/api/admin/buildkart/content/preview/route");
             };

@@ -27,7 +27,7 @@ import {
   type ContentResponse,
 } from "../content-model";
 import {
-  CATEGORY_PRESENTATION_ROUTE,
+  CATEGORY_DETAILS_ROUTE,
   CTA_TARGET_LABELS,
   CTA_TARGET_TYPES,
   EMPTY_BANNER_FORM,
@@ -35,15 +35,12 @@ import {
   PREVIEW_DEVICES,
   SUPPORTED_PLACEMENTS,
   THEME_LABELS,
-  audienceForPlacement,
-  audienceLabel,
-  audienceOptionsForPlacement,
   bannerTitle,
   formFromDocument,
-  hasLegacyAudience,
-  isRecognisedPlacement,
+  isRenderedPlacement,
   localeLabel,
   placementLabel,
+  placementRequiresCategory,
   serializeBannerForm,
   validateBannerForm,
   type BannerForm,
@@ -128,13 +125,14 @@ export function BannerEditor({
 
   // A placement belongs to one channel, so its audience list has a single entry. A stored legacy value
   // is added back so the field never shows blank, and is normalised on the next save.
-  const audienceSelectOptions = useMemo(() => {
-    const options = audienceOptionsForPlacement(form.placement);
-    if (form.audience && !options.some((option) => option.value === form.audience)) {
-      return [...options, { value: form.audience, label: `${audienceLabel(form.audience)} (current)` }];
-    }
-    return options;
-  }, [form.audience, form.placement]);
+  const requiresCategory = placementRequiresCategory(form.placement);
+  const categoriesQuery = useQuery({
+    queryKey: ["buildkart", "commerce-categories"],
+    queryFn: () => client.admin.buildkart.categories.query(),
+    enabled: open && requiresCategory,
+    staleTime: 5 * 60 * 1000,
+  });
+  const categoryOptions = categoriesQuery.data?.categories ?? [];
 
   // The page remounts this editor per record (`key`), so initial state is enough: no reset effect.
 
@@ -400,16 +398,13 @@ export function BannerEditor({
                     <Field
                       id="banner-placement"
                       label="Placement"
-                      description={isRecognisedPlacement(form.placement)
-                        ? "Where the home screen renders this banner. Membership and ordering stay in storefront layouts."
-                        : "This placement is not rendered by the app. Choose a supported slot so the banner can appear."}
+                      description={isRenderedPlacement(form.placement)
+                        ? "The banner type sets the channel and the surface. Membership and ordering stay in storefront layouts."
+                        : "This banner type is not rendered by the app yet."}
                     >
                       <Select
                         value={form.placement}
-                        onValueChange={(value) => update({
-                          placement: value,
-                          audience: audienceForPlacement(value, form.audience),
-                        })}
+                        onValueChange={(value) => update({ placement: value })}
                       >
                         <Select.Trigger id="banner-placement"><Select.Value /></Select.Trigger>
                         <Select.Content>
@@ -419,23 +414,31 @@ export function BannerEditor({
                         </Select.Content>
                       </Select>
                     </Field>
-                    <Field
-                      id="banner-audience"
-                      label="Audience"
-                      description={hasLegacyAudience(form.placement, form.audience)
-                        ? `Saved as ${audienceLabel(form.audience)}. Saving sets it to `
-                          + `${audienceLabel(audienceForPlacement(form.placement, form.audience))} to match the placement.`
-                        : "Set by the placement, because each slot belongs to one channel."}
-                    >
-                      <Select value={form.audience} onValueChange={(value) => update({ audience: value })}>
-                        <Select.Trigger id="banner-audience"><Select.Value /></Select.Trigger>
-                        <Select.Content>
-                          {audienceSelectOptions.map((option) => (
-                            <Select.Item key={option.value} value={option.value}>{option.label}</Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select>
-                    </Field>
+                    {requiresCategory ? (
+                      <Field
+                        id="banner-category"
+                        label="Category"
+                        description={categoriesQuery.isError
+                          ? "The category list could not be loaded. Reopen the editor to retry."
+                          : "Which commerce category this banner appears on."}
+                      >
+                        <Select
+                          value={form.categoryId || undefined}
+                          onValueChange={(value) => update({ categoryId: value })}
+                        >
+                          <Select.Trigger id="banner-category">
+                            <Select.Value placeholder="Choose a category" />
+                          </Select.Trigger>
+                          <Select.Content>
+                            {categoryOptions.map((category) => (
+                              <Select.Item key={category.id} value={category.id}>
+                                {category.name}
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select>
+                      </Field>
+                    ) : null}
                     <Field id="banner-language" label="Language" description="Each language is a separate CMS record.">
                       <Select value={activeLocale} onValueChange={(value) => switchLocale(value as ContentLocale)}>
                         <Select.Trigger id="banner-language"><Select.Value /></Select.Trigger>
@@ -448,14 +451,16 @@ export function BannerEditor({
                     </Field>
                   </div>
                   <Text size="xsmall" className="text-ui-fg-subtle">
-                    Category banners are not edited here — they are owned by{" "}
+                    Category banners are set on this page, one per category per channel. The category
+                    label, icon and text live under{" "}
                     <Link
-                      to={CATEGORY_PRESENTATION_ROUTE}
+                      to={CATEGORY_DETAILS_ROUTE}
                       className="text-ui-fg-interactive hover:underline"
                     >
-                      Category presentation
+                      Category details
                     </Link>
-                    . B2B slots are not offered yet because the B2B app does not render CMS banners.
+                    . B2B category banners save and publish now but render only once the B2B app reads
+                    the CMS.
                   </Text>
                 </section>
 
@@ -751,7 +756,7 @@ export function BannerEditor({
                 ["Banner", form.name || form.title || form.contentKey],
                 ["Environment", "Staging"],
                 ["Placement", placementLabel(form.placement)],
-                ["Audience", audienceLabel(form.audience)],
+                ["Type", placementLabel(form.placement)],
                 ["Language", localeLabel(activeLocale)],
                 ["Schedule", form.startMode === "later"
                   ? `Starts ${form.startsAt.replace("T", " ")} IST${form.endsAt ? ` · Ends ${form.endsAt.replace("T", " ")} IST` : ""}`

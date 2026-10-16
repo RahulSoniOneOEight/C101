@@ -39,22 +39,64 @@ export interface PlacementOption {
   value: string;
   label: string;
   channel: "b2c" | "b2b";
-  /** The audience a banner in this slot must carry: the slot belongs to one channel. */
-  audience: "b2c" | "b2b";
+  surface: "home" | "category";
+  /** A category banner must reference a Medusa category. */
+  requiresCategory: boolean;
+  /** False while the consuming surface does not read the CMS yet. */
+  rendered: boolean;
 }
 
+/**
+ * Banner types. The type carries the channel, so a banner no longer has an `audience` field.
+ *
+ * MIRROR WARNING: `services/experience-api/src/content/placement-registry.ts` is the delivery-side
+ * authority for this list. The two are mirrored because the console and the delivery service are built
+ * from different Docker contexts; `tooling/validate_banner_types.py` fails CI if they diverge.
+ */
 export const SUPPORTED_PLACEMENTS: ReadonlyArray<PlacementOption> = [
-  { value: "home.hero", label: "B2C · Home", channel: "b2c", audience: "b2c" },
   {
-    value: "home.campaign-strip",
+    value: "b2c.home.hero",
+    label: "B2C · Home",
+    channel: "b2c",
+    surface: "home",
+    requiresCategory: false,
+    rendered: true,
+  },
+  {
+    value: "b2c.home.campaign-strip",
     label: "B2C · Campaign banner",
     channel: "b2c",
-    audience: "b2c",
+    surface: "home",
+    requiresCategory: false,
+    rendered: true,
+  },
+  {
+    value: "b2c.category.banner",
+    label: "B2C · Category banner",
+    channel: "b2c",
+    surface: "category",
+    requiresCategory: true,
+    rendered: true,
+  },
+  {
+    value: "b2b.category.banner",
+    label: "B2B · Category banner",
+    channel: "b2b",
+    surface: "category",
+    requiresCategory: true,
+    // The B2B app still renders a hard-coded image and never asks for channel=b2b.
+    rendered: false,
   },
 ];
 
+/** Pre-migration placement values, shown so un-migrated rows read sensibly. */
+const LEGACY_PLACEMENT_LABELS: Record<string, string> = {
+  "home.hero": "B2C · Home (legacy)",
+  "home.campaign-strip": "B2C · Campaign banner (legacy)",
+};
+
 /** Where category banners are actually edited, so the studio can point at the one authoritative page. */
-export const CATEGORY_PRESENTATION_ROUTE = "/merchandising/category-presentation";
+export const CATEGORY_DETAILS_ROUTE = "/merchandising/category-presentation";
 
 const SUPPORTED_PLACEMENT_VALUES = new Set(SUPPORTED_PLACEMENTS.map((item) => item.value));
 
@@ -68,35 +110,14 @@ export function supportedPlacement(value: unknown): PlacementOption | undefined 
     : undefined;
 }
 
-/**
- * Audiences a banner may carry for a placement. A recognised placement belongs to exactly one
- * channel, so "B2B + B2C" is not offered: it was the option that let a banner claim a channel whose
- * surface does not render it. An unrecognised placement keeps the full list, because we do not know
- * what consumes it.
- */
-export function audienceOptionsForPlacement(placement: unknown): Array<{ value: string; label: string }> {
-  const option = supportedPlacement(placement);
-  if (!option) {
-    return [
-      { value: "both", label: AUDIENCE_LABELS.both },
-      { value: "b2c", label: AUDIENCE_LABELS.b2c },
-      { value: "b2b", label: AUDIENCE_LABELS.b2b },
-    ];
-  }
-  return [{ value: option.audience, label: AUDIENCE_LABELS[option.audience] }];
+export function placementRequiresCategory(value: unknown): boolean {
+  return supportedPlacement(value)?.requiresCategory ?? false;
 }
 
-/** The audience a banner should be saved with. Legacy values normalise to the placement's channel. */
-export function audienceForPlacement(placement: unknown, current: string): string {
-  const option = supportedPlacement(placement);
-  return option ? option.audience : current;
-}
-
-/** True when a stored audience does not match its placement's channel and will change on next save. */
-export function hasLegacyAudience(placement: unknown, current: string): boolean {
-  const option = supportedPlacement(placement);
-  if (!option || !current) return false;
-  return current !== option.audience;
+export function isRenderedPlacement(value: unknown): boolean {
+  const option = supportedPlacement(value);
+  if (option) return option.rendered;
+  return false;
 }
 
 export const AUDIENCE_LABELS: Record<string, string> = {
@@ -128,7 +149,8 @@ export function placementLabel(value: unknown): string {
   const supported = SUPPORTED_PLACEMENTS.find((item) => item.value === key);
   // Unrecognised placements are shown as their raw key: it is the honest signal that this banner
   // points at a slot the storefront does not render.
-  return supported ? supported.label : key;
+  if (supported) return supported.label;
+  return LEGACY_PLACEMENT_LABELS[key] ?? key;
 }
 
 export function audienceLabel(value: unknown): string {
@@ -250,7 +272,7 @@ export interface BannerForm {
   name: string;
   contentKey: string;
   placement: string;
-  audience: string;
+  categoryId: string;
   title: string;
   subtitle: string;
   ctaLabel: string;
@@ -269,8 +291,8 @@ export interface BannerForm {
 export const EMPTY_BANNER_FORM: BannerForm = {
   name: "",
   contentKey: "",
-  placement: "home.hero",
-  audience: "both",
+  placement: "b2c.home.hero",
+  categoryId: "",
   title: "",
   subtitle: "",
   ctaLabel: "",
@@ -297,8 +319,8 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     ...EMPTY_BANNER_FORM,
     name: text(document.name) || displayValue(document, "title"),
     contentKey: text(document.contentKey),
-    placement: text(document.placement) || "home.hero",
-    audience: text(document.audience) || "both",
+    placement: text(document.placement) || "b2c.home.hero",
+    categoryId: text(document.categoryId),
     title: text(document.title),
     subtitle: text(document.subtitle),
     ctaLabel: text(document.ctaLabel),
@@ -328,6 +350,9 @@ export function validateBannerForm(
 ): string[] {
   const errors: string[] = [];
   if (!form.contentKey.trim()) errors.push("The technical key is required.");
+  if (placementRequiresCategory(form.placement) && !form.categoryId.trim()) {
+    errors.push("Choose the category this banner belongs to.");
+  }
   if (context.requireContent && !form.title.trim()) errors.push("Add the customer-facing heading.");
   if (context.requireContent && !form.imageAltText.trim()) {
     errors.push("Add alternative text for the creative.");
@@ -392,8 +417,8 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     name: form.name.trim() || null,
     contentKey: form.contentKey.trim(),
     placement: form.placement.trim(),
-    // A recognised placement belongs to one channel, so a legacy "both" value normalises on save.
-    audience: audienceForPlacement(form.placement, form.audience),
+    // The type carries the channel, so no audience is sent: channel is implied by the placement.
+    categoryId: placementRequiresCategory(form.placement) ? form.categoryId.trim() || null : null,
     title: form.title.trim(),
     subtitle: form.subtitle.trim() || null,
     ctaLabel: form.ctaLabel.trim() || null,
