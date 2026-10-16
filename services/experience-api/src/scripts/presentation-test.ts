@@ -160,7 +160,12 @@ assert.equal(normalizeIconKey(undefined), "category");
 
 // --- fallback seed ---------------------------------------------------------------------------
 const seedBanners = resolveSeedBanners("b2c", "en-IN");
-assert.ok(seedBanners.some((banner) => banner.placement === "home.hero"), "hero banners must be seeded");
+assert.ok(seedBanners.some((banner) => banner.placement === "b2c.home.hero"), "hero banners must be seeded");
+assert.equal(
+  resolveSeedBanners("b2b", "en-IN").length,
+  0,
+  "B2B has no home surface, so no seed home banners should ship",
+);
 assert.equal(seedBanners[0].priority >= seedBanners[1].priority, true, "banners are priority ordered");
 
 const disabled = new CmsContentAdapter(

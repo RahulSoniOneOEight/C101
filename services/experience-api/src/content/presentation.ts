@@ -10,6 +10,7 @@
  */
 
 import type { AppLocale } from "./app-content.js";
+import { homeBannerPlacements } from "./placement-registry.js";
 import type { StorefrontChannel } from "./storefront-layout.js";
 import type {
   StorefrontBannerPresentation,
@@ -46,13 +47,10 @@ export interface CategoryPresentationSeed {
 }
 
 /** Hero, campaign-strip and secondary banners, mirroring the shipped app creative. */
-export const storefrontBannerSeed: (StorefrontBannerPresentation & {
-  audience: StorefrontChannel | "both";
-})[] = [
+export const storefrontBannerSeed: StorefrontBannerPresentation[] = [
   {
     content_key: "hero-monsoon-ready",
-    placement: "home.hero",
-    audience: "both",
+    placement: "b2c.home.hero",
     title: "Monsoon Ready",
     body: "Up to 40% off waterproofing",
     image_alt: "Waterproofing supplies for monsoon preparation",
@@ -63,8 +61,7 @@ export const storefrontBannerSeed: (StorefrontBannerPresentation & {
   },
   {
     content_key: "hero-bulk-savings",
-    placement: "home.hero",
-    audience: "both",
+    placement: "b2c.home.hero",
     title: "Bulk Savings",
     body: "Dealer pricing on 10,000+ SKUs",
     image_alt: "Stacked bulk building materials",
@@ -75,8 +72,7 @@ export const storefrontBannerSeed: (StorefrontBannerPresentation & {
   },
   {
     content_key: "hero-free-delivery",
-    placement: "home.hero",
-    audience: "both",
+    placement: "b2c.home.hero",
     title: "Free Delivery",
     body: "On orders above ₹2,000",
     image_alt: "Delivery van at a construction site",
@@ -87,8 +83,7 @@ export const storefrontBannerSeed: (StorefrontBannerPresentation & {
   },
   {
     content_key: "secondary-clearance-sale",
-    placement: "home.campaign-strip",
-    audience: "both",
+    placement: "b2c.home.campaign-strip",
     title: "Clearance Sale",
     body: "Up to 70% off select items",
     image_uri:
@@ -175,14 +170,20 @@ export function seedBannerAlt(value: string | undefined): string {
   return value && value.trim() ? value.trim() : DEFAULT_BANNER_ALT;
 }
 
-/** Published fallback banners for an audience, ordered by descending priority. */
+/**
+ * Published fallback banners for a channel, ordered by descending priority.
+ *
+ * The fallback now uses the same channel-prefixed types as the CMS, so a banner served from the seed
+ * is addressed exactly like one served from content. A channel with no home type (B2B) yields no seed
+ * banners, which is the honest result: the CMS has no B2B home surface either.
+ */
 export function resolveSeedBanners(
   channel: StorefrontChannel,
   _locale: AppLocale,
 ): StorefrontBannerPresentation[] {
+  const placements = homeBannerPlacements(channel);
   return storefrontBannerSeed
-    .filter((banner) => banner.audience === channel || banner.audience === "both")
-    .map(({ audience: _audience, ...banner }) => banner)
+    .filter((banner) => placements.has(banner.placement))
     .sort((left, right) => right.priority - left.priority);
 }
 

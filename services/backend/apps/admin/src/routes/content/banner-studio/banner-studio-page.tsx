@@ -74,7 +74,6 @@ export function BannerStudioPage() {
   const view: BannerLifecycle = isStudioTab(requestedView) ? requestedView : "live";
   const search = searchParams.get("q") ?? "";
   const placementFilter = searchParams.get("placement") ?? "";
-  const audienceFilter = searchParams.get("audience") ?? "";
   const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const editorParam = searchParams.get("editor");
@@ -105,8 +104,8 @@ export function BannerStudioPage() {
 
   const openEditor = (documentId: string) => updateParams({ editor: documentId });
   const closeEditor = () => updateParams({ editor: null });
-  const filtersActive = Boolean(search || placementFilter || audienceFilter);
-  const clearFilters = () => updateParams({ q: null, placement: null, audience: null }, true);
+  const filtersActive = Boolean(search || placementFilter);
+  const clearFilters = () => updateParams({ q: null, placement: null }, true);
 
   const now = useMemo(() => new Date(), []);
 
@@ -137,10 +136,6 @@ export function BannerStudioPage() {
   const filtered = documents
     .filter((document) => bannerLifecycle(document, now) === view)
     .filter((document) => (placementFilter ? document.placement === placementFilter : true))
-    .filter((document) => (audienceFilter
-      ? typeof document.audience === "string"
-        && (document.audience === audienceFilter || document.audience === "both")
-      : true))
     .filter((document) => {
       if (!term) return true;
       return [
@@ -302,24 +297,7 @@ export function BannerStudioPage() {
                   </Select.Content>
                 </Select>
               </div>
-              <div className="w-32">
-                <Label htmlFor="banner-audience-filter" className="sr-only">Filter by audience</Label>
-                <Select
-                  size="small"
-                  value={audienceFilter || "all"}
-                  onValueChange={(value) => updateParams({ audience: value === "all" ? null : value }, true)}
-                >
-                  <Select.Trigger id="banner-audience-filter">
-                    <Select.Value />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="all">All audiences</Select.Item>
-                    <Select.Item value="b2c">B2C</Select.Item>
-                    <Select.Item value="b2b">B2B</Select.Item>
-                  </Select.Content>
-                </Select>
-              </div>
-              <div className="w-32">
+              <div className="w-40">
                 <Label htmlFor="banner-locale-filter" className="sr-only">Language</Label>
                 <Select
                   size="small"

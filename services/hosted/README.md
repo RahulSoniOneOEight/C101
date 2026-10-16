@@ -70,8 +70,10 @@ allowlisted `iconKey`, banner imagery and a colour theme. Commerce category id, 
 membership are never editorial. When CMS presentation is absent or unavailable the Experience API
 returns the governed fallback seed, so the storefront keeps working. The current banners and root
 categories are seeded into the CMS on bootstrap so an operator can edit them without a code change;
-media upload remains deferred, so creative is referenced by an HTTPS URL (`externalImageUrl` /
-`externalBannerImageUrl`) until an approved DAM workflow exists.
+media upload remains deferred, so creative is referenced by an HTTPS URL (`externalImageUrl`) until an
+approved DAM workflow exists. A banner's type is its placement and carries the channel
+(`b2c.home.hero`, `b2c.category.banner`, `b2b.category.banner`); there is no separate audience field.
+Category banners are banner records, not category attributes.
 
 ## ERP web client (Tryton / SAO)
 

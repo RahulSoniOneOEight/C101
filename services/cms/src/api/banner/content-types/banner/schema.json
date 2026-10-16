@@ -5,7 +5,7 @@
     "singularName": "banner",
     "pluralName": "banners",
     "displayName": "Banner",
-    "description": "B2C/B2B marketing banner: hero, secondary, campaign. Editorial only."
+    "description": "Editorial banner for a channel surface: home hero, campaign strip or category banner. The channel is carried by the placement type; there is no separate audience field. Editorial only."
   },
   "options": {
     "draftAndPublish": true
@@ -18,13 +18,7 @@
     "name": { "type": "string" },
     "categoryId": {
       "type": "string",
-      "description": "Medusa category reference. Required for category.banner placements, ignored by other placements."
-    },
-    "audience": {
-      "type": "enumeration",
-      "enum": ["b2c", "b2b", "both"],
-      "default": "both",
-      "required": true
+      "description": "Medusa category reference. Required for a category banner type; ignored by home types."
     },
     "placement": { "type": "string", "required": true },
     "title": { "type": "string", "required": true },

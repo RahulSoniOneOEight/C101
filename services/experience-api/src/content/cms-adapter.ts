@@ -263,7 +263,7 @@ function mapCategoryEditorial(value: unknown): StorefrontCategoryEditorial | und
   if (!category) return undefined;
   const categoryId = text(category.categoryId);
   if (!categoryId) return undefined;
-  const image = mediaUri(category.heroImage) ?? externalImageUri(category.externalBannerImageUrl);
+  const image = mediaUri(category.heroImage);
   return {
     category_id: categoryId,
     ...(text(category.displayLabel) ?? text(category.heading)
@@ -274,9 +274,7 @@ function mapCategoryEditorial(value: unknown): StorefrontCategoryEditorial | und
       : {}),
     ...(text(category.iconKey) ? { icon_key: text(category.iconKey) } : {}),
     ...(image ? { banner_image_uri: image } : {}),
-    ...(text(category.bannerImageAltText) ?? text(category.heroAltText)
-      ? { banner_image_alt: text(category.bannerImageAltText) ?? text(category.heroAltText) }
-      : {}),
+    ...(text(category.heroAltText) ? { banner_image_alt: text(category.heroAltText) } : {}),
   };
 }
 

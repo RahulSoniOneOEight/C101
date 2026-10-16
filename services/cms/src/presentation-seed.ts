@@ -16,7 +16,6 @@ import type { Core } from "@strapi/strapi";
 
 interface BannerSeed {
   contentKey: string;
-  audience: "b2c" | "b2b" | "both";
   placement: string;
   title: string;
   subtitle?: string;
@@ -42,8 +41,7 @@ interface CategorySeed {
 export const bannerSeed: BannerSeed[] = [
   {
     contentKey: "hero-monsoon-ready",
-    audience: "both",
-    placement: "home.hero",
+    placement: "b2c.home.hero",
     title: "Monsoon Ready",
     subtitle: "Up to 40% off waterproofing",
     ctaLabel: "Shop now",
@@ -55,8 +53,7 @@ export const bannerSeed: BannerSeed[] = [
   },
   {
     contentKey: "hero-bulk-savings",
-    audience: "both",
-    placement: "home.hero",
+    placement: "b2c.home.hero",
     title: "Bulk Savings",
     subtitle: "Dealer pricing on 10,000+ SKUs",
     ctaLabel: "Shop now",
@@ -68,8 +65,7 @@ export const bannerSeed: BannerSeed[] = [
   },
   {
     contentKey: "hero-free-delivery",
-    audience: "both",
-    placement: "home.hero",
+    placement: "b2c.home.hero",
     title: "Free Delivery",
     subtitle: "On orders above ₹2,000",
     ctaLabel: "Shop now",
@@ -81,8 +77,7 @@ export const bannerSeed: BannerSeed[] = [
   },
   {
     contentKey: "secondary-clearance-sale",
-    audience: "both",
-    placement: "home.campaign-strip",
+    placement: "b2c.home.campaign-strip",
     title: "Clearance Sale",
     subtitle: "Up to 70% off select items",
     ctaLabel: "Shop Now",
@@ -192,19 +187,54 @@ export async function seedStorefrontPresentation(strapi: Core.Strapi): Promise<v
     const categories = strapi.documents("api::category-editorial.category-editorial" as never);
     for (const seed of categorySeed) {
       const existing = await categories.findMany({
-        filters: { categoryId: seed.categoryId },
+        filters: { categoryId: seed.categoryId, channel: "b2c" },
         locale: "en-IN",
         limit: 1,
       } as never);
-      if (existing.length) continue;
-      const created = await categories.create({
+      if (!existing.length) {
+        // The banner image is no longer a category attribute; only the presentation fields are stored
+        // here, and the image is seeded as a banner record below.
+        const { externalBannerImageUrl: _image, bannerImageAltText: _alt, ...editorial } = seed;
+        const created = await categories.create({
+          locale: "en-IN",
+          status: "draft",
+          data: { ...editorial, channel: "b2c" },
+        } as never);
+        const documentId = (created as { documentId?: string }).documentId;
+        if (documentId) {
+          await categories.publish({ documentId, locale: "en-IN" } as never);
+        }
+      }
+
+      const contentKey = `category-banner-${seed.categoryId
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 60)}`;
+      const existingBanner = await banners.findMany({
+        filters: { contentKey },
+        locale: "en-IN",
+        limit: 1,
+      } as never);
+      if (existingBanner.length || !seed.externalBannerImageUrl) continue;
+      const createdBanner = await banners.create({
         locale: "en-IN",
         status: "draft",
-        data: seed,
+        data: {
+          contentKey,
+          name: `${seed.displayLabel} category banner`,
+          placement: "b2c.category.banner",
+          categoryId: seed.categoryId,
+          title: seed.heading,
+          externalImageUrl: seed.externalBannerImageUrl,
+          imageAltText: seed.bannerImageAltText || seed.heading,
+          themeKey: "primary",
+          priority: 10,
+        },
       } as never);
-      const documentId = (created as { documentId?: string }).documentId;
-      if (documentId) {
-        await categories.publish({ documentId, locale: "en-IN" } as never);
+      const bannerDocumentId = (createdBanner as { documentId?: string }).documentId;
+      if (bannerDocumentId) {
+        await banners.publish({ documentId: bannerDocumentId, locale: "en-IN" } as never);
       }
     }
     strapi.log.info("[cms-seed] storefront presentation seed ensured");

@@ -37,8 +37,6 @@
       ],
       "default": "category"
     },
-    "externalBannerImageUrl": { "type": "string" },
-    "bannerImageAltText": { "type": "string" },
     "heading": { "type": "string", "required": true },
     "description": { "type": "text" },
     "heroImage": { "type": "media", "multiple": false, "allowedTypes": ["images"] },

@@ -120,12 +120,6 @@ export function isRenderedPlacement(value: unknown): boolean {
   return false;
 }
 
-export const AUDIENCE_LABELS: Record<string, string> = {
-  b2c: "B2C customers",
-  b2b: "B2B buyers",
-  both: "B2B + B2C",
-};
-
 export const THEME_LABELS: Record<string, string> = {
   primary: "Primary",
   trust: "Trust",
@@ -151,11 +145,6 @@ export function placementLabel(value: unknown): string {
   // points at a slot the storefront does not render.
   if (supported) return supported.label;
   return LEGACY_PLACEMENT_LABELS[key] ?? key;
-}
-
-export function audienceLabel(value: unknown): string {
-  if (typeof value !== "string") return "—";
-  return AUDIENCE_LABELS[value] ?? value;
 }
 
 export function themeLabel(value: unknown): string {
