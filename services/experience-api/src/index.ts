@@ -25,6 +25,7 @@ import {
   resolveSeedBanners,
   type ComposedCategory,
 } from "./content/presentation.js";
+import { resolveSectionProducts } from "./content/section-products.js";
 import type { StorefrontChannel } from "./content/storefront-layout.js";
 import { verifyCmsWebhook } from "./content/cms-webhook.js";
 import { CmsContentStore } from "./store/cms-content-store.js";
@@ -781,7 +782,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return new Response(null, { status: 204 });
   }
 
-  if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+  if (url.pathname === "/v1/content/app-shell" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
     const placement = url.searchParams.get("placement");
     const items = placement ? resolveContent(placement, locale) : appContent.filter((c) => c.locale === locale);
 
@@ -796,6 +798,23 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       ? `${layoutResolution.source}+governed-editorial-seed`
       : "governed-editorial-seed";
 
+    // Resolve section product references at read time. A collection that fails or is empty must not
+    // fail the whole shell: the section renders with an explanation instead.
+    let sections: unknown[] = layout?.sections ?? [];
+    let emptyCollections: string[] = [];
+    if (layout?.sections?.length) {
+      try {
+        const resolved = await resolveSectionProducts(layout.sections, medusa);
+        sections = resolved.sections;
+        emptyCollections = resolved.empty_collections;
+      } catch (error) {
+        console.warn(
+          "[experience-api] section product resolution failed:",
+          (error as Error).message,
+        );
+      }
+    }
+
     return json({
       locale,
       ...(channel ? { channel } : {}),
@@ -807,7 +826,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
               ...layout,
               // Always present so a consumer can rely on it being an array, empty when an operator has
               // not configured sections for this channel yet.
-              sections: layout.sections ?? [],
+              sections,
+              ...(emptyCollections.length ? { empty_collections: emptyCollections } : {}),
               generated_at: generatedAt,
               source: layoutResolution.source,
             },

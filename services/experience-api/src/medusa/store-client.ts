@@ -186,6 +186,22 @@ export class MedusaStoreClient {
     return data.products;
   }
 
+  /**
+   * Products belonging to a commerce collection (Products → Collections).
+   *
+   * Storefront layout sections reference a collection, so this is the resolution the storefront needs:
+   * the section stores a reference, commerce resolves the membership at read time, and no product list
+   * is ever copied into editorial configuration.
+   */
+  async listProductsByCollection(collectionId: string, limit = 12): Promise<StoreProduct[]> {
+    const params = new URLSearchParams({ limit: String(limit), fields: PRODUCT_FIELDS });
+    params.append("collection_id[]", collectionId);
+    const data = await this.getJson<{ products: StoreProduct[] }>(
+      `/store/products?${params.toString()}`,
+    );
+    return data.products;
+  }
+
   async createCart(
     regionId: string,
     currencyCode: string,
