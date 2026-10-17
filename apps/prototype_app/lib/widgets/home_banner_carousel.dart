@@ -54,7 +54,8 @@ const List<HomeBannerContent> homeFallbackBanners = <HomeBannerContent>[
   ),
 ];
 
-/// The home banner carousel: one 310×128 navy card, gradient side peeks and a dot indicator.
+/// The home banner carousel: one navy card that fills the width and height it is given, gradient
+/// side peeks and a dot indicator.
 ///
 /// The carousel is presentation only. It renders the list it is given and reports the tapped card;
 /// it never fetches, mutates or invents copy.
@@ -62,19 +63,29 @@ class HomeBannerCarousel extends StatefulWidget {
   const HomeBannerCarousel({
     required this.banners,
     this.onBannerCta,
+    this.cardHeight,
     super.key,
   });
 
   final List<HomeBannerContent> banners;
   final ValueChanged<HomeBannerContent>? onBannerCta;
 
-  static const double cardHeight = 128;
+  /// Fixed card height. When null the card fills a bounded parent, so the header can award the
+  /// leftover vertical space to the banner instead of leaving it empty.
+  final double? cardHeight;
+
+  static const double defaultCardHeight = 128;
+  static const double minCardHeight = 120;
+  static const double cardMaxHeight = 240;
   static const double cardMaxWidth = 480;
   static const double cardRadius = 20;
   static const double peekWidth = 14;
 
   /// Gap between the active card and a peek stub.
   static const double peekGap = 6;
+
+  /// Dot row plus the gap above it, reserved from the carousel's height.
+  static const double indicatorHeight = 14;
 
   @override
   State<HomeBannerCarousel> createState() => _HomeBannerCarouselState();
@@ -107,6 +118,16 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           math.max(0.0, available - reserve),
         );
 
+        // A bounded parent (the header) hands its leftover height to the card; otherwise the card
+        // keeps the reviewed default.
+        final bounded = constraints.hasBoundedHeight;
+        final cardHeight = widget.cardHeight ??
+            (bounded
+                ? (constraints.maxHeight - HomeBannerCarousel.indicatorHeight)
+                    .clamp(HomeBannerCarousel.minCardHeight,
+                        HomeBannerCarousel.cardMaxHeight)
+                : HomeBannerCarousel.defaultCardHeight);
+
         final cardLeft = (available - cardWidth) / 2;
         final cardRight = cardLeft + cardWidth;
 
@@ -114,7 +135,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             SizedBox(
-              height: HomeBannerCarousel.cardHeight,
+              height: cardHeight,
               child: Stack(
                 alignment: Alignment.center,
                 children: <Widget>[
@@ -128,6 +149,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         key: const ValueKey<String>('home-banner-peek-left'),
                         palette: palette,
                         leftToRight: false,
+                        height: cardHeight,
                       ),
                     ),
                   if (_page < widget.banners.length - 1)
@@ -138,11 +160,12 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         key: const ValueKey<String>('home-banner-peek-right'),
                         palette: palette,
                         leftToRight: true,
+                        height: cardHeight,
                       ),
                     ),
                   SizedBox(
                     width: cardWidth,
-                    height: HomeBannerCarousel.cardHeight,
+                    height: cardHeight,
                     child: PageView.builder(
                       controller: _controller,
                       itemCount: widget.banners.length,
@@ -188,18 +211,20 @@ class _PeekCard extends StatelessWidget {
   const _PeekCard({
     required this.palette,
     required this.leftToRight,
+    required this.height,
     super.key,
   });
 
   final AgencyHomePalette palette;
   final bool leftToRight;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     final colors = <Color>[palette.navy, palette.peek];
     return Container(
       width: HomeBannerCarousel.peekWidth,
-      height: HomeBannerCarousel.cardHeight - 24,
+      height: height - 24,
       margin: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(HomeBannerCarousel.cardRadius),

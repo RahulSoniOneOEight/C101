@@ -22,7 +22,7 @@ class HomeHeader extends StatelessWidget {
   });
 
   /// Fixed header height. The pinned bar height is measured by the screen, not assumed here.
-  static const double height = 400;
+  static const double height = 432;
 
   /// Space reserved for the pinned bar so header content never sits underneath it.
   final double topInset;
@@ -101,7 +101,7 @@ class HomeHeader extends StatelessWidget {
                   ink: Colors.white,
                   minHeight: 48,
                 ),
-                const Spacer(),
+                const SizedBox(height: AgencySpacing.sm),
                 TrustBuilderRow(
                   padding: EdgeInsets.zero,
                   foregroundColor: chipInk,
@@ -121,9 +121,13 @@ class HomeHeader extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AgencySpacing.sm),
-                HomeBannerCarousel(
-                  banners: contents,
-                  onBannerCta: (content) => _handleCta(context, content),
+                // The banner takes every remaining pixel, so the header has no dead band between the
+                // location row and the trust chips.
+                Expanded(
+                  child: HomeBannerCarousel(
+                    banners: contents,
+                    onBannerCta: (content) => _handleCta(context, content),
+                  ),
                 ),
               ],
             ),

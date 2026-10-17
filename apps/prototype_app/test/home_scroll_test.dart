@@ -11,6 +11,7 @@ import 'package:prototype_app/domain/presentation.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
 import 'package:prototype_app/screens/product_list_screen.dart';
+import 'package:prototype_app/widgets/home_banner_carousel.dart';
 import 'package:prototype_app/widgets/home_pinned_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -163,6 +164,11 @@ void main() {
     final ink = AgencyHomePalette.light.ink;
     expect(_titleColor(tester), Colors.white);
     expect(_barAlpha(tester), 0);
+    expect(
+      tester.getSize(find.byType(PageView)).height,
+      greaterThan(HomeBannerCarousel.defaultCardHeight),
+      reason: 'the header awards its leftover height to the banner, not a blank band',
+    );
 
     await tester.drag(
         find.byKey(const ValueKey<String>('home-scroll')), const Offset(0, -600));
