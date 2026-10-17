@@ -39,11 +39,12 @@ interface CategorySeed {
 }
 
 export const bannerSeed: BannerSeed[] = [
+  // Seed copy states no quantified claim — no saving, no catalogue size, no delivery threshold — so a
+  // fresh environment never shows a shopper an unevidenced offer before an operator authors one.
   {
     contentKey: "hero-monsoon-ready",
     placement: "b2c.home.hero",
     title: "Monsoon Ready",
-    subtitle: "Up to 40% off waterproofing",
     ctaLabel: "Shop now",
     ctaTargetType: "route",
     ctaTargetId: "/browse?tag=Flash%20Deals",
@@ -55,7 +56,6 @@ export const bannerSeed: BannerSeed[] = [
     contentKey: "hero-bulk-savings",
     placement: "b2c.home.hero",
     title: "Bulk Savings",
-    subtitle: "Dealer pricing on 10,000+ SKUs",
     ctaLabel: "Shop now",
     ctaTargetType: "route",
     ctaTargetId: "/browse?tag=Best%20Sellers",
@@ -67,7 +67,6 @@ export const bannerSeed: BannerSeed[] = [
     contentKey: "hero-free-delivery",
     placement: "b2c.home.hero",
     title: "Free Delivery",
-    subtitle: "On orders above ₹2,000",
     ctaLabel: "Shop now",
     ctaTargetType: "route",
     ctaTargetId: "/browse?tag=Clearance%20Sale",
@@ -79,13 +78,12 @@ export const bannerSeed: BannerSeed[] = [
     contentKey: "secondary-clearance-sale",
     placement: "b2c.home.campaign-strip",
     title: "Clearance Sale",
-    subtitle: "Up to 70% off select items",
     ctaLabel: "Shop Now",
     ctaTargetType: "route",
     ctaTargetId: "/browse?tag=Clearance%20Sale",
     externalImageUrl:
       "https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940",
-    imageAltText: "Discounted tools and hardware on display",
+    imageAltText: "Tools and hardware on display",
     themeKey: "promotion",
     priority: 10,
   },

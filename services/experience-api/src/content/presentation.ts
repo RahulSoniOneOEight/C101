@@ -47,12 +47,14 @@ export interface CategoryPresentationSeed {
 }
 
 /** Hero, campaign-strip and secondary banners, mirroring the shipped app creative. */
+// No seed body or alt text states a quantified claim: no saving, no catalogue size, no delivery
+// threshold. Before an operator authors a banner, anything numeric here would reach shoppers as if it
+// were evidenced.
 export const storefrontBannerSeed: StorefrontBannerPresentation[] = [
   {
     content_key: "hero-monsoon-ready",
     placement: "b2c.home.hero",
     title: "Monsoon Ready",
-    body: "Up to 40% off waterproofing",
     image_alt: "Waterproofing supplies for monsoon preparation",
     action_label: "Shop now",
     action_uri: "/browse?tag=Flash%20Deals",
@@ -63,7 +65,6 @@ export const storefrontBannerSeed: StorefrontBannerPresentation[] = [
     content_key: "hero-bulk-savings",
     placement: "b2c.home.hero",
     title: "Bulk Savings",
-    body: "Dealer pricing on 10,000+ SKUs",
     image_alt: "Stacked bulk building materials",
     action_label: "Shop now",
     action_uri: "/browse?tag=Best%20Sellers",
@@ -74,7 +75,6 @@ export const storefrontBannerSeed: StorefrontBannerPresentation[] = [
     content_key: "hero-free-delivery",
     placement: "b2c.home.hero",
     title: "Free Delivery",
-    body: "On orders above ₹2,000",
     image_alt: "Delivery van at a construction site",
     action_label: "Shop now",
     action_uri: "/browse?tag=Clearance%20Sale",
@@ -85,10 +85,9 @@ export const storefrontBannerSeed: StorefrontBannerPresentation[] = [
     content_key: "secondary-clearance-sale",
     placement: "b2c.home.campaign-strip",
     title: "Clearance Sale",
-    body: "Up to 70% off select items",
     image_uri:
       "https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940",
-    image_alt: "Discounted tools and hardware on display",
+    image_alt: "Tools and hardware on display",
     action_label: "Shop Now",
     action_uri: "/browse?tag=Clearance%20Sale",
     theme_key: "promotion",

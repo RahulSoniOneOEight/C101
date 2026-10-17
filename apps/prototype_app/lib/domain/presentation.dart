@@ -234,11 +234,13 @@ IconData categoryIconFor(String iconKey) {
 /// Governed fallback mirroring the backend seed so the app is usable offline and
 /// before CMS content exists. The backend remains the routine source.
 const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
+  // Seed copy must not assert a saving, a catalogue size or a delivery threshold: before an operator
+  // authors a banner, anything quantified here would be shown to shoppers as an evidenced claim.
+  // Titles and creative stay; the body states nothing. Operators replace the whole banner anyway.
   StorefrontBanner(
     contentKey: 'hero-monsoon-ready',
     placement: 'home.hero',
     title: 'Monsoon Ready',
-    body: 'Up to 40% off waterproofing',
     actionLabel: 'Shop now',
     actionUri: '/browse?tag=Flash%20Deals',
     themeKey: 'primary',
@@ -248,7 +250,6 @@ const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
     contentKey: 'hero-bulk-savings',
     placement: 'home.hero',
     title: 'Bulk Savings',
-    body: 'Dealer pricing on 10,000+ SKUs',
     actionLabel: 'Shop now',
     actionUri: '/browse?tag=Best%20Sellers',
     themeKey: 'trust',
@@ -258,7 +259,6 @@ const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
     contentKey: 'hero-free-delivery',
     placement: 'home.hero',
     title: 'Free Delivery',
-    body: 'On orders above ₹2,000',
     actionLabel: 'Shop now',
     actionUri: '/browse?tag=Clearance%20Sale',
     themeKey: 'promotion',
@@ -268,7 +268,6 @@ const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
     contentKey: 'secondary-clearance-sale',
     placement: 'home.campaign-strip',
     title: 'Clearance Sale',
-    body: 'Up to 70% off select items',
     imageUrl:
         'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
     actionLabel: 'Shop Now',

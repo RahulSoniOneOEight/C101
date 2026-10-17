@@ -45,6 +45,17 @@ void main() {
     expect(presentation.categoryByLabel('Missing'), isNull);
   });
 
+  test('no seed banner carries a quantified claim', () {
+    for (final banner in fallbackBanners) {
+      final copy = '${banner.title} ${banner.body ?? ''}'.toLowerCase();
+      expect(banner.body, isNull,
+          reason: '${banner.contentKey}: a seed body is a claim shown before any operator authors one');
+      expect(copy, isNot(contains('%')), reason: '${banner.contentKey}: no percentage saving');
+      expect(copy, isNot(contains('sku')), reason: '${banner.contentKey}: no catalogue size');
+      expect(copy, isNot(contains('₹')), reason: '${banner.contentKey}: no delivery threshold');
+    }
+  });
+
   test('maps allowlisted icon keys and falls back safely', () {
     expect(categoryIconFor('construction'), Icons.construction_outlined);
     expect(categoryIconFor('bathroom-plumbing'), Icons.bathtub_outlined);
@@ -60,7 +71,7 @@ void main() {
       banner: MerchandisingBannerData(
         imageUrl: 'https://example.com/clearance.jpg',
         title: 'Clearance Sale',
-        subtitle: 'Up to 70% off select items',
+        subtitle: 'Selected lines only',
         ctaLabel: 'Shop Now',
         actionUri: '/browse?tag=Clearance%20Sale',
       ),

@@ -492,7 +492,8 @@ final homeModulesProvider =
       imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
       imageAlt: campaignStrip?.imageAlt,
       title: campaignStrip?.title ?? 'Clearance Sale',
-      subtitle: campaignStrip?.body ?? 'Up to 70% off select items',
+      // No invented discount line. If the banner has no body, the strip renders without a claim.
+      subtitle: campaignStrip?.body,
       ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
       actionUri: campaignStrip?.actionUri,
     ),

@@ -157,7 +157,7 @@ void main() {
       banner: MerchandisingBannerData(
         imageUrl: 'https://example.com/banner.jpg',
         title: 'Clearance Sale',
-        subtitle: 'Up to 70% off select items',
+        subtitle: 'Selected lines only',
         ctaLabel: 'Shop Now',
       ),
     );

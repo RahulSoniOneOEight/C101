@@ -31,26 +31,25 @@ class HomeHeader extends StatelessWidget {
   /// Invoked with the tapped banner so the caller can follow its action target.
   final void Function(StorefrontBanner banner)? onBannerTap;
 
+  // Seeds keep titles and themes but state no quantified claim: no saving, no catalogue size, no
+  // delivery threshold. Anything numeric here would reach shoppers as if it were evidenced.
   static const List<StorefrontBanner> _fallback = <StorefrontBanner>[
     StorefrontBanner(
       contentKey: 'hero-monsoon-ready',
       placement: 'home.hero',
       title: 'Monsoon Ready',
-      body: 'Up to 40% off waterproofing',
       themeKey: 'primary',
     ),
     StorefrontBanner(
       contentKey: 'hero-bulk-savings',
       placement: 'home.hero',
       title: 'Bulk Savings',
-      body: 'Dealer pricing on 10,000+ SKUs',
       themeKey: 'trust',
     ),
     StorefrontBanner(
       contentKey: 'hero-free-delivery',
       placement: 'home.hero',
       title: 'Free Delivery',
-      body: 'On orders above ₹2,000',
       themeKey: 'promotion',
     ),
   ];
