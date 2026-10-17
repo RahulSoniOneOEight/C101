@@ -1,11 +1,13 @@
 library agency_flutter_ui;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 part 'b2b_trade.dart';
 part 'b2b_v5.dart';
+part 'home_painters.dart';
 part 'pin_components.dart';
 part 'trade_offers.dart';
 
@@ -238,6 +240,209 @@ extension AgencyThemeX on BuildContext {
   AgencyColors get colors => Theme.of(this).extension<AgencyColors>()!;
 }
 
+/// Home-only palette for the navy merchandising header.
+///
+/// Kept separate from [AgencyColors] on purpose: the navy header, banner cards and pinned bar are one
+/// surface's look, and adding these values to the shared palette would invite other screens to adopt
+/// a background tint they were never reviewed for. Widgets resolve every colour here rather than
+/// hardcoding hex values.
+@immutable
+class AgencyHomePalette extends ThemeExtension<AgencyHomePalette> {
+  const AgencyHomePalette({
+    required this.navy,
+    required this.navyMid,
+    required this.cobalt,
+    required this.haze,
+    required this.surface,
+    required this.indigo,
+    required this.cyan,
+    required this.cyanSoft,
+    required this.blue,
+    required this.glow,
+    required this.line,
+    required this.ink,
+    required this.muted,
+    required this.alert,
+    required this.hairline,
+    required this.barBorder,
+    required this.cardEnd,
+    required this.cardBorder,
+    required this.peek,
+    required this.barLineStart,
+    required this.barLineEnd,
+  });
+
+  /// Header gradient start.
+  final Color navy;
+
+  /// Header gradient at 36%.
+  final Color navyMid;
+
+  /// Header gradient at 60%.
+  final Color cobalt;
+
+  /// Header gradient at 84%, just before the page surface takes over.
+  final Color haze;
+
+  /// Home page surface, used by the products section and the light pinned bar.
+  final Color surface;
+
+  /// Primary action colour on the home surface.
+  final Color indigo;
+
+  /// Highlight colour and the start of the CTA gradient.
+  final Color cyan;
+
+  /// Eyebrow label colour.
+  final Color cyanSoft;
+
+  /// End of the CTA gradient.
+  final Color blue;
+
+  /// Radial glow behind the header and banner cards.
+  final Color glow;
+
+  /// Hairline wave stroke.
+  final Color line;
+
+  /// Text on the light home surface.
+  final Color ink;
+
+  /// Secondary text on the light home surface.
+  final Color muted;
+
+  /// Badges and cart count. Dark enough to keep white label text at 4.5:1.
+  final Color alert;
+
+  /// Borders on the light home surface.
+  final Color hairline;
+
+  /// Border around the search field once the bar turns light.
+  final Color barBorder;
+
+  /// Far end of the banner-card gradient.
+  final Color cardEnd;
+
+  /// Hairline border around a banner card (35% blue).
+  final Color cardBorder;
+
+  /// Far end of the side peek cards.
+  final Color peek;
+
+  /// Start of the pinned-bar progress line.
+  final Color barLineStart;
+
+  /// End of the pinned-bar progress line.
+  final Color barLineEnd;
+
+  static const AgencyHomePalette light = AgencyHomePalette(
+    navy: Color(0xFF01022B),
+    navyMid: Color(0xFF07104F),
+    cobalt: Color(0xFF1B3AB8),
+    haze: Color(0xFFA9B8F2),
+    surface: Color(0xFFF7F5FF),
+    indigo: Color(0xFF4F57CE),
+    cyan: Color(0xFF9BE0FF),
+    cyanSoft: Color(0xFF7DD3FF),
+    blue: Color(0xFF5FA8FF),
+    glow: Color(0xFF29B6FF),
+    line: Color(0xFF3B8CFF),
+    ink: Color(0xFF1B1F3B),
+    muted: Color(0xFF6B6F8F),
+    alert: Color(0xFFC2410C),
+    hairline: Color(0xFFE6E4F5),
+    barBorder: Color(0xFFDAD8F0),
+    cardEnd: Color(0xFF040B4A),
+    cardBorder: Color(0x59908CFF),
+    peek: Color(0xFF0A47E0),
+    barLineStart: Color(0xFF1E6BFF),
+    barLineEnd: Color(0xFF9BE0FF),
+  );
+
+  @override
+  AgencyHomePalette copyWith({
+    Color? navy,
+    Color? navyMid,
+    Color? cobalt,
+    Color? haze,
+    Color? surface,
+    Color? indigo,
+    Color? cyan,
+    Color? cyanSoft,
+    Color? blue,
+    Color? glow,
+    Color? line,
+    Color? ink,
+    Color? muted,
+    Color? alert,
+    Color? hairline,
+    Color? barBorder,
+    Color? cardEnd,
+    Color? cardBorder,
+    Color? peek,
+    Color? barLineStart,
+    Color? barLineEnd,
+  }) {
+    return AgencyHomePalette(
+      navy: navy ?? this.navy,
+      navyMid: navyMid ?? this.navyMid,
+      cobalt: cobalt ?? this.cobalt,
+      haze: haze ?? this.haze,
+      surface: surface ?? this.surface,
+      indigo: indigo ?? this.indigo,
+      cyan: cyan ?? this.cyan,
+      cyanSoft: cyanSoft ?? this.cyanSoft,
+      blue: blue ?? this.blue,
+      glow: glow ?? this.glow,
+      line: line ?? this.line,
+      ink: ink ?? this.ink,
+      muted: muted ?? this.muted,
+      alert: alert ?? this.alert,
+      hairline: hairline ?? this.hairline,
+      barBorder: barBorder ?? this.barBorder,
+      cardEnd: cardEnd ?? this.cardEnd,
+      cardBorder: cardBorder ?? this.cardBorder,
+      peek: peek ?? this.peek,
+      barLineStart: barLineStart ?? this.barLineStart,
+      barLineEnd: barLineEnd ?? this.barLineEnd,
+    );
+  }
+
+  @override
+  AgencyHomePalette lerp(AgencyHomePalette? other, double t) {
+    if (other is! AgencyHomePalette) return this;
+    return AgencyHomePalette(
+      navy: Color.lerp(navy, other.navy, t)!,
+      navyMid: Color.lerp(navyMid, other.navyMid, t)!,
+      cobalt: Color.lerp(cobalt, other.cobalt, t)!,
+      haze: Color.lerp(haze, other.haze, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      indigo: Color.lerp(indigo, other.indigo, t)!,
+      cyan: Color.lerp(cyan, other.cyan, t)!,
+      cyanSoft: Color.lerp(cyanSoft, other.cyanSoft, t)!,
+      blue: Color.lerp(blue, other.blue, t)!,
+      glow: Color.lerp(glow, other.glow, t)!,
+      line: Color.lerp(line, other.line, t)!,
+      ink: Color.lerp(ink, other.ink, t)!,
+      muted: Color.lerp(muted, other.muted, t)!,
+      alert: Color.lerp(alert, other.alert, t)!,
+      hairline: Color.lerp(hairline, other.hairline, t)!,
+      barBorder: Color.lerp(barBorder, other.barBorder, t)!,
+      cardEnd: Color.lerp(cardEnd, other.cardEnd, t)!,
+      cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
+      peek: Color.lerp(peek, other.peek, t)!,
+      barLineStart: Color.lerp(barLineStart, other.barLineStart, t)!,
+      barLineEnd: Color.lerp(barLineEnd, other.barLineEnd, t)!,
+    );
+  }
+}
+
+/// Convenience accessor for the home palette.
+extension AgencyHomeThemeX on BuildContext {
+  AgencyHomePalette get homePalette =>
+      Theme.of(this).extension<AgencyHomePalette>()!;
+}
+
 abstract final class AgencyTheme {
   static ThemeData light() {
     final colors = AgencyColors.light;
@@ -258,7 +463,10 @@ abstract final class AgencyTheme {
     );
     return ThemeData(
       colorScheme: scheme,
-      extensions: <ThemeExtension<dynamic>>[colors],
+      extensions: <ThemeExtension<dynamic>>[
+        colors,
+        AgencyHomePalette.light,
+      ],
       scaffoldBackgroundColor: colors.surfacePage,
       appBarTheme: AppBarTheme(
         backgroundColor: colors.surfacePage,
