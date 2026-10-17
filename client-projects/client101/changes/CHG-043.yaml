@@ -1,0 +1,202 @@
+change_id: CHG-043
+revision: 2
+request: >-
+  Remove category banners from the Category presentation property and manage them on the Banner page
+  instead, with B2C and B2B treated as separate sets in both categories and banners. Stop the B2B app
+  from hard-coding its category banner image.
+type: category-banner-ownership-move
+extends:
+- CHG-042
+affected_capabilities:
+- editorial-content
+- operator-administration
+- marketplace-merchandising
+affected_domains:
+- content
+- experience
+- commerce
+affected_surfaces:
+- mercur.admin.merchandising.banners
+- mercur.admin.merchandising.category-presentation
+- medusa.admin.buildkart.content-api
+- strapi.operator-content-api
+- experience-api.content.presentation
+- app.prototype.b2c-home
+- app.prototype.b2b-home
+current_state_verified:
+  category_editorial_owns:
+  - categoryId
+  - displayLabel
+  - shortText
+  - iconKey
+  - heading
+  - description
+  - heroImage
+  - heroAltText
+  - inspirationBlocks
+  - externalBannerImageUrl
+  - bannerImageAltText
+  app_consumption:
+  - B2C category banner reads the CMS value first (categoryBannerImageProvider prefers the presentation
+    banner_image_uri), then a reviewed local map, then a generic image.
+  - B2B category banner reads only a hard-coded map (b2bCategoryBannerImage) and never consults the CMS.
+  - B2C rail labels and icons come from displayLabel and iconKey, so those fields must keep an editor.
+  - The app never requests channel=b2b, so no B2B CMS content reaches the UI today.
+  channel_today: category-editorial has no channel field; one record per category is shared by both channels.
+target_model:
+  banner_placements_channel_scoped:
+    b2c:
+    - home.hero (B2C · Home)
+    - home.campaign-strip (B2C · Campaign banner)
+    - category.banner@b2c (B2C · Category banner, requires a category reference)
+    b2b:
+    - category.banner@b2b (B2B · Category banner, requires a category reference)
+  banner_new_field: categoryId — reference to a real Medusa category, used only by category placements.
+  category_details_property:
+    renamed_from: Category presentation
+    keeps:
+    - displayLabel
+    - shortText
+    - iconKey
+    - heading
+    - description
+    - heroImage
+    - heroAltText
+    - inspirationBlocks
+    gains: channel — so B2C and B2B are independent sets.
+    loses:
+    - externalBannerImageUrl
+    - bannerImageAltText
+  delivery_shape:
+    unchanged: categories keep exposing banner_image_uri and banner_image_alt, now sourced from banner
+      records, so the B2C app needs no change for this move.
+decisions_proposed:
+  D-043-01: a category banner is a banner record with a category reference and a channel-scoped placement, not a category attribute.
+  D-043-02: B2C and B2B are independent sets in both categories and banners; neither inherits the other's records.
+  D-043-03: the category reference is chosen from real Medusa categories, never typed free-hand.
+  D-043-04: the delivery payload keeps its existing category shape so the B2C app is untouched by the ownership move.
+  D-043-05: B2B stops hard-coding only when the app consumes channel=b2b; until then the B2B placement is labelled not-yet-rendered.
+  D-043-06: the six existing category banner images migrate into banner records before the fields are removed.
+decisions_approved_rev2:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-043-07: the banner type carries the channel, so the audience field is removed from the banner entirely.
+  D-043-08: banner types become explicit and channel-prefixed — b2c.home.hero, b2c.home.campaign-strip, b2c.category.banner, b2b.category.banner — and the existing placement values migrate to them.
+  D-043-09: the placement-to-channel registry lives in one shared contract consumed by both the console and the delivery adapter, so the two can never disagree.
+  D-043-10: the Live tab lists every published, in-window banner of every type; type filtering stays in the filters, not the tabs.
+banner_types:
+- "b2c.home.hero — B2C · Home"
+- "b2c.home.campaign-strip — B2C · Campaign banner"
+- "b2c.category.banner — B2C · Category banner (requires a category reference)"
+- "b2b.category.banner — B2B · Category banner (requires a category reference)"
+consequences:
+- "audience removal is destructive: the column and its stored values are dropped, so it must be migrated away only after delivery derives the channel from the type."
+- "the five existing banner rows carry home.hero and home.campaign-strip and must be re-pointed at the channel-prefixed values."
+- "delivery currently filters by audience; it must instead filter by the placement's channel, using the shared registry."
+- "the Live tab already lists all types today, because tabs filter by lifecycle rather than placement; this is confirmed, not changed."
+phases:
+  phase_1_cms_and_delivery:
+  - Add categoryId to the banner content type and channel to category-editorial.
+  - Add the channel-scoped category.banner placements to the supported placement list.
+  - Migrate the six existing category banner images into banner records (b2c) and verify.
+  - Remove externalBannerImageUrl and bannerImageAltText from category-editorial.
+  - Source the category banner in the delivery composition from banner records, keeping the payload shape.
+  - Backfill channel=b2c on the existing category editorials.
+  phase_2_console:
+  - Rename Category presentation to Category details and drop its banner fields.
+  - Add the category placements and a real category picker to the Banner studio.
+  - Group placements so the B2C and B2B sets read as separate.
+  phase_3_b2b_app:
+  - Remove b2bCategoryBannerImage hard-coding and pass channel=b2b through the presentation request.
+  - Render CMS category banners on the B2B home and browse surfaces.
+required_tests:
+- A category banner is authored on the Banner page, published, and served to the correct channel only.
+- B2C and B2B category banner sets stay independent; publishing one does not alter the other.
+- The category delivery payload still carries banner_image_uri and banner_image_alt after the move.
+- The migrated images match the values previously stored on category-editorial.
+- The category reference resolves to a real Medusa category and rejects an unknown one.
+- Category details still edits label, icon and text, and the rails still render them.
+- Existing B2C rendering is unchanged by the move.
+constraints:
+- Update the Data Contract and the ownership map before removing the fields.
+- Never leave two editable controls for the same image; the move is atomic, not incremental on staging.
+- Staging only; production release remains unauthorized.
+risks:
+- Removing the fields while any consumer still reads them would blank the category banner; the migration must land first and be verified.
+- The channel split on category-editorial changes existing records, so a backfill is mandatory.
+- The B2B surface will still show hard-coded imagery until phase 3 lands, which must be stated in the UI.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-16'
+  scope: category-banner-ownership-move
+  human_approval_required_before_code: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-16T18:22:00Z'
+    release_commit: 2004219
+    release_worktree: /opt/buildkart-releases/2004219
+    previous_release: /opt/buildkart-releases/d89850d
+    recreated_services:
+    - cms
+    - medusa-api
+    - experience-api
+    migration:
+      category_channel_backfilled: 7
+      placements_repointed: 5
+      category_banners_created: 6
+      category_banners_skipped: 1
+    verification:
+    - Legacy placement values remaining in the database: 0.
+    - B2C serves 5 CMS home banners, each with its new channel-prefixed type.
+    - Category banner images are served from the new banner records with the payload shape unchanged.
+    - B2B home banners fall back to the governed seed because no B2B home type exists.
+    - The console bundle carries all four types, the category picker and the Category details rename.
+  not_done_on_purpose:
+  - Publishing the B2B app to Firebase Hosting, which needs credentials unavailable here.
+  phase_3_status: implemented-and-deployed
+  phase_3:
+    commit: 528c849
+    changed:
+    - The B2B presentation now requests channel=b2b instead of always b2c.
+    - The hard-coded per-category B2B banner map is deleted; the screens read the CMS image and fall back to the shared placeholder.
+    deployed:
+      hosting: Firebase Hosting site buildkart-staging
+      url: https://buildkart-staging.web.app
+      config: firebase.json and .firebaserc at the repository root
+      note: Firebase credentials were used for the app deploy; Cloudflare is not involved in hosting the app.
+    verified: flutter analyze clean; 135 tests pass, including three new cases asserting the requested channel and the null-when-unauthored behaviour.
+    not_verified: no browser confirmation of a rendered B2B CMS banner or of the announced alt text.
+  alt_text:
+    fixed: StorefrontBanner.imageAlt, StorefrontCategory.bannerImageAlt and MerchandisingBannerData.imageAlt now carry the CMS alternative text to the image semantic label.
+    applies_to: the B2C campaign strip and the B2B category banners.
+  channel_filter:
+    added: Category details filters by channel because the two channels are independent sets.
+    deployed: c6756ff
+  authored_content:
+    b2b_category_banners: 6
+    b2b_category_details: 7
+    note: A category banner only attaches to a category that has a Category details record for that channel; authoring the banner alone is a silent no-op, and the console does not yet warn about it.
+    deletion: not exposed in the console.
+  destructive_removal:
+    release_commit: a4d37f7
+    removed:
+    - banner.audience
+    - category-editorial.externalBannerImageUrl
+    - category-editorial.bannerImageAltText
+    registry_check: tooling/validate_banner_types.py, wired into Contract validation and proven to fail on a diverged copy
+    verification:
+    - The three columns no longer exist; category_id and channel do.
+    - Only the three channel-prefixed banner types remain in the database.
+    - Six published category banners still carry their images.
+    - B2C delivery is unchanged; B2B now returns zero home banners by design.
+    - The removed audience control is absent from the served console bundle.
+  implementation_evidence:
+  - client-projects/client101/evidence/CHG-043/hosted-staging-deployment.md
+  - client-projects/client101/evidence/CHG-043/destructive-removal.md
+  - client-projects/client101/evidence/CHG-043/b2b-cms-category-banners.md
+  - client-projects/client101/evidence/CHG-043/completion.md
+status: deployed-awaiting-human-review
+production_release_authorized: false

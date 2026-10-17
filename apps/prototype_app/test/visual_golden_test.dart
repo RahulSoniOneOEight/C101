@@ -13,6 +13,7 @@ import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/app_notification.dart';
 import 'package:prototype_app/domain/models.dart';
+import 'package:prototype_app/domain/presentation.dart';
 import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/b2b_trade_providers.dart';
 import 'package:prototype_app/providers/notifications_providers.dart';
@@ -34,8 +35,13 @@ class _FakeExperienceApi extends ExperienceApi {
 
   @override
   Future<List<Product>> getComposedProducts(
-          {int limit = 50, int offset = 0}) async =>
+          {int limit = 50, int offset = 0, String? collectionId}) async =>
       demoProducts;
+
+  @override
+  Future<List<StorefrontSection>> getLayoutSections(
+          {String locale = 'en-IN', String channel = 'b2c'}) async =>
+      const <StorefrontSection>[];
 
   @override
   Future<Product> getComposedProduct(String productId) async =>

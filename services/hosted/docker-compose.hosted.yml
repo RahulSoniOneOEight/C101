@@ -79,6 +79,9 @@ services:
       # Native Content workspace facade. The browser only calls Medusa; this private origin and
       # CMS_OPERATOR_SECRET from medusa.env are never emitted into the dashboard bundle.
       CMS_OPERATOR_BASE_URL: http://cms:1337
+      # Private draft preview projection. EXPERIENCE_OPERATOR_SECRET from medusa.env is distinct from
+      # the CMS operator secret so no secret is reused across trust boundaries.
+      EXPERIENCE_OPERATOR_BASE_URL: http://experience-api:9020
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
       cms: {condition: service_healthy}

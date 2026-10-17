@@ -1,5 +1,4 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/app_config.dart';
@@ -7,20 +6,49 @@ import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../domain/presentation.dart';
 import '../domain/review_catalogue.dart';
 
-/// Storefront categories from the client brief, rendered icon-led on the home
-/// screen. Placeholder data until a category API is wired.
-final categoriesProvider = Provider<List<Category>>((ref) => const <Category>[
-      Category(label: 'Bathroom & Plumbing', icon: Icons.bathtub_outlined),
-      Category(label: 'Tiles & Plywood', icon: Icons.grid_view_outlined),
-      Category(label: 'Electrical', icon: Icons.electrical_services_outlined),
-      Category(label: 'Agriculture & Seeds', icon: Icons.grass_outlined),
-      Category(
-          label: 'Pumps & Machines',
-          icon: Icons.precision_manufacturing_outlined),
-      Category(label: 'Construction', icon: Icons.construction_outlined),
-    ]);
+/// Backend storefront presentation (hero/campaign banners and root category
+/// presentation). Never throws: on failure it resolves to the governed fallback
+/// so the storefront stays usable offline and before CMS content exists.
+final storefrontPresentationProvider =
+    FutureProvider<StorefrontPresentation>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getPresentation();
+  } catch (_) {
+    return const StorefrontPresentation(
+      banners: fallbackBanners,
+      categories: fallbackCategories,
+    );
+  }
+});
+
+/// Synchronous presentation accessor that always returns a usable value.
+final presentationProvider = Provider<StorefrontPresentation>((ref) {
+  return ref.watch(storefrontPresentationProvider).value ??
+      const StorefrontPresentation(
+        banners: fallbackBanners,
+        categories: fallbackCategories,
+      );
+});
+
+/// Root category rail labels and icons, delivered by the Experience API and
+/// composed from commerce category identity plus CMS presentation.
+final categoriesProvider = Provider<List<Category>>((ref) {
+  final categories = ref.watch(presentationProvider).categories;
+  return categories
+      .map((category) => Category(
+            label: category.label,
+            icon: categoryIconFor(category.iconKey),
+          ))
+      .toList();
+});
+
+/// Home hero carousel banners, priority-ordered by the backend.
+final heroBannersProvider = Provider<List<StorefrontBanner>>((ref) {
+  return ref.watch(presentationProvider).bannersFor('home.hero');
+});
 
 /// Offline demo catalog used when the Medusa backend is unreachable and there
 /// is no cached catalog. Mirrors the reference BuildKart profile so the
@@ -186,13 +214,20 @@ List<Product> filterProductsByHomeCategory(
   if (label == null) return products;
   HomeCategoryFilter? match;
   for (final filter in homeCategoryFilters) {
-    if (filter.label == label) {
+    if (filter.label.toLowerCase() == label.toLowerCase()) {
       match = filter;
       break;
     }
   }
-  if (match == null) return products;
-  final keywords = match.keywords;
+  // A backend label that is not in the reviewed keyword map still filters, using
+  // the label's own words, so a CMS rename never sends the user to an empty grid.
+  final keywords = match?.keywords ??
+      label
+          .toLowerCase()
+          .split(RegExp(r'[^a-z0-9]+'))
+          .where((word) => word.length > 2)
+          .toList();
+  if (keywords.isEmpty) return products;
   return products.where((product) {
     final haystack = '${product.title} ${product.brand ?? ''}'.toLowerCase();
     return keywords.any(haystack.contains);
@@ -350,18 +385,189 @@ const Map<String, String> _categoryBannerImages = <String, String>{
       'https://images.pexels.com/photos/1216589/pexels-photo-1216589.jpeg?auto=compress&cs=tinysrgb&w=940',
 };
 
-/// Banner image for a home/Browse category (changes per category).
-String categoryBannerImage(String? label) =>
-    _categoryBannerImages[label] ??
-    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&w=940';
+/// Banner image for a home/Browse category. Prefers the backend presentation
+/// for the category, then the reviewed static map, then a generic trade shot.
+final categoryBannerImageProvider = Provider.family<String, String?>((ref, label) {
+  final match = ref.watch(presentationProvider).categoryByLabel(label);
+  return match?.bannerImageUrl ??
+      _categoryBannerImages[label] ??
+      fallbackCategoryBannerImage;
+});
 
-/// Home scroll-feed modules, derived from the catalog. Placeholder structure
-/// until a merchandising backend is wired.
+/// B2B storefront presentation, fetched for the b2b channel.
+///
+/// The B2B surfaces previously fell back to a hard-coded per-category image map. They now read the
+/// same CMS content the B2C surfaces read, which is the only way a B2B category banner authored in
+/// the console can actually appear.
+final b2bPresentationProvider = FutureProvider<StorefrontPresentation>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getPresentation(channel: 'b2b');
+  } catch (_) {
+    return const StorefrontPresentation(
+      banners: <StorefrontBanner>[],
+      categories: <StorefrontCategory>[],
+    );
+  }
+});
+
+/// Banner image published for a B2B category, or null when the CMS has none for that category yet.
+///
+/// Returning null is deliberate: the caller renders the shared governed placeholder rather than an
+/// invented per-category image, so an operator can tell the difference between "authored" and
+/// "not authored".
+final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, label) {
+  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageUrl;
+});
+
+/// CMS alternative text for the B2B category banner, or null when none is authored.
+final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, label) {
+  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageAlt;
+});
+
+/// Storefront layout sections for the B2C storefront, delivered by the backend.
+///
+/// Empty when no layout is configured or the API is unavailable, in which case the home falls back to
+/// its local defaults rather than rendering nothing.
+final layoutSectionsProvider =
+    FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2c');
+  } catch (_) {
+    return const <StorefrontSection>[];
+  }
+});
+
+/// Storefront layout sections for the B2B storefront, delivered by the backend.
+///
+/// Separate from the B2C provider because a layout is authored per channel; the B2B home reads this
+/// one so an operator-configured order, label or visibility actually reaches the trade surfaces.
+final b2bLayoutSectionsProvider =
+    FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
+  try {
+    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2b');
+  } catch (_) {
+    return const <StorefrontSection>[];
+  }
+});
+
+/// Products for one layout section, resolved from its commerce collection.
+///
+/// The section stores a reference; commerce resolves membership, so adding a product to the collection
+/// changes this rail with no editorial action.
+final sectionProductsProvider =
+    FutureProvider.family.autoDispose<List<Product>, StorefrontSection>((ref, section) async {
+  final collectionId = section.collectionKey;
+  if (collectionId == null || collectionId.isEmpty) return const <Product>[];
+  try {
+    return await ref.watch(experienceApiProvider).getComposedProducts(
+          limit: (section.limit != null && section.limit! > 0) ? section.limit! : 12,
+          collectionId: collectionId,
+        );
+  } catch (_) {
+    return const <Product>[];
+  }
+});
+
+/// Home scroll-feed modules.
+///
+/// When the backend delivers layout sections they decide the sections, their order, titles, badges,
+/// limits and visibility. With no configured layout the governed local defaults are used, so the home
+/// never renders empty because merchandising has not been configured yet.
 final homeModulesProvider =
     Provider.autoDispose<List<MerchandisingModule>>((ref) {
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
 
+  // The campaign strip is banner presentation, not a section, so it keeps its own source. Unlike the
+  // catalogue fallback, it is intentionally absent when no published CMS banner exists: operators
+  // must never see an unmanageable promotional banner appear from app seed code.
+  final campaignStrip =
+      ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
+  final stripImageUrl = campaignStrip?.imageUrl;
+  final stripModule = campaignStrip != null &&
+          stripImageUrl != null &&
+          stripImageUrl.isNotEmpty
+      ? MerchandisingModule(
+          type: MerchandisingModuleType.secondaryBanner,
+          banner: MerchandisingBannerData(
+            imageUrl: stripImageUrl,
+            imageAlt: campaignStrip.imageAlt,
+            title: campaignStrip.title,
+            // No invented copy. If the banner has no body, the strip renders without a claim.
+            subtitle: campaignStrip.body,
+            ctaLabel: campaignStrip.actionLabel,
+            actionUri: campaignStrip.actionUri,
+          ),
+        )
+      : null;
+
+  // --- layout-driven ------------------------------------------------------------
+  final sections =
+      (ref.watch(layoutSectionsProvider).value ?? const <StorefrontSection>[])
+          .where((section) => section.visible)
+          .toList();
+  final banners = ref.watch(presentationProvider).banners;
+  final layoutModules = <MerchandisingModule>[];
+  for (final section in sections) {
+    final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
+    if (sectionProducts == null) continue; // still resolving; do not render an empty rail
+
+    // A section may carry a banner managed under Merchandising → Banners. It renders above the rail so
+    // the creative and the products it introduces stay together.
+    final bannerKey = section.bannerReference;
+    if (bannerKey != null && bannerKey.isNotEmpty) {
+      final banner = banners.where((b) => b.contentKey == bannerKey).firstOrNull;
+      final imageUrl = banner?.imageUrl;
+      if (banner != null && imageUrl != null && imageUrl.isNotEmpty) {
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.secondaryBanner,
+          banner: MerchandisingBannerData(
+            imageUrl: imageUrl,
+            imageAlt: banner.imageAlt,
+            title: banner.title,
+            subtitle: banner.body,
+            ctaLabel: banner.actionLabel,
+            actionUri: banner.actionUri,
+          ),
+        ));
+      }
+    }
+
+    switch (section.placement) {
+      case 'flash_deals':
+      case 'best_sellers':
+      case 'seasonal':
+      case 'best_deals':
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.productCarousel,
+          title: section.displayTitle,
+          tag: section.badge,
+          products: sectionProducts,
+          seeAllLabel: section.seeAllLabel,
+          seeAllUri: section.seeAllUri,
+        ));
+      case 'recommended':
+        layoutModules.add(MerchandisingModule(
+          type: MerchandisingModuleType.productComposition,
+          title: section.displayTitle,
+          tag: section.badge,
+          products: sectionProducts,
+          seeAllLabel: section.seeAllLabel,
+          seeAllUri: section.seeAllUri,
+        ));
+      default:
+        // Buy Again, Schemes and the Trade Offers group are not rendered by this surface yet.
+        break;
+    }
+  }
+  if (layoutModules.isNotEmpty) {
+    return <MerchandisingModule>[
+      ...layoutModules,
+      if (stripModule != null) stripModule,
+    ];
+  }
+
+  // --- governed local defaults ---------------------------------------------------
   // Flash Deals / Best Sellers are deterministic collections over the
   // catalogue; badges come from the product itself (review enrichment) so the
   // rails and the "See All" collection filters agree.
@@ -397,16 +603,7 @@ final homeModulesProvider =
       tag: 'Most Loved',
       products: bestSellers,
     ),
-    MerchandisingModule(
-      type: MerchandisingModuleType.secondaryBanner,
-      banner: MerchandisingBannerData(
-        imageUrl:
-            'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-        title: 'Clearance Sale',
-        subtitle: 'Up to 70% off select items',
-        ctaLabel: 'Shop Now',
-      ),
-    ),
+    if (stripModule != null) stripModule,
     MerchandisingModule(
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',

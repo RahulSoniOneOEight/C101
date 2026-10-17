@@ -16,6 +16,7 @@ import '../screens/b2b_support_screens.dart';
 import '../screens/b2c_flow_screens.dart';
 import '../screens/cart_screen.dart';
 import '../screens/checkout_screen.dart';
+import '../screens/collection_screen.dart';
 import '../screens/d2c_shell.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/product_detail_screen.dart';
@@ -111,6 +112,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/track',
         builder: (context, state) =>
             TrackPackageScreen(orderId: state.uri.queryParameters['order']),
+      ),
+      // A collection's customer-facing URL. Banner and See All actions point here, and every collection
+      // an operator creates is addressable by its handle.
+      GoRoute(
+        path: '/collections/:key',
+        builder: (context, state) =>
+            CollectionScreen(collectionKey: state.pathParameters['key'] ?? ''),
       ),
       // ---------------------------------------------------------------------
       // Onboarding / auth (top-level, no bottom nav).

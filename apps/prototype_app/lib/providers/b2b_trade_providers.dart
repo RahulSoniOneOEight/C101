@@ -15,27 +15,9 @@ class TradeCategory {
   final IconData icon;
 }
 
-/// Category-appropriate banner imagery (Pexels) for the B2B catalogue / category
-/// banners. Keys match [TradeCategory.id]; falls back to a general trade shot.
-const Map<String, String> _categoryBanner = <String, String>{
-  'plumbing':
-      'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'electricals':
-      'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'sanitary':
-      'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'paints':
-      'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'hardware':
-      'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'agri':
-      'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=940',
-};
-
-/// Banner image for a B2B category (changes per category).
-String b2bCategoryBannerImage(String? categoryId) =>
-    _categoryBanner[categoryId] ??
-    'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940';
+// The B2B category banner used to be a hard-coded per-category Pexels map here. It is now authored in
+// the console like the B2C one and read from the CMS through `b2bCategoryBannerImageProvider`, so no
+// image is invented in the app.
 
 class TradeDashboard {
   const TradeDashboard({

@@ -11,6 +11,19 @@ export interface CollectionContext {
   productIds?: string[];
 }
 
+/**
+ * A key that is neither a registry collection nor a commerce collection handle.
+ *
+ * Thrown rather than falling back: serving new arrivals for a broken link made every bad or unknown
+ * collection URL look like a working page, which is both wrong and untraceable.
+ */
+export class CollectionNotFoundError extends Error {
+  constructor(readonly reason: "unknown" | "empty") {
+    super(`collection-not-found:${reason}`);
+    this.name = "CollectionNotFoundError";
+  }
+}
+
 export class CollectionResolver {
   private viewed: string[] = [];
 
@@ -25,7 +38,12 @@ export class CollectionResolver {
     context: CollectionContext = {},
   ): Promise<{ collection: CollectionDefinition; items: StoreProduct[]; fallback: boolean }> {
     const collection = getCollection(key);
-    if (!collection || collection.status === "deferred" || !collection.enabled) {
+    if (!collection) {
+      // Registry keys keep precedence, so a curated key is never shadowed by a commerce handle with the
+      // same spelling. Anything unregistered is treated as a commerce collection handle.
+      return this.resolveCommerceCollection(key);
+    }
+    if (collection.status === "deferred" || !collection.enabled) {
       return this.fallbackTo(key);
     }
 
@@ -69,6 +87,39 @@ export class CollectionResolver {
       default:
         return this.fallbackTo(key);
     }
+  }
+
+  /**
+   * Resolve an unregistered key as a commerce collection handle.
+   *
+   * This is what gives every collection created in the console a customer-facing URL: the handle is the
+   * address, commerce owns membership, and the response keeps the same shape as a registry collection so
+   * the storefront needs one code path.
+   */
+  private async resolveCommerceCollection(key: string): Promise<{
+    collection: CollectionDefinition;
+    items: StoreProduct[];
+    fallback: boolean;
+  }> {
+    const commerce = await this.medusa.getCollectionByHandle(key);
+    if (!commerce) throw new CollectionNotFoundError("unknown");
+
+    const items = await this.medusa.listProductsByCollection(commerce.id, 100);
+    if (!items.length) throw new CollectionNotFoundError("empty");
+
+    return {
+      collection: {
+        collection_key: commerce.handle,
+        type: "manual",
+        source: "medusa_collection",
+        parameters: { collection_id: commerce.id, title: commerce.title },
+        fallback: null,
+        enabled: true,
+        status: "enabled",
+      },
+      items,
+      fallback: false,
+    };
   }
 
   private async resolveRecent(productIds: string[]): Promise<{

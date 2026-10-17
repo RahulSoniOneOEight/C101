@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/app_config.dart';
 import '../domain/models.dart';
 import '../domain/app_notification.dart';
+import '../domain/presentation.dart';
+import '../domain/storefront_collection.dart';
 
 /// Client for the shared BuildKart Experience API (`:9020`), which composes Medusa/Mercur/Tryton.
 /// This is the canonical client for the pilot: it consumes composed responses and the dummy
@@ -79,9 +81,48 @@ class ExperienceApi {
     await _secureStorage.delete(key: _sessionExpiryKey);
   }
 
+  /// Backend storefront presentation: hero/campaign banners and root category
+  /// labels, icons and imagery. Commerce data is composed server-side.
+  Future<StorefrontPresentation> getPresentation({
+    String locale = 'en-IN',
+    String channel = 'b2c',
+  }) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/content/presentation',
+      queryParameters: {'locale': locale, 'channel': channel},
+    );
+    return StorefrontPresentation.fromJson(res.data!);
+  }
+
   Future<List<dynamic>> getCollection(String key) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/collections/$key');
     return (res.data!['items'] as List?) ?? [];
+  }
+
+  /// A collection opened from its customer-facing URL.
+  ///
+  /// Throws [CollectionNotFoundException] on a 404 instead of returning an empty list: an empty list
+  /// cannot be told apart from "this link belongs to a collection with no products", and showing an
+  /// empty grid for a broken link is how a dead URL looks like a working one.
+  Future<StorefrontCollection> getStorefrontCollection(String key) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/v1/collections/${Uri.encodeComponent(key)}',
+      );
+      final data = res.data!;
+      return StorefrontCollection(
+        key: data['collection_key'] as String? ?? key,
+        collectionId: data['collection_id'] as String?,
+        title: data['title'] as String?,
+      );
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        final body = error.response?.data;
+        final code = body is Map ? body['code'] as String? : null;
+        throw CollectionNotFoundException(code ?? 'collection-not-found');
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getMyContexts() async {
@@ -97,16 +138,34 @@ class ExperienceApi {
   }
 
   /// Composed product list with best-price offer per product.
+  ///
+  /// When [collectionId] is supplied the list is scoped to that commerce collection, which is how a
+  /// storefront layout section resolves its product source. Composition (price and offer) is unchanged,
+  /// so a layout-driven rail renders exactly like a catalogue rail.
   Future<List<Product>> getComposedProducts(
-      {int limit = 50, int offset = 0}) async {
+      {int limit = 50, int offset = 0, String? collectionId}) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/products',
-      queryParameters: {'limit': limit, 'offset': offset},
+      queryParameters: <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
+        if (collectionId != null && collectionId.isNotEmpty) 'collection_id': collectionId,
+      },
     );
     return (res.data!['products'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
         .map(Product.fromComposedJson)
         .toList();
+  }
+
+  /// Storefront layout sections for a channel. Empty when no layout is configured.
+  Future<List<StorefrontSection>> getLayoutSections(
+      {String locale = 'en-IN', String channel = 'b2c'}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/content/app-shell',
+      queryParameters: <String, dynamic>{'locale': locale, 'channel': channel},
+    );
+    return parseLayoutSections(res.data!['layout']);
   }
 
   /// Composed product detail (best-price offer drives price + variant identity).

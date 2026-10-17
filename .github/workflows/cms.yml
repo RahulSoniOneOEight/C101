@@ -58,6 +58,7 @@ jobs:
             --env TRANSFER_TOKEN_SALT=ci-transfer-token-salt \
             --env JWT_SECRET=ci-jwt-secret \
             --env ENCRYPTION_KEY=ci-encryption-key \
+            --env CMS_OPERATOR_SECRET=ci-operator-secret \
             buildkart-cms:ci
           for attempt in $(seq 1 30); do
             if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:1337/_health || true)" = "204" ]; then
@@ -67,3 +68,8 @@ jobs:
           done
           docker logs buildkart-cms-ci
           exit 1
+      - name: Exercise operator draft update
+        env:
+          CMS_BASE_URL: http://127.0.0.1:1337
+          CMS_OPERATOR_SECRET: ci-operator-secret
+        run: node scripts/operator-content-smoke.mjs

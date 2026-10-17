@@ -9,6 +9,7 @@ type ContentFieldType =
   | "enum"
   | "datetime"
   | "integer"
+  | "url"
   | "json";
 
 interface ContentField {
@@ -56,8 +57,14 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         name: "modules",
         label: "Ordered modules",
         type: "json",
-        required: true,
-        description: "JSON array of governed layout components. Use stable moduleKey values and commerce references only.",
+        description: "Raw recovery format. Prefer sections for routine merchandising.",
+      },
+      {
+        name: "sections",
+        label: "Merchandising sections",
+        type: "json",
+        description:
+          "Ordered sections: placement, title, subtitle, badge, collection reference, limit, see-all target, banner reference, visibility and schedule.",
       },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
@@ -72,8 +79,25 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
     titleField: "title",
     fields: [
       { name: "contentKey", label: "Content key", type: "string", required: true },
-      { name: "audience", label: "Audience", type: "enum", required: true, options: ["b2c", "b2b", "both"] },
-      { name: "placement", label: "Placement", type: "string", required: true },
+      {
+        name: "name",
+        label: "Internal name",
+        type: "string",
+        description: "Operator-facing label. Never shown to customers; the heading below is customer-facing.",
+      },
+      {
+        name: "categoryId",
+        label: "Category reference",
+        type: "string",
+        description: "Medusa category id. Required for a Category banner; ignored by other placements.",
+      },
+      {
+        name: "placement",
+        label: "Banner type",
+        type: "string",
+        required: true,
+        description: "Carries the channel and the surface, for example b2c.home.hero or b2b.category.banner.",
+      },
       { name: "title", label: "Title", type: "string", required: true },
       { name: "subtitle", label: "Subtitle", type: "text" },
       { name: "ctaLabel", label: "Action label", type: "string" },
@@ -84,7 +108,19 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         options: ["route", "product", "category", "collection", "url"],
       },
       { name: "ctaTargetId", label: "Action target", type: "string" },
+      {
+        name: "externalImageUrl",
+        label: "External image URL",
+        type: "url",
+        description: "HTTPS staging creative. Existing Strapi media remains preferred when present.",
+      },
       { name: "imageAltText", label: "Image alternative text", type: "string", required: true },
+      {
+        name: "themeKey",
+        label: "Color theme",
+        type: "enum",
+        options: ["primary", "trust", "promotion", "neutral"],
+      },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
       { name: "timezone", label: "Timezone", type: "string" },
@@ -130,7 +166,31 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
     keyField: "categoryId",
     titleField: "heading",
     fields: [
+      {
+        name: "channel",
+        label: "Channel",
+        type: "enum",
+        required: true,
+        options: ["b2c", "b2b"],
+        description: "B2C and B2B are independent sets. A category may have one record per channel.",
+      },
       { name: "categoryId", label: "Commerce category id", type: "string", required: true },
+      { name: "displayLabel", label: "Display label", type: "string" },
+      { name: "shortText", label: "Supporting text", type: "string" },
+      {
+        name: "iconKey",
+        label: "App icon",
+        type: "enum",
+        options: [
+          "bathroom-plumbing",
+          "tiles-plywood",
+          "electrical",
+          "agriculture",
+          "pumps-machines",
+          "construction",
+          "category",
+        ],
+      },
       { name: "heading", label: "Heading", type: "string", required: true },
       { name: "description", label: "Description", type: "text" },
       { name: "heroAltText", label: "Hero alternative text", type: "string" },
@@ -267,6 +327,30 @@ function sanitizeData(definition: ContentKindDefinition, value: unknown): JsonRe
   const output: JsonRecord = {};
   for (const [key, fieldValue] of Object.entries(input)) {
     if (!allowed.has(key)) throw new Error(`Field '${key}' is not editable for ${definition.kind}.`);
+    const field = definition.fields.find((candidate) => candidate.name === key);
+    if (field?.type === "json") {
+      if (typeof fieldValue === "string" && !fieldValue.trim()) {
+        // Strapi passes an empty string through to PostgreSQL for JSON fields, where it is not valid
+        // JSON. Treat an empty optional structured field as cleared, matching the editor's blank state.
+        if (field.required) throw new Error(`Field '${key}' must contain structured JSON.`);
+        output[key] = null;
+        continue;
+      }
+      if (fieldValue !== null && typeof fieldValue !== "object") {
+        throw new Error(`Field '${key}' must contain a JSON array or object.`);
+      }
+    }
+    if (field?.type === "url" && fieldValue !== null && fieldValue !== "") {
+      let parsed: URL;
+      try {
+        parsed = new URL(String(fieldValue));
+      } catch {
+        throw new Error(`Field '${key}' must be a valid HTTPS URL.`);
+      }
+      if (parsed.protocol !== "https:") {
+        throw new Error(`Field '${key}' must be a valid HTTPS URL.`);
+      }
+    }
     output[key] = fieldValue;
   }
   assertNoCommerceFields(output);
@@ -371,6 +455,36 @@ async function listHandler(strapi: Core.Strapi, ctx: Context): Promise<void> {
   };
 }
 
+class EditConflictError extends Error {
+  constructor() {
+    super("This record changed after you opened it.");
+    this.name = "CmsEditConflictError";
+  }
+}
+
+/** Finds a free value for a unique key field when duplicating, without inventing commerce data. */
+async function nextAvailableKey(
+  service: DocumentService,
+  definition: ContentKindDefinition,
+  locale: string,
+  base: string,
+): Promise<string> {
+  const [drafts, published] = await Promise.all([
+    service.findMany({ status: "draft", locale, limit: 500 }),
+    service.findMany({ status: "published", locale, limit: 500 }),
+  ]);
+  const taken = new Set(
+    [...drafts, ...published].map((item) => String(item[definition.keyField] ?? "")),
+  );
+  let candidate = `${base}-copy`;
+  let index = 2;
+  while (taken.has(candidate) && index <= 50) {
+    candidate = `${base}-copy-${index}`;
+    index += 1;
+  }
+  return candidate;
+}
+
 async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void> {
   const identity = authenticate(ctx);
   const definition = definitionFor(ctx);
@@ -379,8 +493,16 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
   const operation = stringValue(body!.operation);
   const documentId = stringValue(body!.documentId);
   const locale = stringValue(body!.locale) ?? "en-IN";
+  const expectedUpdatedAt = stringValue(body!.expectedUpdatedAt);
   const service = documents(strapi, definition);
-  if (!operation || !["create-draft", "update-draft", "publish", "unpublish"].includes(operation)) {
+  const operations = [
+    "create-draft",
+    "update-draft",
+    "duplicate-draft",
+    "publish",
+    "unpublish",
+  ];
+  if (!operation || !operations.includes(operation)) {
     ctx.throw(400, "Unsupported CMS operation.");
   }
   if (operation !== "create-draft" && !documentId) ctx.throw(400, "documentId is required.");
@@ -394,30 +516,99 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
     }
   }
 
-  const result = await mutateWithAudit(
-    strapi,
-    {
-      ...identity,
-      action: operation,
-      kind: definition.kind,
-      documentId,
-      locale,
-      payload: data ?? {},
-    },
-    async () => {
-      if (operation === "create-draft") return service.create({ locale, status: "draft", data });
-      if (operation === "update-draft") {
-        return service.update({ documentId, locale, status: "draft", data });
-      }
-      if (operation === "publish") return service.publish({ documentId, locale });
-      return service.unpublish({ documentId, locale });
-    },
-  );
+  let result: unknown;
+  try {
+    result = await mutateWithAudit(
+      strapi,
+      {
+        ...identity,
+        action: operation,
+        kind: definition.kind,
+        documentId,
+        locale,
+        payload: data ?? {},
+      },
+      async () => {
+        if (operation === "create-draft") return service.create({ locale, status: "draft", data });
+        if (operation === "update-draft") {
+          if (expectedUpdatedAt) {
+            const current = await service.findOne({
+              documentId,
+              locale,
+              status: "draft",
+              populate: "*",
+            });
+            const currentTime = current ? new Date(String(current.updatedAt)).getTime() : NaN;
+            const expectedTime = new Date(expectedUpdatedAt).getTime();
+            if (Number.isFinite(currentTime) && Number.isFinite(expectedTime)
+              && currentTime !== expectedTime) {
+              throw new EditConflictError();
+            }
+          }
+          return service.update({ documentId, locale, status: "draft", data });
+        }
+        if (operation === "duplicate-draft") {
+          const source = await service.findOne({
+            documentId,
+            locale,
+            status: "draft",
+            populate: "*",
+          });
+          if (!source) throw new Error("Source draft was not found in this locale.");
+          const copy: JsonRecord = {};
+          for (const field of definition.fields) {
+            if (field.name === definition.keyField) continue;
+            copy[field.name] = source[field.name] ?? null;
+          }
+          const sourceKey = stringValue(source[definition.keyField]) ?? "banner";
+          copy[definition.keyField] = await nextAvailableKey(service, definition, locale, sourceKey);
+          if (definition.fields.some((field) => field.name === "name")) {
+            const baseName = stringValue(source.name) ?? sourceKey;
+            copy.name = `${baseName} (copy)`;
+          }
+          assertNoCommerceFields(copy);
+          return service.create({ locale, status: "draft", data: copy });
+        }
+        if (operation === "publish") return service.publish({ documentId, locale });
+        return service.unpublish({ documentId, locale });
+      },
+    );
+  } catch (error) {
+    if (error instanceof EditConflictError) {
+      ctx.status = 409;
+      ctx.body = {
+        error: {
+          status: 409,
+          name: "CmsEditConflictError",
+          message: "This record changed after you opened it. Reload the latest draft before saving.",
+        },
+      };
+      return;
+    }
+    strapi.log.error(
+      `[cms-operator] ${operation} failed; correlation_id=${identity.correlationId}; `
+      + `kind=${definition.kind}; document_id=${documentId ?? "new"}; error=${(error as Error).message}`,
+    );
+    ctx.status = 500;
+    ctx.body = {
+      error: {
+        status: 500,
+        name: "CmsOperatorMutationError",
+        message: `CMS content operation failed. Retry once; if it fails again, provide reference ${identity.correlationId}.`,
+      },
+    };
+    return;
+  }
 
-  const refreshed = documentId
-    ? await service.findOne({ documentId, locale, status: "draft", populate: "*" })
-    : record(result);
-  ctx.status = operation === "create-draft" ? 201 : 200;
+  const createsNewDocument = operation === "create-draft" || operation === "duplicate-draft";
+  const created = record(result);
+  const refreshedDocumentId = createsNewDocument
+    ? stringValue(created?.documentId)
+    : documentId;
+  const refreshed = refreshedDocumentId
+    ? await service.findOne({ documentId: refreshedDocumentId, locale, status: "draft", populate: "*" })
+    : created;
+  ctx.status = createsNewDocument ? 201 : 200;
   ctx.body = {
     kind: definition.kind,
     operation,

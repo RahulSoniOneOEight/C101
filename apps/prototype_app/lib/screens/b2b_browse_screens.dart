@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
+import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/catalog_providers.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// B2B catalogue / category browse. Entry points are the home category rail,
@@ -122,7 +124,9 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
                 child: MerchandisingBanner(
-                  imageUrl: b2bCategoryBannerImage(_categoryId),
+                  imageUrl: ref.watch(b2bCategoryBannerImageProvider(_categoryId)) ??
+                      fallbackCategoryBannerImage,
+                  imageAlt: ref.watch(b2bCategoryBannerAltProvider(_categoryId)),
                   title: title,
                   subtitle: 'Trade rates · MOQ · GST invoicing',
                   ctaLabel: 'Filters',

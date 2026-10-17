@@ -22,6 +22,10 @@ export interface StoreProductCategory {
   id: string;
   name: string;
   handle?: string | null;
+  parent_category_id?: string | null;
+  rank?: number | null;
+  is_active?: boolean | null;
+  is_internal?: boolean | null;
 }
 
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
@@ -165,7 +169,7 @@ export class MedusaStoreClient {
   async listProductCategories(limit = 200): Promise<StoreProductCategory[]> {
     const params = new URLSearchParams({
       limit: String(limit),
-      fields: "id,name,handle",
+      fields: "id,name,handle,parent_category_id,rank,is_active,is_internal",
     });
     const data = await this.getJson<{ product_categories: StoreProductCategory[] }>(
       `/store/product-categories?${params.toString()}`,
@@ -180,6 +184,43 @@ export class MedusaStoreClient {
       `/store/products?${params.toString()}`,
     );
     return data.products;
+  }
+
+  /**
+   * Products belonging to a commerce collection (Products → Collections).
+   *
+   * Storefront layout sections reference a collection, so this is the resolution the storefront needs:
+   * the section stores a reference, commerce resolves the membership at read time, and no product list
+   * is ever copied into editorial configuration.
+   */
+  async listProductsByCollection(collectionId: string, limit = 12): Promise<StoreProduct[]> {
+    const params = new URLSearchParams({ limit: String(limit), fields: PRODUCT_FIELDS });
+    params.append("collection_id[]", collectionId);
+    const data = await this.getJson<{ products: StoreProduct[] }>(
+      `/store/products?${params.toString()}`,
+    );
+    return data.products;
+  }
+
+  /**
+   * A commerce collection by its handle.
+   *
+   * Collections created in the console carry a handle but are not in the key registry, so a customer
+   * URL has to resolve them through commerce. Returns null when no collection owns the handle, which
+   * lets the caller answer 404 instead of substituting unrelated products.
+   */
+  async getCollectionByHandle(
+    handle: string,
+  ): Promise<{ id: string; title: string; handle: string } | null> {
+    const params = new URLSearchParams({ handle });
+    try {
+      const data = await this.getJson<{
+        collections: Array<{ id: string; title: string; handle: string }>;
+      }>(`/store/collections?${params.toString()}`);
+      return data.collections?.[0] ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async createCart(

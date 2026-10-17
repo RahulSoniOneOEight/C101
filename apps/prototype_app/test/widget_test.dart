@@ -5,6 +5,7 @@ import 'package:prototype_app/app.dart';
 import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/models.dart';
+import 'package:prototype_app/domain/presentation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Fakes the Experience API client so the smoke test runs without a backend.
@@ -13,8 +14,14 @@ class _FakeExperienceApi extends ExperienceApi {
 
   @override
   Future<List<Product>> getComposedProducts(
-      {int limit = 50, int offset = 0}) async {
+      {int limit = 50, int offset = 0, String? collectionId}) async {
     return const <Product>[];
+  }
+
+  @override
+  Future<List<StorefrontSection>> getLayoutSections(
+      {String locale = 'en-IN', String channel = 'b2c'}) async {
+    return const <StorefrontSection>[];
   }
 
   @override

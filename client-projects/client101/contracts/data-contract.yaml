@@ -97,6 +97,7 @@ entities:
     - Editorial content is non-transactional and cannot determine eligibility or success.
     - CMS provider selection and DAM workflows remain outside the bounded staging order increment.
     - CHG-029 adds campaign banner, campaign-copy and trade-program elements; they remain editorial and cannot determine discount eligibility.
+    - CHG-035 composes published Strapi banner and category presentation with Medusa-owned category identity, hierarchy and product membership; CMS icon keys and labels never become commerce identifiers.
   - name: business-account
     canonical_owner: commerce
     consumers: [erp, analytics]

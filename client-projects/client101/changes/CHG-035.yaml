@@ -1,0 +1,106 @@
+change_id: CHG-035
+revision: 2
+request: >-
+  Refine the common commerce and CMS administration experience into one logically organised,
+  Medusa-native Merchandising workspace. Operators must be able to review and update editorial
+  items, compare governed merchandising presets with live commerce records, and open promotions,
+  campaigns, collections and categories in their authoritative native editors. The hero banners,
+  category banners, category display names, supporting text and approved icons currently rendered
+  in the customer app must be delivered from the backend rather than hardcoded in Flutter.
+type: operator-merchandising-workspace-refinement
+extends:
+- CHG-029
+- CHG-030
+- CHG-034
+affected_capabilities:
+- operator-administration
+- editorial-content
+- storefront-composition
+- promotions
+- marketplace-merchandising
+affected_domains:
+- experience
+- content
+- commerce
+- marketplace
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.content
+- mercur.admin.promotions
+- mercur.admin.campaigns
+- mercur.admin.collections
+- mercur.admin.categories
+affected_entities:
+- storefront-layout
+- banner
+- curated-collection
+- category-editorial
+- product-editorial
+- faq-article
+- category-presentation
+- storefront-banner
+- promotion
+- campaign
+- merchandising-preset
+affected_integrations:
+- mercur-admin-to-medusa-content-facade
+- medusa-content-facade-to-private-strapi
+- medusa-admin-to-promotion-module
+affected_events:
+- cms.entry.publish
+- cms.entry.unpublish
+decisions:
+  D-035-01: one-top-level-merchandising-workspace-organises-editorial-and-commerce-tools
+  D-035-02: editorial-records-use-medusa-native-list-drawer-form-and-confirmation-patterns
+  D-035-03: commerce-promotions-and-campaigns-open-in-the-existing-native-medusa-editors
+  D-035-04: governed-preset-definitions-remain-read-only-baselines-and-are-compared-with-live-records
+  D-035-05: no-duplicate-promotion-or-campaign-write-api-is-created
+  D-035-06: cms-remains-editorial-only-and-commerce-remains-authoritative-for-transactional-fields
+  D-035-07: dangerous-publish-and-unpublish-actions-require-explicit-operator-confirmation
+  D-035-08: raw-json-is-limited-to-structured-layout-fields-until-a-governed-module-builder-is-approved
+  D-035-09: medusa-owns-category-identity-hierarchy-and-product-membership
+  D-035-10: cms-owns-localized-category-label-text-icon-key-and-banner-presentation
+  D-035-11: experience-api-composes-medusa-category-records-with-published-cms-presentation
+  D-035-12: flutter-consumes-presentation-through-experience-api-with-reviewed-offline-fallbacks
+  D-035-13: icon-keys-are-allowlisted-and-resolved-to-app-design-system-icons
+  D-035-14: https-image-references-bridge-current-staging-creative-until-media-upload-is-approved
+required_tests:
+- One Merchandising sidebar entry provides overview, editorial content and preset review navigation.
+- Existing `/content` and `/merchandising-presets` links remain compatible or redirect safely.
+- CMS create and edit actions use a Medusa drawer and preserve explicit draft-only save semantics.
+- Publish and unpublish actions require confirmation and still create operator audit records.
+- The preset review shows whether each governed campaign and promotion resolves to a live Medusa id.
+- Live campaigns and promotions link to their native Medusa detail editors.
+- CMS collections link to the editable curated-collection view while commerce categories stay native.
+- Preset and offer-lab screens never directly mutate promotion values, budgets or funding.
+- Invalid and commerce-owned CMS fields remain rejected by the server boundary.
+- Admin, CMS and backend builds pass with no second UI framework or hardcoded visual tokens.
+- Existing app hero banners are returned by the Experience API and rendered from backend payloads.
+- Root category names, supporting text, icons and banner images are returned by the Experience API.
+- Missing or invalid CMS presentation falls back without blocking category navigation or commerce.
+- Flutter no longer treats its embedded hero/category presentation as the routine live source.
+constraints:
+- Staging only; no production release or production content migration.
+- Use `@medusajs/ui`, `@medusajs/icons` and public Mercur dashboard primitives only.
+- No iframe and no direct browser-to-Strapi call.
+- No duplicate commerce write model in CMS or the preset catalogue.
+- Existing media references are preserved; media upload remains deferred.
+- Promotion funding, stacking, GST and commission treatment remain subject to Finance/Tax approval.
+- Production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-13'
+  scope: bounded-hosted-staging-admin-refinement
+  human_visual_review_required: true
+production_release_authorized: false
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Mercur Admin production build passed.
+  - Medusa API production build passed.
+  - Route type generation passed.
+  - Five focused unit tests passed across live catalogue reconciliation and the CMS operator client.
+  hosted_deployment: pending
+  human_visual_review: pending
+status: implemented-awaiting-hosted-review

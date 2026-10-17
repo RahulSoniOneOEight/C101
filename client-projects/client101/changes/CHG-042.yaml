@@ -1,0 +1,225 @@
+change_id: CHG-042
+revision: 6
+request: >-
+  Improve the BuildKart Ops Console Merchandising > Banners page using the supplied Banner studio
+  HTML demo as the visual and interaction reference: compact header and counts, placement/audience/
+  language filters, banner thumbnails with separate editorial status and display eligibility,
+  preview/edit/duplicate actions, a spacious grouped editor with a persistent customer preview,
+  conditional destination fields, explicit Save draft versus Publish/Schedule, pre-publication
+  review, honest validation, and permission-controlled publication.
+type: banner-studio-experience
+extends:
+- CHG-041
+- CHG-040
+affected_capabilities:
+- operator-administration
+- editorial-content
+- marketplace-merchandising
+affected_domains:
+- experience
+- content
+- commerce
+affected_surfaces:
+- mercur.admin.merchandising.banners
+- mercur.admin.content-editor
+- medusa.admin.buildkart.content-api
+- strapi.operator-content-api
+- experience-api.content.presentation
+related_decisions:
+- CHG-040 D-040-05 (page-local tab model)
+- CHG-040 D-040-08 (publication separated from editing)
+- CHG-038 (routed full-page editor with unsaved-change protection)
+reference_artifacts:
+- C:\Users\LENOVO\Downloads\buildkart-banner-demo.html
+- client-projects/client101/solution/architecture/admin-console-cms-approach.md
+inspection_summary:
+  existing_and_reusable:
+  - Draft versus published isolation with explicit publish/unpublish and audit rows.
+  - "Unpublished changes detection is already derived as publicationStatus=modified."
+  - Server-side schedule windows (startsAt/endsAt/timezone) enforced in delivery, not in the browser.
+  - Placement, audience, locale, heading, supporting text, CTA label and target, alt text, theme and priority fields.
+  - Search, locale selection, status tabs and URL-persisted pagination on the property page.
+  - Property-first sidebar and the stable /content/:kind/:documentId editor route.
+  requires_new_governed_work:
+  - Media library upload or selection (DAM authority unresolved under CHG-026; architecture Phase 3).
+  - Image crop/focal point and device-specific creative variants (no schema fields).
+  - Per-banner channel (App/Web): channel currently lives on storefront layout, not on banner.
+  - "Campaign landing page destination type is not in the approved CTA target allowlist."
+  - Searchable commerce entity selectors for product, category and collection (deferred commerce-entity pickers).
+  - Duplicate action (no create-from-existing backend operation).
+  - Authenticated draft preview projection from the Experience API (architecture Phase 2).
+  - Optimistic concurrency token rejecting stale writes (architecture Phase 1).
+  - Real server-enforced content roles for publish/unpublish (current policy resource is a placeholder).
+  - Placement-conflict rules engine beyond simple overlap detection.
+conflicts_flagged:
+- C-042-01: the demo sidebar adds a Media library entry; CHG-040 navigation does not include media and DAM is unresolved.
+- C-042-02: the demo tabs are All/Published/Draft/Scheduled; the governed tab model is All/Needs review/Draft only/Published.
+- C-042-03: the demo editor is a modal dialog; CHG-038/CHG-040 mandate a routed full-page editor with unsaved-change and deep-link guarantees.
+- C-042-04: the demo's product/collection/category lists are fabricated sample data; real selectors must resolve Medusa entities or be hidden.
+- C-042-05: the demo preview is a static HTML approximation; the storefront is Flutter, so pixel-accurate reuse of storefront components is not available.
+decisions_proposed:
+  D-042-01: keep the existing Merchandising navigation and do not add media or DAM entry points in this change.
+  D-042-02: keep the governed tab model and add Scheduled as a derived display-eligibility filter after approval.
+  D-042-03: keep the routed full-page editor and adopt the demo layout, grouping and preview inside it rather than a modal.
+  D-042-04: separate editorial status from display eligibility in the listing and never label a banner as displaying without delivery evidence.
+  D-042-05: never fabricate commerce references, media, channels, crops or previews; label unavailable capability truthfully.
+  D-042-06: scheduling remains publish plus a server-enforced start/end window; Strapi scheduled publishing is not enabled and is not simulated.
+  D-042-07: implement Phase 1 scope only in this change and propose later phases separately.
+decisions_approved:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-01: keep the existing Merchandising navigation; no media or DAM entry points in this change.
+  D-042-02: keep the governed tabs (All, Needs review, Draft only, Published) and add Scheduled as a derived filter.
+  D-042-02-superseded: the banner lifecycle tabs are Live, Draft, Scheduled and Historical; the Needs review tab is replaced by an in-row indicator.
+  D-042-03-superseded: the banner editor becomes a modal dialog launched from the Banners page, matching the reference demo.
+  D-042-04: separate editorial status from display eligibility; never label a banner as displaying without delivery evidence.
+  D-042-05: never fabricate commerce references, media, channels, crops or previews.
+  D-042-06: scheduling remains publish plus a server-enforced start/end window.
+  D-042-07: implement Phase 1 plus the Phase 2 authenticated preview; keep Phase 3 deferred.
+decisions_approved_rev3:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-08: banner tabs become Live, Draft, Scheduled and Historical.
+  D-042-09: the Needs review tab is replaced by the in-row "Changes not published" indicator.
+  D-042-10: the Create banner action sits on the right of the header and filters are compact.
+  D-042-11: the duplicated count cards are replaced by the tab counts plus a total.
+decisions_approved_rev4:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-12: one lifecycle model drives banners; the tab and the row status are two projections of the same value.
+  D-042-13: the Editorial and Eligibility columns collapse into a single Status column; "Changes not published" is shown inline beside it.
+  D-042-14: tabs occupy their own row and search plus filters occupy a separate row.
+decisions_approved_rev5:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-15: placements are limited to the slots the storefront actually renders; the studio must not present a slot that does not exist.
+  D-042-16: an unrecognised placement is labelled as such in the row, the editor and the filter, instead of being hidden or renamed.
+decisions_approved_rev6:
+  approved_by: human-requester
+  approved_at_utc: '2026-10-16'
+  D-042-17: placements are scoped to the channel whose surface renders them; only B2C Home and B2C Campaign banner are offered.
+  D-042-18: category banners are not banners; the studio links to the Category presentation property instead of duplicating its image.
+  D-042-19: audience is derived from the placement, so "B2B + B2C" is no longer offered; a stored legacy value normalises on the next save and is shown as such beforehand.
+supersedes:
+  - "CHG-038 and CHG-040 routed full-page editor decision applies to the banner kind only: the banner editor is now a modal dialog over the Banners page. The other five properties keep routed editors."
+  - "A deep-linkable query parameter replaces the routed editor URL for banners so refresh, browser Back and unsaved-change protection still hold."
+schema_changes:
+  - "banner: add nullable string attribute `name` (operator-facing internal name). Additive; no commerce, delivery or ownership impact."
+  - "Ownership map in admin-console-cms-approach.md updated for the new attribute."
+phases_proposed:
+  phase_1_now:
+  - Banner studio header, environment label and compact total/published/scheduled/draft counts.
+  - Search plus placement and audience filters with URL state; language already exists.
+  - Listing columns for thumbnail or theme swatch, friendly placement labels, audience, language, editorial status, display eligibility, schedule and actions.
+  - Separate editorial status from display eligibility using publishedAt plus the schedule window.
+  - Row actions Preview, Edit and Duplicate, with Duplicate as an additive draft-only backend operation.
+  - Editor grouped into details, creative, content, destination, schedule and advanced settings, with routine fields first.
+  - Conditional destination fields with HTTPS URL validation and internal route resolution.
+  - Immediate versus chosen start time with explicit Asia/Kolkata timezone, and optional end time.
+  - Pre-publication review panel showing banner, environment, placement, audience, language and schedule.
+  - Honest unsupported-capability labeling for crop, device variants, channels and media upload.
+  - Optimistic concurrency on save and publish using an expected updatedAt.
+  phase_2_later:
+  - Authenticated draft preview projection generated by the Experience API, with App/Mobile/Desktop and language modes.
+  - Placement-conflict rules beyond overlap detection.
+  - Real server-enforced content roles for publish and unpublish.
+  phase_3_separate_approval:
+  - DAM/media upload and asset selection.
+  - Crop/focal point and device-specific creative variants.
+  - Per-banner channel model.
+  - Commerce-entity pickers and Campaign landing page destination type.
+phases_approved:
+  phase_1_now:
+  - Banner studio header, environment label and compact total/published/scheduled/draft counts.
+  - Search plus placement and audience filters with URL state; language already exists.
+  - Listing with theme swatch, friendly placement labels, audience, language, editorial status, display eligibility, schedule and Preview/Edit/Duplicate actions.
+  - Separate editorial status from display eligibility using publishedAt plus the schedule window.
+  - Duplicate as an additive draft-only backend operation.
+  - Modal editor grouped into details, creative, content, destination, schedule and advanced settings.
+  - Conditional destination fields with HTTPS and internal-route validation.
+  - Immediate versus chosen start time with explicit Asia/Kolkata timezone and optional end time.
+  - Pre-publication review panel showing name, environment, placement, audience, language and schedule.
+  - Truthful labelling for unavailable crop, device variants, channel and media upload.
+  - Optimistic concurrency on save and publish using an expected updatedAt.
+  phase_2_now:
+  - Authenticated draft preview projection from the Experience API, exposed only through Medusa.
+  - App, Mobile web and Desktop preview modes with language switching, labelled illustrative.
+required_tests:
+- A banner draft save does not change the currently published version.
+- A published banner with unsaved edits reports unpublished changes.
+- Display eligibility distinguishes scheduled, expired, eligible and not-published cases from real dates.
+- Filters, tabs, search and pagination persist in the URL and survive reload.
+- Duplicate creates a new draft and never publishes.
+- Schedule windows are enforced by the server, not the browser, and survive a closed browser session.
+- Publishing requires confirmation showing environment, placement, audience, language and schedule.
+- A stale save is rejected by the concurrency check instead of overwriting newer work.
+- Destination validation rejects non-HTTPS URLs and unresolvable internal references.
+- Unsupported capabilities are labelled, not simulated.
+- Admin lint and production build pass; no preset or fabricated commerce data is introduced.
+constraints:
+- Use only Mercur shared primitives, Medusa UI components and Medusa design tokens.
+- Keep the browser on authenticated typed operator APIs; never call Strapi directly.
+- Preserve Strapi ownership of editorial copy, media, translations and publication state.
+- Preserve Medusa/Mercur ownership of products, collections, categories, prices and promotions.
+- Preserve storefront-layout ownership of placement membership and ordering.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-16'
+  scope: banner-studio-phase-1
+  approved_scope: banner-studio-phase-1-and-phase-2-preview
+  human_approval_required_before_code: false
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Empty optional JSON still normalises to null (CHG-041 regression case is in the CMS CI check).
+  - The banner `name` attribute was added additively and the CMS build passes.
+  - Duplicate, concurrency token and preview clients have unit coverage; the operator client suite passes 6 tests.
+  - Mercur Admin lint and production build pass; Experience API typecheck passes; Medusa API build passes.
+  - Banner studio, preview, duplicate and concurrency were exercised against the compiled runtime.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-16T10:57:00Z'
+    release_commit: 5482e56
+    release_worktree: /opt/buildkart-releases/5482e56
+    previous_release: /opt/buildkart-releases/13941b2
+    recreated_services:
+    - cms
+    - medusa-api
+    - experience-api
+    follow_up_release:
+      release_commit: 5482e56
+      recreated_services:
+      - medusa-api
+      reason: 'Conflict detection branched on HTTP status instead of the message text, because Medusa rewrites CONFLICT messages.'
+    follow_up_release_2:
+      release_commit: faecaa2
+      recreated_services:
+      - medusa-api
+      reason: 'Lifecycle tabs (Live, Draft, Scheduled, Historical), right-aligned Create banner action and a compact filter toolbar.'
+    new_secret: EXPERIENCE_OPERATOR_SECRET (dedicated to the private preview projection)
+    fcm_overlay_preserved: true
+    verification:
+    - Banner studio routes return HTTP 200 including the Scheduled tab.
+    - Served bundle carries the real Banner studio labels and none of the demo's fabricated data.
+    - The customer host returns 404 for /v1/internal/content/preview and the route rejects a wrong bearer token with 401.
+    - Public presentation is unchanged and not stale.
+    - Duplicate creates a draft-only copy; a stale save is rejected with 409; the audit rows are recorded.
+    - cms, medusa-api and experience-api are healthy with zero restarts.
+    operator_route_verification:
+    - An authenticated operator session exercised list, preview, duplicate, stale save and correct save through the Medusa routes.
+    - A stale save returns 409 and is not applied; the correct token saves.
+    - The chain is verified end to end; only browser-level interaction remains unverified.
+    pending_human_checks:
+    - verify-header-counts-and-tabs
+    - verify-filters-and-eligibility-columns
+    - verify-grouped-editor-destination-and-schedule
+    - verify-live-preview-and-device-modes
+    - verify-draft-save-then-duplicate-then-publish
+    - verify-concurrent-edit-guard
+  implementation_evidence:
+  - client-projects/client101/evidence/CHG-042/banner-studio-inspection.md
+  - client-projects/client101/evidence/CHG-042/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

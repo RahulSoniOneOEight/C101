@@ -21,6 +21,19 @@ moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
 `docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
 the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
 
+### Recreating services and the edge
+
+Recreating `medusa-api` or `experience-api` gives the containers new IPs, and the `proxy` nginx keeps the
+addresses it resolved at start-up. The result is **502 from the edge while every container reports
+healthy**. Restart the proxy after such a release:
+
+```sh
+docker restart buildkart-hosted-pilot-proxy-1
+```
+
+Health checks alone will not catch this: check `/health` through the public hostname, not inside the
+network.
+
 ## Operator / admin console
 
 The operator hostname also serves the Mercur **admin** and **vendor** dashboards and the Medusa
@@ -29,7 +42,10 @@ admin/auth APIs, routed by nginx to `medusa-api`:
 | Path | Surface |
 |---|---|
 | `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
-| `/dashboard/content` | Native Content workspace backed by private Strapi |
+| `/dashboard/merchandising` | Merchandising — storefront composition: Banners and Storefront layouts (redirects here from the group root) |
+| `/dashboard/editorial` | Editorial — the individual content types: Category presentation, Product editorial, Collection presentation, Help and articles |
+| `/dashboard/content` | Native Editorial content workspace backed by private Strapi |
+| `/dashboard/merchandising-presets` | Governed preset baseline compared with live Medusa records |
 | `/seller/` | Mercur vendor (seller) dashboard |
 | `/admin/*`, `/auth/*`, `/vendor/*`, `/static/*` | Medusa admin/auth/vendor APIs and uploads |
 
@@ -50,13 +66,28 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
 
-The admin sidebar's **Content** workspace provides one routine operator experience for commerce and
-editorial work. It groups storefront layouts, banners, curated collections, category editorial,
-product editorial, and help/articles. Operators explicitly save a draft, then publish or unpublish
-it as a separate action. The dashboard browser never calls Strapi and never receives a Strapi token:
-the authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
+The admin sidebar's **Merchandising** workspace provides one routine operator experience for commerce
+and editorial work. Its overview links to native Medusa promotion, campaign and collection editors,
+while nested **Editorial content** groups storefront layouts, banners, curated collections, category
+editorial, product editorial, and help/articles. Operators explicitly save a draft in a Medusa drawer,
+then publish or unpublish it through a separate confirmed action. **Preset review** compares the
+governed staging baseline with live Medusa promotion and campaign IDs without creating a duplicate
+write path. The dashboard browser never calls Strapi and never receives a Strapi token: the
+authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
 private `cms` service. Strapi remains the editorial system of record; commerce remains authoritative
 for products, price, inventory, sellers, orders, payments, credit, commissions, and payouts.
+
+The customer app no longer hardcodes its hero/campaign banners or root category labels and icons.
+`GET /v1/content/presentation?locale=<l>&channel=<b2c|b2b>` composes Medusa-owned root categories
+with published Strapi `banner` and `category-editorial` records: labels, supporting text, an
+allowlisted `iconKey`, banner imagery and a colour theme. Commerce category id, hierarchy and product
+membership are never editorial. When CMS presentation is absent or unavailable the Experience API
+returns the governed fallback seed, so the storefront keeps working. The current banners and root
+categories are seeded into the CMS on bootstrap so an operator can edit them without a code change;
+media upload remains deferred, so creative is referenced by an HTTPS URL (`externalImageUrl`) until an
+approved DAM workflow exists. A banner's type is its placement and carries the channel
+(`b2c.home.hero`, `b2c.category.banner`, `b2b.category.banner`); there is no separate audience field.
+Category banners are banner records, not category attributes.
 
 ## ERP web client (Tryton / SAO)
 

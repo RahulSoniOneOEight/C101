@@ -7,12 +7,24 @@ import {
   type StorefrontModuleMembership,
   type StorefrontModuleType,
 } from "./storefront-layout.js";
+import {
+  normaliseLayoutSections,
+  type StorefrontLayoutSection,
+} from "./layout-sections.js";
 import type { StoredCmsProjection } from "../store/cms-content-store.js";
+import {
+  categoryBannerPlacement,
+  homeBannerPlacements,
+} from "./placement-registry.js";
 
 type JsonRecord = Record<string, unknown>;
 
 interface CmsProjectionPayload {
   layout: StorefrontLayout | null;
+}
+
+interface CmsCollectionProjectionPayload<T> {
+  items: T[];
 }
 
 interface CmsContentPersistence {
@@ -41,6 +53,43 @@ interface CachedProjection {
   version: string;
   observedAt: string;
   expiresAt: number;
+}
+
+interface CachedCollectionProjection<T> {
+  items: T[];
+  observedAt: string;
+  expiresAt: number;
+}
+
+export type StorefrontBannerTheme = "primary" | "trust" | "promotion" | "neutral";
+
+export interface StorefrontBannerPresentation {
+  content_key: string;
+  placement: string;
+  title: string;
+  body?: string;
+  image_uri?: string;
+  image_alt: string;
+  action_label?: string;
+  action_uri?: string;
+  theme_key: StorefrontBannerTheme;
+  priority: number;
+}
+
+export interface StorefrontCategoryEditorial {
+  category_id: string;
+  label?: string;
+  short_text?: string;
+  icon_key?: string;
+  banner_image_uri?: string;
+  banner_image_alt?: string;
+}
+
+export interface CmsCollectionResolution<T> {
+  items: T[];
+  source: "cms-strapi" | "cms-strapi-last-valid" | "governed-editorial-seed";
+  observedAt: string;
+  stale: boolean;
 }
 
 const LAYOUT_UIDS: Record<string, StorefrontModuleType> = {
@@ -128,6 +177,17 @@ function mediaUri(value: unknown): string | undefined {
   return /^https:\/\//i.test(rawUrl) ? rawUrl : undefined;
 }
 
+function externalImageUri(value: unknown): string | undefined {
+  const rawUrl = text(value);
+  if (!rawUrl) return undefined;
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === "https:" ? parsed.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function actionUri(banner: JsonRecord): string | undefined {
   const target = text(banner.ctaTargetId);
   if (!target) return undefined;
@@ -137,6 +197,89 @@ function actionUri(banner: JsonRecord): string | undefined {
     case "collection": return `/collections/${encodeURIComponent(target)}`;
     default: return target;
   }
+}
+
+function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefined {
+  const banner = record(value);
+  if (!banner) return undefined;
+  const contentKey = text(banner.contentKey);
+  const placement = text(banner.placement);
+  const title = text(banner.title);
+  const imageAlt = text(banner.imageAltText);
+  if (!contentKey || !placement || !title || !imageAlt) return undefined;
+  const theme = banner.themeKey;
+  const themeKey: StorefrontBannerTheme =
+    theme === "trust" || theme === "promotion" || theme === "neutral" ? theme : "primary";
+  const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
+    ?? externalImageUri(banner.externalImageUrl);
+  return {
+    content_key: contentKey,
+    placement,
+    title,
+    ...(text(banner.subtitle) ? { body: text(banner.subtitle) } : {}),
+    ...(image ? { image_uri: image } : {}),
+    image_alt: imageAlt,
+    ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
+    ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
+    theme_key: themeKey,
+    priority: numberValue(banner.priority) ?? 0,
+  };
+}
+
+function mapBanner(value: unknown, now: Date): StorefrontBannerPresentation | undefined {
+  const banner = record(value);
+  if (!banner || !inWindow(banner, now)) return undefined;
+  return mapBannerFields(banner);
+}
+
+export type StorefrontBannerEligibility = "eligible" | "scheduled" | "expired";
+
+/**
+ * Window eligibility from the stored schedule. Delivery uses `inWindow`; this exposes the same
+ * decision as a label so an operator surface can distinguish eligible, scheduled and expired
+ * without claiming that a banner is being served.
+ */
+export function bannerEligibility(value: unknown, now: Date): StorefrontBannerEligibility {
+  const banner = record(value);
+  const startsAt = banner ? text(banner.startsAt) : undefined;
+  const endsAt = banner ? text(banner.endsAt) : undefined;
+  const start = startsAt ? new Date(startsAt) : null;
+  const end = endsAt ? new Date(endsAt) : null;
+  if (end && !Number.isNaN(end.getTime()) && end.getTime() <= now.getTime()) return "expired";
+  if (start && !Number.isNaN(start.getTime()) && start.getTime() > now.getTime()) return "scheduled";
+  return "eligible";
+}
+
+/**
+ * Draft preview. Uses the same field mapping as live delivery but ignores the delivery window so an
+ * operator can inspect a scheduled or expired banner. Returns undefined when required fields are
+ * missing, which is itself useful validation feedback.
+ */
+export function buildBannerPreview(
+  value: unknown,
+  now: Date,
+): { presentation?: StorefrontBannerPresentation; eligibility: StorefrontBannerEligibility } {
+  return { presentation: mapBannerFields(value), eligibility: bannerEligibility(value, now) };
+}
+
+function mapCategoryEditorial(value: unknown): StorefrontCategoryEditorial | undefined {
+  const category = record(value);
+  if (!category) return undefined;
+  const categoryId = text(category.categoryId);
+  if (!categoryId) return undefined;
+  const image = mediaUri(category.heroImage);
+  return {
+    category_id: categoryId,
+    ...(text(category.displayLabel) ?? text(category.heading)
+      ? { label: text(category.displayLabel) ?? text(category.heading) }
+      : {}),
+    ...(text(category.shortText) ?? text(category.description)
+      ? { short_text: text(category.shortText) ?? text(category.description) }
+      : {}),
+    ...(text(category.iconKey) ? { icon_key: text(category.iconKey) } : {}),
+    ...(image ? { banner_image_uri: image } : {}),
+    ...(text(category.heroAltText) ? { banner_image_alt: text(category.heroAltText) } : {}),
+  };
 }
 
 function mapModule(value: unknown, now: Date): StorefrontLayoutModule | undefined {
@@ -166,7 +309,9 @@ function mapModule(value: unknown, now: Date): StorefrontLayoutModule | undefine
         ...(text(banner.subtitle) ? { body: text(banner.subtitle) } : {}),
         ...(text(banner.contentKey) ? { banner_reference: text(banner.contentKey) } : {}),
         ...(mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
-          ? { image_uri: mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop) }
+          ?? externalImageUri(banner.externalImageUrl)
+          ? { image_uri: mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
+            ?? externalImageUri(banner.externalImageUrl) }
           : {}),
         ...(text(banner.imageAltText) ? { image_alt: text(banner.imageAltText) } : {}),
         ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
@@ -233,9 +378,13 @@ function mapLayout(
   const modules = rawModules
     .map((module) => mapModule(module, now))
     .filter((module): module is StorefrontLayoutModule => Boolean(module));
-  if (!modules.length || new Set(modules.map((module) => module.module_key)).size !== modules.length) {
+  if (modules.length && new Set(modules.map((module) => module.module_key)).size !== modules.length) {
     return undefined;
   }
+  // Sections are the authorable surface. A layout may carry sections alone; modules stay supported as
+  // the recovery format, so a layout is invalid only when it carries neither.
+  const { sections } = normaliseLayoutSections(entity.sections, channel, now);
+  if (!modules.length && !sections.length) return undefined;
   const fallback = relation(entity.fallbackLayout);
   return {
     documentId,
@@ -245,6 +394,7 @@ function mapLayout(
       channel,
       locale,
       modules,
+      ...(sections.length ? { sections } : {}),
       ...(text(entity.startsAt) ? { starts_at: text(entity.startsAt) } : {}),
       ...(text(entity.endsAt) ? { ends_at: text(entity.endsAt) } : {}),
       fallback_layout_key: text(fallback?.layoutKey) ?? null,
@@ -255,6 +405,8 @@ function mapLayout(
 
 export class CmsContentAdapter {
   private readonly cache = new Map<string, CachedProjection>();
+  private readonly bannerCache = new Map<string, CachedCollectionProjection<StorefrontBannerPresentation>>();
+  private readonly categoryCache = new Map<string, CachedCollectionProjection<StorefrontCategoryEditorial>>();
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => Date;
 
@@ -272,12 +424,15 @@ export class CmsContentAdapter {
   }
 
   invalidate(uid: string, documentId: string): void {
-    if (uid !== "api::storefront-layout.storefront-layout") return;
-    for (const [key, cached] of this.cache) {
-      if (cached.cmsDocumentId === documentId || key.startsWith("storefront-layout:")) {
-        this.cache.delete(key);
+    if (uid === "api::storefront-layout.storefront-layout" || uid === "api::banner.banner") {
+      for (const [key, cached] of this.cache) {
+        if (cached.cmsDocumentId === documentId || key.startsWith("storefront-layout:")) {
+          this.cache.delete(key);
+        }
       }
     }
+    if (uid === "api::banner.banner") this.bannerCache.clear();
+    if (uid === "api::category-editorial.category-editorial") this.categoryCache.clear();
   }
 
   async resolveLayout(
@@ -381,6 +536,156 @@ export class CmsContentAdapter {
         "cache-control": "public, max-age=300, stale-while-revalidate=86400",
       },
     });
+  }
+
+  async resolveBanners(
+    channel: StorefrontChannel,
+    locale: AppLocale,
+  ): Promise<CmsCollectionResolution<StorefrontBannerPresentation>> {
+    // Only home-surface types compose the home banner list. Category banners are resolved separately
+    // for the category surface, so they cannot leak into the hero or campaign strip.
+    const homePlacements = homeBannerPlacements(channel);
+    return this.resolveCollection({
+      projectionKey: `banners:${channel}:${locale}`,
+      locale,
+      cache: this.bannerCache,
+      fetchItems: async (candidateLocale) => {
+        const entities = await this.fetchPublishedCollection("banners", candidateLocale);
+        return entities
+          .filter((entity) => {
+            const banner = record(entity);
+            return typeof banner?.placement === "string"
+              && homePlacements.has(banner.placement.trim());
+          })
+          .map((entity) => mapBanner(entity, this.now()))
+          .filter((item): item is StorefrontBannerPresentation => Boolean(item))
+          .sort((left, right) => right.priority - left.priority);
+      },
+    });
+  }
+
+  async resolveCategoryEditorials(
+    channel: StorefrontChannel,
+    locale: AppLocale,
+  ): Promise<CmsCollectionResolution<StorefrontCategoryEditorial>> {
+    const categoryPlacement = categoryBannerPlacement(channel);
+    return this.resolveCollection({
+      projectionKey: `category-editorial:${channel}:${locale}`,
+      locale,
+      cache: this.categoryCache,
+      fetchItems: async (candidateLocale) => {
+        const [entities, bannerEntities] = await Promise.all([
+          this.fetchPublishedCollection("category-editorials", candidateLocale),
+          this.fetchPublishedCollection("banners", candidateLocale),
+        ]);
+
+        // Category banners now live on the banner content type. The payload shape is unchanged so the
+        // customer app needs no update: the banner image is still published as banner_image_uri.
+        const now = this.now();
+        const bannersByCategory = new Map<string, { image?: string; alt?: string }>();
+        if (categoryPlacement) {
+          bannerEntities.forEach((entity) => {
+            const banner = record(entity);
+            if (!banner || !inWindow(banner, now)) return;
+            if (String(banner.placement ?? "").trim() !== categoryPlacement) return;
+            const categoryId = text(banner.categoryId);
+            if (!categoryId) return;
+            const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
+              ?? externalImageUri(banner.externalImageUrl);
+            bannersByCategory.set(categoryId, { image, alt: text(banner.imageAltText) });
+          });
+        }
+
+        return entities
+          .filter((entity) => {
+            const editorials = record(entity);
+            const rowChannel = text(editorials?.channel) ?? "b2c";
+            return rowChannel === channel;
+          })
+          .map((entity) => {
+            const mapped = mapCategoryEditorial(entity);
+            if (!mapped) return undefined;
+            const override = bannersByCategory.get(mapped.category_id);
+            if (!override) return mapped;
+            return {
+              ...mapped,
+              ...(override.image ? { banner_image_uri: override.image } : {}),
+              ...(override.alt ? { banner_image_alt: override.alt } : {}),
+            };
+          })
+          .filter((item): item is StorefrontCategoryEditorial => Boolean(item));
+      },
+    });
+  }
+
+  private async resolveCollection<T>(input: {
+    projectionKey: string;
+    locale: AppLocale;
+    cache: Map<string, CachedCollectionProjection<T>>;
+    fetchItems: (locale: AppLocale) => Promise<T[]>;
+  }): Promise<CmsCollectionResolution<T>> {
+    const now = this.now();
+    if (!this.enabled) {
+      return { items: [], source: "governed-editorial-seed", observedAt: now.toISOString(), stale: false };
+    }
+    const cached = input.cache.get(input.projectionKey);
+    if (cached && cached.expiresAt > now.getTime()) {
+      return { items: cached.items, source: "cms-strapi", observedAt: cached.observedAt, stale: false };
+    }
+    try {
+      const fallbackItems = input.locale === "en-IN" ? [] : await input.fetchItems("en-IN");
+      const localizedItems = await input.fetchItems(input.locale);
+      const items = this.mergeLocalizedItems(fallbackItems, localizedItems);
+      const observedAt = now.toISOString();
+      input.cache.set(input.projectionKey, {
+        items,
+        observedAt,
+        expiresAt: now.getTime() + this.config.cacheTtlSeconds * 1000,
+      });
+      await this.persistence.put<CmsCollectionProjectionPayload<T>>({
+        projectionKey: input.projectionKey,
+        cmsDocumentId: `collection:${input.projectionKey}`,
+        version: observedAt,
+        payload: { items },
+        observedAt,
+      });
+      return { items, source: "cms-strapi", observedAt, stale: false };
+    } catch (error) {
+      console.warn(`[experience-api] CMS ${input.projectionKey} fetch failed:`, (error as Error).message);
+      if (cached) {
+        return { items: cached.items, source: "cms-strapi-last-valid", observedAt: cached.observedAt, stale: true };
+      }
+      const stored = await this.persistence.get<CmsCollectionProjectionPayload<T>>(input.projectionKey);
+      if (stored) {
+        return { items: stored.payload.items, source: "cms-strapi-last-valid", observedAt: stored.observedAt, stale: true };
+      }
+      return { items: [], source: "governed-editorial-seed", observedAt: now.toISOString(), stale: true };
+    }
+  }
+
+  private mergeLocalizedItems<T>(fallback: T[], localized: T[]): T[] {
+    const key = (item: T): string => {
+      const value = item as Record<string, unknown>;
+      return String(value.content_key ?? value.category_id ?? JSON.stringify(item));
+    };
+    const merged = new Map(fallback.map((item) => [key(item), item]));
+    localized.forEach((item) => merged.set(key(item), item));
+    return [...merged.values()];
+  }
+
+  private async fetchPublishedCollection(collection: string, locale: AppLocale): Promise<unknown[]> {
+    const query = new URLSearchParams({
+      locale,
+      status: "published",
+      "pagination[pageSize]": "100",
+      populate: "*",
+    });
+    const response = await this.fetchWithTimeout(`${this.config.baseUrl}/api/${collection}?${query}`, {
+      headers: { accept: "application/json", authorization: `Bearer ${this.config.apiToken}` },
+    });
+    if (!response.ok) throw new Error(`Strapi returned ${response.status} for ${collection}.`);
+    const body = await response.json() as JsonRecord;
+    return Array.isArray(body.data) ? body.data : [];
   }
 
   private async fetchPublishedLayout(

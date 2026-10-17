@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
@@ -19,10 +19,17 @@ import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
-import { CmsContentAdapter } from "./content/cms-adapter.js";
+import { CmsContentAdapter, buildBannerPreview } from "./content/cms-adapter.js";
+import {
+  composeStorefrontCategories,
+  resolveSeedBanners,
+  type ComposedCategory,
+} from "./content/presentation.js";
+import { resolveSectionProducts } from "./content/section-products.js";
+import type { StorefrontChannel } from "./content/storefront-layout.js";
 import { verifyCmsWebhook } from "./content/cms-webhook.js";
 import { CmsContentStore } from "./store/cms-content-store.js";
-import { CollectionResolver } from "./collections/resolver.js";
+import { CollectionNotFoundError, CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
   loadPilotUsers,
@@ -456,6 +463,44 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
+  // Private-network-only draft preview projection. Server-to-server only: Medusa authenticates with
+  // a dedicated bearer secret. nginx blocks /v1/internal at both public hostnames, and no CMS or
+  // Experience API credential is ever returned to a browser.
+  if (url.pathname === "/v1/internal/content/preview" && req.method === "POST") {
+    if (!config.experienceOperatorSecret) return problem(404, "not-found");
+    const authorization = req.headers.get("authorization") ?? "";
+    const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const suppliedBuffer = Buffer.from(supplied);
+    const expectedBuffer = Buffer.from(config.experienceOperatorSecret);
+    const authorized = suppliedBuffer.length === expectedBuffer.length
+      && timingSafeEqual(suppliedBuffer, expectedBuffer);
+    if (!authorized) return problem(401, "unauthorized");
+
+    const rawBody = await req.text();
+    if (rawBody.length > 65536) return problem(413, "payload-too-large");
+    let parsed: { kind?: unknown; locale?: unknown; data?: unknown };
+    try {
+      parsed = JSON.parse(rawBody) as typeof parsed;
+    } catch {
+      return problem(400, "invalid-json");
+    }
+    if (parsed.kind !== "banner") return problem(400, "unsupported-content-kind");
+    const locale = parsed.locale === "hi-IN" ? "hi-IN" : "en-IN";
+    const now = new Date();
+    const preview = buildBannerPreview(parsed.data, now);
+    return json({
+      kind: "banner",
+      locale,
+      presentation: preview.presentation ?? null,
+      eligibility: preview.eligibility,
+      complete: Boolean(preview.presentation),
+      illustrative: true,
+      generated_at: now.toISOString(),
+      correlation_id: cid,
+      test_data: true,
+    });
+  }
+
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
   // Local legacy integration runs without that configuration retain their existing operator access.
   const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
@@ -753,6 +798,23 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       ? `${layoutResolution.source}+governed-editorial-seed`
       : "governed-editorial-seed";
 
+    // Resolve section product references at read time. A collection that fails or is empty must not
+    // fail the whole shell: the section renders with an explanation instead.
+    let sections: unknown[] = layout?.sections ?? [];
+    let emptyCollections: string[] = [];
+    if (layout?.sections?.length) {
+      try {
+        const resolved = await resolveSectionProducts(layout.sections, medusa);
+        sections = resolved.sections;
+        emptyCollections = resolved.empty_collections;
+      } catch (error) {
+        console.warn(
+          "[experience-api] section product resolution failed:",
+          (error as Error).message,
+        );
+      }
+    }
+
     return json({
       locale,
       ...(channel ? { channel } : {}),
@@ -762,6 +824,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         ? {
             layout: {
               ...layout,
+              // Always present so a consumer can rely on it being an array, empty when an operator has
+              // not configured sections for this channel yet.
+              sections,
+              ...(emptyCollections.length ? { empty_collections: emptyCollections } : {}),
               generated_at: generatedAt,
               source: layoutResolution.source,
             },
@@ -774,6 +840,76 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         observed_at: layoutResolution?.observedAt ?? generatedAt,
         stale: layoutResolution?.stale ?? false,
       },
+    });
+  }
+
+  if (url.pathname === "/v1/content/presentation" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const channelParam = url.searchParams.get("channel");
+    const channel: StorefrontChannel = channelParam === "b2b" ? "b2b" : "b2c";
+
+    const bannerResolution = await cmsContent.resolveBanners(channel, locale);
+    const banners = bannerResolution.items.length
+      ? bannerResolution.items
+      : resolveSeedBanners(channel, locale);
+    const bannerSource = bannerResolution.items.length
+      ? bannerResolution.source
+      : "governed-editorial-seed";
+
+    let categories: ComposedCategory[] = [];
+    let categorySource = "unavailable";
+    let categoryObservedAt = bannerResolution.observedAt;
+    let categoryStale = bannerResolution.stale;
+    try {
+      const [editorialResolution, medusaCategories] = await Promise.all([
+        cmsContent.resolveCategoryEditorials(channel, locale),
+        medusa.listProductCategories(),
+      ]);
+      const roots = medusaCategories
+        .filter(
+          (category) =>
+            !category.parent_category_id &&
+            category.is_active !== false &&
+            category.is_internal !== true,
+        )
+        .sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0))
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          handle: category.handle ?? null,
+        }));
+      categories = composeStorefrontCategories(roots, editorialResolution.items);
+      categorySource = editorialResolution.source;
+      categoryObservedAt = editorialResolution.observedAt;
+      categoryStale = editorialResolution.stale;
+    } catch (error) {
+      console.warn("[experience-api] category presentation failed:", (error as Error).message);
+      categorySource = "unavailable";
+      categoryStale = true;
+    }
+
+    const generatedAt = new Date().toISOString();
+    return json({
+      locale,
+      channel,
+      banners,
+      categories,
+      generated_at: generatedAt,
+      source: `${bannerSource}+category:${categorySource}`,
+      freshness: {
+        banners: {
+          source: bannerSource,
+          observed_at: bannerResolution.observedAt,
+          stale: bannerResolution.stale,
+        },
+        categories: {
+          source: categorySource,
+          observed_at: categoryObservedAt,
+          stale: categoryStale,
+        },
+      },
+      test_data: true,
+      correlation_id: correlationId(req),
     });
   }
 
@@ -794,6 +930,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const result = await collections.resolve(key);
       return json({
         collection_key: result.collection.collection_key,
+        // A commerce collection carries its display title; a registry key has none, and the app
+        // humanises the key instead of inventing a name here.
+        title: (result.collection.parameters.title as string | undefined) ?? null,
+        // Present only for a commerce collection: the storefront uses it to fetch composed products
+        // (best-price offer) for the same membership, rather than re-deriving it from raw items.
+        collection_id: (result.collection.parameters.collection_id as string | undefined) ?? null,
         source: result.collection.source,
         status: result.collection.status,
         fallback: result.fallback,
@@ -803,6 +945,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         correlation_id: cid,
       });
     } catch (error) {
+      if (error instanceof CollectionNotFoundError) {
+        return problem(
+          404,
+          error.reason === "empty" ? "collection-empty" : "collection-not-found",
+          error.reason === "empty"
+            ? "This collection has no products available right now."
+            : "No collection exists at this address.",
+        );
+      }
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
@@ -1190,12 +1341,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (url.pathname === "/v1/products" && req.method === "GET") {
     const limit = Number(url.searchParams.get("limit") ?? 50);
     const offset = Number(url.searchParams.get("offset") ?? 0);
+    // A storefront layout section resolves its products from a commerce collection. The section stores
+    // the reference; this resolves it here so the storefront keeps one composed-product path, with the
+    // same price and offer composition it already uses.
+    const collectionId = (url.searchParams.get("collection_id") ?? "").trim();
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
     const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
     try {
       const t0 = performance.now();
-      const products = await medusa.listProducts(limit, offset);
+      const products = collectionId
+        ? await medusa.listProductsByCollection(collectionId, limit)
+        : await medusa.listProducts(limit, offset);
       const productsMs = performance.now() - t0;
 
       const productIds = products.map((p) => p.id);

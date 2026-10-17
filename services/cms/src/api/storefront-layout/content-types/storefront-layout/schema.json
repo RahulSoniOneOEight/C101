@@ -31,8 +31,11 @@
         "layout.offer-collection",
         "layout.rich-editorial",
         "layout.trust-row"
-      ],
-      "required": true
+      ]
+    },
+    "sections": {
+      "type": "json",
+      "description": "Ordered merchandising sections (placement, title, badge, collection reference, limit, see-all target, banner reference, visibility, schedule). Validated against the layout section registry on delivery. Modules remain the raw recovery format."
     },
     "startsAt": { "type": "datetime" },
     "endsAt": { "type": "datetime" },

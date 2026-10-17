@@ -495,7 +495,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       padding: const EdgeInsets.fromLTRB(
           AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
       child: MerchandisingBanner(
-        imageUrl: categoryBannerImage(_category),
+        imageUrl: ref.watch(categoryBannerImageProvider(_category)),
         title: _category ?? 'Browse the catalogue',
         subtitle: 'Top picks in this aisle',
         ctaLabel: 'Best sellers',
