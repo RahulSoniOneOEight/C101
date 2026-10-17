@@ -117,13 +117,21 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                           HomeBannerCarousel.peekWidth -
                           6,
                       top: 0,
-                      child: _PeekCard(palette: palette, leftToRight: false),
+                      child: _PeekCard(
+                        key: const ValueKey<String>('home-banner-peek-left'),
+                        palette: palette,
+                        leftToRight: false,
+                      ),
                     ),
                   if (_page < widget.banners.length - 1)
                     Positioned(
                       left: cardRight + 6,
                       top: 0,
-                      child: _PeekCard(palette: palette, leftToRight: true),
+                      child: _PeekCard(
+                        key: const ValueKey<String>('home-banner-peek-right'),
+                        palette: palette,
+                        leftToRight: true,
+                      ),
                     ),
                   SizedBox(
                     width: cardWidth,
@@ -170,7 +178,11 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 /// A decorative gradient stub beside the active card. It signals that more banners exist without
 /// rendering a second card's copy at an unreadable size.
 class _PeekCard extends StatelessWidget {
-  const _PeekCard({required this.palette, required this.leftToRight});
+  const _PeekCard({
+    required this.palette,
+    required this.leftToRight,
+    super.key,
+  });
 
   final AgencyHomePalette palette;
   final bool leftToRight;

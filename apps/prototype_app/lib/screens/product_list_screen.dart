@@ -252,6 +252,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               maxHeight: HomeHeader.height,
               child: HomeHeader(
                 topInset: _barHeight,
+                bottomInset: _productsOverlap,
                 banners: ref.watch(heroBannersProvider),
                 onLocation: () => context.push('/addresses'),
                 onBannerAction: (uri) => context.push(uri),

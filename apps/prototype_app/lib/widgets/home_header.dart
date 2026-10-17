@@ -17,6 +17,7 @@ class HomeHeader extends StatelessWidget {
     this.onLocation,
     this.onBannerAction,
     this.topInset = 0,
+    this.bottomInset = 0,
     super.key,
   });
 
@@ -25,6 +26,10 @@ class HomeHeader extends StatelessWidget {
 
   /// Space reserved for the pinned bar so header content never sits underneath it.
   final double topInset;
+
+  /// Space reserved for the products sheet that rides up over the gradient, so the carousel dots
+  /// are not hidden under it.
+  final double bottomInset;
 
   final String locationLabel;
 
@@ -85,7 +90,7 @@ class HomeHeader extends StatelessWidget {
               top: topInset + AgencySpacing.sm,
               left: AgencySpacing.md,
               right: AgencySpacing.md,
-              bottom: AgencySpacing.sm,
+              bottom: bottomInset + AgencySpacing.sm,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

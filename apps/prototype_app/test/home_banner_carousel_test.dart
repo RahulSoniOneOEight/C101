@@ -63,4 +63,23 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a peek stub marks that more banners exist on that side',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(banners: homeFallbackBanners),
+    ));
+
+    expect(find.byKey(const ValueKey<String>('home-banner-peek-right')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('home-banner-peek-left')),
+        findsNothing,
+        reason: 'there is nothing to the left of the first banner');
+
+    await tester.drag(find.byType(PageView), const Offset(-320, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey<String>('home-banner-peek-left')),
+        findsOneWidget);
+  });
 }
