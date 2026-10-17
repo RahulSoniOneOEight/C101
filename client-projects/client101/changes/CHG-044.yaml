@@ -245,6 +245,7 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/phase-3c-b2b-consumption.md
 - client-projects/client101/evidence/CHG-044/phase-6-navigation-and-closeout.md
 - client-projects/client101/evidence/CHG-044/seed-claims.md
+- client-projects/client101/evidence/CHG-044/banner-and-collection-defects.md
 - client-projects/client101/evidence/CHG-044/pending-items.md
-status: seed-claims-fixed-and-released-awaiting-review
+status: reported-defects-fixed-awaiting-visual-review
 production_release_authorized: false

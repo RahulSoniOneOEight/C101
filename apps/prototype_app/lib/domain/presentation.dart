@@ -39,7 +39,10 @@ class StorefrontBanner {
   factory StorefrontBanner.fromJson(Map<String, dynamic> json) {
     return StorefrontBanner(
       contentKey: json['content_key'] as String? ?? '',
-      placement: json['placement'] as String? ?? '',
+      // The console's banner *type* carries the channel (`b2c.home.hero`). Storefront call sites ask
+      // for the surface (`home.hero`), so the channel prefix is dropped here, once. Without this the
+      // match never succeeded and every CMS-authored banner was ignored in favour of the local seed.
+      placement: surfacePlacement(json['placement'] as String? ?? ''),
       title: json['title'] as String? ?? '',
       themeKey: json['theme_key'] as String? ?? 'primary',
       body: json['body'] as String?,
@@ -173,6 +176,19 @@ List<StorefrontSection> parseLayoutSections(dynamic layout) {
       .map(StorefrontSection.fromJson)
       .where((section) => section.placement.isNotEmpty)
       .toList();
+}
+
+/// A banner's surface, without the channel that its type carries.
+///
+/// Delivery publishes the banner *type* (`b2c.home.hero`, `b2b.category.banner`) because the type is
+/// the channel's own fact. The storefront asks for a surface (`home.hero`), so the channel segment is
+/// dropped on the way in. Legacy values without a channel prefix pass through unchanged.
+String surfacePlacement(String placement) {
+  final trimmed = placement.trim();
+  for (final prefix in const <String>['b2c.', 'b2b.']) {
+    if (trimmed.startsWith(prefix)) return trimmed.substring(prefix.length);
+  }
+  return trimmed;
 }
 
 /// The full presentation payload.
