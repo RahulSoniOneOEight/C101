@@ -52,6 +52,19 @@ was worse than missing:
 | Deployed app bundle | `/collections/:key`, "Collection not found", "Nothing here yet", "No products yet" all present |
 | `https://buildkart-staging.web.app/collections/flash-deals` | `200` (SPA rewrite; the app decides the state) |
 
+## Phase 3 — the link is now visible (released)
+
+A read-only widget on the native collection detail page (`collections.detail.main.after`) shows the
+customer URL with a **Copy link** button. It does not add an editing surface to the native collections
+page — it only surfaces the address.
+
+The storefront host is deployment configuration (`VITE_STOREFRONT_BASE_URL`), defaulting to
+`https://buildkart-staging.web.app` so the link is usable on staging without extra wiring. A collection
+whose stored record has no handle renders nothing rather than a guessed URL.
+
+Verified in the **deployed** console bundle (`index-CNwP3AWk.js`): the zone id, "Customer link",
+"Copy link" and the explanatory line are all present, and `/dashboard/` returns `200`.
+
 ## Limitations
 
 - **No browser has opened a collection page.** The evidence is the API payload, the tests and the presence

@@ -1,6 +1,6 @@
 change_id: CHG-046
 revision: 1
-status: delivery-and-app-released-awaiting-review
+status: all-phases-released-awaiting-review
 production_release_authorized: false
 request: >-
   Every collection an operator creates must have a customer-facing URL that opens that collection's
@@ -85,6 +85,11 @@ implementation:
   - Registry keys keep precedence and deferred keys keep their existing fallback.
   - Unknown handle and empty collection return distinct 404s instead of a substitute product list.
   - The app has a /collections/:key route with not-found, empty and populated states.
+  phase_3:
+    released_commit: a4939b9
+    widget_zone: collections.detail.main.after
+    behaviour: Shows the customer URL with a Copy link action on the native collection detail page. Read-only; adds no editing surface.
+    storefront_host: VITE_STOREFRONT_BASE_URL, defaulting to the staging host.
   remaining:
-  - The console does not yet show or copy a collection's customer URL (phase 3).
-  - No browser has rendered the page; evidence is API payloads, tests and the deployed bundle.
+  - No browser has rendered the page or the widget; evidence is API payloads, tests and the deployed bundles.
+  - A collection with no handle shows no link rather than a guessed one.
