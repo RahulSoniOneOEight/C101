@@ -21,6 +21,19 @@ moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
 `docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
 the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
 
+### Recreating services and the edge
+
+Recreating `medusa-api` or `experience-api` gives the containers new IPs, and the `proxy` nginx keeps the
+addresses it resolved at start-up. The result is **502 from the edge while every container reports
+healthy**. Restart the proxy after such a release:
+
+```sh
+docker restart buildkart-hosted-pilot-proxy-1
+```
+
+Health checks alone will not catch this: check `/health` through the public hostname, not inside the
+network.
+
 ## Operator / admin console
 
 The operator hostname also serves the Mercur **admin** and **vendor** dashboards and the Medusa

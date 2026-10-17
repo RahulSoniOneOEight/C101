@@ -48,23 +48,55 @@ The copy was duplicated in **four** places, which is why fixing one string was n
 - Experience API typecheck clean; `test:presentation` passes.
 - App rebuilt and redeployed to `https://buildkart-staging.web.app` (`200`).
 
-## Not done, and why
+## Staging correction (completed after the host came back)
 
-1. **The staging CMS still holds the claims.** The seed only runs on bootstrap, and these banner records
-   already exist in Strapi, so the live presentation keeps serving the old subtitles until each record is
-   edited. That edit needs the operator content API on the VPS.
-2. **The experience-api fallback change is unreleased.** It takes effect on the next release.
-3. **Titles were left alone.** "Bulk Savings" and "Free Delivery" still imply a benefit even with no
-   body. I removed the quantified claims and stopped there rather than rewriting names that appear in
-   tests, docs and stored records; renaming them is a content decision worth taking deliberately.
+The host was down for roughly an hour — **it rebooted** (`uptime` 1:10 on return), so SSH, HTTPS and ICMP
+all vanished at once. Containers recovered on their own restart policies. Nothing in this change caused
+it.
 
-## Staging outage
+Once reachable, the stored records were corrected through the operator content route, which is the same
+path the console uses:
 
-While preparing the CMS correction, `89.116.20.164` stopped answering: **SSH (22) and HTTPS (443) both
-time out, and ICMP fails**, while Firebase Hosting continues to return `200`. Staging was healthy minutes
-earlier — the console release and health checks passed. The cause is not visible from here (host, network
-path or provider). Nothing in this change explains it: the last action before the loss of connectivity was
-a successful deploy and a successful health check.
+| Record | Change |
+|---|---|
+| `hero-monsoon-ready` | subtitle cleared |
+| `hero-bulk-savings` | subtitle cleared |
+| `hero-free-delivery` | subtitle cleared |
+| `secondary-clearance-sale` | subtitle cleared; alt text changed to "Tools and hardware on display" |
 
-Until the host is back, the CMS correction and the experience-api release cannot be performed, and the
-staging storefront keeps showing the old claim copy.
+The clearance banner's stored **title** was "Buy More Sale", an operator edit, and was left alone — the
+seed rule is that an operator edit is never overwritten. All four were then published (`200`).
+
+Delivered result:
+
+```
+GET /v1/content/presentation?locale=en-IN&channel=b2c
+hero-monsoon-ready       body: null
+hero-bulk-savings        body: null
+hero-free-delivery       body: null
+secondary-clearance-sale body: null      (title "Buy More Sale" preserved)
+banner-welcome-en-in     body: "Tools, hardware and building supplies from verified sellers."
+```
+
+A grep of the delivered payload for `40% off`, `70% off`, `10,000+ SKUs` and `On orders above` returns
+**nothing**. The one surviving subtitle is a neutral description, not a claim.
+
+The experience-api was then released from `/opt/buildkart-releases/3446922` so the delivery-side fallback
+carries the corrected seed too, and `current` points there.
+
+## Operational note (worth adding to the runbook)
+
+Recreating the upstream containers left the edge returning **502** even though every service reported
+healthy: the `proxy` nginx had resolved the old container IPs at start-up. `docker restart
+buildkart-hosted-pilot-proxy-1` restored service immediately. Any release that recreates `medusa-api` or
+`experience-api` must restart the proxy afterwards, or the site will 502 while monitoring says healthy.
+
+## Not done
+
+1. **Titles were left alone.** "Bulk Savings", "Free Delivery" and the operator's "Buy More Sale" still
+   imply a benefit even with no body. I removed the quantified claims and stopped there rather than
+   rewriting names that appear in tests, docs and stored records; renaming them is a content decision
+   worth taking deliberately.
+2. **No browser has looked at the result.** The evidence is the delivered payload and a regenerated
+   golden, not a screenshot of the home screen.
+

@@ -204,14 +204,19 @@ implementation:
       reason: Nobody has opened the storefront and looked at it.
   hosted_deployment:
     environment: staging
-    deployed_at_utc: '2026-10-17T02:20:00Z'
-    release_commit: 2e14acd
-    release_worktree: /opt/buildkart-releases/2e14acd
+    deployed_at_utc: '2026-10-17T07:35:00Z'
+    release_commit: 3446922
+    release_worktree: /opt/buildkart-releases/3446922
     previous_release: /opt/buildkart-releases/139f9b8
     services_released:
-      experience-api: /opt/buildkart-releases/0ce1a4f
+      experience-api: /opt/buildkart-releases/3446922
       medusa-api: /opt/buildkart-releases/2e14acd
-    note: experience-api code is identical between the two releases; current points at 2e14acd.
+      cms: /opt/buildkart-releases/3446922
+    note: current points at 3446922. Recreating upstream containers leaves the proxy on stale IPs and the edge returns 502; restart buildkart-hosted-pilot-proxy-1 afterwards.
+  staging_outage:
+    symptom: SSH, HTTPS and ICMP all timed out while Firebase Hosting stayed up.
+    cause: The host rebooted (uptime 1 10 on return); containers recovered on their restart policies.
+    impact: The CMS correction and the experience-api release were blocked for about an hour; nothing was lost.
   staging_content:
     b2b_layout:
       layout_key: b2b-home
@@ -241,5 +246,5 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/phase-6-navigation-and-closeout.md
 - client-projects/client101/evidence/CHG-044/seed-claims.md
 - client-projects/client101/evidence/CHG-044/pending-items.md
-status: seed-claims-fixed-in-code-staging-correction-blocked-by-outage
+status: seed-claims-fixed-and-released-awaiting-review
 production_release_authorized: false
