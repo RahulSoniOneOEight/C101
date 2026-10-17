@@ -84,9 +84,17 @@ Post-deployment verification:
 - the inspected 390×2400 hosted capture showed six Recommended products in three rows, followed
   immediately by Browse Categories, with no campaign banner and no empty row.
 
+The human browser still reported the old composition after that release. This means its already-active
+worker was serving the cached document before the new document-level cleanup could execute. A recovery
+document now exists at `/refresh.html`; that path was absent from every old Flutter precache. It
+unregisters old workers, deletes only `flutter-*` caches, and navigates through a never-before-cached
+same-origin release path that the current index normalises to `/`. A clean Chrome run verified
+`/refresh.html` ends at `https://buildkart-staging.web.app/#/onboarding`; the alternate
+`firebaseapp.com` origin remains the no-JavaScript/error fallback.
+
 ## Human check still required
 
-Close any already-open storefront tab, reopen the staging URL, and confirm the blank fourth grid row
-and campaign strip are gone.
+Open `https://buildkart-staging.web.app/refresh.html` once, then confirm the blank fourth grid row and
+campaign strip are gone. Human confirmation remains outstanding.
 After console deployment access is restored, confirm a banner row is identifiable by the same heading
 customers see.

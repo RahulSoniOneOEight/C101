@@ -61,6 +61,10 @@
     // are cleared. A controlled page reload is needed because an unregistered worker continues to
     // control the page that removed it until the next navigation.
     (async function loadCurrentStagingRelease() {
+      if (window.location.pathname.indexOf('/current-release-') === 0) {
+        window.history.replaceState({}, '', '/');
+      }
+
       var hadController = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
 
       if ('serviceWorker' in navigator) {
