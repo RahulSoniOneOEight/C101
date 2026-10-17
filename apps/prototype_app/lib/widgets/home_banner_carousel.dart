@@ -272,6 +272,7 @@ class _HomeBannerCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 mainAxisSize: MainAxisSize.max,
                 children: <Widget>[
                   if (eyebrow != null)
@@ -312,7 +313,7 @@ class _HomeBannerCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const Spacer(),
+                  const SizedBox(height: 12),
                   if (ctaLabel != null)
                     _BannerCta(
                       label: ctaLabel,
