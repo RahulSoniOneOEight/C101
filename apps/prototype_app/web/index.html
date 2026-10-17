@@ -55,6 +55,39 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Remove any Flutter service worker and app-shell cache left by an older staging release before
+    // loading the current bundle. Local storage is deliberately preserved: only offline build assets
+    // are cleared. A controlled page reload is needed because an unregistered worker continues to
+    // control the page that removed it until the next navigation.
+    (async function loadCurrentStagingRelease() {
+      var hadController = 'serviceWorker' in navigator && navigator.serviceWorker.controller;
+
+      if ('serviceWorker' in navigator) {
+        var registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(function (registration) {
+          return registration.unregister();
+        }));
+      }
+
+      if ('caches' in window) {
+        var cacheNames = await caches.keys();
+        await Promise.all(cacheNames
+          .filter(function (name) { return name.indexOf('flutter-') === 0; })
+          .map(function (name) { return caches.delete(name); }));
+      }
+
+      if (hadController && !sessionStorage.getItem('buildkart-staging-sw-cleared')) {
+        sessionStorage.setItem('buildkart-staging-sw-cleared', '1');
+        window.location.reload();
+        return;
+      }
+
+      var bootstrap = document.createElement('script');
+      bootstrap.src = 'flutter_bootstrap.js';
+      bootstrap.async = true;
+      document.body.appendChild(bootstrap);
+    })();
+  </script>
 </body>
 </html>

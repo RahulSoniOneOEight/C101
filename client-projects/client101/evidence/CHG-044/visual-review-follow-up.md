@@ -36,7 +36,8 @@ applies to missing creative on section-associated banners.
 
 - `packages/agency_flutter_ui`: merchandising widget tests — **10 passed**.
 - `apps/prototype_app`: `flutter analyze` — clean.
-- `apps/prototype_app`: full suite — **154 passed**.
+- `apps/prototype_app`: full suite — **155 passed**, including a release-policy regression test that
+  pins the no-service-worker bootstrap, legacy-cache cleanup and Firebase no-store rules.
 - Admin: `bun run build` — TypeScript and Vite build passed.
 - Admin: ESLint passed for the two changed Banner studio files. The full admin lint remains red on the
   pre-existing `react-refresh/only-export-components` error in
@@ -59,8 +60,33 @@ applies to missing creative on section-associated banners.
   claimed.
 - Production remains unauthorized.
 
+## Follow-up: browser still showed the retired composition
+
+A second human screenshot after the first deployment still showed both old signatures together:
+
+- the empty 312px composition row; and
+- the local “Clearance Sale” campaign immediately before Browse Categories.
+
+That combination cannot be produced by the current source or current presentation response. Firebase
+was serving `/`, `main.dart.js`, `flutter_bootstrap.js` and `flutter_service_worker.js` with
+`Cache-Control: max-age=3600`, allowing an older Flutter shell to remain active after release.
+
+The staging hosting policy now sends `no-store, no-cache, max-age=0, must-revalidate` for the document,
+JavaScript and JSON shell. A custom Flutter bootstrap registers no service worker, and the document
+unregisters legacy Flutter workers and deletes only `flutter-*` Cache API entries before loading the
+current bundle. Browser local storage is preserved.
+
+Post-deployment verification:
+
+- all five shell URLs (`/`, `main.dart.js`, `flutter_bootstrap.js`, `flutter_service_worker.js`, and
+  `version.json`) returned the new no-store policy;
+- a fresh Chrome profile reported **0 service-worker registrations** and **0 Flutter caches**;
+- the inspected 390×2400 hosted capture showed six Recommended products in three rows, followed
+  immediately by Browse Categories, with no campaign banner and no empty row.
+
 ## Human check still required
 
-Hard-refresh the storefront and confirm the blank fourth grid row and “Buy More Sale” strip are gone.
+Close any already-open storefront tab, reopen the staging URL, and confirm the blank fourth grid row
+and campaign strip are gone.
 After console deployment access is restored, confirm a banner row is identifiable by the same heading
 customers see.

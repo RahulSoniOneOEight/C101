@@ -248,5 +248,5 @@ implementation_evidence:
 - client-projects/client101/evidence/CHG-044/banner-and-collection-defects.md
 - client-projects/client101/evidence/CHG-044/visual-review-follow-up.md
 - client-projects/client101/evidence/CHG-044/pending-items.md
-status: visual-follow-up-storefront-released-console-deploy-pending
+status: visual-follow-up-cache-fix-released-console-deploy-pending
 production_release_authorized: false
