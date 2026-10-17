@@ -16,6 +16,8 @@ class HomeBannerContent {
     this.ctaLabel,
     this.actionUri,
     this.contentKey,
+    this.imageUrl,
+    this.imageAlt,
   });
 
   final String headline;
@@ -24,6 +26,13 @@ class HomeBannerContent {
   final String? ctaLabel;
   final String? actionUri;
   final String? contentKey;
+
+  /// Operator-authored creative from the CMS. When present it is the card background; the navy
+  /// gradient is the fallback when no art is published or the image fails to load.
+  final String? imageUrl;
+
+  /// CMS alternative text for [imageUrl].
+  final String? imageAlt;
 }
 
 /// Governed fallback copy, shown only when published CMS banners are unavailable.
@@ -250,6 +259,8 @@ class _HomeBannerCard extends StatelessWidget {
     final eyebrow = content.eyebrow;
     final subline = content.subline;
     final ctaLabel = content.ctaLabel;
+    final imageUrl = content.imageUrl;
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -261,6 +272,8 @@ class _HomeBannerCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
+            // Operator art wins; the navy composition is the fallback when nothing is published or
+            // the image cannot be fetched.
             RepaintBoundary(
               child: ExcludeSemantics(
                 child: CustomPaint(
@@ -268,6 +281,30 @@ class _HomeBannerCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (hasImage)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                semanticLabel: content.imageAlt,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            if (hasImage)
+              // Scrim keeps white copy at 4.5:1 over an arbitrary photograph. Derived from the navy
+              // token, so the palette stays the only place a colour is defined.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: <Color>[
+                      palette.navy.withValues(alpha: 0.90),
+                      palette.navy.withValues(alpha: 0.70),
+                      palette.navy.withValues(alpha: 0.40),
+                    ],
+                    stops: const <double>[0, 0.55, 1],
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
               child: Column(

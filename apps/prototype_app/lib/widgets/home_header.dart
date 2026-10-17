@@ -53,6 +53,8 @@ class HomeHeader extends StatelessWidget {
           subline: banner.body,
           ctaLabel: banner.actionLabel,
           actionUri: banner.actionUri,
+          imageUrl: banner.imageUrl,
+          imageAlt: banner.imageAlt,
           // No eyebrow: the CMS banner has no eyebrow field, and inventing a label here would be
           // customer copy the operator never authored.
         ),

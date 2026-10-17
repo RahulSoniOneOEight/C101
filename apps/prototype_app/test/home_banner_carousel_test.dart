@@ -41,6 +41,39 @@ void main() {
     expect(tapped?.contentKey, 'bulk-orders');
   });
 
+  testWidgets('operator art becomes the card background', (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(
+        banners: <HomeBannerContent>[
+          HomeBannerContent(
+            contentKey: 'cms-hero',
+            headline: 'From the console',
+            ctaLabel: 'Shop now',
+            imageUrl: 'https://example.test/banner.png',
+            imageAlt: 'Console creative',
+          ),
+        ],
+      ),
+    ));
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('From the console'), findsOneWidget);
+  });
+
+  testWidgets('no image keeps the navy composition', (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(banners: homeFallbackBanners),
+    ));
+
+    expect(find.byType(Image), findsNothing);
+    expect(
+      find.byWidgetPredicate((widget) =>
+          widget is CustomPaint &&
+          widget.painter is HomeBannerBackdropPainter),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('placeholders stay bracketed, not invented', (tester) async {
     final copy = homeFallbackBanners
         .map((banner) => '${banner.subline ?? ''} ${banner.headline}')
