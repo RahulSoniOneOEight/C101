@@ -28,6 +28,7 @@ import {
   LIFECYCLE_META,
   STUDIO_TABS,
   SUPPORTED_PLACEMENTS,
+  bannerCustomerHeading,
   bannerKey,
   bannerLifecycle,
   bannerTitle,
@@ -139,6 +140,7 @@ export function BannerStudioPage() {
     .filter((document) => {
       if (!term) return true;
       return [
+        bannerCustomerHeading(document),
         bannerTitle(document),
         bannerKey(document),
         document.documentId,
@@ -359,7 +361,7 @@ export function BannerStudioPage() {
                 <Table className="min-w-[54rem]">
                   <Table.Header>
                     <Table.Row>
-                      <Table.HeaderCell>Banner</Table.HeaderCell>
+                      <Table.HeaderCell>Storefront heading / banner</Table.HeaderCell>
                       <Table.HeaderCell>Placement / audience</Table.HeaderCell>
                       <Table.HeaderCell>Status</Table.HeaderCell>
                       <Table.HeaderCell>Schedule · IST</Table.HeaderCell>
@@ -372,6 +374,8 @@ export function BannerStudioPage() {
                   <Table.Body>
                     {visible.map((document) => {
                       const lifecycle = bannerLifecycle(document, now);
+                      const customerHeading = bannerCustomerHeading(document);
+                      const internalName = bannerTitle(document);
                       return (
                         <Table.Row key={document.documentId}>
                           <Table.Cell>
@@ -383,8 +387,13 @@ export function BannerStudioPage() {
                                   className="block max-w-64 truncate text-left text-ui-fg-base hover:text-ui-fg-interactive"
                                   onClick={() => openEditor(document.documentId)}
                                 >
-                                  <Text size="small" weight="plus">{bannerTitle(document)}</Text>
+                                  <Text size="small" weight="plus">{customerHeading}</Text>
                                 </button>
+                                {internalName !== customerHeading ? (
+                                  <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                                    Internal name: {internalName}
+                                  </Text>
+                                ) : null}
                                 <Text size="xsmall" className="truncate text-ui-fg-subtle">
                                   {bannerKey(document)}
                                 </Text>

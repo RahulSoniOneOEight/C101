@@ -77,8 +77,8 @@ class MerchandisingModuleView extends StatelessWidget {
 
   Widget _composition() {
     final split = module.splitSlot;
-    final Widget special = split == null
-        ? const SizedBox.shrink()
+    final Widget? special = split == null
+        ? null
         : SplitMerchandisingTile(
             sectionLabel: split.label,
             children: <Widget>[

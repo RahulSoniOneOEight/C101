@@ -131,6 +131,11 @@ void main() {
     final hero = fallbackBanners.where((b) => b.placement == 'home.hero').toList();
     expect(hero, hasLength(3));
     expect(hero.map((b) => b.title), contains('Monsoon Ready'));
+    expect(
+      fallbackBanners.where((b) => b.placement == 'home.campaign-strip'),
+      isEmpty,
+      reason: 'campaign promotions must never appear unless an operator published one',
+    );
     expect(fallbackCategories, hasLength(6));
     expect(
       fallbackCategories.map((c) => c.iconKey),

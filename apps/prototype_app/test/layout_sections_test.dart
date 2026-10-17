@@ -161,4 +161,32 @@ void main() {
     );
     expect(modules[1].seeAllLabel, 'See all deals');
   });
+
+  test('no campaign strip is invented when CMS delivers none', () async {
+    final section = _section(placement: 'flash_deals', label: 'Flash Deals');
+    final container = ProviderContainer(
+      overrides: [
+        productsProvider.overrideWith((ref) async => demoProducts),
+        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[section]),
+        sectionProductsProvider.overrideWith((ref, requested) async => <Product>[demoProducts.first]),
+        presentationProvider.overrideWith((ref) => const StorefrontPresentation(
+              banners: <StorefrontBanner>[],
+              categories: <StorefrontCategory>[],
+            )),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(productsProvider.future);
+    await container.read(layoutSectionsProvider.future);
+    await container.read(sectionProductsProvider(section).future);
+
+    expect(
+      container
+          .read(homeModulesProvider)
+          .where((module) => module.type == MerchandisingModuleType.secondaryBanner),
+      isEmpty,
+      reason: 'a promotional banner must exist in published CMS content before the app can show it',
+    );
+  });
 }

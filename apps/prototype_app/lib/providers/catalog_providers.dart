@@ -424,11 +424,6 @@ final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, lab
   return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageAlt;
 });
 
-/// Governed fallback creative for the campaign strip when the backend
-/// presentation is unavailable.
-const String _clearanceBannerImage =
-    'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940';
-
 /// Storefront layout sections for the B2C storefront, delivered by the backend.
 ///
 /// Empty when no layout is configured or the API is unavailable, in which case the home falls back to
@@ -483,21 +478,28 @@ final homeModulesProvider =
   final products = ref.watch(productsProvider).value ?? const <Product>[];
   if (products.isEmpty) return const <MerchandisingModule>[];
 
-  // The campaign strip is banner presentation, not a section, so it keeps its own source.
+  // The campaign strip is banner presentation, not a section, so it keeps its own source. Unlike the
+  // catalogue fallback, it is intentionally absent when no published CMS banner exists: operators
+  // must never see an unmanageable promotional banner appear from app seed code.
   final campaignStrip =
       ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
-  final stripModule = MerchandisingModule(
-    type: MerchandisingModuleType.secondaryBanner,
-    banner: MerchandisingBannerData(
-      imageUrl: campaignStrip?.imageUrl ?? _clearanceBannerImage,
-      imageAlt: campaignStrip?.imageAlt,
-      title: campaignStrip?.title ?? 'Clearance Sale',
-      // No invented discount line. If the banner has no body, the strip renders without a claim.
-      subtitle: campaignStrip?.body,
-      ctaLabel: campaignStrip?.actionLabel ?? 'Shop Now',
-      actionUri: campaignStrip?.actionUri,
-    ),
-  );
+  final stripImageUrl = campaignStrip?.imageUrl;
+  final stripModule = campaignStrip != null &&
+          stripImageUrl != null &&
+          stripImageUrl.isNotEmpty
+      ? MerchandisingModule(
+          type: MerchandisingModuleType.secondaryBanner,
+          banner: MerchandisingBannerData(
+            imageUrl: stripImageUrl,
+            imageAlt: campaignStrip.imageAlt,
+            title: campaignStrip.title,
+            // No invented copy. If the banner has no body, the strip renders without a claim.
+            subtitle: campaignStrip.body,
+            ctaLabel: campaignStrip.actionLabel,
+            actionUri: campaignStrip.actionUri,
+          ),
+        )
+      : null;
 
   // --- layout-driven ------------------------------------------------------------
   final sections =
@@ -515,11 +517,12 @@ final homeModulesProvider =
     final bannerKey = section.bannerReference;
     if (bannerKey != null && bannerKey.isNotEmpty) {
       final banner = banners.where((b) => b.contentKey == bannerKey).firstOrNull;
-      if (banner != null) {
+      final imageUrl = banner?.imageUrl;
+      if (banner != null && imageUrl != null && imageUrl.isNotEmpty) {
         layoutModules.add(MerchandisingModule(
           type: MerchandisingModuleType.secondaryBanner,
           banner: MerchandisingBannerData(
-            imageUrl: banner.imageUrl ?? _clearanceBannerImage,
+            imageUrl: imageUrl,
             imageAlt: banner.imageAlt,
             title: banner.title,
             subtitle: banner.body,
@@ -558,7 +561,10 @@ final homeModulesProvider =
     }
   }
   if (layoutModules.isNotEmpty) {
-    return <MerchandisingModule>[...layoutModules, stripModule];
+    return <MerchandisingModule>[
+      ...layoutModules,
+      if (stripModule != null) stripModule,
+    ];
   }
 
   // --- governed local defaults ---------------------------------------------------
@@ -597,7 +603,7 @@ final homeModulesProvider =
       tag: 'Most Loved',
       products: bestSellers,
     ),
-    stripModule,
+    if (stripModule != null) stripModule,
     MerchandisingModule(
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',

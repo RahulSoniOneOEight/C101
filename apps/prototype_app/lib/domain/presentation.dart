@@ -280,17 +280,6 @@ const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
     themeKey: 'promotion',
     priority: 10,
   ),
-  StorefrontBanner(
-    contentKey: 'secondary-clearance-sale',
-    placement: 'home.campaign-strip',
-    title: 'Clearance Sale',
-    imageUrl:
-        'https://images.pexels.com/photos/10284048/pexels-photo-10284048.jpeg?auto=compress&cs=tinysrgb&h=650&w=940',
-    actionLabel: 'Shop Now',
-    actionUri: '/browse?tag=Clearance%20Sale',
-    themeKey: 'promotion',
-    priority: 10,
-  ),
 ];
 
 const List<StorefrontCategory> fallbackCategories = <StorefrontCategory>[

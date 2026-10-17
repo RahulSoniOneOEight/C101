@@ -430,6 +430,12 @@ export function bannerTitle(document: ContentDocument): string {
   return displayValue(document, "title");
 }
 
+/** The exact customer-facing heading rendered on the storefront. */
+export function bannerCustomerHeading(document: ContentDocument): string {
+  const heading = typeof document.title === "string" ? document.title.trim() : "";
+  return heading || bannerTitle(document);
+}
+
 export function bannerKey(document: ContentDocument): string {
   return typeof document.contentKey === "string" && document.contentKey.trim()
     ? document.contentKey.trim()

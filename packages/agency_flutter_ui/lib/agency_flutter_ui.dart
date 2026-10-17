@@ -1372,13 +1372,13 @@ class ProductGrid extends StatelessWidget {
 class ProductCompositionSection extends StatelessWidget {
   const ProductCompositionSection({
     required this.regularProducts,
-    required this.specialSlot,
+    this.specialSlot,
     this.mainAxisExtent = 312,
     super.key,
   });
 
   final List<Widget> regularProducts;
-  final Widget specialSlot;
+  final Widget? specialSlot;
   final double mainAxisExtent;
 
   @override
@@ -1394,7 +1394,13 @@ class ProductCompositionSection extends StatelessWidget {
         return ProductGrid(
           crossAxisCount: crossAxisCount,
           mainAxisExtent: mainAxisExtent,
-          children: <Widget>[...regularProducts, specialSlot],
+          // A missing split tile must not become an invisible, full-height grid cell. Layout-driven
+          // compositions commonly have products only; appending SizedBox.shrink() here created an
+          // extra 312px row that looked like a large blank block before the next module.
+          children: <Widget>[
+            ...regularProducts,
+            if (specialSlot != null) specialSlot!,
+          ],
         );
       },
     );

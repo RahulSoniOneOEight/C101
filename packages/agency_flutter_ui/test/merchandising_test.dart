@@ -67,6 +67,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('ProductCompositionSection adds no blank cell without a split slot',
+      (tester) async {
+    await tester.pumpWidget(
+      responsiveHost(
+        320,
+        const ProductCompositionSection(
+          regularProducts: <Widget>[
+            SizedBox(key: Key('p1')),
+            SizedBox(key: Key('p2')),
+          ],
+        ),
+      ),
+    );
+
+    final grid = tester.widget<ProductGrid>(find.byType(ProductGrid));
+    expect(grid.children, hasLength(2));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('ProductCompositionSection uses two phone columns',
       (tester) async {
     await tester.pumpWidget(
