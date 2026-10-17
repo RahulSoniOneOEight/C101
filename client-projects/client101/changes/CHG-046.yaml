@@ -1,6 +1,6 @@
 change_id: CHG-046
 revision: 1
-status: proposed-awaiting-approval
+status: delivery-and-app-released-awaiting-review
 production_release_authorized: false
 request: >-
   Every collection an operator creates must have a customer-facing URL that opens that collection's
@@ -72,3 +72,19 @@ implementation_request:
   requested_at_utc: '2026-10-17'
   scope: customer-facing-collection-url
   human_approval_required_before_code: true
+implementation_evidence:
+- client-projects/client101/evidence/CHG-046/collection-urls.md
+implementation:
+  released:
+    commit: ce3d014
+    release_worktree: /opt/buildkart-releases/ce3d014
+    experience_api: released
+    app: https://buildkart-staging.web.app
+  done:
+  - Commerce collection handles resolve through /v1/collections/{key} with title, collection_id and deliverable products.
+  - Registry keys keep precedence and deferred keys keep their existing fallback.
+  - Unknown handle and empty collection return distinct 404s instead of a substitute product list.
+  - The app has a /collections/:key route with not-found, empty and populated states.
+  remaining:
+  - The console does not yet show or copy a collection's customer URL (phase 3).
+  - No browser has rendered the page; evidence is API payloads, tests and the deployed bundle.
