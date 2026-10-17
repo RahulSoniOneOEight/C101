@@ -313,16 +313,20 @@ class _BannerCta extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(999),
-          child: Container(
+          child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            alignment: Alignment.center,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: palette.navy,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: palette.navy,
+                  ),
+                ),
               ),
             ),
           ),

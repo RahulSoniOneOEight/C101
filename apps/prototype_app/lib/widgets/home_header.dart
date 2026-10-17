@@ -2,213 +2,172 @@ import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/presentation.dart';
+import 'home_banner_carousel.dart';
 
-/// The B2C home header stack: location → search → trust row → hero carousel.
+/// The B2C home header stack: location → trust row → banner carousel, over a navy gradient.
 ///
-/// Hero banners are backend-managed presentation. When [banners] is empty the
-/// governed fallback is used, so the header never renders without content.
-///
-/// The category rail is deliberately *not* part of the header: category
-/// selection now lives below the second promotional banner, directly above the
-/// Recommended-for-You composition, so choosing a category filters that grid.
+/// The gradient fades into the page surface at the bottom, so the products section that follows reads
+/// as the same sheet rather than a separate card. Everything drawn here is presentation: the banner
+/// copy comes from published CMS banners, with the governed [homeFallbackBanners] config as the only
+/// fallback. The title row and search field live in the pinned bar that overlays this header.
 class HomeHeader extends StatelessWidget {
   const HomeHeader({
     this.locationLabel = 'Bhiwadi, Rajasthan 301019',
     this.banners = const <StorefrontBanner>[],
-    this.onSearch,
     this.onLocation,
-    this.onBannerTap,
+    this.onBannerAction,
+    this.topInset = 0,
     super.key,
   });
 
+  /// Fixed header height. The pinned bar height is measured by the screen, not assumed here.
+  static const double height = 400;
+
+  /// Space reserved for the pinned bar so header content never sits underneath it.
+  final double topInset;
+
   final String locationLabel;
 
-  /// Hero banners for this surface, ordered by the backend.
+  /// Published hero banners for this surface, already priority-ordered by the backend.
   final List<StorefrontBanner> banners;
-  final VoidCallback? onSearch;
+
   final VoidCallback? onLocation;
 
-  /// Invoked with the tapped banner so the caller can follow its action target.
-  final void Function(StorefrontBanner banner)? onBannerTap;
+  /// Follows a banner's backend action target.
+  final ValueChanged<String>? onBannerAction;
 
-  // Seeds keep titles and themes but state no quantified claim: no saving, no catalogue size, no
-  // delivery threshold. Anything numeric here would reach shoppers as if it were evidenced.
-  static const List<StorefrontBanner> _fallback = <StorefrontBanner>[
-    StorefrontBanner(
-      contentKey: 'hero-monsoon-ready',
-      placement: 'home.hero',
-      title: 'Monsoon Ready',
-      themeKey: 'primary',
-    ),
-    StorefrontBanner(
-      contentKey: 'hero-bulk-savings',
-      placement: 'home.hero',
-      title: 'Bulk Savings',
-      themeKey: 'trust',
-    ),
-    StorefrontBanner(
-      contentKey: 'hero-free-delivery',
-      placement: 'home.hero',
-      title: 'Free Delivery',
-      themeKey: 'promotion',
-    ),
-  ];
+  List<HomeBannerContent> get _contents {
+    final published = banners.where((banner) => banner.title.trim().isNotEmpty);
+    if (published.isEmpty) return homeFallbackBanners;
 
-  Color _themeColor(AgencyColors colors, String themeKey) {
-    switch (themeKey) {
-      case 'trust':
-        return colors.trust;
-      case 'promotion':
-        return colors.promotion;
-      case 'neutral':
-        return colors.surfaceInteractive;
-      default:
-        return colors.actionPrimary;
-    }
+    return <HomeBannerContent>[
+      for (final banner in published)
+        HomeBannerContent(
+          contentKey: banner.contentKey,
+          headline: banner.title,
+          subline: banner.body,
+          ctaLabel: banner.actionLabel,
+          actionUri: banner.actionUri,
+          // No eyebrow: the CMS banner has no eyebrow field, and inventing a label here would be
+          // customer copy the operator never authored.
+        ),
+    ];
+  }
+
+  void _handleCta(BuildContext context, HomeBannerContent content) {
+    final uri = content.actionUri;
+    if (uri == null || uri.isEmpty) return;
+    onBannerAction?.call(uri);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors =
-        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        // Location
-        InkWell(
-          onTap: onLocation,
-          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.location_on_outlined,
-                  size: 18, color: colors.actionPrimary),
-              const SizedBox(width: AgencySpacing.xs),
-              Expanded(
-                child: Text('Deliver to · $locationLabel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.contentPrimary)),
+    final palette = context.homePalette;
+    final contents = _contents;
+    final chipInk = Colors.white.withValues(alpha: 0.85);
+
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: ExcludeSemantics(
+                child: CustomPaint(
+                  painter: HomeHeaderBackdropPainter(palette: palette),
+                ),
               ),
-              const Icon(Icons.expand_more, size: 18),
-            ],
-          ),
-        ),
-        const SizedBox(height: AgencySpacing.sm),
-        // Search bar
-        InkWell(
-          onTap: onSearch,
-          borderRadius: BorderRadius.circular(AgencyRadius.md),
-          child: Container(
-            height: 44,
-            padding:
-                const EdgeInsets.symmetric(horizontal: AgencySpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.surfacePage,
-              borderRadius: BorderRadius.circular(AgencyRadius.md),
-              border: Border.all(color: colors.borderDefault),
             ),
-            child: Row(
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              top: topInset + AgencySpacing.sm,
+              left: AgencySpacing.md,
+              right: AgencySpacing.md,
+              bottom: AgencySpacing.sm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Icon(Icons.search, size: 18, color: colors.contentSecondary),
-                const SizedBox(width: AgencySpacing.sm),
-                Expanded(
-                  child: Text('Search products, brands, sellers',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13, color: colors.contentSecondary)),
+                _LocationRow(
+                  label: locationLabel,
+                  onTap: onLocation,
+                  ink: Colors.white,
+                  minHeight: 48,
+                ),
+                const Spacer(),
+                TrustBuilderRow(
+                  padding: EdgeInsets.zero,
+                  foregroundColor: chipInk,
+                  items: const <TrustBuilderItem>[
+                    TrustBuilderItem(
+                      label: 'GST invoices',
+                      icon: Icons.receipt_long_outlined,
+                    ),
+                    TrustBuilderItem(
+                      label: 'Verified sellers',
+                      icon: Icons.verified_outlined,
+                    ),
+                    TrustBuilderItem(
+                      label: 'Easy returns',
+                      icon: Icons.assignment_return_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AgencySpacing.sm),
+                HomeBannerCarousel(
+                  banners: contents,
+                  onBannerCta: (content) => _handleCta(context, content),
                 ),
               ],
             ),
           ),
-        ),
-        // Trust row
-        const TrustBuilderRow(
-          items: <TrustBuilderItem>[
-            TrustBuilderItem(label: 'GST invoices', icon: Icons.receipt_long_outlined),
-            TrustBuilderItem(
-                label: 'Verified sellers', icon: Icons.verified_outlined),
-            TrustBuilderItem(
-                label: 'Easy returns', icon: Icons.assignment_return_outlined),
-          ],
-        ),
-        // Hero carousel — backend-managed banners, governed fallback when absent.
-        PinCarousel(
-          height: 128,
-          children: <Widget>[
-            for (final banner in (banners.isEmpty ? _fallback : banners))
-              _HeroBanner(
-                title: banner.title,
-                subtitle: banner.body ?? '',
-                color: _themeColor(colors, banner.themeKey),
-                onTap: onBannerTap == null
-                    ? null
-                    : () => onBannerTap!(banner),
-              ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({
-    required this.title,
-    required this.subtitle,
-    required this.color,
+/// "Deliver to" row. A full 48dp tap target, white on the navy gradient.
+class _LocationRow extends StatelessWidget {
+  const _LocationRow({
+    required this.label,
+    required this.ink,
     this.onTap,
+    this.minHeight = 48,
   });
-  final String title;
-  final String subtitle;
-  final Color color;
+
+  final String label;
+  final Color ink;
   final VoidCallback? onTap;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) {
-    final colors =
-        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Material(
-      color: color,
-      clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(AgencyRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AgencySpacing.md),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentInverse)),
-                    const SizedBox(height: AgencySpacing.xs),
-                    Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: colors.contentInverse
-                                .withValues(alpha: 0.9))),
-                  ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AgencyRadius.sm),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.location_on_outlined, size: 18, color: ink),
+            const SizedBox(width: AgencySpacing.xs),
+            Expanded(
+              child: Text(
+                'Deliver to · $label',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ink,
                 ),
               ),
-              Icon(Icons.arrow_forward_ios,
-                  size: 14, color: colors.contentInverse),
-            ],
-          ),
+            ),
+            Icon(Icons.expand_more, size: 18, color: ink),
+          ],
         ),
       ),
     );
@@ -236,7 +195,7 @@ class HomeCategoryFilterBar extends StatelessWidget {
   final String? selected;
 
   /// Called with the new label, or null when "All" is chosen.
-  final ValueChanged<String?> onSelected;
+  final ValueChanged<String?>? onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -251,14 +210,14 @@ class HomeCategoryFilterBar extends StatelessWidget {
             return TradeFilterChip(
               label: 'All',
               selected: selected == null,
-              onTap: () => onSelected(null),
+              onTap: () => onSelected?.call(null),
             );
           }
           final label = categories[index - 1];
           return TradeFilterChip(
             label: label,
             selected: selected == label,
-            onTap: () => onSelected(label),
+            onTap: () => onSelected?.call(label),
           );
         },
       ),

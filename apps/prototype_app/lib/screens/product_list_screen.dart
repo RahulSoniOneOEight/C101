@@ -1,5 +1,6 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,8 +10,8 @@ import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../widgets/home_header.dart';
+import '../widgets/home_pinned_bar.dart';
 import '../widgets/merchandising_sections.dart';
-import '../widgets/notification_bell.dart';
 import '../widgets/status_views.dart';
 
 /// Home entry point: a merchandised scroll feed of modules.
@@ -29,9 +30,85 @@ class ProductListScreen extends ConsumerStatefulWidget {
 class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   static const int _pageSize = 6;
 
+  /// How far the products sheet rides up over the header gradient.
+  static const double _productsOverlap = 24;
+  static const double _productsRadius = 24;
+
   /// Selected category label; null means "All".
   String? _category;
   int _visible = _pageSize;
+
+  final ScrollController _scroll = ScrollController();
+  final ValueNotifier<double> _barProgress = ValueNotifier<double>(0);
+  final GlobalKey _productsKey = GlobalKey(debugLabel: 'home-products');
+  final GlobalKey _barKey = GlobalKey(debugLabel: 'home-pinned-bar');
+
+  /// Measured once per layout; the progress denominator is derived from these rather than guessed.
+  double _barHeight = 0;
+  double _productsTop = 0;
+  bool _measureScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_syncBarProgress);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  @override
+  void dispose() {
+    _scroll
+      ..removeListener(_syncBarProgress)
+      ..dispose();
+    _barProgress.dispose();
+    super.dispose();
+  }
+
+  /// Reads the pinned bar height and the products section's offset in scroll-content coordinates.
+  void _measure() {
+    if (!mounted) return;
+    final barBox = _barKey.currentContext?.findRenderObject() as RenderBox?;
+    final productsBox =
+        _productsKey.currentContext?.findRenderObject() as RenderBox?;
+    if (barBox == null || productsBox == null) return;
+
+    final barHeight = barBox.size.height;
+    final productsTop = productsBox.localToGlobal(Offset.zero).dy +
+        (_scroll.hasClients ? _scroll.offset : 0);
+    final changed = (barHeight - _barHeight).abs() > 0.5 ||
+        (productsTop - _productsTop).abs() > 0.5;
+    _barHeight = barHeight;
+    _productsTop = productsTop;
+
+    if (changed) {
+      // The header reserves the bar's measured height, so it must render once the measurement lands.
+      setState(() {});
+    }
+    _syncBarProgress();
+  }
+
+  /// Measures after the next frame, coalescing repeated requests into one callback.
+  void _scheduleMeasure() {
+    if (_measureScheduled) return;
+    _measureScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measureScheduled = false;
+      _measure();
+    });
+  }
+
+  /// t = offset / (productsTop − overlap − barHeight), clamped to 0..1.
+  void _syncBarProgress() {
+    final travel = _productsTop - _productsOverlap - _barHeight;
+    if (!_scroll.hasClients || travel <= 0) {
+      _barProgress.value = 0;
+      return;
+    }
+    final next = (_scroll.offset / travel).clamp(0.0, 1.0);
+    if ((next - _barProgress.value).abs() > 0.001) {
+      _barProgress.value = next;
+    }
+  }
 
   void _selectCategory(String? label) => setState(() {
         _category = label;
@@ -97,89 +174,128 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final modules = ref.watch(homeModulesProvider);
     final productsState = ref.watch(productsProvider);
     final itemCount = ref.watch(cartProvider).value?.itemCount ?? 0;
+    final palette = context.homePalette;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('BuildKart'),
-        actions: <Widget>[
-          const NotificationBell(),
-          IconButton(
-            tooltip: 'B2B trade',
-            onPressed: () => context.go('/b2b'),
-            icon: const Icon(Icons.business_outlined),
+      backgroundColor: palette.surface,
+      body: ValueListenableBuilder<double>(
+        valueListenable: _barProgress,
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: productsState.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) => ErrorView(
+                    error: error,
+                    onRetry: () => ref.invalidate(productsProvider)),
+                data: (products) {
+                  if (products.isEmpty) {
+                    return const EmptyView(
+                        message: 'No products yet — seed your Medusa catalog.');
+                  }
+                  return _homeContent(
+                    filterProductsByHomeCategory(products, _category),
+                  );
+                },
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: HomePinnedBar(
+                key: _barKey,
+                progress: _barProgress,
+                cartCount: itemCount,
+                onSearch: () => context.push('/search'),
+                onCart: () => context.push('/cart'),
+                onTrade: () => context.go('/b2b'),
+              ),
+            ),
+          ],
+        ),
+        builder: (context, t, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: t >= HomePinnedBar.lightThreshold
+              ? SystemUiOverlayStyle.dark
+              : SystemUiOverlayStyle.light,
+          child: child!,
+        ),
+      ),
+    );
+  }
+
+  /// Header gradient, then the products sheet that rides 24 up over it.
+  Widget _homeContent(List<Product> filtered) {
+    final palette = context.homePalette;
+    final modules = ref.watch(homeModulesProvider);
+    _scheduleMeasure();
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n.metrics.pixels >= n.metrics.maxScrollExtent - 500) {
+          _loadMore(filtered.length);
+        }
+        return false;
+      },
+      child: ListView(
+        key: const ValueKey<String>('home-scroll'),
+        controller: _scroll,
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          SizedBox(
+            height: HomeHeader.height - _productsOverlap,
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: 0,
+              maxHeight: HomeHeader.height,
+              child: HomeHeader(
+                topInset: _barHeight,
+                banners: ref.watch(heroBannersProvider),
+                onLocation: () => context.push('/addresses'),
+                onBannerAction: (uri) => context.push(uri),
+              ),
+            ),
           ),
-          IconButton(
-            tooltip: 'Cart',
-            onPressed: () => context.push('/cart'),
-            icon: Badge(
-              isLabelVisible: itemCount > 0,
-              label: Text('$itemCount'),
-              child: const Icon(Icons.shopping_cart_outlined),
+          Container(
+            key: _productsKey,
+            decoration: BoxDecoration(
+              color: palette.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(_productsRadius),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (final module in modules)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AgencySpacing.md,
+                      AgencySpacing.md,
+                      AgencySpacing.md,
+                      0,
+                    ),
+                    child: MerchandisingModuleView(
+                      module: module,
+                      onProductTap: _openProduct,
+                      onAddToCart: _addToCart,
+                      onSeeAll: _seeAllFor(module),
+                      onBannerTap: _openTag('Clearance Sale'),
+                      onBannerAction: (uri) => context.push(uri),
+                      onToggleWishlist: _toggleWishlist,
+                      isWishlisted: _isWishlisted,
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.all(AgencySpacing.md),
+                  child: _catalogSection(filtered),
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      body: productsState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(
-            error: error, onRetry: () => ref.invalidate(productsProvider)),
-        data: (products) {
-          if (products.isEmpty) {
-            return const EmptyView(
-                message: 'No products yet — seed your Medusa catalog.');
-          }
-          final filtered = filterProductsByHomeCategory(products, _category);
-          return NotificationListener<ScrollNotification>(
-            onNotification: (n) {
-              if (n.metrics.pixels >= n.metrics.maxScrollExtent - 500) {
-                _loadMore(filtered.length);
-              }
-              return false;
-            },
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: AgencySpacing.md),
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.all(AgencySpacing.md),
-                  child: HomeHeader(
-                    banners: ref.watch(heroBannersProvider),
-                    onSearch: () => context.push('/search'),
-                    onLocation: () => context.push('/addresses'),
-                    onBannerTap: (banner) {
-                      final uri = banner.actionUri;
-                      if (uri != null && uri.isNotEmpty) context.push(uri);
-                    },
-                  ),
-                ),
-                for (final module in modules)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AgencySpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        MerchandisingModuleView(
-                          module: module,
-                          onProductTap: _openProduct,
-                          onAddToCart: _addToCart,
-                          onSeeAll: _seeAllFor(module),
-                          onBannerTap: _openTag('Clearance Sale'),
-                          onBannerAction: (uri) => context.push(uri),
-                          onToggleWishlist: _toggleWishlist,
-                          isWishlisted: _isWishlisted,
-                        ),
-                        const SizedBox(height: AgencySpacing.md),
-                      ],
-                    ),
-                  ),
-                _catalogSection(filtered),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
