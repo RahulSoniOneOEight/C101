@@ -69,9 +69,12 @@ class HomeBannerCarousel extends StatefulWidget {
   final ValueChanged<HomeBannerContent>? onBannerCta;
 
   static const double cardHeight = 128;
-  static const double cardMaxWidth = 310;
+  static const double cardMaxWidth = 480;
   static const double cardRadius = 20;
   static const double peekWidth = 14;
+
+  /// Gap between the active card and a peek stub.
+  static const double peekGap = 6;
 
   @override
   State<HomeBannerCarousel> createState() => _HomeBannerCarouselState();
@@ -95,9 +98,13 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final available = constraints.maxWidth;
+        // Reserve only a peek stub plus its gap on each side, so the card uses the full width of a
+        // phone instead of sitting inside a fixed 310 box with unused margins.
+        final reserve =
+            (HomeBannerCarousel.peekWidth + HomeBannerCarousel.peekGap) * 2;
         final cardWidth = math.min(
           HomeBannerCarousel.cardMaxWidth,
-          math.max(0.0, available - HomeBannerCarousel.peekWidth * 4),
+          math.max(0.0, available - reserve),
         );
 
         final cardLeft = (available - cardWidth) / 2;
@@ -115,7 +122,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                     Positioned(
                       left: cardLeft -
                           HomeBannerCarousel.peekWidth -
-                          6,
+                          HomeBannerCarousel.peekGap,
                       top: 0,
                       child: _PeekCard(
                         key: const ValueKey<String>('home-banner-peek-left'),
@@ -125,7 +132,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                     ),
                   if (_page < widget.banners.length - 1)
                     Positioned(
-                      left: cardRight + 6,
+                      left: cardRight + HomeBannerCarousel.peekGap,
                       top: 0,
                       child: _PeekCard(
                         key: const ValueKey<String>('home-banner-peek-right'),

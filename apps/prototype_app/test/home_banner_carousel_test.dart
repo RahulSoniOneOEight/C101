@@ -64,6 +64,19 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('the card uses the phone width instead of a fixed 310 box',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(banners: homeFallbackBanners),
+      width: 390,
+    ));
+
+    final width = tester.getSize(find.byType(PageView)).width;
+    expect(width, greaterThan(310),
+        reason: 'the side margins should belong to the card, not be left empty');
+    expect(width, lessThanOrEqualTo(390));
+  });
+
   testWidgets('a peek stub marks that more banners exist on that side',
       (tester) async {
     await tester.pumpWidget(_host(
