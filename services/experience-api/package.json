@@ -29,7 +29,8 @@
     "test:cms-content": "bun run src/scripts/cms-content-test.ts",
     "test:cms-content-store": "bun run src/scripts/cms-content-store-test.ts",
     "test:presentation": "bun run src/scripts/presentation-test.ts",
-    "test:load": "bun run src/scripts/load-test.ts"
+    "test:load": "bun run src/scripts/load-test.ts",
+    "test:collection-url": "bun run src/scripts/collection-url-test.ts"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

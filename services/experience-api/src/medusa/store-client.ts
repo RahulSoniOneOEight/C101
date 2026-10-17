@@ -202,6 +202,27 @@ export class MedusaStoreClient {
     return data.products;
   }
 
+  /**
+   * A commerce collection by its handle.
+   *
+   * Collections created in the console carry a handle but are not in the key registry, so a customer
+   * URL has to resolve them through commerce. Returns null when no collection owns the handle, which
+   * lets the caller answer 404 instead of substituting unrelated products.
+   */
+  async getCollectionByHandle(
+    handle: string,
+  ): Promise<{ id: string; title: string; handle: string } | null> {
+    const params = new URLSearchParams({ handle });
+    try {
+      const data = await this.getJson<{
+        collections: Array<{ id: string; title: string; handle: string }>;
+      }>(`/store/collections?${params.toString()}`);
+      return data.collections?.[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async createCart(
     regionId: string,
     currencyCode: string,

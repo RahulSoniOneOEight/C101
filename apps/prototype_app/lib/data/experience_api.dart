@@ -6,6 +6,7 @@ import '../core/app_config.dart';
 import '../domain/models.dart';
 import '../domain/app_notification.dart';
 import '../domain/presentation.dart';
+import '../domain/storefront_collection.dart';
 
 /// Client for the shared BuildKart Experience API (`:9020`), which composes Medusa/Mercur/Tryton.
 /// This is the canonical client for the pilot: it consumes composed responses and the dummy
@@ -96,6 +97,32 @@ class ExperienceApi {
   Future<List<dynamic>> getCollection(String key) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/collections/$key');
     return (res.data!['items'] as List?) ?? [];
+  }
+
+  /// A collection opened from its customer-facing URL.
+  ///
+  /// Throws [CollectionNotFoundException] on a 404 instead of returning an empty list: an empty list
+  /// cannot be told apart from "this link belongs to a collection with no products", and showing an
+  /// empty grid for a broken link is how a dead URL looks like a working one.
+  Future<StorefrontCollection> getStorefrontCollection(String key) async {
+    try {
+      final res = await _dio.get<Map<String, dynamic>>(
+        '/v1/collections/${Uri.encodeComponent(key)}',
+      );
+      final data = res.data!;
+      return StorefrontCollection(
+        key: data['collection_key'] as String? ?? key,
+        collectionId: data['collection_id'] as String?,
+        title: data['title'] as String?,
+      );
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404) {
+        final body = error.response?.data;
+        final code = body is Map ? body['code'] as String? : null;
+        throw CollectionNotFoundException(code ?? 'collection-not-found');
+      }
+      rethrow;
+    }
   }
 
   Future<List<Map<String, dynamic>>> getMyContexts() async {

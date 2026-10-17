@@ -31,7 +31,7 @@ missing:
 - An operator surface to set that order, and any indication that a manual order exists.
 - Delivery honouring a manual order, so the storefront and the operator preview agree.
 conflicts_requiring_a_decision:
-- C-045-01: 'The native collections detail page cannot be forked without forking the SDK page, and CHG-044 established that we extend rather than replace native admin. The ordering surface therefore needs a defined host: (a) a widget on the native collection detail page, (b) a dedicated sub-route owned by us, or (c) a drawer opened from the collections list.'
+- C-045-01: 'RESOLVED 2026-10-17. The ordering surface is a drawer opened from the collections admin: no dashboard widget and no per-collection console route, as the requester specified. Ordering is an action on the collection, not a place.'
 - C-045-02: 'Ordering across a large collection needs paging or bulk reorder semantics. A whole-list save is simplest and verifiable but becomes unwieldy past a few hundred products; a rank-between-neighbours model is more scalable but introduces fractional-rank maintenance.'
 - C-045-03: 'A product may be removed from commerce while a rank row still references it. The contract must say whether write-time validation, read-time skipping, or both is authoritative.'
 decisions_proposed:

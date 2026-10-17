@@ -29,7 +29,7 @@ import { resolveSectionProducts } from "./content/section-products.js";
 import type { StorefrontChannel } from "./content/storefront-layout.js";
 import { verifyCmsWebhook } from "./content/cms-webhook.js";
 import { CmsContentStore } from "./store/cms-content-store.js";
-import { CollectionResolver } from "./collections/resolver.js";
+import { CollectionNotFoundError, CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
   loadPilotUsers,
@@ -930,6 +930,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const result = await collections.resolve(key);
       return json({
         collection_key: result.collection.collection_key,
+        // A commerce collection carries its display title; a registry key has none, and the app
+        // humanises the key instead of inventing a name here.
+        title: (result.collection.parameters.title as string | undefined) ?? null,
+        // Present only for a commerce collection: the storefront uses it to fetch composed products
+        // (best-price offer) for the same membership, rather than re-deriving it from raw items.
+        collection_id: (result.collection.parameters.collection_id as string | undefined) ?? null,
         source: result.collection.source,
         status: result.collection.status,
         fallback: result.fallback,
@@ -939,6 +945,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         correlation_id: cid,
       });
     } catch (error) {
+      if (error instanceof CollectionNotFoundError) {
+        return problem(
+          404,
+          error.reason === "empty" ? "collection-empty" : "collection-not-found",
+          error.reason === "empty"
+            ? "This collection has no products available right now."
+            : "No collection exists at this address.",
+        );
+      }
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
