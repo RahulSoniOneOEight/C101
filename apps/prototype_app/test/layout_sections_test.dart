@@ -79,6 +79,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
+        recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
         layoutSectionsProvider.overrideWith((ref) async => sections),
         sectionProductsProvider.overrideWith((ref, section) async => <Product>[product]),
       ],
@@ -122,6 +123,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
+        recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
         layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[withBanner]),
         sectionProductsProvider.overrideWith((ref, section) async => <Product>[product]),
         presentationProvider.overrideWith((ref) => StorefrontPresentation(
@@ -167,6 +169,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
+        recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
         layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[section]),
         sectionProductsProvider.overrideWith((ref, requested) async => <Product>[demoProducts.first]),
         presentationProvider.overrideWith((ref) => const StorefrontPresentation(
@@ -189,4 +192,45 @@ void main() {
       reason: 'a promotional banner must exist in published CMS content before the app can show it',
     );
   });
+
+  test('a layout-driven Recommended keeps the Recently viewed tile', () async {
+    final section = _section(placement: 'recommended', label: 'Recommended', limit: 6);
+    final viewed = demoProducts.first;
+    final container = ProviderContainer(
+      overrides: [
+        productsProvider.overrideWith((ref) async => demoProducts),
+        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[section]),
+        sectionProductsProvider.overrideWith((ref, requested) async => demoProducts.take(6).toList()),
+        recentlyViewedProvider.overrideWith(() => _Viewed(<String>[viewed.id])),
+        presentationProvider.overrideWith((ref) => const StorefrontPresentation(
+              banners: <StorefrontBanner>[],
+              categories: <StorefrontCategory>[],
+            )),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(productsProvider.future);
+    await container.read(layoutSectionsProvider.future);
+    await container.read(sectionProductsProvider(section).future);
+
+    final composition = container
+        .read(homeModulesProvider)
+        .firstWhere((module) => module.type == MerchandisingModuleType.productComposition);
+    expect(composition.splitSlot?.label, 'Recently viewed',
+        reason: 'the tile must survive the CMS-driven path, not only the local fallback');
+    expect(composition.splitSlot?.products.single.id, viewed.id);
+    expect(composition.products, hasLength(5),
+        reason: 'a sixth product would leave a dangling cell beside the split tile');
+  });
+}
+
+/// Seeds a fixed viewing history without touching the local store.
+class _Viewed extends RecentlyViewedNotifier {
+  _Viewed(this.ids);
+
+  final List<String> ids;
+
+  @override
+  List<String> build() => ids;
 }

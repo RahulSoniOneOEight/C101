@@ -507,6 +507,8 @@ final homeModulesProvider =
           .where((section) => section.visible)
           .toList();
   final banners = ref.watch(presentationProvider).banners;
+  final recentlyViewedIds = ref.watch(recentlyViewedProvider);
+  final splitSlot = _splitSlotFor(recentlyViewedIds, products);
   final layoutModules = <MerchandisingModule>[];
   for (final section in sections) {
     final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
@@ -547,13 +549,22 @@ final homeModulesProvider =
           seeAllUri: section.seeAllUri,
         ));
       case 'recommended':
+        // The split tile occupies the sixth cell, so an even product count would leave a dangling
+        // cell on the last row. One product is held back to keep the composition rectangular.
+        final compositionProducts = splitSlot != null &&
+                sectionProducts.length.isEven
+            ? sectionProducts.take(sectionProducts.length - 1).toList()
+            : sectionProducts;
         layoutModules.add(MerchandisingModule(
           type: MerchandisingModuleType.productComposition,
           title: section.displayTitle,
           tag: section.badge,
-          products: sectionProducts,
+          products: compositionProducts,
           seeAllLabel: section.seeAllLabel,
           seeAllUri: section.seeAllUri,
+          // The split tile is the customer's own history, so it survives a layout-driven home.
+          // Nothing is invented: without history the sixth cell is simply absent.
+          splitSlot: splitSlot,
         ));
       default:
         // Buy Again, Schemes and the Trade Offers group are not rendered by this surface yet.
@@ -579,15 +590,6 @@ final homeModulesProvider =
       (bestPool.isNotEmpty ? bestPool : products.skip(2)).take(8).toList();
 
   // Recommended + the special "Recently viewed" split slot.
-  final recentlyViewed = ref
-      .watch(recentlyViewedProvider)
-      .map((id) => products.where((p) => p.id == id).firstOrNull)
-      .whereType<Product>()
-      .toList();
-  final splitProducts = (recentlyViewed.isNotEmpty
-          ? recentlyViewed.take(2)
-          : products.take(2))
-      .toList();
   final recommended = products.take(5).toList();
 
   return <MerchandisingModule>[
@@ -608,10 +610,22 @@ final homeModulesProvider =
       type: MerchandisingModuleType.productComposition,
       title: 'Recommended for You',
       products: recommended,
-      splitSlot: SplitSlot(
-        label: 'Recently viewed',
-        products: splitProducts,
-      ),
+      splitSlot: splitSlot,
     ),
   ];
 });
+
+/// The "Recently viewed" tile, built only from products this customer actually opened.
+///
+/// Never fills the slot with arbitrary catalogue items: an empty history means no tile, rather than
+/// two products labelled as recent.
+SplitSlot? _splitSlotFor(List<String> viewedIds, List<Product> products) {
+  if (viewedIds.isEmpty) return null;
+  final viewed = viewedIds
+      .map((id) => products.where((product) => product.id == id).firstOrNull)
+      .whereType<Product>()
+      .take(2)
+      .toList();
+  if (viewed.isEmpty) return null;
+  return SplitSlot(label: 'Recently viewed', products: viewed);
+}
