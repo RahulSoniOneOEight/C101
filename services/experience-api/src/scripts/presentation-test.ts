@@ -48,7 +48,7 @@ const bannerResponse = {
       priority: 5,
     },
     {
-      // Rejected: missing Image alternative text means inaccessible media must not ship.
+      // Alt text is no longer authored, so a banner without one must still ship.
       contentKey: "cms-no-alt",
       placement: "b2c.home.hero",
       title: "Missing alt",
@@ -109,12 +109,21 @@ const adapter = new CmsContentAdapter(
 // --- banners ---------------------------------------------------------------------------------
 const banners = await adapter.resolveBanners("b2c", "en-IN");
 assert.equal(banners.source, "cms-strapi");
-assert.equal(banners.items.length, 1, "only the B2C home banner with image alt text should ship");
-const hero = banners.items[0];
-assert.equal(hero.content_key, "cms-hero");
-assert.equal(hero.theme_key, "trust");
+assert.equal(banners.items.length, 2, "a banner without alt text or theme still ships");
+const hero = banners.items.find((item) => item.content_key === "cms-hero");
+assert.ok(hero, "the hero banner should be delivered");
 assert.equal(hero.image_uri, "https://images.example.com/hero.jpg");
 assert.equal(hero.action_uri, "/collections/power-tool-week");
+assert.equal(
+  Object.prototype.hasOwnProperty.call(hero, "image_alt"),
+  false,
+  "alt text is no longer part of the banner contract",
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(hero, "theme_key"),
+  false,
+  "colour theme is no longer part of the banner contract",
+);
 assert.equal(
   banners.items.some((item) => item.content_key.includes("category")),
   false,

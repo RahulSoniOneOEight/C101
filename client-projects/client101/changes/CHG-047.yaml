@@ -1,0 +1,57 @@
+change_id: CHG-047
+revision: 1
+request: >-
+  Remove the per-banner "Image alternative text" and "Colour theme" fields from the operator
+  backend for banners, while keeping the Segments field exactly as it is today.
+type: banner-authoring-field-removal
+extends:
+- CHG-043
+- CHG-044
+affected_capabilities:
+- marketplace-merchandising
+- editorial-content
+affected_domains:
+- content
+affected_surfaces:
+- mercur.admin.merchandising.banner-studio
+- medusa.admin.buildkart.content-api
+- experience-api.content.presentation
+- cms.banner.content-type
+already_present:
+- Banner studio with placement, category, language, creative URL, heading, supporting text, CTA,
+  destination, schedule, technical key, priority and segments.
+- Publish blocked when required fields are missing, including image alternative text.
+- Delivery drops any banner that has no image alternative text.
+missing:
+- A banner authoring flow that does not ask for image alternative text or a colour theme.
+conflicts_requiring_a_decision:
+- C-047-01: 'Removing the storefront image label makes banner artwork decorative to assistive tech.
+  This is WCAG-valid only while the heading carries the meaning, so it must stay true that no offer
+  lives solely inside the image.'
+- C-047-02: 'The CMS columns imageAltText and themeKey already hold data. Dropping the attributes
+  would be a destructive schema change for no functional gain, so they are retained but no longer
+  authored, accepted by the operator API, or delivered.'
+decisions_proposed:
+  D-047-01: Remove both fields from the console editor, its form model, its validation and its write payload.
+  D-047-02: Stop accepting the two fields on the private operator content API.
+  D-047-03: Stop emitting image_alt and theme_key from banner delivery; the app already treats both as optional.
+  D-047-04: Keep the CMS columns to avoid an irreversible migration; they are dormant storage, not authoring surface.
+  D-047-05: Relax the delivery guard so a banner without alt text is no longer dropped — otherwise every banner created after this change would silently disappear.
+  D-047-06: Leave Segments untouched, including its "targeting is not delivered" caveat.
+required_tests:
+- A published banner with no imageAltText is delivered.
+- Delivery no longer includes image_alt or theme_key for banners.
+- The console no longer requires alt text before publishing.
+- Category banners and layout section banners keep working.
+constraints:
+- Staging only; production release remains unauthorized.
+- No destructive CMS migration.
+- No change to product cards, routing, or commerce data.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-18'
+  status: implemented-staging
+  evidence: client-projects/client101/evidence/CHG-047/banner-field-removal.md
+status: implemented-awaiting-human-review
+production_release_authorized: false

@@ -5,7 +5,6 @@ import {
   ELIGIBILITY_COLORS,
   ELIGIBILITY_LABELS,
   localeLabel,
-  themeLabel,
   type BannerPreviewResponse,
   type PreviewDevice,
 } from "./banner-model";
@@ -119,9 +118,8 @@ export function BannerPreview({
       </div>
 
       <Text size="xsmall" className="text-ui-fg-subtle">
-        Illustrative preview built from the delivery mapping rules. Exact typography, crop and theme
-        treatment are applied by the customer app, so check the real surface before release.
-        {presentation ? ` Theme: ${themeLabel(presentation.theme_key)}.` : ""}
+        Illustrative preview built from the delivery mapping rules. Exact typography and crop are
+        applied by the customer app, so check the real surface before release.
       </Text>
     </div>
   );

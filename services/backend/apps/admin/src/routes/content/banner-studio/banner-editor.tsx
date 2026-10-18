@@ -34,7 +34,6 @@ import {
   IST_TIMEZONE,
   PREVIEW_DEVICES,
   SUPPORTED_PLACEMENTS,
-  THEME_LABELS,
   bannerTitle,
   formFromDocument,
   isRenderedPlacement,
@@ -485,21 +484,9 @@ export function BannerEditor({
                       onChange={(event) => update({ externalImageUrl: event.target.value })}
                     />
                   </Field>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field id="banner-theme" label="Colour theme" description="Allowlisted design-system key.">
-                      <Select value={form.themeKey} onValueChange={(value) => update({ themeKey: value })}>
-                        <Select.Trigger id="banner-theme"><Select.Value /></Select.Trigger>
-                        <Select.Content>
-                          {Object.entries(THEME_LABELS).map(([value, label]) => (
-                            <Select.Item key={value} value={value}>{label}</Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select>
-                    </Field>
-                    <Field id="banner-crop" label="Image crop" description="Not supported yet.">
-                      <Input id="banner-crop" value="Fixed by the customer app" disabled readOnly />
-                    </Field>
-                  </div>
+                  <Field id="banner-crop" label="Image crop" description="Not supported yet.">
+                    <Input id="banner-crop" value="Fixed by the customer app" disabled readOnly />
+                  </Field>
                   <Field id="banner-heading" label="Heading" description="Customer-facing. Use a line break for a two-line hero.">
                     <Textarea
                       id="banner-heading"
@@ -519,24 +506,14 @@ export function BannerEditor({
                       onChange={(event) => update({ subtitle: event.target.value })}
                     />
                   </Field>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field id="banner-cta-label" label="Button label">
-                      <Input
-                        id="banner-cta-label"
-                        maxLength={25}
-                        value={form.ctaLabel}
-                        onChange={(event) => update({ ctaLabel: event.target.value })}
-                      />
-                    </Field>
-                    <Field id="banner-alt" label="Image alternative text" description="Required before publishing.">
-                      <Input
-                        id="banner-alt"
-                        value={form.imageAltText}
-                        onChange={(event) => update({ imageAltText: event.target.value })}
-                        data-testid="banner-alt"
-                      />
-                    </Field>
-                  </div>
+                  <Field id="banner-cta-label" label="Button label">
+                    <Input
+                      id="banner-cta-label"
+                      maxLength={25}
+                      value={form.ctaLabel}
+                      onChange={(event) => update({ ctaLabel: event.target.value })}
+                    />
+                  </Field>
                 </section>
 
                 <section className="flex flex-col gap-y-5">

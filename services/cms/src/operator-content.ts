@@ -114,13 +114,6 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         type: "url",
         description: "HTTPS staging creative. Existing Strapi media remains preferred when present.",
       },
-      { name: "imageAltText", label: "Image alternative text", type: "string", required: true },
-      {
-        name: "themeKey",
-        label: "Color theme",
-        type: "enum",
-        options: ["primary", "trust", "promotion", "neutral"],
-      },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
       { name: "timezone", label: "Timezone", type: "string" },

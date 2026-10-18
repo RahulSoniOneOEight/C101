@@ -120,15 +120,7 @@ export function isRenderedPlacement(value: unknown): boolean {
   return false;
 }
 
-export const THEME_LABELS: Record<string, string> = {
-  primary: "Primary",
-  trust: "Trust",
-  promotion: "Promotion",
-  neutral: "Neutral",
-};
-
-export const CTA_TARGET_LABELS: Record<string, string> = {
-  route: "In-app route",
+export const CTA_TARGET_LABELS: Record<string, string> = {  route: "In-app route",
   product: "Product reference",
   category: "Category reference",
   collection: "Collection reference",
@@ -145,11 +137,6 @@ export function placementLabel(value: unknown): string {
   // points at a slot the storefront does not render.
   if (supported) return supported.label;
   return LEGACY_PLACEMENT_LABELS[key] ?? key;
-}
-
-export function themeLabel(value: unknown): string {
-  if (typeof value !== "string") return "Primary";
-  return THEME_LABELS[value] ?? "Primary";
 }
 
 export function localeLabel(value: ContentLocale): string {
@@ -268,8 +255,6 @@ export interface BannerForm {
   ctaTargetType: string;
   ctaTargetId: string;
   externalImageUrl: string;
-  imageAltText: string;
-  themeKey: string;
   startMode: StartMode;
   startsAt: string;
   endsAt: string;
@@ -288,8 +273,6 @@ export const EMPTY_BANNER_FORM: BannerForm = {
   ctaTargetType: "route",
   ctaTargetId: "",
   externalImageUrl: "",
-  imageAltText: "",
-  themeKey: "primary",
   startMode: "now",
   startsAt: "",
   endsAt: "",
@@ -316,8 +299,6 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     ctaTargetType: text(document.ctaTargetType) || "route",
     ctaTargetId: text(document.ctaTargetId),
     externalImageUrl: text(document.externalImageUrl),
-    imageAltText: text(document.imageAltText),
-    themeKey: text(document.themeKey) || "primary",
     startMode,
     startsAt: startMode === "later" ? toIstInputValue(document.startsAt) : toIstInputValue(document.startsAt),
     endsAt: toIstInputValue(document.endsAt),
@@ -343,9 +324,6 @@ export function validateBannerForm(
     errors.push("Choose the category this banner belongs to.");
   }
   if (context.requireContent && !form.title.trim()) errors.push("Add the customer-facing heading.");
-  if (context.requireContent && !form.imageAltText.trim()) {
-    errors.push("Add alternative text for the creative.");
-  }
   if (form.externalImageUrl.trim() && !/^https:\/\//i.test(form.externalImageUrl.trim())) {
     errors.push("The image reference must be an https URL.");
   }
@@ -414,8 +392,6 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     ctaTargetType: form.ctaTargetType,
     ctaTargetId: form.ctaTargetId.trim() || null,
     externalImageUrl: form.externalImageUrl.trim() || null,
-    imageAltText: form.imageAltText.trim(),
-    themeKey: form.themeKey,
     startsAt,
     endsAt,
     timezone: IST_TIMEZONE,

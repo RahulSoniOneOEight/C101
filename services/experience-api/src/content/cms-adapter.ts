@@ -69,10 +69,8 @@ export interface StorefrontBannerPresentation {
   title: string;
   body?: string;
   image_uri?: string;
-  image_alt: string;
   action_label?: string;
   action_uri?: string;
-  theme_key: StorefrontBannerTheme;
   priority: number;
 }
 
@@ -205,11 +203,9 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
   const contentKey = text(banner.contentKey);
   const placement = text(banner.placement);
   const title = text(banner.title);
-  const imageAlt = text(banner.imageAltText);
-  if (!contentKey || !placement || !title || !imageAlt) return undefined;
-  const theme = banner.themeKey;
-  const themeKey: StorefrontBannerTheme =
-    theme === "trust" || theme === "promotion" || theme === "neutral" ? theme : "primary";
+  // Alt text and colour theme are no longer authored per banner: the card's heading carries the
+  // meaning, and the app owns the gradient. Their absence must not drop the banner.
+  if (!contentKey || !placement || !title) return undefined;
   const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
     ?? externalImageUri(banner.externalImageUrl);
   return {
@@ -218,10 +214,8 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
     title,
     ...(text(banner.subtitle) ? { body: text(banner.subtitle) } : {}),
     ...(image ? { image_uri: image } : {}),
-    image_alt: imageAlt,
     ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
     ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
-    theme_key: themeKey,
     priority: numberValue(banner.priority) ?? 0,
   };
 }

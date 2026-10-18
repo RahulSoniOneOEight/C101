@@ -34,7 +34,7 @@
     "imageTablet": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
     "imageDesktop": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
     "externalImageUrl": { "type": "string" },
-    "imageAltText": { "type": "string", "required": true },
+    "imageAltText": { "type": "string" },
     "themeKey": {
       "type": "enumeration",
       "enum": ["primary", "trust", "promotion", "neutral"],
