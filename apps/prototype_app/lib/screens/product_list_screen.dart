@@ -237,6 +237,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   Widget _homeContent(List<Product> filtered) {
     final palette = context.homePalette;
     final modules = ref.watch(homeModulesProvider);
+    final headerHeight =
+        HomeHeader.heightForWidth(MediaQuery.sizeOf(context).width);
     _scheduleMeasure();
 
     return NotificationListener<ScrollNotification>(
@@ -252,11 +254,11 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
         padding: EdgeInsets.zero,
         children: <Widget>[
           SizedBox(
-            height: HomeHeader.height - _productsOverlap,
+            height: headerHeight - _productsOverlap,
             child: OverflowBox(
               alignment: Alignment.topCenter,
               minHeight: 0,
-              maxHeight: HomeHeader.height,
+              maxHeight: headerHeight,
               child: HomeHeader(
                 topInset: _barHeight,
                 bottomInset: _productsOverlap,

@@ -85,9 +85,22 @@ class HomeBannerCarousel extends StatefulWidget {
 
   static const double defaultCardHeight = 128;
   static const double minCardHeight = 120;
-  static const double cardMaxHeight = 240;
-  static const double cardMaxWidth = 480;
+  static const double cardMaxHeight = 300;
   static const double cardRadius = 20;
+
+  /// The width the copy was designed at; type scales from here.
+  static const double designWidth = 390;
+
+  static const double wideBreakpoint = 600;
+  static const double wideInset = 24;
+
+  /// Card width caps by viewport so the creative keeps a sane aspect ratio on large screens.
+  static double cardWidthCapFor(double viewportWidth) {
+    if (viewportWidth >= 1200) return 760;
+    if (viewportWidth >= 900) return 640;
+    if (viewportWidth >= wideBreakpoint) return 520;
+    return double.infinity;
+  }
 
   /// Dot row plus the gap above it, reserved from the carousel's height.
   static const double indicatorHeight = 14;
@@ -114,9 +127,12 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final available = constraints.maxWidth;
-        // Edge to edge: the card owns the full width it is given, so no creative is lost to side
-        // margins. Only a very wide viewport is capped.
-        final cardWidth = math.min(HomeBannerCarousel.cardMaxWidth, available);
+        // Phones are edge to edge; wider viewports get a side inset and a cap so the card does not
+        // stretch into an unreadable letterbox on desktop.
+        final wide = available >= HomeBannerCarousel.wideBreakpoint;
+        final inset = wide ? HomeBannerCarousel.wideInset : 0.0;
+        final cap = HomeBannerCarousel.cardWidthCapFor(available);
+        final cardWidth = math.min(available - inset * 2, cap);
 
         // A bounded parent (the header) hands its leftover height to the card; otherwise the card
         // keeps the reviewed default.
@@ -127,6 +143,9 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                     .clamp(HomeBannerCarousel.minCardHeight,
                         HomeBannerCarousel.cardMaxHeight)
                 : HomeBannerCarousel.defaultCardHeight);
+
+        // Type and padding scale with the card so the 390pt design still reads at 760pt.
+        final scale = (cardWidth / HomeBannerCarousel.designWidth).clamp(1.0, 1.6);
 
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -143,6 +162,7 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                     onPageChanged: (index) => setState(() => _page = index),
                     itemBuilder: (context, index) => _HomeBannerCard(
                       content: widget.banners[index],
+                      scale: scale,
                       onCta: widget.onBannerCta,
                     ),
                   ),
@@ -176,9 +196,16 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
 }
 
 class _HomeBannerCard extends StatelessWidget {
-  const _HomeBannerCard({required this.content, this.onCta});
+  const _HomeBannerCard({
+    required this.content,
+    required this.scale,
+    this.onCta,
+  });
 
   final HomeBannerContent content;
+
+  /// Type/padding multiplier derived from the card width.
+  final double scale;
   final ValueChanged<HomeBannerContent>? onCta;
 
   @override
@@ -234,7 +261,12 @@ class _HomeBannerCard extends StatelessWidget {
                 ),
               ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+              padding: EdgeInsets.fromLTRB(
+                18 * scale,
+                12 * scale,
+                18 * scale,
+                10 * scale,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -246,43 +278,44 @@ class _HomeBannerCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 11 * scale,
                         height: 1.1,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 11 * 0.08,
+                        letterSpacing: 11 * 0.08 * scale,
                         color: palette.cyanSoft,
                       ),
                     ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2 * scale),
                   Text(
                     content.headline,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 22,
+                    style: TextStyle(
+                      fontSize: 22 * scale,
                       height: 1.1,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
                   ),
                   if (subline != null) ...<Widget>[
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2 * scale),
                     Text(
                       subline,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 12 * scale,
                         height: 1.2,
                         color: Colors.white.withValues(alpha: 0.88),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12 * scale),
                   if (ctaLabel != null)
                     _BannerCta(
                       label: ctaLabel,
                       palette: palette,
+                      scale: scale,
                       onTap: onCta == null ? null : () => onCta!(content),
                     ),
                 ],
@@ -300,11 +333,13 @@ class _BannerCta extends StatelessWidget {
   const _BannerCta({
     required this.label,
     required this.palette,
+    required this.scale,
     this.onTap,
   });
 
   final String label;
   final AgencyHomePalette palette;
+  final double scale;
   final VoidCallback? onTap;
 
   @override
@@ -324,15 +359,16 @@ class _BannerCta extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(999),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
+            // Never below the 48dp touch minimum, and taller on a large card.
+            constraints: BoxConstraints(minHeight: 48 * scale),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: 16 * scale),
               child: Center(
                 widthFactor: 1,
                 child: Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 12 * scale,
                     fontWeight: FontWeight.w700,
                     color: palette.navy,
                   ),

@@ -2,6 +2,7 @@ import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prototype_app/widgets/home_banner_carousel.dart';
+import 'package:prototype_app/widgets/home_header.dart';
 
 Widget _host(Widget child, {double width = 390}) => MaterialApp(
       theme: AgencyTheme.light(),
@@ -106,6 +107,34 @@ void main() {
     final width = tester.getSize(find.byType(PageView)).width;
     expect(width, 390,
         reason: 'the card owns the full width; side margins only shrink the creative');
+  });
+
+  testWidgets('desktop caps the card width and insets it', (tester) async {
+    addTearDown(tester.view.reset);
+    for (final entry in <double, double>{
+      600: 520,
+      900: 640,
+      1280: 760,
+    }.entries) {
+      tester.view.physicalSize = Size(entry.key, 900);
+      tester.view.devicePixelRatio = 1.0;
+      await tester.pumpWidget(_host(
+        const HomeBannerCarousel(banners: homeFallbackBanners),
+        width: entry.key,
+      ));
+      expect(
+        tester.getSize(find.byType(PageView)).width,
+        entry.value,
+        reason: 'viewport ${entry.key} should cap the card at ${entry.value}',
+      );
+    }
+  });
+
+  testWidgets('tablet and desktop headers get more height', (tester) async {
+    expect(HomeHeader.heightForWidth(390), 432);
+    expect(HomeHeader.heightForWidth(600), 480);
+    expect(HomeHeader.heightForWidth(900), 520);
+    expect(HomeHeader.heightForWidth(1280), 560);
   });
 
   testWidgets('no peek stubs: the next banner is reached by swiping or the dots',

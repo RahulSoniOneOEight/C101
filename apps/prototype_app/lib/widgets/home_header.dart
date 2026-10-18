@@ -21,8 +21,21 @@ class HomeHeader extends StatelessWidget {
     super.key,
   });
 
-  /// Fixed header height. The pinned bar height is measured by the screen, not assumed here.
+  /// Fixed header height for a phone. Wider viewports get more room so the banner can grow.
   static const double height = 432;
+
+  /// Header height by viewport width. The screen and the header must agree, so both call this.
+  static double heightForWidth(double width) {
+    if (width >= 1200) return 560;
+    if (width >= 900) return 520;
+    if (width >= 600) return 480;
+    return height;
+  }
+
+  /// The header's content is centred and capped on desktop instead of stretching edge to edge.
+  static const double maxContentWidth = 1120;
+
+  static bool isWide(double width) => width >= 600;
 
   /// Space reserved for the pinned bar so header content never sits underneath it.
   final double topInset;
@@ -72,9 +85,12 @@ class HomeHeader extends StatelessWidget {
     final palette = context.homePalette;
     final contents = _contents;
     final chipInk = Colors.white.withValues(alpha: 0.85);
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final wide = isWide(viewportWidth);
+    final sidePad = wide ? AgencySpacing.lg : AgencySpacing.md;
 
     return SizedBox(
-      height: height,
+      height: heightForWidth(viewportWidth),
       width: double.infinity,
       child: Stack(
         children: <Widget>[
@@ -87,58 +103,69 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
-          Padding(
-            padding: EdgeInsets.only(
-              top: topInset + AgencySpacing.sm,
-              bottom: bottomInset + AgencySpacing.sm,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-                  child: _LocationRow(
-                    label: locationLabel,
-                    onTap: onLocation,
-                    ink: Colors.white,
-                    minHeight: 48,
-                  ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: maxContentWidth),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: topInset + AgencySpacing.sm,
+                  bottom: bottomInset + AgencySpacing.sm,
                 ),
-                const SizedBox(height: AgencySpacing.sm),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-                  child: TrustBuilderRow(
-                    padding: EdgeInsets.zero,
-                    foregroundColor: chipInk,
-                    items: const <TrustBuilderItem>[
-                      TrustBuilderItem(
-                        label: 'GST invoices',
-                        icon: Icons.receipt_long_outlined,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sidePad),
+                      child: _LocationRow(
+                        label: locationLabel,
+                        onTap: onLocation,
+                        ink: Colors.white,
+                        minHeight: 48,
                       ),
-                      TrustBuilderItem(
-                        label: 'Verified sellers',
-                        icon: Icons.verified_outlined,
+                    ),
+                    const SizedBox(height: AgencySpacing.sm),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sidePad),
+                      // The chips read as one group; on desktop they would otherwise spread across
+                      // the full 1120pt content width with large gaps.
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: wide ? 620 : double.infinity,
+                        ),
+                        child: TrustBuilderRow(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: chipInk,
+                          items: const <TrustBuilderItem>[
+                            TrustBuilderItem(
+                              label: 'GST invoices',
+                              icon: Icons.receipt_long_outlined,
+                            ),
+                            TrustBuilderItem(
+                              label: 'Verified sellers',
+                              icon: Icons.verified_outlined,
+                            ),
+                            TrustBuilderItem(
+                              label: 'Easy returns',
+                              icon: Icons.assignment_return_outlined,
+                            ),
+                          ],
+                        ),
                       ),
-                      TrustBuilderItem(
-                        label: 'Easy returns',
-                        icon: Icons.assignment_return_outlined,
+                    ),
+                    const SizedBox(height: AgencySpacing.sm),
+                    // The banner is deliberately edge-to-edge on phones: the card carries its own
+                    // corner radius, and side padding here only shrank the creative. It also takes
+                    // every remaining pixel of height, so there is no dead band above it. On wider
+                    // viewports the carousel adds its own inset and width cap.
+                    Expanded(
+                      child: HomeBannerCarousel(
+                        banners: contents,
+                        onBannerCta: (content) => _handleCta(context, content),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AgencySpacing.sm),
-                // The banner is deliberately edge-to-edge: the card carries its own corner radius,
-                // and side padding here only shrank the creative. It also takes every remaining
-                // pixel of height, so there is no dead band above it.
-                Expanded(
-                  child: HomeBannerCarousel(
-                    banners: contents,
-                    onBannerCta: (content) => _handleCta(context, content),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],
