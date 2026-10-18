@@ -1,0 +1,51 @@
+change_id: CHG-048
+revision: 1
+request: >-
+  Make the B2B home category rail operate from the backend, so Category presentation edited in the
+  admin console changes the trade home's category labels, icons and order — not a local fixture.
+type: b2b-home-categories-from-backend
+extends:
+- CHG-044
+affected_capabilities:
+- marketplace-merchandising
+affected_domains:
+- content
+- commerce
+affected_surfaces:
+- app.prototype.b2b-home
+- experience-api.content.presentation
+inspection: client-projects/client101/evidence/CHG-047/banner-field-removal.md
+already_present:
+- B2B category banner image and alt text resolve from CMS presentation (`b2bCategoryBannerImageProvider`).
+- B2C home reads category label, icon and order from the same CMS presentation.
+- Six CMS categories exist with commerce ids (`pcat_…`) and an allowlisted icon key.
+missing:
+- B2B home category labels, icons and order are hardcoded in `tradeDashboardProvider` (six fixtures).
+- Trade catalogue products are tagged with fixture ids (`plumbing`, `electricals`, …), so they cannot be
+  filtered by a commerce category id.
+conflicts_requiring_a_decision:
+- C-048-01: 'Re-tagging catalogue fixtures to commerce category ids is a data change. If a product is
+  tagged wrongly it disappears from its category filter, which is visible to buyers.'
+- C-048-02: 'Category presentation is shared by channel, so an editor change affects both B2C and B2B.
+  A B2B-only label would need a per-channel editorial field, which does not exist.'
+decisions_proposed:
+  D-048-01: 'Tag each trade catalogue fixture with its commerce category id, mapping the six fixtures onto the six CMS categories.'
+  D-048-02: 'Build the B2B rail from `b2bPresentationProvider` categories: id, label, icon key, order.'
+  D-048-03: 'Filter the trade catalogue by `product.categoryId == category.id`; no label matching.'
+  D-048-04: Keep the local fixture list only as a fallback when presentation is unavailable.
+  D-048-05: Leave the banner image path untouched; it already resolves from CMS.
+required_tests:
+- A category label change in the CMS changes the B2B rail label.
+- Selecting a category filters the trade catalogue to the same products as before the mapping.
+- An unavailable presentation falls back to the fixture rail without breaking the page.
+- No overflow at 320-430.
+constraints:
+- Staging only; production release remains unauthorized.
+- No change to B2C category behaviour.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-18'
+  status: proposed
+status: proposed-awaiting-approval
+production_release_authorized: false
