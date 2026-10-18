@@ -79,13 +79,20 @@ export const SUPPORTED_PLACEMENTS: ReadonlyArray<PlacementOption> = [
     rendered: true,
   },
   {
+    value: "b2b.home.hero",
+    label: "B2B · Home",
+    channel: "b2b",
+    surface: "home",
+    requiresCategory: false,
+    rendered: true,
+  },
+  {
     value: "b2b.category.banner",
     label: "B2B · Category banner",
     channel: "b2b",
     surface: "category",
     requiresCategory: true,
-    // The B2B app still renders a hard-coded image and never asks for channel=b2b.
-    rendered: false,
+    rendered: true,
   },
 ];
 

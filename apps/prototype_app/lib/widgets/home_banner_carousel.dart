@@ -91,6 +91,10 @@ class HomeBannerCarousel extends StatefulWidget {
   /// The width the copy was designed at; type scales from here.
   static const double designWidth = 390;
 
+  /// The height the copy was designed at. Scale follows the smaller of the two ratios so a short
+  /// card shrinks its type instead of overflowing.
+  static const double designHeight = 172;
+
   static const double wideBreakpoint = 600;
   static const double wideInset = 24;
 
@@ -144,8 +148,14 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         HomeBannerCarousel.cardMaxHeight)
                 : HomeBannerCarousel.defaultCardHeight);
 
-        // Type and padding scale with the card so the 390pt design still reads at 760pt.
-        final scale = (cardWidth / HomeBannerCarousel.designWidth).clamp(1.0, 1.6);
+        // Type and padding scale with the card, but never beyond what the height can hold: a wide,
+        // short card (the B2B header) would otherwise overflow its own content.
+        final scale = math
+            .min(
+              cardWidth / HomeBannerCarousel.designWidth,
+              cardHeight / HomeBannerCarousel.designHeight,
+            )
+            .clamp(0.8, 1.6);
 
         return Column(
           mainAxisSize: MainAxisSize.min,

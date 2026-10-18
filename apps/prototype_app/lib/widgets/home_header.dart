@@ -54,25 +54,7 @@ class HomeHeader extends StatelessWidget {
   /// Follows a banner's backend action target.
   final ValueChanged<String>? onBannerAction;
 
-  List<HomeBannerContent> get _contents {
-    final published = banners.where((banner) => banner.title.trim().isNotEmpty);
-    if (published.isEmpty) return homeFallbackBanners;
-
-    return <HomeBannerContent>[
-      for (final banner in published)
-        HomeBannerContent(
-          contentKey: banner.contentKey,
-          headline: banner.title,
-          subline: banner.body,
-          ctaLabel: banner.actionLabel,
-          actionUri: banner.actionUri,
-          imageUrl: banner.imageUrl,
-          imageAlt: banner.imageAlt,
-          // No eyebrow: the CMS banner has no eyebrow field, and inventing a label here would be
-          // customer copy the operator never authored.
-        ),
-    ];
-  }
+  List<HomeBannerContent> get _contents => bannerContentsFrom(banners);
 
   void _handleCta(BuildContext context, HomeBannerContent content) {
     final uri = content.actionUri;
@@ -116,7 +98,7 @@ class HomeHeader extends StatelessWidget {
                   children: <Widget>[
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: sidePad),
-                      child: _LocationRow(
+                      child: HomeLocationRow(
                         label: locationLabel,
                         onTap: onLocation,
                         ink: Colors.white,
@@ -174,13 +156,36 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
+/// Maps published CMS banners to carousel content, falling back to the governed config list only
+/// when nothing is published. Shared by the B2C and B2B home headers.
+List<HomeBannerContent> bannerContentsFrom(List<StorefrontBanner> banners) {
+  final published = banners.where((banner) => banner.title.trim().isNotEmpty);
+  if (published.isEmpty) return homeFallbackBanners;
+
+  return <HomeBannerContent>[
+    for (final banner in published)
+      HomeBannerContent(
+        contentKey: banner.contentKey,
+        headline: banner.title,
+        subline: banner.body,
+        ctaLabel: banner.actionLabel,
+        actionUri: banner.actionUri,
+        imageUrl: banner.imageUrl,
+        imageAlt: banner.imageAlt,
+        // No eyebrow: the CMS banner has no eyebrow field, and inventing a label here would be
+        // customer copy the operator never authored.
+      ),
+  ];
+}
+
 /// "Deliver to" row. A full 48dp tap target, white on the navy gradient.
-class _LocationRow extends StatelessWidget {
-  const _LocationRow({
+class HomeLocationRow extends StatelessWidget {
+  const HomeLocationRow({
     required this.label,
     required this.ink,
     this.onTap,
     this.minHeight = 48,
+    super.key,
   });
 
   final String label;

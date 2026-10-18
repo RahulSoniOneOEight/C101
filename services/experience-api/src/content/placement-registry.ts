@@ -46,6 +46,13 @@ export const BANNER_TYPES: ReadonlyArray<BannerType> = [
     label: "B2C · Category banner",
   },
   {
+    placement: "b2b.home.hero",
+    channel: "b2b",
+    surface: "home",
+    requiresCategory: false,
+    label: "B2B · Home",
+  },
+  {
     placement: "b2b.category.banner",
     channel: "b2b",
     surface: "category",

@@ -10,6 +10,7 @@ import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/notifications_providers.dart';
 import '../providers/trade_offers_providers.dart';
+import '../widgets/b2b_home_header.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// BuildKart B2B Trade Home — **V5**.
@@ -51,23 +52,30 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
     final catalogue = ref.watch(tradeCatalogueProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
     final presets = ref.watch(quickOrderPresetsProvider);
+    final b2bBanners = ref.watch(b2bPresentationProvider).value
+            ?.bannersFor('home.hero') ??
+        const <StorefrontBanner>[];
     if (_selectedList.isEmpty && presets.isNotEmpty) {
       _selectedList = presets.first;
     }
 
     return Scaffold(
       body: SafeArea(
+        top: false,
         child: CustomScrollView(
           slivers: <Widget>[
             SliverToBoxAdapter(
-              child: B2BHeader(
-                onSearchTap: () => context.push('/b2b/catalogue'),
-                onNotificationsTap: () =>
+              child: B2bHomeHeader(
+                banners: b2bBanners,
+                onSearch: () => context.push('/b2b/catalogue'),
+                onLocation: () => context.push('/b2b/account'),
+                onNotifications: () =>
                     context.push('/notifications?audience=b2b'),
                 notificationCount: ref.watch(
                     unreadNotificationsProvider(NotificationAudience.b2b)),
-                onCartTap: () => context.go('/b2b/cart'),
-                onAccountTap: () => context.go('/b2b/account'),
+                onCart: () => context.go('/b2b/cart'),
+                onAccount: () => context.go('/b2b/account'),
+                onBannerAction: (uri) => context.push(uri),
               ),
             ),
             // ---- Quick order unit ----
