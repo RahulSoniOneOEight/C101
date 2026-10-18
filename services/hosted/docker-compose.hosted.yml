@@ -86,6 +86,11 @@ services:
       medusa-migrate: {condition: service_completed_successfully}
       cms: {condition: service_healthy}
     networks: [private]
+    volumes:
+      # Catalogue images are uploaded through the local file provider. Without a persistent volume they
+      # live in the container layer and vanish on the next recreate, which is exactly what happens on
+      # every release. Same volume on the worker so both see the same files.
+      - medusa_uploads:/app/packages/api/static
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:9010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -224,6 +229,7 @@ volumes:
   postgres_data:
   redis_data:
   nats_data:
+  medusa_uploads:
 
 networks:
   # Backend services only; no route to the public internet or the host.
