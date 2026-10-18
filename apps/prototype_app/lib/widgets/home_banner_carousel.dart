@@ -149,9 +149,13 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
     _autoAdvanceTimer = Timer.periodic(interval, (_) {
       if (!mounted || !_controller.hasClients) return;
       final next = (_page + 1) % widget.banners.length;
+      // Keep the slide shorter than the interval, otherwise a fast rotation is one continuous
+      // animation and reads as a smeared image rather than a sequence.
+      final transitionMs =
+          (interval.inMilliseconds * 0.6).clamp(120, 240).round();
       _controller.animateToPage(
         next,
-        duration: const Duration(milliseconds: 240),
+        duration: Duration(milliseconds: transitionMs),
         curve: Curves.easeInOut,
       );
     });
