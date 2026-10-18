@@ -37,7 +37,7 @@ class B2bHomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.homePalette;
-    final contents = bannerContentsFrom(banners);
+    final contents = bannerContentsFrom(banners, includeFallback: false);
     final showBanners = contents.isNotEmpty;
     final ink = Colors.white;
     final topPadding = MediaQuery.paddingOf(context).top;

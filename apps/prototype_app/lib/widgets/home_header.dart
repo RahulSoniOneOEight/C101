@@ -156,11 +156,18 @@ class HomeHeader extends StatelessWidget {
   }
 }
 
-/// Maps published CMS banners to carousel content, falling back to the governed config list only
-/// when nothing is published. Shared by the B2C and B2B home headers.
-List<HomeBannerContent> bannerContentsFrom(List<StorefrontBanner> banners) {
+/// Maps published CMS banners to carousel content.
+///
+/// [includeFallback] is true for B2C, whose governed seed keeps the header from ever being empty.
+/// B2B passes false: a B2C seed must never stand in for a trade banner that nobody authored.
+List<HomeBannerContent> bannerContentsFrom(
+  List<StorefrontBanner> banners, {
+  bool includeFallback = true,
+}) {
   final published = banners.where((banner) => banner.title.trim().isNotEmpty);
-  if (published.isEmpty) return homeFallbackBanners;
+  if (published.isEmpty) {
+    return includeFallback ? homeFallbackBanners : const <HomeBannerContent>[];
+  }
 
   return <HomeBannerContent>[
     for (final banner in published)

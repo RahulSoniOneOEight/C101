@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prototype_app/domain/presentation.dart';
 import 'package:prototype_app/widgets/b2b_home_header.dart';
+import 'package:prototype_app/widgets/home_banner_carousel.dart';
 
 Widget _host(Widget child) => MaterialApp(
       theme: AgencyTheme.light(),
@@ -18,6 +19,15 @@ void main() {
     expect(find.text('Search the trade catalogue'), findsOneWidget);
     expect(find.textContaining('Deliver to'), findsOneWidget);
     expect(find.byType(B2bHomeHeader), findsOneWidget);
+  });
+
+  testWidgets('B2B never borrows the B2C seed when nothing is published',
+      (tester) async {
+    await tester.pumpWidget(_host(const B2bHomeHeader()));
+
+    expect(find.text('BULK ORDERS'), findsNothing);
+    expect(find.text('Buy more, save more'), findsNothing);
+    expect(find.byType(HomeBannerCarousel), findsNothing);
   });
 
   testWidgets('B2B banners render, and none means no carousel', (tester) async {
