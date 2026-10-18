@@ -65,30 +65,60 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         child: CustomScrollView(
           slivers: <Widget>[
             SliverToBoxAdapter(
-              child: B2bHomeHeader(
-                banners: b2bBanners,
-                onSearch: () => context.push('/b2b/catalogue'),
-                onLocation: () => context.push('/b2b/account'),
-                onNotifications: () =>
-                    context.push('/notifications?audience=b2b'),
-                notificationCount: ref.watch(
-                    unreadNotificationsProvider(NotificationAudience.b2b)),
-                onCart: () => context.go('/b2b/cart'),
-                onAccount: () => context.go('/b2b/account'),
-                onBannerAction: (uri) => context.push(uri),
+              child: SizedBox(
+                height: B2bHomeHeader.heightFor(context,
+                        hasBanners: b2bBanners.isNotEmpty) -
+                    24,
+                child: OverflowBox(
+                  alignment: Alignment.topCenter,
+                  minHeight: 0,
+                  maxHeight: B2bHomeHeader.heightFor(context,
+                      hasBanners: b2bBanners.isNotEmpty),
+                  child: B2bHomeHeader(
+                    banners: b2bBanners,
+                    onSearch: () => context.push('/b2b/catalogue'),
+                    onLocation: () => context.push('/b2b/account'),
+                    onNotifications: () =>
+                        context.push('/notifications?audience=b2b'),
+                    notificationCount: ref.watch(
+                        unreadNotificationsProvider(NotificationAudience.b2b)),
+                    onCart: () => context.go('/b2b/cart'),
+                    onAccount: () => context.go('/b2b/account'),
+                    onBannerAction: (uri) => context.push(uri),
+                  ),
+                ),
               ),
             ),
-            // ---- Quick order unit ----
-            SliverToBoxAdapter(child: _quickOrderUnit(catalogue)),
-            // ---- Buy Again unit ----
-            SliverToBoxAdapter(child: _buyAgainUnit()),
-            // ---- Trade Offers & Deals unit ----
-            SliverToBoxAdapter(child: _offersUnit()),
-            // ---- Categories + Products unit ----
-            SliverToBoxAdapter(child: _categoriesUnit(catalogue)),
-            // ---- Cart summary ----
-            if (!cart.isEmpty) SliverToBoxAdapter(child: _cartSummary(cart)),
-            const SliverToBoxAdapter(child: SizedBox(height: AgencySpacing.lg)),
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.homePalette.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1120),
+                    child: Column(
+                      children: <Widget>[
+                        // ---- Quick order unit ----
+                        _quickOrderUnit(catalogue),
+                        // ---- Buy Again unit ----
+                        _buyAgainUnit(),
+                        // ---- Trade Offers & Deals unit ----
+                        _offersUnit(),
+                        // ---- Categories + Products unit ----
+                        _categoriesUnit(catalogue),
+                        // ---- Cart summary ----
+                        if (!cart.isEmpty) _cartSummary(cart),
+                        const SizedBox(height: AgencySpacing.lg),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

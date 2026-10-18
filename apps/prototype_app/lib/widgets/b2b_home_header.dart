@@ -34,6 +34,15 @@ class B2bHomeHeader extends StatelessWidget {
   final int notificationCount;
   final ValueChanged<String>? onBannerAction;
 
+  /// Fixed height, mirroring the B2C header so the products sheet can overlap it by 24.
+  static double heightFor(BuildContext context, {required bool hasBanners}) {
+    final safeTop = MediaQuery.paddingOf(context).top;
+    return safeTop + baseHeight + (hasBanners ? bannerExtraHeight : 0);
+  }
+
+  static const double baseHeight = 208;
+  static const double bannerExtraHeight = 184;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.homePalette;
@@ -42,23 +51,25 @@ class B2bHomeHeader extends StatelessWidget {
     final ink = Colors.white;
     final topPadding = MediaQuery.paddingOf(context).top;
 
-    return Stack(
-      children: <Widget>[
-        Positioned.fill(
-          child: RepaintBoundary(
-            child: ExcludeSemantics(
-              child: CustomPaint(
-                painter: HomeHeaderBackdropPainter(palette: palette),
+    return SizedBox(
+      height: heightFor(context, hasBanners: showBanners),
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: ExcludeSemantics(
+                child: CustomPaint(
+                  painter: HomeHeaderBackdropPainter(palette: palette),
+                ),
               ),
             ),
           ),
-        ),
-        Padding(
-          padding: EdgeInsets.only(top: topPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
+          Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
               BadgeTheme(
                 data: BadgeThemeData(
                   backgroundColor: palette.alert,
@@ -140,25 +151,29 @@ class B2bHomeHeader extends StatelessWidget {
               ),
               if (showBanners) ...<Widget>[
                 const SizedBox(height: AgencySpacing.sm),
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-                  child: HomeBannerCarousel(
-                    banners: contents,
-                    cardHeight: 160,
-                    onBannerCta: (content) {
-                      final uri = content.actionUri;
-                      if (uri == null || uri.isEmpty) return;
-                      onBannerAction?.call(uri);
-                    },
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AgencySpacing.md),
+                    child: HomeBannerCarousel(
+                      banners: contents,
+                      cardHeight: 160,
+                      onBannerCta: (content) {
+                        final uri = content.actionUri;
+                        if (uri == null || uri.isEmpty) return;
+                        onBannerAction?.call(uri);
+                      },
+                    ),
                   ),
                 ),
-              ],
-              const SizedBox(height: AgencySpacing.md),
+                const SizedBox(height: AgencySpacing.sm),
+              ] else
+                const Spacer(),
             ],
           ),
         ),
       ],
+      ),
     );
   }
 }
