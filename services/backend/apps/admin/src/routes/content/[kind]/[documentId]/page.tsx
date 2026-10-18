@@ -1,4 +1,4 @@
-import { Button, Container, Heading, Hint, StatusBadge, Text, toast, usePrompt } from "@medusajs/ui";
+import { Button, Container, Heading, Hint, Label, Select, StatusBadge, Text, toast, usePrompt } from "@medusajs/ui";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -61,6 +61,16 @@ function DraftEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [createdDocumentId, setCreatedDocumentId] = useState<string | null>(null);
   const isDirty = JSON.stringify(formValues) !== JSON.stringify(initialValues);
+
+  // A category editorial points at a commerce category by id. Operators should pick it from a list
+  // rather than paste an id (and a name is rejected downstream anyway).
+  const categoriesQuery = useQuery({
+    queryKey: ["buildkart", "commerce-categories"],
+    queryFn: () => client.admin.buildkart.categories.query(),
+    enabled: kind === "category-editorial",
+    staleTime: 5 * 60 * 1000,
+  });
+  const categoryOptions = categoriesQuery.data?.categories ?? [];
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => client.admin.buildkart.content.mutate({
@@ -141,8 +151,7 @@ function DraftEditor({
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", beforeUnload);
-    return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [isDirty]);
+    return () => window.removeEventListener("beforeunload", beforeUnload);  }, [isDirty]);
 
   useEffect(() => {
     const keyboardSave = (event: KeyboardEvent) => {
@@ -223,17 +232,48 @@ function DraftEditor({
                 </Text>
               </div>
               <div className="flex flex-col gap-y-5 px-6 py-5">
-                {routineFields.map((field) => (
-                  <ContentFieldInput
-                    key={field.name}
-                    field={field}
-                    value={formValues[field.name] ?? ""}
-                    onChange={(value) => {
-                      setFormError(null);
-                      setFormValues((current) => ({ ...current, [field.name]: value }));
-                    }}
-                  />
-                ))}
+                {routineFields.map((field) =>
+                  kind === "category-editorial" && field.name === "categoryId" ? (
+                    <div key={field.name} className="flex flex-col gap-y-1">
+                      <Label htmlFor="category-reference" size="small">
+                        Commerce category
+                      </Label>
+                      <Select
+                        value={formValues.categoryId || undefined}
+                        onValueChange={(value) => {
+                          setFormError(null);
+                          setFormValues((current) => ({ ...current, categoryId: value }));
+                        }}
+                      >
+                        <Select.Trigger id="category-reference">
+                          <Select.Value placeholder="Choose a category" />
+                        </Select.Trigger>
+                        <Select.Content>
+                          {categoryOptions.map((category) => (
+                            <Select.Item key={category.id} value={category.id}>
+                              {category.name}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select>
+                      <Text size="xsmall" className="text-ui-fg-subtle">
+                        {categoriesQuery.isError
+                          ? "The category list could not be loaded. Reopen the editor to retry."
+                          : "Stores the Medusa category id. Renaming the category does not change it."}
+                      </Text>
+                    </div>
+                  ) : (
+                    <ContentFieldInput
+                      key={field.name}
+                      field={field}
+                      value={formValues[field.name] ?? ""}
+                      onChange={(value) => {
+                        setFormError(null);
+                        setFormValues((current) => ({ ...current, [field.name]: value }));
+                      }}
+                    />
+                  ),
+                )}
               </div>
             </Container>
 
