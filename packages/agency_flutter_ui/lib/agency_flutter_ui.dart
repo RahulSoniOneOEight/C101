@@ -1464,12 +1464,17 @@ class ProductCarousel extends StatelessWidget {
     required this.children,
     this.itemWidth = 152,
     this.height = 252,
+    this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> children;
   final double itemWidth;
   final double height;
+
+  /// Space between tiles. Home passes a slightly wider gap so the rails breathe with the wider
+  /// full-bleed banner above them; other screens keep the default.
+  final double gap;
 
   @override
   Widget build(BuildContext context) {
@@ -1478,7 +1483,7 @@ class ProductCarousel extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: children.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AgencySpacing.sm),
+        separatorBuilder: (_, __) => SizedBox(width: gap),
         itemBuilder: (context, index) =>
             SizedBox(width: itemWidth, child: children[index]),
       ),
@@ -1550,12 +1555,14 @@ class ProductGrid extends StatelessWidget {
     required this.children,
     this.crossAxisCount = 2,
     this.mainAxisExtent = 296,
+    this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> children;
   final int crossAxisCount;
   final double mainAxisExtent;
+  final double gap;
 
   @override
   Widget build(BuildContext context) {
@@ -1565,8 +1572,8 @@ class ProductGrid extends StatelessWidget {
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisExtent: mainAxisExtent,
-        mainAxisSpacing: AgencySpacing.sm,
-        crossAxisSpacing: AgencySpacing.sm,
+        mainAxisSpacing: gap,
+        crossAxisSpacing: gap,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1582,12 +1589,14 @@ class ProductCompositionSection extends StatelessWidget {
     required this.regularProducts,
     this.specialSlot,
     this.mainAxisExtent = 312,
+    this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> regularProducts;
   final Widget? specialSlot;
   final double mainAxisExtent;
+  final double gap;
 
   @override
   Widget build(BuildContext context) {
@@ -1602,6 +1611,7 @@ class ProductCompositionSection extends StatelessWidget {
         return ProductGrid(
           crossAxisCount: crossAxisCount,
           mainAxisExtent: mainAxisExtent,
+          gap: gap,
           // A missing split tile must not become an invisible, full-height grid cell. Layout-driven
           // compositions commonly have products only; appending SizedBox.shrink() here created an
           // extra 312px row that looked like a large blank block before the next module.

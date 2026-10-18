@@ -18,6 +18,10 @@ class MerchandisingModuleView extends StatelessWidget {
     super.key,
   });
 
+  /// Gap between product tiles. 10 keeps the rails aligned with the 12pt home gutter; the old 8
+  /// looked cramped once the banner above went full-bleed.
+  static const double _tileGap = 10;
+
   final MerchandisingModule module;
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
@@ -48,11 +52,17 @@ class MerchandisingModuleView extends StatelessWidget {
         );
       case MerchandisingModuleType.productCarousel:
         return _headed(
-          ProductCarousel(children: _cards(ProductCardVariant.compact)),
+          ProductCarousel(
+            gap: _tileGap,
+            children: _cards(ProductCardVariant.compact),
+          ),
         );
       case MerchandisingModuleType.productGrid:
         return _headed(
-          ProductGrid(children: _cards(ProductCardVariant.compact)),
+          ProductGrid(
+            gap: _tileGap,
+            children: _cards(ProductCardVariant.compact),
+          ),
         );
       case MerchandisingModuleType.productComposition:
         return _composition();
@@ -96,6 +106,7 @@ class MerchandisingModuleView extends StatelessWidget {
           ),
         if (module.title != null) const SizedBox(height: AgencySpacing.sm),
         ProductCompositionSection(
+          gap: _tileGap,
           regularProducts: _cards(ProductCardVariant.large),
           specialSlot: special,
         ),

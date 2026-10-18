@@ -34,6 +34,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   static const double _productsOverlap = 24;
   static const double _productsRadius = 24;
 
+  /// Home gutter. Slightly tighter than the app default (16) so the product rails sit closer to the
+  /// full-bleed banner above them without touching the screen edge.
+  static const double _gutter = 12;
+
+  /// Space between product tiles on the home rails and grid.
+  static const double _tileGap = 10;
+
   /// Selected category label; null means "All".
   String? _category;
   int _visible = _pageSize;
@@ -273,9 +280,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 for (final module in modules)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
-                      AgencySpacing.md,
-                      AgencySpacing.md,
-                      AgencySpacing.md,
+                      _gutter,
+                      _gutter,
+                      _gutter,
                       0,
                     ),
                     child: MerchandisingModuleView(
@@ -290,7 +297,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.all(AgencySpacing.md),
+                  padding: const EdgeInsets.all(_gutter),
                   child: _catalogSection(filtered),
                 ),
               ],
@@ -342,8 +349,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: AgencySpacing.sm,
-                crossAxisSpacing: AgencySpacing.sm,
+                mainAxisSpacing: _tileGap,
+                crossAxisSpacing: _tileGap,
                 mainAxisExtent: 296,
               ),
               itemCount: visible.length,
