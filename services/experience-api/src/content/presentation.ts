@@ -13,6 +13,7 @@ import type { AppLocale } from "./app-content.js";
 import { homeBannerPlacements } from "./placement-registry.js";
 import type { StorefrontChannel } from "./storefront-layout.js";
 import type {
+  CategoryBannerOverride,
   StorefrontBannerPresentation,
   StorefrontBannerTheme,
   StorefrontCategoryEditorial,
@@ -193,10 +194,20 @@ export function seedCategoryPresentation(categoryName: string): CategoryPresenta
 export function composeStorefrontCategories(
   categories: CategoryIdentity[],
   editorials: StorefrontCategoryEditorial[],
+  categoryBanners: CategoryBannerOverride[] = [],
 ): ComposedCategory[] {
   const byId = new Map<string, StorefrontCategoryEditorial>();
   editorials.forEach((item) => {
     byId.set(item.category_id.toLowerCase(), item);
+  });
+
+  // A category banner may be keyed by commerce id or by category name, so index it under every
+  // vocabulary the category list offers. Without this, an id-keyed banner silently never applied to
+  // a name-keyed editorial and the seed image won.
+  const bannersByKey = new Map<string, CategoryBannerOverride>();
+  categoryBanners.forEach((banner) => {
+    const key = banner.categoryId.trim().toLowerCase();
+    if (key) bannersByKey.set(key, banner);
   });
 
   return categories.map((category) => {
@@ -209,8 +220,11 @@ export function composeStorefrontCategories(
     const label = editorial?.label ?? seed?.label ?? category.name;
     const iconKey = normalizeIconKey(editorial?.icon_key ?? seed?.icon_key);
     const shortText = editorial?.short_text ?? seed?.short_text;
-    const bannerImage = editorial?.banner_image_uri ?? seed?.banner_image_uri;
-    const bannerAlt = editorial?.banner_image_alt;
+    const override = bannersByKey.get(category.id.toLowerCase()) ??
+      bannersByKey.get(category.name.toLowerCase()) ??
+      (category.handle ? bannersByKey.get(category.handle.toLowerCase()) : undefined);
+    const bannerImage = override?.image ?? editorial?.banner_image_uri ?? seed?.banner_image_uri;
+    const bannerAlt = override?.alt ?? editorial?.banner_image_alt;
     return {
       category_id: category.id,
       slug: category.handle ?? null,

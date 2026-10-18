@@ -90,6 +90,13 @@ export interface CmsCollectionResolution<T> {
   stale: boolean;
 }
 
+/** A category banner as stored, keyed by whichever category reference it carries. */
+export interface CategoryBannerOverride {
+  categoryId: string;
+  image?: string;
+  alt?: string;
+}
+
 const LAYOUT_UIDS: Record<string, StorefrontModuleType> = {
   "layout.hero-banner": "hero-banner",
   "layout.category-rail": "category-rail",
@@ -401,6 +408,8 @@ export class CmsContentAdapter {
   private readonly cache = new Map<string, CachedProjection>();
   private readonly bannerCache = new Map<string, CachedCollectionProjection<StorefrontBannerPresentation>>();
   private readonly categoryCache = new Map<string, CachedCollectionProjection<StorefrontCategoryEditorial>>();
+  private readonly categoryBannerCache =
+    new Map<string, CachedCollectionProjection<CategoryBannerOverride>>();
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => Date;
 
@@ -425,7 +434,10 @@ export class CmsContentAdapter {
         }
       }
     }
-    if (uid === "api::banner.banner") this.bannerCache.clear();
+    if (uid === "api::banner.banner") {
+      this.bannerCache.clear();
+      this.categoryBannerCache.clear();
+    }
     if (uid === "api::category-editorial.category-editorial") this.categoryCache.clear();
   }
 
@@ -561,8 +573,7 @@ export class CmsContentAdapter {
   async resolveCategoryEditorials(
     channel: StorefrontChannel,
     locale: AppLocale,
-  ): Promise<CmsCollectionResolution<StorefrontCategoryEditorial>> {
-    const categoryPlacement = categoryBannerPlacement(channel);
+  ): Promise<CmsCollectionResolution<StorefrontCategoryEditorial>> {    const categoryPlacement = categoryBannerPlacement(channel);
     return this.resolveCollection({
       projectionKey: `category-editorial:${channel}:${locale}`,
       locale,
@@ -608,6 +619,43 @@ export class CmsContentAdapter {
             };
           })
           .filter((item): item is StorefrontCategoryEditorial => Boolean(item));
+      },
+    });
+  }
+
+  /**
+   * Category banners exactly as stored, without joining them to an editorial.
+   *
+   * The composition step owns the join because only it knows both vocabularies (commerce id and
+   * category name), so a banner keyed by id and an editorial keyed by name still meet.
+   */
+  async resolveCategoryBanners(
+    channel: StorefrontChannel,
+    locale: AppLocale,
+  ): Promise<CmsCollectionResolution<CategoryBannerOverride>> {
+    const categoryPlacement = categoryBannerPlacement(channel);
+    return this.resolveCollection({
+      projectionKey: `category-banner:${channel}:${locale}`,
+      locale,
+      cache: this.categoryBannerCache,
+      fetchItems: async (candidateLocale) => {
+        const entities = await this.fetchPublishedCollection("banners", candidateLocale);
+        const now = this.now();
+        return entities.flatMap((entity) => {
+          const banner = record(entity);
+          if (!banner || !inWindow(banner, now)) return [];
+          if (String(banner.placement ?? "").trim() !== categoryPlacement) return [];
+          const categoryId = text(banner.categoryId);
+          if (!categoryId) return [];
+          const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
+            ?? externalImageUri(banner.externalImageUrl);
+          const alt = text(banner.imageAltText);
+          return [{
+            categoryId,
+            ...(image ? { image } : {}),
+            ...(alt ? { alt } : {}),
+          }];
+        });
       },
     });
   }

@@ -163,6 +163,24 @@ assert.equal(electrical?.presentation_source, "governed-editorial-seed");
 assert.equal(electrical?.label, "Electrical", "a missing editorial must fall back to the commerce name");
 assert.equal(electrical?.icon_key, "electrical");
 
+// --- a name-keyed editorial and an id-keyed banner must still meet ------------------------------
+const tolerant = composeStorefrontCategories(
+  [{ id: "pcat_agri", name: "Agriculture & Seeds", handle: "agriculture-&-seeds" }],
+  [
+    {
+      category_id: "Agriculture & Seeds",
+      label: "Agriculture & Seeds",
+      icon_key: "agriculture",
+    },
+  ],
+  [{ categoryId: "pcat_agri", image: "https://images.example.com/agri.png" }],
+);
+assert.equal(
+  tolerant[0].banner_image_uri,
+  "https://images.example.com/agri.png",
+  "an id-keyed banner must apply to a name-keyed editorial",
+);
+
 // Unknown icon keys are constrained to the approved set.
 assert.equal(normalizeIconKey("<script>"), "category");
 assert.equal(normalizeIconKey(undefined), "category");

@@ -861,9 +861,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     let categoryObservedAt = bannerResolution.observedAt;
     let categoryStale = bannerResolution.stale;
     try {
-      const [editorialResolution, medusaCategories] = await Promise.all([
+      const [editorialResolution, medusaCategories, categoryBanners] = await Promise.all([
         cmsContent.resolveCategoryEditorials(channel, locale),
         medusa.listProductCategories(),
+        cmsContent.resolveCategoryBanners(channel, locale),
       ]);
       const roots = medusaCategories
         .filter(
@@ -878,7 +879,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           name: category.name,
           handle: category.handle ?? null,
         }));
-      categories = composeStorefrontCategories(roots, editorialResolution.items);
+      categories = composeStorefrontCategories(
+        roots,
+        editorialResolution.items,
+        categoryBanners.items,
+      );
       categorySource = editorialResolution.source;
       categoryObservedAt = editorialResolution.observedAt;
       categoryStale = editorialResolution.stale;

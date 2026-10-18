@@ -19,6 +19,8 @@ interface ContentField {
   required?: boolean;
   options?: string[];
   description?: string;
+  /** `commerce-category-id` rejects a category name or any non-Medusa reference. */
+  format?: "commerce-category-id";
 }
 
 interface ContentKindDefinition {
@@ -89,6 +91,7 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         name: "categoryId",
         label: "Category reference",
         type: "string",
+        format: "commerce-category-id",
         description: "Medusa category id. Required for a Category banner; ignored by other placements.",
       },
       {
@@ -167,7 +170,7 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         options: ["b2c", "b2b"],
         description: "B2C and B2B are independent sets. A category may have one record per channel.",
       },
-      { name: "categoryId", label: "Commerce category id", type: "string", required: true },
+      { name: "categoryId", label: "Commerce category id", type: "string", required: true, format: "commerce-category-id" },
       { name: "displayLabel", label: "Display label", type: "string" },
       { name: "shortText", label: "Supporting text", type: "string" },
       {
@@ -342,6 +345,15 @@ function sanitizeData(definition: ContentKindDefinition, value: unknown): JsonRe
       }
       if (parsed.protocol !== "https:") {
         throw new Error(`Field '${key}' must be a valid HTTPS URL.`);
+      }
+    }
+    if (field?.format === "commerce-category-id" && fieldValue !== null && fieldValue !== "") {
+      // A category name silently never matched a category banner, so reject the vocabulary at the
+      // source instead of letting delivery fall back to the seed image.
+      if (!/^pcat_[A-Za-z0-9]+$/.test(String(fieldValue).trim())) {
+        throw new Error(
+          `Field '${key}' must be a Medusa category id (for example pcat_01H...), not a name.`,
+        );
       }
     }
     output[key] = fieldValue;
