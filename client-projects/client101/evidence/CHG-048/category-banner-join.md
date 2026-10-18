@@ -47,10 +47,26 @@ All six categories now deliver the image held on their banner record, on both ch
 | Building & Construction | `1216589` |
 | Pumps & Machines | `175709` |
 
-## Still open
+## Gaps closed (follow-up)
 
-- **The seed still writes names** (`presentation-seed.ts`). A fresh database would recreate label-keyed
-  editorials, and any id-keyed category banner would silently stop applying. Fixing that properly needs
-  the seed to resolve commerce ids at runtime, or the join to accept both vocabularies.
-- **No guard prevents a non-id `categoryId`.** A validation rule on the banner and editorial write paths
-  would make this class of defect impossible.
+**1. The join now tolerates both vocabularies.** Banner overrides are resolved during composition,
+where the commerce category list is available, so a banner keyed by `pcat_…` matches an editorial keyed
+by name, handle, or id. `resolveCategoryBanners` returns the banners as stored; the adapter no longer
+decides the join alone. Verified by a test that pairs a name-keyed editorial with an id-keyed banner and
+expects the banner image to win.
+
+Consequence: the CMS seed may keep writing names. A fresh database is now safe, because the seed image
+still applies where no banner exists and an id-keyed banner still applies where one does.
+
+**2. Writing a category name is rejected.** The CMS operator API validates any field marked
+`commerce-category-id`:
+
+```
+POST /admin/buildkart/content  { categoryId: "Agriculture & Seeds" }
+400 {"type":"invalid_data","message":"Field 'categoryId' must be a Medusa category id (for example pcat_01H...), not a name."}
+```
+
+A valid id is accepted (200). The rule covers both the banner `categoryId` and the category-editorial
+`categoryId`, so the drift cannot be reintroduced from the console.
+
+Released in `9f1f1d0` (CMS + Experience API rebuilt and recreated, proxy restarted, release pointer moved).
