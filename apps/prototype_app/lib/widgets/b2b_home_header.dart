@@ -21,6 +21,7 @@ class B2bHomeHeader extends StatelessWidget {
     this.onAccount,
     this.notificationCount = 0,
     this.onBannerAction,
+    this.rotationMs = 0,
     super.key,
   });
 
@@ -33,6 +34,9 @@ class B2bHomeHeader extends StatelessWidget {
   final VoidCallback? onAccount;
   final int notificationCount;
   final ValueChanged<String>? onBannerAction;
+
+  /// Hero auto-advance interval from the layout settings. 0 keeps the carousel still.
+  final int rotationMs;
 
   /// Fixed height, mirroring the B2C header so the products sheet can overlap it by 24.
   static double heightFor(BuildContext context, {required bool hasBanners}) {
@@ -158,6 +162,9 @@ class B2bHomeHeader extends StatelessWidget {
                     child: HomeBannerCarousel(
                       banners: contents,
                       cardHeight: 160,
+                      autoAdvance: rotationMs > 0
+                          ? Duration(milliseconds: rotationMs)
+                          : null,
                       onBannerCta: (content) {
                         final uri = content.actionUri;
                         if (uri == null || uri.isEmpty) return;

@@ -62,6 +62,11 @@ export interface StorefrontLayout {
    * recovery format during the transition.
    */
   sections?: StorefrontLayoutSection[];
+  /**
+   * Auto-advance interval for the home hero carousel, in milliseconds. Absent or 0 means the carousel
+   * stays where the customer left it. Authored per channel in the console.
+   */
+  hero_rotation_ms?: number;
   starts_at?: string;
   ends_at?: string;
   fallback_layout_key: string | null;

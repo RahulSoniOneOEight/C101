@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
@@ -73,6 +74,7 @@ class HomeBannerCarousel extends StatefulWidget {
     required this.banners,
     this.onBannerCta,
     this.cardHeight,
+    this.autoAdvance,
     super.key,
   });
 
@@ -82,6 +84,10 @@ class HomeBannerCarousel extends StatefulWidget {
   /// Fixed card height. When null the card fills a bounded parent, so the header can award the
   /// leftover vertical space to the banner instead of leaving it empty.
   final double? cardHeight;
+
+  /// How often the carousel advances by itself. Null or zero means it stays put. Authored per layout
+  /// in the console, so no speed is hardcoded here.
+  final Duration? autoAdvance;
 
   static const double defaultCardHeight = 128;
   static const double minCardHeight = 120;
@@ -116,9 +122,44 @@ class HomeBannerCarousel extends StatefulWidget {
 class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
   final PageController _controller = PageController();
   int _page = 0;
+  Timer? _autoAdvanceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restartAutoAdvance();
+  }
+
+  @override
+  void didUpdateWidget(HomeBannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.autoAdvance != widget.autoAdvance ||
+        oldWidget.banners.length != widget.banners.length) {
+      _restartAutoAdvance();
+    }
+  }
+
+  /// Rotation is a layout setting, never a constant: nothing moves when the interval is absent, zero,
+  /// or when there is only one banner to show.
+  void _restartAutoAdvance() {
+    _autoAdvanceTimer?.cancel();
+    final interval = widget.autoAdvance;
+    if (interval == null || interval <= Duration.zero) return;
+    if (widget.banners.length < 2) return;
+    _autoAdvanceTimer = Timer.periodic(interval, (_) {
+      if (!mounted || !_controller.hasClients) return;
+      final next = (_page + 1) % widget.banners.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
 
   @override
   void dispose() {
+    _autoAdvanceTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

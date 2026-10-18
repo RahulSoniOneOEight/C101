@@ -68,6 +68,13 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         description:
           "Ordered sections: placement, title, subtitle, badge, collection reference, limit, see-all target, banner reference, visibility and schedule.",
       },
+      {
+        name: "heroRotationMs",
+        label: "Hero rotation (ms)",
+        type: "integer",
+        description:
+          "Auto-advance interval for the home hero carousel. 0 disables it; 500 advances twice a second.",
+      },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
     ],

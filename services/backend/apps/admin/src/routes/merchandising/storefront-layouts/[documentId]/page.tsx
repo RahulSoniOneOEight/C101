@@ -274,6 +274,7 @@ export default function StorefrontLayoutEditorPage() {
       layoutKey={String(document.layoutKey ?? documentId)}
       publicationStatus={String(document.publicationStatus ?? "draft")}
       updatedAt={String(document.updatedAt ?? "")}
+      initialHeroRotationMs={Number(document.heroRotationMs ?? 0)}
       initialSections={Array.isArray(document.sections)
         ? document.sections as StoredLayoutSection[]
         : []}
@@ -290,6 +291,7 @@ function LayoutEditor({
   layoutKey,
   publicationStatus,
   updatedAt,
+  initialHeroRotationMs,
   initialSections,
   collections,
   banners,
@@ -300,6 +302,7 @@ function LayoutEditor({
   layoutKey: string;
   publicationStatus: string;
   updatedAt: string;
+  initialHeroRotationMs: number;
   initialSections: StoredLayoutSection[];
   collections: Array<{ id: string; title: string; handle: string | null }>;
   banners: Array<{ contentKey: string; name: string; placement: string }>;
@@ -313,14 +316,16 @@ function LayoutEditor({
   );
 
   const [sections, setSections] = useState<StoredLayoutSection[]>(initialSections);
-  const [baseline, setBaseline] = useState(() => JSON.stringify(initialSections));
+  const [heroRotationMs, setHeroRotationMs] = useState(initialHeroRotationMs);
+  const [baseline, setBaseline] = useState(() =>
+    JSON.stringify({ sections: initialSections, heroRotationMs: initialHeroRotationMs }));
   const [open, setOpen] = useState<string | null>(null);
 
   const validation = useMemo(
     () => validateStoredSections(sections, channel),
     [sections, channel],
   );
-  const dirty = JSON.stringify(sections) !== baseline;
+  const dirty = JSON.stringify({ sections, heroRotationMs }) !== baseline;
 
   const saveMutation = useMutation({
     mutationFn: (publish: boolean) => client.admin.buildkart.content.mutate({
@@ -328,7 +333,7 @@ function LayoutEditor({
       locale,
       operation: "update-draft",
       documentId,
-      data: { sections },
+      data: { sections, heroRotationMs },
       expectedUpdatedAt: updatedAt,
     }).then(async (saved) => {
       if (!publish) return saved;
@@ -340,7 +345,7 @@ function LayoutEditor({
       });
     }),
     onSuccess: async (_result, publish) => {
-      setBaseline(JSON.stringify(sections));
+      setBaseline(JSON.stringify({ sections, heroRotationMs }));
       toast.success(publish
         ? "Layout published. The storefront will read this configuration."
         : "Draft saved. The published layout is unchanged.");
@@ -434,6 +439,28 @@ function LayoutEditor({
             <Text size="xsmall" className="text-ui-fg-subtle">
               {dirty ? "Unsaved changes" : "All changes saved to the draft"}
             </Text>
+          </div>
+        </Container>
+
+        <Container className="px-6 py-4">
+          <Heading level="h2">Hero carousel</Heading>
+          <Text size="small" className="mt-1 text-ui-fg-subtle">
+            How long each hero banner stays before advancing. 0 keeps the carousel still. The
+            interval applies to this layout's channel only.
+          </Text>
+          <div className="mt-3 max-w-48">
+            <Label htmlFor="hero-rotation" size="small">Rotation (ms)</Label>
+            <Input
+              id="hero-rotation"
+              type="number"
+              min={0}
+              step={100}
+              value={String(heroRotationMs)}
+              onChange={(event) => {
+                const next = Number.parseInt(event.target.value, 10);
+                setHeroRotationMs(Number.isFinite(next) && next > 0 ? next : 0);
+              }}
+            />
           </div>
         </Container>
 

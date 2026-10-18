@@ -152,15 +152,42 @@ void main() {
     expect(HomeHeader.heightForWidth(1280), 560);
   });
 
-  testWidgets('no peek stubs: the next banner is reached by swiping or the dots',
+  testWidgets('rotation follows the layout interval, and stops when unset',
       (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(
+        banners: homeFallbackBanners,
+        autoAdvance: Duration(milliseconds: 500),
+      ),
+    ));
+    expect(find.text('Buy more, save more'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('GST invoice on every order'), findsOneWidget,
+        reason: 'the carousel advances at the authored interval');
+  });
+
+  testWidgets('no interval means no motion', (tester) async {
     await tester.pumpWidget(_host(
       const HomeBannerCarousel(banners: homeFallbackBanners),
     ));
 
-    expect(find.byKey(const ValueKey<String>('home-banner-peek-right')),
-        findsNothing);
-    expect(find.byKey(const ValueKey<String>('home-banner-peek-left')),
-        findsNothing);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Buy more, save more'), findsOneWidget);
+  });
+
+  testWidgets('a single banner never rotates', (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(
+        banners: <HomeBannerContent>[
+          HomeBannerContent(headline: 'Only one'),
+        ],
+        autoAdvance: Duration(milliseconds: 500),
+      ),
+    ));
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Only one'), findsOneWidget);
   });
 }

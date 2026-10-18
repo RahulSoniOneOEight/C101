@@ -396,6 +396,9 @@ function mapLayout(
       locale,
       modules,
       ...(sections.length ? { sections } : {}),
+      ...(Number.isFinite(entity.heroRotationMs) && Number(entity.heroRotationMs) > 0
+        ? { hero_rotation_ms: Number(entity.heroRotationMs) }
+        : {}),
       ...(text(entity.startsAt) ? { starts_at: text(entity.startsAt) } : {}),
       ...(text(entity.endsAt) ? { ends_at: text(entity.endsAt) } : {}),
       fallback_layout_key: text(fallback?.layoutKey) ?? null,

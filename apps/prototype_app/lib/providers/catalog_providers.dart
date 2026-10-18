@@ -464,6 +464,19 @@ final b2bLayoutSectionsProvider =
   }
 });
 
+/// Hero rotation interval for a channel, authored per layout in the console.
+///
+/// 0 (the default) keeps the carousel still, so an unset or failed read never introduces motion.
+final heroRotationMsProvider = FutureProvider.family<int, String>((ref, channel) async {
+  try {
+    return await ref
+        .watch(experienceApiProvider)
+        .getHeroRotationMs(channel: channel);
+  } catch (_) {
+    return 0;
+  }
+});
+
 /// Products for one layout section, resolved from its commerce collection.
 ///
 /// The section stores a reference; commerce resolves membership, so adding a product to the collection

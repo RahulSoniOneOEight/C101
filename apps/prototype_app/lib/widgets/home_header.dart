@@ -18,6 +18,7 @@ class HomeHeader extends StatelessWidget {
     this.onBannerAction,
     this.topInset = 0,
     this.bottomInset = 0,
+    this.rotationMs = 0,
     super.key,
   });
 
@@ -43,6 +44,9 @@ class HomeHeader extends StatelessWidget {
   /// Space reserved for the products sheet that rides up over the gradient, so the carousel dots
   /// are not hidden under it.
   final double bottomInset;
+
+  /// Hero auto-advance interval from the layout settings. 0 keeps the carousel still.
+  final int rotationMs;
 
   final String locationLabel;
 
@@ -142,6 +146,9 @@ class HomeHeader extends StatelessWidget {
                     Expanded(
                       child: HomeBannerCarousel(
                         banners: contents,
+                        autoAdvance: rotationMs > 0
+                            ? Duration(milliseconds: rotationMs)
+                            : null,
                         onBannerCta: (content) => _handleCta(context, content),
                       ),
                     ),

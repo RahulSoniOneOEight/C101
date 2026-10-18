@@ -76,6 +76,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                       hasBanners: b2bBanners.isNotEmpty),
                   child: B2bHomeHeader(
                     banners: b2bBanners,
+                    rotationMs:
+                        ref.watch(heroRotationMsProvider('b2b')).value ?? 0,
                     onSearch: () => context.push('/b2b/catalogue'),
                     onLocation: () => context.push('/b2b/account'),
                     onNotifications: () =>

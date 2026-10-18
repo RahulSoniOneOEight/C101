@@ -168,6 +168,24 @@ class ExperienceApi {
     return parseLayoutSections(res.data!['layout']);
   }
 
+  /// Hero auto-advance interval for a channel, in milliseconds. 0 means no rotation.
+  ///
+  /// Read from the same app-shell payload the sections come from; the operator authors it per layout
+  /// in the console. A missing or malformed value disables rotation rather than guessing a speed.
+  Future<int> getHeroRotationMs(
+      {String locale = 'en-IN', String channel = 'b2c'}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/content/app-shell',
+      queryParameters: <String, dynamic>{'locale': locale, 'channel': channel},
+    );
+    final layout = res.data!['layout'];
+    if (layout is! Map<String, dynamic>) return 0;
+    final value = layout['hero_rotation_ms'];
+    if (value is! num) return 0;
+    final ms = value.toInt();
+    return ms > 0 ? ms : 0;
+  }
+
   /// Composed product detail (best-price offer drives price + variant identity).
   Future<Product> getComposedProduct(String productId) async {
     final res = await _dio.get<Map<String, dynamic>>('/v1/products/$productId');
