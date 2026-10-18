@@ -261,12 +261,14 @@ class _HomeBannerCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
+                    // Strong only where the copy sits, then released, so the right-hand side of the
+                    // creative keeps most of its original brightness.
                     colors: <Color>[
-                      palette.navy.withValues(alpha: 0.90),
-                      palette.navy.withValues(alpha: 0.70),
-                      palette.navy.withValues(alpha: 0.40),
+                      palette.navy.withValues(alpha: 0.88),
+                      palette.navy.withValues(alpha: 0.55),
+                      palette.navy.withValues(alpha: 0.10),
                     ],
-                    stops: const <double>[0, 0.55, 1],
+                    stops: const <double>[0, 0.45, 1],
                   ),
                 ),
               ),
