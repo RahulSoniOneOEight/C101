@@ -46,6 +46,7 @@ approval_required: true
 implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-18'
-  status: proposed
-status: proposed-awaiting-approval
+  status: implemented-staging
+  evidence: client-projects/client101/evidence/CHG-048/category-wiring.md
+status: implemented-awaiting-human-review
 production_release_authorized: false

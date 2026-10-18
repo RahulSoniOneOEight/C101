@@ -375,7 +375,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _categoriesUnit(List<TradeProduct> catalogue) {
     final colours = context.colors;
-    final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final tradeCategories = ref.watch(tradeCategoryOptionsProvider);
     final selectedLabel = _catId == null
         ? null
         : tradeCategories

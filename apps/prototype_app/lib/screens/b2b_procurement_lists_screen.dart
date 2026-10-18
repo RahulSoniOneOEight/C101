@@ -432,7 +432,7 @@ class _ProcurementListEditorScreenState
     final colors = _colors(context);
     final catalogue = ref.watch(tradeCatalogueProvider);
     final addable = _addable(catalogue);
-    final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final tradeCategories = ref.watch(tradeCategoryOptionsProvider);
     final selectedCatLabel = _catId == null
         ? null
         : tradeCategories

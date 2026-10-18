@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local_store.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../domain/presentation.dart';
+import 'catalog_providers.dart';
 
 /// Trade category descriptors (icon + label) for the trade rail + catalogue.
 class TradeCategory {
@@ -397,29 +399,64 @@ final procurementListProvider =
   return null;
 });
 
+/// Commerce category ids the trade catalogue is tagged with.
+///
+/// These are the live Medusa category ids, so the rail, the filter and Category presentation all
+/// speak the same identifiers. Renaming a category in the console changes the rail label; it does
+/// not need a code change here.
+abstract final class TradeCategoryIds {
+  static const String bathroom = 'pcat_01M4EC9BNHH212X5V13Z055DDR';
+  static const String electrical = 'pcat_01M4EC9BNKHP80XAET6X0BV6MT';
+  static const String construction = 'pcat_01M4EC9BNG9AVFBH8RAN8MDP0V';
+  static const String tiles = 'pcat_01M4EC9BNJPR8T0YQCBC8W4XFJ';
+  static const String agriculture = 'pcat_01M4EC9BNMNB7AW5Z293YVRWJW';
+  static const String pumps = 'pcat_01M4EC9BNM9X603HVQBQ93J969';
+}
+
+/// Trade categories for the rail, catalogue chips and filters.
+///
+/// Backend-first: the console's Category presentation supplies the id, label, icon and order for the
+/// B2B channel. The local fixture list is only a fallback for when presentation is unavailable, so a
+/// rename in the admin console reaches the trade surfaces without a code change.
+final tradeCategoryOptionsProvider = Provider<List<TradeCategory>>((ref) {
+  final cms = ref.watch(b2bPresentationProvider).value?.categories ??
+      const <StorefrontCategory>[];
+  if (cms.isEmpty) {
+    return ref.watch(tradeDashboardProvider).categories;
+  }
+  return <TradeCategory>[
+    for (final category in cms)
+      TradeCategory(
+        id: category.id,
+        label: category.label,
+        icon: categoryIconFor(category.iconKey),
+      ),
+  ];
+});
+
 /// Demo trade dashboard fixture. Real data is resolved from the backend later;
 /// this exercises the trade UI with the reference profile.
 final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
   return TradeDashboard(
     categories: const <TradeCategory>[
       TradeCategory(
-          id: 'plumbing', label: 'Plumbing', icon: Icons.water_drop_outlined),
+          id: TradeCategoryIds.bathroom, label: 'Plumbing', icon: Icons.water_drop_outlined),
       TradeCategory(
-          id: 'electricals', label: 'Electricals', icon: Icons.bolt_outlined),
+          id: TradeCategoryIds.electrical, label: 'Electricals', icon: Icons.bolt_outlined),
       TradeCategory(
-          id: 'sanitary',
+          id: TradeCategoryIds.bathroom,
           label: 'Premium Sanitary',
           icon: Icons.bathtub_outlined),
       TradeCategory(
-          id: 'paints',
+          id: TradeCategoryIds.construction,
           label: 'Paints & Construction',
           icon: Icons.format_paint_outlined),
       TradeCategory(
-          id: 'hardware',
+          id: TradeCategoryIds.pumps,
           label: 'Hardware & Tools',
           icon: Icons.handyman_outlined),
       TradeCategory(
-          id: 'agri', label: 'Agriculture', icon: Icons.grass_outlined),
+          id: TradeCategoryIds.agriculture, label: 'Agriculture', icon: Icons.grass_outlined),
     ],
     schemes: const <TradeScheme>[
       TradeScheme(
@@ -528,17 +565,15 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
 /// thumbnails come from the catalogue backend; any URL that fails to resolve
 /// falls back to the tile's placeholder icon.
 const Map<String, String> _categoryThumb = <String, String>{
-  'plumbing':
+  TradeCategoryIds.bathroom:
       'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'electricals':
+  TradeCategoryIds.electrical:
       'https://images.pexels.com/photos/577514/pexels-photo-577514.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'paints':
+  TradeCategoryIds.construction:
       'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'hardware':
+  TradeCategoryIds.pumps:
       'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'sanitary':
-      'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'agri':
+  TradeCategoryIds.agriculture:
       'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=600',
 };
 
@@ -641,7 +676,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 485,
       moq: 5,
       stock: 87,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       tag: TradeTagType.bestseller,
       scheme: freeGoods,
       tiers: const [(5, 432), (10, 415), (25, 398), (50, 389)],
@@ -654,7 +689,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 99,
       moq: 10,
       stock: 420,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(10, 84), (50, 79), (100, 74)],
     ),
     _tp(
@@ -665,7 +700,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 230,
       moq: 10,
       stock: 150,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       scheme: cashOffer,
       tiers: const [(10, 186), (25, 175), (50, 168)],
     ),
@@ -677,7 +712,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 52,
       moq: 20,
       stock: 900,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       tiers: const [(20, 38), (100, 34), (300, 31)],
     ),
     _tp(
@@ -688,7 +723,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 1480,
       moq: 5,
       stock: 210,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       tiers: const [(5, 1240), (20, 1180), (50, 1135)],
     ),
     _tp(
@@ -699,7 +734,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 265,
       moq: 10,
       stock: 340,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       scheme: freeGoods,
       tiers: const [(10, 214), (25, 199), (50, 188)],
     ),
@@ -711,7 +746,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 90,
       moq: 20,
       stock: 1100,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       seasonal: true,
       tag: TradeTagType.bestseller,
       tiers: const [(20, 68), (100, 61), (300, 57)],
@@ -724,7 +759,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 4200,
       moq: 5,
       stock: 240,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.construction,
       tag: TradeTagType.premium,
       tiers: const [(5, 3738), (10, 3610), (25, 3495), (50, 3380)],
     ),
@@ -736,7 +771,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 2850,
       moq: 4,
       stock: 180,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.construction,
       scheme: cashOffer,
       tiers: const [(4, 2350), (10, 2210), (20, 2120)],
     ),
@@ -748,7 +783,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 7999,
       moq: 2,
       stock: 64,
-      categoryId: 'hardware',
+      categoryId: TradeCategoryIds.pumps,
       tiers: const [(2, 6450), (5, 6190), (10, 5990)],
     ),
     _tp(
@@ -759,7 +794,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 4599,
       moq: 2,
       stock: 92,
-      categoryId: 'hardware',
+      categoryId: TradeCategoryIds.pumps,
       tag: TradeTagType.premium,
       tiers: const [(2, 3299), (5, 3150), (10, 3050)],
     ),
@@ -771,7 +806,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 3200,
       moq: 4,
       stock: 130,
-      categoryId: 'sanitary',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(4, 2450), (10, 2320), (20, 2240)],
     ),
     _tp(
@@ -782,7 +817,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 3890,
       moq: 2,
       stock: 74,
-      categoryId: 'sanitary',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(2, 3200), (5, 3050), (10, 2920)],
     ),
     _tp(
@@ -793,7 +828,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 925,
       moq: 5,
       stock: 260,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.construction,
       tiers: const [(5, 780), (20, 735), (50, 698)],
     ),
     _tp(
@@ -804,7 +839,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 1780,
       moq: 4,
       stock: 118,
-      categoryId: 'agri',
+      categoryId: TradeCategoryIds.agriculture,
       tiers: const [(4, 1450), (10, 1375), (25, 1290)],
     ),
     _tp(
@@ -815,7 +850,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 7490,
       moq: 2,
       stock: 42,
-      categoryId: 'agri',
+      categoryId: TradeCategoryIds.agriculture,
       tiers: const [(2, 6200), (5, 5940), (10, 5680)],
     ),
   ];

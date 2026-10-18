@@ -58,7 +58,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(tradeCatalogueProvider);
-    final categories = ref.watch(tradeDashboardProvider).categories;
+    final categories = ref.watch(tradeCategoryOptionsProvider);
 
     final filtered = products.where((p) {
       if (_categoryId != null && p.categoryId != _categoryId) return false;
