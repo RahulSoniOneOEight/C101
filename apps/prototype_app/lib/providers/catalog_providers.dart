@@ -159,7 +159,7 @@ const List<HomeCategoryFilter> homeCategoryFilters = <HomeCategoryFilter>[
     ],
   ),
   HomeCategoryFilter(
-    label: 'Tiles & Plywood',
+    label: 'Tiles & Building Materials',
     keywords: <String>[
       'tile',
       'plywood',
@@ -167,10 +167,13 @@ const List<HomeCategoryFilter> homeCategoryFilters = <HomeCategoryFilter>[
       'ceramic',
       'marble',
       'granite',
+      'cement',
+      'brick',
+      'stone',
     ],
   ),
   HomeCategoryFilter(
-    label: 'Electrical',
+    label: 'Lighting & Electrical',
     keywords: <String>[
       'wire',
       'cable',
@@ -180,6 +183,8 @@ const List<HomeCategoryFilter> homeCategoryFilters = <HomeCategoryFilter>[
       'electric',
       'mcb',
       'fan',
+      'panel',
+      'light',
     ],
   ),
   HomeCategoryFilter(
@@ -191,8 +196,22 @@ const List<HomeCategoryFilter> homeCategoryFilters = <HomeCategoryFilter>[
     keywords: <String>['pump', 'motor', 'machine', 'compressor'],
   ),
   HomeCategoryFilter(
-    label: 'Construction',
-    keywords: <String>['cement', 'putty', 'paint', 'drill', 'grinder', 'tool'],
+    label: 'Building & Construction',
+    keywords: <String>['cement', 'putty', 'steel', 'sand', 'brick', 'drill', 'grinder'],
+  ),
+  // The taxonomy added on 2026-10-19. Keywords stay a heuristic: the composed product payload
+  // still carries no category ids, so these must be maintained alongside Category presentation.
+  HomeCategoryFilter(
+    label: 'Tools & Hardware',
+    keywords: <String>['drill', 'saw', 'tool', 'hammer', 'wrench', 'screwdriver', 'fastener'],
+  ),
+  HomeCategoryFilter(
+    label: 'Paints & Finishes',
+    keywords: <String>['paint', 'primer', 'enamel', 'varnish', 'putty', 'finish'],
+  ),
+  HomeCategoryFilter(
+    label: 'Automotive & Tyres',
+    keywords: <String>['tyre', 'tire', 'oil', 'lubricant', 'battery', 'auto'],
   ),
 ];
 
