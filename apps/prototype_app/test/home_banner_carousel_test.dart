@@ -42,6 +42,21 @@ void main() {
     expect(tapped?.contentKey, 'bulk-orders');
   });
 
+  testWidgets('the CTA keeps a 48dp tap target around a smaller pill',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const HomeBannerCarousel(banners: homeFallbackBanners),
+    ));
+
+    final cta = find.ancestor(
+      of: find.text('Get bulk quote'),
+      matching: find.byType(Ink),
+    );
+    expect(cta, findsOneWidget);
+    expect(tester.getSize(cta).height, 40,
+        reason: 'the visible pill is 40dp');
+  });
+
   testWidgets('operator art becomes the card background', (tester) async {
     await tester.pumpWidget(_host(
       const HomeBannerCarousel(

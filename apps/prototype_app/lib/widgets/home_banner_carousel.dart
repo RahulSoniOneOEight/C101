@@ -329,6 +329,9 @@ class _HomeBannerCard extends StatelessWidget {
 }
 
 /// CTA pill: cyan→blue gradient with navy label.
+///
+/// The pill is deliberately smaller than the tap target: 40dp tall visually, wrapped in a 48dp
+/// high hit area (scaled with the card) so it stays comfortable to tap on a phone.
 class _BannerCta extends StatelessWidget {
   const _BannerCta({
     required this.label,
@@ -337,6 +340,9 @@ class _BannerCta extends StatelessWidget {
     this.onTap,
   });
 
+  static const double visualHeight = 40;
+  static const double touchHeight = 48;
+
   final String label;
   final AgencyHomePalette palette;
   final double scale;
@@ -344,33 +350,37 @@ class _BannerCta extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-            colors: <Color>[palette.cyan, palette.blue],
-          ),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
-          child: ConstrainedBox(
-            // Never below the 48dp touch minimum, and taller on a large card.
-            constraints: BoxConstraints(minHeight: 48 * scale),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-              child: Center(
-                widthFactor: 1,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12 * scale,
-                    fontWeight: FontWeight.w700,
-                    color: palette.navy,
+    return SizedBox(
+      height: touchHeight * scale,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        widthFactor: 1,
+        child: Material(
+          color: Colors.transparent,
+          child: Ink(
+            height: visualHeight * scale,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(999),
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: <Color>[palette.cyan, palette.blue],
+              ),
+            ),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(999),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14 * scale),
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11 * scale,
+                      fontWeight: FontWeight.w700,
+                      color: palette.navy,
+                    ),
                   ),
                 ),
               ),
