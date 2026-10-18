@@ -97,35 +97,26 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('the card uses the phone width instead of a fixed 310 box',
-      (tester) async {
+  testWidgets('the card is edge to edge, with no side margin', (tester) async {
     await tester.pumpWidget(_host(
       const HomeBannerCarousel(banners: homeFallbackBanners),
       width: 390,
     ));
 
     final width = tester.getSize(find.byType(PageView)).width;
-    expect(width, greaterThan(310),
-        reason: 'the side margins should belong to the card, not be left empty');
-    expect(width, lessThanOrEqualTo(390));
+    expect(width, 390,
+        reason: 'the card owns the full width; side margins only shrink the creative');
   });
 
-  testWidgets('a peek stub marks that more banners exist on that side',
+  testWidgets('no peek stubs: the next banner is reached by swiping or the dots',
       (tester) async {
     await tester.pumpWidget(_host(
       const HomeBannerCarousel(banners: homeFallbackBanners),
     ));
 
     expect(find.byKey(const ValueKey<String>('home-banner-peek-right')),
-        findsOneWidget);
+        findsNothing);
     expect(find.byKey(const ValueKey<String>('home-banner-peek-left')),
-        findsNothing,
-        reason: 'there is nothing to the left of the first banner');
-
-    await tester.drag(find.byType(PageView), const Offset(-320, 0));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey<String>('home-banner-peek-left')),
-        findsOneWidget);
+        findsNothing);
   });
 }

@@ -90,41 +90,48 @@ class HomeHeader extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(
               top: topInset + AgencySpacing.sm,
-              left: AgencySpacing.md,
-              right: AgencySpacing.md,
               bottom: bottomInset + AgencySpacing.sm,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                _LocationRow(
-                  label: locationLabel,
-                  onTap: onLocation,
-                  ink: Colors.white,
-                  minHeight: 48,
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
+                  child: _LocationRow(
+                    label: locationLabel,
+                    onTap: onLocation,
+                    ink: Colors.white,
+                    minHeight: 48,
+                  ),
                 ),
                 const SizedBox(height: AgencySpacing.sm),
-                TrustBuilderRow(
-                  padding: EdgeInsets.zero,
-                  foregroundColor: chipInk,
-                  items: const <TrustBuilderItem>[
-                    TrustBuilderItem(
-                      label: 'GST invoices',
-                      icon: Icons.receipt_long_outlined,
-                    ),
-                    TrustBuilderItem(
-                      label: 'Verified sellers',
-                      icon: Icons.verified_outlined,
-                    ),
-                    TrustBuilderItem(
-                      label: 'Easy returns',
-                      icon: Icons.assignment_return_outlined,
-                    ),
-                  ],
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
+                  child: TrustBuilderRow(
+                    padding: EdgeInsets.zero,
+                    foregroundColor: chipInk,
+                    items: const <TrustBuilderItem>[
+                      TrustBuilderItem(
+                        label: 'GST invoices',
+                        icon: Icons.receipt_long_outlined,
+                      ),
+                      TrustBuilderItem(
+                        label: 'Verified sellers',
+                        icon: Icons.verified_outlined,
+                      ),
+                      TrustBuilderItem(
+                        label: 'Easy returns',
+                        icon: Icons.assignment_return_outlined,
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AgencySpacing.sm),
-                // The banner takes every remaining pixel, so the header has no dead band between the
-                // location row and the trust chips.
+                // The banner is deliberately edge-to-edge: the card carries its own corner radius,
+                // and side padding here only shrank the creative. It also takes every remaining
+                // pixel of height, so there is no dead band above it.
                 Expanded(
                   child: HomeBannerCarousel(
                     banners: contents,

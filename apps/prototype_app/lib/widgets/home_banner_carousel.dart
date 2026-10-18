@@ -88,10 +88,6 @@ class HomeBannerCarousel extends StatefulWidget {
   static const double cardMaxHeight = 240;
   static const double cardMaxWidth = 480;
   static const double cardRadius = 20;
-  static const double peekWidth = 14;
-
-  /// Gap between the active card and a peek stub.
-  static const double peekGap = 6;
 
   /// Dot row plus the gap above it, reserved from the carousel's height.
   static const double indicatorHeight = 14;
@@ -118,14 +114,9 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final available = constraints.maxWidth;
-        // Reserve only a peek stub plus its gap on each side, so the card uses the full width of a
-        // phone instead of sitting inside a fixed 310 box with unused margins.
-        final reserve =
-            (HomeBannerCarousel.peekWidth + HomeBannerCarousel.peekGap) * 2;
-        final cardWidth = math.min(
-          HomeBannerCarousel.cardMaxWidth,
-          math.max(0.0, available - reserve),
-        );
+        // Edge to edge: the card owns the full width it is given, so no creative is lost to side
+        // margins. Only a very wide viewport is capped.
+        final cardWidth = math.min(HomeBannerCarousel.cardMaxWidth, available);
 
         // A bounded parent (the header) hands its leftover height to the card; otherwise the card
         // keeps the reviewed default.
@@ -137,55 +128,25 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
                         HomeBannerCarousel.cardMaxHeight)
                 : HomeBannerCarousel.defaultCardHeight);
 
-        final cardLeft = (available - cardWidth) / 2;
-        final cardRight = cardLeft + cardWidth;
-
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             SizedBox(
               height: cardHeight,
-              child: Stack(
-                alignment: Alignment.center,
-                children: <Widget>[
-                  if (_page > 0)
-                    Positioned(
-                      left: cardLeft -
-                          HomeBannerCarousel.peekWidth -
-                          HomeBannerCarousel.peekGap,
-                      top: 0,
-                      child: _PeekCard(
-                        key: const ValueKey<String>('home-banner-peek-left'),
-                        palette: palette,
-                        leftToRight: false,
-                        height: cardHeight,
-                      ),
-                    ),
-                  if (_page < widget.banners.length - 1)
-                    Positioned(
-                      left: cardRight + HomeBannerCarousel.peekGap,
-                      top: 0,
-                      child: _PeekCard(
-                        key: const ValueKey<String>('home-banner-peek-right'),
-                        palette: palette,
-                        leftToRight: true,
-                        height: cardHeight,
-                      ),
-                    ),
-                  SizedBox(
-                    width: cardWidth,
-                    height: cardHeight,
-                    child: PageView.builder(
-                      controller: _controller,
-                      itemCount: widget.banners.length,
-                      onPageChanged: (index) => setState(() => _page = index),
-                      itemBuilder: (context, index) => _HomeBannerCard(
-                        content: widget.banners[index],
-                        onCta: widget.onBannerCta,
-                      ),
+              child: Center(
+                child: SizedBox(
+                  width: cardWidth,
+                  height: cardHeight,
+                  child: PageView.builder(
+                    controller: _controller,
+                    itemCount: widget.banners.length,
+                    onPageChanged: (index) => setState(() => _page = index),
+                    itemBuilder: (context, index) => _HomeBannerCard(
+                      content: widget.banners[index],
+                      onCta: widget.onBannerCta,
                     ),
                   ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: AgencySpacing.sm),
@@ -210,39 +171,6 @@ class _HomeBannerCarouselState extends State<HomeBannerCarousel> {
           ],
         );
       },
-    );
-  }
-}
-
-/// A decorative gradient stub beside the active card. It signals that more banners exist without
-/// rendering a second card's copy at an unreadable size.
-class _PeekCard extends StatelessWidget {
-  const _PeekCard({
-    required this.palette,
-    required this.leftToRight,
-    required this.height,
-    super.key,
-  });
-
-  final AgencyHomePalette palette;
-  final bool leftToRight;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = <Color>[palette.navy, palette.peek];
-    return Container(
-      width: HomeBannerCarousel.peekWidth,
-      height: height - 24,
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(HomeBannerCarousel.cardRadius),
-        gradient: LinearGradient(
-          begin: leftToRight ? Alignment.centerLeft : Alignment.centerRight,
-          end: leftToRight ? Alignment.centerRight : Alignment.centerLeft,
-          colors: leftToRight ? colors : colors.reversed.toList(),
-        ),
-      ),
     );
   }
 }
