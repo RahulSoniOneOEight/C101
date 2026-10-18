@@ -9,6 +9,7 @@ import 'notifications/push_notification_coordinator.dart';
 import 'data/experience_api.dart';
 import 'core/app_config.dart';
 import 'providers/notifications_providers.dart';
+import 'widgets/staging_strip.dart';
 
 /// Root widget of the PinCommerce storefront.
 class PinCommerceApp extends ConsumerStatefulWidget {
@@ -72,11 +73,19 @@ class _PinCommerceAppState extends ConsumerState<PinCommerceApp> {
       title: 'BuildKart Staging',
       theme: AgencyTheme.light(),
       routerConfig: router,
-      builder: (context, child) => Banner(
-        message: AppConfig.environment == 'staging' ? 'STAGING' : 'DEV',
-        location: BannerLocation.topEnd,
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) {
+        final body = child ?? const SizedBox.shrink();
+        if (AppConfig.environment != 'staging') return body;
+
+        // A corner ribbon always sits on top of a control (here, the cart). A full-width strip can
+        // never cover a tap target, and it disappears outside staging.
+        return Column(
+          children: <Widget>[
+            const StagingStrip(),
+            Expanded(child: body),
+          ],
+        );
+      },
     );
   }
 }
