@@ -224,6 +224,16 @@ class StorefrontPresentation {
     }
     return null;
   }
+
+  /// Resolves by commerce category id, which is what the trade rail filters on and what the CMS
+  /// keys a category banner by.
+  StorefrontCategory? categoryById(String? id) {
+    if (id == null) return null;
+    for (final category in categories) {
+      if (category.id == id) return category;
+    }
+    return null;
+  }
 }
 
 /// Resolve an allowlisted icon key to a design-system icon. Unknown keys fall

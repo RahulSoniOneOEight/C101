@@ -90,6 +90,26 @@ void main() {
     expect(container.read(b2bCategoryBannerImageProvider('Plumbing')), isNull);
   });
 
+  test('the trade category banner resolves by commerce id', () async {
+    final api = _FakeExperienceApi(response: _b2bPresentation());
+    final container = ProviderContainer(
+      overrides: [experienceApiProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(b2bPresentationProvider.future);
+
+    expect(
+      container.read(b2bCategoryBannerImageByIdProvider('pcat_plumbing')),
+      'https://images.example.com/b2b-plumbing.jpg',
+      reason: 'the rail selects by id, so the banner must resolve by id too',
+    );
+    expect(
+      container.read(b2bCategoryBannerImageByIdProvider('pcat_unmapped')),
+      isNull,
+    );
+  });
+
   test('the trade rail takes its labels, ids and order from the CMS', () async {
     final api = _FakeExperienceApi(response: _b2bPresentation());
     final container = ProviderContainer(

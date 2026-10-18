@@ -419,9 +419,23 @@ final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, l
   return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageUrl;
 });
 
+/// Same banner, resolved by commerce category id.
+///
+/// The trade rail selects categories by id (CHG-048), and the CMS keys category banners by that id,
+/// so a label lookup silently fell back to the placeholder after the rail switched to ids.
+final b2bCategoryBannerImageByIdProvider =
+    Provider.family<String?, String?>((ref, id) {
+  return ref.watch(b2bPresentationProvider).value?.categoryById(id)?.bannerImageUrl;
+});
+
 /// CMS alternative text for the B2B category banner, or null when none is authored.
 final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, label) {
   return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageAlt;
+});
+
+final b2bCategoryBannerAltByIdProvider =
+    Provider.family<String?, String?>((ref, id) {
+  return ref.watch(b2bPresentationProvider).value?.categoryById(id)?.bannerImageAlt;
 });
 
 /// Storefront layout sections for the B2C storefront, delivered by the backend.

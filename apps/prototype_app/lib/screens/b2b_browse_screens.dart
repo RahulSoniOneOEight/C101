@@ -124,9 +124,9 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
                 child: MerchandisingBanner(
-                  imageUrl: ref.watch(b2bCategoryBannerImageProvider(_categoryId)) ??
+                  imageUrl: ref.watch(b2bCategoryBannerImageByIdProvider(_categoryId)) ??
                       fallbackCategoryBannerImage,
-                  imageAlt: ref.watch(b2bCategoryBannerAltProvider(_categoryId)),
+                  imageAlt: ref.watch(b2bCategoryBannerAltByIdProvider(_categoryId)),
                   title: title,
                   subtitle: 'Trade rates · MOQ · GST invoicing',
                   ctaLabel: 'Filters',

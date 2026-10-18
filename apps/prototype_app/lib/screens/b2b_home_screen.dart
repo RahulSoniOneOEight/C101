@@ -395,9 +395,9 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl: ref.watch(b2bCategoryBannerImageProvider(_catId)) ??
+            imageUrl: ref.watch(b2bCategoryBannerImageByIdProvider(_catId)) ??
                 fallbackCategoryBannerImage,
-            imageAlt: ref.watch(b2bCategoryBannerAltProvider(_catId)),
+            imageAlt: ref.watch(b2bCategoryBannerAltByIdProvider(_catId)),
             title: selectedLabel == null
                 ? 'Trade catalogue'
                 : '$selectedLabel supplies',
