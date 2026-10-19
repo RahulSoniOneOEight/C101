@@ -1,6 +1,8 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 
+import '../core/app_config.dart';
+
 /// A thin, full-width environment marker for staging builds.
 ///
 /// It replaces the Material corner [Banner]: a diagonal ribbon always covers a control (on the Home
@@ -22,7 +24,7 @@ class StagingStrip extends StatelessWidget {
           width: double.infinity,
           child: Center(
             child: Text(
-              'STAGING',
+              'STAGING · ${AppConfig.buildId}',
               style: TextStyle(
                 fontSize: 10,
                 height: 1,

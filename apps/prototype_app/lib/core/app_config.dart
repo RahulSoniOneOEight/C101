@@ -56,6 +56,13 @@ class AppConfig {
     defaultValue: 'CHG-049',
   );
 
+  /// Short build identifier shown in the staging strip. Pass the commit SHA at
+  /// build time so a stale tab or an older cached bundle is immediately obvious.
+  static const String buildId = String.fromEnvironment(
+    'BUILD_ID',
+    defaultValue: 'dev',
+  );
+
   /// Whether this process bootstrapped remote catalogue reads.
   ///
   /// Set by [main] before the app is mounted. Widget tests mount the app without

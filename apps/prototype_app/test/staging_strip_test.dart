@@ -11,7 +11,8 @@ void main() {
       home: const Scaffold(body: StagingStrip()),
     ));
 
-    expect(find.text('STAGING'), findsOneWidget);
+    // The strip carries the short build id so a stale tab is visible.
+    expect(find.textContaining('STAGING'), findsOneWidget);
     // The Material debug ribbon is unrelated; this one must stay a plain strip.
     expect(find.byType(StagingStrip), findsOneWidget);
     expect(tester.getSize(find.byType(StagingStrip)).height, 16);

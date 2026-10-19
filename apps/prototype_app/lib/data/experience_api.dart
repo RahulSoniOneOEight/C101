@@ -36,6 +36,27 @@ class ExperienceApi {
 
   String? get sessionName => _sessionName;
 
+  /// Retries a read once or twice on a transient gateway failure.
+  ///
+  /// A staging deploy briefly returns 502/503 while containers restart; without
+  /// this a single blip turns the catalogue into an error page until the user
+  /// retries manually.
+  Future<T> _retryTransient<T>(Future<T> Function() action) async {
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await action();
+      } on DioException catch (error) {
+        final status = error.response?.statusCode;
+        final transient = status == null || status == 502 || status == 503 || status == 504;
+        if (!transient || attempt == 2) rethrow;
+        await Future<void>.delayed(
+          Duration(milliseconds: 350 * (attempt + 1)),
+        );
+      }
+    }
+    throw StateError('Transient request retry exhausted.');
+  }
+
   Future<Map<String, dynamic>> requestOtp(String identifier) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/v1/auth/otp/challenges',
@@ -125,10 +146,10 @@ class ExperienceApi {
     String locale = 'en-IN',
     String channel = 'b2c',
   }) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/v1/content/presentation',
-      queryParameters: {'locale': locale, 'channel': channel},
-    );
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/content/presentation',
+          queryParameters: {'locale': locale, 'channel': channel},
+        ));
     return StorefrontPresentation.fromJson(res.data!);
   }
 
@@ -172,10 +193,10 @@ class ExperienceApi {
 
   Future<Map<String, dynamic>> getProduct(String productId,
       {String channel = 'b2c'}) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/v1/products/$productId',
-      queryParameters: <String, dynamic>{'channel': channel},
-    );
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/products/$productId',
+          queryParameters: <String, dynamic>{'channel': channel},
+        ));
     return res.data!;
   }
 
@@ -251,18 +272,18 @@ class ExperienceApi {
     String channel = 'b2c',
     String? catalogueImport,
   }) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/v1/products',
-      queryParameters: <String, dynamic>{
-        'limit': limit,
-        'offset': offset,
-        'channel': channel,
-        if (collectionId != null && collectionId.isNotEmpty)
-          'collection_id': collectionId,
-        if (catalogueImport != null && catalogueImport.isNotEmpty)
-          'catalogue_import': catalogueImport,
-      },
-    );
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/products',
+          queryParameters: <String, dynamic>{
+            'limit': limit,
+            'offset': offset,
+            'channel': channel,
+            if (collectionId != null && collectionId.isNotEmpty)
+              'collection_id': collectionId,
+            if (catalogueImport != null && catalogueImport.isNotEmpty)
+              'catalogue_import': catalogueImport,
+          },
+        ));
     final data = res.data!;
     final products = (data['products'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
@@ -302,17 +323,18 @@ class ExperienceApi {
   /// Composed product detail (best-price offer drives price + variant identity).
   Future<Product> getComposedProduct(String productId,
       {String channel = 'b2c'}) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/v1/products/$productId',
-      queryParameters: <String, dynamic>{'channel': channel},
-    );
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/products/$productId',
+          queryParameters: <String, dynamic>{'channel': channel},
+        ));
     return Product.fromComposedJson(res.data!);
   }
 
   /// Canonical cart read. Used by checkout to rehydrate totals, discounts and
   /// applied codes instead of trusting a stale local copy.
   Future<Cart> getCart(String cartId) async {
-    final res = await _dio.get<Map<String, dynamic>>('/v1/carts/$cartId');
+    final res = await _retryTransient(
+        () => _dio.get<Map<String, dynamic>>('/v1/carts/$cartId'));
     return Cart.fromJson(res.data!);
   }
 
@@ -408,9 +430,9 @@ class ExperienceApi {
   }
 
   Future<List<ShippingOption>> listShippingOptions(String cartId) async {
-    final res = await _dio.get<Map<String, dynamic>>(
-      '/v1/carts/$cartId/shipping-options',
-    );
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/carts/$cartId/shipping-options',
+        ));
     return (res.data!['shipping_options'] as List? ?? const <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .map(ShippingOption.fromJson)
