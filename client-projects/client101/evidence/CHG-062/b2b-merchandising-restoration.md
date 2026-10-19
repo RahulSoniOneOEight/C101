@@ -49,6 +49,13 @@ Trade offer collections use the same rule shape, so the deals rail reappears:
 Resolution matches the product's L1 label **or** its commerce category id, so
 the same rule works against the live API and the offline fixture.
 
+### Default selection
+
+B2B Home always opens with exactly one quick-order list selected: the last
+choice when that list still exists, otherwise the first list. The selection is
+stored by list id, so an operator renaming a list cannot leave the rail with no
+chip selected. A widget test pins the behaviour on a fresh launch.
+
 ### Persistence and migration
 
 The persisted list keeps the rule, not twenty product ids, so a later
@@ -85,7 +92,7 @@ authored record — or an unreachable CMS — the governed rules apply unchanged
 | Console record retitles and retargets a list | pass |
 | Untouched demo seed replaced, buyer edit preserved | pass |
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 214 pass |
+| `flutter test --exclude-tags golden` | 215 pass |
 | `bun run typecheck` (Experience API) | pass |
 | OpenAPI parses, 38 paths | pass |
 

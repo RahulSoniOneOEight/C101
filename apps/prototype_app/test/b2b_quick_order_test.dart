@@ -364,6 +364,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('B2B home selects the first quick-order list by default',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const B2BHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bar = tester.widget<ProcurementListFilterBar>(
+        find.byType(ProcurementListFilterBar));
+    expect(bar.filters, isNotEmpty);
+    expect(bar.selected, <String>{bar.filters.first});
+    expect(find.byType(CompactQuickOrderSkuCard), findsWidgets);
+  });
+
   testWidgets('B2B home Quick Order is a horizontally scrollable 2x2 grid',
       (tester) async {
     tester.view.physicalSize = const Size(390, 1000);

@@ -49,6 +49,10 @@ decisions_approved:
 - D-062-05: >-
     List and deal presentation properties are operator-editable through curated collections
     (audience b2b) in the console; the app rules remain the offline fallback.
+- D-062-07: >-
+    Quick Order always opens with exactly one list selected: the last choice when it still exists,
+    otherwise the first list. Selection is stored by list id, so an operator rename cannot leave the
+    rail unselected.
 - D-062-06: >-
     This is an explicit staging merchandising fixture. It makes no production assortment or promotion
     claim and does not change catalogue membership, prices or discounts.
@@ -78,7 +82,7 @@ implementation:
     curated_records_seeded: 7
     curated_api_endpoint: live
     flutter_analyze: pass
-    flutter_tests: 214-pass
+    flutter_tests: 215-pass
     experience_api_typecheck: pass
   deployment:
     app_build: 3b2026a

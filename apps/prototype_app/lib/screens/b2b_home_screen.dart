@@ -27,8 +27,9 @@ class B2BHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
-  /// The active quick-order list preset (name of a procurement list).
-  String _selectedList = '';
+  /// Id of the selected quick-order list. Selection is an id, not a title, so an
+  /// operator rename cannot leave the rail with no chip selected (CHG-062).
+  String? _selectedListId;
 
   /// Per-SKU quick-order quantities (defaults to the product MOQ).
   final Map<String, int> _quickQty = <String, int>{};
@@ -51,13 +52,14 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   Widget build(BuildContext context) {
     final catalogue = ref.watch(tradeCatalogueViewProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
-    final presets = ref.watch(quickOrderPresetsProvider);
     final b2bBanners =
         ref.watch(b2bPresentationProvider).value?.bannersFor('home.hero') ??
             const <StorefrontBanner>[];
-    if (_selectedList.isEmpty && presets.isNotEmpty) {
-      _selectedList = presets.first;
-    }
+    // One list is always selected: the last choice when it still exists, else
+    // the first list. This runs on every build, so the default survives an
+    // async CMS load or an operator rename.
+    final selected = _selectedList();
+    if (selected != null) _selectedListId = selected.id;
 
     return Scaffold(
       body: SafeArea(
@@ -131,7 +133,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _quickOrderUnit(List<TradeProduct> catalogue) {
     final colours = context.colors;
-    final presets = ref.watch(quickOrderPresetsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
+    final selected = _selectedList();
     final products = _listProducts(catalogue);
     return MerchandisingUnitCard(
       title: 'Quick order',
@@ -141,9 +144,13 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           ProcurementListFilterBar(
-            filters: presets,
-            selected: <String>{_selectedList},
-            onToggle: (f) => setState(() => _selectedList = f),
+            filters: <String>[for (final list in lists) list.title],
+            selected: <String>{if (selected != null) selected.title},
+            onToggle: (title) {
+              final match =
+                  lists.where((list) => list.title == title).firstOrNull;
+              if (match != null) setState(() => _selectedListId = match.id);
+            },
           ),
           const SizedBox(height: AgencySpacing.sm),
           if (products.isEmpty)
@@ -213,11 +220,20 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
     );
   }
 
+  /// The selected list, falling back to the first list so the rail is never
+  /// rendered in an unselected state.
+  ProcurementList? _selectedList() {
+    final lists = ref.watch(effectiveProcurementListsProvider);
+    if (lists.isEmpty) return null;
+    for (final list in lists) {
+      if (list.id == _selectedListId) return list;
+    }
+    return lists.first;
+  }
+
   /// Resolves the selected procurement list's SKUs to catalogue trade products.
   List<TradeProduct> _listProducts(List<TradeProduct> catalogue) {
-    final lists = ref.watch(effectiveProcurementListsProvider);
-    final list = lists.where((l) => l.title == _selectedList).firstOrNull ??
-        (lists.isNotEmpty ? lists.first : null);
+    final list = _selectedList();
     if (list == null) return const <TradeProduct>[];
     final resolved = <TradeProduct>[];
     for (final item in list.items) {
