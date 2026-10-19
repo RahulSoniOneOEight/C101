@@ -68,6 +68,27 @@ implementation:
   requested_at_utc: '2026-10-19'
   approved_by: human-requester
   approved_at_utc: '2026-10-19'
-  status: in-progress
-status: approved-in-progress
+  status: deployed-staging
+  completed_at_utc: '2026-10-19'
+  evidence: client-projects/client101/evidence/CHG-062/b2b-merchandising-restoration.md
+  verification:
+    quick_order_lists: 4
+    quick_order_items: 20-20-18-20
+    trade_offer_collections: 6
+    curated_records_seeded: 7
+    curated_api_endpoint: live
+    flutter_analyze: pass
+    flutter_tests: 214-pass
+    experience_api_typecheck: pass
+  deployment:
+    app_build: 3b2026a
+    experience_api_commit: 3b2026a
+    cms_commit: 3b2026a
+    containers_recreated: [cms, experience-api, event-workers]
+    proxy_restarted: true
+    visual_check:
+      quick_order_titles: Electrical Essentials, Bathroom & Plumbing, Paints & Finishes, Tools & Hardware
+      trade_offers_module: visible with live product lanes
+      buy_again: empty-state copy (no order history)
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

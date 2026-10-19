@@ -92,6 +92,29 @@ authored record — or an unreachable CMS — the governed rules apply unchanged
 Tests: `test/b2b_merchandising_restoration_test.dart`, plus the updated quick
 order, procurement list, trade-offer and overflow suites.
 
+## Deployment
+
+Released `3b2026a` to staging:
+
+- CMS rebuilt and restarted; the additive `curated-collection` schema synced
+  and the bootstrap seeded seven B2B records (`cms-seed` logged success).
+- Experience API rebuilt, container recreated, proxy restarted.
+- App rebuilt and published to Firebase Hosting (`STAGING · 3b2026a`).
+
+Live checks:
+
+| Check | Result |
+|---|---|
+| `GET /v1/content/curated-collections?channel=b2b` | 7 records, source `cms-strapi` |
+| Quick-order caps vs live availability | 20/71, 20/23, 18/48, 20/71 |
+| Deals caps vs live availability | 8/71, 8/23, 8/48 |
+| B2B home render | four quick-order chips; Trade Offers & Deals visible with live lanes |
+| Buy Again | empty-state copy (no order history for a new buyer) |
+
+The console exposes the new fields under **Collections & trade lists**. The
+admin dashboard label change ships with the next backend admin build; the
+fields themselves are served by the CMS definition, so operators see them now.
+
 ## Staging fixture
 
 Category rules are a staging merchandising fixture. They do not create
