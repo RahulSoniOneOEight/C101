@@ -19,8 +19,8 @@ affected_surfaces:
 - app.prototype.b2b-trade
 decisions_approved:
 - D-065-01: >-
-    B2B home banners use the same edge-to-edge width and remaining-height fill as B2C, so both
-    channels render the same banner dimensions.
+    B2B home banners keep their previous dimensions (padded, 160px card). The B2C-matching change was
+    reverted after review because it made the trade banner too tall.
 - D-065-02: >-
     Flash Deals, Best Sellers and Recommended lead with the three priority categories, then fill from
     the rest of the catalogue; rails carry up to 12, 12 and 6 products.
