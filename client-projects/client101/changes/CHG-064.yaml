@@ -52,6 +52,21 @@ implementation:
   requested_at_utc: '2026-10-20'
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
-  status: in-progress
-status: approved-in-progress
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-064/browse-controls.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 219-pass
+    sort_default: relevance
+    sort_accent_contrast: 5.1
+    filter_accent_contrast: 5.3
+    sticky: pass
+    clear_all: pass
+    sheet_live_count: pass
+    flash_deal_results: 16
+    console_errors: none
+  deployment:
+    build_id: 5a9e291
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
