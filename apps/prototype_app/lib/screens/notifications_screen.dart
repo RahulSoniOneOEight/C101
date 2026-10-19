@@ -196,7 +196,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     if (n.read) return colors.surfaceRaised;
     return switch (n.kind) {
       NotificationKind.order => colors.surfaceInteractive,
-      NotificationKind.deal || NotificationKind.offer =>
+      NotificationKind.deal ||
+      NotificationKind.offer =>
         colors.promotion.withValues(alpha: 0.10),
       NotificationKind.launch => colors.actionPrimary.withValues(alpha: 0.10),
       NotificationKind.credit => colors.feedbackWarning.withValues(alpha: 0.12),

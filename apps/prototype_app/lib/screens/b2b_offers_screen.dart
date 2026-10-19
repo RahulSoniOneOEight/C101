@@ -47,8 +47,8 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
       case _OfferSort.priceDesc:
         list.sort((a, b) => b.tradePrice.amount.compareTo(a.tradePrice.amount));
       case _OfferSort.discount:
-        list.sort((a, b) =>
-            (b.savingsPercent ?? 0).compareTo(a.savingsPercent ?? 0));
+        list.sort(
+            (a, b) => (b.savingsPercent ?? 0).compareTo(a.savingsPercent ?? 0));
     }
     return list;
   }
@@ -63,8 +63,7 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
     final selectedId = _selectedId ??
         initial ??
         (collections.isNotEmpty ? collections.first.id : null);
-    final selected =
-        collections.where((c) => c.id == selectedId).firstOrNull;
+    final selected = collections.where((c) => c.id == selectedId).firstOrNull;
     var products = selectedId == null
         ? const <TradeProduct>[]
         : ref.watch(tradeOffersForCollectionProvider(selectedId));
@@ -101,8 +100,7 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
                 'The live catalogue has no active offer collections. '
                 'Deals are not inferred from product listings.',
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(fontSize: 13, color: colors.contentSecondary),
+                style: TextStyle(fontSize: 13, color: colors.contentSecondary),
               ),
               const SizedBox(height: AgencySpacing.lg),
               FilledButton(
@@ -164,8 +162,8 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
                         color: colors.contentPrimary)),
               ),
               Text('${products.length} Products',
-                  style: TextStyle(
-                      fontSize: 12, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 12, color: colors.contentSecondary)),
             ],
           ),
           const SizedBox(height: AgencySpacing.sm),
@@ -187,8 +185,8 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
               const SizedBox(width: AgencySpacing.sm),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => PinToast.show(context,
-                      'Filters apply to this collection only',
+                  onPressed: () => PinToast.show(
+                      context, 'Filters apply to this collection only',
                       tone: PinToastTone.info),
                   icon: const Icon(Icons.tune, size: 16),
                   label: const Text('Filter', style: TextStyle(fontSize: 12)),
@@ -247,8 +245,7 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Sort by',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text('Sort by', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: AgencySpacing.sm),
             for (final s in _OfferSort.values)
               ListTile(

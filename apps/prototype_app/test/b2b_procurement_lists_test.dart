@@ -37,9 +37,10 @@ void main() {
 
     expect(find.text('My Procurement Lists'), findsOneWidget);
     expect(find.text('Create New List'), findsOneWidget);
-    expect(find.text('Seasonal'), findsOneWidget);
-    expect(find.text('Kitchen Works'), findsOneWidget);
-    expect(find.text('Floor Essentials'), findsOneWidget);
+    expect(find.text('Electrical Essentials'), findsOneWidget);
+    expect(find.text('Bathroom & Plumbing'), findsOneWidget);
+    expect(find.text('Paints & Finishes'), findsOneWidget);
+    expect(find.text('Tools & Hardware'), findsOneWidget);
     expect(find.textContaining('SKUs'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -92,11 +93,11 @@ void main() {
 
     final context = tester.element(find.byType(ProcurementListEditorScreen));
     final container = ProviderScope.containerOf(context);
-    final before = container
-        .read(procurementListProvider('pl_seasonal'))!
-        .items
-        .firstWhere((i) => i.sku == 'prod_led')
-        .quantity;
+    final listBefore = container.read(procurementListProvider('pl_seasonal'))!;
+    // The resolved list starts with the first catalogue item, so assert on the
+    // row the first stepper actually belongs to rather than a fixed SKU.
+    final firstSku = listBefore.items.first.sku;
+    final before = listBefore.items.first.quantity;
 
     await tester.tap(find.byIcon(Icons.add).first);
     await tester.pumpAndSettle();
@@ -108,7 +109,7 @@ void main() {
     final after = container
         .read(procurementListProvider('pl_seasonal'))!
         .items
-        .firstWhere((i) => i.sku == 'prod_led')
+        .firstWhere((i) => i.sku == firstSku)
         .quantity;
     expect(after, before + 1);
   });
@@ -118,18 +119,19 @@ void main() {
     await tester.pumpWidget(_host(const ProcurementListEditorScreen()));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).at(0), 'Seasonal');
+    await tester.enterText(
+        find.byType(TextField).at(0), 'Electrical Essentials');
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save Changes'));
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(ProcurementListEditorScreen));
     final container = ProviderScope.containerOf(context);
-    // No second "Seasonal" list was created.
+    // No second "Electrical Essentials" list was created.
     expect(
         container
             .read(procurementListsProvider)
-            .where((l) => l.title == 'Seasonal')
+            .where((l) => l.title == 'Electrical Essentials')
             .length,
         1);
   });

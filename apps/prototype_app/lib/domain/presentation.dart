@@ -288,6 +288,70 @@ List<StorefrontCategory> prioritizeStorefrontCategories(
   return <StorefrontCategory>[for (final entry in indexed) entry.category];
 }
 
+/// CHG-062 — an operator-authored B2B quick-order list or trade-offer
+/// collection delivered by the Experience API.
+///
+/// Membership is a category rule; explicit product ids win when present. No
+/// price, stock or seller data is carried here.
+class CuratedCollection {
+  const CuratedCollection({
+    required this.collectionKey,
+    required this.audience,
+    required this.placement,
+    required this.title,
+    this.description,
+    this.categoryLabels = const <String>[],
+    this.productIds = const <String>[],
+    this.limit,
+    this.defaultQuantity,
+    this.displayOrder,
+    this.iconKey,
+    this.accent,
+    this.dealType,
+    this.schemeLabel,
+  });
+
+  factory CuratedCollection.fromJson(Map<String, dynamic> json) {
+    List<String> strings(Object? value) =>
+        (value as List<dynamic>? ?? const <dynamic>[])
+            .whereType<String>()
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
+    return CuratedCollection(
+      collectionKey: json['collection_key'] as String? ?? '',
+      audience: json['audience'] as String? ?? 'both',
+      placement: json['placement'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String?,
+      categoryLabels: strings(json['category_labels']),
+      productIds: strings(json['product_ids']),
+      limit: (json['limit'] as num?)?.toInt(),
+      defaultQuantity: (json['default_quantity'] as num?)?.toInt(),
+      displayOrder: (json['display_order'] as num?)?.toInt(),
+      iconKey: json['icon_key'] as String?,
+      accent: json['accent'] as String?,
+      dealType: json['deal_type'] as String?,
+      schemeLabel: json['scheme_label'] as String?,
+    );
+  }
+
+  final String collectionKey;
+  final String audience;
+  final String placement;
+  final String title;
+  final String? description;
+  final List<String> categoryLabels;
+  final List<String> productIds;
+  final int? limit;
+  final int? defaultQuantity;
+  final int? displayOrder;
+  final String? iconKey;
+  final String? accent;
+  final String? dealType;
+  final String? schemeLabel;
+}
+
 /// Resolve an allowlisted icon key to a design-system icon. Unknown keys fall
 /// back to a neutral category icon so the rail never renders a broken glyph.
 IconData categoryIconFor(String iconKey) {

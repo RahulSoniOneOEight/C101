@@ -1038,6 +1038,43 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  if (url.pathname === "/v1/content/curated-collections" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const channelParam = url.searchParams.get("channel");
+    const channel: StorefrontChannel = channelParam === "b2b" ? "b2b" : "b2c";
+    try {
+      const resolution = await cmsContent.resolveCuratedCollections(channel, locale);
+      return json({
+        locale,
+        channel,
+        items: resolution.items,
+        source: resolution.source,
+        freshness: {
+          source: resolution.source,
+          observed_at: resolution.observedAt,
+          stale: resolution.stale,
+        },
+        generated_at: new Date().toISOString(),
+        test_data: true,
+        correlation_id: correlationId(req),
+      });
+    } catch (error) {
+      // An operator may not have authored these yet. The app keeps its governed
+      // rule defaults, so this is an empty list, not a storefront failure.
+      console.warn("[experience-api] curated collections failed:", (error as Error).message);
+      return json({
+        locale,
+        channel,
+        items: [],
+        source: "unavailable",
+        freshness: { source: "unavailable", observed_at: new Date().toISOString(), stale: true },
+        generated_at: new Date().toISOString(),
+        test_data: true,
+        correlation_id: correlationId(req),
+      });
+    }
+  }
+
   const cmsMediaMatch = url.pathname.match(/^\/v1\/content\/media\/(.+)$/);
   if (cmsMediaMatch && req.method === "GET") {
     try {

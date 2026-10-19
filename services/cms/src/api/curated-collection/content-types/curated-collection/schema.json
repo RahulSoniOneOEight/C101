@@ -11,27 +11,111 @@
     "draftAndPublish": true
   },
   "pluginOptions": {
-    "i18n": { "localized": true }
+    "i18n": {
+      "localized": true
+    }
   },
   "attributes": {
-    "collectionKey": { "type": "string", "required": true, "unique": true },
+    "collectionKey": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
     "audience": {
       "type": "enumeration",
-      "enum": ["b2c", "b2b", "both"],
+      "enum": [
+        "b2c",
+        "b2b",
+        "both"
+      ],
       "default": "both",
       "required": true
     },
-    "title": { "type": "string", "required": true },
-    "tag": { "type": "string" },
-    "placement": { "type": "string" },
-    "productIds": { "type": "json" },
-    "selectionRule": { "type": "string" },
-    "startsAt": { "type": "datetime" },
-    "endsAt": { "type": "datetime" },
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "tag": {
+      "type": "string"
+    },
+    "placement": {
+      "type": "string"
+    },
+    "productIds": {
+      "type": "json"
+    },
+    "selectionRule": {
+      "type": "string"
+    },
+    "startsAt": {
+      "type": "datetime"
+    },
+    "endsAt": {
+      "type": "datetime"
+    },
     "fallbackBehavior": {
       "type": "enumeration",
-      "enum": ["omit-unavailable", "hide-collection", "use-fallback-collection"],
+      "enum": [
+        "omit-unavailable",
+        "hide-collection",
+        "use-fallback-collection"
+      ],
       "default": "omit-unavailable"
+    },
+    "description": {
+      "type": "string"
+    },
+    "categoryLabels": {
+      "type": "json"
+    },
+    "limit": {
+      "type": "integer"
+    },
+    "defaultQuantity": {
+      "type": "integer"
+    },
+    "displayOrder": {
+      "type": "integer"
+    },
+    "iconKey": {
+      "type": "enumeration",
+      "enum": [
+        "wb-sunny",
+        "local-offer",
+        "card-giftcard",
+        "inventory",
+        "cleaning",
+        "celebration",
+        "bolt",
+        "water-drop",
+        "format-paint",
+        "handyman",
+        "category"
+      ]
+    },
+    "accent": {
+      "type": "enumeration",
+      "enum": [
+        "trust",
+        "promotion",
+        "primary",
+        "info"
+      ]
+    },
+    "dealType": {
+      "type": "enumeration",
+      "enum": [
+        "seasonal",
+        "best-deals",
+        "schemes",
+        "bulk-buy",
+        "clearance",
+        "festive",
+        "quick-order"
+      ]
+    },
+    "schemeLabel": {
+      "type": "string"
     }
   }
 }

@@ -562,6 +562,23 @@ final heroRotationMsProvider =
   }
 });
 
+/// Operator-authored B2B quick-order lists and trade-offer collections.
+///
+/// CHG-062: an empty list is a normal state. The app then keeps its governed
+/// category-rule defaults, so the trade surface never depends on an operator
+/// having authored content first.
+final b2bCuratedCollectionsProvider =
+    FutureProvider.autoDispose<List<CuratedCollection>>((ref) async {
+  // Widget tests and processes that have not bootstrapped the live runtime keep
+  // the governed rule defaults instead of starting a request.
+  if (!AppConfig.liveCatalogueEnabled) return const <CuratedCollection>[];
+  try {
+    return await ref.watch(experienceApiProvider).getCuratedCollections();
+  } catch (_) {
+    return const <CuratedCollection>[];
+  }
+});
+
 /// Products for one layout section, resolved from its commerce collection.
 ///
 /// The section stores a reference; commerce resolves membership, so adding a product to the collection

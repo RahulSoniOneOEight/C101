@@ -40,12 +40,13 @@ export const CONTENT_KINDS = [
   },
   {
     kind: "curated-collection",
-    label: "Collection presentation",
-    singularLabel: "collection presentation",
+    label: "Collections & trade lists",
+    singularLabel: "collection or trade list",
     route: "/editorial/collection-presentation",
-    description: "Editorial framing around commerce-owned product membership",
-    delivery: "Partial",
-    deliveryColor: "orange",
+    description:
+      "Editorial collections plus B2B quick-order lists and trade-offer collections, with category rules and presentation properties",
+    delivery: "Live",
+    deliveryColor: "green",
   },
   {
     kind: "faq-article",

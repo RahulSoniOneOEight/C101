@@ -35,8 +35,7 @@ class OrderLine {
   final int quantity;
   final int unitPriceMinor;
 
-  Money get unitPrice =>
-      Money(amount: unitPriceMinor, currencyCode: 'INR');
+  Money get unitPrice => Money(amount: unitPriceMinor, currencyCode: 'INR');
 
   Money get lineTotal =>
       Money(amount: unitPriceMinor * quantity, currencyCode: 'INR');
@@ -44,7 +43,11 @@ class OrderLine {
 
 /// A tracking event in the order timeline.
 class OrderEvent {
-  const OrderEvent({required this.label, required this.timeLabel, this.done = false, this.active = false});
+  const OrderEvent(
+      {required this.label,
+      required this.timeLabel,
+      this.done = false,
+      this.active = false});
 
   final String label;
   final String timeLabel;

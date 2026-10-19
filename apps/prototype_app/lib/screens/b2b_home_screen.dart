@@ -52,9 +52,9 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
     final catalogue = ref.watch(tradeCatalogueViewProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
     final presets = ref.watch(quickOrderPresetsProvider);
-    final b2bBanners = ref.watch(b2bPresentationProvider).value
-            ?.bannersFor('home.hero') ??
-        const <StorefrontBanner>[];
+    final b2bBanners =
+        ref.watch(b2bPresentationProvider).value?.bannersFor('home.hero') ??
+            const <StorefrontBanner>[];
     if (_selectedList.isEmpty && presets.isNotEmpty) {
       _selectedList = presets.first;
     }
@@ -215,7 +215,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   /// Resolves the selected procurement list's SKUs to catalogue trade products.
   List<TradeProduct> _listProducts(List<TradeProduct> catalogue) {
-    final lists = ref.watch(procurementListsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
     final list = lists.where((l) => l.title == _selectedList).firstOrNull ??
         (lists.isNotEmpty ? lists.first : null);
     if (list == null) return const <TradeProduct>[];
@@ -268,8 +268,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
           child: Text(
             'No previous order lines match the live catalogue yet. '
             'Your ordered SKUs will appear here.',
-            style: TextStyle(
-                fontSize: 13, color: context.colors.contentSecondary),
+            style:
+                TextStyle(fontSize: 13, color: context.colors.contentSecondary),
           ),
         ),
       );

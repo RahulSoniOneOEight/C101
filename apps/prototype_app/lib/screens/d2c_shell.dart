@@ -427,8 +427,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         );
       },
       wishlisted: wishlisted,
-      onWishlist: () =>
-          ref.read(wishlistProvider.notifier).toggle(product.id),
+      onWishlist: () => ref.read(wishlistProvider.notifier).toggle(product.id),
     );
   }
 

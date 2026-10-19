@@ -23,7 +23,8 @@ class StorefrontCollection {
 
   final List<Product> products;
 
-  StorefrontCollection withProducts(List<Product> resolved) => StorefrontCollection(
+  StorefrontCollection withProducts(List<Product> resolved) =>
+      StorefrontCollection(
         key: key,
         collectionId: collectionId,
         title: title,

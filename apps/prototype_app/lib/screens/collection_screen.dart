@@ -27,7 +27,8 @@ class CollectionScreen extends ConsumerWidget {
         title: Text(resolved?.title ?? _humanise(collectionKey)),
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(storefrontCollectionProvider(collectionKey)),
+        onRefresh: () async =>
+            ref.invalidate(storefrontCollectionProvider(collectionKey)),
         child: state.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => _Message(
@@ -44,7 +45,8 @@ class CollectionScreen extends ConsumerWidget {
               ? _Message(
                   icon: Icons.inventory_2_outlined,
                   title: 'No products yet',
-                  body: 'This collection has no deliverable products right now.',
+                  body:
+                      'This collection has no deliverable products right now.',
                   onBrowse: () => context.go('/'),
                 )
               : _Grid(products: collection.products),
@@ -77,7 +79,9 @@ class _Grid extends StatelessWidget {
           title: product.title,
           priceLabel: product.price?.formatted ?? 'Price on request',
           previousPriceLabel: product.mrp?.formatted,
-          discountLabel: product.discountPercent == null ? null : '${product.discountPercent}% off',
+          discountLabel: product.discountPercent == null
+              ? null
+              : '${product.discountPercent}% off',
           imageUrl: product.thumbnail,
           brand: product.brand,
           badges: product.badges.isEmpty ? const <String>[] : product.badges,
@@ -111,12 +115,15 @@ class _Message extends StatelessWidget {
       children: <Widget>[
         Icon(icon, size: 48),
         const SizedBox(height: 16),
-        Text(title, style: Theme.of(context).textTheme.titleLarge, textAlign: TextAlign.center),
+        Text(title,
+            style: Theme.of(context).textTheme.titleLarge,
+            textAlign: TextAlign.center),
         const SizedBox(height: 8),
         Text(body, textAlign: TextAlign.center),
         const SizedBox(height: 24),
         Center(
-          child: FilledButton(onPressed: onBrowse, child: const Text('Browse the catalogue')),
+          child: FilledButton(
+              onPressed: onBrowse, child: const Text('Browse the catalogue')),
         ),
       ],
     );

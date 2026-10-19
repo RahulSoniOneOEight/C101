@@ -88,7 +88,8 @@ class AddressesNotifier extends Notifier<List<SavedAddress>> {
 
   Future<void> setDefault(String id) async => _persist(_withDefault(state, id));
 
-  List<SavedAddress> _withDefault(List<SavedAddress> list, String id) => <SavedAddress>[
+  List<SavedAddress> _withDefault(List<SavedAddress> list, String id) =>
+      <SavedAddress>[
         for (final a in list) a.copyWith(isDefault: a.id == id),
       ];
 }
@@ -108,8 +109,7 @@ final defaultAddressProvider = Provider<SavedAddress?>((ref) {
 /// Last address used at checkout, persisted across restarts.
 class LastCheckoutAddressNotifier extends Notifier<String?> {
   @override
-  String? build() =>
-      ref.read(localStoreProvider).readLastCheckoutAddressId();
+  String? build() => ref.read(localStoreProvider).readLastCheckoutAddressId();
 
   Future<void> set(String id) async {
     state = id;
@@ -171,8 +171,7 @@ class WishlistNotifier extends Notifier<List<String>> {
     } catch (_) {/* in-memory only */}
   }
 
-  Future<void> toggle(String id) =>
-      state.contains(id) ? remove(id) : add(id);
+  Future<void> toggle(String id) => state.contains(id) ? remove(id) : add(id);
 }
 
 final wishlistProvider =
@@ -208,8 +207,7 @@ class PaymentMethodsNotifier extends Notifier<List<PaymentMethod>> {
     if (method.isDefault) {
       next = <PaymentMethod>[
         for (final m in next)
-          m.copyWith(
-              isDefault: m.removable ? m.id == method.id : false),
+          m.copyWith(isDefault: m.removable ? m.id == method.id : false),
       ];
     }
     await _persistSaved(next);
@@ -316,8 +314,7 @@ class TicketsNotifier extends Notifier<List<SupportTicket>> {
 }
 
 final ticketsProvider =
-    NotifierProvider<TicketsNotifier, List<SupportTicket>>(
-        TicketsNotifier.new);
+    NotifierProvider<TicketsNotifier, List<SupportTicket>>(TicketsNotifier.new);
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -432,8 +429,18 @@ PaymentMethod _savedCardSeed() => const PaymentMethod(
 
 String _todayLabel() {
   const months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final now = DateTime.now();
   return '${now.day.toString().padLeft(2, '0')} ${months[now.month - 1]} ${now.year}';

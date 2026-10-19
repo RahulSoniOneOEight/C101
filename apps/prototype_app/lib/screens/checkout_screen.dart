@@ -101,9 +101,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           !seedNames.contains(address.fullName)) {
         continue;
       }
-      final suffix = address.fullName.contains('(Site office)')
-          ? ' (Site office)'
-          : '';
+      final suffix =
+          address.fullName.contains('(Site office)') ? ' (Site office)' : '';
       await notifier.update(address.copyWith(fullName: '$name$suffix'));
     }
   }
@@ -136,13 +135,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final email = _emailController.text.trim();
     if (cart == null || address == null || email.isEmpty) return;
     try {
-      final updated = await ref
-          .read(experienceApiProvider)
-          .updateCartCustomerDetails(
-            cart.id,
-            email: email,
-            shippingAddress: address.toCheckoutAddress(),
-          );
+      final updated =
+          await ref.read(experienceApiProvider).updateCartCustomerDetails(
+                cart.id,
+                email: email,
+                shippingAddress: address.toCheckoutAddress(),
+              );
       await ref.read(cartProvider.notifier).replaceFromServer(updated);
     } catch (_) {
       // The submit path surfaces a concrete error rather than blocking address
@@ -173,7 +171,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           for (final entry in _selectedShippingBySeller.entries)
             if (eligibleIds.contains(entry.value.id)) entry.key: entry.value,
         };
-
       });
     } catch (error) {
       if (!mounted) return;
@@ -217,8 +214,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) =>
-          _AddressPickerSheet(selectedId: _selectedAddressId),
+      builder: (_) => _AddressPickerSheet(selectedId: _selectedAddressId),
     );
     if (picked == null || !mounted) return;
     if (picked == _AddressPickerSheet.addNew) {
@@ -364,130 +360,127 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: ListView(
-          padding: const EdgeInsets.all(AgencySpacing.md),
-          children: <Widget>[
-            _addressCard(address),
-            const SizedBox(height: AgencySpacing.md),
-            _contactCard(address),
-            const SizedBox(height: AgencySpacing.lg),
-            Text('Delivery method', style: AgencyText.title),
-            const SizedBox(height: AgencySpacing.sm),
-            if (address == null)
-              const Text('Select an address first.')
-            else if (_loadingShipping)
-              const LinearProgressIndicator()
-            else if (_shippingError != null)
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      'Delivery options unavailable.',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error),
-                    ),
+        padding: const EdgeInsets.all(AgencySpacing.md),
+        children: <Widget>[
+          _addressCard(address),
+          const SizedBox(height: AgencySpacing.md),
+          _contactCard(address),
+          const SizedBox(height: AgencySpacing.lg),
+          Text('Delivery method', style: AgencyText.title),
+          const SizedBox(height: AgencySpacing.sm),
+          if (address == null)
+            const Text('Select an address first.')
+          else if (_loadingShipping)
+            const LinearProgressIndicator()
+          else if (_shippingError != null)
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    'Delivery options unavailable.',
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
-                  TextButton(
-                    onPressed: _loadShippingOptions,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              )
-            else if (_shippingOptions.isEmpty)
-              const Text('No delivery method is available for this cart.')
-            else
-              for (var sellerIndex = 0;
-                  sellerIndex < _sellerIds.length;
-                  sellerIndex++) ...<Widget>[
-                if (_sellerIds.length > 1)
-                  Text('Seller delivery ${sellerIndex + 1}',
-                      style: AgencyText.label),
-                RadioGroup<String>(
-                  groupValue:
-                      _selectedShippingBySeller[_sellerIds[sellerIndex]]?.id,
-                  onChanged: (id) {
-                    if (id == null) return;
-                    final option =
-                        _shippingOptions.firstWhere((item) => item.id == id);
-                    _selectShipping(option);
-                  },
-                  child: Column(
-                    children: <Widget>[
-                      for (final option in _shippingOptions.where(
-                        (item) => item.sellerId == _sellerIds[sellerIndex],
-                      ))
-                        RadioListTile<String>(
-                          value: option.id,
-                          title: Text(option.name),
-                          subtitle: Text(option.price.formatted),
-                        ),
-                    ],
-                  ),
+                ),
+                TextButton(
+                  onPressed: _loadShippingOptions,
+                  child: const Text('Retry'),
                 ),
               ],
-            const SizedBox(height: AgencySpacing.lg),
-            Text('Payment method', style: AgencyText.title),
-            const SizedBox(height: AgencySpacing.sm),
-            const Card(
-              child: ListTile(
-                leading: Icon(Icons.verified_user_outlined),
-                title: Text('Simulated prepaid payment'),
-                subtitle: Text(
-                  'Bounded staging pilot only · no real charge or payment gateway',
-                ),
-              ),
-            ),
-            const SizedBox(height: AgencySpacing.md),
-            if (effectiveCart != null) PromotionPanel(cart: effectiveCart),
-            const SizedBox(height: AgencySpacing.md),
-            _summary(effectiveCart, discount, shipping),
-            if (_inlineError != null) ...<Widget>[
-              const SizedBox(height: AgencySpacing.md),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AgencySpacing.sm),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .extension<AgencyColors>()
-                      ?.surfaceRaised,
-                  borderRadius: BorderRadius.circular(AgencyRadius.md),
-                  border: Border.all(
-                      color: Theme.of(context).colorScheme.error),
-                ),
-                child: Text(
-                  _inlineError!,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.error),
+            )
+          else if (_shippingOptions.isEmpty)
+            const Text('No delivery method is available for this cart.')
+          else
+            for (var sellerIndex = 0;
+                sellerIndex < _sellerIds.length;
+                sellerIndex++) ...<Widget>[
+              if (_sellerIds.length > 1)
+                Text('Seller delivery ${sellerIndex + 1}',
+                    style: AgencyText.label),
+              RadioGroup<String>(
+                groupValue:
+                    _selectedShippingBySeller[_sellerIds[sellerIndex]]?.id,
+                onChanged: (id) {
+                  if (id == null) return;
+                  final option =
+                      _shippingOptions.firstWhere((item) => item.id == id);
+                  _selectShipping(option);
+                },
+                child: Column(
+                  children: <Widget>[
+                    for (final option in _shippingOptions.where(
+                      (item) => item.sellerId == _sellerIds[sellerIndex],
+                    ))
+                      RadioListTile<String>(
+                        value: option.id,
+                        title: Text(option.name),
+                        subtitle: Text(option.price.formatted),
+                      ),
+                  ],
                 ),
               ),
             ],
-            const SizedBox(height: AgencySpacing.md),
-            FilledButton(
-              onPressed: _submitting || _orderPlaced ? null : _placeOrder,
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+          const SizedBox(height: AgencySpacing.lg),
+          Text('Payment method', style: AgencyText.title),
+          const SizedBox(height: AgencySpacing.sm),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.verified_user_outlined),
+              title: Text('Simulated prepaid payment'),
+              subtitle: Text(
+                'Bounded staging pilot only · no real charge or payment gateway',
               ),
-              child: _submitting
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_orderPlaced ? 'Order placed' : 'Place order'),
             ),
-            const SizedBox(height: AgencySpacing.sm),
-            Text(
-              'Simulated prepaid payment · staging only',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context)
-                          .extension<AgencyColors>()
-                          ?.contentSecondary ??
-                      Colors.grey),
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          if (effectiveCart != null) PromotionPanel(cart: effectiveCart),
+          const SizedBox(height: AgencySpacing.md),
+          _summary(effectiveCart, discount, shipping),
+          if (_inlineError != null) ...<Widget>[
+            const SizedBox(height: AgencySpacing.md),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AgencySpacing.sm),
+              decoration: BoxDecoration(
+                color:
+                    Theme.of(context).extension<AgencyColors>()?.surfaceRaised,
+                borderRadius: BorderRadius.circular(AgencyRadius.md),
+                border: Border.all(color: Theme.of(context).colorScheme.error),
+              ),
+              child: Text(
+                _inlineError!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
-            const SizedBox(height: AgencySpacing.lg),
           ],
-        ),
+          const SizedBox(height: AgencySpacing.md),
+          FilledButton(
+            onPressed: _submitting || _orderPlaced ? null : _placeOrder,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: _submitting
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(_orderPlaced ? 'Order placed' : 'Place order'),
+          ),
+          const SizedBox(height: AgencySpacing.sm),
+          Text(
+            'Simulated prepaid payment · staging only',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context)
+                        .extension<AgencyColors>()
+                        ?.contentSecondary ??
+                    Colors.grey),
+          ),
+          const SizedBox(height: AgencySpacing.lg),
+        ],
+      ),
     );
   }
 
@@ -534,8 +527,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     style: TextStyle(
                         fontSize: 12, color: colors.contentSecondary)),
                 Text('Contact details from your account',
-                    style:
-                        TextStyle(fontSize: 10, color: colors.contentSecondary)),
+                    style: TextStyle(
+                        fontSize: 10, color: colors.contentSecondary)),
               ],
             ),
           ),
@@ -664,7 +657,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[Text(label, style: style), Text(value, style: style)],
+        children: <Widget>[
+          Text(label, style: style),
+          Text(value, style: style)
+        ],
       ),
     );
   }
@@ -723,8 +719,7 @@ class _AddressPickerSheet extends ConsumerWidget {
                   if (address.isDefault) ...<Widget>[
                     const SizedBox(width: AgencySpacing.xs),
                     Text('Default',
-                        style:
-                            TextStyle(fontSize: 10, color: colors.trust)),
+                        style: TextStyle(fontSize: 10, color: colors.trust)),
                   ],
                 ],
               ),
@@ -748,9 +743,7 @@ class _AddressPickerSheet extends ConsumerWidget {
                       final saved = await showAddressFormSheet(context,
                           existing: address);
                       if (saved == null) return;
-                      await ref
-                          .read(addressesProvider.notifier)
-                          .update(saved);
+                      await ref.read(addressesProvider.notifier).update(saved);
                     },
                   ),
                 ],

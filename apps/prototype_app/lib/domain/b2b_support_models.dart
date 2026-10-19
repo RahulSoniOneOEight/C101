@@ -34,8 +34,8 @@ class ApprovalItem {
   final String amountLabel;
   final ApprovalState state;
 
-  ApprovalItem copyWith({ApprovalState? state}) =>
-      ApprovalItem(ref: ref, amountLabel: amountLabel, state: state ?? this.state);
+  ApprovalItem copyWith({ApprovalState? state}) => ApprovalItem(
+      ref: ref, amountLabel: amountLabel, state: state ?? this.state);
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'ref': ref,
@@ -151,4 +151,3 @@ class SiteOption {
   final String name;
   final String city;
 }
-

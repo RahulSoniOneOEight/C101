@@ -74,112 +74,112 @@ class B2bHomeHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-              BadgeTheme(
-                data: BadgeThemeData(
-                  backgroundColor: palette.alert,
-                  textColor: Colors.white,
-                ),
-                child: IconTheme.merge(
-                  data: IconThemeData(color: ink, size: 22),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(color: ink),
-                    child: SizedBox(
-                      height: 56,
-                      child: Row(
-                        children: <Widget>[
-                          const SizedBox(width: AgencySpacing.md),
-                          Expanded(
-                            child: Text(
-                              'BuildKart Trade',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 20,
-                                height: 1.2,
-                                fontWeight: FontWeight.w700,
-                                color: ink,
+                BadgeTheme(
+                  data: BadgeThemeData(
+                    backgroundColor: palette.alert,
+                    textColor: Colors.white,
+                  ),
+                  child: IconTheme.merge(
+                    data: IconThemeData(color: ink, size: 22),
+                    child: DefaultTextStyle.merge(
+                      style: TextStyle(color: ink),
+                      child: SizedBox(
+                        height: 56,
+                        child: Row(
+                          children: <Widget>[
+                            const SizedBox(width: AgencySpacing.md),
+                            Expanded(
+                              child: Text(
+                                'BuildKart Trade',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                  color: ink,
+                                ),
                               ),
                             ),
-                          ),
-                          if (onNotifications != null)
+                            if (onNotifications != null)
+                              IconButton(
+                                onPressed: onNotifications,
+                                tooltip: 'Notifications',
+                                icon: notificationCount > 0
+                                    ? Badge(
+                                        isLabelVisible: true,
+                                        label: Text('$notificationCount'),
+                                        child: const Icon(
+                                            Icons.notifications_none),
+                                      )
+                                    : const Icon(Icons.notifications_none),
+                              ),
                             IconButton(
-                              onPressed: onNotifications,
-                              tooltip: 'Notifications',
-                              icon: notificationCount > 0
-                                  ? Badge(
-                                      isLabelVisible: true,
-                                      label: Text('$notificationCount'),
-                                      child:
-                                          const Icon(Icons.notifications_none),
-                                    )
-                                  : const Icon(Icons.notifications_none),
+                              onPressed: onCart,
+                              tooltip: 'Cart',
+                              icon: const Icon(Icons.shopping_cart_outlined),
                             ),
-                          IconButton(
-                            onPressed: onCart,
-                            tooltip: 'Cart',
-                            icon: const Icon(Icons.shopping_cart_outlined),
-                          ),
-                          IconButton(
-                            onPressed: onAccount,
-                            tooltip: 'Account',
-                            icon: const Icon(Icons.person_outline),
-                          ),
-                          const SizedBox(width: AgencySpacing.xs),
-                        ],
+                            IconButton(
+                              onPressed: onAccount,
+                              tooltip: 'Account',
+                              icon: const Icon(Icons.person_outline),
+                            ),
+                            const SizedBox(width: AgencySpacing.xs),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AgencySpacing.md,
-                  AgencySpacing.sm,
-                  AgencySpacing.md,
-                  AgencySpacing.sm,
-                ),
-                child: _B2bSearchField(
-                  onTap: onSearch,
-                  palette: palette,
-                ),
-              ),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-                child: HomeLocationRow(
-                  label: locationLabel,
-                  onTap: onLocation,
-                  ink: ink,
-                  minHeight: 44,
-                ),
-              ),
-              if (showBanners) ...<Widget>[
-                const SizedBox(height: AgencySpacing.sm),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: AgencySpacing.md),
-                    child: HomeBannerCarousel(
-                      banners: contents,
-                      cardHeight: 160,
-                      autoAdvance: rotationMs > 0
-                          ? Duration(milliseconds: rotationMs)
-                          : null,
-                      onBannerCta: (content) {
-                        final uri = content.actionUri;
-                        if (uri == null || uri.isEmpty) return;
-                        onBannerAction?.call(uri);
-                      },
-                    ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AgencySpacing.md,
+                    AgencySpacing.sm,
+                    AgencySpacing.md,
+                    AgencySpacing.sm,
+                  ),
+                  child: _B2bSearchField(
+                    onTap: onSearch,
+                    palette: palette,
                   ),
                 ),
-                const SizedBox(height: AgencySpacing.sm),
-              ] else
-                const Spacer(),
-            ],
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
+                  child: HomeLocationRow(
+                    label: locationLabel,
+                    onTap: onLocation,
+                    ink: ink,
+                    minHeight: 44,
+                  ),
+                ),
+                if (showBanners) ...<Widget>[
+                  const SizedBox(height: AgencySpacing.sm),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: AgencySpacing.md),
+                      child: HomeBannerCarousel(
+                        banners: contents,
+                        cardHeight: 160,
+                        autoAdvance: rotationMs > 0
+                            ? Duration(milliseconds: rotationMs)
+                            : null,
+                        onBannerCta: (content) {
+                          final uri = content.actionUri;
+                          if (uri == null || uri.isEmpty) return;
+                          onBannerAction?.call(uri);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AgencySpacing.sm),
+                ] else
+                  const Spacer(),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }

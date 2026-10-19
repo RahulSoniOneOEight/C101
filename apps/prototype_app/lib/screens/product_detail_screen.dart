@@ -35,9 +35,7 @@ class ProductDetailScreen extends ConsumerWidget {
                   ref.read(wishlistProvider.notifier).toggle(productId),
               icon: Icon(saved ? Icons.favorite : Icons.favorite_border,
                   color: saved
-                      ? Theme.of(context)
-                          .extension<AgencyColors>()
-                          ?.promotion
+                      ? Theme.of(context).extension<AgencyColors>()?.promotion
                       : null),
             );
           }),
@@ -108,7 +106,8 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
             (v) => v.id == _selectedVariantId,
             orElse: () => product.defaultVariant ?? variants.first,
           );
-    final effectivePrice = selectedVariant?.price ?? selected?.price ?? product.price;
+    final effectivePrice =
+        selectedVariant?.price ?? selected?.price ?? product.price;
     final effectiveMrp = selectedVariant?.mrp ?? selected?.mrp ?? product.mrp;
     final effectiveOfferId =
         selectedVariant?.offerId ?? selected?.id ?? product.offerId ?? '';
@@ -196,8 +195,8 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _priceRow(BuildContext context, ProductVariant? variant,
-      ProductSeller? seller) {
+  Widget _priceRow(
+      BuildContext context, ProductVariant? variant, ProductSeller? seller) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
     final price = variant?.price ?? seller?.price ?? product.price;

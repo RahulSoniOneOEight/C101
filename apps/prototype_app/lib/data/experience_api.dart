@@ -47,7 +47,8 @@ class ExperienceApi {
         return await action();
       } on DioException catch (error) {
         final status = error.response?.statusCode;
-        final transient = status == null || status == 502 || status == 503 || status == 504;
+        final transient =
+            status == null || status == 502 || status == 503 || status == 504;
         if (!transient || attempt == 2) rethrow;
         await Future<void>.delayed(
           Duration(milliseconds: 350 * (attempt + 1)),
@@ -151,6 +152,23 @@ class ExperienceApi {
           queryParameters: {'locale': locale, 'channel': channel},
         ));
     return StorefrontPresentation.fromJson(res.data!);
+  }
+
+  /// Operator-authored B2B quick-order lists and trade-offer collections
+  /// (CHG-062). An empty list is normal: the app keeps its governed defaults.
+  Future<List<CuratedCollection>> getCuratedCollections({
+    String locale = 'en-IN',
+    String channel = 'b2b',
+  }) async {
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/content/curated-collections',
+          queryParameters: {'locale': locale, 'channel': channel},
+        ));
+    return (res.data!['items'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(CuratedCollection.fromJson)
+        .where((item) => item.collectionKey.isNotEmpty && item.title.isNotEmpty)
+        .toList();
   }
 
   Future<List<dynamic>> getCollection(String key) async {
@@ -385,9 +403,8 @@ class ExperienceApi {
   PromotionRejected _promotionError(DioException error, String code) {
     final data = error.response?.data;
     if (data is Map) {
-      final rejected = (data['rejected_codes'] as List?)
-          ?.whereType<Map>()
-          .firstOrNull;
+      final rejected =
+          (data['rejected_codes'] as List?)?.whereType<Map>().firstOrNull;
       final reason = rejected?['reason'] as String?;
       if (reason != null && reason.isNotEmpty) {
         return PromotionRejected(code: code, reason: reason);
@@ -506,8 +523,7 @@ class PromotionRejected implements Exception {
         'not_found' => 'That promotion code was not found.',
         'expired' => 'That offer has expired.',
         'usage_limit' => 'That offer has reached its usage limit.',
-        'not_eligible' =>
-          'That code does not apply to the items in your cart.',
+        'not_eligible' => 'That code does not apply to the items in your cart.',
         'unavailable' =>
           'Promotions are unavailable right now. Please try again.',
         'no_cart' => 'Add an item before applying a code.',

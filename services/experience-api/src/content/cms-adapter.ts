@@ -97,6 +97,28 @@ export interface CategoryBannerOverride {
   alt?: string;
 }
 
+/**
+ * CHG-062 ? an operator-authored B2B quick-order list or trade-offer
+ * collection. Membership is a category rule; explicit product ids win when
+ * present. No price, stock or seller data is carried here.
+ */
+export interface CuratedCollectionRecord {
+  collection_key: string;
+  audience: "b2c" | "b2b" | "both";
+  placement: string;
+  title: string;
+  description?: string;
+  category_labels: string[];
+  product_ids: string[];
+  limit?: number;
+  default_quantity?: number;
+  display_order?: number;
+  icon_key?: string;
+  accent?: string;
+  deal_type?: string;
+  scheme_label?: string;
+}
+
 const LAYOUT_UIDS: Record<string, StorefrontModuleType> = {
   "layout.hero-banner": "hero-banner",
   "layout.category-rail": "category-rail",
@@ -407,12 +429,49 @@ function mapLayout(
   };
 }
 
+function mapCuratedCollection(value: unknown): CuratedCollectionRecord | undefined {
+  const row = record(value);
+  if (!row) return undefined;
+  const collectionKey = text(row.collectionKey);
+  const title = text(row.title);
+  if (!collectionKey || !title) return undefined;
+  const audience = text(row.audience);
+  const strings = (input: unknown): string[] =>
+    Array.isArray(input)
+      ? input.map((item) => String(item).trim()).filter(Boolean)
+      : [];
+  const number = (input: unknown): number | undefined =>
+    typeof input === "number" && Number.isFinite(input) ? input : undefined;
+  return {
+    collection_key: collectionKey,
+    audience: audience === "b2b" || audience === "b2c" ? audience : "both",
+    placement: text(row.placement) ?? "",
+    title,
+    ...(text(row.description) ? { description: text(row.description)! } : {}),
+    category_labels: strings(row.categoryLabels),
+    product_ids: strings(row.productIds),
+    ...(number(row.limit) !== undefined ? { limit: number(row.limit)! } : {}),
+    ...(number(row.defaultQuantity) !== undefined
+      ? { default_quantity: number(row.defaultQuantity)! }
+      : {}),
+    ...(number(row.displayOrder) !== undefined
+      ? { display_order: number(row.displayOrder)! }
+      : {}),
+    ...(text(row.iconKey) ? { icon_key: text(row.iconKey)! } : {}),
+    ...(text(row.accent) ? { accent: text(row.accent)! } : {}),
+    ...(text(row.dealType) ? { deal_type: text(row.dealType)! } : {}),
+    ...(text(row.schemeLabel) ? { scheme_label: text(row.schemeLabel)! } : {}),
+  };
+}
+
 export class CmsContentAdapter {
   private readonly cache = new Map<string, CachedProjection>();
   private readonly bannerCache = new Map<string, CachedCollectionProjection<StorefrontBannerPresentation>>();
   private readonly categoryCache = new Map<string, CachedCollectionProjection<StorefrontCategoryEditorial>>();
   private readonly categoryBannerCache =
     new Map<string, CachedCollectionProjection<CategoryBannerOverride>>();
+  private readonly curatedCache =
+    new Map<string, CachedCollectionProjection<CuratedCollectionRecord>>();
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => Date;
 
@@ -436,6 +495,9 @@ export class CmsContentAdapter {
           this.cache.delete(key);
         }
       }
+    }
+    if (uid === "api::curated-collection.curated-collection") {
+      this.curatedCache.clear();
     }
     if (uid === "api::banner.banner") {
       this.bannerCache.clear();
@@ -659,6 +721,29 @@ export class CmsContentAdapter {
             ...(alt ? { alt } : {}),
           }];
         });
+      },
+    });
+  }
+
+  /**
+   * Published B2B quick-order lists and trade-offer collections for a channel.
+   * An empty result is a normal state: the app keeps its governed rule defaults.
+   */
+  async resolveCuratedCollections(
+    channel: StorefrontChannel,
+    locale: AppLocale,
+  ): Promise<CmsCollectionResolution<CuratedCollectionRecord>> {
+    return this.resolveCollection({
+      projectionKey: `curated-collection:${channel}:${locale}`,
+      locale,
+      cache: this.curatedCache,
+      fetchItems: async (candidateLocale) => {
+        const entities = await this.fetchPublishedCollection("curated-collections", candidateLocale);
+        return entities
+          .map(mapCuratedCollection)
+          .filter((item): item is CuratedCollectionRecord => Boolean(item))
+          .filter((item) => item.audience === "both" || item.audience === channel)
+          .sort((left, right) => (left.display_order ?? 999) - (right.display_order ?? 999));
       },
     });
   }

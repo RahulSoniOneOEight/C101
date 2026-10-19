@@ -17,26 +17,32 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final lists = container.read(procurementListsProvider);
+    const titles = <String>[
+      'Electrical Essentials',
+      'Bathroom & Plumbing',
+      'Paints & Finishes',
+      'Tools & Hardware',
+    ];
 
-    expect(lists.map((l) => l.title).toList(),
-        <String>['Seasonal', 'Kitchen Works', 'Floor Essentials']);
-    expect(lists.every((l) => l.items.isNotEmpty), isTrue);
-    expect(lists.map((l) => l.items.length).toList(), <int>[12, 8, 8]);
-    expect(
-        lists.every(
-            (l) => l.items.map((i) => i.sku).toSet().length == l.items.length),
-        isTrue);
+    expect(lists.map((l) => l.title).toList(), titles);
+    expect(lists.every((l) => l.isRuleBased), isTrue);
+    expect(lists.map((l) => l.categoryLabels).toList(), <List<String>>[
+      <String>['Lighting & Electrical'],
+      <String>['Bathroom & Plumbing'],
+      <String>['Paints & Finishes', 'Tiles & Building Materials'],
+      <String>['Tools & Hardware'],
+    ]);
+    expect(lists.map((l) => l.limit).toList(), <int?>[20, 20, 18, 20]);
+    expect(container.read(quickOrderPresetsProvider), titles);
+
+    // Rules resolve against the live catalogue, so every resolved SKU exists.
     final catalogueIds =
         container.read(tradeCatalogueProvider).map((p) => p.product.id).toSet();
+    final resolved = container.read(resolvedProcurementListsProvider);
     expect(
-        lists.every((l) => l.items.every((i) => catalogueIds.contains(i.sku))),
+        resolved
+            .every((l) => l.items.every((i) => catalogueIds.contains(i.sku))),
         isTrue);
-    expect(
-        lists
-            .every((l) => l.sourceType == ProcurementListSourceType.buyerSaved),
-        isTrue);
-    expect(container.read(quickOrderPresetsProvider),
-        <String>['Seasonal', 'Kitchen Works', 'Floor Essentials']);
   });
 
   test('adding a SKU to a list persists (save state) and survives reload',
@@ -53,7 +59,7 @@ void main() {
     await c1.read(procurementListsProvider.notifier).addSku(
           'pl_kitchen',
           const ProcurementListItem(
-              sku: 'prod_led', name: 'LED Bulb 9W Cool White', quantity: 20),
+              sku: 'prod_paint', name: 'Emulsion Paint 20L', quantity: 20),
         );
 
     // Save state + the SKU now shows in the normal list view.
@@ -62,7 +68,7 @@ void main() {
         c1
             .read(procurementListProvider('pl_kitchen'))!
             .items
-            .any((i) => i.sku == 'prod_led'),
+            .any((i) => i.sku == 'prod_paint'),
         isTrue);
 
     // A fresh container over the same store sees the saved SKU.
@@ -74,7 +80,7 @@ void main() {
         c2
             .read(procurementListProvider('pl_kitchen'))!
             .items
-            .any((i) => i.sku == 'prod_led'),
+            .any((i) => i.sku == 'prod_paint'),
         isTrue);
   });
 
@@ -120,10 +126,17 @@ void main() {
     addTearDown(container.dispose);
     final lists = container.read(procurementListsProvider);
 
-    expect(lists.firstWhere((l) => l.id == 'pl_seasonal').items, hasLength(12));
+    // The untouched demonstration seed is replaced by the rule-based seed.
+    final seasonal = lists.firstWhere((l) => l.id == 'pl_seasonal');
+    expect(seasonal.title, 'Electrical Essentials');
+    expect(seasonal.isRuleBased, isTrue);
+    expect(seasonal.items, isEmpty);
+    // The buyer-renamed list is preserved exactly.
     final edited = lists.firstWhere((l) => l.id == 'pl_kitchen');
     expect(edited.title, 'My Kitchen Works');
     expect(edited.items, hasLength(3));
+    // The fourth list is appended for stores that predate it.
+    expect(lists.any((l) => l.id == 'pl_tools'), isTrue);
   });
 
   test('catalogue products expose multiple sellers with a best price', () {
@@ -205,8 +218,9 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final list = container
-        .read(procurementListsProvider)
+        .read(resolvedProcurementListsProvider)
         .firstWhere((item) => item.id == 'pl_seasonal');
+    expect(list.items.length, greaterThanOrEqualTo(2));
 
     container.read(b2bQuotationCartProvider.notifier).addProcurementItems(
       list.items.take(2),
@@ -357,9 +371,25 @@ void main() {
     addTearDown(tester.view.reset);
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
+    // Eight electrical SKUs so the 2x2 grid genuinely overflows horizontally.
+    final many = <TradeProduct>[
+      for (var i = 0; i < 8; i++)
+        tradeProductFromCatalogue(
+          Product(
+            id: 'prod_el_$i',
+            title: 'Electrical item $i',
+            price: Money(amount: 10000 + i * 100, currencyCode: 'INR'),
+            categoryId: TradeCategoryIds.electrical,
+          ),
+          categoryId: TradeCategoryIds.electrical,
+        ),
+    ];
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          tradeCatalogueProvider.overrideWithValue(many),
+        ],
         child: MaterialApp(
           theme: AgencyTheme.light(),
           home: const B2BHomeScreen(),
@@ -442,9 +472,14 @@ void main() {
       ),
     );
 
-    // Seasonal has 12 items, all selected by default.
-    expect(find.text('12 of 12 items selected'), findsOneWidget);
-    expect(find.text('Add Selected to Order (12)'), findsOneWidget);
+    // Every resolved item is selected by default.
+    final list = ProviderScope.containerOf(
+            tester.element(find.byType(ProcurementListDetailScreen)))
+        .read(procurementListProvider('pl_seasonal'))!;
+    expect(find.text('${list.itemCount} of ${list.itemCount} items selected'),
+        findsOneWidget);
+    expect(
+        find.text('Add Selected to Order (${list.itemCount})'), findsOneWidget);
     expect(find.text('Add All to Order'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -484,13 +519,19 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final notifier = container.read(procurementListsProvider.notifier);
+    final saved = await notifier.createWithItems(
+      title: 'Saved defaults',
+      items: const <ProcurementListItem>[
+        ProcurementListItem(sku: 'SKU-1', name: 'Line one', quantity: 2),
+      ],
+    );
 
-    await notifier.setItemQuantity('pl_seasonal', 'prod_led', 42);
+    await notifier.setItemQuantity(saved.id, 'SKU-1', 42);
 
     final item = container
-        .read(procurementListProvider('pl_seasonal'))!
+        .read(procurementListProvider(saved.id))!
         .items
-        .firstWhere((i) => i.sku == 'prod_led');
+        .firstWhere((i) => i.sku == 'SKU-1');
     expect(item.quantity, 42);
     // The cart is untouched by a list-default edit.
     expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
@@ -501,14 +542,20 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(procurementListsProvider.notifier);
 
-    final copy = await notifier.duplicateList('pl_kitchen');
+    final source = await notifier.createWithItems(
+      title: 'My repeat list',
+      items: const <ProcurementListItem>[
+        ProcurementListItem(sku: 'SKU-1', name: 'Line one', quantity: 2),
+        ProcurementListItem(sku: 'SKU-2', name: 'Line two', quantity: 4),
+      ],
+    );
+    final copy = await notifier.duplicateList(source.id);
     final lists = container.read(procurementListsProvider);
 
-    expect(copy.id, isNot('pl_kitchen'));
+    expect(copy.id, isNot(source.id));
     expect(copy.sourceType, ProcurementListSourceType.buyerSaved);
-    expect(copy.items.length,
-        container.read(procurementListProvider('pl_kitchen'))!.items.length);
-    expect(lists.any((l) => l.id == 'pl_kitchen'), isTrue); // source kept
+    expect(copy.items.length, 2);
+    expect(lists.any((l) => l.id == source.id), isTrue); // source kept
   });
 
   test('saveEdited copies a curated source without modifying the template',

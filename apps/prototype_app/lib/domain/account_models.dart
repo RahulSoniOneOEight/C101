@@ -167,8 +167,7 @@ class PaymentMethod {
 
   factory PaymentMethod.fromJson(Map<String, dynamic> j) => PaymentMethod(
         id: j['id'] as String? ?? '',
-        kind: PaymentMethodKind.values.firstWhere(
-            (k) => k.name == j['kind'],
+        kind: PaymentMethodKind.values.firstWhere((k) => k.name == j['kind'],
             orElse: () => PaymentMethodKind.upi),
         label: j['label'] as String? ?? '',
         detail: j['detail'] as String? ?? '',
@@ -258,8 +257,8 @@ class Invoice {
         orderRef: j['order_ref'] as String? ?? '',
         dateLabel: j['date_label'] as String? ?? '',
         amountMinor: (j['amount_minor'] as num?)?.toInt() ?? 0,
-        status: InvoiceStatus.values
-            .firstWhere((s) => s.name == j['status'], orElse: () => InvoiceStatus.paid),
+        status: InvoiceStatus.values.firstWhere((s) => s.name == j['status'],
+            orElse: () => InvoiceStatus.paid),
         gstin: j['gstin'] as String? ?? '',
       );
 }
@@ -396,8 +395,7 @@ class AppSettings {
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
-        language: AppLanguage.values.firstWhere(
-            (l) => l.code == j['language'],
+        language: AppLanguage.values.firstWhere((l) => l.code == j['language'],
             orElse: () => AppLanguage.english),
         notificationsEnabled: j['notifications'] as bool? ?? true,
         promotionalOptIn: j['promotional'] as bool? ?? true,

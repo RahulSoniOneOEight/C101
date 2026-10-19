@@ -85,8 +85,7 @@ class HomePinnedBar extends StatelessWidget {
                   _SearchField(
                     onTap: onSearch,
                     palette: palette,
-                    borderColor:
-                        light ? palette.barBorder : Colors.transparent,
+                    borderColor: light ? palette.barBorder : Colors.transparent,
                   ),
                   // Reserve the line's height so the bar never jumps when it appears.
                   const SizedBox(height: progressLineHeight),

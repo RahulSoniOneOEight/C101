@@ -91,8 +91,9 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     final tierIndex =
         tiers.isEmpty ? 0 : _selectedTier.clamp(0, tiers.length - 1);
     final tierQty = tiers.isEmpty ? p.moq : tiers[tierIndex].quantity;
-    final unitPrice =
-        selectedVariant?.price ?? selectedSeller?.unitPrice ?? p.unitPriceFor(tierQty);
+    final unitPrice = selectedVariant?.price ??
+        selectedSeller?.unitPrice ??
+        p.unitPriceFor(tierQty);
     final mrp = selectedVariant?.mrp ?? p.mrp;
     final stockQty = selectedVariant?.stockQty ?? p.stockQty;
 
@@ -158,7 +159,8 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: colors.actionPrimary)),
-              if (selectedVariant?.mrp != null || p.product.mrp != null) ...<Widget>[
+              if (selectedVariant?.mrp != null ||
+                  p.product.mrp != null) ...<Widget>[
                 const SizedBox(width: AgencySpacing.sm),
                 Text('MRP ${mrp.formatted}',
                     style: TextStyle(
@@ -261,10 +263,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    ref
-                        .read(b2bQuotationCartProvider.notifier)
-                        .addTradeProduct(p,
-                            quantity: tierQty, variant: selectedVariant);
+                    ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
+                        p,
+                        quantity: tierQty,
+                        variant: selectedVariant);
                     context.go('/b2b/cart');
                   },
                   icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -279,10 +281,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ref
-                        .read(b2bQuotationCartProvider.notifier)
-                        .addTradeProduct(p,
-                            quantity: tierQty, variant: selectedVariant);
+                    ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
+                        p,
+                        quantity: tierQty,
+                        variant: selectedVariant);
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
                       ..showSnackBar(SnackBar(
@@ -352,8 +354,7 @@ class _VariantRow extends StatelessWidget {
                   ? Icons.radio_button_checked
                   : Icons.radio_button_unchecked,
               size: 18,
-              color:
-                  selected ? colors.actionPrimary : colors.contentSecondary,
+              color: selected ? colors.actionPrimary : colors.contentSecondary,
             ),
             const SizedBox(width: AgencySpacing.sm),
             Expanded(

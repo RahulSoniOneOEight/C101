@@ -134,8 +134,9 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
   {
     kind: "curated-collection",
     uid: "api::curated-collection.curated-collection",
-    label: "Curated collections",
-    description: "Editorial product references; commerce resolves live product data and ranking.",
+    label: "Collections & trade lists",
+    description:
+      "Editorial collections plus B2B quick-order lists and trade-offer collections. Category rules resolve live products; explicit product ids win.",
     keyField: "collectionKey",
     titleField: "title",
     fields: [
@@ -151,6 +152,71 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         description: "JSON array of stable commerce product ids. Never enter price, stock or seller data.",
       },
       { name: "selectionRule", label: "Selection rule", type: "text" },
+      {
+        name: "description",
+        label: "Supporting text",
+        type: "string",
+        description: "Short subtitle shown under the collection or list title.",
+      },
+      {
+        name: "categoryLabels",
+        label: "Category rule",
+        type: "json",
+        description:
+          "JSON array of L1 category labels. Membership resolves from the live catalogue; explicit product ids win when present.",
+      },
+      {
+        name: "limit",
+        label: "Maximum products",
+        type: "integer",
+        description: "Category-rule cap. Quick-order lists use 15-20.",
+      },
+      {
+        name: "defaultQuantity",
+        label: "Default quantity",
+        type: "integer",
+        description: "Suggested order quantity for quick-order list lines.",
+      },
+      { name: "displayOrder", label: "Display order", type: "integer" },
+      {
+        name: "iconKey",
+        label: "Icon",
+        type: "enum",
+        options: [
+          "wb-sunny",
+          "local-offer",
+          "card-giftcard",
+          "inventory",
+          "cleaning",
+          "celebration",
+          "bolt",
+          "water-drop",
+          "format-paint",
+          "handyman",
+          "category",
+        ],
+      },
+      {
+        name: "accent",
+        label: "Accent",
+        type: "enum",
+        options: ["trust", "promotion", "primary", "info"],
+      },
+      {
+        name: "dealType",
+        label: "Deal type",
+        type: "enum",
+        options: [
+          "seasonal",
+          "best-deals",
+          "schemes",
+          "bulk-buy",
+          "clearance",
+          "festive",
+          "quick-order",
+        ],
+      },
+      { name: "schemeLabel", label: "Scheme label", type: "string" },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
       {

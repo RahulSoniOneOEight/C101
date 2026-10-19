@@ -60,8 +60,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
     return p.sellers.any((seller) => seller.name.toLowerCase().contains(lower));
   }
 
-
-
   void _loadMore(int total) {
     if (_visible >= total) return;
     setState(() => _visible += _pageSize);
@@ -142,9 +140,11 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
                 child: MerchandisingBanner(
-                  imageUrl: ref.watch(b2bCategoryBannerImageByIdProvider(_categoryId)) ??
+                  imageUrl: ref.watch(
+                          b2bCategoryBannerImageByIdProvider(_categoryId)) ??
                       fallbackCategoryBannerImage,
-                  imageAlt: ref.watch(b2bCategoryBannerAltByIdProvider(_categoryId)),
+                  imageAlt:
+                      ref.watch(b2bCategoryBannerAltByIdProvider(_categoryId)),
                   title: title,
                   subtitle: 'Trade rates · MOQ · GST invoicing',
                   ctaLabel: 'Filters',
@@ -164,7 +164,9 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: AgencySpacing.md, vertical: AgencySpacing.sm),
                   children: <Widget>[
-                    _chip('All', _categoryId == null && !_dealsOnly && !_seasonalOnly,
+                    _chip(
+                        'All',
+                        _categoryId == null && !_dealsOnly && !_seasonalOnly,
                         () => setState(() {
                               _categoryId = null;
                               _dealsOnly = false;
@@ -172,12 +174,15 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                               _resetPaging();
                             })),
                     for (final c in categories)
-                      _chip(c.label, _categoryId == c.id, () => setState(() {
-                            _categoryId = c.id;
-                            _dealsOnly = false;
-                            _seasonalOnly = false;
-                            _resetPaging();
-                          })),
+                      _chip(
+                          c.label,
+                          _categoryId == c.id,
+                          () => setState(() {
+                                _categoryId = c.id;
+                                _dealsOnly = false;
+                                _seasonalOnly = false;
+                                _resetPaging();
+                              })),
                   ],
                 ),
               ),
@@ -197,8 +202,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                             ? 3
                             : 2;
                     return SliverGrid(
-                      gridDelegate:
-                          SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: columns,
                         mainAxisSpacing: AgencySpacing.sm,
                         crossAxisSpacing: AgencySpacing.sm,
@@ -236,8 +240,8 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
             if (filtered.isNotEmpty)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AgencySpacing.md, 0,
-                      AgencySpacing.md, AgencySpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                      AgencySpacing.md, 0, AgencySpacing.md, AgencySpacing.lg),
                   child: hasMore
                       ? PinWorkflowAction(
                           label: 'Load more products',
@@ -321,8 +325,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
     );
   }
 
-  Widget _resultRow(
-      BuildContext context, AgencyColors colors, TradeProduct p) {
+  Widget _resultRow(BuildContext context, AgencyColors colors, TradeProduct p) {
     return InkWell(
       onTap: () => context.push('/b2b/pdp/${p.product.id}'),
       borderRadius: BorderRadius.circular(AgencyRadius.md),
@@ -345,8 +348,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
               child: Text(p.product.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentPrimary)),
+                  style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
             ),
             Text(p.tradePrice.formatted,
                 style: TextStyle(

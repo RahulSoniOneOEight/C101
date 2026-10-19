@@ -155,6 +155,115 @@ export const categorySeed: CategorySeed[] = [
 ];
 
 /**
+ * CHG-062 — B2B quick-order lists and trade-offer collection properties.
+ *
+ * Category rules, not product ids: the storefront resolves live catalogue
+ * products, and an operator can retitle, reorder, re-cap or re-target every
+ * record without an app release.
+ */
+const curatedCollectionSeed = [
+  {
+    collectionKey: "b2b_trade_seasonal",
+    audience: "b2b",
+    placement: "b2b.trade_offers",
+    title: "Seasonal",
+    description: "Lighting & electrical",
+    categoryLabels: ["Lighting & Electrical"],
+    limit: 8,
+    displayOrder: 1,
+    iconKey: "wb-sunny",
+    accent: "trust",
+    dealType: "seasonal",
+    selectionRule: "category:Lighting & Electrical;limit:8",
+  },
+  {
+    collectionKey: "b2b_trade_best_deals",
+    audience: "b2b",
+    placement: "b2b.trade_offers",
+    title: "Best Deals",
+    description: "Bathroom & plumbing",
+    categoryLabels: ["Bathroom & Plumbing"],
+    limit: 8,
+    displayOrder: 2,
+    iconKey: "local-offer",
+    accent: "promotion",
+    dealType: "best-deals",
+    selectionRule: "category:Bathroom & Plumbing;limit:8",
+  },
+  {
+    collectionKey: "b2b_trade_schemes",
+    audience: "b2b",
+    placement: "b2b.trade_offers",
+    title: "Schemes",
+    description: "Paints & finishes",
+    categoryLabels: ["Paints & Finishes", "Tiles & Building Materials"],
+    limit: 8,
+    displayOrder: 3,
+    iconKey: "card-giftcard",
+    accent: "primary",
+    dealType: "schemes",
+    schemeLabel: "Buy 100 Get 5 Free",
+    selectionRule: "category:Paints & Finishes,Tiles & Building Materials;limit:8",
+  },
+  {
+    collectionKey: "b2b_quick_electrical",
+    audience: "b2b",
+    placement: "b2b.quick_order",
+    title: "Electrical Essentials",
+    description: "Lighting, wiring and switchgear",
+    categoryLabels: ["Lighting & Electrical"],
+    limit: 20,
+    defaultQuantity: 5,
+    displayOrder: 1,
+    iconKey: "bolt",
+    accent: "primary",
+    dealType: "quick-order",
+  },
+  {
+    collectionKey: "b2b_quick_bathroom",
+    audience: "b2b",
+    placement: "b2b.quick_order",
+    title: "Bathroom & Plumbing",
+    description: "Fittings, sanitaryware and pipes",
+    categoryLabels: ["Bathroom & Plumbing"],
+    limit: 20,
+    defaultQuantity: 4,
+    displayOrder: 2,
+    iconKey: "water-drop",
+    accent: "primary",
+    dealType: "quick-order",
+  },
+  {
+    collectionKey: "b2b_quick_finishes",
+    audience: "b2b",
+    placement: "b2b.quick_order",
+    title: "Paints & Finishes",
+    description: "Paints, boards and surface finishes",
+    categoryLabels: ["Paints & Finishes", "Tiles & Building Materials"],
+    limit: 18,
+    defaultQuantity: 4,
+    displayOrder: 3,
+    iconKey: "format-paint",
+    accent: "primary",
+    dealType: "quick-order",
+  },
+  {
+    collectionKey: "b2b_quick_tools",
+    audience: "b2b",
+    placement: "b2b.quick_order",
+    title: "Tools & Hardware",
+    description: "Hand tools, power tools and fasteners",
+    categoryLabels: ["Tools & Hardware"],
+    limit: 20,
+    defaultQuantity: 5,
+    displayOrder: 4,
+    iconKey: "handyman",
+    accent: "primary",
+    dealType: "quick-order",
+  },
+];
+
+/**
  * Create missing presentation records and publish them. Never overwrites an existing record, so an
  * operator edit always wins. Fail-soft: a seeding error is logged and never blocks startup.
  */
@@ -235,6 +344,25 @@ export async function seedStorefrontPresentation(strapi: Core.Strapi): Promise<v
         await banners.publish({ documentId: bannerDocumentId, locale: "en-IN" } as never);
       }
     }
+    const curated = strapi.documents("api::curated-collection.curated-collection" as never);
+    for (const seed of curatedCollectionSeed) {
+      const existing = await curated.findMany({
+        filters: { collectionKey: seed.collectionKey },
+        locale: "en-IN",
+        limit: 1,
+      } as never);
+      if (existing.length) continue;
+      const created = await curated.create({
+        locale: "en-IN",
+        status: "draft",
+        data: seed,
+      } as never);
+      const documentId = (created as { documentId?: string }).documentId;
+      if (documentId) {
+        await curated.publish({ documentId, locale: "en-IN" } as never);
+      }
+    }
+
     strapi.log.info("[cms-seed] storefront presentation seed ensured");
   } catch (error) {
     strapi.log.warn(`[cms-seed] storefront presentation seed skipped: ${(error as Error).message}`);

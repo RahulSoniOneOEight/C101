@@ -1272,7 +1272,14 @@ class TradeProductCard extends StatelessWidget {
                         : ClipRRect(
                             borderRadius:
                                 BorderRadius.circular(AgencyRadius.sm),
-                            child: Image.network(imageUrl!, fit: BoxFit.cover),
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.image_outlined,
+                                color: colors.contentSecondary,
+                              ),
+                            ),
                           ),
                   ),
                   if (tag != null)
@@ -1755,7 +1762,14 @@ class BuyAgainCard extends StatelessWidget {
                         : ClipRRect(
                             borderRadius:
                                 BorderRadius.circular(AgencyRadius.sm),
-                            child: Image.network(imageUrl!, fit: BoxFit.cover),
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.image_outlined,
+                                color: colors.contentSecondary,
+                              ),
+                            ),
                           ),
                   ),
                 ),

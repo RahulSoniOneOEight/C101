@@ -132,8 +132,7 @@ class MerchandisingModuleView extends StatelessWidget {
       onPressed: onProductTap == null ? null : () => onProductTap!(p),
       onAddToCart: onAddToCart == null ? null : () => onAddToCart!(p),
       wishlisted: isWishlisted?.call(p) ?? false,
-      onWishlist:
-          onToggleWishlist == null ? null : () => onToggleWishlist!(p),
+      onWishlist: onToggleWishlist == null ? null : () => onToggleWishlist!(p),
     );
   }
 

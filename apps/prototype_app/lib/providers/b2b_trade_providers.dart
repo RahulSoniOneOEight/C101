@@ -67,6 +67,9 @@ ProcurementList _list(
   String? campaignRef,
   String? reason,
   ProcurementListAction action = ProcurementListAction.view,
+  List<String> categoryLabels = const <String>[],
+  int? limit,
+  int defaultQuantity = 1,
 }) {
   return ProcurementList(
     id: id,
@@ -80,6 +83,9 @@ ProcurementList _list(
     campaignRef: campaignRef,
     personalizationReason: reason,
     action: action,
+    categoryLabels: categoryLabels,
+    limit: limit,
+    defaultQuantity: defaultQuantity,
   );
 }
 
@@ -161,12 +167,17 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
         items: current.items.where((i) => i.sku != sku).toList())));
   }
 
+  static int _createdSequence = 0;
+
+  String _newListId() =>
+      'pl_user_${DateTime.now().microsecondsSinceEpoch}_${_createdSequence++}';
+
   Future<ProcurementList> createList({
     required String title,
     String description = 'Saved list',
   }) async {
     final list = ProcurementList(
-      id: 'pl_user_${DateTime.now().microsecondsSinceEpoch}',
+      id: _newListId(),
       title: title,
       description: description,
       sourceType: ProcurementListSourceType.buyerSaved,
@@ -226,7 +237,7 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
     List<ProcurementListItem> items = const <ProcurementListItem>[],
   }) async {
     final list = ProcurementList(
-      id: 'pl_user_${DateTime.now().microsecondsSinceEpoch}',
+      id: _newListId(),
       title: title,
       description: description,
       sourceType: ProcurementListSourceType.buyerSaved,
@@ -283,62 +294,60 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
 }
 
 List<ProcurementList> _seedLists() => <ProcurementList>[
+      // CHG-062: rule-based staging lists. Membership resolves from the live
+      // catalogue by L1 category, so an import can never leave the list pointing
+      // at archived demonstration ids. Operators can override the title, order
+      // and membership from the console's curated collections.
       _list(
           'pl_seasonal',
-          'Seasonal',
-          'Peak-season electrical demand',
+          'Electrical Essentials',
+          'Lighting, wiring and switchgear',
           ProcurementListSourceType.buyerSaved,
-          <(String, String, int)>[
-            ('prod_led', 'LED Bulb 9W Cool White', 20),
-            ('prod_mcb', 'MCB 32A Single Pole', 10),
-            ('prod_wire', 'Copper Wire 1.5sqmm', 5),
-            ('prod_switch', 'Anchor Switch 6A', 20),
-            ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
-            ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-            ('prod_ballvalve', 'Ball Valve 25mm', 10),
-            ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-            ('prod_paint', 'Emulsion Paint 20L', 4),
-            ('prod_drill', 'Cordless Drill Kit 18V', 2),
-            ('prod_grinder', 'Angle Grinder 4 in', 2),
-            ('prod_fittings', 'Bathroom Fittings Set', 4),
-          ],
-          campaignRef: 'CAM-SEASON-26'),
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Lighting & Electrical'],
+          limit: 20,
+          defaultQuantity: 5),
       _list(
           'pl_kitchen',
-          'Kitchen Works',
-          'Sinks, taps and fittings for kitchen fit-outs',
-          ProcurementListSourceType.buyerSaved, <(String, String, int)>[
-        ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
-        ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-        ('prod_ballvalve', 'Ball Valve 25mm', 10),
-        ('prod_fittings', 'Bathroom Fittings Set', 4),
-        ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-        ('prod_paint', 'Emulsion Paint 20L', 4),
-        ('prod_drill', 'Cordless Drill Kit 18V', 2),
-        ('prod_grinder', 'Angle Grinder 4 in', 2),
-      ]),
+          'Bathroom & Plumbing',
+          'Fittings, sanitaryware and pipes',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Bathroom & Plumbing'],
+          limit: 20,
+          defaultQuantity: 4),
       _list(
           'pl_floor',
-          'Floor Essentials',
-          'Tiles, finishes and flooring consumables',
-          ProcurementListSourceType.buyerSaved, <(String, String, int)>[
-        ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-        ('prod_paint', 'Emulsion Paint 20L', 4),
-        ('prod_fittings', 'Bathroom Fittings Set', 4),
-        ('prod_drill', 'Cordless Drill Kit 18V', 2),
-        ('prod_grinder', 'Angle Grinder 4 in', 2),
-        ('prod_ballvalve', 'Ball Valve 25mm', 10),
-        ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-        ('prod_wire', 'Copper Wire 1.5sqmm', 5),
-      ]),
+          'Paints & Finishes',
+          'Paints, boards and surface finishes',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>[
+            'Paints & Finishes',
+            'Tiles & Building Materials',
+          ],
+          limit: 18,
+          defaultQuantity: 4),
+      _list(
+          'pl_tools',
+          'Tools & Hardware',
+          'Hand tools, power tools and fasteners',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Tools & Hardware'],
+          limit: 20,
+          defaultQuantity: 5),
     ];
 
-/// Expands only the untouched three-item pilot fixtures. Any buyer rename,
-/// quantity change, add or removal makes the legacy signature differ and is
-/// therefore preserved rather than overwritten.
+/// Replaces only untouched demonstration seeds with the current seed.
+///
+/// The 3-item pilot seed and the 12/8/8 demonstration seed are recognised by
+/// their exact id/quantity signature. Any buyer rename, add or removal changes
+/// that signature, so buyer work is preserved rather than overwritten.
+/// Missing seed lists are appended; user-created lists are always kept.
 (List<ProcurementList>, bool) _migrateLegacySeedLists(
     List<ProcurementList> persisted) {
-  const legacy = <String, Map<String, int>>{
+  const legacySignatures = <String, Map<String, int>>{
     'pl_seasonal': <String, int>{
       'prod_led': 20,
       'prod_mcb': 10,
@@ -355,29 +364,73 @@ List<ProcurementList> _seedLists() => <ProcurementList>[
       'prod_fittings': 4,
     },
   };
-  final expanded = <String, ProcurementList>{
-    for (final list in _seedLists()) list.id: list,
+  const demoSeedSignatures = <String, Map<String, int>>{
+    'pl_seasonal': <String, int>{
+      'prod_led': 20,
+      'prod_mcb': 10,
+      'prod_wire': 5,
+      'prod_switch': 20,
+      'prod_bibcock': 10,
+      'prod_cpvc': 50,
+      'prod_ballvalve': 10,
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+      'prod_fittings': 4,
+    },
+    'pl_kitchen': <String, int>{
+      'prod_bibcock': 10,
+      'prod_cpvc': 50,
+      'prod_ballvalve': 10,
+      'prod_fittings': 4,
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+    },
+    'pl_floor': <String, int>{
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_fittings': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+      'prod_ballvalve': 10,
+      'prod_cpvc': 50,
+      'prod_wire': 5,
+    },
   };
-  var changed = false;
+  const legacyTitles = <String, String>{
+    'pl_seasonal': 'Seasonal',
+    'pl_kitchen': 'Kitchen Works',
+    'pl_floor': 'Floor Essentials',
+  };
+  final seeds = _seedLists();
+  final seedById = <String, ProcurementList>{
+    for (final list in seeds) list.id: list,
+  };
   final result = <ProcurementList>[
     for (final list in persisted)
       if (_matchesLegacyFixture(
-          list, legacy[list.id], expanded[list.id]?.title))
-        expanded[list.id]!
+              list, legacySignatures[list.id], legacyTitles[list.id] ?? '') ||
+          _matchesLegacyFixture(
+              list, demoSeedSignatures[list.id], legacyTitles[list.id] ?? ''))
+        seedById[list.id] ?? list
       else
         list,
   ];
-  for (var i = 0; i < persisted.length; i++) {
-    if (!identical(persisted[i], result[i])) {
-      changed = true;
-      break;
-    }
+  final present = <String>{for (final list in result) list.id};
+  for (final seed in seeds) {
+    if (!present.contains(seed.id)) result.add(seed);
   }
+  final changed = result.length != persisted.length ||
+      <int>[for (var i = 0; i < persisted.length; i++) i]
+          .any((i) => !identical(persisted[i], result[i]));
   return (result, changed);
 }
 
 bool _matchesLegacyFixture(
-    ProcurementList list, Map<String, int>? signature, String? originalTitle) {
+    ProcurementList list, Map<String, int>? signature, String originalTitle) {
   if (signature == null ||
       list.title != originalTitle ||
       list.items.length != signature.length) {
@@ -389,13 +442,113 @@ bool _matchesLegacyFixture(
   return true;
 }
 
+/// Procurement lists with rule-based membership materialised from the live
+/// catalogue (CHG-062).
+///
+/// Persistence keeps the rule, not twenty stale product ids, so a catalogue
+/// change updates every list. Buyer-owned lists (no rule) pass through
+/// unchanged. Screens read this provider; edits go through
+/// [procurementListsProvider].
+final resolvedProcurementListsProvider = Provider<List<ProcurementList>>((ref) {
+  final lists = ref.watch(procurementListsProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  return <ProcurementList>[
+    for (final list in lists) _resolveProcurementList(list, catalogue),
+  ];
+});
+
+ProcurementList _resolveProcurementList(
+    ProcurementList list, List<TradeProduct> catalogue) {
+  if (!list.isRuleBased) return list;
+  final labels = <String>{
+    for (final label in list.categoryLabels) label.trim().toLowerCase(),
+  };
+  final categoryIds = <String>{
+    for (final label in labels)
+      if (TradeCategoryIds.byLabel[label] != null)
+        TradeCategoryIds.byLabel[label]!,
+  };
+  final items = <ProcurementListItem>[];
+  final seen = <String>{};
+  // Buyer additions on a rule list are kept ahead of the rule result.
+  for (final item in list.items) {
+    if (seen.add(item.sku)) items.add(item);
+  }
+  for (final product in catalogue) {
+    if (list.limit != null && items.length >= list.limit!) break;
+    final label = (product.product.categoryLabel ?? '').trim().toLowerCase();
+    final id = product.categoryId;
+    if (!labels.contains(label) && !categoryIds.contains(id)) continue;
+    if (!seen.add(product.product.id)) continue;
+    items.add(ProcurementListItem(
+      sku: product.product.id,
+      name: product.product.title,
+      quantity: list.defaultQuantity,
+      unitPrice: product.tradePrice,
+    ));
+  }
+  return list.copyWith(items: items);
+}
+
 /// The quick-order presets shown on the B2B Home — the kept list names.
-final quickOrderPresetsProvider = Provider<List<String>>((ref) =>
-    <String>[for (final l in ref.watch(procurementListsProvider)) l.title]);
+/// Quick-order lists with console-authored presentation applied (CHG-062).
+///
+/// Console records (placement `b2b.quick_order`) override the governed rule
+/// lists by display position: title, supporting text, category rule, cap and
+/// default quantity. Records beyond the built-in four append new lists. With no
+/// authored record the governed lists pass through unchanged.
+final effectiveProcurementListsProvider =
+    Provider<List<ProcurementList>>((ref) {
+  final base = ref.watch(resolvedProcurementListsProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  final curated = (ref.watch(b2bCuratedCollectionsProvider).value ??
+          const <CuratedCollection>[])
+      .where((item) => item.placement == 'b2b.quick_order')
+      .toList()
+    ..sort((a, b) => (a.displayOrder ?? 999).compareTo(b.displayOrder ?? 999));
+  if (curated.isEmpty) return base;
+
+  final ruleLists = base.where((list) => list.isRuleBased).toList();
+  final others = base.where((list) => !list.isRuleBased).toList();
+  final merged = <ProcurementList>[];
+  for (var i = 0; i < curated.length; i++) {
+    final record = curated[i];
+    final template = i < ruleLists.length ? ruleLists[i] : null;
+    merged.add(ProcurementList(
+      id: template?.id ?? 'pl_cms_${record.collectionKey}',
+      title: record.title,
+      description: record.description ?? template?.description ?? 'Saved list',
+      sourceType: template?.sourceType ?? ProcurementListSourceType.buyerSaved,
+      // A rule template is re-resolved from its (possibly new) rule rather than
+      // inheriting the previously materialised items.
+      items: template != null && template.isRuleBased
+          ? const <ProcurementListItem>[]
+          : (template?.items ?? const <ProcurementListItem>[]),
+      campaignRef: template?.campaignRef,
+      action: template?.action ?? ProcurementListAction.useList,
+      categoryLabels: record.categoryLabels.isEmpty
+          ? (template?.categoryLabels ?? const <String>[])
+          : record.categoryLabels,
+      limit: record.limit ?? template?.limit ?? 20,
+      defaultQuantity: record.defaultQuantity ?? template?.defaultQuantity ?? 1,
+    ));
+  }
+  for (var i = curated.length; i < ruleLists.length; i++) {
+    merged.add(ruleLists[i]);
+  }
+  merged.addAll(others);
+  return <ProcurementList>[
+    for (final list in merged) _resolveProcurementList(list, catalogue),
+  ];
+});
+
+final quickOrderPresetsProvider = Provider<List<String>>((ref) => <String>[
+      for (final l in ref.watch(effectiveProcurementListsProvider)) l.title
+    ]);
 
 final procurementListProvider =
     Provider.autoDispose.family<ProcurementList?, String>((ref, id) {
-  final lists = ref.watch(procurementListsProvider);
+  final lists = ref.watch(effectiveProcurementListsProvider);
   for (final list in lists) {
     if (list.id == id) return list;
   }
@@ -415,6 +568,25 @@ abstract final class TradeCategoryIds {
   static const String agriculture = 'pcat_01M4EC9BNMNB7AW5Z293YVRWJW';
   static const String pumps = 'pcat_01M4EC9BNM9X603HVQBQ93J969';
   static const String paints = 'pcat_01M57QZG8NS654FG2PR3HJ95PW';
+  static const String tools = 'pcat_01M57QZFXG5E8KD9P8K7Q6G89S';
+  static const String automotive = 'pcat_01M57QZGC2DDKFG5775TD4455Q';
+  static const String miscellaneous = 'pcat_01M58989BEMSW5CRGFGZBJF10N';
+
+  /// L1 label to commerce id. Merchandising rules are authored by label because
+  /// that is what the catalogue import and CMS present; the id makes the same
+  /// rule work against fixtures, which carry ids but no label.
+  static const Map<String, String> byLabel = <String, String>{
+    'lighting & electrical': electrical,
+    'bathroom & plumbing': bathroom,
+    'paints & finishes': paints,
+    'tiles & building materials': tiles,
+    'tools & hardware': tools,
+    'agriculture & seeds': agriculture,
+    'building & construction': construction,
+    'pumps & machines': pumps,
+    'automotive & tyres': automotive,
+    'miscellaneous': miscellaneous,
+  };
 }
 
 /// Trade categories for the rail, catalogue chips and filters.

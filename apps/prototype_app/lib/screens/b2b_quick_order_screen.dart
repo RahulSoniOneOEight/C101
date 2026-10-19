@@ -187,7 +187,7 @@ class _B2BQuickOrderCenterScreenState
   @override
   Widget build(BuildContext context) {
     final catalogue = ref.watch(tradeCatalogueViewProvider);
-    final lists = ref.watch(procurementListsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
     final displayed = _displayed(lists, catalogue);
     final colors =

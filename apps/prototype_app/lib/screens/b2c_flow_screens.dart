@@ -592,7 +592,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _productTile(BuildContext context, AgencyColors colors, Product p) {
     final placeholder = Container(
       color: colors.surfacePage,
-      child: Icon(Icons.image_outlined, size: 20, color: colors.contentSecondary),
+      child:
+          Icon(Icons.image_outlined, size: 20, color: colors.contentSecondary),
     );
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -604,8 +605,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: p.thumbnail == null
               ? placeholder
               : Image.network(p.thumbnail!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => placeholder),
+                  fit: BoxFit.cover, errorBuilder: (_, __, ___) => placeholder),
         ),
       ),
       title: Text(p.title,

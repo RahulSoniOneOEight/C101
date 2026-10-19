@@ -75,7 +75,7 @@ class _ProcurementListsManagerScreenState
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
-    final lists = ref.watch(procurementListsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
     final filtered = _filtered(lists);
 
     return Scaffold(
@@ -281,7 +281,7 @@ class _ProcurementListEditorScreenState
   }
 
   void _load() {
-    final lists = ref.read(procurementListsProvider);
+    final lists = ref.read(effectiveProcurementListsProvider);
     ProcurementList? list;
     for (final l in lists) {
       if (l.id == widget.listId) {

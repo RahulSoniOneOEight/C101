@@ -1,0 +1,73 @@
+change_id: CHG-062
+revision: 1
+request: >-
+  Restore B2B merchandising that disappeared after the live catalogue import: give Quick Order four
+  usable lists of 15-20 products each, bring back the Trade Offers & Deals module on B2B Home, and
+  expose the list/deal properties to the operator console.
+type: b2b-quick-order-and-trade-deals-restoration
+extends:
+- CHG-049
+- CHG-050
+- CHG-060
+affected_capabilities:
+- marketplace-merchandising
+- b2b-procurement
+affected_domains:
+- commerce
+- content
+- experience
+affected_surfaces:
+- app.prototype.b2b-trade
+- ops.admin-console
+already_present:
+- The live catalogue has 233 grouped products and 500 SKUs with L1 categories and 5-18% staging discounts.
+- B2B Home renders Quick order, Buy Again, Trade Offers & Deals and Browse categories units.
+- The CMS has a storefront-layout for b2b with a trade_offers group.
+missing:
+- Quick-order lists still listed pre-import demo ids, so every list resolved zero live products.
+- Trade offer collections still listed pre-import demo ids, so the deals unit hid itself entirely.
+- Trade offer collections were app fixtures with no operator-editable properties.
+root_cause: >-
+  Both fixtures referenced demonstration product ids (prod_led, prod_wire, prod_tiles, ...). The
+  CHG-049 import replaced the demonstration catalogue, so every reference became unresolved. The B2B
+  deals unit deliberately renders nothing when no featured collection resolves a live product, and
+  the b2b layout children point at Medusa collections that have no membership.
+decisions_approved:
+- D-062-01: >-
+    Replace demo-id quick-order seeds with four rule-based lists resolved from the live catalogue:
+    Electrical Essentials (Lighting & Electrical, 20), Bathroom & Plumbing (20), Paints & Finishes
+    (Paints & Finishes + Tiles & Building Materials, 18) and Tools & Hardware (20).
+- D-062-02: >-
+    Replace demo-id trade offer collections with category rules resolved against the live catalogue,
+    so the deals module reappears and cannot point at archived products.
+- D-062-03: >-
+    A rule is a category-label filter plus a limit. Explicit commerce product ids, when present, take
+    precedence over the rule. Prices, stock and seller data remain commerce-owned.
+- D-062-04: >-
+    Persisted buyer edits are preserved; only an untouched demonstration seed is replaced by the new
+    rule-based seed.
+- D-062-05: >-
+    List and deal presentation properties are operator-editable through curated collections
+    (audience b2b) in the console; the app rules remain the offline fallback.
+- D-062-06: >-
+    This is an explicit staging merchandising fixture. It makes no production assortment or promotion
+    claim and does not change catalogue membership, prices or discounts.
+constraints:
+- Do not create, delete or split catalogue products or SKUs.
+- Do not invent collection membership in Commerce; category rules resolve on the storefront path.
+- Staging only; production release remains unauthorized.
+required_tests:
+- Quick Order shows four lists, each resolving 15-20 live products.
+- The B2B deals unit renders when at least one configured collection resolves.
+- Explicit product ids override the category rule.
+- An untouched demo seed is replaced; a buyer-edited list is preserved.
+- B2B Home and Quick Order Center show the same resolved SKUs.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-19'
+  status: in-progress
+status: approved-in-progress
+production_release_authorized: false

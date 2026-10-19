@@ -128,12 +128,10 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   Future<void> _addToCart(Product product) async {
-    await ref
-        .read(cartProvider.notifier)
-        .addItem(
-            offerId: product.cartOfferId,
-            variantId: product.cartVariantId,
-            quantity: 1);
+    await ref.read(cartProvider.notifier).addItem(
+        offerId: product.cartOfferId,
+        variantId: product.cartVariantId,
+        quantity: 1);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Added to cart')),
@@ -155,8 +153,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     );
   }
 
-  void _openCategory(String? label) => context.push(
-      label == null ? '/browse' : '/browse?category=${Uri.encodeComponent(label)}');
+  void _openCategory(String? label) => context.push(label == null
+      ? '/browse'
+      : '/browse?category=${Uri.encodeComponent(label)}');
 
   /// Opens Browse pre-filtered to the collection behind a module or banner.
   VoidCallback _openTag(String tag) =>
@@ -262,8 +261,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
               child: HomeHeader(
                 topInset: _barHeight,
                 bottomInset: _productsOverlap,
-                rotationMs:
-                    ref.watch(heroRotationMsProvider('b2c')).value ?? 0,
+                rotationMs: ref.watch(heroRotationMsProvider('b2c')).value ?? 0,
                 banners: ref.watch(heroBannersProvider),
                 onLocation: () => context.push('/addresses'),
                 onBannerAction: (uri) => context.push(uri),
@@ -418,9 +416,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           : '${product.discountPercent}% off',
       imageUrl: product.thumbnail,
       brand: product.brandLine,
-      badges: product.badges.isEmpty
-          ? const <String>['Assured']
-          : product.badges,
+      badges:
+          product.badges.isEmpty ? const <String>['Assured'] : product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => _openProduct(product),
       onAddToCart: () => _addToCart(product),

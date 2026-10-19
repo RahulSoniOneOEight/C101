@@ -8,10 +8,13 @@ import 'package:prototype_app/providers/trade_offers_providers.dart';
 /// and visibility from the layout an operator publishes for the b2b channel, while product membership
 /// still resolves through the governed offers path. These assertions pin both halves down, and pin the
 /// fallback so a channel with no layout keeps working.
-StorefrontSection _child(String placement, {String? title, bool visible = true}) =>
-    StorefrontSection(placement: placement, label: placement, title: title, visible: visible);
+StorefrontSection _child(String placement,
+        {String? title, bool visible = true}) =>
+    StorefrontSection(
+        placement: placement, label: placement, title: title, visible: visible);
 
-StorefrontSection _group(List<StorefrontSection> children, {bool visible = true}) =>
+StorefrontSection _group(List<StorefrontSection> children,
+        {bool visible = true}) =>
     StorefrontSection(
       placement: 'trade_offers',
       label: 'Trade Offers & Deals',
@@ -30,7 +33,9 @@ ProviderContainer _container(List<StorefrontSection> sections) {
 }
 
 void main() {
-  test('with no layout published the governed local defaults still drive the rail', () async {
+  test(
+      'with no layout published the governed local defaults still drive the rail',
+      () async {
     final container = _container(const <StorefrontSection>[]);
     await container.read(b2bLayoutSectionsProvider.future);
 
@@ -38,7 +43,8 @@ void main() {
     expect(
       featured.map((c) => c.title).toList(),
       <String>['Seasonal', 'Best Deals', 'Schemes'],
-      reason: 'an unauthored channel keeps its defaults rather than rendering nothing',
+      reason:
+          'an unauthored channel keeps its defaults rather than rendering nothing',
     );
   });
 
@@ -60,13 +66,16 @@ void main() {
     );
     expect(featured.first.id, 'off_schemes');
     expect(
-      featured.first.productIds,
+      featured.first.categoryLabels,
       isNotEmpty,
-      reason: 'product membership still resolves through the offers path, not the layout',
+      reason:
+          'product membership resolves from a live catalogue rule, not the layout',
     );
   });
 
-  test('a child the app cannot render is skipped rather than shown as an empty tile', () async {
+  test(
+      'a child the app cannot render is skipped rather than shown as an empty tile',
+      () async {
     final container = _container(<StorefrontSection>[
       _group(<StorefrontSection>[
         _child('seasonal'),
