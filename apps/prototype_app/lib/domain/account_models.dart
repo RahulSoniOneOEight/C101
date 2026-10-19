@@ -45,6 +45,31 @@ class SavedAddress {
         pincode,
       ].join(', ');
 
+  /// Maps the saved record onto the canonical checkout address.
+  ///
+  /// The UI asks for one full name; Medusa needs first/last, so the split happens
+  /// once here. Phone, second line and state are carried rather than dropped.
+  Address toCheckoutAddress() {
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final first = parts.isEmpty ? fullName.trim() : parts.first;
+    final last = parts.length > 1 ? parts.sublist(1).join(' ') : '.';
+    return Address(
+      firstName: first,
+      lastName: last,
+      address1: line1,
+      address2: line2,
+      city: city,
+      province: state,
+      postalCode: pincode,
+      countryCode: 'IN',
+      phone: phone,
+    );
+  }
+
   SavedAddress copyWith({
     String? label,
     String? fullName,

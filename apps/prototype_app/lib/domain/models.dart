@@ -730,6 +730,9 @@ class Address {
     required this.city,
     required this.postalCode,
     required this.countryCode,
+    this.phone,
+    this.address2,
+    this.province,
   });
 
   final String firstName;
@@ -739,12 +742,26 @@ class Address {
   final String postalCode;
   final String countryCode;
 
+  /// Contact phone for the delivery. Optional on older callers.
+  final String? phone;
+
+  /// Second address line (apartment, floor, landmark).
+  final String? address2;
+
+  /// State / province. Required for GST invoices.
+  final String? province;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'first_name': firstName,
         'last_name': lastName,
         'address_1': address1,
+        if (address2 != null && address2!.trim().isNotEmpty)
+          'address_2': address2,
         'city': city,
+        if (province != null && province!.trim().isNotEmpty)
+          'province': province,
         'postal_code': postalCode,
         'country_code': countryCode,
+        if (phone != null && phone!.trim().isNotEmpty) 'phone': phone,
       };
 }

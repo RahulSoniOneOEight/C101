@@ -58,9 +58,13 @@ class CartScreen extends ConsumerWidget {
                 if (cart.hasDiscount) _discountRow(context, cart),
                 CheckoutSummary(
                   subtotal: cart.subtotal?.formatted ?? '—',
-                  shipping: (cart.shippingDiscountTotal?.amount ?? 0) > 0
-                      ? 'Free · offer applied'
-                      : 'Free',
+                  // One source of truth: the cart payload, never a hardcoded
+                  // "Free" while checkout may charge a delivery fee.
+                  shipping: (cart.shippingTotal?.amount ?? 0) > 0
+                      ? (cart.shippingDiscountTotal?.amount ?? 0) > 0
+                          ? '${cart.shippingTotal!.formatted} · offer applied'
+                          : cart.shippingTotal!.formatted
+                      : 'Calculated at checkout',
                   total: cart.total?.formatted ?? '—',
                   onContinue: () => context.push('/checkout'),
                 ),

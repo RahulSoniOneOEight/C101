@@ -85,6 +85,7 @@ class LocalStore {
 
   static const String _profileKey = 'account_profile_v1';
   static const String _addressesKey = 'account_addresses_v1';
+  static const String _lastCheckoutAddressKey = 'checkout_last_address_v1';
   static const String _wishlistKey = 'wishlist_v1';
   static const String _paymentsKey = 'account_payments_v1';
   static const String _gstKey = 'account_gst_v1';
@@ -110,6 +111,18 @@ class LocalStore {
 
   Future<void> writeAddresses(List<SavedAddress> addresses) =>
       _writeList(_addressesKey, addresses.map((a) => a.toJson()).toList());
+
+  /// Last address chosen at checkout, preferred over the default next time.
+  String? readLastCheckoutAddressId() =>
+      _prefs.getString(_lastCheckoutAddressKey);
+
+  Future<void> writeLastCheckoutAddressId(String? id) async {
+    if (id == null || id.isEmpty) {
+      await _prefs.remove(_lastCheckoutAddressKey);
+    } else {
+      await _prefs.setString(_lastCheckoutAddressKey, id);
+    }
+  }
 
   List<String> readWishlist() =>
       _prefs.getStringList(_wishlistKey) ?? const <String>[];

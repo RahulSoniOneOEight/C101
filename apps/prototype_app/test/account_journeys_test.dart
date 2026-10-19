@@ -22,22 +22,22 @@ Future<ProviderContainer> _container() async {
 void main() {
   test('saved addresses seed, set default, add and remove', () async {
     final c = await _container();
-    expect(c.read(addressesProvider), hasLength(2));
+    expect(c.read(addressesProvider), hasLength(3));
     expect(c.read(defaultAddressProvider)!.label, 'Home');
 
     await c.read(addressesProvider.notifier).setDefault('addr_site');
     expect(c.read(defaultAddressProvider)!.id, 'addr_site');
 
     await c.read(addressesProvider.notifier).add(const SavedAddress(
-          id: 'addr_office',
-          label: 'Office',
+          id: 'addr_warehouse',
+          label: 'Warehouse',
           fullName: 'Rahul Sharma',
           phone: '+91 98765 43210',
           line1: 'Tower B',
           city: 'Gurugram',
           pincode: '122001',
         ));
-    expect(c.read(addressesProvider), hasLength(3));
+    expect(c.read(addressesProvider), hasLength(4));
 
     await c.read(addressesProvider.notifier).remove('addr_site');
     final list = c.read(addressesProvider);

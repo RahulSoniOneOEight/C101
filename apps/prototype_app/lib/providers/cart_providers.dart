@@ -33,6 +33,18 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
 
   Future<void> replaceFromServer(Cart cart) => _setCart(cart);
 
+  /// Refreshes from the canonical cart. Best-effort: an offline checkout keeps
+  /// the cached cart and surfaces the failure at submit.
+  Future<void> rehydrate() async {
+    final cart = state.value;
+    if (cart == null) return;
+    try {
+      await _setCart(await _client.getCart(cart.id));
+    } catch (_) {
+      // Keep the local projection; submit is the authoritative check.
+    }
+  }
+
   /// Returns the existing cart or creates one on first use.
   Future<Cart> _requireCart() async {
     final existing = state.value;

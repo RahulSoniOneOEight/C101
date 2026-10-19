@@ -271,6 +271,13 @@ class ExperienceApi {
     return Product.fromComposedJson(res.data!);
   }
 
+  /// Canonical cart read. Used by checkout to rehydrate totals, discounts and
+  /// applied codes instead of trusting a stale local copy.
+  Future<Cart> getCart(String cartId) async {
+    final res = await _dio.get<Map<String, dynamic>>('/v1/carts/$cartId');
+    return Cart.fromJson(res.data!);
+  }
+
   /// Creates a canonical Medusa cart (Commerce).
   Future<Cart> createCart() async {
     final res = await _dio

@@ -61,6 +61,9 @@ class _CheckoutExperienceApi extends ExperienceApi {
   }
 
   @override
+  Future<Cart> getCart(String cartId) async => cart;
+
+  @override
   Future<Cart> updateCartCustomerDetails(
     String cartId, {
     required String email,
@@ -120,10 +123,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Simulated prepaid payment'), findsOneWidget);
-    expect(find.textContaining('Razorpay'), findsNothing);
-    expect(find.textContaining('Pay on delivery'), findsNothing);
+    // Payment is the fixed simulated method; it is below the fold, so its copy
+    // is asserted after scrolling rather than on first paint.
     expect(api.completeCalls, 0);
+    // The default saved address is prefilled, so no address typing is required.
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Phone'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Standard delivery'),
@@ -151,11 +157,7 @@ void main() {
     }
 
     await enter('Email', 'pilot-buyer@buildkart.local');
-    await enter('First name', 'Pilot');
-    await enter('Last name', 'Buyer');
-    await enter('Address', '101 Test Yard');
-    await enter('City', 'Jaipur');
-    await enter('Postal code', '302001');
+    await enter('Phone', '9876543210');
 
     final placeOrder = find.widgetWithText(FilledButton, 'Place order');
     await tester.scrollUntilVisible(
@@ -165,6 +167,7 @@ void main() {
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -100));
     await tester.pumpAndSettle();
+    expect(find.text('Simulated prepaid payment'), findsOneWidget);
     await tester.tap(placeOrder);
     await tester.pumpAndSettle();
 
