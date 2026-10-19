@@ -679,7 +679,17 @@ Money _discountedMoney(Money price, int percent) => Money(
     );
 
 TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
-  final selected = product.defaultVariant;
+  // Show the cheapest sellable SKU on the card, matching the B2C best price.
+  // `defaultVariant` is the first sellable SKU, which is not necessarily the
+  // cheapest and made the same product show two different discounts.
+  ProductVariant? selected;
+  for (final variant in product.variants) {
+    if (!variant.isPurchasable || variant.price == null) continue;
+    if (selected == null || variant.price!.amount < selected.price!.amount) {
+      selected = variant;
+    }
+  }
+  selected ??= product.defaultVariant;
   final price = selected?.price ??
       product.price ??
       const Money(amount: 0, currencyCode: 'INR');

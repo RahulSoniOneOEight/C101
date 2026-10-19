@@ -73,7 +73,7 @@ implementation:
     api_list_vs_selling: 'socket set 475000 -> 399000 (16 percent)'
     cart_charges_selling: 399000
     b2c_tile: 'Flash Deal + 12 percent'
-    b2b_tile: 'Flash Deal + 6 percent'
+    b2b_tile: 'Flash Deal + 12 percent after selecting the cheapest SKU'
   deployment:
     experience_api_commits: 9694ab3, 74c7e03
     hosting_project: buildkart-staging

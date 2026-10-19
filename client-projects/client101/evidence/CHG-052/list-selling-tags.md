@@ -57,9 +57,15 @@ Live API (staging):
 | Variant `best_price` | same pair, `price_source: price_list` |
 | Tagged products in the composed list | 46 |
 | B2C tile (`RANGER A/T`) | "Flash Deal" + 12% off, ₹879.12 vs ₹999 |
-| B2B tile (`RANGER A/T`) | "Flash Deal" + 6% off, ₹939.06 vs ₹999 |
+| B2B tile (`RANGER A/T`) | "Flash Deal" + 12% off, ₹879.12 vs ₹999 (after reload) |
 | B2B tier chips | 1 / 10 / 25 present |
 | Cart add socket offer | subtotal and total ₹3990, unit ₹3990 |
+
+The first B2B screenshot showed 6% because the tile was using the first
+sellable SKU rather than the cheapest, and the headless browser was still on a
+cached build. The mapper now selects the lowest sellable variant and a hard
+reload confirms the B2B card matches the B2C best price. `RANGER A/T` has three
+SKUs at 6% / 6% / 12%; both channels now show the 12% SKU.
 
 Browser evidence: B2C `#/browse` and B2B `#/b2b/catalogue` screenshots show
 the discount pill, struck-through list price, selling price and the tag.

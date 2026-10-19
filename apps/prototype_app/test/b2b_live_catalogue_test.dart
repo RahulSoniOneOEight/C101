@@ -69,6 +69,43 @@ Product _groupedProduct() => Product.fromComposedJson(<String, dynamic>{
     });
 
 void main() {
+  test('the card price is the cheapest SKU, not the first listed', () {
+    final product = Product.fromComposedJson(<String, dynamic>{
+      'id': 'prod_two_prices',
+      'title': 'Two Price Product',
+      'metadata': <String, dynamic>{'catalogue_import': 'CHG-049'},
+      'variants': <dynamic>[
+        <String, dynamic>{
+          'id': 'variant_expensive',
+          'title': 'Expensive',
+          'sku': 'SKU-EXPENSIVE',
+          'best_price': <String, dynamic>{
+            'id': 'offer_expensive',
+            'currency_code': 'inr',
+            'unit_amount_minor': 500000,
+            'list_amount_minor': 500000,
+            'inventory_quantity': 50,
+          },
+        },
+        <String, dynamic>{
+          'id': 'variant_cheap',
+          'title': 'Cheap',
+          'sku': 'SKU-CHEAP',
+          'best_price': <String, dynamic>{
+            'id': 'offer_cheap',
+            'currency_code': 'inr',
+            'unit_amount_minor': 400000,
+            'list_amount_minor': 500000,
+            'inventory_quantity': 50,
+          },
+        },
+      ],
+    });
+    final trade = tradeProductFromCatalogue(product);
+    expect(trade.tradePrice.amount, 400000);
+    expect(trade.tiers.first.unitPrice.amount, 400000);
+  });
+
   test('a grouped catalogue product maps to one trade product with real SKUs',
       () {
     final trade =
