@@ -49,7 +49,20 @@ DB (staging):
 | Example SKU | ₹475000 list → ₹399000 selling, 16% |
 | Tagged products | 46 (Best Deal 15, Seasonal 15, Flash Deal 16) |
 
-Live API and UI checks are recorded after deployment in the release section.
+Live API (staging):
+
+| Check | Result |
+|---|---|
+| Socket set list / selling / discount | ₹4750 / ₹3990 / 16% |
+| Variant `best_price` | same pair, `price_source: price_list` |
+| Tagged products in the composed list | 46 |
+| B2C tile (`RANGER A/T`) | "Flash Deal" + 12% off, ₹879.12 vs ₹999 |
+| B2B tile (`RANGER A/T`) | "Flash Deal" + 6% off, ₹939.06 vs ₹999 |
+| B2B tier chips | 1 / 10 / 25 present |
+| Cart add socket offer | subtotal and total ₹3990, unit ₹3990 |
+
+Browser evidence: B2C `#/browse` and B2B `#/b2b/catalogue` screenshots show
+the discount pill, struck-through list price, selling price and the tag.
 
 ## Deployment
 
