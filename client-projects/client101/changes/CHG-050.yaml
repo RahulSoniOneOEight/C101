@@ -1,5 +1,5 @@
 change_id: CHG-050
-revision: 1
+revision: 2
 request: >-
   Make the 233 grouped products and 500 imported SKUs browseable in the real B2C and B2B web
   experiences, instead of the B2C 100-product truncation and the fixture-only B2B catalogue.
@@ -52,6 +52,10 @@ decisions_approved:
 - D-050-05: Show the variant group on product cards and list every variant (label, SKU, price) on the
     product detail, with search matching title, brand, variant label and SKU.
 - D-050-06: Keep MOQ at 1 where no governed trade-terms source exists; do not synthesise tiers.
+- D-050-07: An imported SKU never receives a derived MRP, review discount, merchandising tag or
+    competitor price comparison. Only the source price and sourced attributes are shown.
+- D-050-08: Public catalogue imagery on the operator host is served with a wildcard CORS origin,
+    because the Firebase-hosted storefront renders it cross-origin and CanvasKit rejects it otherwise.
 required_tests:
 - B2C loads 233 products (500 variants) via pagination, not 100.
 - B2B catalogue, PDP, quick order and offers resolve the same 233 products from the API.
@@ -69,18 +73,25 @@ implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-19'
   completed_at_utc: '2026-10-19'
-  status: implemented-awaiting-staging-deployment
+  status: deployed-staging
   evidence: client-projects/client101/evidence/CHG-050/live-catalogue-ui.md
   verification:
     experience_api_typecheck: pass
     flutter_analyze: pass
-    flutter_tests: 178-pass
+    flutter_tests: 179-pass
     flutter_web_release_build: pass
-    experience_api_deployed: false
-    firebase_hosting_deployed: false
-  deployment_blocker: >-
-    The staging host rejects this machine's SSH key, so the Experience API change cannot be
-    released. Publishing the web app first would show 285 products and variant prices would be
-    missing, so hosting deployment is withheld until the API is live.
-status: implemented-awaiting-staging-deployment
+    experience_api_deployed: true
+    firebase_hosting_deployed: true
+    api_products: 233
+    api_variants_and_unique_skus: 500
+    b2c_browse_cards: 233
+    b2b_catalogue_cards: 233
+    b2b_agriculture_filter: 13
+    b2b_lighting_filter: 71
+    sku_search: pass
+  deployment:
+    experience_api_commit: 15ee4f9
+    hosting_project: buildkart-staging
+    nginx_change: /static/ CORS headers on the operator host
+status: deployed-to-staging-awaiting-human-visual-review
 production_release_authorized: false

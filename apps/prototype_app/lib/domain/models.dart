@@ -239,12 +239,15 @@ class Product {
             .toList();
     final leafCategory = categories.isEmpty ? null : categories.first;
 
-    // Review-only enrichment: derive a stable list price and tags when the
-    // catalogue seed provides neither (see `domain/review_catalogue.dart`).
+    // Review-only enrichment derives a list price and tags for the demonstration
+    // catalogue. It must never touch an imported source SKU: the source price is
+    // the truth, and manufacturing a higher "MRP" would invent a discount.
+    final imported =
+        (metadata?['catalogue_import'] as String?)?.trim().isNotEmpty ?? false;
     final Money? mrp;
     if (hasDiscount) {
       mrp = Money(amount: listAmount.toInt(), currencyCode: currency);
-    } else if (bestAmount != null) {
+    } else if (bestAmount != null && !imported) {
       final marked = (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
           .round();
       mrp = Money(amount: marked, currencyCode: currency);
@@ -265,7 +268,9 @@ class Product {
           : Money(amount: bestAmount.toInt(), currencyCode: currency),
       mrp: mrp,
       brand: metadata?['brand'] as String?,
-      badges: jsonBadges.isNotEmpty ? jsonBadges : reviewTags(id),
+      badges: jsonBadges.isNotEmpty
+          ? jsonBadges
+          : (imported ? const <String>[] : reviewTags(id)),
       variants: productVariants,
       categoryId: leafCategory?['id'] as String?,
       categoryLabel: metadata?['category_l1'] as String? ??

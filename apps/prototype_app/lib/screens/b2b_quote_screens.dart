@@ -158,12 +158,14 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: colors.actionPrimary)),
-              const SizedBox(width: AgencySpacing.sm),
-              Text('MRP ${mrp.formatted}',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: colors.contentSecondary,
-                      decoration: TextDecoration.lineThrough)),
+              if (selectedVariant?.mrp != null || p.product.mrp != null) ...<Widget>[
+                const SizedBox(width: AgencySpacing.sm),
+                Text('MRP ${mrp.formatted}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: colors.contentSecondary,
+                        decoration: TextDecoration.lineThrough)),
+              ],
             ],
           ),
           // ---- Variant (SKU) selection for a grouped product ----

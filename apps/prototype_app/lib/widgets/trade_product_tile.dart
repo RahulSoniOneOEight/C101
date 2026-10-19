@@ -47,7 +47,9 @@ Widget tradeProductTile(
     selectedTierIndex: selectedTierIndex,
     onTierSelected: onTierSelected,
     unitPriceLabel: '${p.unitPriceFor(quantity).formatted}/pc',
-    mrpLabel: p.mrp.formatted,
+    // Only a real list price may be struck through. Falling back to the selling
+    // price would print "₹4750 ₹4750" and imply a discount that does not exist.
+    mrpLabel: p.product.mrp == null ? null : p.mrp.formatted,
     quantity: quantity,
     onQuantityChanged: onQuantityChanged,
     state: p.stockKnown && p.stockQty <= 0

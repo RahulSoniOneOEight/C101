@@ -150,14 +150,20 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
             variantId: effectiveVariantId,
             unitPrice: effectivePrice,
             priceAvailable: effectivePrice != null),
+        // A competitor comparison needs a sourced competitor price. Imported
+        // SKUs have none, so the block is omitted rather than derived.
+        if (product.catalogueImport == null) ...<Widget>[
+          const SizedBox(height: AgencySpacing.lg),
+          _benchmark(context, effectivePrice, effectiveMrp),
+        ],
         const SizedBox(height: AgencySpacing.lg),
-        _benchmark(context, effectivePrice, effectiveMrp),
-        const SizedBox(height: AgencySpacing.lg),
-        if (sellers.isNotEmpty) ...<Widget>[
+        // A grouped product's seller is shown per SKU above; repeating the list
+        // would print the same seller once per variant as if they competed.
+        if (sellers.isNotEmpty && variants.isEmpty) ...<Widget>[
           _sellerSection(context, sellers, selected),
           const SizedBox(height: AgencySpacing.lg),
         ],
-        _specs(context),
+        _specs(context, selectedVariant),
         if (relatedProducts.isNotEmpty) ...<Widget>[
           const SizedBox(height: AgencySpacing.lg),
           _related(context, relatedProducts),
@@ -399,13 +405,29 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
           children: <Widget>[
             for (final variant in variants)
               ChoiceChip(
-                label: Text(
-                  variant.price == null
-                      ? variant.label
-                      : '${variant.label} · ${variant.price!.formatted}',
-                  style: const TextStyle(fontSize: 12),
+                // The SKU is printed on the chip, not only in a tooltip: on a
+                // phone there is no hover, and the SKU is how a buyer identifies
+                // one of the 500 source items inside a grouped card.
+                label: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      variant.price == null
+                          ? variant.label
+                          : '${variant.label} · ${variant.price!.formatted}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (variant.sku != null)
+                      Text(
+                        variant.sku!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 9, color: colors.contentSecondary),
+                      ),
+                  ],
                 ),
-                tooltip: variant.sku == null ? null : 'SKU ${variant.sku}',
                 selected: variant.id == selected?.id,
                 onSelected: (_) =>
                     setState(() => _selectedVariantId = variant.id),
@@ -414,7 +436,9 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         ),
         if (selected?.sku != null) ...<Widget>[
           const SizedBox(height: AgencySpacing.xs),
-          Text('Selected SKU: ${selected!.sku}',
+          Text(
+              'Selected SKU: ${selected!.sku}'
+              '${selected.sellerName == null ? '' : ' · ${selected.sellerName}'}',
               style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
         ],
       ],
@@ -550,9 +574,24 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _specs(BuildContext context) {
+  Widget _specs(BuildContext context, ProductVariant? selectedVariant) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    // Imported SKUs show only sourced facts. The demonstration catalogue keeps
+    // its illustrative model/warranty/delivery rows.
+    final specs = <(String, String)>[
+      if (product.brand != null) ('Brand', product.brand!),
+      if (product.categoryLabel != null) ('Category', product.categoryLabel!),
+      if (selectedVariant?.sku != null) ('SKU', selectedVariant!.sku!),
+      if (selectedVariant?.sellerName != null)
+        ('Seller', selectedVariant!.sellerName!),
+      if (product.catalogueImport == null) ...<(String, String)>[
+        ('Model', 'BDK-18V'),
+        ('Warranty', '1 year'),
+        ('Delivery', 'Free · Mon'),
+      ],
+    ];
+    if (specs.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -562,12 +601,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 fontWeight: FontWeight.w600,
                 color: colors.contentPrimary)),
         const SizedBox(height: AgencySpacing.sm),
-        for (final spec in const <(String, String)>[
-          ('Brand', 'BuildPro'),
-          ('Model', 'BDK-18V'),
-          ('Warranty', '1 year'),
-          ('Delivery', 'Free · Mon'),
-        ])
+        for (final spec in specs)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(

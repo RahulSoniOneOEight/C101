@@ -177,6 +177,42 @@ void main() {
     expect(product.matchesQuery('no-such-sku'), isFalse);
   });
 
+  test('an imported SKU never gets a derived MRP, discount or review tag', () {
+    final imported = Product.fromComposedJson(<String, dynamic>{
+      'id': 'prod_imported',
+      'title': '1/2in Drive 24 Pcs Socket Set',
+      'metadata': <String, dynamic>{
+        'catalogue_import': 'CHG-049',
+        'brand': 'BAUM',
+      },
+      'best_price': <String, dynamic>{
+        'id': 'offer_1',
+        'currency_code': 'inr',
+        'unit_amount_minor': 475000,
+        'list_amount_minor': 475000,
+      },
+    });
+    // The source price is the truth: no invented higher list price, no badge.
+    expect(imported.price!.amount, 475000);
+    expect(imported.mrp, isNull);
+    expect(imported.discountPercent, isNull);
+    expect(imported.badges, isEmpty);
+
+    final demo = Product.fromComposedJson(<String, dynamic>{
+      'id': 'prod_review',
+      'title': 'Review Product',
+      'best_price': <String, dynamic>{
+        'id': 'offer_r',
+        'currency_code': 'INR',
+        'unit_amount_minor': 10000,
+        'list_amount_minor': 10000,
+      },
+    });
+    // The demonstration catalogue keeps its review-only enrichment.
+    expect(demo.mrp, isNotNull);
+    expect(demo.badges, isNotEmpty);
+  });
+
   test('the catalogue is read across pages until the reported count', () async {
     final adapter = _PagingAdapter(<Map<String, dynamic>>[
       _product('prod_1', 'SKU-1'),

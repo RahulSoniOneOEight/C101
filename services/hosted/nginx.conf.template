@@ -61,6 +61,17 @@ http {
     # Docker network; neither public hostname may forward this path.
     location ^~ /v1/internal/ { return 404; }
 
+    # Catalogue imagery is served on the operator host but consumed cross-origin by the
+    # Firebase-hosted storefront. The files are public product photos and the request carries no
+    # credentials, so a wildcard origin is correct. Without this header CanvasKit cannot decode them
+    # and every product card falls back to a placeholder.
+    location ^~ /static/ {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Cross-Origin-Resource-Policy "cross-origin" always;
+      proxy_pass http://medusa_api;
+    }
+
     location /v1/ {
       limit_req zone=pilot_api burst=30 nodelay;
       proxy_pass http://experience_api;
