@@ -65,8 +65,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Future<void> _bootstrap() async {
     // Only the authenticated identity may prefill checkout. The demo profile is
     // not a valid checkout identity and made the BFF reject customer details.
-    final sessionEmail =
-        await ref.read(experienceApiProvider).currentSessionEmail();
+    String? sessionEmail;
+    try {
+      sessionEmail =
+          await ref.read(experienceApiProvider).currentSessionEmail();
+    } catch (_) {
+      sessionEmail = null;
+    }
     _emailController.text = sessionEmail ?? '';
     await _alignSeedNames(ref.read(experienceApiProvider).sessionName);
 

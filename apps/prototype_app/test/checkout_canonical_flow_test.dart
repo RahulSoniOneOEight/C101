@@ -11,6 +11,9 @@ import 'package:prototype_app/screens/checkout_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _CheckoutExperienceApi extends ExperienceApi {
+  @override
+  Future<String?> currentSessionEmail() async => 'pilot@example.com';
+
   _CheckoutExperienceApi() : super(Dio());
 
   int completeCalls = 0;

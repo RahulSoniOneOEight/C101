@@ -121,10 +121,14 @@ class ExperienceApi {
   Future<String?> currentSessionEmail() async {
     final inMemory = _sessionEmail?.trim();
     if (inMemory != null && inMemory.isNotEmpty) return inMemory;
-    final stored = (await _secureStorage.read(key: _sessionEmailKey))?.trim();
-    if (stored != null && stored.isNotEmpty) {
-      _sessionEmail = stored;
-      return stored;
+    try {
+      final stored = (await _secureStorage.read(key: _sessionEmailKey))?.trim();
+      if (stored != null && stored.isNotEmpty) {
+        _sessionEmail = stored;
+        return stored;
+      }
+    } catch (_) {
+      // No secure store in tests or first run: the caller decides how to fail.
     }
     return null;
   }
