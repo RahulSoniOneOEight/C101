@@ -719,15 +719,33 @@ final homeModulesProvider =
   // Flash Deals / Best Sellers are deterministic collections over the
   // catalogue; badges come from the product itself (review enrichment) so the
   // rails and the "See All" collection filters agree.
+  //
+  // CHG-065: the first three categories the operator prioritised lead every
+  // home rail. Within a rail their products come first, then the remaining
+  // catalogue fills the rest, so the modules carry more of the assortment the
+  // brief called out without hiding the rest.
+  const priorityCategories = <String>{
+    'lighting & electrical',
+    'bathroom & plumbing',
+    'paints & finishes',
+  };
+  bool isPriority(Product product) => priorityCategories
+      .contains((product.categoryLabel ?? '').trim().toLowerCase());
+  List<Product> prioritised(List<Product> pool, int count) {
+    final priority = pool.where(isPriority);
+    final rest = pool.where((product) => !isPriority(product));
+    return <Product>[...priority, ...rest].take(count).toList();
+  }
+
   final flashPool = products.where((p) => inFlashDeals(p.id)).toList();
   final bestPool = products.where((p) => inBestSellers(p.id)).toList();
   final flashDeals =
-      (flashPool.isNotEmpty ? flashPool : products).take(8).toList();
-  final bestSellers =
-      (bestPool.isNotEmpty ? bestPool : products.skip(2)).take(8).toList();
+      prioritised(flashPool.isNotEmpty ? flashPool : products, 12);
+  final bestSellers = prioritised(
+      bestPool.isNotEmpty ? bestPool : products.skip(2).toList(), 12);
 
   // Recommended + the special "Recently viewed" split slot.
-  final recommended = products.take(5).toList();
+  final recommended = prioritised(products, 6);
 
   return <MerchandisingModule>[
     MerchandisingModule(

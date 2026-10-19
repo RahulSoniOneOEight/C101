@@ -45,7 +45,7 @@ class B2bHomeHeader extends StatelessWidget {
   }
 
   static const double baseHeight = 208;
-  static const double bannerExtraHeight = 184;
+  static const double bannerExtraHeight = 284;
 
   @override
   Widget build(BuildContext context) {
@@ -156,21 +156,18 @@ class B2bHomeHeader extends StatelessWidget {
                 if (showBanners) ...<Widget>[
                   const SizedBox(height: AgencySpacing.sm),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: AgencySpacing.md),
-                      child: HomeBannerCarousel(
-                        banners: contents,
-                        cardHeight: 160,
-                        autoAdvance: rotationMs > 0
-                            ? Duration(milliseconds: rotationMs)
-                            : null,
-                        onBannerCta: (content) {
-                          final uri = content.actionUri;
-                          if (uri == null || uri.isEmpty) return;
-                          onBannerAction?.call(uri);
-                        },
-                      ),
+                    // Edge-to-edge like B2C: the card carries its own radius and
+                    // inherits the same width and height as the consumer banner.
+                    child: HomeBannerCarousel(
+                      banners: contents,
+                      autoAdvance: rotationMs > 0
+                          ? Duration(milliseconds: rotationMs)
+                          : null,
+                      onBannerCta: (content) {
+                        final uri = content.actionUri;
+                        if (uri == null || uri.isEmpty) return;
+                        onBannerAction?.call(uri);
+                      },
                     ),
                   ),
                   const SizedBox(height: AgencySpacing.sm),
