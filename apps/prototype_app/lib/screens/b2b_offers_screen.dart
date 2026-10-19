@@ -1,6 +1,7 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
 import '../providers/trade_offers_providers.dart';
@@ -76,6 +77,47 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
           .toList();
     }
     products = _applySort(products);
+
+    // Collections are a merchandising claim. When none resolves a live product,
+    // say so instead of showing fixtures that can only open an empty lane.
+    if (!ref.watch(tradeOffersHaveAnyProductsProvider)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Trade Offers & Deals')),
+        body: Padding(
+          padding: const EdgeInsets.all(AgencySpacing.lg),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(Icons.local_offer_outlined,
+                  size: 40, color: colors.contentSecondary),
+              const SizedBox(height: AgencySpacing.md),
+              Text('No trade offers yet',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: colors.contentPrimary)),
+              const SizedBox(height: AgencySpacing.xs),
+              Text(
+                'The live catalogue has no active offer collections. '
+                'Deals are not inferred from product listings.',
+                textAlign: TextAlign.center,
+                style:
+                    TextStyle(fontSize: 13, color: colors.contentSecondary),
+              ),
+              const SizedBox(height: AgencySpacing.lg),
+              FilledButton(
+                onPressed: () => context.go('/b2b/catalogue'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.actionPrimary,
+                  minimumSize: const Size.fromHeight(44),
+                ),
+                child: const Text('Browse catalogue'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trade Offers & Deals')),

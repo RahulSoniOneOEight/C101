@@ -67,6 +67,17 @@ Staging only. Production release remains unauthorized.
    the images and every card fell back to a placeholder.
 5. **No duplicate struck-through price.** The B2B tile only prints an MRP when a
    real list price exists, instead of repeating the selling price.
+6. **B2C category filters use sourced identity.** Imported products filter by
+   their L1 `category_l1`, not by title keywords. Before this, "Tools & Hardware"
+   only matched titles containing tool/drill/saw and missed most of its 71 SKUs.
+   Keyword matching remains only for demonstration products with no category.
+7. **No advertised deals without offers.** The B2B home hides the Trade Offers &
+   Deals module when no collection resolves a live product, and `/#/b2b/offers`
+   shows "No trade offers yet" with a catalogue link instead of fixture chips
+   that open empty lanes.
+8. **Empty modules explain themselves.** Buy Again and Quick Order state that no
+   saved/ordered SKU matches the live catalogue yet, rather than rendering a
+   blank box.
 
 ## Verification
 
@@ -90,6 +101,10 @@ Staging only. Production release remains unauthorized.
 | B2B `/#/b2b/catalogue` full scroll | "All 233 products shown" |
 | B2B filter `Agriculture & Seeds` | 13 products (matches CHG-049) |
 | B2B filter `Lighting & Electrical` | 71 products (matches CHG-049) |
+| B2C filter `Agriculture & Seeds` | 13 products (matches CHG-049) |
+| B2C filter `Lighting & Electrical` | 71 products (matches CHG-049) |
+| B2B home with no live offers | deals module hidden; Buy Again explains its empty state |
+| B2B `/#/b2b/offers` with no live offers | "No trade offers yet" + Browse catalogue |
 | B2B search `BAUM-237S1-SET-BI-HEX` | finds the socket-set card, hides unrelated products |
 | B2C card | brand + "2 SKUs", real price, image |
 | B2C PDP | "Variants (2)", both SKUs printed on the chips, selected SKU + seller, real specs |
@@ -103,7 +118,7 @@ Staging only. Production release remains unauthorized.
 |---|---|
 | `bun run typecheck` | pass |
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 179 tests pass |
+| `flutter test --exclude-tags golden` | 183 tests pass |
 | `flutter build web --release` | pass |
 
 New tests cover pagination (count, empty page, short page), per-variant parsing,

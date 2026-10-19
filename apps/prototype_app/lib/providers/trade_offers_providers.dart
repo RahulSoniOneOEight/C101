@@ -184,6 +184,28 @@ const Map<String, String> _tradeOfferPlacementToCollection = <String, String>{
   'schemes': 'off_schemes',
 };
 
+/// Whether any configured collection resolves at least one live product.
+final tradeOffersHaveAnyProductsProvider = Provider<bool>((ref) {
+  final collections = ref.watch(tradeOfferCollectionsProvider);
+  return collections.any(
+    (collection) =>
+        ref.watch(tradeOffersForCollectionProvider(collection.id)).isNotEmpty,
+  );
+});
+
+/// Whether any featured collection resolves at least one live product.
+///
+/// The seeded collections reference pre-import product ids. When the live
+/// catalogue is in use and none of them resolve, the home must not advertise a
+/// deals module that can only open an empty lane.
+final tradeOffersHaveProductsProvider = Provider<bool>((ref) {
+  final featured = ref.watch(featuredTradeOffersProvider);
+  return featured.any(
+    (collection) =>
+        ref.watch(tradeOffersForCollectionProvider(collection.id)).isNotEmpty,
+  );
+});
+
 /// The catalogue products assigned to a collection (deduped, catalogue order).
 final tradeOffersForCollectionProvider =
     Provider.family<List<TradeProduct>, String>((ref, collectionId) {

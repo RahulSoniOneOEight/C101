@@ -56,6 +56,10 @@ decisions_approved:
     competitor price comparison. Only the source price and sourced attributes are shown.
 - D-050-08: Public catalogue imagery on the operator host is served with a wildcard CORS origin,
     because the Firebase-hosted storefront renders it cross-origin and CanvasKit rejects it otherwise.
+- D-050-09: An imported product filters by its sourced L1 category identity, not by title keywords.
+    Keyword matching is retained only for demonstration products that carry no category identity.
+- D-050-10: An empty merchandising module must say why it is empty, and the deals module is hidden
+    when no collection resolves a live product rather than advertising offers that do not exist.
 required_tests:
 - B2C loads 233 products (500 variants) via pagination, not 100.
 - B2B catalogue, PDP, quick order and offers resolve the same 233 products from the API.
@@ -88,7 +92,10 @@ implementation:
     b2b_catalogue_cards: 233
     b2b_agriculture_filter: 13
     b2b_lighting_filter: 71
+    b2c_agriculture_filter: 13
+    b2c_lighting_filter: 71
     sku_search: pass
+    empty_deals_module_hidden: true
   deployment:
     experience_api_commit: 15ee4f9
     hosting_project: buildkart-staging

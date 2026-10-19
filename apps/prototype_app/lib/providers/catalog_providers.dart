@@ -238,19 +238,22 @@ List<Product> filterProductsByHomeCategory(
       break;
     }
   }
-  // A backend label that is not in the reviewed keyword map still filters, using
-  // the label's own words, so a CMS rename never sends the user to an empty grid.
+  // Products sourced from the catalogue carry their L1 category verbatim, so the
+  // filter is exact. Keyword guessing is only for the demonstration catalogue,
+  // which has no category identity; without this, "Tools & Hardware" matched only
+  // titles containing "tool/drill/saw" and missed most of its 71 imported SKUs.
+  final target = label.trim().toLowerCase();
   final keywords = match?.keywords ??
       label
           .toLowerCase()
           .split(RegExp(r'[^a-z0-9]+'))
           .where((word) => word.length > 2)
           .toList();
-  if (keywords.isEmpty) return products;
   return products.where((product) {
-    final haystack =
-        '${product.title} ${product.brand ?? ''} ${product.categoryLabel ?? ''}'
-            .toLowerCase();
+    final category = product.categoryLabel?.trim().toLowerCase();
+    if (category != null && category.isNotEmpty) return category == target;
+    if (keywords.isEmpty) return false;
+    final haystack = '${product.title} ${product.brand ?? ''}'.toLowerCase();
     return keywords.any(haystack.contains);
   }).toList();
 }

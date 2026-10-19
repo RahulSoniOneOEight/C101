@@ -149,7 +149,9 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
           if (products.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
-              child: Text('No SKUs in this list yet.',
+              child: Text(
+                  'No saved-list SKUs match the live catalogue yet. '
+                  'Add SKUs from the catalogue to build this list.',
                   style:
                       TextStyle(fontSize: 13, color: colours.contentSecondary)),
             )
@@ -257,6 +259,21 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _buyAgainUnit() {
     final products = ref.watch(frequentSavedProvider);
+    if (products.isEmpty) {
+      return MerchandisingUnitCard(
+        title: 'Buy Again',
+        onSeeAll: () => context.push('/b2b/orders'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
+          child: Text(
+            'No previous order lines match the live catalogue yet. '
+            'Your ordered SKUs will appear here.',
+            style: TextStyle(
+                fontSize: 13, color: context.colors.contentSecondary),
+          ),
+        ),
+      );
+    }
     return MerchandisingUnitCard(
       title: 'Buy Again',
       onSeeAll: () => context.push('/b2b/orders'),
@@ -288,6 +305,11 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   // ---- Trade Offers & Deals ----------------------------------------------
 
   Widget _offersUnit() {
+    // Deals are a merchandising claim, not a wrapper around the catalogue. With
+    // no collection resolving a live product there is nothing to advertise.
+    if (!ref.watch(tradeOffersHaveProductsProvider)) {
+      return const SizedBox.shrink();
+    }
     final featured = ref.watch(featuredTradeOffersProvider);
     return MerchandisingUnitCard(
       title: 'Trade Offers & Deals',
