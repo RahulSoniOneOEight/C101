@@ -82,6 +82,8 @@ export const storefrontLayouts: StorefrontLayout[] = [
     test_data: true,
     starts_at: "2026-10-01T00:00:00Z",
     ends_at: "2026-12-31T23:59:59Z",
+    // CHG-051: both storefronts advance the hero every five seconds.
+    hero_rotation_ms: 5000,
     modules: [
       {
         type: "hero-banner",
@@ -137,6 +139,20 @@ export const storefrontLayouts: StorefrontLayout[] = [
         priority: 10,
       },
     ],
+  },
+  {
+    // The trade home previously had no layout at all, so its hero could never rotate and its
+    // layout sections were always empty. An empty-section layout is sufficient: the governed B2B
+    // defaults still drive the modules, while the rotation is now authored per channel.
+    layout_key: "b2b-home",
+    channel: "b2b",
+    locale: "en-IN",
+    fallback_layout_key: null,
+    test_data: true,
+    starts_at: "2026-10-01T00:00:00Z",
+    ends_at: "2026-12-31T23:59:59Z",
+    hero_rotation_ms: 5000,
+    modules: [],
   },
 ];
 

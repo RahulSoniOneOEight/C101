@@ -74,9 +74,14 @@ void main() {
     final trade =
         tradeProductFromCatalogue(_groupedProduct(), categoryId: 'pcat_tools');
 
-    // No trade term is invented: MOQ 1, no quantity tiers.
+    // CHG-051 ladder: list at 1+, 5% at 10+, 10% at 25+ (governed ceiling).
     expect(trade.moq, 1);
-    expect(trade.tiers, isEmpty);
+    expect(trade.tiers.map((t) => t.quantity), <int>[1, 10, 25]);
+    expect(trade.tiers.map((t) => t.unitPrice.amount),
+        <int>[475000, 451250, 427500]);
+    expect(trade.unitPriceFor(9).amount, 475000);
+    expect(trade.unitPriceFor(10).amount, 451250);
+    expect(trade.unitPriceFor(25).amount, 427500);
     expect(trade.product.variantCount, 2);
     expect(trade.stockQty, 50);
     expect(trade.categoryId, 'pcat_tools');

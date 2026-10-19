@@ -126,6 +126,36 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     }
   }
 
+  /// Applies a code against the canonical cart. The engine decides; this only
+  /// propagates its answer and never assumes a discount.
+  Future<void> applyPromotion(String code) async {
+    final cart = state.value;
+    if (cart == null) {
+      throw PromotionRejected(code: code, reason: 'no_cart');
+    }
+    try {
+      final updated = await _client.addPromotion(cart.id, code);
+      await _setCart(updated);
+    } on PromotionRejected {
+      rethrow;
+    } catch (_) {
+      throw PromotionRejected(code: code, reason: 'unavailable');
+    }
+  }
+
+  Future<void> removePromotion(String code) async {
+    final cart = state.value;
+    if (cart == null) return;
+    try {
+      final updated = await _client.removePromotion(cart.id, code);
+      await _setCart(updated);
+    } on PromotionRejected {
+      rethrow;
+    } catch (_) {
+      throw PromotionRejected(code: code, reason: 'unavailable');
+    }
+  }
+
   Future<void> updateQuantity(String lineItemId, int quantity) async {
     if (quantity <= 0) return removeItem(lineItemId);
     final cart = state.value;

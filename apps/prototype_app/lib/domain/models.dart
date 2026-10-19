@@ -561,6 +561,54 @@ class CartLineItem {
       };
 }
 
+/// A promotion code applied to a cart by the engine.
+class AppliedPromotion {
+  const AppliedPromotion({required this.code, this.isAutomatic = false});
+
+  final String code;
+  final bool isAutomatic;
+
+  factory AppliedPromotion.fromJson(Map<String, dynamic> json) =>
+      AppliedPromotion(
+        code: json['code'] as String? ?? '',
+        isAutomatic: json['is_automatic'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'code': code,
+        'is_automatic': isAutomatic,
+      };
+}
+
+/// One engine-granted discount line, already resolved to money.
+class CartAdjustment {
+  const CartAdjustment({
+    this.code,
+    required this.label,
+    required this.amount,
+    this.target = 'item',
+  });
+
+  final String? code;
+  final String label;
+  final int amount;
+  final String target;
+
+  factory CartAdjustment.fromJson(Map<String, dynamic> json) => CartAdjustment(
+        code: json['code'] as String?,
+        label: json['label'] as String? ?? json['code'] as String? ?? 'Discount',
+        amount: (json['amount'] as num?)?.toInt() ?? 0,
+        target: json['target'] as String? ?? 'item',
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'code': code,
+        'label': label,
+        'amount': amount,
+        'target': target,
+      };
+}
+
 /// A Medusa shopping cart with its line items and totals.
 class Cart {
   const Cart(
@@ -568,7 +616,11 @@ class Cart {
       this.items = const <CartLineItem>[],
       this.subtotal,
       this.total,
-      this.shippingTotal});
+      this.shippingTotal,
+      this.discountTotal,
+      this.shippingDiscountTotal,
+      this.promotions = const <AppliedPromotion>[],
+      this.adjustments = const <CartAdjustment>[]});
 
   factory Cart.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? const <dynamic>[])
@@ -578,19 +630,28 @@ class Cart {
     final total = json['total'] as num?;
     final subtotal = json['subtotal'] as num?;
     final shippingTotal = json['shipping_total'] as num?;
+    final discountTotal = json['discount_total'] as num?;
+    final shippingDiscount = json['shipping_discount_total'] as num?;
     final currency = json['currency_code'] as String? ?? 'INR';
+    Money? money(num? amount) => amount == null
+        ? null
+        : Money(amount: amount.toInt(), currencyCode: currency);
     return Cart(
       id: json['id'] as String? ?? '',
       items: items,
-      subtotal: subtotal == null
-          ? null
-          : Money(amount: subtotal.toInt(), currencyCode: currency),
-      total: total == null
-          ? null
-          : Money(amount: total.toInt(), currencyCode: currency),
-      shippingTotal: shippingTotal == null
-          ? null
-          : Money(amount: shippingTotal.toInt(), currencyCode: currency),
+      subtotal: money(subtotal),
+      total: money(total),
+      shippingTotal: money(shippingTotal),
+      discountTotal: money(discountTotal),
+      shippingDiscountTotal: money(shippingDiscount),
+      promotions: (json['promotions'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(AppliedPromotion.fromJson)
+          .toList(),
+      adjustments: (json['adjustments'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(CartAdjustment.fromJson)
+          .toList(),
     );
   }
 
@@ -600,7 +661,21 @@ class Cart {
   final Money? total;
   final Money? shippingTotal;
 
+  /// Engine-granted discount total. Null when the response carried none.
+  final Money? discountTotal;
+
+  /// Engine-granted shipping discount (free-shipping offers).
+  final Money? shippingDiscountTotal;
+
+  /// Codes the engine accepted on this cart.
+  final List<AppliedPromotion> promotions;
+
+  /// Flat discount lines for display and checkout summaries.
+  final List<CartAdjustment> adjustments;
+
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+
+  bool get hasDiscount => (discountTotal?.amount ?? 0) > 0;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -608,6 +683,10 @@ class Cart {
         'subtotal': subtotal?.amount,
         'total': total?.amount,
         'shipping_total': shippingTotal?.amount,
+        'discount_total': discountTotal?.amount,
+        'shipping_discount_total': shippingDiscountTotal?.amount,
+        'promotions': promotions.map((e) => e.toJson()).toList(),
+        'adjustments': adjustments.map((e) => e.toJson()).toList(),
         'currency_code': total?.currencyCode,
       };
 }

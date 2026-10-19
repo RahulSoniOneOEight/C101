@@ -4,6 +4,7 @@ import {
   MedusaStoreClient,
   SIMULATED_PAYMENT_PROVIDER_ID,
   type StoreOffer,
+  type StoreCart,
   type StoreAddress,
   type StorePaymentCollection,
   type StorePaymentSession,
@@ -330,6 +331,55 @@ function findValidSimulatedSession(
     session.data?.test_data === true &&
     session.amount === paymentCollection.amount,
   );
+}
+
+/**
+ * Stable cart view for the storefront.
+ *
+ * Medusa exposes the arithmetic but nests line adjustments under each item. The UI needs one
+ * predictable shape: applied codes, a discount total and a flat adjustment list, so it can show
+ * "you save X" without recomputing money from item internals.
+ */
+function composeCartView(cart: StoreCart) {
+  const items = (cart.items ?? []).map((item) => ({
+    ...item,
+    adjustments: (item.adjustments ?? []).map((adjustment) => ({
+      code: adjustment.code ?? null,
+      amount: Math.abs(adjustment.amount ?? 0),
+      label: adjustment.description ?? adjustment.code ?? "Discount",
+    })),
+  }));
+  return {
+    ...cart,
+    items,
+    promotions: (cart.promotions ?? []).map((promotion) => ({
+      code: promotion.code,
+      is_automatic: Boolean(promotion.is_automatic),
+    })),
+    discount_total: cart.discount_total ?? 0,
+    item_discount_total: cart.item_discount_total ?? 0,
+    shipping_discount_total: cart.shipping_discount_total ?? 0,
+    adjustments: items.flatMap((item) =>
+      item.adjustments.map((adjustment) => ({
+        ...adjustment,
+        target: "item" as const,
+        line_item_id: item.id,
+      })),
+    ),
+  };
+}
+
+/** Maps an engine rejection onto a reason the customer UI can explain. */
+function promotionRejectionReason(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("not found") || m.includes("does not exist") || m.includes("invalid")) {
+    return "not_found";
+  }
+  if (m.includes("expired") || m.includes("not started") || m.includes("has not started")) {
+    return "expired";
+  }
+  if (m.includes("limit") || m.includes("usage")) return "usage_limit";
+  return "not_eligible";
 }
 
 /** Minimal read-only operator console (staging) served as a static HTML page. */
@@ -1076,6 +1126,91 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const authenticated = await authorizeCheckoutOwner(req, state.checkout_id);
     if ("response" in authenticated) return authenticated.response;
     return json(state);
+  }
+
+  // GET /v1/carts/{cartId} — canonical cart with the promotion breakdown.
+  const cartState = url.pathname.match(/^\/v1\/carts\/([^/]+)$/);
+  if (cartState && req.method === "GET") {
+    const cartId = cartState[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    try {
+      const cart = await medusa.getCart(cartId);
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST/DELETE /v1/carts/{cartId}/promotions — apply or remove promotion codes.
+  //
+  // The engine decides eligibility. The BFF only translates its answer into a stable shape, so the
+  // storefront never has to invent a reason or claim a discount the engine did not grant.
+  const cartPromotions = url.pathname.match(/^\/v1\/carts\/([^/]+)\/promotions$/);
+  if (cartPromotions && (req.method === "POST" || req.method === "DELETE")) {
+    const cartId = cartPromotions[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    let body: { code?: string; codes?: string[] } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as { code?: string; codes?: string[] };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const codes = [
+      ...new Set(
+        [
+          ...(Array.isArray(body.codes) ? body.codes : []),
+          ...(typeof body.code === "string" ? [body.code] : []),
+        ]
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (!codes.length) {
+      return problem(400, "invalid-promotion-code", "A promotion code is required.");
+    }
+    const applied: string[] = [];
+    const rejected: { code: string; reason: string }[] = [];
+    let cart: StoreCart | null = null;
+    for (const code of codes) {
+      try {
+        cart = req.method === "POST"
+          ? await medusa.addPromotion(cartId, code)
+          : await medusa.removePromotion(cartId, code);
+        applied.push(code);
+      } catch (error) {
+        rejected.push({
+          code,
+          reason: promotionRejectionReason((error as Error).message),
+        });
+      }
+    }
+    if (!cart) {
+      return json({
+        type: "promotion-rejected",
+        title: "promotion-rejected",
+        status: 422,
+        rejected_codes: rejected,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, 422);
+    }
+    return json({
+      ...composeCartView(cart),
+      applied_codes: applied,
+      rejected_codes: rejected,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
   }
 
   // POST /v1/carts — create a canonical Medusa cart (Commerce)

@@ -192,11 +192,37 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider).value;
+    final effectiveCart = _preparedCart ?? cart;
+    final discount = effectiveCart?.discountTotal;
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
+          if ((discount?.amount ?? 0) > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.local_offer_outlined,
+                      size: 15,
+                      color: Theme.of(context)
+                              .extension<AgencyColors>()
+                              ?.feedbackSuccess ??
+                          Colors.green),
+                  const SizedBox(width: AgencySpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Offer discount · ${effectiveCart!.promotions.map((p) => p.code).join(', ')}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  Text('-${discount!.formatted}',
+                      style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
           CheckoutSummary(
             subtotal: _preparedCart?.subtotal?.formatted ??
                 cart?.subtotal?.formatted ??

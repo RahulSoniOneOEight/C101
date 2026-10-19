@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/models.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
 
 /// The active cart with quantity controls, a checkout summary, and a
@@ -53,10 +54,14 @@ class CartScreen extends ConsumerWidget {
                 for (final item in items)
                   _CartLineWithDeals(item: item, catalogue: products),
                 const SizedBox(height: AgencySpacing.md),
+                PromotionPanel(cart: cart!),
+                if (cart.hasDiscount) _discountRow(context, cart),
                 CheckoutSummary(
-                  subtotal: cart?.total?.formatted ?? '—',
-                  shipping: 'Free',
-                  total: cart?.total?.formatted ?? '—',
+                  subtotal: cart.subtotal?.formatted ?? '—',
+                  shipping: (cart.shippingDiscountTotal?.amount ?? 0) > 0
+                      ? 'Free · offer applied'
+                      : 'Free',
+                  total: cart.total?.formatted ?? '—',
                   onContinue: () => context.push('/checkout'),
                 ),
               ],
@@ -67,6 +72,60 @@ class CartScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Engine-granted discount rows. Never computed from a code that was only
+  /// typed: the amount comes from the cart response.
+  Widget _discountRow(BuildContext context, Cart cart) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+      child: Column(
+        children: <Widget>[
+          if ((cart.discountTotal?.amount ?? 0) > 0)
+            Row(
+              children: <Widget>[
+                Icon(Icons.local_offer_outlined,
+                    size: 15, color: colors.feedbackSuccess),
+                const SizedBox(width: AgencySpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Discount · ${cart.promotions.map((p) => p.code).join(', ')}',
+                    style: TextStyle(
+                        fontSize: 13, color: colors.contentSecondary),
+                  ),
+                ),
+                Text(
+                  '-${cart.discountTotal!.formatted}',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colors.feedbackSuccess),
+                ),
+              ],
+            ),
+          if ((cart.shippingDiscountTotal?.amount ?? 0) > 0)
+            Row(
+              children: <Widget>[
+                const SizedBox(width: 19),
+                Expanded(
+                  child: Text('Shipping offer',
+                      style: TextStyle(
+                          fontSize: 12, color: colors.contentSecondary)),
+                ),
+                Text(
+                  '-${cart.shippingDiscountTotal!.formatted}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.feedbackSuccess),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -250,3 +309,4 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
     );
   }
 }
+

@@ -661,6 +661,23 @@ TradeProduct _withSellers(TradeProduct p) {
 /// the winning offer's seller and the offer's stock. MOQ stays 1 and quantity
 /// tiers stay empty because there is no governed trade-terms source yet; filling
 /// them with a local convention would fabricate a commercial term.
+/// Quantity ladder for live trade products (CHG-051).
+///
+/// Each step adds five points and the deepest step stops at the governed 10%
+/// promotion ceiling: 1+ list, 10+ 5% off, 25+ 10% off. These are quotation /
+/// trade-price terms, not a Medusa promotion (quantity slabs are not
+/// expressible there).
+const List<(int, int)> _tradeTierLadder = <(int, int)>[
+  (1, 0),
+  (10, 5),
+  (25, 10),
+];
+
+Money _discountedMoney(Money price, int percent) => Money(
+      amount: (price.amount * (100 - percent) / 100).round(),
+      currencyCode: price.currencyCode,
+    );
+
 TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
   final selected = product.defaultVariant;
   final price = selected?.price ??
@@ -676,7 +693,17 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
     stockKnown: selected != null,
     deliveryLocation: 'Marketplace Shipping',
     categoryId: categoryId ?? product.categoryId ?? 'all',
-    tiers: const <TradeTier>[],
+    tiers: price.amount <= 0
+        ? const <TradeTier>[]
+        : <TradeTier>[
+            for (final tier in _tradeTierLadder)
+              TradeTier(
+                quantity: tier.$1,
+                unitPrice: tier.$2 == 0
+                    ? price
+                    : _discountedMoney(price, tier.$2),
+              ),
+          ],
     sellers: <TradeSupplier>[
       for (final variant in product.variants)
         if (variant.isPurchasable)

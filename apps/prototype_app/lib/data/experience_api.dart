@@ -287,6 +287,51 @@ class ExperienceApi {
     return Cart.fromJson(res.data!);
   }
 
+  /// Applies a promotion code through Medusa's promotion engine.
+  ///
+  /// A rejection is surfaced as [PromotionRejected] with the reason the engine
+  /// gave, so the cart can explain it rather than silently doing nothing.
+  Future<Cart> addPromotion(String cartId, String code) async {
+    try {
+      final res = await _dio.post<Map<String, dynamic>>(
+        '/v1/carts/$cartId/promotions',
+        data: <String, dynamic>{'code': code},
+      );
+      return Cart.fromJson(res.data!);
+    } on DioException catch (error) {
+      throw _promotionError(error, code);
+    }
+  }
+
+  Future<Cart> removePromotion(String cartId, String code) async {
+    try {
+      final res = await _dio.delete<Map<String, dynamic>>(
+        '/v1/carts/$cartId/promotions',
+        data: <String, dynamic>{'code': code},
+      );
+      return Cart.fromJson(res.data!);
+    } on DioException catch (error) {
+      throw _promotionError(error, code);
+    }
+  }
+
+  PromotionRejected _promotionError(DioException error, String code) {
+    final data = error.response?.data;
+    if (data is Map) {
+      final rejected = (data['rejected_codes'] as List?)
+          ?.whereType<Map>()
+          .firstOrNull;
+      final reason = rejected?['reason'] as String?;
+      if (reason != null && reason.isNotEmpty) {
+        return PromotionRejected(code: code, reason: reason);
+      }
+    }
+    return PromotionRejected(
+      code: code,
+      reason: error.response == null ? 'unavailable' : 'not_eligible',
+    );
+  }
+
   Future<Cart> updateLineItem(
       String cartId, String lineItemId, int quantity) async {
     final res = await _dio.post<Map<String, dynamic>>(
@@ -381,6 +426,26 @@ class ExperienceApi {
   Future<void> removeDevice(String deviceId) async {
     await _dio.delete<void>('/v1/me/devices/$deviceId');
   }
+}
+
+/// A promotion code the engine refused, with a reason the UI can explain.
+class PromotionRejected implements Exception {
+  const PromotionRejected({required this.code, required this.reason});
+
+  final String code;
+  final String reason;
+
+  String get message => switch (reason) {
+        'not_found' => 'That promotion code was not found.',
+        'expired' => 'That offer has expired.',
+        'usage_limit' => 'That offer has reached its usage limit.',
+        'not_eligible' =>
+          'That code does not apply to the items in your cart.',
+        'unavailable' =>
+          'Promotions are unavailable right now. Please try again.',
+        'no_cart' => 'Add an item before applying a code.',
+        _ => 'That code could not be applied.',
+      };
 }
 
 final experienceApiProvider = Provider<ExperienceApi>((ref) {

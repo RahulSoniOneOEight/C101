@@ -125,15 +125,17 @@ export class MedusaStoreClient {
     return (await response.json()) as T;
   }
 
-  private async deleteJson<T>(path: string): Promise<T> {
+  private async deleteJson<T>(path: string, body?: unknown): Promise<T> {
     const url = `${this.config.medusaBaseUrl}${path}`;
     const response = await fetch(url, {
       method: "DELETE",
       headers: {
         "x-publishable-api-key": this.config.medusaPublishableKey,
         ...this.channelHeaders(),
+        ...(body === undefined ? {} : { "content-type": "application/json" }),
         accept: "application/json",
       },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -307,6 +309,24 @@ export class MedusaStoreClient {
     return data.cart;
   }
 
+  /** Applies one promotion code through the real Medusa promotion engine. */
+  async addPromotion(cartId: string, code: string): Promise<StoreCart> {
+    const data = await this.postJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}/promotions`,
+      { promo_codes: [code] },
+    );
+    return data.cart;
+  }
+
+  /** Removes one applied code. Medusa expects the codes in the DELETE body. */
+  async removePromotion(cartId: string, code: string): Promise<StoreCart> {
+    const data = await this.deleteJson<{ cart: StoreCart }>(
+      `/store/carts/${encodeURIComponent(cartId)}/promotions`,
+      { promo_codes: [code] },
+    );
+    return data.cart;
+  }
+
   async addLineItem(cartId: string, offerId: string, quantity: number): Promise<StoreCart> {
     const data = await this.postJson<{ cart: StoreCart }>(
       `/store/carts/${encodeURIComponent(cartId)}/line-items`,
@@ -432,6 +452,20 @@ export interface StoreCompleteResult {
   error?: { message: string; name: string; type: string };
 }
 
+export interface StoreCartAdjustment {
+  id?: string;
+  code?: string | null;
+  amount?: number | null;
+  description?: string | null;
+  provider_id?: string | null;
+}
+
+export interface StoreCartPromotion {
+  id: string;
+  code: string;
+  is_automatic?: boolean | null;
+}
+
 export interface StoreCart {
   id: string;
   currency_code: string;
@@ -439,12 +473,20 @@ export interface StoreCart {
   completed_at?: string | null;
   metadata?: Record<string, unknown> | null;
   shipping_total?: number;
+  discount_total?: number;
+  item_discount_total?: number;
+  shipping_discount_total?: number;
+  promotions?: StoreCartPromotion[] | null;
   items: {
     id: string;
     title: string;
     product_title: string | null;
     quantity: number;
     unit_price: number;
+    total?: number;
+    subtotal?: number;
+    discount_total?: number;
+    adjustments?: StoreCartAdjustment[] | null;
     metadata: { offer_id?: string } | null;
   }[];
   subtotal: number;
