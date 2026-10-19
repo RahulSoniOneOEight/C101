@@ -119,7 +119,14 @@ class _DiscoveryHubScreenState extends ConsumerState<DiscoveryHubScreen> {
   }
 
   Widget _categories(List<Product> products) {
-    final categories = ref.watch(presentationProvider).categories;
+    // A category the live catalogue cannot fill would open an empty Browse
+    // page, so Discover only offers aisles that currently have products.
+    final categories = ref
+        .watch(presentationProvider)
+        .categories
+        .where((category) =>
+            filterProductsByHomeCategory(products, category.label).isNotEmpty)
+        .toList();
     if (categories.isEmpty) {
       return const EmptyView(message: 'No categories available');
     }

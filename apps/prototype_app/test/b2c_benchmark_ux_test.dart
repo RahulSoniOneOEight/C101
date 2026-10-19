@@ -97,6 +97,12 @@ void main() {
           label: 'Tools & Hardware',
           iconKey: 'tools',
         ),
+        StorefrontCategory(
+          id: 'pumps',
+          name: 'Pumps & Machines',
+          label: 'Pumps & Machines',
+          iconKey: 'pumps',
+        ),
       ],
     );
     const products = <Product>[
@@ -125,6 +131,8 @@ void main() {
 
     expect(find.text('Paints & Finishes'), findsOneWidget);
     expect(find.text('1 products'), findsWidgets);
+    expect(find.text('Pumps & Machines'), findsNothing,
+        reason: 'a category with no live products is a dead end');
     await tester.tap(find.text('Brands'));
     await tester.pumpAndSettle();
     expect(find.text('Find a brand'), findsOneWidget);

@@ -384,9 +384,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => context.push('/discover'),
                   icon: const Icon(Icons.grid_view_outlined, size: 17),
-                  label: Text('$categoryCount categories'),
+                  label: Text('$categoryCount categories',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
               ),
@@ -395,9 +398,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 child: OutlinedButton.icon(
                   onPressed: () => context.push('/discover?tab=brands'),
                   icon: const Icon(Icons.sell_outlined, size: 17),
-                  label: Text('$brandCount brands'),
+                  label: Text('$brandCount brands',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(44),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    textStyle: const TextStyle(fontSize: 12),
                   ),
                 ),
               ),
