@@ -50,6 +50,31 @@ quantity slabs cannot be expressed as a standard promotion.
 
 Both channels now return 5000 from `/v1/content/app-shell`.
 
+#### Follow-up check: CMS, console and the 250 ms discrepancy
+
+The published CMS layouts carried `hero_rotation_ms = 250`, while the API was
+returning the seed's 5000. Root cause: after an earlier container recreation the
+API was started from the older server compose file, which does **not** pass
+`CMS_BASE_URL`. The CMS adapter therefore reported `governed-seed-fallback` and
+ignored every layout.
+
+Corrected:
+
+- Recreated the API from the release compose that carries
+  `CMS_BASE_URL: http://cms:1337`; `/health` now reports `cms_adapter: configured`.
+- Set both CMS layout documents (draft + published) to `hero_rotation_ms = 5000`,
+  so the console value and the live intent agree.
+- B2C now resolves its 5 modules and 5000 ms from CMS.
+- B2B still resolves the seed layout because its CMS layout has **no modules or
+  sections**; `mapLayout` correctly refuses an empty layout. The console can edit
+  its rotation, but the value only takes effect once at least one section/module
+  is added and published.
+
+Admin console: the layout editor has a per-channel **Rotation (ms)** number
+field (`min 0`, `step 100`), saved to the draft and published with the layout.
+Copy states that `0` keeps the carousel still and that the interval applies to
+that layout's channel only.
+
 ### Promotion P0
 
 Experience API:
@@ -80,10 +105,15 @@ Flutter B2C:
 | Check | Result |
 |---|---|
 | `app-shell` b2c / b2b rotation | 5000 / 5000 |
+| `app-shell` b2c layout source | `cms-strapi`, 5 modules |
+| `/health` CMS adapter | `configured` |
+| Hero frames sampled every 1 s for 14 s (b2c) | 4 changes, ~5 s cadence |
+| Hero frames sampled every 1 s for 14 s (b2b) | 3 changes, ~5 s cadence |
 | Cart: 1 × socket set (₹4750) + `BK-STG-OFFER-ORDER10` | 200; discount ₹237.50; total ₹4512.50; code attached |
 | `GET /v1/carts/:id` | subtotal ₹4750, discount ₹237.50, total ₹4512.50, 1 adjustment |
 | Unknown code | 422, reason `not_found` |
 | `BK-STG-PROMO-TOOLS10` on an ineligible cart | 422, reason `not_eligible` (previously a silent 200) |
+| Remove `BK-STG-OFFER-ORDER10` | 200; discount back to 0; total ₹4750; promotions empty |
 | Promotions seeded | 10 active, 0 seller links |
 
 ### Browser (headless Chrome, live)

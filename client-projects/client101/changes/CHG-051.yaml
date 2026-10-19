@@ -54,6 +54,10 @@ decisions_approved:
 - D-051-04: Promotion codes apply to the canonical Medusa cart (B2C). The B2B RFQ cart is a quotation,
     not a Medusa cart, so codes are not applied to it.
 - D-051-05: Marketplace-funded only. No seller-funded promotion link is created.
+- D-051-06: The hero interval stays operator-editable per layout in the console. The CMS layouts are
+    aligned to 5000 ms so the authored value and the live intent agree. A layout with no modules or
+    sections is ignored by the layout reader, so the B2B CMS layout must gain at least one section
+    before its rotation value can drive the trade home.
 required_tests:
 - A valid code reduces the cart total and appears in the discount breakdown.
 - An invalid or ineligible code is rejected with a machine-readable reason.
@@ -83,9 +87,14 @@ implementation:
     tier_ladder: '1/10/25 = 0/5/10 percent'
     promotions_seeded: 10
     promotion_apply: pass
+    promotion_remove: pass
     promotion_cart_read: pass
     promotion_rejection_not_found: pass
     promotion_rejection_not_eligible: pass
+    cms_adapter: configured
+    b2c_layout_source: cms-strapi
+    admin_rotation_field: per-layout Rotation (ms), min 0, step 100
+    measured_rotation_seconds: approximately 5
   deployment:
     experience_api_commit: e9de1d9
     hosting_project: buildkart-staging
