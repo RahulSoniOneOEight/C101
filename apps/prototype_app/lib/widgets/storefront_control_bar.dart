@@ -194,7 +194,7 @@ class StorefrontControlChip extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: selected ? ink : colors.contentPrimary,
+                      color: colors.contentPrimary,
                     ),
                   ),
                 ],
@@ -271,7 +271,7 @@ class StorefrontFiltersButton extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
-                          color: ink,
+                          color: colors.contentPrimary,
                         ),
                       ),
                     ),
