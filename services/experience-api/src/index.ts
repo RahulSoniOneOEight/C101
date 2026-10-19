@@ -1184,6 +1184,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         cart = req.method === "POST"
           ? await medusa.addPromotion(cartId, code)
           : await medusa.removePromotion(cartId, code);
+        if (req.method === "POST") {
+          // Medusa can accept a code and still grant nothing (for example when no line matches the
+          // promotion's target). Only a code present on the returned cart is a real application;
+          // otherwise the UI would advertise a discount the engine never applied.
+          const attached = (cart.promotions ?? []).some(
+            (promotion) => promotion.code.toLowerCase() === code.toLowerCase(),
+          );
+          if (!attached) {
+            rejected.push({ code, reason: "not_eligible" });
+            continue;
+          }
+        }
         applied.push(code);
       } catch (error) {
         rejected.push({
@@ -1192,7 +1204,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         });
       }
     }
-    if (!cart) {
+    if (!cart || applied.length === 0) {
       return json({
         type: "promotion-rejected",
         title: "promotion-rejected",
