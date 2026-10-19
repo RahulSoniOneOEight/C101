@@ -81,7 +81,7 @@ class StorefrontControlBar extends StatelessWidget {
                   Text(
                     '$resultCount ${resultCount == 1 ? 'result' : 'results'}',
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       color: colors.contentSecondary,
                     ),
                   ),
@@ -92,7 +92,7 @@ class StorefrontControlBar extends StatelessWidget {
                         minimumSize: const Size(44, 44),
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         foregroundColor: colors.actionPrimary,
-                        textStyle: const TextStyle(fontSize: 11),
+                        textStyle: const TextStyle(fontSize: 10),
                       ),
                       child: const Text('Clear all'),
                     ),
@@ -173,8 +173,8 @@ class StorefrontControlChip extends StatelessWidget {
           child: Center(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: selected ? fill : colors.surfaceRaised,
                 borderRadius: radius,
@@ -186,13 +186,13 @@ class StorefrontControlChip extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   if (selected) ...<Widget>[
-                    Icon(Icons.check, size: 14, color: ink),
+                    Icon(Icons.check, size: 13, color: ink),
                     const SizedBox(width: 4),
                   ],
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: selected ? ink : colors.contentPrimary,
                     ),
@@ -235,8 +235,8 @@ class StorefrontFiltersButton extends StatelessWidget {
           borderRadius: radius,
           child: Center(
             child: Container(
-              height: 34,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
                 color: colors.surfaceRaised,
                 borderRadius: radius,
@@ -245,12 +245,12 @@ class StorefrontFiltersButton extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(Icons.tune, size: 14, color: colors.contentSecondary),
+                  Icon(Icons.tune, size: 13, color: colors.contentSecondary),
                   const SizedBox(width: 4),
                   Text(
                     'Filters',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: colors.contentPrimary,
                     ),
@@ -259,7 +259,7 @@ class StorefrontFiltersButton extends StatelessWidget {
                     const SizedBox(width: 4),
                     Container(
                       constraints:
-                          const BoxConstraints(minWidth: 16, minHeight: 16),
+                          const BoxConstraints(minWidth: 15, minHeight: 15),
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
@@ -269,7 +269,7 @@ class StorefrontFiltersButton extends StatelessWidget {
                       child: Text(
                         '$count',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w700,
                           color: ink,
                         ),
