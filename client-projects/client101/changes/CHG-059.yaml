@@ -52,6 +52,13 @@ implementation:
     experience_api_typecheck: pass
     cart_totals_test: pass
     flutter_tests: 209-pass
+    mobile_qc_2026_10_20: client-projects/client101/evidence/CHG-058/mobile-chrome-qc-2026-10-20.md
+    chrome_390x844: pass
+    chrome_360x800: pass
+    deep_link_reloads: pass
+    checkout_subtotal_after_shipping: pass
+    console_errors: none
+    order_submitted: false
   deployment:
     app_build: 711e5e3
     experience_api_commit: 608ae93
