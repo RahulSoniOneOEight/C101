@@ -20,6 +20,7 @@ class B2BShell extends StatelessWidget {
       bottomNavigationBar: AppBottomNavigation(
         items: const <BottomNavItem>[
           BottomNavItem(label: 'Trade', icon: Icons.storefront_outlined),
+          BottomNavItem(label: 'Browse', icon: Icons.grid_view_outlined),
           BottomNavItem(label: 'Credit', icon: Icons.credit_card_outlined),
           BottomNavItem(label: 'Cart', icon: Icons.shopping_cart_outlined),
           BottomNavItem(label: 'Account', icon: Icons.person_outline),

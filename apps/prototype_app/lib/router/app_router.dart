@@ -196,6 +196,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
+                path: '/b2b/catalogue',
+                builder: (context, state) => B2BCatalogueScreen(
+                  initialCategoryId: state.uri.queryParameters['category'],
+                  dealsOnly: state.uri.queryParameters['deals'] == 'true',
+                  seasonalOnly: state.uri.queryParameters['seasonal'] == 'true',
+                ),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
                 path: '/b2b/credit',
                 builder: (context, state) => const B2BCreditScreen(),
               ),
@@ -269,14 +281,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/b2b/offers',
         builder: (context, state) => TradeOffersPage(
           initialCollectionId: state.uri.queryParameters['collection'],
-        ),
-      ),
-      GoRoute(
-        path: '/b2b/catalogue',
-        builder: (context, state) => B2BCatalogueScreen(
-          initialCategoryId: state.uri.queryParameters['category'],
-          dealsOnly: state.uri.queryParameters['deals'] == 'true',
-          seasonalOnly: state.uri.queryParameters['seasonal'] == 'true',
         ),
       ),
       GoRoute(

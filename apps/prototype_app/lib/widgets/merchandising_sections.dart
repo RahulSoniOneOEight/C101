@@ -87,7 +87,11 @@ class MerchandisingModuleView extends StatelessWidget {
 
   Widget _composition() {
     final split = module.splitSlot;
-    final Widget? special = split == null
+    // An empty composition must not reserve a grid cell or a module block.
+    if (module.products.isEmpty && (split == null || split.products.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final Widget? special = split == null || split.products.isEmpty
         ? null
         : SplitMerchandisingTile(
             sectionLabel: split.label,
