@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../widgets/market_comparison.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
@@ -139,6 +140,15 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         ],
         const SizedBox(height: AgencySpacing.sm),
         _priceRow(context, selectedVariant, selected),
+        if ((selectedVariant?.price ?? selected?.price ?? product.price) !=
+            null)
+          Padding(
+            padding: const EdgeInsets.only(top: AgencySpacing.sm),
+            child: MarketComparison(
+              sellingPrice:
+                  (selectedVariant?.price ?? selected?.price ?? product.price)!,
+            ),
+          ),
         const SizedBox(height: AgencySpacing.md),
         if (variants.isNotEmpty) ...<Widget>[
           _variantSection(context, variants, selectedVariant),

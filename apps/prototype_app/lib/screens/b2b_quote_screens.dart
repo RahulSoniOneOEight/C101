@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../widgets/market_comparison.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../widgets/trade_product_tile.dart';
@@ -170,6 +171,9 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               ],
             ],
           ),
+          const SizedBox(height: AgencySpacing.sm),
+          MarketComparison(sellingPrice: unitPrice),
+
           // ---- Variant (SKU) selection for a grouped product ----
           if (variants.isNotEmpty) ...[
             _label(context, 'Variants (${variants.length})'),
