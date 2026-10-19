@@ -34,6 +34,17 @@ approval_required: true
 implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-19'
-  status: in-progress
-status: proposed-awaiting-implementation
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-056/app-stability.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 191-pass
+    build_id_visible: true
+    repeated_loads: 3-of-3-clean
+    service_worker: not-registered
+  deployment:
+    build_id: 56fae07
+    hosting_project: buildkart-staging
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

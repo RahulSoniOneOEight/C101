@@ -32,9 +32,9 @@ with redeploy/restart windows (brief 502s) and with tabs holding an older bundle
 | Check | Result |
 |---|---|
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 192 tests pass |
-| Build id visible | pending deployment check |
-| Repeated loads after deploy | pending deployment check |
+| `flutter test --exclude-tags golden` | 191 tests pass |
+| Build id visible | `STAGING · 56fae07` in the strip |
+| Repeated loads after deploy | 3/3 catalogue rendered, no console/request failures |
 
 ## Notes
 
