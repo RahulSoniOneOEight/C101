@@ -1,0 +1,94 @@
+change_id: CHG-067
+revision: 1
+request: >-
+  Fix the B2C "Checkout failed" error caused by carts containing BuildKart Direct products, and
+  restore shipping coverage for that seller in staging.
+type: staging-checkout-shipping-coverage-repair
+extends:
+- CHG-049
+- CHG-054
+- CHG-066
+affected_capabilities:
+- commerce-checkout
+- marketplace-fulfilment
+- seller-shipping-configuration
+affected_domains:
+- commerce
+- fulfilment
+- operations
+affected_surfaces:
+- app.prototype.b2c-storefront
+- medusa.admin.fulfilment
+- experience-api.carts
+already_present:
+- BuildKart Direct seller, public catalogue products, offers, prices and stock.
+- Marketplace Shipping profile and standard/express options for the four seeded sellers.
+- Canonical customer-details, shipping-method and complete endpoints.
+missing:
+- BuildKart Direct had no seller-to-warehouse link, no fulfilment set, no manual provider link and
+  no shipping options.
+- Carts containing its products therefore returned no shipping option for that seller and failed
+  completion with "No shipping method selected but the cart contains seller items that require shipping."
+diagnosis:
+  failing_cart: cart_01M5B7GFDX4SRVPH8CAZMVPDJC
+  failing_response: >-
+    Medusa 400 via Experience API 502: No shipping method selected but the cart contains seller
+    items that require shipping.
+  sellers_in_failing_cart:
+  - UrbanBuild Supply
+  - BuildKart Direct
+  shipping_options_returned:
+  - UrbanBuild Supply only
+  root_cause: >-
+    BuildKart Direct is a legacy seller created outside the demo seller seed. Its 20 imported
+    products were valid, but its warehouse had no seller link, fulfilment set, service zone,
+    provider link or shipping options. The store could not resolve a rate for that seller's slice.
+decisions_approved:
+- D-067-01: >-
+    Repair BuildKart Direct's existing staging fulfilment configuration instead of reassigning its
+    products, changing prices, or falling back to another seller's shipping rate.
+- D-067-02: >-
+    Use the shared Marketplace Shipping profile and the same standard ₹99 / express ₹199 staging
+    rates as the other sellers, with identical India service-zone rules.
+- D-067-03: >-
+    Make the repair idempotent and retain it as a governed staging script so a rebuild can reapply
+    it without creating duplicate options.
+constraints:
+- No product, variant, SKU, price, offer or seller-allocation change.
+- No commission, payout, tax or category change.
+- Staging data only; production release remains unauthorized.
+- No real payment; completion uses the simulated adapter.
+required_tests:
+- Shipping options resolve for a BuildKart Direct-only cart.
+- Shipping options resolve for a mixed BuildKart Direct + seeded-seller cart.
+- The mixed cart completes into a canonical order group with both sellers.
+- A BuildKart Direct order completes through the Flutter B2C checkout.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-067/b2c-checkout-shipping-repair.md
+  script: services/backend/packages/api/src/scripts/ensure-buildkart-direct-shipping.ts
+  verification:
+    builtkart_direct_only_options: pass
+    mixed_cart_options: pass
+    mixed_cart_completion: pass
+    flutter_ui_completion: pass
+    console_errors: none
+    real_payment: false
+  staging_ids:
+    seller: sel_01M5897CE4PTBHS4AA7H0G79G7
+    stock_location: sloc_01M589898F6DHEVYX1ZPYMFA1V
+    fulfillment_set: fuset_01M5B7NQ2AQADDNRH26PZ54YCG
+    service_zone: serzo_01M5B7NQ3JDZPAACDYKHC2ESTE
+    standard_option: so_01M5B7NQ4V9SW32SK5W8G803HA
+    express_option: so_01M5B7NQ4WJXDZ6N4GT5N6PVA2
+  orders:
+    mixed_api: og_01M5B7TW9Y05XVFSWJM76F8641
+    single_direct_ui: og_01M5B7XJTR47M88RPXT551G9CP
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

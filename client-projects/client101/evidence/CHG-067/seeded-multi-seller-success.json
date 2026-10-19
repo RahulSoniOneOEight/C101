@@ -1,0 +1,89 @@
+{
+  "cartId": "cart_01M5B7HZZMV9FSJR1HJQP7QB9T",
+  "log": [
+    {
+      "step": "cart",
+      "status": 201,
+      "id": "cart_01M5B7HZZMV9FSJR1HJQP7QB9T"
+    },
+    {
+      "step": "add UrbanBuild Supply",
+      "status": 200,
+      "total": 41505.5,
+      "items": 1
+    },
+    {
+      "step": "add PowerMax Depot",
+      "status": 200,
+      "total": 686175.5,
+      "items": 2
+    },
+    {
+      "step": "details",
+      "status": 200
+    },
+    {
+      "step": "options",
+      "status": 200,
+      "options": [
+        {
+          "seller": "sel_01M4EC9CVVHG168X1DHHBY29HY",
+          "name": "Standard Shipping",
+          "id": "so_01M4EC9D0H2A0BWZ5FRN336KE5"
+        },
+        {
+          "seller": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+          "name": "Standard Shipping",
+          "id": "so_01M4EC9DQ6F4D9C5ADA1AHP0F0"
+        },
+        {
+          "seller": "sel_01M4EC9CVVHG168X1DHHBY29HY",
+          "name": "Express Shipping",
+          "id": "so_01M4EC9D0HM76E1RNK33869RZ5"
+        },
+        {
+          "seller": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+          "name": "Express Shipping",
+          "id": "so_01M4EC9DQ62WR39H2TT3A0EZ2W"
+        }
+      ]
+    },
+    {
+      "step": "select sel_01M4EC9CVVHG168X1DHHBY29HY",
+      "status": 200,
+      "shipping": 9900
+    },
+    {
+      "step": "select sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+      "status": 200,
+      "shipping": 19800
+    },
+    {
+      "step": "complete",
+      "status": 200,
+      "body": {
+        "type": "order_group",
+        "order_group": {
+          "id": "og_01M5B7J3AWQCC918MPBVZJQBVQ",
+          "customer_id": "cus_01M4EJSY8TYR5YV36ASS7R05X5",
+          "cart_id": "cart_01M5B7HZZMV9FSJR1HJQP7QB9T",
+          "seller_count": 2,
+          "total": 705975.5,
+          "created_at": "2026-10-19T23:22:16.284Z",
+          "updated_at": "2026-10-19T23:22:16.284Z"
+        },
+        "payment": {
+          "payment_collection_id": "pay_col_01M5B7J362Y7W1HBHX38ZM7YSR",
+          "payment_session_id": "payses_01M5B7J3726T3709GGX26X30V4",
+          "provider_id": "pp_simulated_simulated",
+          "payment_mode": "simulated",
+          "test_data": true
+        },
+        "environment": "staging",
+        "test_data": true,
+        "payment_mode": "simulated",
+        "correlation_id": "efabd4849594aa8c6d0c896e5d4d8722"
+      }
+    }
+  ]
+}
