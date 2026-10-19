@@ -63,13 +63,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Future<void> _bootstrap() async {
-    final profile = ref.read(profileProvider);
-    final sessionEmail = ref.read(experienceApiProvider).sessionEmail?.trim();
-    // Prefer the authenticated identity: the BFF rejects a checkout email that
-    // does not match the pilot session, and the demo profile email is not it.
-    _emailController.text = (sessionEmail != null && sessionEmail.isNotEmpty)
-        ? sessionEmail
-        : profile.email;
+    // Only the authenticated identity may prefill checkout. The demo profile is
+    // not a valid checkout identity and made the BFF reject customer details.
+    final sessionEmail =
+        await ref.read(experienceApiProvider).currentSessionEmail();
+    _emailController.text = sessionEmail ?? '';
     await _alignSeedNames(ref.read(experienceApiProvider).sessionName);
 
     // Rehydrate from the server so totals and applied codes are authoritative.
@@ -132,8 +130,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Future<void> _syncCustomerDetails(SavedAddress? address) async {
     final cart = ref.read(cartProvider).value;
-    final email = _emailController.text.trim();
-    if (cart == null || address == null || email.isEmpty) return;
+    if (cart == null || address == null) return;
+    var email = _emailController.text.trim();
+    if (email.isEmpty) {
+      email =
+          (await ref.read(experienceApiProvider).currentSessionEmail()) ?? '';
+      if (email.isNotEmpty) _emailController.text = email;
+    }
+    if (email.isEmpty) {
+      if (mounted) {
+        setState(() => _shippingError = 'Sign in again to complete checkout.');
+      }
+      return;
+    }
     try {
       final updated =
           await ref.read(experienceApiProvider).updateCartCustomerDetails(

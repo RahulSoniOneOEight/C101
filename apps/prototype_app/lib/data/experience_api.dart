@@ -114,6 +114,21 @@ class ExperienceApi {
     }
   }
 
+  /// The signed-in email, falling back to the persisted session identity.
+  ///
+  /// Checkout used to fall back to the demo profile when this was null on a
+  /// cold start, which submitted a contact identity the BFF rejects.
+  Future<String?> currentSessionEmail() async {
+    final inMemory = _sessionEmail?.trim();
+    if (inMemory != null && inMemory.isNotEmpty) return inMemory;
+    final stored = (await _secureStorage.read(key: _sessionEmailKey))?.trim();
+    if (stored != null && stored.isNotEmpty) {
+      _sessionEmail = stored;
+      return stored;
+    }
+    return null;
+  }
+
   Future<bool> restoreSession() async {
     final token = await _secureStorage.read(key: _sessionTokenKey);
     final expiryRaw = await _secureStorage.read(key: _sessionExpiryKey);
