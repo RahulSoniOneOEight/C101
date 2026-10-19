@@ -1,0 +1,74 @@
+change_id: CHG-052
+revision: 1
+request: >-
+  Give every imported SKU a list price and a selling price, show the discount percentage on the tile,
+  and assign 20% of the products to merchandising groups whose tag appears on the tile.
+type: staging-list-selling-price-and-merchandising-tags
+extends:
+- CHG-049
+- CHG-050
+- CHG-051
+affected_capabilities:
+- marketplace-catalogue
+- marketplace-pricing
+- marketplace-merchandising
+affected_domains:
+- commerce
+- marketplace
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.products
+- medusa.offers
+already_present:
+- 500 imported offers with the source INR price.
+- A composed offer path that already exposes unit and list amounts.
+- Product tags rendered as card badges on the B2C storefront.
+missing:
+- No selling price distinct from the source list price.
+- No discount percentage on imported tiles.
+- No merchandising group membership for imported products.
+conflicts_requiring_a_decision:
+- C-052-01: >-
+    The source master carries one price only. A selling price below it is a staging fixture, not a
+    supplier-funded discount, and must never be presented as a real commercial offer.
+- C-052-02: >-
+    This Mercur staging schema has no product-to-collection link table, so collection membership
+    cannot be written safely. Product tags are the supported, storefront-rendered membership.
+- C-052-03: >-
+    Random discounts must be deterministic per SKU, otherwise a refresh or a re-run changes the price
+    a shopper already saw.
+decisions_approved:
+- D-052-01: Treat the source master amount as the list price. Derive a deterministic selling price
+    with a per-SKU discount of 5-18%, rounded to the nearest rupee.
+- D-052-02: Store list price, selling price and discount on the offer so the cart charges the selling
+    price and the storefront can show both without recomputing from a random number.
+- D-052-03: Assign 20% of imported products across three tags - Best Deal, Seasonal, Flash Deal - and
+    render the tag on the product tile.
+- D-052-04: Mark every changed offer `staging_price_fixture: true`; no seller-funded claim is made.
+required_tests:
+- Store API returns the discounted selling price and the original list amount for a changed SKU.
+- The product payload carries the tag and the computed discount.
+- The B2C and B2B tiles show the discount and tag.
+- A cart line charges the selling price, not the list price.
+- Exactly one tag group is assigned to roughly 20% of imported products.
+- Re-running the fixture does not compound the discount.
+constraints:
+- Staging only; production release remains unauthorized.
+- No change to the source master file.
+- No seller-funded promotion link.
+- Discount range is 5-18%; list price is preserved.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  status: implemented-awaiting-deployment
+  evidence: client-projects/client101/evidence/CHG-052/list-selling-tags.md
+  fixture: client-projects/client101/evidence/CHG-052/price-fixture.sql
+  verification:
+    offers_updated: 500
+    discount_range: '5-18 percent'
+    tagged_products: 46
+    tag_split: 'Best Deal 15 / Seasonal 15 / Flash Deal 16'
+status: implemented-awaiting-deployment
+production_release_authorized: false

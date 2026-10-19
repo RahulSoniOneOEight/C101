@@ -468,6 +468,7 @@ class TradeProductCardCompact extends StatelessWidget {
     this.imageUrl,
     this.stockLabel,
     this.savingsLabel,
+    this.badgeLabel,
     this.tiers = const <TradeTierOption>[],
     this.selectedTierIndex = 0,
     this.onTierSelected,
@@ -487,6 +488,10 @@ class TradeProductCardCompact extends StatelessWidget {
   final String? imageUrl;
   final String? stockLabel;
   final String? savingsLabel;
+
+  /// Merchandising tag (Best Deal / Seasonal / Flash Deal) shown as a second pill.
+  final String? badgeLabel;
+
   final List<TradeTierOption> tiers;
   final int selectedTierIndex;
   final ValueChanged<int>? onTierSelected;
@@ -525,10 +530,12 @@ class TradeProductCardCompact extends StatelessWidget {
                       top: AgencySpacing.sm,
                       left: AgencySpacing.sm,
                       right: AgencySpacing.sm,
-                      child: Row(
+                      child: Wrap(
+                        spacing: AgencySpacing.xs,
+                        runSpacing: 2,
                         children: <Widget>[
-                          // V5: a single trust badge only — the discount. Stock is
-                          // shown via the out-of-stock state, not a second pill.
+                          // V5: the discount stays the single trust pill; the
+                          // merchandising tag is additive and never replaces it.
                           if (outOfStock)
                             _Pill(
                               label: 'Out of stock',
@@ -540,6 +547,12 @@ class TradeProductCardCompact extends StatelessWidget {
                               label: savingsLabel!,
                               background: colors.promotion,
                               foreground: colors.promotionInverse,
+                            ),
+                          if (badgeLabel != null)
+                            _Pill(
+                              label: badgeLabel!,
+                              background: colors.trust,
+                              foreground: colors.contentInverse,
                             ),
                         ],
                       ),

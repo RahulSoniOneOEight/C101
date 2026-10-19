@@ -41,6 +41,7 @@ Widget tradeProductTile(
         ? p.product.variantLabel
         : '$brand · ${p.product.variantLabel}',
     moqLabel: 'MOQ ${p.moq}',
+    badgeLabel: p.product.badges.firstOrNull,
     imageUrl: p.product.thumbnail,
     savingsLabel: p.savingsPercent == null ? null : '${p.savingsPercent}% off',
     tiers: tiers,

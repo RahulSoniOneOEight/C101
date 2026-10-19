@@ -28,6 +28,7 @@ export interface StoreProduct {
   /** Product traceability metadata, including `catalogue_import` and `brand`. */
   metadata?: Record<string, unknown> | null;
   categories?: StoreProductCategoryLink[] | null;
+  tags?: { id: string; value: string }[] | null;
   variants: StoreProductVariant[];
 }
 
@@ -41,6 +42,8 @@ const PRODUCT_FIELDS = [
   "categories.id",
   "categories.name",
   "categories.parent_category_id",
+  "tags.id",
+  "tags.value",
   "variants.id",
   "variants.title",
   "variants.sku",
@@ -76,6 +79,8 @@ export interface StoreOffer {
   } | null;
   inventory_quantity?: number;
   in_stock?: boolean;
+  /** Offer traceability, including the staging list price and discount. */
+  metadata?: Record<string, unknown> | null;
 }
 
 export class MedusaStoreClient {
@@ -154,7 +159,7 @@ export class MedusaStoreClient {
 
   async listOffers(productId: string, regionId = this.config.medusaRegionId): Promise<StoreOffer[]> {
     // The `+` prefix adds computed fields (calculated_price, inventory) to the default fields.
-    const fields = "+calculated_price,+inventory_quantity,+in_stock";
+    const fields = "metadata,+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams({
       product_id: productId,
       region_id: regionId,
@@ -172,7 +177,7 @@ export class MedusaStoreClient {
     regionId = this.config.medusaRegionId,
   ): Promise<StoreOffer[]> {
     if (!productIds.length) return [];
-    const fields = "+calculated_price,+inventory_quantity,+in_stock";
+    const fields = "metadata,+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams();
     for (const id of productIds) {
       params.append("product_id[]", id);

@@ -486,7 +486,12 @@ function composeOffers(offers: StoreOffer[]) {
         ? "low_stock"
         : "in_stock";
     const selling = o.calculated_price?.calculated_amount ?? null;
-    const list = o.calculated_price?.original_amount ?? selling;
+    // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
+    // discounted selling price. Without this the storefront would show selling == list and no saving.
+    const fixtureList = Number(o.metadata?.list_price_minor);
+    const list = Number.isFinite(fixtureList) && fixtureList > 0
+      ? fixtureList
+      : o.calculated_price?.original_amount ?? selling;
     const discountMinor =
       list !== null && selling !== null && list > selling ? list - selling : 0;
     return {
@@ -1614,6 +1619,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           handle: p.handle,
           metadata: p.metadata ?? null,
           categories: p.categories ?? [],
+          // Merchandising tags are the storefront's tile badges (Best Deal / Seasonal / Flash Deal).
+          badges: (p.tags ?? []).map((tag) => tag.value),
           // Every variant carries its own sellable offer. A grouped product is one card; its SKUs
           // are the variants inside it, never extra cards.
           variants: composeVariantPrices(p.variants, offers),
@@ -1674,6 +1681,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         handle: p.handle,
         metadata: p.metadata ?? null,
         categories: p.categories ?? [],
+        badges: (p.tags ?? []).map((tag) => tag.value),
         variants: composeVariantPrices(p.variants, offers),
         offers: offerViews,
         channel,
