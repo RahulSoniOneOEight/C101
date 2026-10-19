@@ -1,0 +1,47 @@
+change_id: CHG-058
+revision: 1
+request: >-
+  Preserve the requested mobile-web route when an authenticated staging session is restored instead
+  of unconditionally redirecting every deep link or refresh to the role landing page.
+type: authenticated-deep-link-preservation
+extends:
+- CHG-056
+- CHG-057
+affected_capabilities:
+- app-runtime
+affected_domains:
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- In-app navigation reaches B2C and B2B routes correctly.
+- Session restoration determines a customer or B2B role and opens the corresponding landing page.
+missing:
+- An authenticated full-page load of a requested route preserves that route.
+conflicts_requiring_a_decision:
+- C-058-01: >-
+    `PinCommerceApp.initState` restores the session and always calls router.go('/') or
+    router.go('/b2b'), replacing valid routes such as /browse, /checkout and /b2b/catalogue.
+decisions_proposed:
+- D-058-01: >-
+    After successful session restoration, choose a role landing page only when the current route is
+    an entry route (onboarding/login/OTP) or has no meaningful requested destination. Preserve all
+    valid B2C and B2B deep links.
+- D-058-02: Keep push activation and notification refresh independent of route preservation.
+required_tests:
+- A signed-in refresh of /browse remains on /browse.
+- A signed-in refresh of /checkout remains on /checkout and applies its existing cart guards.
+- A signed-in refresh of /b2b/catalogue remains on /b2b/catalogue.
+- Restoring a session from onboarding/login still selects the correct role landing page.
+constraints:
+- Staging only; production release remains unauthorized.
+- Do not weaken route-specific cart, identity or role checks.
+approval_required: true
+implementation:
+  discovered_by: mobile-chrome-qc
+  discovered_at_utc: '2026-10-19'
+  status: not-started
+  evidence: client-projects/client101/evidence/CHG-058/mobile-chrome-qc-2026-10-19.md
+status: proposed-awaiting-human-review
+production_release_authorized: false
