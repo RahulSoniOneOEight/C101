@@ -1324,9 +1324,16 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           first_name: address.first_name.trim(),
           last_name: address.last_name.trim(),
           address_1: address.address_1.trim(),
+          ...(address.address_2?.trim()
+            ? { address_2: address.address_2.trim() }
+            : {}),
           city: address.city.trim(),
+          ...(address.province?.trim()
+            ? { province: address.province.trim() }
+            : {}),
           postal_code: address.postal_code!,
           country_code: "in",
+          ...(address.phone?.trim() ? { phone: address.phone.trim() } : {}),
         },
       });
       return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });

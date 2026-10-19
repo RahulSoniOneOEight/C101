@@ -426,9 +426,12 @@ export interface StoreAddress {
   first_name: string;
   last_name: string;
   address_1: string;
+  address_2?: string;
   city: string;
+  province?: string;
   postal_code: string;
   country_code: string;
+  phone?: string;
 }
 
 export interface StoreShippingOption {

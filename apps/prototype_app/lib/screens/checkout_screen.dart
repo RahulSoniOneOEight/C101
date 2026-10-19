@@ -67,7 +67,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Future<void> _bootstrap() async {
     final profile = ref.read(profileProvider);
-    _emailController.text = profile.email;
+    final sessionEmail = ref.read(experienceApiProvider).sessionEmail?.trim();
+    // Prefer the authenticated identity: the BFF rejects a checkout email that
+    // does not match the pilot session, and the demo profile email is not it.
+    _emailController.text = (sessionEmail != null && sessionEmail.isNotEmpty)
+        ? sessionEmail
+        : profile.email;
     _phoneController.text = profile.phone;
 
     // Rehydrate from the server so totals and applied codes are authoritative.
@@ -332,8 +337,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // the summary immediately; shipping selections also replace this cart.
     final effectiveCart = cart;
     final discount = effectiveCart?.discountTotal;
+    final cartShipping = effectiveCart?.shippingTotal;
     final shipping = _selectedShippingTotal?.formatted ??
-        (effectiveCart?.shippingTotal?.formatted ?? 'Calculated at checkout');
+        ((cartShipping?.amount ?? 0) > 0
+            ? cartShipping!.formatted
+            : 'Calculated at checkout');
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),

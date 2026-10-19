@@ -20,6 +20,15 @@ class ExperienceApi {
   final FlutterSecureStorage _secureStorage;
   static const _sessionTokenKey = 'pilot_session_token_v1';
   static const _sessionExpiryKey = 'pilot_session_expiry_v1';
+  static const _sessionEmailKey = 'pilot_session_email_v1';
+
+  /// Email of the authenticated pilot, when known.
+  ///
+  /// Checkout must submit this identity: the BFF rejects a checkout email that
+  /// does not match the session. The demo profile email is not the identity.
+  String? _sessionEmail;
+
+  String? get sessionEmail => _sessionEmail;
 
   Future<Map<String, dynamic>> requestOtp(String identifier) async {
     final res = await _dio.post<Map<String, dynamic>>(
@@ -45,6 +54,15 @@ class ExperienceApi {
         key: _sessionExpiryKey,
         value: expiry.toIso8601String(),
       );
+      final user = res.data?['user'];
+      final email =
+          user is Map<String, dynamic> ? user['email'] as String? : null;
+      _sessionEmail = email;
+      if (email != null && email.isNotEmpty) {
+        await _secureStorage.write(key: _sessionEmailKey, value: email);
+      } else {
+        await _secureStorage.delete(key: _sessionEmailKey);
+      }
     }
     return res.data!;
   }
@@ -72,13 +90,16 @@ class ExperienceApi {
       return false;
     }
     _dio.options.headers['Authorization'] = 'Bearer $token';
+    _sessionEmail = await _secureStorage.read(key: _sessionEmailKey);
     return true;
   }
 
   Future<void> clearSession() async {
     _dio.options.headers.remove('Authorization');
+    _sessionEmail = null;
     await _secureStorage.delete(key: _sessionTokenKey);
     await _secureStorage.delete(key: _sessionExpiryKey);
+    await _secureStorage.delete(key: _sessionEmailKey);
   }
 
   /// Backend storefront presentation: hero/campaign banners and root category
