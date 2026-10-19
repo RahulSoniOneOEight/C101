@@ -77,6 +77,21 @@ implementation:
   requested_at_utc: '2026-10-20'
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
-  status: in-progress
-status: approved-in-progress
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-066/b2c-discovery-fulfilment-tracking.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 236-pass
+    chrome_390x844: pass
+    chrome_360x800: pass
+    authenticated_checkout_identity: pass
+    pickup_gate: pass
+    console_errors: none
+    http_errors: none
+    horizontal_overflow: none
+    order_submitted: false
+  deployment:
+    build_id: 8d5d5a0
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
