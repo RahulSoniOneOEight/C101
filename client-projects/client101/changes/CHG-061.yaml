@@ -49,5 +49,10 @@ implementation:
   verification:
     flutter_analyze: pass
     flutter_tests: 209-pass
-status: implemented-awaiting-staging-deployment
+  deployment:
+    app_build: 711e5e3
+    app_resolution: title-fallback-active
+    experience_api: pending-container-release
+    blocker: deploy-host-ssh-access
+status: deployed-to-staging-app-side-api-release-pending
 production_release_authorized: false

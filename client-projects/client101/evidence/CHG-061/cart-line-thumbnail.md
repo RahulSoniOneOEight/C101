@@ -44,7 +44,13 @@ Tests: `apps/prototype_app/test/cart_line_image_test.dart`.
 
 ## Deployment
 
-Needs both the Experience API container and the Firebase Hosting build. Until
-then the deployed cart still shows the placeholder.
+App build `711e5e3` is deployed. The cart resolves the image by line thumbnail,
+product id, variant id, then exact product title, so the deployed app already
+recovers the catalogue thumbnail from the existing `product_title` field.
+
+The **Experience API container is still the previous release**, so the
+`thumbnail`, `product_id` and `variant_id` fields are not yet returned. The
+title fallback covers that gap; the direct id path activates with the API
+release. Blocked on deploy-host access.
 
 Staging only; production release remains unauthorized.

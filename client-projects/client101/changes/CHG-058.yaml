@@ -48,5 +48,6 @@ implementation:
   verification:
     flutter_analyze: pass
     flutter_tests: 209-pass
-status: implemented-awaiting-staging-deployment
+    build_id: 711e5e3
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

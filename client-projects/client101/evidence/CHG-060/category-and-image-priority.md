@@ -123,4 +123,20 @@ sorts still take over after this base order.
   only when presentation is unavailable.
 - Both the Experience API and the app must be redeployed for the full effect.
 
+## Deployment
+
+App build `711e5e3` is deployed and carries both the priority order and the
+generated 233-score fixture, so staging shows the requested order now. The
+catalogue is ordered client-side before the browse and trade lists are built.
+
+The **Experience API container is still the previous release**, so:
+
+- `GET /v1/products` does not yet return `image_quality_score`;
+- pagination is not yet globally ordered server-side;
+- `GET /v1/content/presentation` still returns the unprioritised CMS order.
+
+Live payload check: 233 products, all 233 ids present in both generated maps,
+and the two maps are identical. The socket-set image (score 43) no longer leads
+the default order. Blocked on deploy-host access for the canonical server order.
+
 Staging only; production release remains unauthorized.

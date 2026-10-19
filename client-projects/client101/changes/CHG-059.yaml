@@ -52,5 +52,9 @@ implementation:
     experience_api_typecheck: pass
     cart_totals_test: pass
     flutter_tests: 209-pass
-status: implemented-awaiting-staging-deployment
+  deployment:
+    app_build: 711e5e3
+    experience_api: pending-container-release
+    blocker: deploy-host-ssh-access
+status: implemented-blocked-on-api-release
 production_release_authorized: false

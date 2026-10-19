@@ -62,5 +62,11 @@ implementation:
     presentation_test: pass
     flutter_analyze: pass
     flutter_tests: 209-pass
-status: implemented-awaiting-staging-deployment
+    live_products_covered: 233-of-233
+  deployment:
+    app_build: 711e5e3
+    app_order: deployed-client-fallback
+    experience_api: pending-container-release
+    blocker: deploy-host-ssh-access
+status: deployed-to-staging-app-order-visible-api-release-pending
 production_release_authorized: false

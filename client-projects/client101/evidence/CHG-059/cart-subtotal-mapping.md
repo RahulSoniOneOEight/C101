@@ -56,6 +56,12 @@ Tests: `services/experience-api/src/scripts/cart-totals-test.ts`.
 ## Deployment
 
 Requires a new `experience-api` container alongside the next app build.
-Until the API is redeployed, the deployed UI still receives the old mapping.
+
+The app build `711e5e3` is deployed, but the **Experience API container is
+still the previous release**: `GET /v1/products` returns no
+`image_quality_score`, so the checkout subtotal correction is not live yet.
+Blocked on deploy-host access (the available SSH key is passphrase-protected and
+the second key is rejected). No client-side workaround was added, because
+D-059-02 forbids subtracting shipping in the client.
 
 Staging only; production release remains unauthorized.
