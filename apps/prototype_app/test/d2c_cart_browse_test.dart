@@ -78,8 +78,10 @@ void main() {
 
     expect(find.byType(CategoryIconRail), findsOneWidget);
     expect(find.byType(CategoryIconItem), findsWidgets);
-    expect(find.text('Sort: Relevance'), findsOneWidget);
-    expect(find.text('Filter'), findsOneWidget);
+    expect(find.text('Relevance'), findsOneWidget);
+    expect(find.text('Price ↑'), findsOneWidget);
+    expect(find.text('Filters'), findsOneWidget);
+    expect(find.text('Flash Deal'), findsOneWidget);
     // The B2C header exposes the notification centre.
     expect(find.byType(NotificationBell), findsOneWidget);
   });
