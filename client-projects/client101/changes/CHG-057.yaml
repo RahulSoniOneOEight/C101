@@ -1,0 +1,44 @@
+change_id: CHG-057
+revision: 1
+request: >-
+  Fix the B2C home rendering empty Flash Deals / Best Sellers rails after the demo catalogue was
+  archived.
+type: staging-home-empty-section-fallback
+extends:
+- CHG-053
+- CHG-056
+affected_capabilities:
+- marketplace-merchandising
+affected_domains:
+- content
+- commerce
+affected_surfaces:
+- app.prototype.b2c-storefront
+already_present:
+- CMS home layout defines flash_deals, best_sellers and recommended sections.
+- Those sections reference Medusa collections that currently have no products.
+missing:
+- The app rendered a layout section even when its collection resolved zero products.
+conflicts_requiring_a_decision:
+- C-057-01: >-
+    The referenced collections are empty and this staging schema has no product-to-collection link
+    table, so membership cannot be populated directly.
+decisions_approved:
+- D-057-01: Skip a layout section that resolves zero products. When every section is empty, fall back
+    to the governed catalogue default modules (Flash Deals / Best Sellers / Recommended) built from
+    the live catalogue.
+- D-057-02: Do not invent collection membership; collections remain empty until a supported membership
+    path exists.
+required_tests:
+- The home renders product cards in Flash Deals / Best Sellers when sections resolve empty.
+- A non-empty section still renders its configured products.
+constraints:
+- Staging only; production release remains unauthorized.
+- No change to catalogue, prices or promotions.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  status: in-progress
+status: proposed-awaiting-implementation
+production_release_authorized: false

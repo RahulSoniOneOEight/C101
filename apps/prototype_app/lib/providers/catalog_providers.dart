@@ -572,7 +572,11 @@ final homeModulesProvider =
   final layoutModules = <MerchandisingModule>[];
   for (final section in sections) {
     final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
-    if (sectionProducts == null) continue; // still resolving; do not render an empty rail
+    // Still resolving, or the referenced collection has no products. A section
+    // that resolves nothing must not render a header over a blank rail; when all
+    // sections are empty the home falls through to the governed catalogue
+    // defaults below.
+    if (sectionProducts == null || sectionProducts.isEmpty) continue;
 
     // A section may carry a banner managed under Merchandising → Banners. It renders above the rail so
     // the creative and the products it introduces stay together.
