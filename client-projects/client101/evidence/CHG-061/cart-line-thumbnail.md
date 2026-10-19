@@ -38,7 +38,7 @@ App (`apps/prototype_app/lib/domain/models.dart`):
 | Legacy title fallback resolves | pass |
 | No match returns null (placeholder) | covered by resolver contract |
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 203 pass |
+| `flutter test --exclude-tags golden` | 209 pass |
 
 Tests: `apps/prototype_app/test/cart_line_image_test.dart`.
 

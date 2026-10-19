@@ -5,6 +5,7 @@
 /// than throwing during deserialization.
 library;
 
+import 'image_quality_scores.generated.dart';
 import 'review_catalogue.dart';
 
 /// A monetary amount expressed in a currency's minor unit (e.g. paise for INR,
@@ -124,6 +125,7 @@ class Product {
     this.categoryId,
     this.categoryLabel,
     this.catalogueImport,
+    this.imageQualityScore,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -279,6 +281,7 @@ class Product {
       categoryLabel: metadata?['category_l1'] as String? ??
           leafCategory?['name'] as String?,
       catalogueImport: metadata?['catalogue_import'] as String?,
+      imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
     );
   }
 
@@ -311,6 +314,7 @@ class Product {
         categoryId: categoryId,
         categoryLabel: categoryLabel,
         catalogueImport: catalogueImport,
+        imageQualityScore: imageQualityScore,
       );
 
   /// Original / compare-at price (struck through on the card).
@@ -334,6 +338,19 @@ class Product {
 
   /// Staging import marker (`CHG-049` for the 500-SKU source catalogue).
   final String? catalogueImport;
+
+  /// Display-fitness score supplied by the Experience API (CHG-060), when the
+  /// deployed API is new enough to compose it.
+  final int? imageQualityScore;
+
+  /// Score used for default listing order.
+  ///
+  /// The API value wins. The shared CHG-060 fixture is the fallback for
+  /// responses composed before the API carried the field, so the order does not
+  /// silently regress while an API release is pending. Unknown products score 0
+  /// and keep their source order.
+  int get displayImageScore =>
+      imageQualityScore ?? chg049ImageQualityScores[id] ?? 0;
 
   /// Number of SKUs represented by this one product card (never below 1).
   int get variantCount => variants.isEmpty ? 1 : variants.length;
@@ -418,6 +435,7 @@ class Product {
         'category_id': categoryId,
         'category_label': categoryLabel,
         'catalogue_import': catalogueImport,
+        'image_quality_score': imageQualityScore,
         'variants': <Map<String, dynamic>>[
           for (final variant in variants)
             <String, dynamic>{
@@ -465,6 +483,7 @@ class Product {
         categoryId: json['category_id'] as String?,
         categoryLabel: json['category_label'] as String?,
         catalogueImport: json['catalogue_import'] as String?,
+        imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
         variants: (json['variants'] as List<dynamic>? ?? const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .map((v) {

@@ -5,6 +5,7 @@ import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/merchandising.dart';
+import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
 import '../domain/presentation.dart';
 import '../domain/review_catalogue.dart';
@@ -15,7 +16,9 @@ import '../domain/review_catalogue.dart';
 final storefrontPresentationProvider =
     FutureProvider<StorefrontPresentation>((ref) async {
   try {
-    return await ref.watch(experienceApiProvider).getPresentation();
+    final presentation =
+        await ref.watch(experienceApiProvider).getPresentation();
+    return presentation.withStorefrontCategoryPriority();
   } catch (_) {
     return const StorefrontPresentation(
       banners: fallbackBanners,
@@ -197,17 +200,40 @@ const List<HomeCategoryFilter> homeCategoryFilters = <HomeCategoryFilter>[
   ),
   HomeCategoryFilter(
     label: 'Building & Construction',
-    keywords: <String>['cement', 'putty', 'steel', 'sand', 'brick', 'drill', 'grinder'],
+    keywords: <String>[
+      'cement',
+      'putty',
+      'steel',
+      'sand',
+      'brick',
+      'drill',
+      'grinder'
+    ],
   ),
   // The taxonomy added on 2026-10-19. Keywords stay a heuristic: the composed product payload
   // still carries no category ids, so these must be maintained alongside Category presentation.
   HomeCategoryFilter(
     label: 'Tools & Hardware',
-    keywords: <String>['drill', 'saw', 'tool', 'hammer', 'wrench', 'screwdriver', 'fastener'],
+    keywords: <String>[
+      'drill',
+      'saw',
+      'tool',
+      'hammer',
+      'wrench',
+      'screwdriver',
+      'fastener'
+    ],
   ),
   HomeCategoryFilter(
     label: 'Paints & Finishes',
-    keywords: <String>['paint', 'primer', 'enamel', 'varnish', 'putty', 'finish'],
+    keywords: <String>[
+      'paint',
+      'primer',
+      'enamel',
+      'varnish',
+      'putty',
+      'finish'
+    ],
   ),
   HomeCategoryFilter(
     label: 'Automotive & Tyres',
@@ -277,11 +303,12 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
     if (products.isEmpty) {
       products = await api.getAllComposedProducts();
     }
+    products = orderProductsByDisplayImage(products);
     await store.writeCatalog(products);
     return products;
   } catch (_) {
     final cached = store.readCatalog();
-    if (cached.isNotEmpty) return cached;
+    if (cached.isNotEmpty) return orderProductsByDisplayImage(cached);
     // Dev-only: serve the seeded demo catalog for UI review. In release builds
     // this falls through to rethrow so users see the clean retry state.
     if (AppConfig.useMockData) return demoProducts;
@@ -305,15 +332,13 @@ final productProvider =
 /// Real seller offers for a product, fetched from the shared Experience API
 /// (Medusa product + Mercur offers + best-price selection). This is the
 /// canonical offer list — it is never manufactured locally.
-final composedProductOffersProvider =
-    FutureProvider.autoDispose.family<List<ProductSeller>, String>(
-        (ref, productId) async {
+final composedProductOffersProvider = FutureProvider.autoDispose
+    .family<List<ProductSeller>, String>((ref, productId) async {
   final data = await ref.watch(experienceApiProvider).getProduct(productId);
   final offers = (data['offers'] as List<dynamic>? ?? const <dynamic>[])
       .whereType<Map<String, dynamic>>()
       .toList();
-  final selectedId =
-      (data['commercial']?['selected_seller']?['id']) as String?;
+  final selectedId = (data['commercial']?['selected_seller']?['id']) as String?;
   return offers.map((o) {
     final unit = (o['unit_amount_minor'] as num?)?.toInt() ?? 0;
     final list = (o['list_amount_minor'] as num?)?.toInt();
@@ -420,7 +445,8 @@ const Map<String, String> _categoryBannerImages = <String, String>{
 
 /// Banner image for a home/Browse category. Prefers the backend presentation
 /// for the category, then the reviewed static map, then a generic trade shot.
-final categoryBannerImageProvider = Provider.family<String, String?>((ref, label) {
+final categoryBannerImageProvider =
+    Provider.family<String, String?>((ref, label) {
   final match = ref.watch(presentationProvider).categoryByLabel(label);
   return match?.bannerImageUrl ??
       _categoryBannerImages[label] ??
@@ -432,9 +458,12 @@ final categoryBannerImageProvider = Provider.family<String, String?>((ref, label
 /// The B2B surfaces previously fell back to a hard-coded per-category image map. They now read the
 /// same CMS content the B2C surfaces read, which is the only way a B2B category banner authored in
 /// the console can actually appear.
-final b2bPresentationProvider = FutureProvider<StorefrontPresentation>((ref) async {
+final b2bPresentationProvider =
+    FutureProvider<StorefrontPresentation>((ref) async {
   try {
-    return await ref.watch(experienceApiProvider).getPresentation(channel: 'b2b');
+    final presentation =
+        await ref.watch(experienceApiProvider).getPresentation(channel: 'b2b');
+    return presentation.withStorefrontCategoryPriority();
   } catch (_) {
     return const StorefrontPresentation(
       banners: <StorefrontBanner>[],
@@ -448,8 +477,13 @@ final b2bPresentationProvider = FutureProvider<StorefrontPresentation>((ref) asy
 /// Returning null is deliberate: the caller renders the shared governed placeholder rather than an
 /// invented per-category image, so an operator can tell the difference between "authored" and
 /// "not authored".
-final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, label) {
-  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageUrl;
+final b2bCategoryBannerImageProvider =
+    Provider.family<String?, String?>((ref, label) {
+  return ref
+      .watch(b2bPresentationProvider)
+      .value
+      ?.categoryByLabel(label)
+      ?.bannerImageUrl;
 });
 
 /// Same banner, resolved by commerce category id.
@@ -458,17 +492,30 @@ final b2bCategoryBannerImageProvider = Provider.family<String?, String?>((ref, l
 /// so a label lookup silently fell back to the placeholder after the rail switched to ids.
 final b2bCategoryBannerImageByIdProvider =
     Provider.family<String?, String?>((ref, id) {
-  return ref.watch(b2bPresentationProvider).value?.categoryById(id)?.bannerImageUrl;
+  return ref
+      .watch(b2bPresentationProvider)
+      .value
+      ?.categoryById(id)
+      ?.bannerImageUrl;
 });
 
 /// CMS alternative text for the B2B category banner, or null when none is authored.
-final b2bCategoryBannerAltProvider = Provider.family<String?, String?>((ref, label) {
-  return ref.watch(b2bPresentationProvider).value?.categoryByLabel(label)?.bannerImageAlt;
+final b2bCategoryBannerAltProvider =
+    Provider.family<String?, String?>((ref, label) {
+  return ref
+      .watch(b2bPresentationProvider)
+      .value
+      ?.categoryByLabel(label)
+      ?.bannerImageAlt;
 });
 
 final b2bCategoryBannerAltByIdProvider =
     Provider.family<String?, String?>((ref, id) {
-  return ref.watch(b2bPresentationProvider).value?.categoryById(id)?.bannerImageAlt;
+  return ref
+      .watch(b2bPresentationProvider)
+      .value
+      ?.categoryById(id)
+      ?.bannerImageAlt;
 });
 
 /// Storefront layout sections for the B2C storefront, delivered by the backend.
@@ -478,7 +525,9 @@ final b2bCategoryBannerAltByIdProvider =
 final layoutSectionsProvider =
     FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
   try {
-    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2c');
+    return await ref
+        .watch(experienceApiProvider)
+        .getLayoutSections(channel: 'b2c');
   } catch (_) {
     return const <StorefrontSection>[];
   }
@@ -491,7 +540,9 @@ final layoutSectionsProvider =
 final b2bLayoutSectionsProvider =
     FutureProvider.autoDispose<List<StorefrontSection>>((ref) async {
   try {
-    return await ref.watch(experienceApiProvider).getLayoutSections(channel: 'b2b');
+    return await ref
+        .watch(experienceApiProvider)
+        .getLayoutSections(channel: 'b2b');
   } catch (_) {
     return const <StorefrontSection>[];
   }
@@ -500,7 +551,8 @@ final b2bLayoutSectionsProvider =
 /// Hero rotation interval for a channel, authored per layout in the console.
 ///
 /// 0 (the default) keeps the carousel still, so an unset or failed read never introduces motion.
-final heroRotationMsProvider = FutureProvider.family<int, String>((ref, channel) async {
+final heroRotationMsProvider =
+    FutureProvider.family<int, String>((ref, channel) async {
   try {
     return await ref
         .watch(experienceApiProvider)
@@ -514,13 +566,15 @@ final heroRotationMsProvider = FutureProvider.family<int, String>((ref, channel)
 ///
 /// The section stores a reference; commerce resolves membership, so adding a product to the collection
 /// changes this rail with no editorial action.
-final sectionProductsProvider =
-    FutureProvider.family.autoDispose<List<Product>, StorefrontSection>((ref, section) async {
+final sectionProductsProvider = FutureProvider.family
+    .autoDispose<List<Product>, StorefrontSection>((ref, section) async {
   final collectionId = section.collectionKey;
   if (collectionId == null || collectionId.isEmpty) return const <Product>[];
   try {
     return await ref.watch(experienceApiProvider).getComposedProducts(
-          limit: (section.limit != null && section.limit! > 0) ? section.limit! : 12,
+          limit: (section.limit != null && section.limit! > 0)
+              ? section.limit!
+              : 12,
           collectionId: collectionId,
         );
   } catch (_) {
@@ -541,25 +595,26 @@ final homeModulesProvider =
   // The campaign strip is banner presentation, not a section, so it keeps its own source. Unlike the
   // catalogue fallback, it is intentionally absent when no published CMS banner exists: operators
   // must never see an unmanageable promotional banner appear from app seed code.
-  final campaignStrip =
-      ref.watch(presentationProvider).bannersFor('home.campaign-strip').firstOrNull;
+  final campaignStrip = ref
+      .watch(presentationProvider)
+      .bannersFor('home.campaign-strip')
+      .firstOrNull;
   final stripImageUrl = campaignStrip?.imageUrl;
-  final stripModule = campaignStrip != null &&
-          stripImageUrl != null &&
-          stripImageUrl.isNotEmpty
-      ? MerchandisingModule(
-          type: MerchandisingModuleType.secondaryBanner,
-          banner: MerchandisingBannerData(
-            imageUrl: stripImageUrl,
-            imageAlt: campaignStrip.imageAlt,
-            title: campaignStrip.title,
-            // No invented copy. If the banner has no body, the strip renders without a claim.
-            subtitle: campaignStrip.body,
-            ctaLabel: campaignStrip.actionLabel,
-            actionUri: campaignStrip.actionUri,
-          ),
-        )
-      : null;
+  final stripModule =
+      campaignStrip != null && stripImageUrl != null && stripImageUrl.isNotEmpty
+          ? MerchandisingModule(
+              type: MerchandisingModuleType.secondaryBanner,
+              banner: MerchandisingBannerData(
+                imageUrl: stripImageUrl,
+                imageAlt: campaignStrip.imageAlt,
+                title: campaignStrip.title,
+                // No invented copy. If the banner has no body, the strip renders without a claim.
+                subtitle: campaignStrip.body,
+                ctaLabel: campaignStrip.actionLabel,
+                actionUri: campaignStrip.actionUri,
+              ),
+            )
+          : null;
 
   // --- layout-driven ------------------------------------------------------------
   final sections =
@@ -582,7 +637,8 @@ final homeModulesProvider =
     // the creative and the products it introduces stay together.
     final bannerKey = section.bannerReference;
     if (bannerKey != null && bannerKey.isNotEmpty) {
-      final banner = banners.where((b) => b.contentKey == bannerKey).firstOrNull;
+      final banner =
+          banners.where((b) => b.contentKey == bannerKey).firstOrNull;
       final imageUrl = banner?.imageUrl;
       if (banner != null && imageUrl != null && imageUrl.isNotEmpty) {
         layoutModules.add(MerchandisingModule(
@@ -615,10 +671,10 @@ final homeModulesProvider =
       case 'recommended':
         // The split tile occupies the sixth cell, so an even product count would leave a dangling
         // cell on the last row. One product is held back to keep the composition rectangular.
-        final compositionProducts = splitSlot != null &&
-                sectionProducts.length.isEven
-            ? sectionProducts.take(sectionProducts.length - 1).toList()
-            : sectionProducts;
+        final compositionProducts =
+            splitSlot != null && sectionProducts.length.isEven
+                ? sectionProducts.take(sectionProducts.length - 1).toList()
+                : sectionProducts;
         layoutModules.add(MerchandisingModule(
           type: MerchandisingModuleType.productComposition,
           title: section.displayTitle,

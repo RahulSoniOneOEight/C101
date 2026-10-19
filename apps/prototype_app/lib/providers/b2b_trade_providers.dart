@@ -5,6 +5,7 @@ import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
 import '../domain/presentation.dart';
 import 'catalog_providers.dart';
@@ -768,7 +769,7 @@ final tradeCatalogueLiveProvider =
     products = await api.getAllComposedProducts(channel: 'b2b');
   }
   return <TradeProduct>[
-    for (final product in products)
+    for (final product in orderProductsByDisplayImage(products))
       tradeProductFromCatalogue(
         product,
         categoryId: categoryIdByLabel[

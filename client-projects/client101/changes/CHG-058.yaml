@@ -47,6 +47,6 @@ implementation:
   evidence: client-projects/client101/evidence/CHG-058/deep-link-preservation.md
   verification:
     flutter_analyze: pass
-    flutter_tests: 203-pass
+    flutter_tests: 209-pass
 status: implemented-awaiting-staging-deployment
 production_release_authorized: false

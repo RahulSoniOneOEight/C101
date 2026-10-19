@@ -49,7 +49,7 @@ corrected mapping until the next refresh.
 | Free shipping | shipping discount shown, item subtotal unchanged |
 | `bun run typecheck` | pass |
 | `bun run test:cart-totals` | pass |
-| `flutter test --exclude-tags golden` | 203 pass |
+| `flutter test --exclude-tags golden` | 209 pass |
 
 Tests: `services/experience-api/src/scripts/cart-totals-test.ts`.
 

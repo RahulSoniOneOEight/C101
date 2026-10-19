@@ -202,6 +202,18 @@ class StorefrontPresentation {
   final List<StorefrontBanner> banners;
   final List<StorefrontCategory> categories;
 
+  /// Returns a copy with the approved category priority applied (CHG-060).
+  ///
+  /// The Experience API owns this order. Applying it here as well means a
+  /// browser holding an app build ahead of an API release still shows the
+  /// governed order, and an already-prioritised list is returned unchanged.
+  StorefrontPresentation withStorefrontCategoryPriority() {
+    return StorefrontPresentation(
+      banners: banners,
+      categories: prioritizeStorefrontCategories(categories),
+    );
+  }
+
   factory StorefrontPresentation.fromJson(Map<String, dynamic> json) {
     return StorefrontPresentation(
       banners: (json['banners'] as List? ?? const <dynamic>[])
@@ -235,6 +247,45 @@ class StorefrontPresentation {
     }
     return null;
   }
+}
+
+/// CHG-060 operator-approved category priority, mirrored from the Experience
+/// API so a client build ahead of an API release keeps the same order.
+const List<String> storefrontCategoryPriority = <String>[
+  'lighting & electrical',
+  'bathroom & plumbing',
+  'paints & finishes',
+];
+
+String _normalizedCategoryName(String value) => value
+    .trim()
+    .toLowerCase()
+    .replaceAll(RegExp(r'\band\b'), '&')
+    .replaceAll(RegExp(r'\s+'), ' ');
+
+/// Moves only the approved priority categories; preserves every other order.
+List<StorefrontCategory> prioritizeStorefrontCategories(
+  List<StorefrontCategory> categories,
+) {
+  final indexed = <({int index, StorefrontCategory category})>[
+    for (var i = 0; i < categories.length; i++)
+      (index: i, category: categories[i]),
+  ];
+  int priority(StorefrontCategory category) {
+    final names = <String>[
+      _normalizedCategoryName(category.name),
+      _normalizedCategoryName(category.label),
+    ];
+    final found = storefrontCategoryPriority
+        .indexWhere((candidate) => names.contains(candidate));
+    return found < 0 ? storefrontCategoryPriority.length : found;
+  }
+
+  indexed.sort((left, right) {
+    final compared = priority(left.category) - priority(right.category);
+    return compared == 0 ? left.index - right.index : compared;
+  });
+  return <StorefrontCategory>[for (final entry in indexed) entry.category];
 }
 
 /// Resolve an allowlisted icon key to a design-system icon. Unknown keys fall

@@ -92,12 +92,29 @@ The 173×135 socket-set image scores 43 and no longer leads the default listing.
 | `bun run test:image-quality-order` | pass |
 | `bun run test:presentation` | pass |
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 203 pass |
+| `flutter test --exclude-tags golden` | 209 pass |
 
 Tests: `image-quality-order-test.ts`, `presentation-test.ts`,
 `session_route_policy_test.dart`, `cart_line_image_test.dart`,
 `b2b_live_catalogue_test.dart`, `b2b_presentation_test.dart`,
 `presentation_test.dart`.
+
+## App-side fallback
+
+The Experience API remains the source of the order, but the app also applies it
+so a client build ahead of an API release cannot show a contradictory order:
+
+- `StorefrontPresentation.withStorefrontCategoryPriority()` applies the same
+  three-name priority when B2C and B2B presentation loads.
+- `Product.displayImageScore` uses the API `image_quality_score`, else the
+  generated fixture in
+  `apps/prototype_app/lib/domain/image_quality_scores.generated.dart`, else 0.
+- `orderProductsByDisplayImage` orders the catalogue (live and cached) before
+  the browse relevance list and the B2B trade catalogue are built.
+
+Both the Dart map and the TypeScript map are generated from
+`image-quality-233.json`, so they cannot drift. Explicit price/rating/discount
+sorts still take over after this base order.
 
 ## Limits
 

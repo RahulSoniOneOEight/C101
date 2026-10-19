@@ -38,7 +38,7 @@ cart and identity guards still run inside the screens, untouched.
 | `/product/:id` preserved | pass |
 | `/b2b/catalogue` preserved | pass |
 | `flutter analyze` | pass |
-| `flutter test --exclude-tags golden` | 203 pass |
+| `flutter test --exclude-tags golden` | 209 pass |
 
 Tests: `apps/prototype_app/test/session_route_policy_test.dart`.
 
