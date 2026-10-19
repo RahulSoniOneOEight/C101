@@ -159,7 +159,9 @@ export class MedusaStoreClient {
 
   async listOffers(productId: string, regionId = this.config.medusaRegionId): Promise<StoreOffer[]> {
     // The `+` prefix adds computed fields (calculated_price, inventory) to the default fields.
-    const fields = "metadata,+calculated_price,+inventory_quantity,+in_stock";
+    // `+` keeps Medusa's default offer fields (id, product_id, variant_id, seller...) and adds the
+    // computed/metadata fields. A bare `metadata` would replace the selection and break grouping.
+    const fields = "+metadata,+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams({
       product_id: productId,
       region_id: regionId,
@@ -177,7 +179,9 @@ export class MedusaStoreClient {
     regionId = this.config.medusaRegionId,
   ): Promise<StoreOffer[]> {
     if (!productIds.length) return [];
-    const fields = "metadata,+calculated_price,+inventory_quantity,+in_stock";
+    // `+` keeps Medusa's default offer fields (id, product_id, variant_id, seller...) and adds the
+    // computed/metadata fields. A bare `metadata` would replace the selection and break grouping.
+    const fields = "+metadata,+calculated_price,+inventory_quantity,+in_stock";
     const params = new URLSearchParams();
     for (const id of productIds) {
       params.append("product_id[]", id);
