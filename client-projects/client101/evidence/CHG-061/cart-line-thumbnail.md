@@ -44,13 +44,12 @@ Tests: `apps/prototype_app/test/cart_line_image_test.dart`.
 
 ## Deployment
 
-App build `711e5e3` is deployed. The cart resolves the image by line thumbnail,
-product id, variant id, then exact product title, so the deployed app already
-recovers the catalogue thumbnail from the existing `product_title` field.
+App build `711e5e3`; `experience-api` from `608ae93`, container recreated, proxy
+restarted.
 
-The **Experience API container is still the previous release**, so the
-`thumbnail`, `product_id` and `variant_id` fields are not yet returned. The
-title fallback covers that gap; the direct id path activates with the API
-release. Blocked on deploy-host access.
+Live cart response now carries `thumbnail` and `product_id` on the line
+(`https://ops-staging.pinakaplay.cloud/static/jaquar-frosted-glass-wall-lamp.png`),
+so the direct id path is active and the title fallback is only a legacy guard.
+See `evidence/CHG-059/live-cart-verification.md`.
 
 Staging only; production release remains unauthorized.

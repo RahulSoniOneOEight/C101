@@ -44,12 +44,12 @@ Tests: `apps/prototype_app/test/session_route_policy_test.dart`.
 
 ## Deployment
 
-The policy is client-side, so it ships with the next Firebase Hosting build.
-The Experience API needs no change for this item.
-
 Released in the web app build `711e5e3` (`STAGING · 711e5e3`). Full-page
 refreshes of `/browse`, `/checkout` and `/b2b/catalogue` now keep the requested
 route for a restored session; onboarding/login still hand off to the role
 landing page.
+
+Human confirmation of the signed-in refresh case remains pending, because the
+policy is verified by unit tests rather than a browser-driven sign-in.
 
 Staging only; production release remains unauthorized.

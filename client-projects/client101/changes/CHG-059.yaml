@@ -54,7 +54,15 @@ implementation:
     flutter_tests: 209-pass
   deployment:
     app_build: 711e5e3
-    experience_api: pending-container-release
-    blocker: deploy-host-ssh-access
-status: implemented-blocked-on-api-release
+    experience_api_commit: 608ae93
+    experience_api_container: recreated-2026-10-19
+    proxy_restarted: true
+    live_verification: client-projects/client101/evidence/CHG-059/live-cart-verification.md
+    verified:
+      item_subtotal_rs: 3015.00
+      shipping_rs: 99.00
+      total_rs: 3114.00
+      promotion_applied: ORDER5
+      order_completed: false
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

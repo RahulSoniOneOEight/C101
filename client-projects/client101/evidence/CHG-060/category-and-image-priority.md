@@ -125,18 +125,20 @@ sorts still take over after this base order.
 
 ## Deployment
 
-App build `711e5e3` is deployed and carries both the priority order and the
-generated 233-score fixture, so staging shows the requested order now. The
-catalogue is ordered client-side before the browse and trade lists are built.
+Released: app `711e5e3`; `experience-api` from `608ae93`, container recreated,
+proxy restarted.
 
-The **Experience API container is still the previous release**, so:
+Live checks:
 
-- `GET /v1/products` does not yet return `image_quality_score`;
-- pagination is not yet globally ordered server-side;
-- `GET /v1/content/presentation` still returns the unprioritised CMS order.
+- `GET /v1/products?...&catalogue_import=CHG-049` returns
+  `image_quality_score` on every item and is ordered 97, 94, 94, 93…
+  (Action Tesa HDHMR Board first; the socket set at 43 is no longer first).
+- `GET /v1/content/presentation` for **both** `b2c` and `b2b` starts with
+  Lighting & Electrical → Bathroom & Plumbing → Paints & Finishes.
+- All 233 live ids are present in both generated score maps, and the Dart and
+  TypeScript maps are identical.
 
-Live payload check: 233 products, all 233 ids present in both generated maps,
-and the two maps are identical. The socket-set image (score 43) no longer leads
-the default order. Blocked on deploy-host access for the canonical server order.
+The client fallback remains as a guard for a future app-ahead-of-API window; the
+API order is now authoritative.
 
 Staging only; production release remains unauthorized.

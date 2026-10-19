@@ -51,8 +51,10 @@ implementation:
     flutter_tests: 209-pass
   deployment:
     app_build: 711e5e3
-    app_resolution: title-fallback-active
-    experience_api: pending-container-release
-    blocker: deploy-host-ssh-access
-status: deployed-to-staging-app-side-api-release-pending
+    experience_api_commit: 608ae93
+    experience_api_container: recreated-2026-10-19
+    verified:
+      cart_line_thumbnail: https://ops-staging.pinakaplay.cloud/static/jaquar-frosted-glass-wall-lamp.png
+      cart_line_product_id_present: true
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

@@ -65,8 +65,13 @@ implementation:
     live_products_covered: 233-of-233
   deployment:
     app_build: 711e5e3
-    app_order: deployed-client-fallback
-    experience_api: pending-container-release
-    blocker: deploy-host-ssh-access
-status: deployed-to-staging-app-order-visible-api-release-pending
+    experience_api_commit: 608ae93
+    experience_api_container: recreated-2026-10-19
+    proxy_restarted: true
+    verified:
+      api_image_quality_score: live
+      api_order_top_score: 97
+      b2c_category_order: Lighting & Electrical, Bathroom & Plumbing, Paints & Finishes
+      b2b_category_order: Lighting & Electrical, Bathroom & Plumbing, Paints & Finishes
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
