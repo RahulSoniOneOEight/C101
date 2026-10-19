@@ -2,9 +2,9 @@
 
 ## Result
 
-**Conditional pass.** Normal in-app mobile journeys are usable and visually stable. One P1 routing
-defect remains before mobile-web acceptance: an authenticated deep-link refresh is replaced by the
-Home route.
+**Conditional pass.** Normal in-app mobile journeys are usable and visually stable. Two P1 defects
+remain before mobile-web acceptance: authenticated deep links are replaced by Home, and checkout
+labels the shipping-inclusive amount as Subtotal.
 
 This is AI-generated staging evidence and requires human review. No production authorization is
 implied.
@@ -34,7 +34,7 @@ implied.
 | B2C product detail | Pass | Variant, SKU, seller, selling/list prices and 16% discount render. |
 | Cart | Pass with observation | Quantity/remove, promo entry, totals and checkout CTA fit; line thumbnail is a placeholder. |
 | Address-first checkout | Pass | Default address, Change/Edit and signed-in contact are visible. |
-| Shipping totals | Pass | Standard Shipping changes the total from ₹3,990 to ₹4,089 (₹99 shipping). |
+| Shipping selection | Fail (P1) | Total correctly becomes ₹4,089 with ₹99 shipping, but Subtotal incorrectly also becomes ₹4,089. |
 | Checkout submit surface | Pass | Place order is present; no QC order was submitted. |
 | B2B Home | Pass | Trade header, hero, quick-order and buy-again states render. |
 | B2B carousel | Pass | Hero changed from Big Savings to Free Delivery after ~5.7 s. |
@@ -81,7 +81,45 @@ whether the router already holds a meaningful requested route.
 See `client-projects/client101/changes/CHG-058.yaml`. Preserve valid requested routes and select a
 role landing page only from an entry route such as onboarding/login/OTP.
 
-## Finding 2 — P2: cart line thumbnail fallback
+## Finding 2 — P1: shipping is included in the displayed Subtotal
+
+### Reproduction
+
+1. Add the ₹3,990 socket set to the cart.
+2. Open Checkout.
+3. Select Standard Shipping (₹99).
+
+### Actual
+
+| Row | Displayed |
+|---|---:|
+| Subtotal | ₹4,089 |
+| Shipping | ₹99 |
+| Total | ₹4,089 |
+
+The total is correct, but the labelled rows imply ₹4,089 + ₹99 and therefore do not reconcile.
+
+### Expected
+
+| Row | Expected |
+|---|---:|
+| Subtotal | ₹3,990 |
+| Shipping | ₹99 |
+| Total | ₹4,089 |
+
+### Cause
+
+`composeCartView` in `services/experience-api/src/index.ts` forwards Medusa `cart.subtotal` as the
+storefront subtotal. After shipping is attached, that engine subtotal includes shipping. The
+`StoreCart` contract does not currently expose an item-only subtotal for the UI.
+
+### Proposed correction
+
+See `client-projects/client101/changes/CHG-059.yaml`. Map an authoritative engine item subtotal into
+the stable cart view and keep shipping and total separate. Do not repair this with invented client
+arithmetic.
+
+## Finding 3 — P2: cart line thumbnail fallback
 
 The cart line for the tested socket set displayed the generic image placeholder although the same
 product has a valid catalogue thumbnail on Home, Browse and PDP. This does not block checkout but
@@ -90,6 +128,6 @@ onto the cart line when the cart payload omits its thumbnail.
 
 ## Acceptance recommendation
 
-- **In-app mobile journey:** pass for human visual review.
-- **Direct-link / refresh behavior:** do not accept until CHG-058 is approved and verified.
+- **General in-app mobile journey:** pass for human visual review.
+- **Mobile-web acceptance:** do not accept until CHG-058 and CHG-059 are approved and verified.
 - **Production:** remains unauthorized.

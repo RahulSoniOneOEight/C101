@@ -1,0 +1,50 @@
+change_id: CHG-059
+revision: 1
+request: >-
+  Keep the checkout product subtotal separate from shipping so the displayed arithmetic remains
+  internally consistent after a delivery method is selected.
+type: checkout-item-subtotal-mapping
+extends:
+- CHG-055
+- CHG-058
+affected_capabilities:
+- checkout
+affected_domains:
+- commerce
+- finance
+affected_surfaces:
+- app.prototype.b2c-storefront
+already_present:
+- The engine returns the correct ₹4,089 total for a ₹3,990 item plus ₹99 Standard Shipping.
+- The selected shipping row correctly displays ₹99.
+missing:
+- The checkout Subtotal row remains the product/item subtotal after shipping is attached.
+conflicts_requiring_a_decision:
+- C-059-01: >-
+    The stable cart view currently exposes Medusa `cart.subtotal` as the storefront subtotal. Once
+    shipping is attached that engine field includes shipping, so the UI displays ₹4,089 Subtotal +
+    ₹99 Shipping = ₹4,089 Total.
+decisions_proposed:
+- D-059-01: >-
+    Extend the StoreCart contract with the engine item-subtotal field and map the storefront
+    `subtotal` to that item-only amount; retain shipping_total and total as separate authoritative
+    fields.
+- D-059-02: >-
+    If the engine item-subtotal field is absent, use a documented sum of line-item subtotals as the
+    fallback rather than subtracting shipping from total in the client.
+required_tests:
+- One ₹3,990 line plus ₹99 shipping displays Subtotal ₹3,990, Shipping ₹99, Total ₹4,089.
+- The same breakdown remains correct with an item promotion.
+- Free-shipping discounts preserve the item subtotal and show the authoritative shipping discount.
+- Cart and checkout continue to use engine amounts without client-side price invention.
+constraints:
+- Staging only; production release remains unauthorized.
+- Money fields remain integer minor units at API boundaries.
+approval_required: true
+implementation:
+  discovered_by: mobile-chrome-qc
+  discovered_at_utc: '2026-10-19'
+  status: not-started
+  evidence: client-projects/client101/evidence/CHG-058/mobile-chrome-qc-2026-10-19.md
+status: proposed-awaiting-human-review
+production_release_authorized: false
