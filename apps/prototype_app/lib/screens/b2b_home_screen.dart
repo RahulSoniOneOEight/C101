@@ -153,7 +153,12 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
             },
           ),
           const SizedBox(height: AgencySpacing.sm),
-          if (products.isEmpty)
+          if (products.isEmpty && catalogue.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AgencySpacing.md),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          else if (products.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
               child: Text(
