@@ -724,28 +724,71 @@ final homeModulesProvider =
   // home rail. Within a rail their products come first, then the remaining
   // catalogue fills the rest, so the modules carry more of the assortment the
   // brief called out without hiding the rest.
-  const priorityCategories = <String>{
+  // Balanced priority: each category takes a turn before any category can take
+  // a second slot, so a large category cannot fill a rail. Tools are
+  // power-tool-first inside their own bucket.
+  const priorityCategories = <String>[
     'lighting & electrical',
     'bathroom & plumbing',
     'paints & finishes',
-  };
-  bool isPriority(Product product) => priorityCategories
-      .contains((product.categoryLabel ?? '').trim().toLowerCase());
+    'tools & hardware',
+  ];
+  bool isPowerTool(Product product) {
+    final title = product.title.toLowerCase();
+    return <String>[
+      'drill',
+      'grinder',
+      'cutter',
+      'saw',
+      'sander',
+      'polisher',
+      'blower',
+      'impact',
+      'rotary',
+      'cordless',
+      'machine',
+    ].any(title.contains);
+  }
+
   List<Product> prioritised(List<Product> pool, int count) {
-    final priority = pool.where(isPriority);
-    final rest = pool.where((product) => !isPriority(product));
-    return <Product>[...priority, ...rest].take(count).toList();
+    final buckets = <String, List<Product>>{
+      for (final label in priorityCategories)
+        label: pool
+            .where((p) => (p.categoryLabel ?? '').trim().toLowerCase() == label)
+            .toList(),
+    };
+    buckets['tools & hardware']!
+        .sort((a, b) => (isPowerTool(b) ? 1 : 0) - (isPowerTool(a) ? 1 : 0));
+    final picked = <Product>[];
+    final seen = <String>{};
+    var round = 0;
+    while (picked.length < count && round < 40) {
+      for (final label in priorityCategories) {
+        final bucket = buckets[label]!;
+        if (round < bucket.length) {
+          final product = bucket[round];
+          if (seen.add(product.id)) picked.add(product);
+        }
+        if (picked.length >= count) break;
+      }
+      round++;
+    }
+    for (final product in pool) {
+      if (picked.length >= count) break;
+      if (seen.add(product.id)) picked.add(product);
+    }
+    return picked;
   }
 
   final flashPool = products.where((p) => inFlashDeals(p.id)).toList();
   final bestPool = products.where((p) => inBestSellers(p.id)).toList();
   final flashDeals =
-      prioritised(flashPool.isNotEmpty ? flashPool : products, 12);
+      prioritised(flashPool.isNotEmpty ? flashPool : products, 16);
   final bestSellers = prioritised(
-      bestPool.isNotEmpty ? bestPool : products.skip(2).toList(), 12);
+      bestPool.isNotEmpty ? bestPool : products.skip(2).toList(), 16);
 
   // Recommended + the special "Recently viewed" split slot.
-  final recommended = prioritised(products, 6);
+  final recommended = prioritised(products, 8);
 
   return <MerchandisingModule>[
     MerchandisingModule(
