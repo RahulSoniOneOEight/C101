@@ -126,10 +126,13 @@ void main() {
   test('settings update language and notification prefs', () async {
     final c = await _container();
     final s = c.read(settingsProvider);
-    await c.read(settingsProvider.notifier).update(
-        s.copyWith(language: AppLanguage.hindi, notificationsEnabled: false));
+    await c.read(settingsProvider.notifier).update(s.copyWith(
+        language: AppLanguage.hindi,
+        notificationsEnabled: false,
+        whatsappOrderUpdates: true));
     expect(c.read(settingsProvider).language, AppLanguage.hindi);
     expect(c.read(settingsProvider).notificationsEnabled, isFalse);
+    expect(c.read(settingsProvider).whatsappOrderUpdates, isTrue);
   });
 
   test('profile saves name, email and mobile', () async {

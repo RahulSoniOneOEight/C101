@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
 import '../widgets/market_comparison.dart';
+import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
@@ -152,8 +153,10 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         const SizedBox(height: AgencySpacing.md),
         if (variants.isNotEmpty) ...<Widget>[
           _variantSection(context, variants, selectedVariant),
-          const SizedBox(height: AgencySpacing.lg),
+          const SizedBox(height: AgencySpacing.md),
         ],
+        const FulfilmentPromiseCard(),
+        const SizedBox(height: AgencySpacing.lg),
         _actions(context, ref, canAdd, selected,
             offerId: effectiveOfferId,
             variantId: effectiveVariantId,

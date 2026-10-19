@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
 import '../domain/order_models.dart';
+import '../domain/storefront_ux.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/orders_providers.dart';
 import '../providers/account_providers.dart';
 import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
+import '../widgets/order_progress_timeline.dart';
 
 AgencyColors _c(BuildContext c) =>
     Theme.of(c).extension<AgencyColors>() ?? AgencyColors.light;
@@ -445,7 +447,14 @@ class SignUpScreen extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({
+    this.initialQuery,
+    this.initialMode = StorefrontSearchMode.catalogue,
+    super.key,
+  });
+
+  final String? initialQuery;
+  final StorefrontSearchMode initialMode;
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -468,6 +477,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   final TextEditingController _controller = TextEditingController();
   String _query = '';
+  late StorefrontSearchMode _mode;
+
+  @override
+  void initState() {
+    super.initState();
+    _mode = widget.initialMode;
+    final initial = widget.initialQuery?.trim() ?? '';
+    if (initial.isNotEmpty) {
+      _controller.text = initial;
+      _query = initial;
+    }
+  }
 
   @override
   void dispose() {
@@ -480,6 +501,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<Product> _match(List<Product> products) {
     final q = _query.trim();
     if (q.isEmpty) return const <Product>[];
+    if (_mode == StorefrontSearchMode.aiDemo) {
+      return demoAiSearch(products, q);
+    }
     // Title, brand, variant label and SKU — the SKU match is what makes the
     // whole grouped catalogue searchable.
     return products.where((p) => p.matchesQuery(q)).toList();
@@ -498,21 +522,128 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         title: PinSearch(
           controller: _controller,
           autofocus: true,
+          hintText: _mode == StorefrontSearchMode.aiDemo
+              ? 'Describe what you need'
+              : 'Search products, brands or SKU',
           onChanged: _submit,
           onSubmitted: _submit,
           onFilterTap: () => context.push('/filter'),
         ),
       ),
-      body: _query.trim().isEmpty
-          ? _idle(context, colors)
-          : results.isEmpty
-              ? _noResults(context, colors, suggestions)
-              : ListView(
-                  padding: const EdgeInsets.all(AgencySpacing.md),
+      body: Column(
+        children: <Widget>[
+          _modeSelector(colors),
+          if (_mode == StorefrontSearchMode.aiDemo) _aiDisclosure(colors),
+          Expanded(
+            child: _query.trim().isEmpty
+                ? _idle(context, colors)
+                : results.isEmpty
+                    ? _noResults(context, colors, suggestions)
+                    : _results(context, colors, results),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeSelector(AgencyColors colors) => Padding(
+        padding: const EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
+            AgencySpacing.md, AgencySpacing.xs),
+        child: SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<StorefrontSearchMode>(
+            segments: const <ButtonSegment<StorefrontSearchMode>>[
+              ButtonSegment<StorefrontSearchMode>(
+                value: StorefrontSearchMode.catalogue,
+                icon: Icon(Icons.search, size: 17),
+                label: Text('Catalogue'),
+              ),
+              ButtonSegment<StorefrontSearchMode>(
+                value: StorefrontSearchMode.aiDemo,
+                icon: Icon(Icons.auto_awesome, size: 17),
+                label: Text('AI demo'),
+              ),
+            ],
+            selected: <StorefrontSearchMode>{_mode},
+            onSelectionChanged: (selection) => setState(() {
+              _mode = selection.first;
+            }),
+          ),
+        ),
+      );
+
+  Widget _aiDisclosure(AgencyColors colors) => Container(
+        key: const ValueKey<String>('ai-search-disclosure'),
+        margin: const EdgeInsets.fromLTRB(
+            AgencySpacing.md, 0, AgencySpacing.md, AgencySpacing.xs),
+        padding: const EdgeInsets.all(AgencySpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surfaceInteractive,
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(Icons.science_outlined, size: 18, color: colors.actionPrimary),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: Text(
+                'Staging demo · Uses reviewed local rules, not external AI. Confirm product suitability before buying.',
+                style: TextStyle(
+                    fontSize: 10, height: 1.35, color: colors.contentSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _results(
+      BuildContext context, AgencyColors colors, List<Product> results) {
+    final interpretation = interpretDemoSearch(_query);
+    return ListView(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      children: <Widget>[
+        if (_mode == StorefrontSearchMode.aiDemo) ...<Widget>[
+          Container(
+            padding: const EdgeInsets.all(AgencySpacing.sm),
+            decoration: BoxDecoration(
+              color: colors.surfaceRaised,
+              borderRadius: BorderRadius.circular(AgencyRadius.md),
+              border: Border.all(color: colors.borderDefault),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('Interpreted as',
+                    style: TextStyle(
+                        fontSize: 10, color: colors.contentSecondary)),
+                Text(interpretation.label,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: colors.contentPrimary)),
+                const SizedBox(height: AgencySpacing.xs),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
                   children: <Widget>[
-                    for (final p in results) _productTile(context, colors, p),
+                    for (final term in interpretation.terms.take(6))
+                      Chip(
+                        visualDensity: VisualDensity.compact,
+                        label: Text(term, style: const TextStyle(fontSize: 9)),
+                      ),
                   ],
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AgencySpacing.sm),
+        ],
+        Text('${results.length} matching products',
+            style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+        const SizedBox(height: AgencySpacing.xs),
+        for (final p in results) _productTile(context, colors, p),
+      ],
     );
   }
 
@@ -520,19 +651,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     return ListView(
       padding: const EdgeInsets.all(AgencySpacing.md),
       children: <Widget>[
-        _sectionTitle(context, 'Recent searches'),
-        for (final term in _recent)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.history, size: 18),
-            title: Text(term,
-                style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
-            trailing: const Icon(Icons.close, size: 16),
-            onTap: () {
-              _controller.text = term;
-              _submit(term);
-            },
-          ),
+        _sectionTitle(
+            context,
+            _mode == StorefrontSearchMode.aiDemo
+                ? 'Try asking for a project'
+                : 'Recent searches'),
+        if (_mode == StorefrontSearchMode.catalogue)
+          for (final term in _recent)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.history, size: 18),
+              title: Text(term,
+                  style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
+              trailing: const Icon(Icons.close, size: 16),
+              onTap: () {
+                _controller.text = term;
+                _submit(term);
+              },
+            )
+        else
+          _chips(context, demoSearchPrompts),
         const SizedBox(height: AgencySpacing.md),
         _sectionTitle(context, 'Popular categories'),
         _chips(context, _popular),
@@ -856,67 +994,89 @@ class TrackPackageScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
-          Text('${order.number}  ·  ${order.stage.label}',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: colors.contentPrimary)),
-          const SizedBox(height: AgencySpacing.lg),
-          for (var i = 0; i < order.timeline.length; i++)
-            _step(
-              context,
-              order.timeline[i].label,
-              order.timeline[i].timeLabel,
-              done: order.timeline[i].done,
-              active: order.timeline[i].active,
-              last: i == order.timeline.length - 1,
+          Container(
+            padding: const EdgeInsets.all(AgencySpacing.md),
+            decoration: BoxDecoration(
+              color: colors.surfaceInteractive,
+              borderRadius: BorderRadius.circular(AgencyRadius.lg),
             ),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.local_shipping_outlined,
+                    size: 28, color: colors.actionPrimary),
+                const SizedBox(width: AgencySpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(order.stage.label,
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: colors.contentPrimary)),
+                      Text('${order.number} · ${order.itemCount} items',
+                          style: TextStyle(
+                              fontSize: 11, color: colors.contentSecondary)),
+                      Text(_nextUpdate(order),
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colors.actionPrimary)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AgencySpacing.lg),
+          Text('Order progress',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.sm),
+          OrderProgressTimeline(events: order.timeline),
+          const Divider(height: AgencySpacing.lg),
+          _whatsappPreference(context, ref),
+          const SizedBox(height: AgencySpacing.md),
+          Text('Delivering to',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: 2),
+          Text(order.addressLabel,
+              style: TextStyle(
+                  fontSize: 11, height: 1.4, color: colors.contentSecondary)),
         ],
       ),
     );
   }
 
-  Widget _step(BuildContext context, String label, String time,
-      {bool done = false, bool active = false, bool last = false}) {
-    final colors = _c(context);
-    final color = active
-        ? colors.actionPrimary
-        : done
-            ? colors.feedbackSuccess
-            : colors.borderStrong;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Column(
-          children: <Widget>[
-            Icon(done ? Icons.check_circle : Icons.circle_outlined,
-                size: 18, color: color),
-            if (!last)
-              Container(
-                  width: 2,
-                  height: 36,
-                  color: active ? colors.actionPrimary : colors.borderStrong),
-          ],
-        ),
-        const SizedBox(width: AgencySpacing.md),
-        Padding(
-          padding: const EdgeInsets.only(bottom: AgencySpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          active || done ? FontWeight.w600 : FontWeight.w400,
-                      color: colors.contentPrimary)),
-              Text(time,
-                  style:
-                      TextStyle(fontSize: 11, color: colors.contentSecondary)),
-            ],
-          ),
-        ),
-      ],
+  String _nextUpdate(CustomerOrder order) {
+    for (final event in order.timeline) {
+      if (event.active) return '${event.label} · ${event.timeLabel}';
+    }
+    return order.stage == OrderStage.delivered
+        ? 'Delivered successfully'
+        : 'Open the app for the latest status';
+  }
+
+  Widget _whatsappPreference(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      secondary: const Icon(Icons.chat_outlined),
+      value: settings.whatsappOrderUpdates,
+      onChanged: (value) => ref
+          .read(settingsProvider.notifier)
+          .update(settings.copyWith(whatsappOrderUpdates: value)),
+      title: const Text('WhatsApp order updates',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      subtitle: const Text(
+        'Staging preference only · no WhatsApp message will be sent',
+        style: TextStyle(fontSize: 10),
+      ),
     );
   }
 }
@@ -970,6 +1130,17 @@ class OrderDetailScreen extends ConsumerWidget {
                   child: const Text('Track'),
                 ),
             ],
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          _section(context, 'Order progress'),
+          OrderProgressTimeline(events: order.timeline, compact: true),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => context.push('/track?order=${order.id}'),
+              icon: const Icon(Icons.route_outlined, size: 17),
+              label: const Text('View full tracking'),
+            ),
           ),
           const SizedBox(height: AgencySpacing.md),
           _section(context, 'Items'),

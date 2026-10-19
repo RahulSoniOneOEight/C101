@@ -7,6 +7,7 @@ import '../domain/account_models.dart';
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../domain/storefront_ux.dart';
 
 /// App-wide [SharedPreferences].
 ///
@@ -31,6 +32,7 @@ class LocalStore {
   static const String _cartKey = 'cart_v1';
   static const String _catalogKey = 'catalog_v1';
   static const String _recentlyViewedKey = 'recently_viewed_v1';
+  static const String _fulfilmentPreferenceKey = 'fulfilment_preference_v1';
 
   List<String> readRecentlyViewed() {
     return _prefs.getStringList(_recentlyViewedKey) ?? const <String>[];
@@ -38,6 +40,23 @@ class LocalStore {
 
   Future<void> writeRecentlyViewed(List<String> ids) async {
     await _prefs.setStringList(_recentlyViewedKey, ids);
+  }
+
+  FulfilmentPreference readFulfilmentPreference() {
+    final raw = _prefs.getString(_fulfilmentPreferenceKey);
+    if (raw == null) return const FulfilmentPreference();
+    try {
+      return FulfilmentPreference.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return const FulfilmentPreference();
+    }
+  }
+
+  Future<void> writeFulfilmentPreference(
+      FulfilmentPreference preference) async {
+    await _prefs.setString(
+        _fulfilmentPreferenceKey, jsonEncode(preference.toJson()));
   }
 
   Cart? readCart() {

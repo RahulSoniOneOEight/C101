@@ -1,0 +1,82 @@
+change_id: CHG-066
+revision: 1
+request: >-
+  Implement the approved L&T-SuFin-inspired B2C experience improvements in staging: assisted product
+  search, category and brand discovery, delivery and pickup visibility, richer merchandising actions,
+  and clearer order tracking with an optional WhatsApp preference. Seller-discovery enhancements are
+  explicitly excluded.
+type: b2c-discovery-fulfilment-and-tracking-ux
+extends:
+- CHG-054
+- CHG-060
+- CHG-064
+- CHG-065
+affected_capabilities:
+- storefront-search
+- storefront-home
+- storefront-browse
+- commerce-checkout
+- customer-orders
+- account-preferences
+affected_domains:
+- experience
+- commerce
+- fulfilment
+affected_surfaces:
+- app.prototype.b2c-storefront
+already_present:
+- Search over grouped product titles, brands, variant labels and all 500 source SKUs.
+- Live category presentation, catalogue-driven brands and operator-authored home modules.
+- Saved addresses, simulated staging serviceability, canonical delivery methods and guarded checkout.
+- Product-card quick add, discounts, See all destinations and a fixture-backed order timeline.
+- Persisted notification settings and an authenticated in-app notification centre.
+missing:
+- Search does not help a consumer translate a use case into catalogue terms.
+- Category and brand discovery are filters, not a dedicated visual exploration journey.
+- PDP does not expose destination-specific delivery availability or a pickup preference.
+- Multi-SKU cards quick-add a default SKU without letting the customer choose.
+- Tracking lacks a summary/ETA and no WhatsApp order-update consent is captured.
+decisions_approved:
+- D-066-01: >-
+    Search has Catalogue and AI demo modes. AI demo is a deterministic, on-device intent expansion
+    over the live catalogue; it makes no external AI call, gives no technical advice and is visibly
+    labelled as a staging demo.
+- D-066-02: >-
+    A B2C discovery hub is generated from the live category presentation and catalogue brands. It
+    may add use-case shortcuts, but it does not create products, categories, brand ownership or
+    collection membership.
+- D-066-03: >-
+    PDP delivery availability and ETA use the existing simulated staging serviceability endpoint and
+    the buyer's selected/default saved address. A pickup-point preference may be persisted locally,
+    but canonical order placement stays gated until a real pickup shipping option exists; the UI must
+    never submit pickup as delivery.
+- D-066-04: >-
+    Existing operator-authored home modules remain authoritative. The app adds a catalogue-derived
+    discovery entry and requires explicit SKU selection before quick-add on a grouped multi-SKU card.
+- D-066-05: >-
+    Order detail and tracking show a single visual progress timeline and ETA summary. WhatsApp order
+    updates are opt-in, persisted as a staging preference, and explicitly state that outbound
+    messaging is not connected.
+constraints:
+- Preserve exactly 233 grouped product cards and 500 source SKUs with existing traceability.
+- Do not alter price, stock, category ownership, seller selection or CMS collection membership.
+- No external AI service, generated commerce claims or live WhatsApp messages.
+- Existing address-first checkout and canonical server order completion remain mandatory.
+- Staging only; production release remains unauthorized.
+required_tests:
+- Catalogue search remains exact and SKU-aware; AI demo exposes its interpretation and deterministic results.
+- Discovery category and brand counts are derived from the loaded catalogue and navigate to filtered Browse.
+- PDP serviceability handles loading, serviceable, invalid and unavailable states without inventing an ETA.
+- Multi-SKU quick add requires a purchasable variant; single-SKU quick add remains one tap.
+- Pickup preference is carried to checkout and blocks order placement with a switch-to-delivery action.
+- Order tracking renders progress and the WhatsApp preference persists with explicit staging copy.
+- Chrome mobile layouts pass at 390x844 and 360x800.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: in-progress
+status: approved-in-progress
+production_release_authorized: false

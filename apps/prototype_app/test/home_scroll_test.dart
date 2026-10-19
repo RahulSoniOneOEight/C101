@@ -162,7 +162,7 @@ void main() {
       final field = tester.widget<Material>(
         find
             .ancestor(
-              of: find.text('Search products, brands, sellers'),
+              of: find.text('Search products or ask what you need'),
               matching: find.byType(Material),
             )
             .first,

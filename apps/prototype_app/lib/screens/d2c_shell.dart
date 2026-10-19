@@ -10,6 +10,7 @@ import '../providers/catalog_providers.dart';
 import '../theme/storefront_control_tokens.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/quick_add_sheet.dart';
 
 /// Host scaffold for the D2C (consumer) section: persistent 4-tab bottom
 /// navigation (Home / Browse / Cart / Account). Orders is reached from Account
@@ -55,7 +56,8 @@ extension on BrowseSort {
 /// Marketplace **Browse** tab: search + category filters + sort/filter
 /// (brand, price, key items) over a long-scrolling product grid.
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({this.initialTag, this.initialCategory, super.key});
+  const BrowseScreen(
+      {this.initialTag, this.initialCategory, this.initialBrand, super.key});
 
   /// Optional collection tag carried from a home module's "See All" or a
   /// banner tap (e.g. "Flash Deals", "Best Sellers", "Clearance Sale").
@@ -63,6 +65,9 @@ class BrowseScreen extends ConsumerStatefulWidget {
 
   /// Optional category label to pre-select.
   final String? initialCategory;
+
+  /// Optional brand from the discovery hub.
+  final String? initialBrand;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
@@ -115,6 +120,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   void initState() {
     super.initState();
     _category = widget.initialCategory;
+    final brand = widget.initialBrand?.trim();
+    if (brand != null && brand.isNotEmpty) _brands.add(brand);
     final tag = widget.initialTag;
     if (tag != null) _keys.addAll(_keysForTag(tag));
   }
@@ -161,8 +168,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       list = list.where((p) => p.matchesQuery(q)).toList();
     }
     if (brands.isNotEmpty) {
-      list =
-          list.where((p) => brands.contains(p.brand?.toUpperCase())).toList();
+      final normalised = brands.map((brand) => brand.toLowerCase()).toSet();
+      list = list
+          .where((p) => normalised.contains((p.brand ?? '').toLowerCase()))
+          .toList();
     }
     if (prices.isNotEmpty) {
       list = list.where((p) {
@@ -308,7 +317,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                   ),
                 ),
                 if (results.isNotEmpty)
-                  SliverToBoxAdapter(child: _recommendedStrip()),
+                  SliverToBoxAdapter(child: _recommendedStrip(results)),
                 if (results.isEmpty)
                   SliverToBoxAdapter(child: _noResults(products))
                 else
@@ -369,7 +378,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       child: TextField(
         controller: _search,
         decoration: InputDecoration(
-          hintText: 'Search products, brands, sellers',
+          hintText: 'Search products, brands or SKU',
           prefixIcon: const Icon(Icons.search),
           isDense: true,
           filled: true,
@@ -420,20 +429,37 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       badges: product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
-      onAddToCart: () async {
-        final messenger = ScaffoldMessenger.of(context);
-        await ref.read(cartProvider.notifier).addItem(
-            offerId: product.cartOfferId,
-            variantId: product.cartVariantId,
-            quantity: 1);
-        if (!mounted) return;
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Added to cart')),
-        );
-      },
+      onAddToCart: () => _quickAdd(product),
       wishlisted: wishlisted,
       onWishlist: () => ref.read(wishlistProvider.notifier).toggle(product.id),
     );
+  }
+
+  Future<void> _quickAdd(Product product) async {
+    final variants = purchasableQuickAddVariants(product);
+    ProductVariant? selected;
+    if (requiresVariantSelection(product)) {
+      selected = await showVariantQuickAddSheet(context, product);
+      if (selected == null || !mounted) return;
+    } else if (variants.length == 1) {
+      selected = variants.single;
+    }
+    await ref.read(cartProvider.notifier).addItem(
+          offerId: selected?.offerId ?? product.cartOfferId,
+          variantId: selected?.id ?? product.cartVariantId,
+          quantity: 1,
+          unitPrice: selected?.price ?? product.price,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(selected == null
+          ? 'Added to cart'
+          : 'Added ${selected.label} to cart'),
+      action: SnackBarAction(
+        label: 'View cart',
+        onPressed: () => context.push('/cart'),
+      ),
+    ));
   }
 
   /// Shown when the filters/search yield nothing: suggested filters + a few
@@ -511,13 +537,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  /// "Recommended for you" horizontal rail inside the Browse scroll. The rail
-  /// follows the selected category (falls back to the full catalogue).
-  Widget _recommendedStrip() {
-    final products = ref.watch(productsProvider).value ?? const <Product>[];
-    final byCategory = filterProductsByHomeCategory(products, _category);
-    final items =
-        (byCategory.isNotEmpty ? byCategory : products).take(8).toList();
+  /// "Recommended for you" horizontal rail inside the Browse scroll. It uses
+  /// the same active category, brand and quick filters as the results grid.
+  Widget _recommendedStrip(List<Product> results) {
+    final items = results.take(8).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -527,7 +550,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               AgencySpacing.md, AgencySpacing.sm),
           child: SectionHeader(
             title: 'Recommended for you',
-            tag: _category,
+            tag: _brands.length == 1 ? _brands.first : _category,
           ),
         ),
         SizedBox(
@@ -554,17 +577,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                   badges: p.badges,
                   variant: ProductCardVariant.compact,
                   onPressed: () => context.push('/product/${p.id}'),
-                  onAddToCart: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: p.cartOfferId,
-                        variantId: p.cartVariantId,
-                        quantity: 1);
-                    if (!mounted) return;
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Added to cart')),
-                    );
-                  },
+                  onAddToCart: () => _quickAdd(p),
                 ),
               );
             },

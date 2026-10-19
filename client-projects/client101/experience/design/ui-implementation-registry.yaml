@@ -811,6 +811,51 @@ components:
   qa:
     flutter: widgetbook+golden
     web: storybook+visual
+- semantic_id: commerce.discovery-hub
+  aliases:
+  - category-brand-discovery
+  - shop-by-project
+  flutter:
+    owned_component: DiscoveryHubScreen
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
+- semantic_id: commerce.variant-quick-add
+  aliases:
+  - sku-picker-sheet
+  flutter:
+    owned_component: VariantQuickAddSheet
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
+- semantic_id: fulfilment.preference-selector
+  aliases:
+  - delivery-pickup-selector
+  flutter:
+    owned_component: FulfilmentPromiseCard
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
+- semantic_id: fulfilment.order-timeline
+  aliases:
+  - order-progress
+  flutter:
+    owned_component: OrderProgressTimeline
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
 specialists:
   icons:
     primary: Phosphor

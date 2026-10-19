@@ -371,27 +371,32 @@ class AppSettings {
     this.language = AppLanguage.english,
     this.notificationsEnabled = true,
     this.promotionalOptIn = true,
+    this.whatsappOrderUpdates = false,
   });
 
   final AppLanguage language;
   final bool notificationsEnabled;
   final bool promotionalOptIn;
+  final bool whatsappOrderUpdates;
 
   AppSettings copyWith({
     AppLanguage? language,
     bool? notificationsEnabled,
     bool? promotionalOptIn,
+    bool? whatsappOrderUpdates,
   }) =>
       AppSettings(
         language: language ?? this.language,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         promotionalOptIn: promotionalOptIn ?? this.promotionalOptIn,
+        whatsappOrderUpdates: whatsappOrderUpdates ?? this.whatsappOrderUpdates,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'language': language.code,
         'notifications': notificationsEnabled,
         'promotional': promotionalOptIn,
+        'whatsapp_order_updates': whatsappOrderUpdates,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
@@ -399,5 +404,6 @@ class AppSettings {
             orElse: () => AppLanguage.english),
         notificationsEnabled: j['notifications'] as bool? ?? true,
         promotionalOptIn: j['promotional'] as bool? ?? true,
+        whatsappOrderUpdates: j['whatsapp_order_updates'] as bool? ?? false,
       );
 }

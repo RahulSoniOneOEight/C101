@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/app_notification.dart';
+import '../domain/storefront_ux.dart';
 import '../screens/account_screen.dart';
 import '../screens/account_screens.dart';
 import '../screens/b2b_home_screen.dart';
@@ -18,6 +19,7 @@ import '../screens/cart_screen.dart';
 import '../screens/checkout_screen.dart';
 import '../screens/collection_screen.dart';
 import '../screens/d2c_shell.dart';
+import '../screens/discovery_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../screens/product_list_screen.dart';
@@ -50,7 +52,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: '/search',
-                builder: (context, state) => const SearchScreen(),
+                builder: (context, state) => SearchScreen(
+                  initialQuery: state.uri.queryParameters['q'],
+                  initialMode: state.uri.queryParameters['mode'] == 'ai'
+                      ? StorefrontSearchMode.aiDemo
+                      : StorefrontSearchMode.catalogue,
+                ),
+              ),
+              GoRoute(
+                path: '/discover',
+                builder: (context, state) => DiscoveryHubScreen(
+                  initialTab: state.uri.queryParameters['tab'] == 'brands'
+                      ? DiscoveryTab.brands
+                      : DiscoveryTab.categories,
+                ),
               ),
               GoRoute(
                 path: '/filter',
@@ -66,6 +81,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => BrowseScreen(
                   initialTag: state.uri.queryParameters['tag'],
                   initialCategory: state.uri.queryParameters['category'],
+                  initialBrand: state.uri.queryParameters['brand'],
                 ),
               ),
             ],

@@ -220,7 +220,7 @@ class _SearchField extends StatelessWidget {
                 const SizedBox(width: AgencySpacing.sm),
                 Expanded(
                   child: Text(
-                    'Search products, brands, sellers',
+                    'Search products or ask what you need',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, color: palette.muted),

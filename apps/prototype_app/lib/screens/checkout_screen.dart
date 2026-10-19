@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../data/experience_api.dart';
 import '../domain/account_models.dart';
 import '../domain/models.dart';
+import '../domain/storefront_ux.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
+import '../providers/storefront_ux_providers.dart';
 import '../widgets/address_form_sheet.dart';
+import '../widgets/fulfilment_promise_card.dart';
 import '../widgets/promotion_panel.dart';
 
 /// B2C checkout: delivery address, contact, delivery method, promo, summary.
@@ -79,7 +82,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     await ref.read(cartProvider.notifier).rehydrate();
 
     final start = ref.read(checkoutStartAddressProvider);
-    if (start != null) {
+    final preference = ref.read(fulfilmentPreferenceProvider);
+    if (start != null && preference.mode == FulfilmentMode.delivery) {
       _selectedAddressId = start.id;
       await _applyAddress(start, saveLast: false);
     }
@@ -129,6 +133,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (saveLast) {
       await ref.read(lastCheckoutAddressProvider.notifier).set(address.id);
     }
+    await ref
+        .read(fulfilmentPreferenceProvider.notifier)
+        .selectDelivery(addressId: address.id);
     await _syncCustomerDetails(address);
     await _loadShippingOptions();
   }
@@ -274,6 +281,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   String? _validate() {
+    if (ref.read(fulfilmentPreferenceProvider).mode == FulfilmentMode.pickup) {
+      return 'Pickup ordering is not connected yet. Switch to delivery to place this order.';
+    }
     final address = _resolveAddress(ref.read(addressesProvider));
     if (address == null) return 'Select a delivery address to continue.';
     if (_emailController.text.trim().isEmpty) {
@@ -356,11 +366,36 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  Future<void> _switchToDelivery() async {
+    final start = ref.read(checkoutStartAddressProvider);
+    await ref
+        .read(fulfilmentPreferenceProvider.notifier)
+        .selectDelivery(addressId: start?.id);
+    if (start != null) {
+      await _applyAddress(start, saveLast: false);
+    } else if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _selectPickup() async {
+    await ref.read(fulfilmentPreferenceProvider.notifier).selectPickup();
+    if (mounted) {
+      setState(() {
+        _inlineError = null;
+        _shippingOptions = const <ShippingOption>[];
+        _selectedShippingBySeller = const <String, ShippingOption>{};
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider).value;
     final addresses = ref.watch(addressesProvider);
     final address = _resolveAddress(addresses);
+    final fulfilment = ref.watch(fulfilmentPreferenceProvider);
+    final isPickup = fulfilment.mode == FulfilmentMode.pickup;
     // Always render the watched cart so a promo applied inside checkout updates
     // the summary immediately; shipping selections also replace this cart.
     final effectiveCart = cart;
@@ -376,64 +411,70 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
-          _addressCard(address),
+          _fulfilmentSelector(fulfilment),
           const SizedBox(height: AgencySpacing.md),
-          _contactCard(address),
-          const SizedBox(height: AgencySpacing.lg),
-          Text('Delivery method', style: AgencyText.title),
-          const SizedBox(height: AgencySpacing.sm),
-          if (address == null)
-            const Text('Select an address first.')
-          else if (_loadingShipping)
-            const LinearProgressIndicator()
-          else if (_shippingError != null)
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    'Delivery options unavailable.',
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error),
+          if (isPickup)
+            _pickupGate()
+          else ...<Widget>[
+            _addressCard(address),
+            const SizedBox(height: AgencySpacing.md),
+            _contactCard(address),
+            const SizedBox(height: AgencySpacing.lg),
+            Text('Delivery method', style: AgencyText.title),
+            const SizedBox(height: AgencySpacing.sm),
+            if (address == null)
+              const Text('Select an address first.')
+            else if (_loadingShipping)
+              const LinearProgressIndicator()
+            else if (_shippingError != null)
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      'Delivery options unavailable.',
+                      style:
+                          TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadShippingOptions,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              )
+            else if (_shippingOptions.isEmpty)
+              const Text('No delivery method is available for this cart.')
+            else
+              for (var sellerIndex = 0;
+                  sellerIndex < _sellerIds.length;
+                  sellerIndex++) ...<Widget>[
+                if (_sellerIds.length > 1)
+                  Text('Seller delivery ${sellerIndex + 1}',
+                      style: AgencyText.label),
+                RadioGroup<String>(
+                  groupValue:
+                      _selectedShippingBySeller[_sellerIds[sellerIndex]]?.id,
+                  onChanged: (id) {
+                    if (id == null) return;
+                    final option =
+                        _shippingOptions.firstWhere((item) => item.id == id);
+                    _selectShipping(option);
+                  },
+                  child: Column(
+                    children: <Widget>[
+                      for (final option in _shippingOptions.where(
+                        (item) => item.sellerId == _sellerIds[sellerIndex],
+                      ))
+                        RadioListTile<String>(
+                          value: option.id,
+                          title: Text(option.name),
+                          subtitle: Text(option.price.formatted),
+                        ),
+                    ],
                   ),
                 ),
-                TextButton(
-                  onPressed: _loadShippingOptions,
-                  child: const Text('Retry'),
-                ),
               ],
-            )
-          else if (_shippingOptions.isEmpty)
-            const Text('No delivery method is available for this cart.')
-          else
-            for (var sellerIndex = 0;
-                sellerIndex < _sellerIds.length;
-                sellerIndex++) ...<Widget>[
-              if (_sellerIds.length > 1)
-                Text('Seller delivery ${sellerIndex + 1}',
-                    style: AgencyText.label),
-              RadioGroup<String>(
-                groupValue:
-                    _selectedShippingBySeller[_sellerIds[sellerIndex]]?.id,
-                onChanged: (id) {
-                  if (id == null) return;
-                  final option =
-                      _shippingOptions.firstWhere((item) => item.id == id);
-                  _selectShipping(option);
-                },
-                child: Column(
-                  children: <Widget>[
-                    for (final option in _shippingOptions.where(
-                      (item) => item.sellerId == _sellerIds[sellerIndex],
-                    ))
-                      RadioListTile<String>(
-                        value: option.id,
-                        title: Text(option.name),
-                        subtitle: Text(option.price.formatted),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+          ],
           const SizedBox(height: AgencySpacing.lg),
           Text('Payment method', style: AgencyText.title),
           const SizedBox(height: AgencySpacing.sm),
@@ -469,7 +510,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
           const SizedBox(height: AgencySpacing.md),
           FilledButton(
-            onPressed: _submitting || _orderPlaced ? null : _placeOrder,
+            onPressed: _submitting || _orderPlaced
+                ? null
+                : isPickup
+                    ? _switchToDelivery
+                    : _placeOrder,
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
             ),
@@ -479,7 +524,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     width: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text(_orderPlaced ? 'Order placed' : 'Place order'),
+                : Text(_orderPlaced
+                    ? 'Order placed'
+                    : isPickup
+                        ? 'Switch to delivery to place order'
+                        : 'Place order'),
           ),
           const SizedBox(height: AgencySpacing.sm),
           Text(
@@ -493,6 +542,73 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     Colors.grey),
           ),
           const SizedBox(height: AgencySpacing.lg),
+        ],
+      ),
+    );
+  }
+
+  Widget _fulfilmentSelector(FulfilmentPreference preference) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Container(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AgencyRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Fulfilment',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: AgencySpacing.sm),
+          FulfilmentModeSelector(
+            mode: preference.mode,
+            onChanged: (mode) {
+              if (mode == FulfilmentMode.delivery) {
+                _switchToDelivery();
+              } else {
+                _selectPickup();
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pickupGate() {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceInteractive,
+        borderRadius: BorderRadius.circular(AgencyRadius.lg),
+        border: Border.all(color: colors.feedbackWarning),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(stagingPickupPoint.name,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: colors.contentPrimary)),
+          const SizedBox(height: 2),
+          Text('${stagingPickupPoint.location} · ${stagingPickupPoint.hours}',
+              style: TextStyle(fontSize: 12, color: colors.contentSecondary)),
+          const SizedBox(height: AgencySpacing.sm),
+          Text(
+            'Pickup is saved as your staging preference, but no canonical pickup shipping option exists yet. No order will be submitted as delivery on your behalf.',
+            style: TextStyle(
+                fontSize: 11, height: 1.4, color: colors.contentSecondary),
+          ),
         ],
       ),
     );
@@ -672,8 +788,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(label, style: style),
-          Text(value, style: style)
+          Expanded(child: Text(label, style: style)),
+          const SizedBox(width: AgencySpacing.sm),
+          Flexible(
+            child: Text(
+              value,
+              style: style,
+              textAlign: TextAlign.end,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );

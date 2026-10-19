@@ -140,6 +140,8 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Standard delivery'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Standard delivery'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -147,6 +149,8 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Express delivery'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Express delivery'));
     await tester.pumpAndSettle();
 

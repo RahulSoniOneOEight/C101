@@ -12,6 +12,7 @@ import '../providers/catalog_providers.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_pinned_bar.dart';
 import '../widgets/merchandising_sections.dart';
+import '../widgets/quick_add_sheet.dart';
 import '../widgets/status_views.dart';
 
 /// Home entry point: a merchandised scroll feed of modules.
@@ -128,13 +129,30 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   Future<void> _addToCart(Product product) async {
+    final variants = purchasableQuickAddVariants(product);
+    ProductVariant? selected;
+    if (requiresVariantSelection(product)) {
+      selected = await showVariantQuickAddSheet(context, product);
+      if (selected == null || !mounted) return;
+    } else if (variants.length == 1) {
+      selected = variants.single;
+    }
     await ref.read(cartProvider.notifier).addItem(
-        offerId: product.cartOfferId,
-        variantId: product.cartVariantId,
-        quantity: 1);
+        offerId: selected?.offerId ?? product.cartOfferId,
+        variantId: selected?.id ?? product.cartVariantId,
+        quantity: 1,
+        unitPrice: selected?.price ?? product.price);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Added to cart')),
+      SnackBar(
+        content: Text(selected == null
+            ? 'Added to cart'
+            : 'Added ${selected.label} to cart'),
+        action: SnackBarAction(
+          label: 'View cart',
+          onPressed: () => context.push('/cart'),
+        ),
+      ),
     );
   }
 
@@ -279,6 +297,15 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    _gutter,
+                    _gutter,
+                    _gutter,
+                    0,
+                  ),
+                  child: _discoveryEntry(),
+                ),
                 for (final module in modules)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -309,6 +336,98 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       ),
     );
   }
+
+  Widget _discoveryEntry() {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    final products = ref.watch(productsProvider).value ?? const <Product>[];
+    final categoryCount = ref.watch(presentationProvider).categories.length;
+    final brandCount = brandsOf(products).length;
+    return Container(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AgencyRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Find the right aisle',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: colors.contentPrimary)),
+                    Text('Shop by task, category or brand',
+                        style: TextStyle(
+                            fontSize: 11, color: colors.contentSecondary)),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/discover'),
+                child: const Text('Explore all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AgencySpacing.xs),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/discover'),
+                  icon: const Icon(Icons.grid_view_outlined, size: 17),
+                  label: Text('$categoryCount categories'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AgencySpacing.sm),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/discover?tab=brands'),
+                  icon: const Icon(Icons.sell_outlined, size: 17),
+                  label: Text('$brandCount brands'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AgencySpacing.xs),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <Widget>[
+                _projectChip('Paint a room'),
+                _projectChip('Fix a leaking pipe'),
+                _projectChip('Drill into concrete'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _projectChip(String prompt) => Padding(
+        padding: const EdgeInsets.only(right: AgencySpacing.xs),
+        child: ActionChip(
+          avatar: const Icon(Icons.auto_awesome, size: 14),
+          label: Text(prompt, style: const TextStyle(fontSize: 10)),
+          onPressed: () => context.push(
+            '/search?mode=ai&q=${Uri.encodeComponent(prompt)}',
+          ),
+        ),
+      );
 
   /// The single "Browse Categories" section: icon-led category filter + the
   /// product cards below, sharing one shaded unit and one long scroll.
