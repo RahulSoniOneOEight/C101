@@ -1,0 +1,9 @@
+{
+  "endpoint": "https://api-staging.pinakaplay.cloud/v1/products",
+  "environment": "staging",
+  "test_data": true,
+  "imported_products": 233,
+  "products_with_offers": 233,
+  "products_with_best_price": 233,
+  "result": "pass"
+}

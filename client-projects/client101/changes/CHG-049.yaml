@@ -1,0 +1,65 @@
+change_id: CHG-049
+revision: 1
+request: >-
+  Import exactly 500 real catalogue SKUs into staging as grouped products with variants, hosted
+  images, category assignments, seller offers and availability in both B2C and B2B channels.
+type: staging-catalogue-import
+extends:
+- CHG-048
+affected_capabilities:
+- marketplace-catalogue
+- marketplace-merchandising
+- seller-offers
+affected_domains:
+- commerce
+- content
+- marketplace
+affected_surfaces:
+- medusa.admin.catalogue
+- mercur.admin.offers
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- Eight master L1 categories and the retained 84-L2 staging category tree.
+- Five staging sellers with stock locations, including BuildKart Direct.
+- Persistent public image hosting through the Medusa local-file volume.
+- B2C Storefront and B2B Trade Portal sales channels.
+missing:
+- Real grouped catalogue products, variants and seller offers from the approved source master.
+- End-to-end evidence that grouped variants, prices, images, categories and both channels resolve.
+conflicts_requiring_a_decision:
+- C-049-01: Source inventory quantities are absent; any quantity used in staging is a test default,
+    not a supplier stock claim.
+- C-049-02: Products must remain grouped by brand and name; reducing scope means selecting whole
+    groups whose variant counts total exactly 500, never splitting a product group.
+decisions_approved:
+- D-049-01: Select exactly 500 source SKUs while preserving complete brand-and-name variant groups
+    and coverage across all eight L1 categories.
+- D-049-02: Sanitise blank or duplicate source variant labels deterministically while retaining the
+    original SKU and source traceability metadata.
+- D-049-03: Split categories across BuildMaster Supplies, PowerMax Depot, AquaFlow Supplies,
+    UrbanBuild Supply and BuildKart Direct.
+- D-049-04: Use Marketplace Shipping and publish every imported product to both B2C and B2B.
+- D-049-05: Use 50 units per SKU only as an explicit staging inventory fixture.
+- D-049-06: Validate one grouped product per seller before continuing with the full import.
+required_tests:
+- The manifest contains exactly 500 unique source SKUs and complete product groups.
+- At least one multi-variant product is validated for each seller.
+- Created variant counts and SKUs match the manifest.
+- Images return HTTP 200 from persistent public URLs.
+- Offers retain source INR prices without dummy or generated prices.
+- Imported products resolve in both B2C and B2B sales channels.
+constraints:
+- Staging only; production release remains unauthorized.
+- No fabricated product prices, claims or production readiness.
+- Staging stock is fixture data and must be reported as such.
+- The existing category tree and independent B2C/B2B merchandising remain intact.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: implemented-staging
+  evidence: client-projects/client101/evidence/CHG-049/catalogue-import.md
+status: implemented-awaiting-human-review
+production_release_authorized: false

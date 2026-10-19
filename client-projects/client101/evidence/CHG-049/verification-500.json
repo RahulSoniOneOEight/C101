@@ -1,0 +1,48 @@
+{
+  "category_product_counts": {
+    "Agriculture & Seeds": 13,
+    "Automotive & Tyres": 1,
+    "Bathroom & Plumbing": 23,
+    "Lighting & Electrical": 71,
+    "Miscellaneous": 6,
+    "Paints & Finishes": 11,
+    "Tiles & Building Materials": 37,
+    "Tools & Hardware": 71
+  },
+  "category_sku_counts": {
+    "Agriculture & Seeds": 13,
+    "Automotive & Tyres": 3,
+    "Bathroom & Plumbing": 56,
+    "Lighting & Electrical": 155,
+    "Miscellaneous": 6,
+    "Paints & Finishes": 30,
+    "Tiles & Building Materials": 37,
+    "Tools & Hardware": 200
+  },
+  "change_id": "CHG-049",
+  "images_http_200": 233,
+  "inventory_fixture_quantity": 50,
+  "offers": 500,
+  "production_release_authorized": false,
+  "products": 233,
+  "result": "pass",
+  "sales_channels_per_product": 2,
+  "seller_product_counts": {
+    "sel_01M4EC9C7YNSFGCG6A4B3Q6PG8": 71,
+    "sel_01M4EC9CVVHG168X1DHHBY29HY": 71,
+    "sel_01M4EC9D78222WCZR4BPHKQ2GP": 23,
+    "sel_01M4EC9DK3DWFSYX18FNDSGYC2": 48,
+    "sel_01M5897CE4PTBHS4AA7H0G79G7": 20
+  },
+  "seller_sku_counts": {
+    "sel_01M4EC9C7YNSFGCG6A4B3Q6PG8": 200,
+    "sel_01M4EC9CVVHG168X1DHHBY29HY": 155,
+    "sel_01M4EC9D78222WCZR4BPHKQ2GP": 56,
+    "sel_01M4EC9DK3DWFSYX18FNDSGYC2": 67,
+    "sel_01M5897CE4PTBHS4AA7H0G79G7": 22
+  },
+  "unique_skus": 500,
+  "variant_axis_products": 233,
+  "variant_traceability_records": 500,
+  "variants": 500
+}
