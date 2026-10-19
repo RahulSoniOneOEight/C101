@@ -25,9 +25,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
 
   String? _selectedAddressId;
   bool _submitting = false;
@@ -61,7 +59,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void dispose() {
     _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -73,7 +70,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _emailController.text = (sessionEmail != null && sessionEmail.isNotEmpty)
         ? sessionEmail
         : profile.email;
-    _phoneController.text = profile.phone;
+    await _alignSeedNames(ref.read(experienceApiProvider).sessionName);
 
     // Rehydrate from the server so totals and applied codes are authoritative.
     await ref.read(cartProvider.notifier).rehydrate();
@@ -81,10 +78,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final start = ref.read(checkoutStartAddressProvider);
     if (start != null) {
       _selectedAddressId = start.id;
-      if (start.phone.trim().isNotEmpty) _phoneController.text = start.phone;
       await _applyAddress(start, saveLast: false);
     }
     if (mounted) setState(() => _bootstrapped = true);
+  }
+
+  /// Keeps the demonstration address book in step with the signed-in profile.
+  ///
+  /// Only the untouched seed records are renamed; an address the buyer added or
+  /// edited is never rewritten.
+  Future<void> _alignSeedNames(String? sessionName) async {
+    final name = sessionName?.trim();
+    if (name == null || name.isEmpty) return;
+    const seedNames = <String>{
+      'Rahul Sharma',
+      'Rahul Sharma (Site office)',
+    };
+    const seedIds = <String>{'addr_home', 'addr_site', 'addr_office'};
+    final notifier = ref.read(addressesProvider.notifier);
+    for (final address in ref.read(addressesProvider)) {
+      if (!seedIds.contains(address.id) ||
+          !seedNames.contains(address.fullName)) {
+        continue;
+      }
+      final suffix = address.fullName.contains('(Site office)')
+          ? ' (Site office)'
+          : '';
+      await notifier.update(address.copyWith(fullName: '$name$suffix'));
+    }
   }
 
   SavedAddress? _resolveAddress(List<SavedAddress> addresses) {
@@ -98,9 +119,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       {bool saveLast = true}) async {
     setState(() {
       _selectedAddressId = address.id;
-      if (address.phone.trim().isNotEmpty) {
-        _phoneController.text = address.phone;
-      }
       _shippingOptions = const <ShippingOption>[];
       _selectedShippingBySeller = const <String, ShippingOption>{};
       _shippingError = null;
@@ -248,8 +266,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   String? _validate() {
     final address = _resolveAddress(ref.read(addressesProvider));
     if (address == null) return 'Select a delivery address to continue.';
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return 'Check the contact details highlighted below.';
+    if (_emailController.text.trim().isEmpty) {
+      return 'Sign in again to place an order.';
     }
     if (_sellerIds.isEmpty ||
         _sellerIds.any(
@@ -345,48 +363,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
+      body: ListView(
           padding: const EdgeInsets.all(AgencySpacing.md),
           children: <Widget>[
             _addressCard(address),
             const SizedBox(height: AgencySpacing.md),
-            Text('Contact', style: AgencyText.title),
-            const SizedBox(height: AgencySpacing.sm),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final text = value?.trim() ?? '';
-                if (text.isEmpty) return 'Email is required';
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text)) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AgencySpacing.sm),
-            TextFormField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
-                if (digits.length != 10 && digits.length != 12) {
-                  return 'Enter a valid 10-digit phone';
-                }
-                return null;
-              },
-            ),
+            _contactCard(address),
             const SizedBox(height: AgencySpacing.lg),
             Text('Delivery method', style: AgencyText.title),
             const SizedBox(height: AgencySpacing.sm),
@@ -506,6 +488,58 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const SizedBox(height: AgencySpacing.lg),
           ],
         ),
+    );
+  }
+
+  /// Read-only contact summary taken from the signed-in pilot and the chosen
+  /// address. Checkout must not ask the buyer to retype identity details.
+  Widget _contactCard(SavedAddress? address) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    final profile = ref.watch(profileProvider);
+    final api = ref.read(experienceApiProvider);
+    final sessionName = api.sessionName?.trim();
+    final sessionEmail = api.sessionEmail?.trim();
+    final name = (sessionName != null && sessionName.isNotEmpty)
+        ? sessionName
+        : profile.name;
+    final email = (sessionEmail != null && sessionEmail.isNotEmpty)
+        ? sessionEmail
+        : profile.email;
+    final phone = (address?.phone.trim().isNotEmpty ?? false)
+        ? address!.phone.trim()
+        : profile.phone;
+    return Container(
+      padding: const EdgeInsets.all(AgencySpacing.md),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AgencyRadius.lg),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.person_outline, size: 18, color: colors.actionPrimary),
+          const SizedBox(width: AgencySpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(name,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+                const SizedBox(height: 2),
+                Text('$email · $phone',
+                    style: TextStyle(
+                        fontSize: 12, color: colors.contentSecondary)),
+                Text('Contact details from your account',
+                    style:
+                        TextStyle(fontSize: 10, color: colors.contentSecondary)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

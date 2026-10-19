@@ -1,0 +1,55 @@
+change_id: CHG-055
+revision: 1
+request: >-
+  Revise the staging promotions so they target categories that exist in the imported catalogue, use
+  short customer-facing codes, and scope trade offers to the group that actually has members.
+type: staging-promotion-retarget-and-short-codes
+extends:
+- CHG-051
+- CHG-052
+affected_capabilities:
+- marketplace-merchandising
+- commerce-cart
+affected_domains:
+- commerce
+- marketplace
+affected_surfaces:
+- medusa.promotions
+- app.prototype.b2c-storefront
+already_present:
+- Ten active promotions seeded from the CHG-029 presets.
+missing:
+- Most category targets referred to categories absent from the imported catalogue.
+- Codes were long staging identifiers.
+- Trade offers were scoped to `trade-verified`, which has no members.
+decisions_approved:
+- D-055-01: Retarget each category offer to an imported category (Sockets & Drive Tools, Pliers &
+    Cutters, Pipes & Tanks, General Building Materials, Adhesives, Plywood & Boards, Basin Mixers &
+    Taps).
+- D-055-02: Use short codes - ORDER5, FREESHIP, PLY5, TOOLS10, TOOLS200, PIPES5, QTY3, BOGO, TRADE7,
+    TRADEVIP.
+- D-055-03: Scope TRADE7 and TRADEVIP to `B2B Trade Customers` (4 members) instead of the empty
+    `trade-verified` group.
+- D-055-04: Deactivate the old long-code promotions rather than deleting them, so redemption history
+    is retained.
+required_tests:
+- Each customer code applies to a cart containing a SKU from its target category.
+- Free shipping applies only at or above INR 10,000 and after a delivery method exists.
+- The automatic plywood offer applies without a code.
+- Old long codes no longer apply.
+constraints:
+- Staging only; production release remains unauthorized.
+- Marketplace-funded only; no seller links.
+- The 10% discount ceiling is unchanged.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-055/promotion-retarget.md
+  verification:
+    customer_codes_working: 8
+    trade_codes_working: 0
+    old_codes_deactivated: 10
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

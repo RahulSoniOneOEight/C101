@@ -128,8 +128,9 @@ void main() {
     expect(api.completeCalls, 0);
     // The default saved address is prefilled, so no address typing is required.
     expect(find.text('Home'), findsOneWidget);
-    expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Phone'), findsOneWidget);
+    // Contact is a read-only account summary, not a form to retype.
+    expect(find.textContaining('Contact details from your account'),
+        findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Standard delivery'),
@@ -145,19 +146,6 @@ void main() {
     );
     await tester.tap(find.text('Express delivery'));
     await tester.pumpAndSettle();
-
-    Future<void> enter(String label, String value) async {
-      final field = find.widgetWithText(TextFormField, label);
-      await tester.scrollUntilVisible(
-        field,
-        -200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.enterText(field, value);
-    }
-
-    await enter('Email', 'pilot-buyer@buildkart.local');
-    await enter('Phone', '9876543210');
 
     final placeOrder = find.widgetWithText(FilledButton, 'Place order');
     await tester.scrollUntilVisible(

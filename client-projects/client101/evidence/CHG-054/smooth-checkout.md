@@ -41,10 +41,14 @@ whitelist that dropped them.
 
 ### Contact and promo
 
-- Email and phone are prefilled.
+- Contact is a **read-only card** showing the signed-in name, email and phone.
+  Checkout no longer asks the buyer to retype identity details.
 - Email prefers the **authenticated pilot identity** (from the OTP verify
   response, persisted for restore). The demo profile email is only a fallback.
   This fixed a real 403 `identity-mismatch` on placing an order.
+- The signed-in name is persisted too. Untouched demo addresses are renamed to
+  that profile name once, so the address book does not show the fixture name.
+- The saved default address is preselected, with a Change action.
 - The promo panel is available in checkout; codes stay on the cart, not in
   widget state.
 
@@ -65,6 +69,8 @@ whitelist that dropped them.
 | Order complete | 200, order group created |
 | Latest order address | `3rd Floor, Sunrise Tower` / `MG Road` / `Jaipur` / `Rajasthan` / `302001` / `+91 98765 43210` |
 | Order total with promo | ₹3889.50 (₹4089 − ₹199.50 + ₹99 shipping) |
+| Checkout contact card | **Pilot Tester 1** · rsoni001@gmail.com · phone; no input fields |
+| `ORDER5` in checkout | -₹199.50, total ₹3790.50 |
 
 ### Browser (headless Chrome, live)
 

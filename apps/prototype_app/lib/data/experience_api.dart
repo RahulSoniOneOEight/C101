@@ -21,6 +21,7 @@ class ExperienceApi {
   static const _sessionTokenKey = 'pilot_session_token_v1';
   static const _sessionExpiryKey = 'pilot_session_expiry_v1';
   static const _sessionEmailKey = 'pilot_session_email_v1';
+  static const _sessionNameKey = 'pilot_session_name_v1';
 
   /// Email of the authenticated pilot, when known.
   ///
@@ -29,6 +30,11 @@ class ExperienceApi {
   String? _sessionEmail;
 
   String? get sessionEmail => _sessionEmail;
+
+  /// Display name of the authenticated pilot, when known.
+  String? _sessionName;
+
+  String? get sessionName => _sessionName;
 
   Future<Map<String, dynamic>> requestOtp(String identifier) async {
     final res = await _dio.post<Map<String, dynamic>>(
@@ -57,11 +63,19 @@ class ExperienceApi {
       final user = res.data?['user'];
       final email =
           user is Map<String, dynamic> ? user['email'] as String? : null;
+      final name =
+          user is Map<String, dynamic> ? user['name'] as String? : null;
       _sessionEmail = email;
+      _sessionName = name;
       if (email != null && email.isNotEmpty) {
         await _secureStorage.write(key: _sessionEmailKey, value: email);
       } else {
         await _secureStorage.delete(key: _sessionEmailKey);
+      }
+      if (name != null && name.isNotEmpty) {
+        await _secureStorage.write(key: _sessionNameKey, value: name);
+      } else {
+        await _secureStorage.delete(key: _sessionNameKey);
       }
     }
     return res.data!;
@@ -91,15 +105,18 @@ class ExperienceApi {
     }
     _dio.options.headers['Authorization'] = 'Bearer $token';
     _sessionEmail = await _secureStorage.read(key: _sessionEmailKey);
+    _sessionName = await _secureStorage.read(key: _sessionNameKey);
     return true;
   }
 
   Future<void> clearSession() async {
     _dio.options.headers.remove('Authorization');
     _sessionEmail = null;
+    _sessionName = null;
     await _secureStorage.delete(key: _sessionTokenKey);
     await _secureStorage.delete(key: _sessionExpiryKey);
     await _secureStorage.delete(key: _sessionEmailKey);
+    await _secureStorage.delete(key: _sessionNameKey);
   }
 
   /// Backend storefront presentation: hero/campaign banners and root category

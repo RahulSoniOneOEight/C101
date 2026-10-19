@@ -1,5 +1,5 @@
 change_id: CHG-054
-revision: 1
+revision: 2
 request: >-
   Implement the P0+P1 gaps from the Smooth Checkout note: address-first checkout with the saved
   address book, contact prefill, real shipping totals, promo continuity, rehydration and explicit
@@ -46,6 +46,9 @@ decisions_approved:
 - D-054-06: Show the promo panel in checkout; keep the code on the cart, not widget state.
 - D-054-07: Rehydrate the cart through GET /v1/carts/:id and show failures inline above the button.
 - D-054-08: Add the Office seed address once for legacy two-address installs.
+- D-054-09: Contact is read-only at checkout, taken from the signed-in pilot (name, email, phone).
+    The buyer is never asked to retype identity details. Untouched demo addresses are renamed to the
+    signed-in profile once.
 required_tests:
 - First checkout opens with the default address selected and no typing required.
 - Switching address reloads delivery options.

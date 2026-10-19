@@ -13,7 +13,10 @@
 
 export const DISCOUNT_CEILING_PERCENT = 10;
 export const MERCHANDISING_FUNDING_SOURCE = "marketplace";
-export const TRADE_CUSTOMER_GROUP_NAME = "trade-verified";
+// The group that actually carries the staging B2B pilot buyers. The older
+// `trade-verified` group exists but has no members, so offers scoped to it could
+// never apply.
+export const TRADE_CUSTOMER_GROUP_NAME = "B2B Trade Customers";
 
 export type MerchandisingApplicationMethod = "percentage" | "free_shipping";
 
@@ -146,11 +149,13 @@ export const MERCHANDISING_COLLECTION_PRESETS: MerchandisingCollectionPreset[] =
 
 export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
   {
-    code: "BK-STG-PROMO-TOOLS10",
+    code: "TOOLS10",
     campaignKey: "BK-STG-CAMP-POWER-TOOL-WEEK",
     applicationMethod: "percentage",
     value: 10,
-    target: { type: "category", reference: "Power Tools" },
+    // The imported catalogue has no "Power Tools" category; this is its largest
+    // tools category (17 products / 48 SKUs).
+    target: { type: "category", reference: "Sockets & Drive Tools" },
     automatic: false,
     startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-03T23:59:59Z",
@@ -162,7 +167,7 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     deferredConditions: [],
   },
   {
-    code: "BK-STG-PROMO-PLY-BULK",
+    code: "PLY5",
     campaignKey: "BK-STG-CAMP-SITE-READY",
     applicationMethod: "percentage",
     value: 5,
@@ -185,7 +190,7 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     ],
   },
   {
-    code: "BK-STG-PROMO-FREESHIP",
+    code: "FREESHIP",
     campaignKey: "BK-STG-CAMP-POWER-TOOL-WEEK",
     applicationMethod: "free_shipping",
     value: 0,
@@ -209,13 +214,13 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     deferredConditions: [],
   },
   {
-    code: "BK-STG-PROMO-SAFETY-B2B",
+    code: "TRADE7",
     campaignKey: "BK-STG-CAMP-SITE-READY",
     applicationMethod: "percentage",
     value: 7,
     target: {
       type: "category",
-      reference: "Safety Gear",
+      reference: "Basin Mixers & Taps",
       customerGroup: TRADE_CUSTOMER_GROUP_NAME,
     },
     automatic: false,
@@ -234,7 +239,7 @@ export const MERCHANDISING_CAMPAIGN_PRESETS: MerchandisingCampaignPreset[] = [
   {
     campaignKey: "BK-STG-CAMP-POWER-TOOL-WEEK",
     title: "Power Tool Week",
-    promotionCodes: ["BK-STG-PROMO-TOOLS10", "BK-STG-PROMO-FREESHIP"],
+    promotionCodes: ["TOOLS10", "FREESHIP"],
     budgetAmountMinor: 50_000_000,
     currencyCode: "inr",
     startsAt: "2026-10-10T00:00:00Z",
@@ -246,7 +251,7 @@ export const MERCHANDISING_CAMPAIGN_PRESETS: MerchandisingCampaignPreset[] = [
   {
     campaignKey: "BK-STG-CAMP-SITE-READY",
     title: "Site Ready",
-    promotionCodes: ["BK-STG-PROMO-PLY-BULK", "BK-STG-PROMO-SAFETY-B2B"],
+    promotionCodes: ["PLY5", "TRADE7"],
     budgetAmountMinor: 40_000_000,
     currencyCode: "inr",
     startsAt: "2026-10-10T00:00:00Z",
