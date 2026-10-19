@@ -964,7 +964,6 @@ class _BrowseChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      toggled: selected,
       label: label,
       child: Material(
         color: selected ? accent : colors.surfaceRaised,
