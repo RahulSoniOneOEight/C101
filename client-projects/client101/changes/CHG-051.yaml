@@ -70,6 +70,30 @@ approval_required: true
 implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-19'
-  status: in-progress
-status: proposed-awaiting-implementation
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-051/tiers-banners-promotions.md
+  verification:
+    experience_api_typecheck: pass
+    flutter_analyze: pass
+    flutter_tests: 187-pass
+    flutter_web_release_build: pass
+    b2c_hero_rotation_ms: 5000
+    b2b_hero_rotation_ms: 5000
+    tier_ladder: '1/10/25 = 0/5/10 percent'
+    promotions_seeded: 10
+    promotion_apply: pass
+    promotion_cart_read: pass
+    promotion_rejection_not_found: pass
+    promotion_rejection_not_eligible: pass
+  deployment:
+    experience_api_commit: e9de1d9
+    hosting_project: buildkart-staging
+    promotion_presets: configure:staging-merchandising
+  out_of_scope:
+  - Note P1 discovery (home strip, PLP badges, PDP offer block, B2B offers feed).
+  - Note P2 admin create/edit, approvals, reporting, kill switch, audit.
+  - Note P3 price lists and quantity-slab pricing.
+  - Plywood min-quantity gate and the dummy-price guard (25 of 500 SKUs).
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
