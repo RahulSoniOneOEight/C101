@@ -8,6 +8,7 @@ import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../theme/storefront_control_tokens.dart';
+import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
 
 /// Host scaffold for the D2C (consumer) section: persistent 4-tab bottom
@@ -284,19 +285,24 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverPersistentHeader(
                   pinned: true,
-                  delegate: _BrowseControlsDelegate(
-                    sort: _sort,
-                    onSort: (next) => setState(() {
-                      _sort = next;
+                  delegate: StorefrontControlHeaderDelegate(
+                    sortOptions: <String>[
+                      for (final option in BrowseSort.values) option.label,
+                    ],
+                    selectedSort: _sort.label,
+                    onSort: (label) => setState(() {
+                      _sort = BrowseSort.values
+                          .firstWhere((option) => option.label == label);
+                      _resetPaging();
+                    }),
+                    quickFilters: _quickKeys,
+                    selectedQuickFilters: _keys,
+                    onToggleQuickFilter: (key) => setState(() {
+                      if (!_keys.remove(key)) _keys.add(key);
                       _resetPaging();
                     }),
                     filterCount: _activeFilterCount,
                     onOpenFilters: _openFilters,
-                    keys: _keys,
-                    onToggleKey: (key) => setState(() {
-                      if (!_keys.remove(key)) _keys.add(key);
-                      _resetPaging();
-                    }),
                     resultCount: results.length,
                     onClearFilters: _clearFilters,
                   ),
@@ -705,7 +711,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                 },
                                 style: FilledButton.styleFrom(
                                   backgroundColor:
-                                      StorefrontControlTokens.filterAccent(
+                                      StorefrontControlTokens.filterInk(
                                           sheetContext),
                                   foregroundColor: colors.contentInverse,
                                   minimumSize: const Size.fromHeight(48),
@@ -750,10 +756,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             runSpacing: AgencySpacing.xs,
             children: <Widget>[
               for (final o in options)
-                _BrowseChip(
+                StorefrontControlChip(
                   label: o,
                   selected: selected.contains(o),
-                  accent: StorefrontControlTokens.filterAccent(context),
+                  fill: StorefrontControlTokens.filterFill(context),
+                  ink: StorefrontControlTokens.filterInk(context),
                   onTap: () => setSheet(() {
                     if (!selected.remove(o)) selected.add(o);
                   }),
@@ -761,316 +768,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Pinned control block for the listing: sort chips, filter button + quick
-/// chips, result count and Clear all. Fixed height so the sliver can pin.
-class _BrowseControlsDelegate extends SliverPersistentHeaderDelegate {
-  _BrowseControlsDelegate({
-    required this.sort,
-    required this.onSort,
-    required this.filterCount,
-    required this.onOpenFilters,
-    required this.keys,
-    required this.onToggleKey,
-    required this.resultCount,
-    required this.onClearFilters,
-  });
-
-  static const double _height = 160;
-
-  final BrowseSort sort;
-  final ValueChanged<BrowseSort> onSort;
-  final int filterCount;
-  final Future<void> Function() onOpenFilters;
-  final Set<String> keys;
-  final ValueChanged<String> onToggleKey;
-  final int resultCount;
-  final VoidCallback onClearFilters;
-
-  @override
-  double get minExtent => _height;
-
-  @override
-  double get maxExtent => _height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return _BrowseControls(
-      sort: sort,
-      onSort: onSort,
-      filterCount: filterCount,
-      onOpenFilters: onOpenFilters,
-      keys: keys,
-      onToggleKey: onToggleKey,
-      resultCount: resultCount,
-      onClearFilters: onClearFilters,
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _BrowseControlsDelegate oldDelegate) {
-    return oldDelegate.sort != sort ||
-        oldDelegate.filterCount != filterCount ||
-        oldDelegate.resultCount != resultCount ||
-        oldDelegate.keys.length != keys.length ||
-        !oldDelegate.keys.containsAll(keys);
-  }
-}
-
-class _BrowseControls extends StatelessWidget {
-  const _BrowseControls({
-    required this.sort,
-    required this.onSort,
-    required this.filterCount,
-    required this.onOpenFilters,
-    required this.keys,
-    required this.onToggleKey,
-    required this.resultCount,
-    required this.onClearFilters,
-  });
-
-  final BrowseSort sort;
-  final ValueChanged<BrowseSort> onSort;
-  final int filterCount;
-  final Future<void> Function() onOpenFilters;
-  final Set<String> keys;
-  final ValueChanged<String> onToggleKey;
-  final int resultCount;
-  final VoidCallback onClearFilters;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final sortAccent = StorefrontControlTokens.sortAccent(context);
-    final filterAccent = StorefrontControlTokens.filterAccent(context);
-    return Material(
-      color: colors.surfacePage,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: colors.borderDefault)),
-        ),
-        padding:
-            const EdgeInsets.fromLTRB(AgencySpacing.md, 6, AgencySpacing.md, 6),
-        child: Column(
-          children: <Widget>[
-            SizedBox(
-              height: 44,
-              child: ListView.separated(
-                key: const Key('browseSortChips'),
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.zero,
-                itemCount: BrowseSort.values.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final option = BrowseSort.values[index];
-                  return _BrowseChip(
-                    label: option.label,
-                    selected: sort == option,
-                    accent: sortAccent,
-                    onTap: () => onSort(option),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 44,
-              child: Row(
-                children: <Widget>[
-                  _FiltersButton(
-                    count: filterCount,
-                    accent: filterAccent,
-                    onTap: onOpenFilters,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ListView.separated(
-                      key: const Key('browseQuickChips'),
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.zero,
-                      itemCount: _BrowseScreenState._quickKeys.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final key = _BrowseScreenState._quickKeys[index];
-                        return _BrowseChip(
-                          label: key,
-                          selected: keys.contains(key),
-                          accent: filterAccent,
-                          onTap: () => onToggleKey(key),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-            SizedBox(
-              height: 44,
-              child: Row(
-                children: <Widget>[
-                  Text(
-                    '$resultCount ${resultCount == 1 ? 'result' : 'results'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: colors.contentSecondary,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (filterCount > 0)
-                    TextButton(
-                      onPressed: onClearFilters,
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(44, 44),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        foregroundColor: colors.actionPrimary,
-                      ),
-                      child: const Text('Clear all'),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A 44px tap-target chip. State is carried by the fill, the check icon and
-/// the semantics `selected` flag, never by colour alone.
-class _BrowseChip extends StatelessWidget {
-  const _BrowseChip({
-    required this.label,
-    required this.selected,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final Color accent;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final radius = BorderRadius.circular(AgencyRadius.md);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      child: Material(
-        color: selected ? accent : colors.surfaceRaised,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: selected ? accent : colors.borderDefault),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (selected) ...<Widget>[
-                  Icon(Icons.check, size: 16, color: colors.contentInverse),
-                  const SizedBox(width: 6),
-                ],
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: selected
-                        ? colors.contentInverse
-                        : colors.contentPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FiltersButton extends StatelessWidget {
-  const _FiltersButton({
-    required this.count,
-    required this.accent,
-    required this.onTap,
-  });
-
-  final int count;
-  final Color accent;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final radius = BorderRadius.circular(AgencyRadius.md);
-    return Semantics(
-      button: true,
-      label: count == 0 ? 'Filters' : 'Filters, $count active',
-      child: Material(
-        color: colors.surfaceRaised,
-        shape: RoundedRectangleBorder(
-          borderRadius: radius,
-          side: BorderSide(color: colors.borderDefault),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: radius,
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.tune, size: 16, color: colors.contentSecondary),
-                const SizedBox(width: 6),
-                Text(
-                  'Filters',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.contentPrimary,
-                  ),
-                ),
-                if (count > 0) ...<Widget>[
-                  const SizedBox(width: 6),
-                  Container(
-                    constraints:
-                        const BoxConstraints(minWidth: 18, minHeight: 18),
-                    padding: const EdgeInsets.symmetric(horizontal: 5),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: accent,
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: colors.contentInverse,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

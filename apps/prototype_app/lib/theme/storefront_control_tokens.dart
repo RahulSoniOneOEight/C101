@@ -3,15 +3,21 @@ import 'package:flutter/widgets.dart';
 
 /// The two storefront control accents, defined in one place (CHG-064).
 ///
-/// Swapping an accent is a one-line change here. Both resolve to existing
-/// palette tokens — no new hex values — and both pass 4.5:1 with white:
-/// `feedbackSuccess` 5.1:1, `actionDestructive` 5.3:1.
+/// Swapping an accent is a one-line change here. Selected chips use the
+/// palette's subtle green/red surfaces with the matching darker ink, so the
+/// control stays light while text keeps a strong contrast.
 abstract final class StorefrontControlTokens {
-  /// SORT accent: the palette's success green.
-  static Color sortAccent(BuildContext context) =>
-      context.colors.feedbackSuccess;
+  /// SORT fill: pale success green.
+  static Color sortFill(BuildContext context) => context.colors.trustSubtle;
 
-  /// FILTER accent: the palette's dark red (not the error-only red).
-  static Color filterAccent(BuildContext context) =>
+  /// SORT ink: the palette's success green (4.5:1 on [sortFill]).
+  static Color sortInk(BuildContext context) => context.colors.feedbackSuccess;
+
+  /// FILTER fill: pale promotion red.
+  static Color filterFill(BuildContext context) =>
+      context.colors.promotionSubtle;
+
+  /// FILTER ink: the palette's dark red (4.5:1 on [filterFill]).
+  static Color filterInk(BuildContext context) =>
       context.colors.actionDestructive;
 }

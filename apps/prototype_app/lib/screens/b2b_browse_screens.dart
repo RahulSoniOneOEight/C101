@@ -7,6 +7,8 @@ import '../domain/b2b_trade_models.dart';
 import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../theme/storefront_control_tokens.dart';
+import '../widgets/storefront_control_bar.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// B2B catalogue / category browse. Entry points are the home category rail,
@@ -28,6 +30,17 @@ class B2BCatalogueScreen extends ConsumerStatefulWidget {
   ConsumerState<B2BCatalogueScreen> createState() => _B2BCatalogueScreenState();
 }
 
+enum _CatalogueSort { recommended, priceAsc, priceDesc, discount }
+
+extension on _CatalogueSort {
+  String get label => switch (this) {
+        _CatalogueSort.recommended => 'Recommended',
+        _CatalogueSort.priceAsc => 'Price \u2191',
+        _CatalogueSort.priceDesc => 'Price \u2193',
+        _CatalogueSort.discount => 'Discount',
+      };
+}
+
 class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   /// Products revealed per page; "Load more" (button or scroll) appends another
   /// page so a category can grow into a long scroll.
@@ -40,7 +53,104 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   late bool _seasonalOnly = widget.seasonalOnly;
   String _query = '';
   int _visible = _pageSize;
+  _CatalogueSort _sort = _CatalogueSort.recommended;
+  bool _inStockOnly = false;
+  String? _priceBand;
   final TextEditingController _searchController = TextEditingController();
+
+  static const List<String> _quickFilters = <String>[
+    'Best Deals',
+    'Seasonal',
+    'In stock',
+  ];
+  static const List<String> _priceBands = <String>[
+    'Under \u20b9500',
+    '\u20b9500 \u2013 \u20b95,000',
+    '\u20b95,000+',
+  ];
+
+  int get _filterCount =>
+      (_dealsOnly ? 1 : 0) +
+      (_seasonalOnly ? 1 : 0) +
+      (_inStockOnly ? 1 : 0) +
+      (_priceBand == null ? 0 : 1);
+
+  Set<String> get _quickSelected => <String>{
+        if (_dealsOnly) 'Best Deals',
+        if (_seasonalOnly) 'Seasonal',
+        if (_inStockOnly) 'In stock',
+      };
+
+  void _clearFilters() {
+    setState(() {
+      _dealsOnly = false;
+      _seasonalOnly = false;
+      _inStockOnly = false;
+      _priceBand = null;
+      _resetPaging();
+    });
+  }
+
+  void _toggleQuickFilter(String label) {
+    setState(() {
+      switch (label) {
+        case 'Best Deals':
+          _dealsOnly = !_dealsOnly;
+        case 'Seasonal':
+          _seasonalOnly = !_seasonalOnly;
+        case 'In stock':
+          _inStockOnly = !_inStockOnly;
+      }
+      _resetPaging();
+    });
+  }
+
+  List<TradeProduct> _filtered(
+    List<TradeProduct> products, {
+    bool? dealsOnly,
+    bool? seasonalOnly,
+    bool? inStockOnly,
+    String? priceBand,
+  }) {
+    final deals = dealsOnly ?? _dealsOnly;
+    final seasonal = seasonalOnly ?? _seasonalOnly;
+    final inStock = inStockOnly ?? _inStockOnly;
+    final band = priceBand ?? _priceBand;
+    return products.where((p) {
+      if (_categoryId != null && p.categoryId != _categoryId) return false;
+      if (deals && p.savingsPercent == null) return false;
+      if (seasonal && !p.seasonal) return false;
+      if (inStock && !(p.stockKnown ? p.stockQty > 0 : true)) return false;
+      if (band != null) {
+        final amount = p.tradePrice.amount / 100;
+        if (band == 'Under \u20b9500' && amount >= 500) return false;
+        if (band == '\u20b9500 \u2013 \u20b95,000' &&
+            (amount < 500 || amount > 5000)) {
+          return false;
+        }
+        if (band == '\u20b95,000+' && amount <= 5000) return false;
+      }
+      if (!_matchesQuery(p)) return false;
+      return true;
+    }).toList();
+  }
+
+  List<TradeProduct> _sorted(List<TradeProduct> list) {
+    switch (_sort) {
+      case _CatalogueSort.priceAsc:
+        return List<TradeProduct>.of(list)
+          ..sort((a, b) => a.tradePrice.amount.compareTo(b.tradePrice.amount));
+      case _CatalogueSort.priceDesc:
+        return List<TradeProduct>.of(list)
+          ..sort((a, b) => b.tradePrice.amount.compareTo(a.tradePrice.amount));
+      case _CatalogueSort.discount:
+        return List<TradeProduct>.of(list)
+          ..sort((a, b) =>
+              (b.savingsPercent ?? 0).compareTo(a.savingsPercent ?? 0));
+      case _CatalogueSort.recommended:
+        return list;
+    }
+  }
 
   @override
   void dispose() {
@@ -65,19 +175,179 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
     setState(() => _visible += _pageSize);
   }
 
+  Future<void> _openFilters() async {
+    final products = ref.read(tradeCatalogueViewProvider);
+    var deals = _dealsOnly;
+    var seasonal = _seasonalOnly;
+    var inStock = _inStockOnly;
+    String? band = _priceBand;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        final colors = Theme.of(sheetContext).extension<AgencyColors>() ??
+            AgencyColors.light;
+        final fill = StorefrontControlTokens.filterFill(sheetContext);
+        final ink = StorefrontControlTokens.filterInk(sheetContext);
+        return StatefulBuilder(
+          builder: (sheetContext, setSheet) {
+            final preview = _filtered(
+              products,
+              dealsOnly: deals,
+              seasonalOnly: seasonal,
+              inStockOnly: inStock,
+              priceBand: band,
+            ).length;
+            Widget toggle(String label, bool selected, VoidCallback onTap) =>
+                StorefrontControlChip(
+                  label: label,
+                  selected: selected,
+                  fill: fill,
+                  ink: ink,
+                  onTap: () => setSheet(onTap),
+                );
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: AgencySpacing.md,
+                  right: AgencySpacing.md,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.75,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Text('Filters',
+                              style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.contentPrimary)),
+                          const Spacer(),
+                          Text('$preview results',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: colors.contentSecondary)),
+                        ],
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: AgencySpacing.sm),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              _sheetGroup(sheetContext, 'Price'),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: <Widget>[
+                                  for (final option in _priceBands)
+                                    toggle(
+                                      option,
+                                      band == option,
+                                      () =>
+                                          band = band == option ? null : option,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: AgencySpacing.md),
+                              _sheetGroup(sheetContext, 'Trade filters'),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: <Widget>[
+                                  toggle('Best Deals', deals,
+                                      () => deals = !deals),
+                                  toggle('Seasonal', seasonal,
+                                      () => seasonal = !seasonal),
+                                  toggle('In stock', inStock,
+                                      () => inStock = !inStock),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AgencySpacing.sm),
+                        child: Row(
+                          children: <Widget>[
+                            TextButton(
+                              onPressed: () => setSheet(() {
+                                deals = false;
+                                seasonal = false;
+                                inStock = false;
+                                band = null;
+                              }),
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 48),
+                                foregroundColor: colors.contentSecondary,
+                              ),
+                              child: const Text('Reset'),
+                            ),
+                            const SizedBox(width: AgencySpacing.sm),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _dealsOnly = deals;
+                                    _seasonalOnly = seasonal;
+                                    _inStockOnly = inStock;
+                                    _priceBand = band;
+                                    _resetPaging();
+                                  });
+                                  Navigator.of(sheetContext).pop();
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: ink,
+                                  foregroundColor: colors.contentInverse,
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                                child: Text('Show $preview results'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _sheetGroup(BuildContext context, String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color:
+                Theme.of(context).extension<AgencyColors>()?.contentSecondary,
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final products = ref.watch(tradeCatalogueViewProvider);
     final categories = ref.watch(tradeCategoryOptionsProvider);
     final catalogueSource = ref.watch(tradeCatalogueSourceProvider);
 
-    final filtered = products.where((p) {
-      if (_categoryId != null && p.categoryId != _categoryId) return false;
-      if (_dealsOnly && p.savingsPercent == null) return false;
-      if (_seasonalOnly && !p.seasonal) return false;
-      if (!_matchesQuery(p)) return false;
-      return true;
-    }).toList();
+    final filtered = _sorted(_filtered(products));
 
     final visible = filtered.take(_visible).toList();
     final hasMore = _visible < filtered.length;
@@ -185,6 +455,27 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                               })),
                   ],
                 ),
+              ),
+            ),
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: StorefrontControlHeaderDelegate(
+                sortOptions: <String>[
+                  for (final option in _CatalogueSort.values) option.label,
+                ],
+                selectedSort: _sort.label,
+                onSort: (label) => setState(() {
+                  _sort = _CatalogueSort.values
+                      .firstWhere((option) => option.label == label);
+                  _resetPaging();
+                }),
+                quickFilters: _quickFilters,
+                selectedQuickFilters: _quickSelected,
+                onToggleQuickFilter: _toggleQuickFilter,
+                filterCount: _filterCount,
+                onOpenFilters: _openFilters,
+                resultCount: filtered.length,
+                onClearFilters: _clearFilters,
               ),
             ),
             if (filtered.isEmpty)

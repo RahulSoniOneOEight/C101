@@ -211,6 +211,9 @@ void main() {
 
   testWidgets('trade catalogue search finds a grouped card by variant SKU',
       (tester) async {
+    tester.view.physicalSize = const Size(420, 1300);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final trade =
