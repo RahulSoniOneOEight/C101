@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/domain/order_models.dart';
@@ -164,6 +165,86 @@ void main() {
 
     expect(find.text('1 result'), findsOneWidget);
     expect(find.text('ToolCo'), findsWidgets);
+    expect(find.text('Cordless Drill'), findsWidgets);
+    expect(find.text('Interior Paint'), findsNothing);
+  });
+
+  testWidgets('brand discovery switches to the Browse shell branch',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final prefs = await _prefs();
+    const presentation = StorefrontPresentation(
+      banners: <StorefrontBanner>[],
+      categories: <StorefrontCategory>[],
+    );
+    const products = <Product>[
+      Product(
+        id: 'drill',
+        title: 'Cordless Drill',
+        brand: 'baum',
+        price: Money(amount: 150000, currencyCode: 'INR'),
+      ),
+      Product(
+        id: 'paint',
+        title: 'Interior Paint',
+        brand: 'asianpaints',
+        price: Money(amount: 50000, currencyCode: 'INR'),
+      ),
+    ];
+    final router = GoRouter(
+      initialLocation: '/discover',
+      routes: <RouteBase>[
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) => navigationShell,
+          branches: <StatefulShellBranch>[
+            StatefulShellBranch(
+              routes: <RouteBase>[
+                GoRoute(
+                  path: '/discover',
+                  builder: (_, __) =>
+                      const DiscoveryHubScreen(initialTab: DiscoveryTab.brands),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: <RouteBase>[
+                GoRoute(
+                  path: '/browse',
+                  builder: (context, state) => BrowseScreen(
+                    initialBrand: state.uri.queryParameters['brand'],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          productsProvider.overrideWith((ref) async => products),
+          presentationProvider.overrideWithValue(presentation),
+        ],
+        child: MaterialApp.router(
+          theme: AgencyTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('baum'));
+    await tester.pumpAndSettle();
+
+    expect(router.routeInformationProvider.value.uri.path, '/browse');
+    expect(router.routeInformationProvider.value.uri.queryParameters['brand'],
+        'baum');
     expect(find.text('Cordless Drill'), findsWidgets);
     expect(find.text('Interior Paint'), findsNothing);
   });

@@ -149,7 +149,9 @@ class _DiscoveryHubScreenState extends ConsumerState<DiscoveryHubScreen> {
       label: '${category.label}, $count products',
       child: InkWell(
         borderRadius: BorderRadius.circular(AgencyRadius.lg),
-        onTap: () => context.push(
+        // Browse is a sibling shell branch: `go` switches the selected tab and
+        // keeps the URL in step, whereas `push` would stack it inside Home.
+        onTap: () => context.go(
           '/browse?category=${Uri.encodeComponent(category.label)}',
         ),
         child: Container(
@@ -255,7 +257,7 @@ class _DiscoveryHubScreenState extends ConsumerState<DiscoveryHubScreen> {
               final image = items.first.thumbnail;
               return InkWell(
                 borderRadius: BorderRadius.circular(AgencyRadius.lg),
-                onTap: () => context.push(
+                onTap: () => context.go(
                   '/browse?brand=${Uri.encodeComponent(brand)}',
                 ),
                 child: Container(

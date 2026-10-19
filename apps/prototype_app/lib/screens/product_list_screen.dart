@@ -150,7 +150,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
             : 'Added ${selected.label} to cart'),
         action: SnackBarAction(
           label: 'View cart',
-          onPressed: () => context.push('/cart'),
+          // Cart is a sibling shell branch; `go` switches the tab explicitly.
+          onPressed: () => context.go('/cart'),
         ),
       ),
     );
