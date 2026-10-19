@@ -32,9 +32,14 @@ Widget tradeProductTile(
             priceLabel: t.unitPrice.formatted,
           ))
       .toList();
+  final brand = p.product.brand?.trim();
   return TradeProductCardCompact(
     title: p.product.title,
-    brand: p.product.brand,
+    // The grouped SKU count matters more than the variant list on a card: it
+    // tells the buyer there are more SKUs inside this one product.
+    brand: brand == null || brand.isEmpty
+        ? p.product.variantLabel
+        : '$brand · ${p.product.variantLabel}',
     moqLabel: 'MOQ ${p.moq}',
     imageUrl: p.product.thumbnail,
     savingsLabel: p.savingsPercent == null ? null : '${p.savingsPercent}% off',
@@ -45,7 +50,7 @@ Widget tradeProductTile(
     mrpLabel: p.mrp.formatted,
     quantity: quantity,
     onQuantityChanged: onQuantityChanged,
-    state: p.stockQty <= 0
+    state: p.stockKnown && p.stockQty <= 0
         ? CommerceFixture.outOfStock
         : CommerceFixture.defaultState,
     onAdd: () {

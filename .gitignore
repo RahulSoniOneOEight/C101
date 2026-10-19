@@ -44,3 +44,4 @@ storybook-static/
 .DS_Store
 Thumbs.db
 .idea/
+firebase-debug.log

@@ -50,12 +50,13 @@ class B2BTradePdpScreen extends ConsumerStatefulWidget {
 class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
   int _selectedTier = 0;
   String? _selectedSellerId;
+  String? _selectedVariantId;
   bool _showAllSellers = false;
 
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     TradeProduct? match;
     for (final item in catalogue) {
       if (item.product.id == widget.productId) {
@@ -63,7 +64,6 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
         break;
       }
     }
-    match ??= catalogue.isNotEmpty ? catalogue.first : null;
     if (match == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Product · Trade')),
@@ -71,6 +71,13 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
       );
     }
     final p = match;
+    final variants = p.product.variants;
+    final selectedVariant = variants.isEmpty
+        ? null
+        : variants.firstWhere(
+            (v) => v.id == _selectedVariantId,
+            orElse: () => p.product.defaultVariant ?? variants.first,
+          );
     final sellers = p.sellers;
     final bestSeller = p.bestSeller;
     final selectedSeller = sellers.isEmpty
@@ -84,8 +91,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     final tierIndex =
         tiers.isEmpty ? 0 : _selectedTier.clamp(0, tiers.length - 1);
     final tierQty = tiers.isEmpty ? p.moq : tiers[tierIndex].quantity;
-    final unitPrice = selectedSeller?.unitPrice ?? p.unitPriceFor(tierQty);
-    final mrp = p.mrp;
+    final unitPrice =
+        selectedVariant?.price ?? selectedSeller?.unitPrice ?? p.unitPriceFor(tierQty);
+    final mrp = selectedVariant?.mrp ?? p.mrp;
+    final stockQty = selectedVariant?.stockQty ?? p.stockQty;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Product · Trade')),
@@ -111,7 +120,13 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Positioned(
                 top: 10,
                 left: 10,
-                child: StockBadge(label: p.stockLabel()),
+                child: StockBadge(
+                  label: !p.stockKnown
+                      ? 'Availability on request'
+                      : stockQty > 0
+                          ? 'In Stock ($stockQty)'
+                          : 'Out of Stock',
+                ),
               ),
               if (p.savingsPercent != null)
                 Positioned(
@@ -151,8 +166,28 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                       decoration: TextDecoration.lineThrough)),
             ],
           ),
-          // ---- Seller details (multi-seller, best price default) ----
-          if (selectedSeller != null) ...[
+          // ---- Variant (SKU) selection for a grouped product ----
+          if (variants.isNotEmpty) ...[
+            _label(context, 'Variants (${variants.length})'),
+            for (final variant in variants)
+              _VariantRow(
+                variant: variant,
+                selected: variant.id == selectedVariant?.id,
+                onTap: () => setState(() => _selectedVariantId = variant.id),
+              ),
+            if (p.product.catalogueImport != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+                child: Text(
+                  'Stock shown is the explicit staging fixture (50 per SKU), '
+                  'not supplier stock.',
+                  style:
+                      TextStyle(fontSize: 11, color: colors.contentSecondary),
+                ),
+              ),
+          ],
+          // ---- Seller details (fixture catalogue without variant detail) ----
+          if (variants.isEmpty && selectedSeller != null) ...[
             _label(context, 'Sold by'),
             _SellerRow(
               seller: selectedSeller,
@@ -224,12 +259,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    ref.read(b2bQuotationCartProvider.notifier).addSku(
-                          sku: p.product.id,
-                          name: p.product.title,
-                          quantity: tierQty,
-                          unitPrice: unitPrice,
-                        );
+                    ref
+                        .read(b2bQuotationCartProvider.notifier)
+                        .addTradeProduct(p,
+                            quantity: tierQty, variant: selectedVariant);
                     context.go('/b2b/cart');
                   },
                   icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -244,13 +277,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ref.read(b2bQuotationCartProvider.notifier).addSku(
-                          sku: p.product.id,
-                          name: p.product.title,
-                          quantity: tierQty,
-                          unitPrice: unitPrice,
-                          seller: selectedSeller?.id,
-                        );
+                    ref
+                        .read(b2bQuotationCartProvider.notifier)
+                        .addTradeProduct(p,
+                            quantity: tierQty, variant: selectedVariant);
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
                       ..showSnackBar(SnackBar(
@@ -273,6 +303,94 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// One sellable SKU inside a grouped product on the trade PDP.
+///
+/// Selecting a row is what lets a buyer inspect and buy a specific source SKU
+/// while the catalogue keeps showing one card per product.
+class _VariantRow extends StatelessWidget {
+  const _VariantRow({
+    required this.variant,
+    required this.selected,
+    this.onTap,
+  });
+
+  final ProductVariant variant;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _c(context);
+    final detail = <String>[
+      if (variant.sku != null) 'SKU ${variant.sku}',
+      if (variant.sellerName != null) variant.sellerName!,
+      if (!variant.inStock) 'Out of stock',
+    ].join(' · ');
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AgencySpacing.xs),
+        padding: const EdgeInsets.all(AgencySpacing.sm),
+        decoration: BoxDecoration(
+          color: selected ? colors.surfaceInteractive : colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
+          border: Border.all(
+              color: selected ? colors.actionPrimary : colors.borderDefault),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 18,
+              color:
+                  selected ? colors.actionPrimary : colors.contentSecondary,
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    variant.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary),
+                  ),
+                  if (detail.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: colors.contentSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Text(
+              variant.price?.formatted ?? 'On request',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color:
+                      selected ? colors.actionPrimary : colors.contentPrimary),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -508,7 +626,7 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
     final cart = ref.read(b2bQuotationCartProvider);
     final existing = cart.lines.map((l) => l.sku).toSet();
     final candidates = ref
-        .read(tradeCatalogueProvider)
+        .read(tradeCatalogueViewProvider)
         .where((p) => !existing.contains(p.product.id))
         .toList();
     if (candidates.isEmpty) {
@@ -721,7 +839,7 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
     if (q.isEmpty) return const <TradeProduct>[];
     final inBasket = cart.lines.map((l) => l.sku).toSet();
     return ref
-        .read(tradeCatalogueProvider)
+        .read(tradeCatalogueViewProvider)
         .where((p) =>
             !inBasket.contains(p.product.id) &&
             (p.product.title.toLowerCase().contains(q) ||
@@ -2032,7 +2150,7 @@ class _RelatedProductsRailState extends ConsumerState<_RelatedProductsRail> {
     final cart = ref.watch(b2bQuotationCartProvider);
     final inCart = cart.lines.map((line) => line.sku).toSet();
     final related = ref
-        .watch(tradeCatalogueProvider)
+        .watch(tradeCatalogueViewProvider)
         .where((p) => !inCart.contains(p.product.id))
         .take(6)
         .toList();

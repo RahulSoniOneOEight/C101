@@ -17,6 +17,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   AppConfig.validateForRelease();
+  AppConfig.enableLiveCatalogue();
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     final firebase = await Firebase.initializeApp();
     if (firebase.options.projectId != 'buildkart-staging') {

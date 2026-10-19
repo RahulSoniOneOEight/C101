@@ -478,13 +478,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _submit(String value) => setState(() => _query = value);
 
   List<Product> _match(List<Product> products) {
-    final q = _query.trim().toLowerCase();
+    final q = _query.trim();
     if (q.isEmpty) return const <Product>[];
-    return products
-        .where((p) =>
-            p.title.toLowerCase().contains(q) ||
-            (p.brand?.toLowerCase().contains(q) ?? false))
-        .toList();
+    // Title, brand, variant label and SKU — the SKU match is what makes the
+    // whole grouped catalogue searchable.
+    return products.where((p) => p.matchesQuery(q)).toList();
   }
 
   @override
@@ -1240,8 +1238,8 @@ class _WishlistTile extends ConsumerWidget {
                   child: FilledButton(
                     onPressed: () async {
                       await ref.read(cartProvider.notifier).addItem(
-                          offerId: product.offerId ?? '',
-                          variantId: product.variantId ?? product.id,
+                          offerId: product.cartOfferId,
+                          variantId: product.cartVariantId,
                           quantity: 1);
                       if (context.mounted) {
                         PinToast.show(context, 'Added to cart',

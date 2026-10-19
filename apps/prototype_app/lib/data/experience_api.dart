@@ -132,8 +132,12 @@ class ExperienceApi {
         .toList();
   }
 
-  Future<Map<String, dynamic>> getProduct(String productId) async {
-    final res = await _dio.get<Map<String, dynamic>>('/v1/products/$productId');
+  Future<Map<String, dynamic>> getProduct(String productId,
+      {String channel = 'b2c'}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/products/$productId',
+      queryParameters: <String, dynamic>{'channel': channel},
+    );
     return res.data!;
   }
 
@@ -142,20 +146,91 @@ class ExperienceApi {
   /// When [collectionId] is supplied the list is scoped to that commerce collection, which is how a
   /// storefront layout section resolves its product source. Composition (price and offer) is unchanged,
   /// so a layout-driven rail renders exactly like a catalogue rail.
-  Future<List<Product>> getComposedProducts(
-      {int limit = 50, int offset = 0, String? collectionId}) async {
+  ///
+  /// [catalogueImport] selects a governed imported catalogue by its metadata marker, so the storefront
+  /// can show the staged source catalogue without mixing in demonstration products.
+  Future<List<Product>> getComposedProducts({
+    int limit = 50,
+    int offset = 0,
+    String? collectionId,
+    String channel = 'b2c',
+    String? catalogueImport,
+  }) async {
+    final page = await _fetchComposedProducts(
+      limit: limit,
+      offset: offset,
+      collectionId: collectionId,
+      channel: channel,
+      catalogueImport: catalogueImport,
+    );
+    return page.$1;
+  }
+
+  /// Every page of the composed catalogue, so a surface never silently truncates
+  /// at the first page.
+  ///
+  /// The backend reports `count` for a metadata-selected catalogue; when it does
+  /// not, iteration stops on a short page. Ids are de-duplicated because a
+  /// catalogue can change between page requests.
+  Future<List<Product>> getAllComposedProducts({
+    String channel = 'b2c',
+    String? catalogueImport,
+    int pageSize = 250,
+    int maxPages = 20,
+  }) async {
+    final collected = <Product>[];
+    final seen = <String>{};
+    var offset = 0;
+    for (var page = 0; page < maxPages; page++) {
+      final (batch, count) = await _fetchComposedProducts(
+        limit: pageSize,
+        offset: offset,
+        channel: channel,
+        catalogueImport: catalogueImport,
+      );
+      if (batch.isEmpty) break;
+      var added = 0;
+      for (final product in batch) {
+        if (seen.add(product.id)) {
+          collected.add(product);
+          added++;
+        }
+      }
+      // A backend that ignores `offset` would otherwise repeat the same page
+      // until the page cap; no new id means there is nothing further to read.
+      if (added == 0) break;
+      offset += batch.length;
+      if (count != null && offset >= count) break;
+      if (count == null && batch.length < pageSize) break;
+    }
+    return collected;
+  }
+
+  Future<(List<Product>, int?)> _fetchComposedProducts({
+    required int limit,
+    required int offset,
+    String? collectionId,
+    String channel = 'b2c',
+    String? catalogueImport,
+  }) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/products',
       queryParameters: <String, dynamic>{
         'limit': limit,
         'offset': offset,
-        if (collectionId != null && collectionId.isNotEmpty) 'collection_id': collectionId,
+        'channel': channel,
+        if (collectionId != null && collectionId.isNotEmpty)
+          'collection_id': collectionId,
+        if (catalogueImport != null && catalogueImport.isNotEmpty)
+          'catalogue_import': catalogueImport,
       },
     );
-    return (res.data!['products'] as List? ?? [])
+    final data = res.data!;
+    final products = (data['products'] as List? ?? [])
         .whereType<Map<String, dynamic>>()
         .map(Product.fromComposedJson)
         .toList();
+    return (products, (data['count'] as num?)?.toInt());
   }
 
   /// Storefront layout sections for a channel. Empty when no layout is configured.
@@ -187,8 +262,12 @@ class ExperienceApi {
   }
 
   /// Composed product detail (best-price offer drives price + variant identity).
-  Future<Product> getComposedProduct(String productId) async {
-    final res = await _dio.get<Map<String, dynamic>>('/v1/products/$productId');
+  Future<Product> getComposedProduct(String productId,
+      {String channel = 'b2c'}) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/v1/products/$productId',
+      queryParameters: <String, dynamic>{'channel': channel},
+    );
     return Product.fromComposedJson(res.data!);
   }
 

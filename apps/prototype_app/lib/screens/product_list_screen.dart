@@ -131,8 +131,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     await ref
         .read(cartProvider.notifier)
         .addItem(
-            offerId: product.offerId ?? '',
-            variantId: product.variantId ?? product.id,
+            offerId: product.cartOfferId,
+            variantId: product.cartVariantId,
             quantity: 1);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -417,7 +417,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
           ? null
           : '${product.discountPercent}% off',
       imageUrl: product.thumbnail,
-      brand: product.brand,
+      brand: product.brandLine,
       badges: product.badges.isEmpty
           ? const <String>['Assured']
           : product.badges,

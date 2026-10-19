@@ -19,8 +19,22 @@ class _FakeExperienceApi extends ExperienceApi {
   _FakeExperienceApi() : super(Dio());
 
   @override
-  Future<List<Product>> getComposedProducts(
-          {int limit = 50, int offset = 0, String? collectionId}) async =>
+  Future<List<Product>> getComposedProducts({
+    int limit = 50,
+    int offset = 0,
+    String? collectionId,
+    String channel = 'b2c',
+    String? catalogueImport,
+  }) async =>
+      demoProducts;
+
+  @override
+  Future<List<Product>> getAllComposedProducts({
+    String channel = 'b2c',
+    String? catalogueImport,
+    int pageSize = 250,
+    int maxPages = 20,
+  }) async =>
       demoProducts;
 
   @override

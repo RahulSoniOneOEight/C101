@@ -11,7 +11,7 @@ import '../widgets/trade_product_tile.dart';
 
 /// B2B catalogue / category browse. Entry points are the home category rail,
 /// header search, and the Seasonal / Best Deals merchandising tiles; content is
-/// filtered data-driven via [tradeCatalogueProvider].
+/// filtered data-driven via [tradeCatalogueViewProvider].
 class B2BCatalogueScreen extends ConsumerStatefulWidget {
   const B2BCatalogueScreen({
     this.initialCategoryId,
@@ -50,6 +50,18 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
 
   void _resetPaging() => _visible = _pageSize;
 
+  /// Search covers the product, its brand, every variant label/SKU and the
+  /// seller name, so a buyer who only knows a SKU still finds the grouped card.
+  bool _matchesQuery(TradeProduct p) {
+    final q = _query.trim();
+    if (q.isEmpty) return true;
+    if (p.product.matchesQuery(q)) return true;
+    final lower = q.toLowerCase();
+    return p.sellers.any((seller) => seller.name.toLowerCase().contains(lower));
+  }
+
+
+
   void _loadMore(int total) {
     if (_visible >= total) return;
     setState(() => _visible += _pageSize);
@@ -57,17 +69,15 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final products = ref.watch(tradeCatalogueProvider);
+    final products = ref.watch(tradeCatalogueViewProvider);
     final categories = ref.watch(tradeCategoryOptionsProvider);
+    final catalogueSource = ref.watch(tradeCatalogueSourceProvider);
 
     final filtered = products.where((p) {
       if (_categoryId != null && p.categoryId != _categoryId) return false;
       if (_dealsOnly && p.savingsPercent == null) return false;
       if (_seasonalOnly && !p.seasonal) return false;
-      if (_query.isNotEmpty &&
-          !p.product.title.toLowerCase().contains(_query.toLowerCase())) {
-        return false;
-      }
+      if (!_matchesQuery(p)) return false;
       return true;
     }).toList();
 
@@ -119,6 +129,14 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                 ),
               ),
             ),
+            if (catalogueSource == TradeCatalogueSource.loading)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                      AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+              ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -411,7 +429,7 @@ class B2BPriceAdvantageScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final products = ref.watch(tradeCatalogueProvider);
+    final products = ref.watch(tradeCatalogueViewProvider);
 
     // Best savings available across the catalogue, for the headline metric.
     final maxSavings = products

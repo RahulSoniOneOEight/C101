@@ -40,7 +40,7 @@ class CartScreen extends ConsumerWidget {
           final related = products
               .where((p) =>
                   !inCart.contains(p.id) &&
-                  !inCart.contains(p.variantId ?? p.id))
+                  !inCart.contains(p.cartVariantId))
               .take(8)
               .toList();
 
@@ -128,8 +128,8 @@ class CartScreen extends ConsumerWidget {
                 onPressed: () => context.push('/product/${p.id}'),
                 onAddToCart: () async {
                   await ref.read(cartProvider.notifier).addItem(
-                      offerId: p.offerId ?? '',
-                      variantId: p.variantId ?? p.id,
+                      offerId: p.cartOfferId,
+                      variantId: p.cartVariantId,
                       quantity: 1);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +165,7 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
   List<Product> get _related {
     final line = widget.item;
     final candidates = widget.catalogue
-        .where((p) => p.id != line.id && (p.variantId ?? p.id) != line.id)
+        .where((p) => p.id != line.id && p.cartVariantId != line.id)
         .toList();
     // Same-brand products first, then the rest.
     final brand = line.title.split(' ').first.toLowerCase();
@@ -225,14 +225,14 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                         ? null
                         : '${p.discountPercent}% off',
                     imageUrl: p.thumbnail,
-                    brand: p.brand,
+                    brand: p.brandLine,
                     badges: p.badges,
                     variant: ProductCardVariant.compact,
                     onPressed: () => context.push('/product/${p.id}'),
                     onAddToCart: () async {
                       await ref.read(cartProvider.notifier).addItem(
-                          offerId: p.offerId ?? '',
-                          variantId: p.variantId ?? p.id,
+                          offerId: p.cartOfferId,
+                          variantId: p.cartVariantId,
                           quantity: 1);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

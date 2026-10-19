@@ -46,6 +46,27 @@ class AppConfig {
   /// never silently serve demo data to production users.
   static const bool useMockData = kDebugMode;
 
+  /// Metadata marker of the governed source catalogue to show in staging.
+  ///
+  /// The Experience API selects products by this marker (`catalogue_import`) so the storefront renders
+  /// the imported 500-SKU catalogue rather than every demonstration product that happens to be
+  /// published. Override with `--dart-define=CATALOGUE_IMPORT=` to show the whole catalogue.
+  static const String catalogueImport = String.fromEnvironment(
+    'CATALOGUE_IMPORT',
+    defaultValue: 'CHG-049',
+  );
+
+  /// Whether this process bootstrapped remote catalogue reads.
+  ///
+  /// Set by [main] before the app is mounted. Widget tests mount the app without
+  /// running [main], so they render the deterministic local fallback instead of
+  /// starting an HTTP request that would outlive the test binding.
+  static bool _liveCatalogueEnabled = false;
+
+  static bool get liveCatalogueEnabled => _liveCatalogueEnabled;
+
+  static void enableLiveCatalogue() => _liveCatalogueEnabled = true;
+
   static void validateForRelease() {
     if (!kReleaseMode) return;
     if (environment != 'staging') {

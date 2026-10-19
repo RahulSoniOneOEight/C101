@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_config.dart';
+import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
@@ -653,9 +655,107 @@ TradeProduct _withSellers(TradeProduct p) {
   ]);
 }
 
-/// The full B2B trade catalogue, category-tagged and seasonally flagged. This
-/// powers the catalogue/category browse, Best Deals and Seasonal surfaces. In
-/// production it is fed by the product/catalog backend.
+/// Maps a composed catalogue product onto the B2B trade view model.
+///
+/// Only values that actually exist upstream are carried across: catalogue price,
+/// the winning offer's seller and the offer's stock. MOQ stays 1 and quantity
+/// tiers stay empty because there is no governed trade-terms source yet; filling
+/// them with a local convention would fabricate a commercial term.
+TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
+  final selected = product.defaultVariant;
+  final price = selected?.price ??
+      product.price ??
+      const Money(amount: 0, currencyCode: 'INR');
+  return TradeProduct(
+    product: product,
+    tradePrice: price,
+    moq: 1,
+    stockQty: selected?.stockQty ?? 0,
+    // An older composed payload lists variants without stock. Say "unconfirmed"
+    // rather than turning every product into "Out of Stock".
+    stockKnown: selected != null,
+    deliveryLocation: 'Marketplace Shipping',
+    categoryId: categoryId ?? product.categoryId ?? 'all',
+    tiers: const <TradeTier>[],
+    sellers: <TradeSupplier>[
+      for (final variant in product.variants)
+        if (variant.isPurchasable)
+          TradeSupplier(
+            id: variant.offerId!,
+            name: variant.sellerName ?? product.brand ?? 'BuildKart Verified Seller',
+            unitPrice: variant.price!,
+            moq: 1,
+            stockQty: variant.stockQty,
+            bestPrice: variant.id == product.variantId,
+          ),
+    ],
+  );
+}
+
+/// Live B2B trade catalogue from the Experience API.
+///
+/// Reads the same staged source catalogue as the storefront, but through the B2B
+/// sales channel, and resolves each product's L1 category id from CMS
+/// presentation so the trade rail filters on commerce identity rather than on a
+/// label guess.
+final tradeCatalogueLiveProvider =
+    FutureProvider.autoDispose<List<TradeProduct>>((ref) async {
+  // Tests and any process that has not bootstrapped the live runtime read the
+  // governed fixture, never a half-started request.
+  if (!AppConfig.liveCatalogueEnabled) return const <TradeProduct>[];
+  final categories = ref.watch(b2bPresentationProvider).value?.categories ??
+      const <StorefrontCategory>[];
+  final categoryIdByLabel = <String, String>{
+    for (final category in categories)
+      if (category.label.trim().isNotEmpty)
+        category.label.trim().toLowerCase(): category.id,
+  };
+  final api = ref.watch(experienceApiProvider);
+  var products = await api.getAllComposedProducts(
+    channel: 'b2b',
+    catalogueImport: AppConfig.catalogueImport,
+  );
+  if (products.isEmpty) {
+    products = await api.getAllComposedProducts(channel: 'b2b');
+  }
+  return <TradeProduct>[
+    for (final product in products)
+      tradeProductFromCatalogue(
+        product,
+        categoryId: categoryIdByLabel[
+            (product.categoryLabel ?? '').trim().toLowerCase()],
+      ),
+  ];
+});
+
+/// What the trade surfaces are currently showing.
+enum TradeCatalogueSource { loading, live, fallback }
+
+/// The trade catalogue the B2B UI renders.
+///
+/// Live API data wins; the local fixture is only a fallback while the API is
+/// loading or unreachable, so the trade UI never becomes an error page.
+final tradeCatalogueViewProvider = Provider<List<TradeProduct>>((ref) {
+  final live = ref.watch(tradeCatalogueLiveProvider);
+  final products = live.value ?? const <TradeProduct>[];
+  if (products.isNotEmpty) return products;
+  return ref.watch(tradeCatalogueProvider);
+});
+
+final tradeCatalogueSourceProvider = Provider<TradeCatalogueSource>((ref) {
+  final live = ref.watch(tradeCatalogueLiveProvider);
+  if ((live.value ?? const <TradeProduct>[]).isNotEmpty) {
+    return TradeCatalogueSource.live;
+  }
+  return live.isLoading
+      ? TradeCatalogueSource.loading
+      : TradeCatalogueSource.fallback;
+});
+
+/// The full B2B trade catalogue fixture, category-tagged and seasonally flagged.
+///
+/// Kept only as the offline/development fallback for [tradeCatalogueViewProvider].
+/// Live trade surfaces read the Experience API.
 final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
   const freeGoods = TradeScheme(
     title: 'Scheme available',
@@ -857,18 +957,33 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
   return <TradeProduct>[for (final p in base) _withSellers(p)];
 });
 
-/// Frequently bought / saved products surfaced in the "Frequent & Saved"
-/// collection swimlane on the B2B home.
+/// Previously ordered products, surfaced in the "Buy Again" swimlane.
+///
+/// Resolved from the buyer's own orders and saved procurement lists, never from
+/// a fixed set of demonstration ids: an empty history means the unit is empty
+/// rather than presenting unrelated catalogue items as "frequent".
 final frequentSavedProvider = Provider<List<TradeProduct>>((ref) {
-  final catalogue = ref.watch(tradeCatalogueProvider);
-  const ids = {'prod_bibcock', 'prod_cpvc', 'prod_switch', 'prod_led'};
-  return catalogue.where((p) => ids.contains(p.product.id)).toList();
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  final skus = <String>{
+    for (final order in ref.watch(b2bOrdersProvider))
+      for (final line in order.lines) line.sku,
+    for (final list in ref.watch(procurementListsProvider))
+      for (final item in list.items) item.sku,
+  };
+  if (skus.isEmpty) return const <TradeProduct>[];
+  final matched = <TradeProduct>[
+    for (final product in catalogue)
+      if (product.product.variants.any((v) => skus.contains(v.sku)) ||
+          skus.contains(product.product.id))
+        product,
+  ];
+  return matched.take(6).toList();
 });
 
 /// Products with the buyer's best price advantage (highest savings), surfaced
 /// in the "My Price Advantage" collection swimlane.
 final priceAdvantageProvider = Provider<List<TradeProduct>>((ref) {
-  final catalogue = ref.watch(tradeCatalogueProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
   final sorted = List<TradeProduct>.of(catalogue)
     ..sort((a, b) => (b.savingsPercent ?? 0).compareTo(a.savingsPercent ?? 0));
   return sorted.take(4).toList();
@@ -904,13 +1019,23 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     }
   }
 
-  void addTradeProduct(TradeProduct product, {int? quantity}) {
+  /// Adds one SKU of a grouped product.
+  ///
+  /// [variant] is the SKU the buyer selected on the product page. Without one,
+  /// the product's first sellable variant is used so a grouped product is never
+  /// added under its product id when real SKUs exist.
+  void addTradeProduct(TradeProduct product,
+      {int? quantity, ProductVariant? variant}) {
+    final selected = variant ?? product.product.defaultVariant;
     final qty = quantity ?? product.moq;
     addSku(
-      sku: product.product.id,
-      name: product.product.title,
+      sku: selected?.sku ?? product.product.id,
+      name: selected == null
+          ? product.product.title
+          : '${product.product.title} · ${selected.label}',
       quantity: qty,
-      unitPrice: product.unitPriceFor(qty),
+      unitPrice: selected?.price ?? product.unitPriceFor(qty),
+      seller: selected?.sellerName,
     );
   }
 
@@ -922,7 +1047,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     String? seller,
   }) {
     if (sku.trim().isEmpty || quantity <= 0) return;
-    final catalogue = ref.read(tradeCatalogueProvider);
+    final catalogue = ref.read(tradeCatalogueViewProvider);
     TradeProduct? match;
     for (final product in catalogue) {
       if (product.product.id == sku ||
@@ -931,8 +1056,13 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         break;
       }
     }
-    final resolvedPrice =
-        unitPrice ?? match?.unitPriceFor(quantity) ?? _inr(100);
+    // Quantity tiers only apply to the local fixture. A real SKU's price comes
+    // from its own offer; there is no trade-terms source to reprice it from.
+    final tierPriced = match != null && match.product.variants.isEmpty;
+    final resolvedPrice = unitPrice ??
+        (tierPriced ? match.unitPriceFor(quantity) : null) ??
+        match?.tradePrice ??
+        _inr(100);
     final index = state.lines.indexWhere((line) => line.sku == sku);
     final next = List<B2BQuotationLine>.of(state.lines);
     if (index >= 0) {
@@ -945,7 +1075,9 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         sku: existing.sku,
         name: existing.name,
         quantity: combinedQuantity,
-        unitPrice: match?.unitPriceFor(combinedQuantity) ?? resolvedPrice,
+        unitPrice: tierPriced
+            ? match.unitPriceFor(combinedQuantity)
+            : existing.unitPrice,
         targetUnitPrice: existing.targetUnitPrice,
         seller: existing.seller ?? seller,
       );
@@ -981,7 +1113,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
   void addRepeatOrder(B2BOrder order) {
     // Reorder drops the *entire* previous order back into the cart.
     if (order.lines.isEmpty) {
-      for (final product in ref.read(tradeCatalogueProvider).take(2)) {
+      for (final product in ref.read(tradeCatalogueViewProvider).take(2)) {
         addTradeProduct(product);
       }
       return;
@@ -1002,12 +1134,14 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
       return;
     }
     TradeProduct? catalogueMatch;
-    for (final product in ref.read(tradeCatalogueProvider)) {
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
       if (product.product.id == sku) {
         catalogueMatch = product;
         break;
       }
     }
+    final tierPriced =
+        catalogueMatch != null && catalogueMatch.product.variants.isEmpty;
     _commit(state.copyWith(
       lines: <B2BQuotationLine>[
         for (final line in state.lines)
@@ -1016,8 +1150,9 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
                   sku: line.sku,
                   name: line.name,
                   quantity: quantity,
-                  unitPrice:
-                      catalogueMatch?.unitPriceFor(quantity) ?? line.unitPrice,
+                  unitPrice: tierPriced
+                      ? catalogueMatch.unitPriceFor(quantity)
+                      : line.unitPrice,
                   targetUnitPrice: line.targetUnitPrice,
                   seller: line.seller,
                 )

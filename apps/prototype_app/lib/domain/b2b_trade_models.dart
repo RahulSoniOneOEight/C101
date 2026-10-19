@@ -154,6 +154,7 @@ class TradeProduct {
     this.scheme,
     this.tag,
     this.sellers = const <TradeSupplier>[],
+    this.stockKnown = true,
   });
 
   final Product product;
@@ -161,6 +162,10 @@ class TradeProduct {
   final int moq;
   final int stockQty;
   final String deliveryLocation;
+
+  /// False when the composed payload carried no stock figure. The UI then says
+  /// availability is unconfirmed rather than claiming "out of stock".
+  final bool stockKnown;
 
   /// Trade category id this product belongs to (matches [TradeCategory.id]).
   final String categoryId;
@@ -200,6 +205,7 @@ class TradeProduct {
         scheme: scheme,
         tag: tag,
         sellers: sellers ?? this.sellers,
+        stockKnown: stockKnown,
       );
 
   /// Savings vs MRP at the base trade price, or null when no discount.
@@ -225,7 +231,10 @@ class TradeProduct {
         amount: unit.amount * quantity, currencyCode: unit.currencyCode);
   }
 
-  String stockLabel() => stockQty > 0 ? 'In Stock ($stockQty)' : 'Out of Stock';
+  String stockLabel() {
+    if (!stockKnown) return 'Availability on request';
+    return stockQty > 0 ? 'In Stock ($stockQty)' : 'Out of Stock';
+  }
 }
 
 /// The four B2B primary destinations shown in the bottom navigation.

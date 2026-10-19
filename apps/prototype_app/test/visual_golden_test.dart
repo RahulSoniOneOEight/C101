@@ -34,8 +34,22 @@ class _FakeExperienceApi extends ExperienceApi {
   _FakeExperienceApi() : super(Dio());
 
   @override
-  Future<List<Product>> getComposedProducts(
-          {int limit = 50, int offset = 0, String? collectionId}) async =>
+  Future<List<Product>> getComposedProducts({
+    int limit = 50,
+    int offset = 0,
+    String? collectionId,
+    String channel = 'b2c',
+    String? catalogueImport,
+  }) async =>
+      demoProducts;
+
+  @override
+  Future<List<Product>> getAllComposedProducts({
+    String channel = 'b2c',
+    String? catalogueImport,
+    int pageSize = 250,
+    int maxPages = 20,
+  }) async =>
       demoProducts;
 
   @override
@@ -44,13 +58,15 @@ class _FakeExperienceApi extends ExperienceApi {
       const <StorefrontSection>[];
 
   @override
-  Future<Product> getComposedProduct(String productId) async =>
+  Future<Product> getComposedProduct(String productId,
+          {String channel = 'b2c'}) async =>
       demoProducts.firstWhere((p) => p.id == productId);
 
   /// Detail-shaped payload: best offer nested under `commercial.selected_seller`
   /// (the contract the product page consumes).
   @override
-  Future<Map<String, dynamic>> getProduct(String productId) async {
+  Future<Map<String, dynamic>> getProduct(String productId,
+      {String channel = 'b2c'}) async {
     final p = demoProducts.firstWhere((x) => x.id == productId);
     final best = <String, dynamic>{
       'id': p.offerId ?? 'offer_best',

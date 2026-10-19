@@ -68,6 +68,10 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   /// Selected seller offer id. Defaults to the best-price offer.
   String? _selectedSellerId;
 
+  /// Selected SKU of a grouped product. Defaults to the product's first
+  /// sellable variant.
+  String? _selectedVariantId;
+
   Product get product => widget.product;
 
   @override
@@ -95,6 +99,22 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
       if (s.id == _selectedSellerId) selected = s;
     }
 
+    // A grouped product owns several SKUs. The selected variant drives price,
+    // offer and add-to-cart identity so no SKU inherits another SKU's price.
+    final variants = product.variants;
+    final selectedVariant = variants.isEmpty
+        ? null
+        : variants.firstWhere(
+            (v) => v.id == _selectedVariantId,
+            orElse: () => product.defaultVariant ?? variants.first,
+          );
+    final effectivePrice = selectedVariant?.price ?? selected?.price ?? product.price;
+    final effectiveMrp = selectedVariant?.mrp ?? selected?.mrp ?? product.mrp;
+    final effectiveOfferId =
+        selectedVariant?.offerId ?? selected?.id ?? product.offerId ?? '';
+    final effectiveVariantId =
+        selectedVariant?.id ?? product.variantId ?? product.id;
+
     return ListView(
       padding: const EdgeInsets.all(AgencySpacing.md),
       children: <Widget>[
@@ -113,12 +133,25 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: colors.contentPrimary)),
+        if (selectedVariant?.sku != null) ...<Widget>[
+          const SizedBox(height: 2),
+          Text('SKU ${selectedVariant!.sku}',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+        ],
         const SizedBox(height: AgencySpacing.sm),
-        _priceRow(context, selected),
+        _priceRow(context, selectedVariant, selected),
         const SizedBox(height: AgencySpacing.md),
-        _actions(context, ref, canAdd, selected),
+        if (variants.isNotEmpty) ...<Widget>[
+          _variantSection(context, variants, selectedVariant),
+          const SizedBox(height: AgencySpacing.lg),
+        ],
+        _actions(context, ref, canAdd, selected,
+            offerId: effectiveOfferId,
+            variantId: effectiveVariantId,
+            unitPrice: effectivePrice,
+            priceAvailable: effectivePrice != null),
         const SizedBox(height: AgencySpacing.lg),
-        _benchmark(context),
+        _benchmark(context, effectivePrice, effectiveMrp),
         const SizedBox(height: AgencySpacing.lg),
         if (sellers.isNotEmpty) ...<Widget>[
           _sellerSection(context, sellers, selected),
@@ -157,12 +190,18 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _priceRow(BuildContext context, ProductSeller? seller) {
+  Widget _priceRow(BuildContext context, ProductVariant? variant,
+      ProductSeller? seller) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final price = seller?.price ?? product.price;
-    final mrp = seller?.mrp ?? product.mrp;
-    final discount = seller?.discountPercent ?? product.discountPercent;
+    final price = variant?.price ?? seller?.price ?? product.price;
+    final mrp = variant?.mrp ?? seller?.mrp ?? product.mrp;
+    final int? discount;
+    if (price != null && mrp != null && mrp.amount > price.amount) {
+      discount = (((mrp.amount - price.amount) / mrp.amount) * 100).round();
+    } else {
+      discount = seller?.discountPercent ?? product.discountPercent;
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
@@ -199,20 +238,27 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   }
 
   Widget _actions(
-      BuildContext context, WidgetRef ref, bool canAdd, ProductSeller? seller) {
+    BuildContext context,
+    WidgetRef ref,
+    bool canAdd,
+    ProductSeller? seller, {
+    required String offerId,
+    required String variantId,
+    required Money? unitPrice,
+    required bool priceAvailable,
+  }) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final unitPrice = seller?.price;
     return Row(
       children: <Widget>[
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: canAdd
+            onPressed: priceAvailable && canAdd
                 ? () async {
                     final messenger = ScaffoldMessenger.of(context);
                     await ref.read(cartProvider.notifier).addItem(
-                        offerId: seller?.id ?? '',
-                        variantId: product.variantId ?? product.id,
+                        offerId: offerId,
+                        variantId: variantId,
                         quantity: 1,
                         unitPrice: unitPrice);
                     if (context.mounted) {
@@ -235,11 +281,11 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         const SizedBox(width: AgencySpacing.sm),
         Expanded(
           child: FilledButton(
-            onPressed: canAdd
+            onPressed: priceAvailable && canAdd
                 ? () async {
                     await ref.read(cartProvider.notifier).addItem(
-                        offerId: seller?.id ?? '',
-                        variantId: product.variantId ?? product.id,
+                        offerId: offerId,
+                        variantId: variantId,
                         quantity: 1,
                         unitPrice: unitPrice);
                     if (context.mounted) context.push('/checkout');
@@ -256,11 +302,10 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _benchmark(BuildContext context) {
+  Widget _benchmark(BuildContext context, Money? price, Money? mrp) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final price = product.price;
-    final mrp = product.mrp ?? price;
+    mrp ??= price;
     if (price == null || mrp == null) return const SizedBox.shrink();
     final save = Money(
         amount: mrp.amount - price.amount, currencyCode: price.currencyCode);
@@ -331,6 +376,48 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                   fontWeight: highlight ? FontWeight.w700 : FontWeight.w500)),
         ],
       ),
+    );
+  }
+
+  /// Every SKU of a grouped product, each with its own price and SKU code.
+  Widget _variantSection(BuildContext context, List<ProductVariant> variants,
+      ProductVariant? selected) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('Variants (${variants.length})',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.contentPrimary)),
+        const SizedBox(height: AgencySpacing.xs),
+        Wrap(
+          spacing: AgencySpacing.xs,
+          runSpacing: AgencySpacing.xs,
+          children: <Widget>[
+            for (final variant in variants)
+              ChoiceChip(
+                label: Text(
+                  variant.price == null
+                      ? variant.label
+                      : '${variant.label} · ${variant.price!.formatted}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                tooltip: variant.sku == null ? null : 'SKU ${variant.sku}',
+                selected: variant.id == selected?.id,
+                onSelected: (_) =>
+                    setState(() => _selectedVariantId = variant.id),
+              ),
+          ],
+        ),
+        if (selected?.sku != null) ...<Widget>[
+          const SizedBox(height: AgencySpacing.xs),
+          Text('Selected SKU: ${selected!.sku}',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+        ],
+      ],
     );
   }
 

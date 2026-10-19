@@ -49,7 +49,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
     final presets = ref.watch(quickOrderPresetsProvider);
     final b2bBanners = ref.watch(b2bPresentationProvider).value
@@ -239,7 +239,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   }
 
   void _addQuickOrder() {
-    final products = _listProducts(ref.read(tradeCatalogueProvider));
+    final products = _listProducts(ref.read(tradeCatalogueViewProvider));
     if (products.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This list has no orderable SKUs')),

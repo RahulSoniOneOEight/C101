@@ -250,6 +250,32 @@ function regionFor(authorization?: PilotAuthorization): string {
     : config.medusaRegionId;
 }
 
+/**
+ * Effective read channel.
+ *
+ * An explicit `channel=b2b` is honoured only for an authenticated business buyer. A consumer token (or
+ * no token) can never widen its catalogue view by adding a query parameter, so the B2B sales channel is
+ * a consequence of identity rather than a client assertion.
+ */
+function requestedChannel(
+  requested: string | null,
+  authorization?: PilotAuthorization,
+): "b2b" | "b2c" {
+  const business = isBusinessBuyer(authorization);
+  if (!business) return "b2c";
+  return requested?.trim().toLowerCase() === "b2c" ? "b2c" : "b2b";
+}
+
+function salesChannelIdFor(channel: "b2b" | "b2c"): string | undefined {
+  return channel === "b2b"
+    ? config.medusaB2bSalesChannelId ?? config.medusaB2cSalesChannelId
+    : config.medusaB2cSalesChannelId;
+}
+
+/** Scan ceiling for the metadata-selected staged catalogue. Bounded so a bad marker cannot page forever. */
+const CATALOGUE_SCAN_PAGE_SIZE = 250;
+const MAX_CATALOGUE_SCAN = 2000;
+
 function privilegedRoles(pathname: string): readonly PilotRole[] | null {
   if (/^\/v1\/admin\/(tryton|inventory)(?:\/|$)/.test(pathname)) {
     return ["erp_operator", "super_admin"];
@@ -370,6 +396,34 @@ setInterval(load, 5000);
 </script>
 </body>
 </html>`;
+}
+
+/**
+ * Per-variant best price.
+ *
+ * The grouped product stays one card; each variant is a distinct sellable SKU, so the storefront needs
+ * its own offer id, price and availability to add the right line to a cart.
+ */
+function composeVariantPrices(
+  variants: { id: string; title?: string; sku?: string | null; metadata?: Record<string, unknown> | null }[],
+  offers: StoreOffer[],
+) {
+  const offersByVariant = new Map<string, StoreOffer[]>();
+  for (const offer of offers) {
+    const list = offersByVariant.get(offer.variant_id) ?? [];
+    list.push(offer);
+    offersByVariant.set(offer.variant_id, list);
+  }
+  return variants.map((variant) => {
+    const variantOffers = offersByVariant.get(variant.id) ?? [];
+    const { selected } = composeOffers(variantOffers);
+    return {
+      ...variant,
+      best_price: selected,
+      offer_count: variantOffers.length,
+      in_stock: variantOffers.some((offer) => offer.in_stock !== false),
+    };
+  });
 }
 
 /** Maps Mercur offers to composed offer views and picks the lowest eligible in-stock offer. */
@@ -1342,29 +1396,55 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
-  // GET /v1/products — composed product list with best-price offer per product
+  // GET /v1/products — composed product list with best-price offer per product.
+  //
+  // `catalogue_import` selects the governed staged catalogue by its product metadata marker, so the
+  // storefront does not mix the source catalogue with pre-existing demonstration products. When it is
+  // present the imported subset is scanned once and then paginated in memory, because Medusa's store
+  // API has no portable metadata equality filter.
   if (url.pathname === "/v1/products" && req.method === "GET") {
-    const limit = Number(url.searchParams.get("limit") ?? 50);
-    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50), 1), 250);
+    const offset = Math.max(Number(url.searchParams.get("offset") ?? 0), 0);
     // A storefront layout section resolves its products from a commerce collection. The section stores
     // the reference; this resolves it here so the storefront keeps one composed-product path, with the
     // same price and offer composition it already uses.
     const collectionId = (url.searchParams.get("collection_id") ?? "").trim();
+    const catalogueImport = (url.searchParams.get("catalogue_import") ?? "").trim();
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
-    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
+    const channel = requestedChannel(url.searchParams.get("channel"), authorization);
     try {
       const t0 = performance.now();
-      const products = collectionId
-        ? await medusa.listProductsByCollection(collectionId, limit)
-        : await medusa.listProducts(limit, offset);
+      let products: Awaited<ReturnType<typeof medusa.listProducts>>;
+      let totalCount: number | null = null;
+      if (catalogueImport) {
+        const scanned: Awaited<ReturnType<typeof medusa.listProducts>> = [];
+        for (let start = 0; start < MAX_CATALOGUE_SCAN; start += CATALOGUE_SCAN_PAGE_SIZE) {
+          const page = await medusa.listProducts(
+            CATALOGUE_SCAN_PAGE_SIZE,
+            start,
+            salesChannelIdFor(channel),
+          );
+          scanned.push(...page);
+          if (page.length < CATALOGUE_SCAN_PAGE_SIZE) break;
+        }
+        const matched = scanned.filter(
+          (p) => String(p.metadata?.catalogue_import ?? "") === catalogueImport,
+        );
+        totalCount = matched.length;
+        products = matched.slice(offset, offset + limit);
+      } else if (collectionId) {
+        products = await medusa.listProductsByCollection(collectionId, limit);
+      } else {
+        products = await medusa.listProducts(limit, offset, salesChannelIdFor(channel));
+      }
       const productsMs = performance.now() - t0;
 
       const productIds = products.map((p) => p.id);
       const t1 = performance.now();
       const { offers: allOffers, cacheHit } = await getOffersCached(
         productIds,
-        `${config.medusaCountryCode}:inr`,
+        `${config.medusaCountryCode}:inr:${channel}`,
         regionId,
       );
       const offersMs = performance.now() - t1;
@@ -1377,22 +1457,30 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         offersByProduct.set(o.product_id, list);
       }
       const composed = products.map((p) => {
-        const base = {
+        const offers = offersByProduct.get(p.id) ?? [];
+        const { selected } = composeOffers(offers);
+        return {
           id: p.id,
           title: p.title,
           thumbnail: p.thumbnail,
           description: p.description,
           handle: p.handle,
-          variants: p.variants,
+          metadata: p.metadata ?? null,
+          categories: p.categories ?? [],
+          // Every variant carries its own sellable offer. A grouped product is one card; its SKUs
+          // are the variants inside it, never extra cards.
+          variants: composeVariantPrices(p.variants, offers),
+          best_price: selected,
+          offer_count: offers.length,
         };
-        const offers = offersByProduct.get(p.id) ?? [];
-        const { selected } = composeOffers(offers);
-        return { ...base, best_price: selected, offer_count: offers.length };
       });
       const composeMs = performance.now() - t2;
 
       return json({
         products: composed,
+        count: totalCount,
+        limit,
+        offset,
         channel,
         cache_hit: cacheHit,
         timing_ms: {
@@ -1415,12 +1503,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const productId = product[1];
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
-    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
+    const channel = requestedChannel(url.searchParams.get("channel"), authorization);
     try {
-      const context = `${config.medusaCountryCode}:inr`;
+      const context = `${config.medusaCountryCode}:inr:${channel}`;
 
       const t0 = performance.now();
-      const p = await medusa.getProduct(productId);
+      const p = await medusa.getProduct(productId, salesChannelIdFor(channel));
       const productMs = performance.now() - t0;
 
       const t1 = performance.now();
@@ -1436,7 +1524,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         title: p.title,
         thumbnail: p.thumbnail,
         description: p.description,
-        variants: p.variants,
+        handle: p.handle,
+        metadata: p.metadata ?? null,
+        categories: p.categories ?? [],
+        variants: composeVariantPrices(p.variants, offers),
         offers: offerViews,
         channel,
         cache_hit: cacheHit,

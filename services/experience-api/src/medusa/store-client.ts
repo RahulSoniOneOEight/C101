@@ -6,17 +6,46 @@ import type { Config } from "../config.js";
  * state locally.
  */
 
+export interface StoreProductVariant {
+  id: string;
+  title?: string;
+  sku?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+export interface StoreProductCategoryLink {
+  id: string;
+  name: string;
+  parent_category_id?: string | null;
+}
+
 export interface StoreProduct {
   id: string;
   title: string;
   thumbnail?: string | null;
   description?: string | null;
   handle?: string | null;
-  variants: { id: string; title?: string; sku?: string | null }[];
+  /** Product traceability metadata, including `catalogue_import` and `brand`. */
+  metadata?: Record<string, unknown> | null;
+  categories?: StoreProductCategoryLink[] | null;
+  variants: StoreProductVariant[];
 }
 
-const PRODUCT_FIELDS =
-  "id,title,thumbnail,description,handle,variants.id,variants.title,variants.sku";
+const PRODUCT_FIELDS = [
+  "id",
+  "title",
+  "thumbnail",
+  "description",
+  "handle",
+  "metadata",
+  "categories.id",
+  "categories.name",
+  "categories.parent_category_id",
+  "variants.id",
+  "variants.title",
+  "variants.sku",
+  "variants.metadata",
+].join(",");
 
 export interface StoreProductCategory {
   id: string;
@@ -62,12 +91,12 @@ export class MedusaStoreClient {
     return id ? { "x-sales-channel-id": id } : {};
   }
 
-  private async getJson<T>(path: string): Promise<T> {
+  private async getJson<T>(path: string, salesChannelId?: string): Promise<T> {
     const url = `${this.config.medusaBaseUrl}${path}`;
     const response = await fetch(url, {
       headers: {
         "x-publishable-api-key": this.config.medusaPublishableKey,
-        ...this.channelHeaders(),
+        ...this.channelHeaders(salesChannelId),
         accept: "application/json",
       },
     });
@@ -113,9 +142,10 @@ export class MedusaStoreClient {
     return (await response.json()) as T;
   }
 
-  async getProduct(productId: string): Promise<StoreProduct> {
+  async getProduct(productId: string, salesChannelId?: string): Promise<StoreProduct> {
     const data = await this.getJson<{ product: StoreProduct }>(
       `/store/products/${encodeURIComponent(productId)}?fields=${PRODUCT_FIELDS}`,
+      salesChannelId,
     );
     return data.product;
   }
@@ -153,7 +183,11 @@ export class MedusaStoreClient {
     return data.offers;
   }
 
-  async listProducts(limit = 50, offset = 0): Promise<StoreProduct[]> {
+  async listProducts(
+    limit = 50,
+    offset = 0,
+    salesChannelId?: string,
+  ): Promise<StoreProduct[]> {
     const params = new URLSearchParams({
       limit: String(limit),
       offset: String(offset),
@@ -161,6 +195,7 @@ export class MedusaStoreClient {
     });
     const data = await this.getJson<{ products: StoreProduct[] }>(
       `/store/products?${params.toString()}`,
+      salesChannelId,
     );
     return data.products;
   }

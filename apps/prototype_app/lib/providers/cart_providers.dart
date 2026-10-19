@@ -47,9 +47,22 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
   Product? _productFor(String variantId) {
     final products = ref.read(productsProvider).value ?? const <Product>[];
     for (final p in products) {
-      if ((p.variantId ?? p.id) == variantId) return p;
+      if (p.cartVariantId == variantId || p.id == variantId) return p;
+      for (final variant in p.variants) {
+        if (variant.id == variantId) return p;
+      }
     }
     return null;
+  }
+
+  /// Price of the specific SKU being added, so a grouped product never uses one
+  /// variant's price for another variant's line.
+  Money? _variantPrice(Product? product, String variantId) {
+    if (product == null) return null;
+    for (final variant in product.variants) {
+      if (variant.id == variantId) return variant.price;
+    }
+    return product.price;
   }
 
   CartLineItem _line(String id, String title, int qty, Money? unit) {
@@ -91,7 +104,7 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
           unitPrice ?? line.unitPrice);
     } else {
       items.add(_line(variantId, product?.title ?? variantId, quantity,
-          unitPrice ?? product?.price));
+          unitPrice ?? _variantPrice(product, variantId)));
     }
     return _withItems(cart, items);
   }

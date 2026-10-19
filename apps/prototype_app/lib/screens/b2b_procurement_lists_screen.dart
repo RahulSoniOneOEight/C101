@@ -430,7 +430,7 @@ class _ProcurementListEditorScreenState
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     final addable = _addable(catalogue);
     final tradeCategories = ref.watch(tradeCategoryOptionsProvider);
     final selectedCatLabel = _catId == null
@@ -693,7 +693,7 @@ class _ProcurementListEditorScreenState
   }
 
   TradeProduct? _catalogueProduct(String sku) {
-    for (final p in ref.read(tradeCatalogueProvider)) {
+    for (final p in ref.read(tradeCatalogueViewProvider)) {
       if (p.product.id == sku) return p;
     }
     return null;

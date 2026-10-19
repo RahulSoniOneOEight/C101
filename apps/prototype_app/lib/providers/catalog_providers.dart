@@ -248,7 +248,9 @@ List<Product> filterProductsByHomeCategory(
           .toList();
   if (keywords.isEmpty) return products;
   return products.where((product) {
-    final haystack = '${product.title} ${product.brand ?? ''}'.toLowerCase();
+    final haystack =
+        '${product.title} ${product.brand ?? ''} ${product.categoryLabel ?? ''}'
+            .toLowerCase();
     return keywords.any(haystack.contains);
   }).toList();
 }
@@ -261,8 +263,17 @@ List<Product> filterProductsByHomeCategory(
 final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
   final store = ref.watch(localStoreProvider);
   try {
-    final products =
-        await ref.watch(experienceApiProvider).getComposedProducts(limit: 100);
+    final api = ref.watch(experienceApiProvider);
+    // Read every page: the catalogue is 233 grouped products / 500 SKUs, and a
+    // single fixed page silently hid 133 of them.
+    var products = await api.getAllComposedProducts(
+      catalogueImport: AppConfig.catalogueImport,
+    );
+    // A catalogue with no import marker (or a differently named one) must still
+    // render rather than showing an empty storefront.
+    if (products.isEmpty) {
+      products = await api.getAllComposedProducts();
+    }
     await store.writeCatalog(products);
     return products;
   } catch (_) {

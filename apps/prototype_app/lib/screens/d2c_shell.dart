@@ -130,11 +130,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     var list = filterProductsByHomeCategory(products, _category);
     final q = _query.trim().toLowerCase();
     if (q.isNotEmpty) {
-      list = list
-          .where((p) =>
-              p.title.toLowerCase().contains(q) ||
-              (p.brand?.toLowerCase().contains(q) ?? false))
-          .toList();
+      // Includes every variant label and SKU, so all 500 imported SKUs are
+      // discoverable from the 233 grouped cards.
+      list = list.where((p) => p.matchesQuery(q)).toList();
     }
     if (_brands.isNotEmpty) {
       list =
@@ -413,15 +411,15 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           ? null
           : '${product.discountPercent}% off',
       imageUrl: product.thumbnail,
-      brand: product.brand,
+      brand: product.brandLine,
       badges: product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
       onAddToCart: () async {
         final messenger = ScaffoldMessenger.of(context);
         await ref.read(cartProvider.notifier).addItem(
-            offerId: product.offerId ?? '',
-            variantId: product.variantId ?? product.id,
+            offerId: product.cartOfferId,
+            variantId: product.cartVariantId,
             quantity: 1);
         if (!mounted) return;
         messenger.showSnackBar(
@@ -548,15 +546,15 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                       ? null
                       : '${p.discountPercent}% off',
                   imageUrl: p.thumbnail,
-                  brand: p.brand,
+                  brand: p.brandLine,
                   badges: p.badges,
                   variant: ProductCardVariant.compact,
                   onPressed: () => context.push('/product/${p.id}'),
                   onAddToCart: () async {
                     final messenger = ScaffoldMessenger.of(context);
                     await ref.read(cartProvider.notifier).addItem(
-                        offerId: p.offerId ?? '',
-                        variantId: p.variantId ?? p.id,
+                        offerId: p.cartOfferId,
+                        variantId: p.cartVariantId,
                         quantity: 1);
                     if (!mounted) return;
                     messenger.showSnackBar(

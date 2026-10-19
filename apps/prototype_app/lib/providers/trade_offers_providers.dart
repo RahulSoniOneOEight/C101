@@ -188,7 +188,7 @@ const Map<String, String> _tradeOfferPlacementToCollection = <String, String>{
 final tradeOffersForCollectionProvider =
     Provider.family<List<TradeProduct>, String>((ref, collectionId) {
   final collections = ref.watch(tradeOfferCollectionsProvider);
-  final catalogue = ref.watch(tradeCatalogueProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
   final collection = collections.where((c) => c.id == collectionId).firstOrNull;
   if (collection == null) return const <TradeProduct>[];
   final byId = <String, TradeProduct>{
