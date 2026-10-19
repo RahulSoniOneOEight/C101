@@ -1,0 +1,83 @@
+change_id: CHG-063
+revision: 1
+request: >-
+  Fix the operator-console defects found in the 2026-10-20 review: dead collection links, inconsistent
+  scheduling timezones, hardcoded finance rates, unsafe layout publishing, naming drift, table
+  overflow, unthrottled search, stale timing labels, missing rule preview, bundle weight and the
+  failing lint gate.
+type: operator-console-correctness-and-ux
+extends:
+- CHG-035
+- CHG-036
+- CHG-040
+- CHG-062
+affected_capabilities:
+- operator-merchandising
+- marketplace-finance
+affected_domains:
+- content
+- experience
+- finance
+affected_surfaces:
+- ops.admin-console
+already_present:
+- Banner studio, storefront layouts, editorial content types, settlement statements and collection link widget.
+- Optimistic concurrency and unsaved-change guarding in the generic content editor.
+- IST time handling in the banner studio.
+missing:
+- Collection links open the wrong storefront URL.
+- Layout and generic content scheduling disagree with the banner studio's IST handling.
+- Finance summary rates are literals and use retired category names.
+- Layout publishing has no confirmation or unsaved guard.
+- Navigation label drifts from the content-type label.
+- Settlement tables clip, search is unthrottled, timing labels freeze, and rule-based lists have no preview.
+- Lint fails on the collection widget; the entry chunk is unusually large.
+decisions_approved:
+- D-063-01: >-
+    Collection links use the storefront hash route (/#/collections/<handle>), matching the actual
+    Flutter web URL strategy.
+- D-063-02: >-
+    All operator time inputs display and parse Asia/Kolkata through one shared helper; the banner
+    studio, layout editor and generic content editor use the same conversion.
+- D-063-03: >-
+    Settlement summary cards are derived from loaded statements and live commission rates, never
+    literals; category names come from policy data or are omitted.
+- D-063-04: >-
+    Publishing a layout requires confirmation; leaving an edited layout prompts; publishing is
+    disabled when nothing changed and the layout is already published.
+- D-063-05: >-
+    Search is debounced before it reaches the URL; timing labels use a render-time clock.
+- D-063-06: >-
+    Rule-based collections show a resolved-product preview from the governed catalogue, so an empty
+    or mistyped rule is visible before publish.
+- D-063-07: >-
+    Sidebar and content-type labels agree, and the failing lint rule is resolved without weakening
+    the rule for other files.
+constraints:
+- Presentation only; no change to prices, stock, sellers, orders, payments or settlement amounts.
+- No new business facts are derived in the browser beyond counting and formatting server records.
+- Staging only; production release remains unauthorized.
+required_tests:
+- The collection link contains /#/collections/.
+- IST round-trip is identical across the three editors.
+- Settlement cards change when the statement data changes and show no hardcoded rates.
+- Layout publish asks for confirmation and blocks navigation when dirty.
+- A rule preview reports the resolved count and first products.
+- Search updates the URL once per pause, not per keystroke.
+- The admin build and lint both pass.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: implemented-locally-verified
+  evidence: client-projects/client101/evidence/CHG-063/operator-console-fixes.md
+  verification:
+    ist_roundtrip: pass
+    admin_build: pass
+    admin_lint: pass
+    entry_chunk_before_kb: 6900
+    entry_chunk_after_kb: 6622
+status: implemented-awaiting-staging-deployment
+production_release_authorized: false

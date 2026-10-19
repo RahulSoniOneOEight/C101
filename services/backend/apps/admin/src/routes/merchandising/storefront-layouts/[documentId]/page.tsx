@@ -15,10 +15,11 @@ import {
 } from "@medusajs/ui";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { client } from "../../../../lib/client";
 import type { ContentLocale } from "../../../content/content-model";
+import { fromIstInputValue, toIstInputValue } from "../../../content/time-input";
 import {
   childTypesFor,
   emptySection,
@@ -31,17 +32,6 @@ import {
 } from "../../../content/layout-section-model";
 
 const LIST_ROUTE = "/merchandising/storefront-layouts";
-
-function toLocalInput(value: string | undefined): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 16);
-}
-
-function fromLocalInput(value: string): string | undefined {
-  return value.trim() ? new Date(`${value}:00Z`).toISOString() : undefined;
-}
 
 /** One editable section row: display properties, source, banner, schedule and visibility. */
 function SectionFields({
@@ -173,8 +163,8 @@ function SectionFields({
         <Input
           id={`${section.placement}-starts`}
           type="datetime-local"
-          value={toLocalInput(section.startsAt)}
-          onChange={(event) => onChange({ startsAt: fromLocalInput(event.target.value) })}
+          value={toIstInputValue(section.startsAt)}
+          onChange={(event) => onChange({ startsAt: fromIstInputValue(event.target.value) ?? undefined })}
         />
       </div>
       <div className="flex flex-col gap-y-2">
@@ -182,8 +172,8 @@ function SectionFields({
         <Input
           id={`${section.placement}-ends`}
           type="datetime-local"
-          value={toLocalInput(section.endsAt)}
-          onChange={(event) => onChange({ endsAt: fromLocalInput(event.target.value) })}
+          value={toIstInputValue(section.endsAt)}
+          onChange={(event) => onChange({ endsAt: fromIstInputValue(event.target.value) ?? undefined })}
         />
       </div>
       <div className="flex items-center gap-3 md:col-span-2">
@@ -327,6 +317,36 @@ function LayoutEditor({
   );
   const dirty = JSON.stringify({ sections, heroRotationMs }) !== baseline;
 
+  const blocker = useBlocker(dirty);
+  useEffect(() => {
+    if (blocker.state !== "blocked") return;
+    let active = true;
+    void prompt({
+      title: "Discard unsaved layout changes?",
+      description: "Your section order and fields have not been saved to the CMS draft.",
+      confirmText: "Discard changes",
+      cancelText: "Continue editing",
+      variant: "danger",
+    }).then((confirmed) => {
+      if (!active) return;
+      if (confirmed) blocker.proceed();
+      else blocker.reset();
+    });
+    return () => {
+      active = false;
+    };
+  }, [blocker, prompt]);
+
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [dirty]);
+
   const saveMutation = useMutation({
     mutationFn: (publish: boolean) => client.admin.buildkart.content.mutate({
       kind: "storefront-layout",
@@ -385,6 +405,17 @@ function LayoutEditor({
     [],
   );
 
+  const publish = async () => {
+    const confirmed = await prompt({
+      title: "Publish this layout?",
+      description: `${layoutKey} becomes the live ${channel.toUpperCase()} composition after the same validation the storefront applies.`,
+      confirmText: "Publish",
+      cancelText: "Cancel",
+      variant: "confirmation",
+    });
+    if (confirmed) saveMutation.mutate(true);
+  };
+
   const availableToAdd = topLevelPlacements(channel)
     .filter((type) => !sections.some((section) => section.placement === type.placement));
 
@@ -428,8 +459,10 @@ function LayoutEditor({
               <Button
                 size="small"
                 isLoading={saveMutation.isPending}
-                disabled={validation.errors.length > 0}
-                onClick={() => saveMutation.mutate(true)}
+                disabled={validation.errors.length > 0
+                  || saveMutation.isPending
+                  || (!dirty && publicationStatus === "published")}
+                onClick={() => { void publish(); }}
               >
                 Save and publish
               </Button>

@@ -14,6 +14,7 @@ import {
 } from "@medusajs/ui";
 import { ActionMenu, SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { client } from "../../lib/client";
 import { PageTabs } from "./content-operations";
@@ -34,7 +35,6 @@ import {
 import type { ContentLibraryItem } from "./use-content-library";
 
 type PropertyView = PublicationStatus | "all";
-const PROPERTY_REFERENCE_TIME = Date.now();
 
 function contextLabel(item: ContentLibraryItem): string {
   const contextFields = ["placement", "audience", "channel", "contentKind", "tag"];
@@ -44,15 +44,15 @@ function contextLabel(item: ContentLibraryItem): string {
   return values.length > 0 ? values.join(" · ") : "—";
 }
 
-function timingLabel(item: ContentLibraryItem): string {
+function timingLabel(item: ContentLibraryItem, referenceTime: number): string {
   const startValue = item.document.startsAt ?? item.document.effectiveAt;
   const endValue = item.document.endsAt;
   const startsAt = typeof startValue === "string" ? new Date(startValue) : null;
   const endsAt = typeof endValue === "string" ? new Date(endValue) : null;
-  if (startsAt && !Number.isNaN(startsAt.getTime()) && startsAt.getTime() > PROPERTY_REFERENCE_TIME) {
+  if (startsAt && !Number.isNaN(startsAt.getTime()) && startsAt.getTime() > referenceTime) {
     return `Starts ${startsAt.toLocaleString("en-IN")}`;
   }
-  if (endsAt && !Number.isNaN(endsAt.getTime()) && endsAt.getTime() > PROPERTY_REFERENCE_TIME) {
+  if (endsAt && !Number.isNaN(endsAt.getTime()) && endsAt.getTime() > referenceTime) {
     return `Ends ${endsAt.toLocaleString("en-IN")}`;
   }
   return "No upcoming schedule";
@@ -72,6 +72,30 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
     ? requestedView
     : "all";
   const search = searchParams.get("q") ?? "";
+  const [searchDraft, setSearchDraft] = useState(search);
+  const [now, setNow] = useState(() => Date.now());
+
+  const searchTimer = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    const minute = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => {
+      window.clearInterval(minute);
+      if (searchTimer.current) window.clearTimeout(searchTimer.current);
+    };
+  }, []);
+
+  const onSearchChange = (value: string) => {
+    setSearchDraft(value);
+    if (searchTimer.current) window.clearTimeout(searchTimer.current);
+    searchTimer.current = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams);
+      if (value.trim()) next.set("q", value);
+      else next.delete("q");
+      next.delete("page");
+      setSearchParams(next, { replace: true });
+    }, 300);
+  };
   // Channel only applies to category details, which now holds independent B2C and B2B sets.
   const channelFilter = kind === "category-editorial" ? searchParams.get("channel") ?? "" : "";
   const requestedPage = Number.parseInt(searchParams.get("page") ?? "1", 10);
@@ -231,8 +255,8 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
               <Label htmlFor={`${kind}-search`} size="xsmall">Search {config.label.toLocaleLowerCase()}</Label>
               <Input
                 id={`${kind}-search`}
-                value={search}
-                onChange={(event) => updateParams({ q: event.target.value }, true)}
+                value={searchDraft}
+                onChange={(event) => onSearchChange(event.target.value)}
                 placeholder="Search title, key, context or document ID"
                 autoComplete="off"
               />
@@ -335,7 +359,7 @@ export function ContentPropertyPage({ kind }: { kind: ContentKind }) {
                             </StatusBadge>
                           </Table.Cell>
                           <Table.Cell>
-                            <Text size="xsmall" className="text-ui-fg-subtle">{timingLabel(item)}</Text>
+                            <Text size="xsmall" className="text-ui-fg-subtle">{timingLabel(item, now)}</Text>
                           </Table.Cell>
                           <Table.Cell>
                             <Text size="xsmall" className="text-ui-fg-subtle">

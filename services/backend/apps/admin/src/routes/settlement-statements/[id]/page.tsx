@@ -24,6 +24,9 @@ const money = (minor: number, currencyCode: string) =>
     maximumFractionDigits: 2,
   }).format(minor / 100);
 
+const statusLabel = (status: SettlementStatement["status"]) =>
+  status.charAt(0).toUpperCase() + status.slice(1);
+
 const statusColor = (status: SettlementStatement["status"]) => {
   if (status === "reviewed") return "green" as const;
   if (status === "held") return "red" as const;
@@ -53,7 +56,7 @@ export default function SettlementStatementDetailPage() {
                 <StatusBadge color="orange">Simulated staging data</StatusBadge>
                 {statement ? (
                   <StatusBadge color={statusColor(statement.status)}>
-                    {statement.status}
+                    {statusLabel(statement.status)}
                   </StatusBadge>
                 ) : null}
               </div>
@@ -129,6 +132,7 @@ export default function SettlementStatementDetailPage() {
                 excluding GST and shipping.
               </Text>
             </div>
+            <div className="overflow-x-auto">
             <Table>
               <Table.Header>
                 <Table.Row>
@@ -196,6 +200,7 @@ export default function SettlementStatementDetailPage() {
                 ))}
               </Table.Body>
             </Table>
+            </div>
           </Container>
         ) : null}
       </div>

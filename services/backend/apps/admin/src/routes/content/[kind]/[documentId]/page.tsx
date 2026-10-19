@@ -29,6 +29,168 @@ import {
 } from "../../content-model";
 import { validateStoredSections, type LayoutChannel } from "../../layout-section-model";
 
+/**
+ * CHG-063 ? resolves a rule-based collection against the governed catalogue.
+ *
+ * Operators can otherwise publish a category rule that resolves nothing and
+ * only discover it on the storefront. This preview uses the same catalogue
+ * payload the app reads; it never invents products or prices.
+ */
+const EXPERIENCE_API_BASE = (
+  (import.meta.env.VITE_EXPERIENCE_API_BASE_URL as string | undefined) ??
+  "https://api-staging.pinakaplay.cloud"
+).replace(/\/+$/, "");
+
+type PreviewProduct = {
+  id: string;
+  title: string;
+  thumbnail: string | null;
+  category: string | null;
+};
+
+function parseStringArray(raw: string | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? "[]") as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function CollectionRulePreview({
+  categoryLabelsRaw,
+  productIdsRaw,
+  limitRaw,
+}: {
+  categoryLabelsRaw: string | undefined;
+  productIdsRaw: string | undefined;
+  limitRaw: string | undefined;
+}) {
+  const categoryLabels = parseStringArray(categoryLabelsRaw);
+  const productIds = parseStringArray(productIdsRaw);
+  const limit = Math.max(1, Number.parseInt(limitRaw ?? "", 10) || 20);
+  const catalogue = useQuery({
+    queryKey: ["buildkart", "catalogue-preview"],
+    queryFn: async (): Promise<PreviewProduct[]> => {
+      const response = await fetch(
+        `${EXPERIENCE_API_BASE}/v1/products?limit=250&offset=0&catalogue_import=CHG-049`,
+        { headers: { accept: "application/json" } },
+      );
+      if (!response.ok) {
+        throw new Error(`The catalogue returned ${response.status}.`);
+      }
+      const body = await response.json() as {
+        products?: Array<{
+          id?: string;
+          title?: string;
+          thumbnail?: string | null;
+          metadata?: { category_l1?: string } | null;
+        }>;
+      };
+      return (body.products ?? []).flatMap((product) =>
+        typeof product.id === "string" && typeof product.title === "string"
+          ? [{
+              id: product.id,
+              title: product.title,
+              thumbnail: product.thumbnail ?? null,
+              category: product.metadata?.category_l1 ?? null,
+            }]
+          : []);
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const products = catalogue.data ?? [];
+  const labels = new Set(categoryLabels.map((label) => label.toLowerCase()));
+  const explicit = productIds.length > 0;
+  const matched = explicit
+    ? productIds
+        .map((id) => products.find((product) => product.id === id))
+        .filter((product): product is PreviewProduct => Boolean(product))
+    : products
+        .filter((product) => product.category && labels.has(product.category.toLowerCase()))
+        .slice(0, limit);
+  const missingIds = explicit
+    ? productIds.filter((id) => !products.some((product) => product.id === id))
+    : [];
+
+  return (
+    <Container className="divide-y p-0">
+      <div className="px-6 py-4">
+        <Heading level="h2">Resolved products</Heading>
+        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+          What this collection will show on the storefront, resolved from the live staged catalogue.
+          Explicit product references win; otherwise the category rule applies, capped at {limit}.
+        </Text>
+      </div>
+      <div className="px-6 py-5">
+        {catalogue.isPending ? (
+          <Text size="small" className="text-ui-fg-subtle">Resolving?</Text>
+        ) : catalogue.isError ? (
+          <Text size="small" className="text-ui-fg-error">
+            The catalogue could not be reached, so this rule cannot be previewed right now.
+          </Text>
+        ) : productIds.length === 0 && categoryLabels.length === 0 ? (
+          <Text size="small" className="text-ui-fg-subtle">
+            Add a category rule or explicit product references to preview this collection.
+          </Text>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge color={matched.length === 0 ? "red" : "green"}>
+                {matched.length} {matched.length === 1 ? "product" : "products"}
+              </StatusBadge>
+              {explicit ? (
+                <Text size="xsmall" className="text-ui-fg-subtle">Explicit references</Text>
+              ) : null}
+              {!explicit && categoryLabels.length > 0 ? (
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  Rule: {categoryLabels.join(" + ")}
+                </Text>
+              ) : null}
+            </div>
+            {missingIds.length > 0 ? (
+              <Text size="small" className="text-ui-fg-error">
+                {missingIds.length} reference{missingIds.length === 1 ? "" : "s"} not found:{" "}
+                {missingIds.slice(0, 3).join(", ")}
+                {missingIds.length > 3 ? "?" : ""}
+              </Text>
+            ) : null}
+            {matched.length === 0 ? (
+              <Text size="small" className="text-ui-fg-error">
+                This rule resolves no product. Check the category labels against the catalogue.
+              </Text>
+            ) : (
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {matched.slice(0, 6).map((product) => (
+                  <li key={product.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-ui-border-base p-2">
+                    {product.thumbnail ? (
+                      <img src={product.thumbnail} alt="" className="h-10 w-10 rounded object-cover" />
+                    ) : (
+                      <div className="h-10 w-10 rounded bg-ui-bg-subtle" />
+                    )}
+                    <div className="min-w-0">
+                      <Text size="small" weight="plus" className="truncate">{product.title}</Text>
+                      <Text size="xsmall" className="text-ui-fg-subtle">{product.category ?? "Uncategorised"}</Text>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {matched.length > 6 ? (
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                Showing the first 6 of {matched.length}.
+              </Text>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </Container>
+  );
+}
+
 function DraftEditor({
   kind,
   locale,
@@ -165,8 +327,7 @@ function DraftEditor({
 
   const routineFields = content.definition.fields.filter((field) => field.type !== "json");
   const structuredFields = content.definition.fields.filter(
-    (field) => field.type === "json"
-      && !(kind === "curated-collection" && field.name === "productIds"),
+    (field) => field.type === "json",
   );
   const libraryRoute = contentKindRoute(kind, locale);
   const title = creating
@@ -299,6 +460,14 @@ function DraftEditor({
                   ))}
                 </div>
               </Container>
+            ) : null}
+
+            {kind === "curated-collection" ? (
+              <CollectionRulePreview
+                categoryLabelsRaw={formValues.categoryLabels}
+                productIdsRaw={formValues.productIds}
+                limitRaw={formValues.limit}
+              />
             ) : null}
           </div>
 

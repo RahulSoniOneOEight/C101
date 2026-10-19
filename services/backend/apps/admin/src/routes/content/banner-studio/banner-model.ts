@@ -20,20 +20,19 @@ export type BannerPreviewPresentation = NonNullable<BannerPreviewResponse["prese
  * commerce reference or a delivery claim that the platform cannot support today.
  */
 
-export const IST_TIMEZONE = "Asia/Kolkata";
+import { IST_TIMEZONE, fromIstInputValue, parseDate, toIstInputValue } from "../time-input";
+
+export { IST_TIMEZONE, fromIstInputValue, toIstInputValue } from "../time-input";
 
 /**
  * Placements the storefront actually renders, scoped to the channel whose surface consumes them.
  *
- * This mirrors the app's hard-coded slot keys: `home.hero` is read by the B2C home header carousel
- * (`bannersFor('home.hero')`) and `home.campaign-strip` by the B2C secondary-banner merchandising
- * module (`bannersFor('home.campaign-strip').firstOrNull`). The CMS stores `placement` as free text,
- * so a value outside this list is accepted, published, and then never rendered.
- *
- * B2B deliberately has no entries: the B2B app renders no CMS banners today (no hero slot, and its
- * category banner is a hard-coded app image), so offering a B2B placement would offer a control that
- * does nothing. Category banners are not banners either — they belong to the Category presentation
- * property (`category-editorial`), which already owns that image.
+ * Both channels are listed because both read CMS banners today: the B2C home reads
+ * `b2c.home.hero` and `b2c.home.campaign-strip`, while the B2B header reads
+ * `b2b.home.hero` and its category rail reads `b2b.category.banner`. The CMS stores
+ * `placement` as free text, so a value outside this list is accepted, published, and
+ * then never rendered. Category banners stay keyed to a commerce category and are also
+ * editable from the Category presentation property.
  */
 export interface PlacementOption {
   value: string;
@@ -171,12 +170,6 @@ export const ELIGIBILITY_COLORS: Record<DeliveryEligibility, "green" | "purple" 
   expired: "grey",
 };
 
-function parseDate(value: unknown): Date | null {
-  if (typeof value !== "string" || !value.trim()) return null;
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 type WindowState = "not-published" | DeliveryEligibility;
 
 function windowState(document: ContentDocument, now: Date): WindowState {
@@ -211,34 +204,6 @@ export function scheduleLabel(document: ContentDocument): string {
   }
   if (startsAt) return `From ${formatIst(document.startsAt)}`;
   return `Until ${formatIst(document.endsAt)}`;
-}
-
-/**
- * Converts a stored ISO timestamp into the `datetime-local` value an operator sees, expressed in
- * Asia/Kolkata. Kolkata is a fixed +05:30 offset, so the conversion is exact without DST handling.
- */
-export function toIstInputValue(value: unknown): string {
-  const date = parseDate(value);
-  if (!date) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: IST_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
-  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${read("year")}-${read("month")}-${read("day")}T${read("hour")}:${read("minute")}`;
-}
-
-/** Converts an operator's Kolkata wall-clock input back to an absolute ISO instant. */
-export function fromIstInputValue(value: string): string | null {
-  if (!value.trim()) return null;
-  const date = new Date(`${value}:00+05:30`);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString();
 }
 
 export type StartMode = "now" | "later";

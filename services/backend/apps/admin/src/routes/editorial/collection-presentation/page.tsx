@@ -3,7 +3,7 @@ import { ContentPropertyPage } from "../../content/content-property-page";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
-  label: "Collection presentation",
+  label: "Collections & trade lists",
   rank: 3,
   nested: "/editorial",
 };

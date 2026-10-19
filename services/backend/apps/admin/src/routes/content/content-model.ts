@@ -1,5 +1,6 @@
 import type { InferClientOutput } from "@mercurjs/client";
 import { client } from "../../lib/client";
+import { fromIstInputValue, toIstInputValue } from "./time-input";
 
 export const CONTENT_KINDS = [
   {
@@ -107,10 +108,7 @@ export function displayValue(document: ContentDocument, field: string): string {
 function toFormValue(field: ContentField, value: unknown): string {
   if (value === null || value === undefined) return "";
   if (field.type === "json") return JSON.stringify(value, null, 2);
-  if (field.type === "datetime") {
-    const date = new Date(String(value));
-    return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 16);
-  }
+  if (field.type === "datetime") return toIstInputValue(value);
   return String(value);
 }
 
@@ -155,11 +153,11 @@ export function parseForm(
         }
       }
       if (field.type === "datetime") {
-        const parsed = new Date(raw);
-        if (Number.isNaN(parsed.getTime())) {
+        const parsed = fromIstInputValue(raw);
+        if (!parsed) {
           throw new Error(`${field.label} must contain a valid date and time.`);
         }
-        return [field.name, parsed.toISOString()];
+        return [field.name, parsed];
       }
       return [field.name, raw];
     }),

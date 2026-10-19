@@ -28,7 +28,8 @@ const CollectionCustomerLink = ({ data }: { data?: CollectionContext }) => {
     return null;
   }
 
-  const url = `${STOREFRONT_BASE}/collections/${handle}`;
+  // The storefront is a hash-routed Flutter app; a path-only URL loads the shell but not the route.
+  const url = `${STOREFRONT_BASE}/#/collections/${encodeURIComponent(handle)}`;
 
   const copy = async () => {
     try {
@@ -61,6 +62,7 @@ const CollectionCustomerLink = ({ data }: { data?: CollectionContext }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const config = defineWidgetConfig({
   zone: "collections.detail.main.after",
 });

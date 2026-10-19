@@ -34,6 +34,9 @@ const money = (minor: number, currencyCode: string) =>
     maximumFractionDigits: 2,
   }).format(minor / 100);
 
+const statusLabel = (status: SettlementStatement["status"]) =>
+  status.charAt(0).toUpperCase() + status.slice(1);
+
 const statusColor = (status: SettlementStatement["status"]) => {
   if (status === "reviewed") return "green" as const;
   if (status === "held") return "red" as const;
@@ -46,6 +49,35 @@ export default function SettlementStatementsPage() {
     queryFn: () => client.admin.buildkart.settlementStatements.query({}),
   });
   const statements = query.data?.statements ?? [];
+  const ratesQuery = useQuery({
+    queryKey: ["buildkart", "commission-rates"],
+    queryFn: () => client.admin.commissionRates.query({}),
+    staleTime: 5 * 60 * 1000,
+  });
+  const rates = (ratesQuery.data?.commission_rates ?? []).filter(
+    (rate) => rate.is_enabled,
+  );
+  const totals = statements.reduce(
+    (sum, statement) => ({
+      gross: sum.gross + statement.gross_amount_minor,
+      refunds: sum.refunds + statement.refund_amount_minor,
+      commission: sum.commission + statement.commission_amount_minor,
+      payable: sum.payable + statement.payable_amount_minor,
+    }),
+    { gross: 0, refunds: 0, commission: 0, payable: 0 },
+  );
+  const commissionBase = totals.gross - totals.refunds;
+  const effectiveRate = commissionBase > 0
+    ? (totals.commission / commissionBase) * 100
+    : null;
+  const appliedRates = [
+    ...new Set(
+      statements.flatMap((statement) =>
+        statement.lines.map((line) => line.commissionRatePercent),
+      ),
+    ),
+  ].sort((left, right) => left - right);
+  const currency = statements[0]?.currency_code ?? "inr";
 
   return (
     <SingleColumnPage>
@@ -71,42 +103,70 @@ export default function SettlementStatementsPage() {
           <div className="grid grid-cols-1 gap-4 px-6 py-4 md:grid-cols-3">
             <div>
               <Text size="xsmall" className="text-ui-fg-subtle">
-                Global commission
+                Statements
               </Text>
               <Text size="large" weight="plus">
-                10%
+                {statements.length}
               </Text>
               <Text size="xsmall" className="text-ui-fg-muted">
-                Fallback for all other categories
+                {statements.length === 0 ? "None seeded" : "Simulated records"}
               </Text>
             </div>
             <div>
               <Text size="xsmall" className="text-ui-fg-subtle">
-                Building Materials
+                Effective commission
               </Text>
               <Text size="large" weight="plus">
-                8%
+                {effectiveRate === null ? "?" : `${effectiveRate.toFixed(1)}%`}
               </Text>
               <Text size="xsmall" className="text-ui-fg-muted">
-                Category override
+                Commission ? merchandise after refunds
               </Text>
             </div>
             <div>
               <Text size="xsmall" className="text-ui-fg-subtle">
-                Power Tools
+                Total payable
               </Text>
               <Text size="large" weight="plus">
-                12%
+                {statements.length === 0 ? "?" : money(totals.payable, currency)}
               </Text>
               <Text size="xsmall" className="text-ui-fg-muted">
-                Category override
+                {appliedRates.length === 0
+                  ? "No rates applied"
+                  : `Rates applied: ${appliedRates.map((rate) => `${rate}%`).join(" ? ")}`}
               </Text>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-2 px-6 py-3">
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Commission policy
+            </Text>
+            {ratesQuery.isPending ? (
+              <Text size="xsmall" className="text-ui-fg-subtle">Loading?</Text>
+            ) : ratesQuery.isError ? (
+              <Text size="xsmall" className="text-ui-fg-error">
+                Rates unavailable. Open commission policies to review them.
+              </Text>
+            ) : rates.length === 0 ? (
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                No enabled commission rate is configured.
+              </Text>
+            ) : (
+              rates.map((rate) => (
+                <StatusBadge key={rate.id} color="grey">
+                  {rate.name}:{" "}
+                  {rate.type === "percentage"
+                    ? `${rate.value}%`
+                    : money(rate.value, rate.currency_code ?? currency)}
+                  {rate.is_default ? " ? default" : ""}
+                </StatusBadge>
+              ))
+            )}
+          </div>
           <div className="px-6 py-3">
             <Text size="xsmall" className="text-ui-fg-subtle">
-              Commission base: merchandise value excluding GST and shipping.
-              Pilot presets only.
+              Commission base: merchandise value excluding GST and shipping, as recorded on each
+              statement line. Summary figures are derived from the loaded statements.
             </Text>
           </div>
         </Container>
@@ -126,6 +186,7 @@ export default function SettlementStatementsPage() {
               after migrations.
             </Text>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <Table.Header>
                 <Table.Row>
@@ -215,13 +276,14 @@ export default function SettlementStatementsPage() {
                     </Table.Cell>
                     <Table.Cell>
                       <StatusBadge color={statusColor(statement.status)}>
-                        {statement.status}
+                        {statusLabel(statement.status)}
                       </StatusBadge>
                     </Table.Cell>
                   </Table.Row>
                 ))}
               </Table.Body>
             </Table>
+            </div>
           )}
         </Container>
       </div>
