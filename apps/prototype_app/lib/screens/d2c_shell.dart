@@ -221,8 +221,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         'On discount' => p.discountPercent != null,
         'Bestseller' =>
           p.badges.any((b) => b.toLowerCase().contains('bestseller')),
-        'Flash Deal' =>
-          p.badges.any((b) => b.toLowerCase().contains('limited deal')),
+        'Flash Deal' => p.badges.any((b) {
+            final value = b.toLowerCase();
+            return value.contains('limited deal') ||
+                value.contains('flash deal');
+          }),
         'Clearance' =>
           p.badges.any((b) => b.toLowerCase().contains('clearance')),
         'In stock' =>
@@ -747,9 +750,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             runSpacing: AgencySpacing.xs,
             children: <Widget>[
               for (final o in options)
-                TradeFilterChip(
+                _BrowseChip(
                   label: o,
                   selected: selected.contains(o),
+                  accent: StorefrontControlTokens.filterAccent(context),
                   onTap: () => setSheet(() {
                     if (!selected.remove(o)) selected.add(o);
                   }),
@@ -960,6 +964,7 @@ class _BrowseChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      toggled: selected,
       label: label,
       child: Material(
         color: selected ? accent : colors.surfaceRaised,
