@@ -1,7 +1,7 @@
 # CHG-063 — operator console correctness and UX fixes
 
 **Date:** 2026-10-20
-**Status:** Implemented and locally verified; staging deployment pending
+**Status:** Deployed to staging; human review pending
 **Change:** `client-projects/client101/changes/CHG-063.yaml`
 
 Fixes the P1 and P2 findings from
@@ -103,6 +103,26 @@ Configured with `VITE_EXPERIENCE_API_BASE_URL`; defaults to
 
 No test runner exists in the admin app, so verification is build + lint + the
 time-helper check + post-deploy bundle inspection.
+
+## Deployment
+
+Released commit `e4697f0`: `medusa-api` image rebuilt (which builds and bundles
+the admin dashboard), container recreated, proxy restarted. `current` points at
+`/opt/buildkart-releases/release-e4697f0`.
+
+Live checks on `https://ops-staging.pinakaplay.cloud/dashboard`:
+
+| Check | Result |
+|---|---|
+| Dashboard | HTTP 200 |
+| New label present | yes |
+| Old label absent | yes |
+| `/#/collections/` link | yes |
+| Resolved-products preview | yes |
+| Derived settlement cards | yes |
+| IST helper | yes |
+| API health / catalogue | 200 / 233 products |
+| medusa-api error logs | none |
 
 ## Not changed
 

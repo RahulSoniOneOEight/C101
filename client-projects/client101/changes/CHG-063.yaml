@@ -71,7 +71,8 @@ implementation:
   requested_at_utc: '2026-10-20'
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
-  status: implemented-locally-verified
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
   evidence: client-projects/client101/evidence/CHG-063/operator-console-fixes.md
   verification:
     ist_roundtrip: pass
@@ -79,5 +80,17 @@ implementation:
     admin_lint: pass
     entry_chunk_before_kb: 6900
     entry_chunk_after_kb: 6622
-status: implemented-awaiting-staging-deployment
+  deployment:
+    commit: e4697f0
+    image: buildkart-hosted-pilot-medusa
+    container_recreated: medusa-api
+    proxy_restarted: true
+    live_bundle_checks:
+      new_label: true
+      old_label_present: false
+      hash_collection_link: true
+      resolved_preview: true
+      derived_settlement_rates: true
+      ist_helper: true
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false
