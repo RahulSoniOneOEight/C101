@@ -24,7 +24,7 @@ conflicts_requiring_a_decision:
     The stable cart view currently exposes Medusa `cart.subtotal` as the storefront subtotal. Once
     shipping is attached that engine field includes shipping, so the UI displays ₹4,089 Subtotal +
     ₹99 Shipping = ₹4,089 Total.
-decisions_proposed:
+decisions_approved:
 - D-059-01: >-
     Extend the StoreCart contract with the engine item-subtotal field and map the storefront
     `subtotal` to that item-only amount; retain shipping_total and total as separate authoritative
@@ -44,7 +44,13 @@ approval_required: true
 implementation:
   discovered_by: mobile-chrome-qc
   discovered_at_utc: '2026-10-19'
-  status: not-started
-  evidence: client-projects/client101/evidence/CHG-058/mobile-chrome-qc-2026-10-19.md
-status: proposed-awaiting-human-review
+  approved_by: human-requester
+  approved_at_utc: '2026-10-19'
+  status: implemented-locally-verified
+  evidence: client-projects/client101/evidence/CHG-059/cart-subtotal-mapping.md
+  verification:
+    experience_api_typecheck: pass
+    cart_totals_test: pass
+    flutter_tests: 203-pass
+status: implemented-awaiting-staging-deployment
 production_release_authorized: false

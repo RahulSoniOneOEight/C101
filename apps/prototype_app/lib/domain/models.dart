@@ -74,7 +74,8 @@ class ProductVariant {
   final int? stockQty;
 
   /// True when this SKU can be added to a cart (it has a composed seller offer and a price).
-  bool get isPurchasable => offerId != null && offerId!.isNotEmpty && price != null;
+  bool get isPurchasable =>
+      offerId != null && offerId!.isNotEmpty && price != null;
 
   factory ProductVariant.fromComposedJson(Map<String, dynamic> json) {
     final best = json['best_price'] as Map<String, dynamic>?;
@@ -213,13 +214,14 @@ class Product {
     final commercial = json['commercial'] as Map<String, dynamic>?;
     // The list endpoint returns `best_price`; the detail endpoint nests the same
     // best-price offer under `commercial.selected_seller`. Accept both.
-    final best = (json['best_price'] ??
-        commercial?['selected_seller']) as Map<String, dynamic>?;
+    final best = (json['best_price'] ?? commercial?['selected_seller'])
+        as Map<String, dynamic>?;
     final num? bestAmount = best?['unit_amount_minor'] as num?;
     final num? listAmount = best?['list_amount_minor'] as num?;
     final currency = best?['currency_code'] as String? ?? 'INR';
-    final hasDiscount =
-        bestAmount != null && listAmount != null && listAmount.toInt() > bestAmount.toInt();
+    final hasDiscount = bestAmount != null &&
+        listAmount != null &&
+        listAmount.toInt() > bestAmount.toInt();
     final id = json['id'] as String? ?? '';
     final jsonBadges =
         (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
@@ -248,8 +250,9 @@ class Product {
     if (hasDiscount) {
       mrp = Money(amount: listAmount.toInt(), currencyCode: currency);
     } else if (bestAmount != null && !imported) {
-      final marked = (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
-          .round();
+      final marked =
+          (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
+              .round();
       mrp = Money(amount: marked, currencyCode: currency);
     } else {
       mrp = null;
@@ -336,7 +339,8 @@ class Product {
   int get variantCount => variants.isEmpty ? 1 : variants.length;
 
   /// Compact SKU count for a card's brand line, e.g. "3 SKUs".
-  String get variantLabel => '$variantCount ${variantCount == 1 ? 'SKU' : 'SKUs'}';
+  String get variantLabel =>
+      '$variantCount ${variantCount == 1 ? 'SKU' : 'SKUs'}';
 
   /// Brand line for a card: brand plus the grouped SKU count.
   String? get brandLine {
@@ -464,26 +468,28 @@ class Product {
         variants: (json['variants'] as List<dynamic>? ?? const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .map((v) {
-          final amount = (v['price'] as num?)?.toInt();
-          final currency = v['currency'] as String? ?? 'INR';
-          final mrpAmount = (v['mrp'] as num?)?.toInt();
-          return ProductVariant(
-            id: v['id'] as String? ?? '',
-            label: v['label'] as String? ?? 'Default',
-            sku: v['sku'] as String?,
-            price: amount == null
-                ? null
-                : Money(amount: amount, currencyCode: currency),
-            mrp: mrpAmount == null
-                ? null
-                : Money(amount: mrpAmount, currencyCode: currency),
-            offerId: v['offer_id'] as String?,
-            sellerName: v['seller_name'] as String?,
-            inStock: v['in_stock'] as bool? ?? true,
-            offerCount: (v['offer_count'] as num?)?.toInt() ?? 0,
-            stockQty: (v['stock_qty'] as num?)?.toInt(),
-          );
-        }).where((variant) => variant.id.isNotEmpty).toList(),
+              final amount = (v['price'] as num?)?.toInt();
+              final currency = v['currency'] as String? ?? 'INR';
+              final mrpAmount = (v['mrp'] as num?)?.toInt();
+              return ProductVariant(
+                id: v['id'] as String? ?? '',
+                label: v['label'] as String? ?? 'Default',
+                sku: v['sku'] as String?,
+                price: amount == null
+                    ? null
+                    : Money(amount: amount, currencyCode: currency),
+                mrp: mrpAmount == null
+                    ? null
+                    : Money(amount: mrpAmount, currencyCode: currency),
+                offerId: v['offer_id'] as String?,
+                sellerName: v['seller_name'] as String?,
+                inStock: v['in_stock'] as bool? ?? true,
+                offerCount: (v['offer_count'] as num?)?.toInt() ?? 0,
+                stockQty: (v['stock_qty'] as num?)?.toInt(),
+              );
+            })
+            .where((variant) => variant.id.isNotEmpty)
+            .toList(),
       );
 }
 
@@ -529,6 +535,10 @@ class CartLineItem {
     required this.quantity,
     this.unitPrice,
     this.total,
+    this.productId,
+    this.variantId,
+    this.productTitle,
+    this.thumbnail,
   });
 
   factory CartLineItem.fromJson(Map<String, dynamic> json) {
@@ -542,6 +552,10 @@ class CartLineItem {
       unitPrice: fromMinor(
           json['unit_price'] as num?, json['currency_code'] as String?),
       total: fromMinor(json['total'] as num?, json['currency_code'] as String?),
+      productId: json['product_id'] as String?,
+      variantId: json['variant_id'] as String?,
+      productTitle: json['product_title'] as String?,
+      thumbnail: json['thumbnail'] as String?,
     );
   }
 
@@ -550,6 +564,10 @@ class CartLineItem {
   final int quantity;
   final Money? unitPrice;
   final Money? total;
+  final String? productId;
+  final String? variantId;
+  final String? productTitle;
+  final String? thumbnail;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -558,7 +576,51 @@ class CartLineItem {
         'unit_price': unitPrice?.amount,
         'total': total?.amount,
         'currency_code': unitPrice?.currencyCode ?? total?.currencyCode,
+        'product_id': productId,
+        'variant_id': variantId,
+        'product_title': productTitle,
+        'thumbnail': thumbnail,
       };
+}
+
+/// Finds the catalogue product represented by a canonical cart line.
+///
+/// Product/variant ids win. Title matching is a compatibility fallback for
+/// older carts that did not expose those ids.
+Product? catalogueProductForCartLine(
+  CartLineItem line,
+  List<Product> catalogue,
+) {
+  final productId = line.productId?.trim();
+  if (productId != null && productId.isNotEmpty) {
+    for (final product in catalogue) {
+      if (product.id == productId) return product;
+    }
+  }
+
+  final variantId = line.variantId?.trim();
+  if (variantId != null && variantId.isNotEmpty) {
+    for (final product in catalogue) {
+      if (product.variantId == variantId ||
+          product.variants.any((variant) => variant.id == variantId)) {
+        return product;
+      }
+    }
+  }
+
+  final title = (line.productTitle ?? line.title).trim().toLowerCase();
+  if (title.isEmpty) return null;
+  for (final product in catalogue) {
+    if (product.title.trim().toLowerCase() == title) return product;
+  }
+  return null;
+}
+
+/// Cart payload image first, then the catalogue thumbnail for legacy payloads.
+String? cartLineImageUrl(CartLineItem line, List<Product> catalogue) {
+  final canonical = line.thumbnail?.trim();
+  if (canonical != null && canonical.isNotEmpty) return canonical;
+  return catalogueProductForCartLine(line, catalogue)?.thumbnail;
 }
 
 /// A promotion code applied to a cart by the engine.
@@ -596,7 +658,8 @@ class CartAdjustment {
 
   factory CartAdjustment.fromJson(Map<String, dynamic> json) => CartAdjustment(
         code: json['code'] as String?,
-        label: json['label'] as String? ?? json['code'] as String? ?? 'Discount',
+        label:
+            json['label'] as String? ?? json['code'] as String? ?? 'Discount',
         amount: (json['amount'] as num?)?.toInt() ?? 0,
         target: json['target'] as String? ?? 'item',
       );

@@ -23,7 +23,7 @@ conflicts_requiring_a_decision:
 - C-058-01: >-
     `PinCommerceApp.initState` restores the session and always calls router.go('/') or
     router.go('/b2b'), replacing valid routes such as /browse, /checkout and /b2b/catalogue.
-decisions_proposed:
+decisions_approved:
 - D-058-01: >-
     After successful session restoration, choose a role landing page only when the current route is
     an entry route (onboarding/login/OTP) or has no meaningful requested destination. Preserve all
@@ -41,7 +41,12 @@ approval_required: true
 implementation:
   discovered_by: mobile-chrome-qc
   discovered_at_utc: '2026-10-19'
-  status: not-started
-  evidence: client-projects/client101/evidence/CHG-058/mobile-chrome-qc-2026-10-19.md
-status: proposed-awaiting-human-review
+  approved_by: human-requester
+  approved_at_utc: '2026-10-19'
+  status: implemented-locally-verified
+  evidence: client-projects/client101/evidence/CHG-058/deep-link-preservation.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 203-pass
+status: implemented-awaiting-staging-deployment
 production_release_authorized: false

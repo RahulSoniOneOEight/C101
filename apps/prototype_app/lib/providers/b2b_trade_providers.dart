@@ -413,6 +413,7 @@ abstract final class TradeCategoryIds {
   static const String tiles = 'pcat_01M4EC9BNJPR8T0YQCBC8W4XFJ';
   static const String agriculture = 'pcat_01M4EC9BNMNB7AW5Z293YVRWJW';
   static const String pumps = 'pcat_01M4EC9BNM9X603HVQBQ93J969';
+  static const String paints = 'pcat_01M57QZG8NS654FG2PR3HJ95PW';
 }
 
 /// Trade categories for the rail, catalogue chips and filters.
@@ -442,9 +443,17 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
   return TradeDashboard(
     categories: const <TradeCategory>[
       TradeCategory(
-          id: TradeCategoryIds.bathroom, label: 'Plumbing', icon: Icons.water_drop_outlined),
+          id: TradeCategoryIds.electrical,
+          label: 'Lighting & Electrical',
+          icon: Icons.bolt_outlined),
       TradeCategory(
-          id: TradeCategoryIds.electrical, label: 'Electricals', icon: Icons.bolt_outlined),
+          id: TradeCategoryIds.bathroom,
+          label: 'Bathroom & Plumbing',
+          icon: Icons.water_drop_outlined),
+      TradeCategory(
+          id: TradeCategoryIds.paints,
+          label: 'Paints & Finishes',
+          icon: Icons.format_paint_outlined),
       TradeCategory(
           id: TradeCategoryIds.bathroom,
           label: 'Premium Sanitary',
@@ -458,7 +467,9 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
           label: 'Hardware & Tools',
           icon: Icons.handyman_outlined),
       TradeCategory(
-          id: TradeCategoryIds.agriculture, label: 'Agriculture', icon: Icons.grass_outlined),
+          id: TradeCategoryIds.agriculture,
+          label: 'Agriculture',
+          icon: Icons.grass_outlined),
     ],
     schemes: const <TradeScheme>[
       TradeScheme(
@@ -709,9 +720,8 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
             for (final tier in _tradeTierLadder)
               TradeTier(
                 quantity: tier.$1,
-                unitPrice: tier.$2 == 0
-                    ? price
-                    : _discountedMoney(price, tier.$2),
+                unitPrice:
+                    tier.$2 == 0 ? price : _discountedMoney(price, tier.$2),
               ),
           ],
     sellers: <TradeSupplier>[
@@ -719,7 +729,9 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
         if (variant.isPurchasable)
           TradeSupplier(
             id: variant.offerId!,
-            name: variant.sellerName ?? product.brand ?? 'BuildKart Verified Seller',
+            name: variant.sellerName ??
+                product.brand ??
+                'BuildKart Verified Seller',
             unitPrice: variant.price!,
             moq: 1,
             stockQty: variant.stockQty,
@@ -908,7 +920,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 2850,
       moq: 4,
       stock: 180,
-      categoryId: TradeCategoryIds.construction,
+      categoryId: TradeCategoryIds.paints,
       scheme: cashOffer,
       tiers: const [(4, 2350), (10, 2210), (20, 2120)],
     ),

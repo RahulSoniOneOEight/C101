@@ -163,6 +163,28 @@ assert.equal(electrical?.presentation_source, "governed-editorial-seed");
 assert.equal(electrical?.label, "Electrical", "a missing editorial must fall back to the commerce name");
 assert.equal(electrical?.icon_key, "electrical");
 
+const prioritized = composeStorefrontCategories(
+  [
+    { id: "pcat_agri", name: "Agriculture & Seeds" },
+    { id: "pcat_paint", name: "Paints & Finishes" },
+    { id: "pcat_bath", name: "Bathroom & Plumbing" },
+    { id: "pcat_light", name: "Lighting & Electrical" },
+    { id: "pcat_tools", name: "Tools & Hardware" },
+  ],
+  [],
+);
+assert.deepEqual(
+  prioritized.map((item) => item.name),
+  [
+    "Lighting & Electrical",
+    "Bathroom & Plumbing",
+    "Paints & Finishes",
+    "Agriculture & Seeds",
+    "Tools & Hardware",
+  ],
+  "only the three approved categories move; all remaining categories stay stable",
+);
+
 // --- a name-keyed editorial and an id-keyed banner must still meet ------------------------------
 const tolerant = composeStorefrontCategories(
   [{ id: "pcat_agri", name: "Agriculture & Seeds", handle: "agriculture-&-seeds" }],

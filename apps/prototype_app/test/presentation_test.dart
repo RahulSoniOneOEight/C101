@@ -41,11 +41,14 @@ void main() {
     final category = presentation.categoryByLabel('Construction & Site');
     expect(category, isNotNull);
     // Resolves by commerce name too.
-    expect(presentation.categoryByLabel('Construction')?.id, 'pcat_construction');
+    expect(
+        presentation.categoryByLabel('Construction')?.id, 'pcat_construction');
     expect(presentation.categoryByLabel('Missing'), isNull);
   });
 
-  test('a console banner type is matched by its surface, so CMS banners actually render', () {
+  test(
+      'a console banner type is matched by its surface, so CMS banners actually render',
+      () {
     final presentation = StorefrontPresentation.fromJson(<String, dynamic>{
       'banners': <dynamic>[
         <String, dynamic>{
@@ -66,7 +69,8 @@ void main() {
 
     expect(presentation.banners.first.placement, 'home.hero');
     final hero = presentation.bannersFor('home.hero');
-    expect(hero, hasLength(1), reason: 'a console hero must reach the home surface');
+    expect(hero, hasLength(1),
+        reason: 'a console hero must reach the home surface');
     expect(hero.first.title, 'From the console');
     expect(
       presentation.bannersFor('home.campaign-strip').single.contentKey,
@@ -86,10 +90,14 @@ void main() {
     for (final banner in fallbackBanners) {
       final copy = '${banner.title} ${banner.body ?? ''}'.toLowerCase();
       expect(banner.body, isNull,
-          reason: '${banner.contentKey}: a seed body is a claim shown before any operator authors one');
-      expect(copy, isNot(contains('%')), reason: '${banner.contentKey}: no percentage saving');
-      expect(copy, isNot(contains('sku')), reason: '${banner.contentKey}: no catalogue size');
-      expect(copy, isNot(contains('₹')), reason: '${banner.contentKey}: no delivery threshold');
+          reason:
+              '${banner.contentKey}: a seed body is a claim shown before any operator authors one');
+      expect(copy, isNot(contains('%')),
+          reason: '${banner.contentKey}: no percentage saving');
+      expect(copy, isNot(contains('sku')),
+          reason: '${banner.contentKey}: no catalogue size');
+      expect(copy, isNot(contains('₹')),
+          reason: '${banner.contentKey}: no delivery threshold');
     }
   });
 
@@ -128,15 +136,25 @@ void main() {
   });
 
   test('governed fallback mirrors the shipped hero banners and categories', () {
-    final hero = fallbackBanners.where((b) => b.placement == 'home.hero').toList();
+    final hero =
+        fallbackBanners.where((b) => b.placement == 'home.hero').toList();
     expect(hero, hasLength(3));
     expect(hero.map((b) => b.title), contains('Monsoon Ready'));
     expect(
       fallbackBanners.where((b) => b.placement == 'home.campaign-strip'),
       isEmpty,
-      reason: 'campaign promotions must never appear unless an operator published one',
+      reason:
+          'campaign promotions must never appear unless an operator published one',
     );
-    expect(fallbackCategories, hasLength(6));
+    expect(fallbackCategories, hasLength(7));
+    expect(
+      fallbackCategories.take(3).map((category) => category.label),
+      <String>[
+        'Lighting & Electrical',
+        'Bathroom & Plumbing',
+        'Paints & Finishes',
+      ],
+    );
     expect(
       fallbackCategories.map((c) => c.iconKey),
       containsAll(<String>['construction', 'electrical']),

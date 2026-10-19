@@ -8,6 +8,7 @@ import 'router/app_router.dart';
 import 'notifications/push_notification_coordinator.dart';
 import 'data/experience_api.dart';
 import 'core/app_config.dart';
+import 'core/session_route_policy.dart';
 import 'providers/notifications_providers.dart';
 import 'widgets/staging_strip.dart';
 
@@ -46,13 +47,12 @@ class _PinCommerceAppState extends ConsumerState<PinCommerceApp> {
                 (context) => (context['roles'] as List? ?? const <dynamic>[]))
             .map((role) => role.toString())
             .toSet();
-        if (roles.any((role) => role.startsWith('b2b_'))) {
-          ref.read(appRouterProvider).go('/b2b');
-        } else if (roles.contains('customer')) {
-          ref.read(appRouterProvider).go('/');
-        } else {
-          ref.read(appRouterProvider).go('/notifications');
-        }
+        final router = ref.read(appRouterProvider);
+        final redirect = restoredSessionRedirect(
+          currentPath: router.routeInformationProvider.value.uri.path,
+          roles: roles,
+        );
+        if (redirect != null) router.go(redirect);
       } catch (_) {
         // Startup stays usable when secure storage, FCM or the staging API is unavailable.
       }

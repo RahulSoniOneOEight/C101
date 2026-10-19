@@ -143,8 +143,15 @@ void main() {
     final categories = container.read(tradeCategoryOptionsProvider);
 
     expect(categories, isNotEmpty);
-    expect(categories.first.id, TradeCategoryIds.bathroom,
-        reason: 'fixtures already speak commerce ids so filtering still works');
+    expect(
+      categories.take(3).map((category) => category.id),
+      <String>[
+        TradeCategoryIds.electrical,
+        TradeCategoryIds.bathroom,
+        TradeCategoryIds.paints,
+      ],
+      reason: 'CHG-060 priority order, still keyed by commerce ids',
+    );
   });
 
   test('the trade catalogue is tagged with the same ids the rail filters on',

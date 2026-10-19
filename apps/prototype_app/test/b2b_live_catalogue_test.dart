@@ -69,6 +69,24 @@ Product _groupedProduct() => Product.fromComposedJson(<String, dynamic>{
     });
 
 void main() {
+  test('trade fallback categories use the approved priority order', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+
+    expect(
+      container
+          .read(tradeDashboardProvider)
+          .categories
+          .take(3)
+          .map((category) => category.label),
+      <String>[
+        'Lighting & Electrical',
+        'Bathroom & Plumbing',
+        'Paints & Finishes',
+      ],
+    );
+  });
+
   test('the card price is the cheapest SKU, not the first listed', () {
     final product = Product.fromComposedJson(<String, dynamic>{
       'id': 'prod_two_prices',
@@ -125,7 +143,8 @@ void main() {
     expect(trade.deliveryLocation, 'Marketplace Shipping');
     // Both SKUs are offered by the seller that actually priced them.
     expect(trade.sellers, hasLength(2));
-    expect(trade.sellers.every((s) => s.name == 'BuildMaster Supplies'), isTrue);
+    expect(
+        trade.sellers.every((s) => s.name == 'BuildMaster Supplies'), isTrue);
     expect(trade.bestSeller!.unitPrice.amount, 475000);
     expect(trade.bestSeller!.bestPrice, isTrue);
   });

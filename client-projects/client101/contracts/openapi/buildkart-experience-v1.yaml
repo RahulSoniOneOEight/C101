@@ -1024,6 +1024,12 @@ components:
         variants: {type: array, items: {$ref: '#/components/schemas/ComposedVariant'}}
         best_price: {$ref: '#/components/schemas/EligibleOffer'}
         offer_count: {type: integer, minimum: 0}
+        image_quality_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: CHG-060 staging display-fitness fixture used by default relevance order.
+        image_quality_fixture: {type: [string, 'null'], const: CHG-060}
     ComposedProduct:
       type: object
       required: [id, title, variants, generated_at, freshness]
@@ -1031,6 +1037,12 @@ components:
         id: {type: string}
         title: {type: string}
         description: {type: [string, 'null']}
+        image_quality_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: CHG-060 staging display-fitness fixture; not a production DAM judgement.
+        image_quality_fixture: {type: [string, 'null'], const: CHG-060}
         variants:
           type: array
           items: {$ref: '#/components/schemas/ComposedVariant'}

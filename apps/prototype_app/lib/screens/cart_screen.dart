@@ -40,8 +40,7 @@ class CartScreen extends ConsumerWidget {
           };
           final related = products
               .where((p) =>
-                  !inCart.contains(p.id) &&
-                  !inCart.contains(p.cartVariantId))
+                  !inCart.contains(p.id) && !inCart.contains(p.cartVariantId))
               .take(8)
               .toList();
 
@@ -98,8 +97,8 @@ class CartScreen extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     'Discount · ${cart.promotions.map((p) => p.code).join(', ')}',
-                    style: TextStyle(
-                        fontSize: 13, color: colors.contentSecondary),
+                    style:
+                        TextStyle(fontSize: 13, color: colors.contentSecondary),
                   ),
                 ),
                 Text(
@@ -218,8 +217,7 @@ class _CartLineWithDeals extends ConsumerStatefulWidget {
   final List<Product> catalogue;
 
   @override
-  ConsumerState<_CartLineWithDeals> createState() =>
-      _CartLineWithDealsState();
+  ConsumerState<_CartLineWithDeals> createState() => _CartLineWithDealsState();
 }
 
 class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
@@ -250,6 +248,7 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
         PinCartLine(
           title: item.title,
           subtitle: item.unitPrice?.formatted,
+          imageUrl: cartLineImageUrl(item, widget.catalogue),
           quantity: item.quantity,
           onIncrement: () => ref
               .read(cartProvider.notifier)
@@ -264,7 +263,8 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: () => setState(() => _open = !_open),
-              icon: Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
+              icon:
+                  Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
               label: Text(_open ? 'Hide related deals' : 'Related deals'),
             ),
           ),
@@ -313,4 +313,3 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
     );
   }
 }
-

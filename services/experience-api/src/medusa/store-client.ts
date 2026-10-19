@@ -484,6 +484,9 @@ export interface StoreCart {
   region_id: string;
   completed_at?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Product-line subtotal before item discounts, excluding shipping. */
+  item_subtotal?: number;
+  item_total?: number;
   shipping_total?: number;
   discount_total?: number;
   item_discount_total?: number;
@@ -493,6 +496,9 @@ export interface StoreCart {
     id: string;
     title: string;
     product_title: string | null;
+    product_id?: string | null;
+    variant_id?: string | null;
+    thumbnail?: string | null;
     quantity: number;
     unit_price: number;
     total?: number;

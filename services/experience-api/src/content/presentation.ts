@@ -47,6 +47,34 @@ export interface CategoryPresentationSeed {
   banner_image_uri?: string;
 }
 
+/** CHG-060 operator-approved priority; all unlisted categories stay stable. */
+export const storefrontCategoryPriority = [
+  "lighting & electrical",
+  "bathroom & plumbing",
+  "paints & finishes",
+] as const;
+
+function normalizedCategoryName(value: string): string {
+  return value.trim().toLowerCase().replace(/\band\b/g, "&").replace(/\s+/g, " ");
+}
+
+/** Moves only the approved priority categories; preserves every other order. */
+export function prioritizeStorefrontCategories(
+  categories: ComposedCategory[],
+): ComposedCategory[] {
+  const indexed = categories.map((category, index) => ({ category, index }));
+  const priority = (category: ComposedCategory): number => {
+    const names = [category.name, category.label].map(normalizedCategoryName);
+    const found = storefrontCategoryPriority.findIndex((candidate) => names.includes(candidate));
+    return found < 0 ? storefrontCategoryPriority.length : found;
+  };
+  indexed.sort((left, right) => {
+    const compared = priority(left.category) - priority(right.category);
+    return compared === 0 ? left.index - right.index : compared;
+  });
+  return indexed.map(({ category }) => category);
+}
+
 /** Hero, campaign-strip and secondary banners, mirroring the shipped app creative. */
 // No seed body or alt text states a quantified claim: no saving, no catalogue size, no delivery
 // threshold. Before an operator authors a banner, anything numeric here would reach shoppers as if it
@@ -210,7 +238,7 @@ export function composeStorefrontCategories(
     if (key) bannersByKey.set(key, banner);
   });
 
-  return categories.map((category) => {
+  const composed = categories.map<ComposedCategory>((category) => {
     const seed = seedCategoryPresentation(category.name);
     // Match on the commerce category id; tolerate an editorial record keyed by name so the
     // governed fallback and an operator-saved record resolve to the same category.
@@ -237,4 +265,5 @@ export function composeStorefrontCategories(
       presentation_source: editorial ? "cms" : "governed-editorial-seed",
     };
   });
+  return prioritizeStorefrontCategories(composed);
 }

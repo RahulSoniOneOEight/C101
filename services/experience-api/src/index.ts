@@ -45,6 +45,11 @@ import {
   type PilotRole,
 } from "./auth/pilot-authorization.js";
 import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
+import { itemSubtotalMinor } from "./commerce/cart-totals.js";
+import {
+  imageQualityScore,
+  orderByImageQuality,
+} from "./catalogue/image-quality-order.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
@@ -341,6 +346,7 @@ function findValidSimulatedSession(
  * "you save X" without recomputing money from item internals.
  */
 function composeCartView(cart: StoreCart) {
+  const itemSubtotal = itemSubtotalMinor(cart);
   const items = (cart.items ?? []).map((item) => ({
     ...item,
     adjustments: (item.adjustments ?? []).map((adjustment) => ({
@@ -352,6 +358,11 @@ function composeCartView(cart: StoreCart) {
   return {
     ...cart,
     items,
+    // Stable storefront semantics: "subtotal" is products only. Preserve the
+    // engine's shipping-inclusive subtotal separately for audit/debugging.
+    subtotal: itemSubtotal,
+    item_subtotal: itemSubtotal,
+    engine_subtotal: cart.subtotal,
     promotions: (cart.promotions ?? []).map((promotion) => ({
       code: promotion.code,
       is_automatic: Boolean(promotion.is_automatic),
@@ -1273,8 +1284,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       await medusa.updateCartMetadata(cart.id, metadata);
       await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
       return json({
-        ...cart,
-        metadata,
+        ...composeCartView({ ...cart, metadata }),
         channel,
         business_account_id: authenticated.authorization.businessAccountId ?? null,
         environment: config.environment,
@@ -1336,7 +1346,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           ...(address.phone?.trim() ? { phone: address.phone.trim() } : {}),
         },
       });
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1385,7 +1400,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         return problem(409, "ineligible-shipping-option", "The selected shipping option is not eligible for this cart.");
       }
       const cart = await medusa.addShippingMethod(cartId, body.option_id);
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1408,7 +1428,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     try {
       const cart = await medusa.addLineItem(cartId, body.offer_id, body.quantity as number);
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1440,7 +1465,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           ? await medusa.removeLineItem(cartId, lineId)
           : await medusa.updateLineItem(cartId, lineId, body.quantity as number);
       }
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1587,9 +1617,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           scanned.push(...page);
           if (page.length < CATALOGUE_SCAN_PAGE_SIZE) break;
         }
-        const matched = scanned.filter(
+        const matched = orderByImageQuality(scanned.filter(
           (p) => String(p.metadata?.catalogue_import ?? "") === catalogueImport,
-        );
+        ));
         totalCount = matched.length;
         products = matched.slice(offset, offset + limit);
       } else if (collectionId) {
@@ -1633,6 +1663,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           variants: composeVariantPrices(p.variants, offers),
           best_price: selected,
           offer_count: offers.length,
+          image_quality_score: imageQualityScore(p.id),
+          image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
         };
       });
       const composeMs = performance.now() - t2;
@@ -1689,6 +1721,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         metadata: p.metadata ?? null,
         categories: p.categories ?? [],
         badges: (p.tags ?? []).map((tag) => tag.value),
+        image_quality_score: imageQualityScore(p.id),
+        image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
         variants: composeVariantPrices(p.variants, offers),
         offers: offerViews,
         channel,

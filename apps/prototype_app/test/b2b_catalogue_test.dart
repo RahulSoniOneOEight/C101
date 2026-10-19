@@ -35,8 +35,8 @@ void main() {
     // First product is visible initially.
     expect(find.text('Bib Cock 15mm Full Turn Chrome'), findsOneWidget);
 
-    // Tap the Plumbing chip to filter.
-    await tester.tap(find.text('Plumbing'));
+    // Tap the Bathroom & Plumbing chip to filter.
+    await tester.tap(find.text('Bathroom & Plumbing'));
     await tester.pumpAndSettle();
 
     // Plumbing products remain; a hardware product is filtered out.

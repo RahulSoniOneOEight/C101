@@ -134,7 +134,8 @@ class StorefrontSection {
   /// Children of a group section (Trade Offers & Deals), in declared order.
   final List<StorefrontSection> children;
 
-  String get displayTitle => (title != null && title!.trim().isNotEmpty) ? title! : label;
+  String get displayTitle =>
+      (title != null && title!.trim().isNotEmpty) ? title! : label;
 
   factory StorefrontSection.fromJson(Map<String, dynamic> json) {
     return StorefrontSection(
@@ -252,6 +253,8 @@ IconData categoryIconFor(String iconKey) {
       return Icons.precision_manufacturing_outlined;
     case 'construction':
       return Icons.construction_outlined;
+    case 'paints-finishes':
+      return Icons.format_paint_outlined;
     default:
       return Icons.category_outlined;
   }
@@ -294,6 +297,14 @@ const List<StorefrontBanner> fallbackBanners = <StorefrontBanner>[
 
 const List<StorefrontCategory> fallbackCategories = <StorefrontCategory>[
   StorefrontCategory(
+    id: 'fallback-electrical',
+    name: 'Lighting & Electrical',
+    label: 'Lighting & Electrical',
+    iconKey: 'electrical',
+    bannerImageUrl:
+        'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
+  ),
+  StorefrontCategory(
     id: 'fallback-bathroom',
     name: 'Bathroom & Plumbing',
     label: 'Bathroom & Plumbing',
@@ -302,20 +313,18 @@ const List<StorefrontCategory> fallbackCategories = <StorefrontCategory>[
         'https://images.pexels.com/photos/2062426/pexels-photo-2062426.jpeg?auto=compress&cs=tinysrgb&w=940',
   ),
   StorefrontCategory(
+    id: 'fallback-paints',
+    name: 'Paints & Finishes',
+    label: 'Paints & Finishes',
+    iconKey: 'paints-finishes',
+  ),
+  StorefrontCategory(
     id: 'fallback-tiles',
     name: 'Tiles & Plywood',
     label: 'Tiles & Plywood',
     iconKey: 'tiles-plywood',
     bannerImageUrl:
         'https://images.pexels.com/photos/276724/pexels-photo-276724.jpeg?auto=compress&cs=tinysrgb&w=940',
-  ),
-  StorefrontCategory(
-    id: 'fallback-electrical',
-    name: 'Electrical',
-    label: 'Electrical',
-    iconKey: 'electrical',
-    bannerImageUrl:
-        'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
   ),
   StorefrontCategory(
     id: 'fallback-agriculture',
