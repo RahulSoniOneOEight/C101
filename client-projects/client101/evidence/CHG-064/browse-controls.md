@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-20
 **Status:** Deployed to staging; human review pending
-**Build:** `5a9e291`
+**Build:** `381a107`
 **Change:** `client-projects/client101/changes/CHG-064.yaml`
 
 ## What changed
@@ -70,8 +70,24 @@ Selection is not colour-only: every selected chip also shows a check icon and ca
 | 390×844 live render | sort green, filter red, 16 results, sheet 16 results |
 | Horizontal overflow | none |
 | Console errors | none |
+| Compact 390px fit (B2C/B2B) | pass |
 
 Live checks used headless Chromium at 390×844 with the Flutter accessibility tree enabled.
+
+## Revision 2 ? compact palette-tinted controls
+
+- Header height reduced from 160px to **102px**; pills are 32px tall inside 44px tap targets,
+  11px labels, 6px gaps.
+- Selected chips use the palette's **light** shades: `trustSubtle` fill with a `feedbackSuccess`
+  border/check for sort, `promotionSubtle` fill with an `actionDestructive` border/check for filter.
+  Text stays `contentPrimary` (12:1 on both tints); the earlier tinted text measured 4.40:1 green and
+  4.50:1 red, which is why it changed.
+- The same `StorefrontControlBar` now renders on the **B2B catalogue** with sort
+  Recommended / Price ? / Price ? / Discount and quick filters Best Deals / Seasonal / In stock.
+  The B2B sheet adds price band + trade filters with a live count and Reset.
+- 390px verification: all four sort chips plus result count and Clear all fit; B2B fits all four
+  sort chips plus 233 results and the filter row.
+- `flutter analyze` clean; **220** tests pass.
 
 ## Notes
 

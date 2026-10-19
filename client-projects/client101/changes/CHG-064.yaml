@@ -1,5 +1,5 @@
 change_id: CHG-064
-revision: 1
+revision: 2
 request: >-
   Replace the Sort dropdown and Filter button on the storefront listing with always-visible sort
   chips, a filter button plus quick-filter chips, a sticky control block, Clear all and a live-count
