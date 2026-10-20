@@ -137,15 +137,28 @@ required_tests:
 - WCAG 2.2 AA keyboard, focus, screen reader, target size and contrast checks.
 - Push, logs and events contain no unnecessary PII.
 approval_required: true
+decision_approval:
+  status: phase-1-approved
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  approved_decisions: [D-070-01, D-070-02, D-070-03, D-070-04, D-070-05, D-070-06, D-070-07, D-070-08]
+  approved_open_decisions:
+    OD-070-01: staging-pilot-retention-production-policy-deferred
+    OD-070-02: one-approver-distinct-from-requester-and-buyer-self-approval-prohibited
+    OD-070-03: defer-production-realtime-topology-no-matrix-in-pilot-1
+    OD-070-04: designated-support-read-redacted-and-audited
+    OD-070-05: separate-workspace-database-in-existing-postgres-cluster
+  runtime_scope: phase-1-workspace-kernel-only
+  production_release_authorized: false
 implementation:
-  phase: 0-governance-and-contracts
-  status: phase-0-complete-awaiting-approval
-  service_code_started: false
+  phase: 1-workspace-kernel
+  status: in-progress
+  service_code_started: true
   artefacts:
   - client-projects/client101/solution/decisions/ADR-client101-011.yaml
   - client-projects/client101/contracts/data-contract.yaml
   - client-projects/client101/contracts/openapi/buildkart-workspace-v1.yaml
   - docs/architecture/shared-backend-api-matrix.md
   - docs/architecture/collaborative-workspace-threat-model.md
-status: phase-0-complete-awaiting-approval
+status: phase-1-approved-in-progress
 production_release_authorized: false

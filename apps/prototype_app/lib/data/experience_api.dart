@@ -7,6 +7,7 @@ import '../domain/models.dart';
 import '../domain/app_notification.dart';
 import '../domain/presentation.dart';
 import '../domain/storefront_collection.dart';
+import '../domain/workspace_models.dart';
 
 /// Client for the shared BuildKart Experience API (`:9020`), which composes Medusa/Mercur/Tryton.
 /// This is the canonical client for the pilot: it consumes composed responses and the dummy
@@ -22,6 +23,7 @@ class ExperienceApi {
   static const _sessionExpiryKey = 'pilot_session_expiry_v1';
   static const _sessionEmailKey = 'pilot_session_email_v1';
   static const _sessionNameKey = 'pilot_session_name_v1';
+  static const _sessionUserIdKey = 'pilot_session_user_id_v1';
 
   /// Email of the authenticated pilot, when known.
   ///
@@ -35,6 +37,11 @@ class ExperienceApi {
   String? _sessionName;
 
   String? get sessionName => _sessionName;
+
+  /// Pilot user id of the authenticated identity, when known.
+  String? _sessionUserId;
+
+  String? get sessionUserId => _sessionUserId;
 
   /// Retries a read once or twice on a transient gateway failure.
   ///
@@ -87,8 +94,11 @@ class ExperienceApi {
           user is Map<String, dynamic> ? user['email'] as String? : null;
       final name =
           user is Map<String, dynamic> ? user['name'] as String? : null;
+      final userId =
+          user is Map<String, dynamic> ? user['id'] as String? : null;
       _sessionEmail = email;
       _sessionName = name;
+      _sessionUserId = userId;
       if (email != null && email.isNotEmpty) {
         await _secureStorage.write(key: _sessionEmailKey, value: email);
       } else {
@@ -98,6 +108,11 @@ class ExperienceApi {
         await _secureStorage.write(key: _sessionNameKey, value: name);
       } else {
         await _secureStorage.delete(key: _sessionNameKey);
+      }
+      if (userId != null && userId.isNotEmpty) {
+        await _secureStorage.write(key: _sessionUserIdKey, value: userId);
+      } else {
+        await _secureStorage.delete(key: _sessionUserIdKey);
       }
     }
     return res.data!;
@@ -147,6 +162,7 @@ class ExperienceApi {
     _dio.options.headers['Authorization'] = 'Bearer $token';
     _sessionEmail = await _secureStorage.read(key: _sessionEmailKey);
     _sessionName = await _secureStorage.read(key: _sessionNameKey);
+    _sessionUserId = await _secureStorage.read(key: _sessionUserIdKey);
     return true;
   }
 
@@ -154,6 +170,7 @@ class ExperienceApi {
     _dio.options.headers.remove('Authorization');
     _sessionEmail = null;
     _sessionName = null;
+    _sessionUserId = null;
     await _secureStorage.delete(key: _sessionTokenKey);
     await _secureStorage.delete(key: _sessionExpiryKey);
     await _secureStorage.delete(key: _sessionEmailKey);
@@ -528,6 +545,78 @@ class ExperienceApi {
 
   Future<void> removeDevice(String deviceId) async {
     await _dio.delete<void>('/v1/me/devices/$deviceId');
+  }
+
+  // ---- B2B collaborative workspace (Phase 1: conversation only) ----------
+
+  Future<List<WorkspaceSummary>> getWorkspaces() async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>('/v1/workspaces'),
+    );
+    return (res.data!['workspaces'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(WorkspaceSummary.fromJson)
+        .toList();
+  }
+
+  Future<List<WorkspaceChannel>> getWorkspaceChannels(
+      String workspaceId) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>(
+        '/v1/workspaces/$workspaceId/channels',
+      ),
+    );
+    return (res.data!['channels'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(WorkspaceChannel.fromJson)
+        .toList();
+  }
+
+  Future<WorkspaceMessagePage> getWorkspaceMessages(
+    String channelId, {
+    String? cursor,
+  }) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>(
+        '/v1/channels/$channelId/messages',
+        queryParameters: cursor == null ? null : {'cursor': cursor},
+      ),
+    );
+    final messages = (res.data!['messages'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(WorkspaceMessage.fromJson)
+        .toList();
+    return WorkspaceMessagePage(
+      messages: messages,
+      nextCursor: res.data!['next_cursor'] as String? ??
+          (messages.isEmpty ? '0' : '${messages.last.sequence}'),
+    );
+  }
+
+  Future<WorkspaceMessage> sendWorkspaceMessage(
+    String channelId,
+    String body,
+  ) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/channels/$channelId/messages',
+      data: {'body': body, 'message_type': 'text'},
+      options: Options(
+        headers: {
+          'Idempotency-Key': 'msg_${DateTime.now().microsecondsSinceEpoch}'
+        },
+      ),
+    );
+    return WorkspaceMessage.fromJson(
+      res.data!['message'] as Map<String, dynamic>? ??
+          const <String, dynamic>{},
+    );
+  }
+
+  Future<void> markWorkspaceRead(String channelId, int sequence) async {
+    await _dio.post<void>(
+      '/v1/channels/$channelId/read-cursor',
+      data: {'last_event_sequence': sequence},
+    );
   }
 }
 

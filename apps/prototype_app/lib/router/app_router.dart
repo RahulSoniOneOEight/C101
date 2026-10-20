@@ -25,6 +25,7 @@ import '../screens/product_detail_screen.dart';
 import '../screens/product_list_screen.dart';
 import '../screens/quote_detail_screen.dart';
 import '../screens/quote_list_screen.dart';
+import '../screens/workspace_screen.dart';
 
 /// The app's route table, provided so it can be overridden in tests.
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -366,6 +367,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/b2b/site-selector',
         builder: (context, state) => const B2BSiteSelectorScreen(),
+      ),
+      // ---- B2B collaborative workspace (Phase 1) ----
+      GoRoute(
+        path: '/b2b/workspace',
+        builder: (context, state) => const WorkspaceScreen(),
       ),
       // ---- B2B support ----
       GoRoute(

@@ -18,7 +18,7 @@ governed_amendments:
   scope: merchandising-presets-promotions-campaigns-and-campaign-content
 - change_contract: CHG-070
   revision: 1
-  status: proposed-awaiting-approval
+  status: bounded-staging-phase-1-approved
   scope: b2b-collaborative-workspace-messaging-purchase-drafts-approvals-and-checkout-handoff
 entities:
   - name: order

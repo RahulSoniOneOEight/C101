@@ -72,6 +72,10 @@ export interface Config {
   experienceOperatorSecret?: string;
   cmsCacheTtlSeconds: number;
   cmsWebhookToleranceSeconds: number;
+  /** Internal Workspace Service origin. Clients never call it directly. */
+  workspaceServiceUrl?: string;
+  /** HMAC secret used only for the Experience API → Workspace actor context. */
+  workspaceServiceSecret?: string;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -173,6 +177,15 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     );
   }
 
+  const workspaceServiceUrl =
+    env.WORKSPACE_SERVICE_URL?.trim().replace(/\/$/, "") || undefined;
+  const workspaceServiceSecret = env.WORKSPACE_SERVICE_SECRET?.trim() || undefined;
+  if (workspaceServiceUrl && (!workspaceServiceSecret || workspaceServiceSecret.length < 24)) {
+    throw new Error(
+      "WORKSPACE_SERVICE_SECRET (at least 24 characters) is required when WORKSPACE_SERVICE_URL is configured.",
+    );
+  }
+
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
@@ -226,5 +239,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       300,
       "CMS_WEBHOOK_TOLERANCE_SECONDS",
     ),
+    workspaceServiceUrl,
+    workspaceServiceSecret,
   };
 }

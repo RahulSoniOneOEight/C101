@@ -1,7 +1,7 @@
 decision_id: ADR-client101-011
 client_id: client101
 title: Add Workspace as a bounded context for collaboration and purchase intent
-status: proposed
+status: accepted
 context: >-
   B2B buyers currently discuss requirements in local chat fixtures and edit fixture carts. There is
   no durable, tenant-scoped record of who proposed a change, which exact revision was approved, or
@@ -48,5 +48,5 @@ evidence_refs:
 - client-projects/client101/contracts/data-contract.yaml
 - client-projects/client101/contracts/openapi/buildkart-workspace-v1.yaml
 - docs/architecture/collaborative-workspace-threat-model.md
-approved_by: null
-approved_at: null
+approved_by: human-requester
+approved_at: '2026-10-20'

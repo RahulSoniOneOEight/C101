@@ -124,6 +124,27 @@ services:
       postgres: {condition: service_healthy}
     networks: [private]
 
+  # B2B collaboration kernel. Phase 1 owns workspaces, channels, messages and
+  # activity in its own database. It is private: clients reach it only through
+  # the Experience API's signed actor-context proxy.
+  workspace:
+    image: buildkart-hosted-pilot-workspace
+    build: ../workspace
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/workspace.env
+    environment:
+      PORT: "9040"
+      BUILDKART_ENVIRONMENT: staging
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:9040/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
   experience-api:
     image: buildkart-hosted-pilot-experience-api
     build: ../experience-api
@@ -132,11 +153,13 @@ services:
     environment:
       PORT: "9020"
       CMS_BASE_URL: http://cms:1337
+      WORKSPACE_SERVICE_URL: http://workspace:9040
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       nats: {condition: service_healthy}
       medusa-api: {condition: service_healthy}
+      workspace: {condition: service_healthy}
     networks: [private]
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:9020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

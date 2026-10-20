@@ -1,4 +1,4 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
@@ -226,6 +226,75 @@ async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promis
  * Resolve an optional session without failing the request. Used by read endpoints so a B2B caller
  * can be priced against the B2B region while anonymous/B2C callers get the default region.
  */
+/**
+ * Signed proxy to the internal Workspace Service. The browser never sees the service origin or
+ * secret. The workspace service independently verifies the actor context and membership.
+ */
+async function proxyWorkspace(
+  req: Request,
+  user: PilotUser,
+  authorization: PilotAuthorization,
+  cid: string,
+): Promise<Response> {
+  if (!config.workspaceServiceUrl || !config.workspaceServiceSecret) {
+    return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+  }
+  if (!authorization.businessAccountId) {
+    return problem(403, "business-account-required", "A business-account context is required.");
+  }
+  if (
+    !hasAnyRole(authorization, [
+      "b2b_buyer",
+      "b2b_account_admin",
+      "b2b_approver",
+      "super_admin",
+    ])
+  ) {
+    return problem(404, "not-found");
+  }
+  const url = new URL(req.url);
+  const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.text();
+  const actor = {
+    userId: user.id,
+    name: user.name,
+    roles: authorization.roles,
+    businessAccountId: authorization.businessAccountId,
+    sellerId: authorization.sellerId,
+    iat: Math.floor(Date.now() / 1000),
+    correlationId: cid,
+  };
+  const encoded = Buffer.from(JSON.stringify(actor)).toString("base64url");
+  const signature = createHmac("sha256", config.workspaceServiceSecret)
+    .update(encoded)
+    .digest("hex");
+  try {
+    const upstream = await fetch(`${config.workspaceServiceUrl}${url.pathname}${url.search}`, {
+      method: req.method,
+      headers: {
+        "x-workspace-actor": encoded,
+        "x-workspace-signature": signature,
+        "x-correlation-id": cid,
+        ...(body ? { "content-type": req.headers.get("content-type") ?? "application/json" } : {}),
+        ...(req.headers.get("idempotency-key")
+          ? { "idempotency-key": req.headers.get("idempotency-key")! }
+          : {}),
+      },
+      body,
+    });
+    const text = await upstream.text();
+    return new Response(text, {
+      status: upstream.status,
+      headers: {
+        "content-type": upstream.headers.get("content-type") ?? "application/json",
+        "access-control-allow-origin": "*",
+      },
+    });
+  } catch (error) {
+    console.warn("[experience-api] workspace proxy failed:", (error as Error).message);
+    return problem(503, "workspace-unavailable", "The workspace service is temporarily unavailable.");
+  }
+}
+
 async function optionalAuthorization(req: Request): Promise<PilotAuthorization | undefined> {
   const token = bearerToken(req);
   if (!token) return undefined;
@@ -2230,6 +2299,22 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       test_data: true,
       correlation_id: cid,
     });
+  }
+
+  // Workspace collaboration is B2B-only and always proxied to the internal service.
+  if (
+    url.pathname === "/v1/workspaces" ||
+    url.pathname.startsWith("/v1/workspaces/") ||
+    url.pathname.startsWith("/v1/channels/")
+  ) {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    return proxyWorkspace(
+      req,
+      authenticated.user,
+      authenticated.authorization,
+      cid,
+    );
   }
 
   return problem(404, "not-found");
