@@ -3,7 +3,7 @@
 **Date:** 2026-10-20
 **App build:** `3a35f1a`
 **Environment:** staging only
-**Status:** REST collaboration kernel deployed; WebSocket feed deferred
+**Status:** Phase 1 complete on staging; WebSocket and outbox publisher active
 **Production:** unauthorized
 
 ## Outcome
@@ -36,9 +36,13 @@ the HMAC, timestamp, business-account role and membership projection.
 - `GET /v1/channels/{id}/messages`
 - `POST /v1/channels/{id}/messages`
 - `POST /v1/channels/{id}/read-cursor`
+- `POST /v1/workspaces/{id}/stream-ticket`
+- `GET /v1/workspaces/{id}/stream?ticket=&signature=&cursor=` (WebSocket)
 
 Messages write an append-only activity event and a transactional outbox row in the same database
-transaction. The outbox publisher and WebSocket feed are not active in this slice.
+transaction. The outbox publisher is connected to NATS, and the cursor WebSocket relay is active
+through the Experience API. The Flutter screen shows **Live** when the socket is connected and falls
+back to **Polling**. The header workspace icon uses the unread count projection.
 
 ## Verification
 
@@ -55,6 +59,12 @@ transaction. The outbox publisher and WebSocket feed are not active in this slic
 | POST message | **201**, new sequence, visible to the author |
 | Chrome 390×844 Arjun | workspace name, seed message, message send visible, no console errors |
 | Chrome 360×800 Shakti | own workspace, empty state, no Arjun content, no console errors |
+| WebSocket ticket | `200` |
+| WebSocket ready + backlog | pass, ready cursor returned |
+| Live cross-user push | pass — admin message appeared in the buyer screen within 2.5 s |
+| Flutter socket state | **Live** badge shown, no console errors |
+| Outbox publisher | NATS connected; outbox publisher active |
+| Unread badge | implemented from the workspace unread projection |
 
 Artifacts:
 
@@ -69,17 +79,13 @@ rendered the submitted body. This is a test-harness typing artifact, not a UI da
 
 ## Deferred / known gaps
 
-- **WebSocket feed:** `/v1/workspaces/{id}/stream` currently returns `501 stream-not-enabled`; the UI
-  polls every 6 seconds. The OpenAPI contract already defines the cursor feed, but it is not proxied
-  through the Experience API yet.
-- **Outbox publisher:** rows are written; NATS publishing and notification projection are not enabled.
-- **Unread badge:** the header accepts a count but the app does not yet fetch it; icon is unbranded
-  with a badge.
-- **Product shares, purchase drafts, proposals, approvals, revalidation and checkout handoff:** Phase 2
-  and Phase 3, intentionally absent.
+- **Product shares, purchase drafts, proposals, approvals, revalidation and checkout handoff:**
+  Phase 2 and Phase 3, intentionally absent.
+- **Notification projection:** workspace outbox events reach NATS; mapping them into the existing
+  notification inbox/FCM is Phase 4.
 - Operator audited-read view is not built.
-- Host compose and secret files were updated in staging (workspace DB URL, HMAC secret, Firebase
-  credential mount). Secrets remain outside Git. A compose backup was created before the edit.
+- Host compose and secret files were updated in staging (workspace DB URL, HMAC secret, NATS
+  credentials, WebSocket proxy headers, Firebase credential mount). Secrets remain outside Git.
 - Recreating the Experience API exposed a pre-existing missing `GOOGLE_APPLICATION_CREDENTIALS`
   path. The existing `firebase-admin.json` is now mounted read-only at
   `/etc/buildkart/secrets/firebase-admin.json`; no credential value is in Git.

@@ -8,8 +8,9 @@ Phase 1 kernel for the B2B collaborative workspace.
 - Membership projections for the 20-user staging pilot.
 - Procurement and Approvals channels.
 - Durable text messages, activity events and a transactional outbox.
-- REST reads/writes; the WebSocket feed is intentionally not enabled in this slice.
-- Tenant checks on every route and row query.
+- REST reads/writes plus a cursor-based WebSocket feed, proxied by the Experience API.
+- Transactional outbox rows published to NATS by the workspace process.
+- Tenant checks on every route, row query and socket.
 
 Not in this slice: purchase drafts, proposals, approvals, product shares, revalidation,
 cart materialisation, notifications and B2C household workspaces. Those are Phase 2 onward in
@@ -30,6 +31,7 @@ own projection.
 | `WORKSPACE_DATABASE_URL` | Own PostgreSQL database |
 | `WORKSPACE_SERVICE_SECRET` | HMAC secret shared only with the Experience API |
 | `BUILDKART_ENVIRONMENT` | `staging` for this pilot |
+| `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | Optional outbox publisher target |
 
 ## Commands
 

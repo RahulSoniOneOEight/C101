@@ -152,7 +152,7 @@ decision_approval:
   production_release_authorized: false
 implementation:
   phase: 1-workspace-kernel
-  status: phase-1-rest-kernel-deployed
+  status: phase-1-complete-staging-verified
   service_code_started: true
   evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
   artefacts:
@@ -173,12 +173,14 @@ implementation:
     arjun_ui: pass
     shakti_ui: pass
     console_errors: none
-    websocket_feed: deferred
-    outbox_publisher: deferred
+    websocket_feed: pass
+    outbox_publisher: pass
+    unread_badge: implemented
   deployment:
-    app_build: 3a35f1a
+    app_build: a39a670
     workspace_image: buildkart-hosted-pilot-workspace
     workspace_database: buildkart_workspace
     experience_api_proxy: enabled
-status: deployed-to-staging-awaiting-human-review
+    websocket_proxy: enabled
+status: phase-1-deployed-awaiting-human-review
 production_release_authorized: false
