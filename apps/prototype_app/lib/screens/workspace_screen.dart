@@ -821,10 +821,17 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                   color: colors.contentPrimary),
             ),
             const SizedBox(height: AgencySpacing.sm),
-            for (final proposal in view.proposals) ...<Widget>[
+            for (final proposal in view.proposals.take(3)) ...<Widget>[
               _proposalCard(colors, view, proposal),
               const SizedBox(height: AgencySpacing.sm),
             ],
+            if (view.proposals.length > 3)
+              Text(
+                '${view.proposals.length - 3} earlier proposals remain in the '
+                'append-only activity history.',
+                style: TextStyle(
+                    fontSize: 10, color: colors.contentSecondary),
+              ),
           ],
           const SizedBox(height: AgencySpacing.lg),
           _approvalCard(colors, view),
