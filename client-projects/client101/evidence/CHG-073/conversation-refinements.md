@@ -98,8 +98,8 @@ without duplicating server products. Flash Deals, Best Sellers and Recommended f
 | B2B approval gate | pass; unapproved revision showed â€œApproval is not currentâ€ and a disabled action |
 | Home merchandising | Flash Deals, Best Sellers and Recommended for You all render |
 | Commerce write / order creation | none beyond the authorized cart handoff; no order |
-| Workspace smoke (backend) | **pass** on `release-0d7d884` |
-| Household smoke (backend) | **pass** on `release-0d7d884`, includes assistant thread + mention |
+| Workspace B2B smoke (backend) | **pass** on `release-24be9ca` (assistant-only change after that) |
+| Household smoke (backend) | **pass** on `release-0d7d884`, includes assistant thread, mention and escalation path |
 
 Screenshots: `evidence/CHG-073/screenshots/` â€” home rails, 360 dock, assistant thread/reply, cart review and cart page, plus B2B assistant/review/cart. The handoff screenshots are also linked from CHG-072 evidence.
 

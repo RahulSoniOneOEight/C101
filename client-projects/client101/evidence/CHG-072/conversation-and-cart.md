@@ -262,8 +262,8 @@ existing Commerce/Experience API, not by giving chat a write path.
 |---|---|
 | Workspace release | `/opt/buildkart-releases/release-0d7d884`; `current` points there |
 | Frontend | `https://buildkart-staging.web.app`, commit/build `0d7d884` |
-| Workspace B2B smoke | **pass** (tenant isolation, proposals, approvals) |
-| Household smoke | **pass**, including assistant thread and mention |
+| Workspace B2B smoke | **pass** on `release-24be9ca`; the later `0d7d884` change is assistant-escalation only |
+| Household smoke | **pass** on `release-0d7d884`, including assistant thread, mention and escalation path |
 | B2C Chrome | cart review showed 3 current lines; add produced cart count 3; repeated add stayed at 3 |
 | B2B Chrome | unapproved revision showed â€œApproval is not currentâ€ and disabled action; after approver approval, 4 lines added to the quotation cart with GST 18% |
 | Order creation | **none** |
