@@ -676,6 +676,10 @@ function moneyLabel(minor: number, currency: string): string {
 }
 
 async function assistantReplyText(workspaceId: string, prompt: string): Promise<string> {
+  const lower = prompt.toLowerCase();
+  if (/(^|\b)(human|escalat|support|agent|specialist)(\b|$)/.test(lower)) {
+    return "I cannot open a support case or impersonate a human in this staging build. Switch to Chat and send the request to the workspace owner or buyer; it stays in the human conversation and they can decide or escalate it. I have not changed the list, cart or any approval.";
+  }
   const draftResult = await pool.query(
     `select d.id, d.name, d.lifecycle_status, d.current_version, dr.id as revision_id
        from purchase_draft d
@@ -733,7 +737,6 @@ async function assistantReplyText(workspaceId: string, prompt: string): Promise<
     `${moneyLabel(total, currency)} at the accepted snapshot. Top lines: ${topText}. ` +
     `${Number(proposals.rows[0]?.count ?? 0)} pending proposal(s).`;
 
-  const lower = prompt.toLowerCase();
   if (/(cart|build|checkout|order)/.test(lower)) {
     return `${summary} Cart build is a separate, explicit handoff: an owner or buyer opens Review before cart build, sees current price/stock/seller/MOQ differences, and acknowledges them. I cannot build a cart, create an order, approve a revision, invite anyone, or read address/payment/GST data. Human escalation: ask the workspace owner or buyer to review the list.`;
   }
@@ -753,6 +756,19 @@ async function postAssistantReply(
 ): Promise<void> {
   const text = await assistantReplyText(workspaceId, prompt);
   const messageId = `msg_${randomUUID().replaceAll("-", "")}`;
+  if (/(^|\b)(human|escalat|support|agent|specialist)(\b|$)/i.test(prompt)) {
+    await pool.query(
+      `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
+       values ($1, $2, 'assistant.escalation_requested', $3, $4, $5)`,
+      [
+        `act_${randomUUID().replaceAll("-", "")}`,
+        workspaceId,
+        JSON.stringify({ type: "channel", id: channelId }),
+        ASSISTANT_ACTOR_ID,
+        JSON.stringify({ message: "Human escalation requested in assistant thread" }),
+      ],
+    );
+  }
   const inserted = await pool.query(
     `insert into message
        (id, workspace_id, channel_id, actor_id, actor_name, body, message_type)

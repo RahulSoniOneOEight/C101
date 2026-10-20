@@ -172,8 +172,10 @@ implementation:
   status: approved-in-progress
   phase_e_authorized_at_utc: '2026-10-21'
   phase_e_authorized_by: human-requester
-  phase_e_status: implemented-pending-staging-verification
+  phase_e_status: complete-staging-verified
   phase_e_scope: staging-only-explicit-cart-handoff
+  phase_e_release: 24be9ca
+  phase_e_chrome_acceptance: pass-b2c-and-b2b-targeted
   phase_a_completed_at_utc: '2026-10-20'
   phase_b_completed_at_utc: '2026-10-20'
   phase_c_completed_at_utc: '2026-10-20'
@@ -202,12 +204,13 @@ implementation:
       entry. Deployed as 68ee397; automated tests and 89/89 Chrome checks at 390x844 and 360x800
       pass. No commerce write or cart handoff exists.
   - phase-e: >-
-      [in-progress] Authorized staging cart handoff: revalidate current price, stock, MOQ and seller,
-      show a difference preview, require acknowledgement, then add confirmed lines idempotently per
-      revision. B2C writes the canonical Medusa cart; B2B writes the existing quotation draft under
-      the current approval. No order completion.
+      [complete-staging-verified] Authorized staging cart handoff: revalidate current price, stock,
+      MOQ and seller, show a difference preview, require acknowledgement, then add confirmed lines
+      idempotently per revision. B2C writes the canonical Medusa cart; B2B writes the existing
+      quotation draft under the current approval. No order completion.
   - phase-f: >-
-      [in-progress] Staging verification, tenant isolation, negative tests and Chrome acceptance at
-      both sizes, including the Home module regression and the optional assistant read-only path.
+      [complete-staging-verified] Staging verification, tenant isolation, negative tests and Chrome
+      acceptance at both sizes, including the Home module regression and the optional assistant
+      read-only path.
 status: approved-in-progress
 production_release_authorized: false

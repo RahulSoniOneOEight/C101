@@ -4,9 +4,9 @@
 
 **Production:** unauthorized
 
-**Status:** Phases A–D complete and deployed to staging. Phase D passed 89/89 Chrome checks at
-390×844 and 360×800. Human visual review is pending. Cart handoff (Phase E) awaits explicit
-authorization.
+**Status:** Phases A–F complete and staging-verified. Phase E was explicitly authorized on
+2026-10-21 and implements the revalidated, acknowledged cart handoff. Human visual review is still
+pending. Production remains unauthorized.
 
 ## Scope
 
@@ -18,7 +18,8 @@ Conversation becomes a layer over the existing pages in both channels:
 - B2C household projects: owner plus up to three participants, each with their own OTP sign-in.
 - B2B continues to use the procurement workspace and its approval rules.
 
-Building the cart is deliberately separate. It is Phase 3 handoff and is **not** implemented yet.
+Building the cart is deliberately separate. Phase E implements it as an explicit revalidated
+handoff; chat itself still never changes the cart.
 
 ## Phase A — governance
 
@@ -234,15 +235,39 @@ real OTP sign-in on staging, at 390×844 and 360×800.
 Screenshots: `evidence/CHG-072/screenshots/` — B2C home and dock at 390×844, B2C cart at 360×800,
 B2B dock at 360×800, B2B cart at 390×844.
 
-### Deliberate limits
+## Phase E — revalidated cart handoff
 
-- The Phase E button is disabled with an explicit authorization message. No revalidation, cart
-  materialisation or order completion exists.
-- Golden snapshots are platform-specific and excluded from CI; the local refresh does not replace
-  Chrome acceptance.
-- Human visual review of the deployed Phase D screens is still pending.
-- The B2B Home header hit-testing defect remains a separate, known issue; the dock is shell-level
-  and does not reuse that header control.
+Authorized by the human requester on 2026-10-21. Implemented in the Flutter handoff with the
+existing Commerce/Experience API, not by giving chat a write path.
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Entry | `Review before cart build` opens a bottom sheet from the shared list |
+| Revalidation | Every accepted line re-reads its product and selects the current offer; snapshot price, seller, currency, stock and MOQ are compared |
+| Differences | Price, seller, currency, offer replacement, stock and MOQ are shown inline |
+| Blocking | Out of stock, insufficient stock, below MOQ or no offer blocks the build until the list is updated |
+| Acknowledgement | Any non-blocking difference requires an explicit checkbox before the button enables |
+| B2C write | Adds/updates the canonical Medusa cart via the existing cart provider; no new commerce write endpoint |
+| B2B write | Adds/updates the existing quotation draft; the approval must be current for the exact revision |
+| Role gates | B2C owner only; B2B buyer/admin only; approver and participant never get the button |
+| Idempotency | Local `draft:revision` build key plus line matching by variant/SKU; a retry sets the target quantity instead of duplicating |
+| Tax | The sheet states GST/tax is resolved by the cart at checkout; no tax or order is written from chat |
+| Navigation | `View cart` closes the dock and opens the cart |
+
+### Deployment and acceptance
+
+| Item | Value |
+|---|---|
+| Workspace release | `/opt/buildkart-releases/release-24be9ca`; `current` points there |
+| Frontend | `https://buildkart-staging.web.app`, commit/build `8c11897` |
+| Workspace B2B smoke | **pass** (tenant isolation, proposals, approvals) |
+| Household smoke | **pass**, including assistant thread and mention |
+| B2C Chrome | cart review showed 3 current lines; add produced cart count 3; repeated add stayed at 3 |
+| B2B Chrome | unapproved revision showed “Approval is not current” and disabled action; after approver approval, 4 lines added to the quotation cart with GST 18% |
+| Order creation | **none** |
+| Production authorized | **No** |
 
 ## Pending phases
 
@@ -251,8 +276,8 @@ B2B dock at 360×800, B2B cart at 390×844.
 | B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | **Complete** |
 | C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | **Complete** |
 | D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | **Complete; Chrome accepted; human review pending** |
-| E | Revalidation, difference preview, acknowledged cart build, idempotency | **Explicit human authorization required** |
-| F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | Phase D Chrome checks **complete**; E checks await authorization |
+| E | Revalidation, difference preview, acknowledged cart build, idempotency | **Complete and staging-verified under explicit authorization** |
+| F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | **Complete for the delivered scope** |
 
 ## Open privacy decisions
 

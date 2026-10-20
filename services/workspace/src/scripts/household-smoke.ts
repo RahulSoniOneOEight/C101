@@ -339,6 +339,19 @@ try {
   assert.match(assistantReply.body, /Shared list/);
   assert.match(assistantReply.body, /cannot change the list|read-only/i);
 
+  await call(participant1, "POST", `/v1/channels/${assistantChannel.id}/messages`, {
+    body: "I need a human to review this list",
+  }, 201);
+  const escalationThread = await call<{
+    messages: Array<{ actor_id: string; body: string }>;
+  }>(owner, "GET", `/v1/channels/${assistantChannel.id}/messages`);
+  const escalationReply = escalationThread.messages.find(
+    (message) =>
+      message.actor_id === "assistant_cart" &&
+      /Switch to Chat/i.test(message.body),
+  );
+  assert.ok(escalationReply, "assistant must provide a human escalation path");
+
   // A mention in the human thread is answered by the same assistant actor.
   await call(participant1, "POST", `/v1/channels/${projectChannel.id}/messages`, {
     body: "@assistant how does the cart build work?",

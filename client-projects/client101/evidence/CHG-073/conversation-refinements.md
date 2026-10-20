@@ -4,9 +4,9 @@
 
 **Production:** unauthorized
 
-**Status:** Phase A complete and deployed. Phase B assistant design complete in
-`ADR-client101-013`. Phase C assistant implementation is **not authorized**. Cart handoff remains
-Phase E.
+**Status:** Phases A, B and C complete and deployed to staging. The assistant is a deterministic,
+read-only participant. The explicit shared-list → cart handoff is delivered under CHG-072 Phase E;
+the assistant has no write path. Production remains unauthorized.
 
 ## Implemented in Phase A
 
@@ -36,52 +36,82 @@ Phase E.
 - Duplicate variants are not added twice.
 - No cart or order write.
 
-### Assistant design (Phase B)
+### Assistant design and implementation (Phases B–C)
 
-`ADR-client101-013` records the accepted design: an **automated assistant with human escalation**.
+`ADR-client101-013` records the accepted design and the Phase C implementation: a deterministic,
+on-platform **automated assistant with human escalation**.
 
-- Distinct, clearly labelled participant — never presented as a human.
-- Mentionable with `@assistant` and available in a separate assistant thread.
-- Read-only capabilities for the first implementation:
-  - summarise the shared list;
-  - flag missing quantities, MOQ or seller information;
-  - suggest alternatives or next actions;
-  - request human escalation.
-- Explicitly prohibited:
-  - accepting proposals or approvals;
-  - inviting or changing membership;
-  - seeing owner-only address, phone, GST, payment or checkout data;
-  - writing a cart or creating an order.
-- Any future cart preparation remains read-only until Phase E is authorized. The owner or buyer must
-  still perform the explicit cart build after revalidation and acknowledgement.
-- Provider, residency and retention decisions remain open and block Phase C implementation.
+- Distinct, labelled participant — every reply says `Automated · BuildKart Cart Assistant`.
+- One assistant channel per workspace, visible to active members.
+- Mentionable with `@assistant` in the human thread; also messageable in its own thread.
+- The assistant replies to:
+  - list summaries with line count, units, snapshot total and top lines;
+  - pending-proposal count;
+  - cart-build explanations and blocked-quantity/MOQ/stock guidance;
+  - human-escalation requests.
+- It reads only the latest purchase draft, its current revision totals and pending proposals. It does
+  not read unrelated human messages or owner-only fields.
+- It cannot accept/decide proposals, approve revisions, invite members, build a cart or create an
+  order. It has no commerce client and no external model provider.
+- Each reply writes a normal workspace message from actor `assistant_cart` plus an
+  `activity_event` audit record.
+
+### Shared-list → cart handoff (CHG-072 Phase E)
+
+- `Review before cart build` re-reads the current Commerce offer for each accepted line.
+- Differences detected: price, seller, currency, stock, original offer availability and MOQ.
+- Blocked lines (out of stock, below MOQ, no current offer) cannot be added; the user is asked to
+  update the shared list.
+- A price/seller change requires an explicit acknowledgement checkbox.
+- B2C adds to the canonical Medusa cart; B2B adds to the existing quotation draft only when the
+  approval is current for that revision. Approvers never get the action.
+- The build records a device-local `draft:revision` key and sets existing lines to the list quantity,
+  so a retry does not duplicate lines.
+- The UI says GST/tax is resolved by the cart at checkout; it never writes an order or payment.
+- `View cart` closes the conversation dock and opens the cart.
+
+### Home merchandising repair
+
+Staging’s Flash Deals and Recommended collections resolve empty while Best Sellers has one product.
+The published sections were therefore being dropped. `homeModulesProvider` now keeps the operator’s
+section title, order and placement and fills the rail from the governed deterministic catalogue,
+without duplicating server products. Flash Deals, Best Sellers and Recommended for You all render.
 
 ## Verification
 
 | Check | Result |
 |---|---|
 | `flutter analyze` | **pass** |
-| `flutter test` (app) | **pass**, 262 tests |
-| `flutter test` (`agency_flutter_ui`) | **pass**, 54 tests, 27 skipped golden captures |
+| `flutter test` (app) | **pass**, 265 tests |
+| `flutter test` (`agency_flutter_ui`) | **pass** (unchanged), 54 tests, 27 skipped golden captures |
 | Golden snapshots | refreshed; reviewed the icon/header changes |
 | `flutter build web --release` (staging defines) | **pass** |
-| Chrome 390×844 and 360×800 | **pass 95/95** |
+| Chrome 390×844 and 360×800 | **pass** for home, dock, assistant and cart review |
 | Console errors | none |
 | Header entry beside the bell | pass in both channels |
 | In-chat product picker | pass; product added from Chat at both sizes |
-| Cart CTA obstruction | none; bottom launcher removed |
-| Commerce write / order creation | none |
+| Assistant direct thread | pass in B2C and B2B; reply is visibly automated and read-only |
+| Assistant mention in human chat | pass; reply appears in the same thread with a refusal boundary |
+| Cart review | pass; current price/stock/seller/MOQ shown |
+| Cart additions | B2C cart 3 lines; B2B quotation cart 4 lines after approval |
+| Idempotent retry | repeated builds leave the same line count |
+| B2B approval gate | pass; unapproved revision showed “Approval is not current” and a disabled action |
+| Home merchandising | Flash Deals, Best Sellers and Recommended for You all render |
+| Commerce write / order creation | none beyond the authorized cart handoff; no order |
+| Workspace smoke (backend) | **pass** on `release-24be9ca` |
+| Household smoke (backend) | **pass** on `release-24be9ca`, includes assistant thread + mention |
 
-Screenshots: `evidence/CHG-073/screenshots/`.
+Screenshots: `evidence/CHG-073/screenshots/` — home rails, 360 dock, assistant thread/reply, cart review and cart page, plus B2B assistant/review/cart. The handoff screenshots are also linked from CHG-072 evidence.
 
 ## Deployment
 
 | Item | Value |
 |---|---|
-| Frontend | `https://buildkart-staging.web.app`, Phase A commit `fe3e947` |
-| Workspace / Experience API | `/opt/buildkart-releases/release-68ee397` (unchanged backend) |
+| Frontend | `https://buildkart-staging.web.app`, commit `8c11897`, build `8c11897` |
+| Workspace service | `/opt/buildkart-releases/release-24be9ca`; `current` points there |
+| Workspace schema | assistant kind + lazily ensured assistant channel; re-applied on boot |
 | User-created household project | `x` retained; not test data |
-| Arjun fixture draft | advanced by the picker capture during Chrome review |
+| Arjun fixture draft | v22, approval current after the final Chrome check |
 | Production authorized | **No** |
 
 ## Open decisions
@@ -89,26 +119,28 @@ Screenshots: `evidence/CHG-073/screenshots/`.
 | Decision | State |
 |---|---|
 | Automated, human or both | **Decided:** automated with human escalation |
-| Which model/provider? | Open — blocks Phase C |
-| May conversation content leave the platform? | Open — privacy review required |
-| Assistant thread model | Mention plus a separate assistant thread |
+| Which model/provider? | **Resolved for Phase C:** none; deterministic on-platform rules |
+| May conversation content leave the platform? | **No** in Phase C; a model-backed assistant needs a new review |
+| Assistant thread model | One assistant channel per workspace plus `@assistant` mentions |
 | Discuss label on PDP/cart | Keep labelled; decided and implemented |
+| Human escalation owner | Still open; the assistant directs the user to the owner/buyer |
 
 ## Safety boundaries
 
 - Phase A (UX polish and in-chat picker) has no assistant and no commerce write.
 - Phase B (assistant design) is governance only.
-- Phase C (assistant implementation) is read-only.
-- Phase D (assistant cart preparation) depends on explicit Phase E authorization.
+- Phase C (assistant implementation) is deterministic, read-only and has no external provider.
+- Phase D (assistant cart preparation) is not implemented. The human cart handoff is CHG-072 Phase E.
 - The assistant never bypasses owner, buyer or approver rules.
-- All assistant messages and tool calls must be auditable.
+- Assistant messages are auditable through `activity_event`; the assistant writes only its own message.
 
 ## Approval state
 
 | Item | Value |
 |---|---|
 | Approval required | Yes |
-| Approved scope | Phase A and Phase B design only |
+| Approved scope | Phases A–C (deterministic assistant) |
 | Approved by | human-requester |
-| Phase C assistant implementation | **Not authorized** |
+| Approved at | 2026-10-21 |
+| Phase C assistant implementation | **Authorized and staging-verified** |
 | Production authorized | No |

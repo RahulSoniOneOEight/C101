@@ -34,14 +34,18 @@ active_changes:
   - phase-b
   - phase-c
   - phase-d
-  active_phase: phase-e-cart-handoff-and-phase-f-verification
+  - phase-e
+  - phase-f
+  active_phase: staging-human-review
   phase_d_completed_at_utc: '2026-10-20'
   phase_d_release: 68ee397
   phase_d_status: chrome-accepted-awaiting-human-review
   phase_c_release: e7e84ba
   phase_e_authorized_at_utc: '2026-10-21'
-  phase_e_status: implemented-pending-staging-verification
-  phase_f_status: pending-staging-verification
+  phase_e_status: complete-staging-verified
+  phase_e_release: 24be9ca
+  phase_f_status: complete-staging-verified
+  phase_f_frontend_commit: 8c11897
   production_release_authorized: false
 - change_id: CHG-073
   status: approved-in-progress
@@ -50,8 +54,11 @@ active_changes:
   completed_phases:
   - phase-a
   - phase-b-design
-  active_phase: phase-c-staging-verification
-  phase_c_status: implemented-pending-staging-verification
+  - phase-c
+  active_phase: staging-human-review
+  phase_c_status: complete-staging-verified
+  phase_c_release: 24be9ca
+  phase_c_frontend_commit: 8c11897
   scope: conversation-ux-and-cart-assistant
   proposal: client-projects/client101/changes/CHG-073.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md

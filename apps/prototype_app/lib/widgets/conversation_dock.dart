@@ -1040,6 +1040,12 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                       onPressed: () =>
                           _sendQuickPrompt('How does the cart build work?'),
                     ),
+                    ActionChip(
+                      label: const Text('Ask a human'),
+                      onPressed: () => _sendQuickPrompt(
+                        'I need a human to review this list',
+                      ),
+                    ),
                   ],
                 ),
               ],

@@ -118,9 +118,9 @@ proposed_phases:
     escalation, actor identity, permissions, data flow, retention, prompt-injection controls and
     audit. See ADR-client101-013. No assistant code.
 - phase-c: >-
-    [implemented-pending-staging-verification] Read-only assistant participant with a separate
-    channel, @assistant mentions in the human thread, deterministic summaries and explicit limits.
-    No proposal decisions, approvals, checkout or commerce writes.
+    [complete-staging-verified] Read-only assistant participant with a separate channel, @assistant
+    mentions in the human thread, deterministic summaries and explicit limits. No proposal
+    decisions, approvals, checkout or commerce writes.
 - phase-d: >-
     [not-implemented] Optional assistant cart preparation. The human cart handoff is delivered under
     CHG-072 Phase E; the assistant has no write path of its own.
@@ -148,9 +148,12 @@ implementation:
   status: phase-a-complete-phase-b-design-complete-phase-c-implemented
   phase_c_authorized_at_utc: '2026-10-21'
   phase_c_authorized_by: human-requester
-  phase_c_status: implemented-pending-staging-verification
+  phase_c_status: complete-staging-verified
   phase_c_mode: deterministic-on-platform-read-only
   phase_c_provider: none
+  phase_c_release: 24be9ca
+  phase_c_frontend_commit: 8c11897
+  phase_c_chrome_acceptance: pass-b2c-and-b2b-targeted
   phase_a_completed_at_utc: '2026-10-21'
   phase_a_release: fe3e947
   phase_a_frontend_commit: fe3e947

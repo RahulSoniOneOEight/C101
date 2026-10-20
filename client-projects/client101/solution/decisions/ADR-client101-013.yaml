@@ -77,10 +77,12 @@ consequences:
 - The assistant cannot be used to bypass owner, buyer or approver rules.
 - A future model-backed assistant requires a new provider, residency and retention decision.
 implementation:
-  release: pending
+  release: 24be9ca
+  frontend: 8c11897
   backend: workspace service creates/ensures an assistant channel and answers deterministically
   app: dock exposes an Assistant tab, @assistant mention action and visibly automated message styling
   smoke: household smoke asserts a direct assistant reply and a mention reply
+  staging_status: verified
 open_questions:
 - Does the human escalation path use an existing support queue or a dedicated ops role?
 - Should assistant unread replies contribute to the global conversation badge, or be shown separately?
