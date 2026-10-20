@@ -1,4 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import type { ServerWebSocket } from "bun";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
@@ -226,6 +227,119 @@ async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promis
  * Resolve an optional session without failing the request. Used by read endpoints so a B2B caller
  * can be priced against the B2B region while anonymous/B2C callers get the default region.
  */
+type WorkspaceStreamData = {
+  workspaceId: string;
+  ticket: string;
+  signature: string;
+  cursor: number;
+};
+// Bun exposes the client WebSocket at runtime; the shared DOM type does not
+// describe its event properties in this TypeScript configuration.
+const workspaceStreams = new Map<ServerWebSocket<unknown>, any>();
+
+function signWorkspaceTicket(
+  user: PilotUser,
+  authorization: PilotAuthorization,
+  cid: string,
+  workspaceId: string,
+): { ticket: string; signature: string; expires_in_seconds: number } {
+  const payload = {
+    userId: user.id,
+    name: user.name,
+    roles: authorization.roles,
+    businessAccountId: authorization.businessAccountId,
+    sellerId: authorization.sellerId,
+    iat: Math.floor(Date.now() / 1000),
+    correlationId: cid,
+    purpose: "workspace-stream",
+    workspaceId,
+  };
+  const ticket = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", config.workspaceServiceSecret as string)
+    .update(ticket)
+    .digest("hex");
+  return { ticket, signature, expires_in_seconds: 120 };
+}
+
+function verifyWorkspaceTicket(
+  ticket: string,
+  signature: string,
+  workspaceId: string,
+  cid: string,
+): { userId: string; businessAccountId: string } | Response {
+  let payload: {
+    userId?: string;
+    roles?: string[];
+    businessAccountId?: string;
+    iat?: number;
+    purpose?: string;
+    workspaceId?: string;
+  };
+  try {
+    payload = JSON.parse(Buffer.from(ticket, "base64url").toString("utf8"));
+  } catch {
+    return problem(401, "invalid-workspace-ticket", "Workspace stream ticket is invalid.");
+  }
+  if (config.workspaceServiceSecret) {
+    const expected = createHmac("sha256", config.workspaceServiceSecret)
+      .update(ticket)
+      .digest();
+    const provided = Buffer.from(signature, "hex");
+    if (
+      expected.length !== provided.length ||
+      !timingSafeEqual(expected, provided)
+    ) {
+      return problem(401, "invalid-workspace-ticket-signature", "Workspace stream ticket signature is invalid.");
+    }
+  } else {
+    return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+  }
+  if (
+    payload.purpose !== "workspace-stream" ||
+    payload.workspaceId !== workspaceId ||
+    !payload.userId ||
+    !payload.businessAccountId ||
+    !payload.roles?.some((role) =>
+      ["b2b_buyer", "b2b_account_admin", "b2b_approver", "super_admin"].includes(role),
+    ) ||
+    !Number.isInteger(payload.iat) ||
+    Math.abs(Date.now() / 1000 - (payload.iat as number)) > 120
+  ) {
+    return problem(401, "expired-workspace-ticket", "Workspace stream ticket is invalid or expired.");
+  }
+  return {
+    userId: payload.userId,
+    businessAccountId: payload.businessAccountId,
+  };
+}
+
+async function handleWorkspaceStream(
+  req: Request,
+  server: Bun.Server,
+  workspaceId: string,
+  url: URL,
+  cid: string,
+): Promise<Response | undefined> {
+  const ticket = url.searchParams.get("ticket");
+  const signature = url.searchParams.get("signature");
+  if (!ticket || !signature) {
+    return problem(401, "workspace-ticket-required", "A workspace stream ticket is required.");
+  }
+  const verified = verifyWorkspaceTicket(ticket, signature, workspaceId, cid);
+  if (verified instanceof Response) return verified;
+  const cursor = Number.parseInt(url.searchParams.get("cursor") ?? "0", 10);
+  if (!Number.isInteger(cursor) || cursor < 0) {
+    return problem(400, "invalid-cursor", "Cursor must be a non-negative integer.");
+  }
+  const upgraded = server.upgrade(req, {
+    data: { workspaceId, ticket, signature, cursor },
+  });
+  if (!upgraded) {
+    return problem(400, "websocket-upgrade-failed", "WebSocket upgrade failed.");
+  }
+  return undefined;
+}
+
 /**
  * Signed proxy to the internal Workspace Service. The browser never sees the service origin or
  * secret. The workspace service independently verifies the actor context and membership.
@@ -2301,6 +2415,40 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  // Short-lived browser ticket for the workspace WebSocket. The session bearer is never placed in
+  // the WebSocket URL.
+  const streamTicketMatch = url.pathname.match(
+    /^\/v1\/workspaces\/([^/]+)\/stream-ticket$/,
+  );
+  if (streamTicketMatch && req.method === "POST") {
+    if (!config.workspaceServiceUrl || !config.workspaceServiceSecret) {
+      return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+    }
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (!authenticated.authorization.businessAccountId) {
+      return problem(403, "business-account-required", "A business-account context is required.");
+    }
+    if (
+      !hasAnyRole(authenticated.authorization, [
+        "b2b_buyer",
+        "b2b_account_admin",
+        "b2b_approver",
+        "super_admin",
+      ])
+    ) {
+      return problem(404, "not-found");
+    }
+    return json(
+      signWorkspaceTicket(
+        authenticated.user,
+        authenticated.authorization,
+        cid,
+        streamTicketMatch[1],
+      ),
+    );
+  }
+
   // Workspace collaboration is B2B-only and always proxied to the internal service.
   if (
     url.pathname === "/v1/workspaces" ||
@@ -2322,9 +2470,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
 const server = Bun.serve({
   port: config.port,
-  fetch: async (req) => {
+  fetch: async (req, bunServer) => {
     const url = new URL(req.url);
     const cid = correlationId(req);
+    const streamMatch = url.pathname.match(
+      /^\/v1\/workspaces\/([^/]+)\/stream$/,
+    );
+    if (streamMatch && req.method === "GET") {
+      return handleWorkspaceStream(req, bunServer, streamMatch[1], url, cid);
+    }
     const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
     const isMutation = req.method !== "GET" && req.method !== "OPTIONS";
     if (!requiredRoles || !isMutation) return handle(req, url, cid);
@@ -2366,6 +2520,70 @@ const server = Bun.serve({
       console.warn("[experience-api] privileged audit completion failed:", (error as Error).message);
     });
     return response;
+  },
+  websocket: {
+    open(ws) {
+      const data = ws.data as WorkspaceStreamData;
+      if (!config.workspaceServiceUrl) {
+        ws.close(1011, "workspace-not-configured");
+        return;
+      }
+      const wsBase = config.workspaceServiceUrl.replace(/^http/, "ws");
+      const upstreamUrl = new URL(
+        `${wsBase}/v1/workspaces/${data.workspaceId}/stream`,
+      );
+      upstreamUrl.searchParams.set("ticket", data.ticket);
+      upstreamUrl.searchParams.set("signature", data.signature);
+      upstreamUrl.searchParams.set("cursor", String(data.cursor));
+      let upstream: any;
+      try {
+        upstream = new WebSocket(upstreamUrl.toString());
+      } catch {
+        ws.close(1011, "workspace-unavailable");
+        return;
+      }
+      workspaceStreams.set(ws, upstream);
+      upstream.onmessage = (event: { data: unknown }) => {
+        try {
+          ws.send(typeof event.data === "string" ? event.data : String(event.data));
+        } catch {
+          upstream.close();
+        }
+      };
+      upstream.onclose = () => {
+        workspaceStreams.delete(ws);
+        try {
+          ws.close();
+        } catch {
+          // already closed
+        }
+      };
+      upstream.onerror = () => {
+        workspaceStreams.delete(ws);
+        try {
+          ws.close(1011, "workspace-unavailable");
+        } catch {
+          // already closed
+        }
+      };
+    },
+    message(ws, message) {
+      const upstream = workspaceStreams.get(ws);
+      if (upstream && upstream.readyState === 1) {
+        upstream.send(message);
+      }
+    },
+    close(ws) {
+      const upstream = workspaceStreams.get(ws);
+      if (upstream) {
+        workspaceStreams.delete(ws);
+        try {
+          upstream.close();
+        } catch {
+          // already closed
+        }
+      }
+    },
   },
 });
 

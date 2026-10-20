@@ -1,4 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import type { ServerWebSocket } from "bun";
+import { connect, type NatsConnection } from "nats";
 import { Pool } from "pg";
 
 type Role =
@@ -44,6 +46,17 @@ if (!SERVICE_SECRET || SERVICE_SECRET.length < 24) {
 }
 
 const pool = new Pool({ connectionString: DATABASE_URL, max: 10 });
+const NATS_URL = process.env.NATS_URL?.trim() || undefined;
+const NATS_USER = process.env.NATS_USER?.trim() || undefined;
+const NATS_PASSWORD = process.env.NATS_PASSWORD?.trim() || undefined;
+let natsConnection: NatsConnection | null = null;
+
+type WorkspaceSocketData = {
+  workspaceId: string;
+  userId: string;
+  cursor: number;
+};
+const workspaceSockets = new Map<string, Set<ServerWebSocket<unknown>>>();
 const ALLOWED_ROLES = new Set<Role>([
   "b2b_buyer",
   "b2b_account_admin",
@@ -84,12 +97,7 @@ function problem(
   });
 }
 
-function parseActor(req: Request): Actor | Response {
-  const encoded = req.headers.get("x-workspace-actor");
-  const signature = req.headers.get("x-workspace-signature");
-  if (!encoded || !signature) {
-    return problem(401, "workspace-context-required", "Signed actor context is required.", "unknown");
-  }
+function verifyActor(encoded: string, signature: string): Actor | Response {
   let actor: Actor;
   try {
     actor = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Actor;
@@ -111,6 +119,24 @@ function parseActor(req: Request): Actor | Response {
     return problem(403, "workspace-role-required", "A business-account role is required.", actor.correlationId);
   }
   return actor;
+}
+
+function parseActor(req: Request): Actor | Response {
+  const encoded = req.headers.get("x-workspace-actor");
+  const signature = req.headers.get("x-workspace-signature");
+  if (!encoded || !signature) {
+    return problem(401, "workspace-context-required", "Signed actor context is required.", "unknown");
+  }
+  return verifyActor(encoded, signature);
+}
+
+function parseStreamActor(url: URL): Actor | Response {
+  const ticket = url.searchParams.get("ticket");
+  const signature = url.searchParams.get("signature");
+  if (!ticket || !signature) {
+    return problem(401, "workspace-ticket-required", "A signed workspace stream ticket is required.", "ws");
+  }
+  return verifyActor(ticket, signature);
 }
 
 async function ensureSchema(): Promise<void> {
@@ -414,6 +440,7 @@ async function postMessage(
   } finally {
     client.release();
   }
+  broadcast(channel.workspace_id, { type: "message.created", message: row });
   return json(
     {
       message: row,
@@ -487,6 +514,126 @@ async function listActivity(
   });
 }
 
+async function streamBacklog(
+  workspaceId: string,
+  cursor: number,
+): Promise<Record<string, unknown>[]> {
+  const result = await pool.query(
+    `select m.id, m.workspace_id, m.channel_id, m.actor_id, m.actor_name, m.body,
+            m.message_type, m.sequence, m.created_at, m.edited_at
+       from message m
+       join channel c on c.id = m.channel_id
+      where c.workspace_id = $1 and m.sequence > $2 and m.deleted_at is null
+      order by m.sequence asc
+      limit 100`,
+    [workspaceId, cursor],
+  );
+  return result.rows;
+}
+
+function broadcast(workspaceId: string, payload: unknown): void {
+  const listeners = workspaceSockets.get(workspaceId);
+  if (!listeners?.size) return;
+  const text = JSON.stringify(payload);
+  for (const socket of listeners) {
+    try {
+      socket.send(text);
+    } catch {
+      listeners.delete(socket);
+    }
+  }
+}
+
+async function handleStream(
+  req: Request,
+  server: Bun.Server,
+  url: URL,
+  workspaceId: string,
+): Promise<Response | undefined> {
+  const actor = parseStreamActor(url);
+  if (actor instanceof Response) return actor;
+  const workspace = await workspaceForMember(workspaceId, actor);
+  if (!workspace) {
+    return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
+  }
+  const cursorRaw = url.searchParams.get("cursor") ?? "0";
+  const cursor = Number.parseInt(cursorRaw, 10);
+  if (!Number.isInteger(cursor) || cursor < 0) {
+    return problem(400, "invalid-cursor", "Cursor must be a non-negative integer.", actor.correlationId);
+  }
+  const upgraded = server.upgrade(req, {
+    data: { workspaceId, userId: actor.userId, cursor },
+  });
+  if (!upgraded) {
+    return problem(400, "websocket-upgrade-failed", "WebSocket upgrade failed.", actor.correlationId);
+  }
+  return undefined;
+}
+
+async function drainOutbox(): Promise<void> {
+  if (!natsConnection) return;
+  const result = await pool.query(
+    `select id, event_type, aggregate_type, aggregate_id, correlation_id, payload
+       from workspace_outbox
+      where published_at is null and next_at <= now()
+      order by created_at asc
+      limit 50`,
+  );
+  for (const row of result.rows) {
+    try {
+      natsConnection.publish(
+        `workspace.${row.event_type}`,
+        new TextEncoder().encode(
+          JSON.stringify({
+            id: row.id,
+            event_type: row.event_type,
+            aggregate_type: row.aggregate_type,
+            aggregate_id: row.aggregate_id,
+            correlation_id: row.correlation_id,
+            payload: row.payload,
+            occurred_at: new Date().toISOString(),
+          }),
+        ),
+      );
+      await pool.query(
+        "update workspace_outbox set published_at = now() where id = $1",
+        [row.id],
+      );
+    } catch (error) {
+      console.warn("[workspace] outbox publish failed:", (error as Error).message);
+      await pool.query(
+        `update workspace_outbox
+            set attempts = attempts + 1,
+                next_at = now() + make_interval(secs => least(60, power(2, attempts)))
+          where id = $1`,
+        [row.id],
+      );
+    }
+  }
+}
+
+async function startNats(): Promise<void> {
+  if (!NATS_URL) {
+    console.log("[workspace] NATS not configured; outbox will remain unpublished");
+    return;
+  }
+  try {
+    natsConnection = await connect({
+      servers: NATS_URL,
+      ...(NATS_USER ? { user: NATS_USER } : {}),
+      ...(NATS_PASSWORD ? { pass: NATS_PASSWORD } : {}),
+    });
+    console.log("[workspace] NATS connected; outbox publisher active");
+    setInterval(() => {
+      drainOutbox().catch((error) =>
+        console.warn("[workspace] outbox drain failed:", (error as Error).message),
+      );
+    }, 1000);
+  } catch (error) {
+    console.warn("[workspace] NATS connect failed:", (error as Error).message);
+  }
+}
+
 async function route(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const path = url.pathname;
@@ -519,11 +666,6 @@ async function route(req: Request): Promise<Response> {
   if (activityMatch && req.method === "GET") {
     return listActivity(activityMatch[1], actor, url);
   }
-  const streamMatch = path.match(/^\/v1\/workspaces\/([^/]+)\/stream$/);
-  if (streamMatch && req.method === "GET") {
-    return problem(501, "stream-not-enabled", "The WebSocket feed is not enabled in this kernel slice.", actor.correlationId);
-  }
-
   const messagesMatch = path.match(/^\/v1\/channels\/([^/]+)\/messages$/);
   if (messagesMatch && req.method === "GET") {
     return listMessages(messagesMatch[1], actor, url);
@@ -543,20 +685,65 @@ await ensureSchema();
 
 const server = Bun.serve({
   port: PORT,
-  async fetch(req) {
+  async fetch(req, server) {
     try {
+      const url = new URL(req.url);
+      const streamMatch = url.pathname.match(/^\/v1\/workspaces\/([^/]+)\/stream$/);
+      if (streamMatch && req.method === "GET") {
+        return await handleStream(req, server, url, streamMatch[1]);
+      }
       return await route(req);
     } catch (error) {
       console.error("[workspace] request failed:", (error as Error).message);
       return problem(500, "workspace-error", "The workspace request failed.", "unknown");
     }
   },
+  websocket: {
+    open(ws) {
+      const data = ws.data as WorkspaceSocketData;
+      const listeners = workspaceSockets.get(data.workspaceId) ?? new Set();
+      listeners.add(ws);
+      workspaceSockets.set(data.workspaceId, listeners);
+      streamBacklog(data.workspaceId, data.cursor)
+        .then((messages) => {
+          for (const message of messages) {
+            ws.send(JSON.stringify({ type: "message.created", message }));
+          }
+          const nextCursor = messages.length
+            ? (messages[messages.length - 1].sequence as number)
+            : data.cursor;
+          ws.send(JSON.stringify({
+            type: "workspace.ready",
+            workspace_id: data.workspaceId,
+            next_cursor: String(nextCursor),
+          }));
+        })
+        .catch((error) => {
+          console.warn("[workspace] stream backlog failed:", (error as Error).message);
+          ws.close(1011, "backlog-unavailable");
+        });
+    },
+    message() {
+      // The feed is server-push only; client frames are ignored.
+    },
+    close(ws) {
+      const data = ws.data as WorkspaceSocketData;
+      const listeners = workspaceSockets.get(data.workspaceId);
+      if (!listeners) return;
+      listeners.delete(ws);
+      if (listeners.size === 0) workspaceSockets.delete(data.workspaceId);
+    },
+  },
 });
 
 console.log(`[workspace] listening on ${server.port}`);
+startNats().catch((error) =>
+  console.warn("[workspace] NATS startup failed:", (error as Error).message),
+);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
+    await natsConnection?.close();
     await pool.end();
     server.stop();
     process.exit(0);

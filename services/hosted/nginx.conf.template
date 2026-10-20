@@ -11,6 +11,10 @@ http {
   server_tokens off;
 
   limit_req_zone $binary_remote_addr zone=pilot_api:10m rate=10r/s;
+  map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+  }
 
   upstream experience_api { server experience-api:9020; }
   upstream medusa_api { server medusa-api:9010; }
@@ -24,6 +28,8 @@ http {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto https;
     proxy_set_header X-Correlation-Id $request_id;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
     proxy_connect_timeout 5s;
     proxy_read_timeout 30s;
 
@@ -74,6 +80,8 @@ http {
 
     location /v1/ {
       limit_req zone=pilot_api burst=30 nodelay;
+      # Workspace streams stay open; ordinary API calls still have a bounded upstream.
+      proxy_read_timeout 3600s;
       proxy_pass http://experience_api;
     }
 
