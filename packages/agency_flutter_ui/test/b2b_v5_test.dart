@@ -144,6 +144,7 @@ void main() {
       ),
     )));
     expect(find.bySemanticsLabel('Discuss'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Bib Cock 15mm')), findsOneWidget);
     await tester.tap(find.bySemanticsLabel('Discuss'));
     await tester.pump();
     expect(discussed, 1);

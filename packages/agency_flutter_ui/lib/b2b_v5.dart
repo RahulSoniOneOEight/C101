@@ -441,29 +441,34 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
                   Positioned(
                     left: 0,
                     top: 0,
-                    child: Semantics(
-                      container: true,
-                      explicitChildNodes: true,
-                      button: true,
-                      label: 'Discuss',
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: onDiscuss,
-                        child: SizedBox(
-                          width: 44,
-                          height: 44,
-                          child: Center(
-                            child: Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: colors.surfaceRaised
-                                    .withValues(alpha: 0.94),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: colors.borderDefault),
+                    child: Tooltip(
+                      message: 'Discuss',
+                      excludeFromSemantics: true,
+                      child: Semantics(
+                        container: true,
+                        explicitChildNodes: true,
+                        button: true,
+                        label: 'Discuss',
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onDiscuss,
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: colors.surfaceRaised
+                                      .withValues(alpha: 0.94),
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: colors.borderDefault),
+                                ),
+                                child: Icon(Icons.forum_outlined,
+                                    size: 16, color: colors.actionPrimary),
                               ),
-                              child: Icon(Icons.forum_outlined,
-                                  size: 16, color: colors.actionPrimary),
                             ),
                           ),
                         ),
