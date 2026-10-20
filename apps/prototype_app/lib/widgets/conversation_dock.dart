@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../data/experience_api.dart';
+import '../data/local_store.dart';
 import '../domain/conversation_models.dart';
 import '../domain/models.dart' show Money, Product;
 import '../domain/workspace_models.dart';
@@ -1958,9 +1959,18 @@ class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
     final query = _search.text.trim().toLowerCase();
+    // The provider can still be at its initial empty state immediately after a
+    // full page reload. Read the persisted history as well so the recents rail
+    // is correct in that path; the set preserves provider-first order.
+    final providerRecent = ref.watch(recentlyViewedProvider);
+    var recentIds = <String>{...providerRecent};
+    try {
+      recentIds.addAll(ref.read(localStoreProvider).readRecentlyViewed());
+    } catch (_) {
+      // Widget tests and early boot may not have a local store yet.
+    }
     final recent = query.isEmpty
-        ? ref
-            .watch(recentlyViewedProvider)
+        ? recentIds
             .map((id) => widget.products.where((p) => p.id == id).firstOrNull)
             .whereType<Product>()
             .take(10)
