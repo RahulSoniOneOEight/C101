@@ -269,6 +269,11 @@ existing Commerce/Experience API, not by giving chat a write path.
 | Order creation | **none** |
 | Production authorized | **No** |
 
+Known limits: accepted revisions carry no tax basis, so the handoff does not invent one; GST/tax
+stays authoritative in the cart and is resolved at checkout. B2B writes the existing quotation
+draft (the B2B prototype's cart), not the B2C Medusa cart. The idempotency guard is a device-local
+`draft:revision` key plus quantity replacement, not a server-issued idempotency token.
+
 ## Pending phases
 
 | Phase | Work | Gate |
