@@ -75,8 +75,10 @@ class ConversationDockHost extends ConsumerWidget {
               Positioned.fill(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () =>
-                      ref.read(conversationDockProvider.notifier).close(),
+                  onTap: () {
+                    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+                    ref.read(conversationDockProvider.notifier).close();
+                  },
                   child:
                       ColoredBox(color: Colors.black.withValues(alpha: 0.22)),
                 ),
@@ -714,6 +716,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                   IconButton(
                     tooltip: 'Open full workspace',
                     onPressed: () {
+                      ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
                       ref.read(conversationDockProvider.notifier).close();
                       context.push('/b2b/workspace');
                     },
@@ -745,8 +748,10 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                   ),
                 IconButton(
                   tooltip: 'Close conversations',
-                  onPressed: () =>
-                      ref.read(conversationDockProvider.notifier).close(),
+                  onPressed: () {
+                    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+                    ref.read(conversationDockProvider.notifier).close();
+                  },
                   icon: const Icon(Icons.close),
                 ),
               ],
