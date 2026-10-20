@@ -139,7 +139,9 @@ implementation:
   approval_scope: phase-a-and-phase-b-design-only
   status: phase-a-complete-phase-b-design-complete
   phase_a_completed_at_utc: '2026-10-21'
-  phase_a_release: 68ee397-plus-hosting
+  phase_a_release: fe3e947
+  phase_a_frontend_commit: fe3e947
+  backend_release: 68ee397
   phase_a_chrome_acceptance: pass-95-of-95-390x844-360x800
   phase_b_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md

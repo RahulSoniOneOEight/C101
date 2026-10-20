@@ -78,7 +78,7 @@ Screenshots: `evidence/CHG-073/screenshots/`.
 
 | Item | Value |
 |---|---|
-| Frontend | `https://buildkart-staging.web.app`, Phase A build |
+| Frontend | `https://buildkart-staging.web.app`, Phase A commit `fe3e947` |
 | Workspace / Experience API | `/opt/buildkart-releases/release-68ee397` (unchanged backend) |
 | User-created household project | `x` retained; not test data |
 | Arjun fixture draft | advanced by the picker capture during Chrome review |
