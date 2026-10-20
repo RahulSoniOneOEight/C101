@@ -258,6 +258,21 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       body: Column(
         children: <Widget>[
           _phaseBanner(colors),
+          if (_workspace != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _workspace!.name,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colors.contentPrimary),
+                ),
+              ),
+            ),
           if (_workspaces.length > 1) _workspacePicker(colors),
           if (_channels.isNotEmpty) _channelPicker(colors),
           Expanded(child: _body(colors)),
