@@ -152,13 +152,33 @@ decision_approval:
   production_release_authorized: false
 implementation:
   phase: 1-workspace-kernel
-  status: in-progress
+  status: phase-1-rest-kernel-deployed
   service_code_started: true
+  evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
   artefacts:
   - client-projects/client101/solution/decisions/ADR-client101-011.yaml
   - client-projects/client101/contracts/data-contract.yaml
   - client-projects/client101/contracts/openapi/buildkart-workspace-v1.yaml
   - docs/architecture/shared-backend-api-matrix.md
   - docs/architecture/collaborative-workspace-threat-model.md
-status: phase-1-approved-in-progress
+  - services/workspace
+  - services/experience-api/src/index.ts
+  - apps/prototype_app/lib/screens/workspace_screen.dart
+  verification:
+    typescript_typecheck: pass
+    flutter_analyze: pass
+    flutter_tests: 238-pass
+    workspace_smoke: pass
+    tenant_isolation: pass
+    arjun_ui: pass
+    shakti_ui: pass
+    console_errors: none
+    websocket_feed: deferred
+    outbox_publisher: deferred
+  deployment:
+    app_build: 3a35f1a
+    workspace_image: buildkart-hosted-pilot-workspace
+    workspace_database: buildkart_workspace
+    experience_api_proxy: enabled
+status: deployed-to-staging-awaiting-human-review
 production_release_authorized: false

@@ -1,0 +1,20 @@
+{
+  "arjun": {
+    "loggedIn": true,
+    "opened": true,
+    "workspaceName": true,
+    "hasProcurement": true,
+    "hasSeedMessage": true,
+    "sent": true,
+    "hasSentMessage": false,
+    "errors": []
+  },
+  "shakti": {
+    "loggedIn": true,
+    "opened": true,
+    "workspaceName": true,
+    "hasNoArjunMessage": true,
+    "hasEmptyState": true,
+    "errors": []
+  }
+}
