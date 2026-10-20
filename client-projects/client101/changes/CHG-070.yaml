@@ -205,6 +205,12 @@ implementation:
     websocket_feed: pass
     outbox_publisher: pass
     outbox_pending_rows: 0
+    outbox_phase2_events:
+      - proposal.created
+      - proposal.accepted
+      - approval.requested
+      - approval.approved
+      - draft.revision.created
     unread_badge: implemented
     responsive_widths: [390x844, 360x800]
     proposal_creates_one_revision: pass
@@ -224,6 +230,7 @@ implementation:
   deployment:
     app_build: e04e300
     app_build_id: phase2-purchase-drafts-2
+    workspace_code: 5f3fad9
     workspace_image: buildkart-hosted-pilot-workspace
     workspace_database: buildkart_workspace
     experience_api_proxy: enabled-phase-2-routes

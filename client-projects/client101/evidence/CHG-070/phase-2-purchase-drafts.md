@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-20
 **App build:** `e04e300` (`phase2-purchase-drafts-2`)
+**Workspace code:** `5f3fad9`
 **Environment:** staging only
 **Status:** Phase 2 complete on staging; awaiting human review
 **Production:** unauthorized
@@ -79,7 +80,8 @@ The workspace never owns carts, orders, payments, products, prices, sellers or n
 | Shakti workspace draft pane | explicit empty state, no Arjun data |
 | Chrome 390×844 | no overflow, no API console errors |
 | Chrome 360×800 | no overflow, no API console errors |
-| Staging final state | draft v9, two lines, approval `pending` for human review |
+| Staging final state | draft v11, two lines, approval `pending` for human review |
+| Outbox publisher | 0 pending rows; `proposal.created`, `proposal.accepted`, `approval.requested`, `approval.approved`, `draft.revision.created` published to NATS |
 
 ### Pre-existing issue observed
 
