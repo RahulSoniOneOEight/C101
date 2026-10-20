@@ -36,6 +36,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   String? _cursor;
   bool _loading = true;
   bool _sending = false;
+  bool _live = false;
   String? _error;
   Timer? _poll;
   WebSocketChannel? _stream;
@@ -202,15 +203,27 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       });
       final socket = WebSocketChannel.connect(uri);
       _stream = socket;
+      socket.ready.then((_) {
+        if (mounted && _stream == socket) setState(() => _live = true);
+      }).catchError((_) {
+        if (mounted) setState(() => _live = false);
+      });
       socket.stream.listen(
         _onStreamEvent,
-        onDone: () => _stream = null,
-        onError: (_) => _stream = null,
+        onDone: () {
+          _stream = null;
+          if (mounted) setState(() => _live = false);
+        },
+        onError: (_) {
+          _stream = null;
+          if (mounted) setState(() => _live = false);
+        },
         cancelOnError: true,
       );
     } catch (_) {
       // REST polling remains available when the realtime feed cannot connect.
       _stream = null;
+      if (mounted) setState(() => _live = false);
     }
   }
 
@@ -368,6 +381,28 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 style: TextStyle(
                     fontSize: 10, height: 1.35, color: colors.contentSecondary),
               ),
+            ),
+            const SizedBox(width: AgencySpacing.xs),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color:
+                      _live ? colors.feedbackSuccess : colors.contentSecondary,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  _live ? 'Live' : 'Polling',
+                  style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: _live
+                          ? colors.feedbackSuccess
+                          : colors.contentSecondary),
+                ),
+              ],
             ),
           ],
         ),
