@@ -130,10 +130,56 @@ Live verification completed at `2026-10-20T09:01:44Z`:
 The deployment changed no commerce entity counts, price lists, price amounts, promotions, sellers,
 orders or region-country assignments.
 
+## Chrome review of the deployed app
+
+**Browser:** Google Chrome `155.0.8059.82` (headless), real OTP sign-in as
+`buyer.b2b01@buildkart.test`.
+
+The Flutter accessibility tree was enabled so the checks exercised real controls, not API calls. No
+order was submitted and no commerce data was created beyond throwaway carts.
+
+| Check | 390×844 | 360×800 |
+|---|---|---|
+| B2B sign-in and OTP | pass | pass |
+| `/#/b2b/workspace` direct load | pass | pass |
+| Workspace name `Arjun Traders Procurement` | pass | pass |
+| Procurement and Approvals channels | pass | pass |
+| Conversation messages visible | pass | pass |
+| Purchase-draft pane | pass (v11, two lines) | pass (v11, two lines) |
+| Phase 2 staging banner | pass | pass |
+| Live connection state | pass | pass |
+| App width equals viewport | pass | pass |
+
+The draft pane showed the governed state: `Arjun site replenishment` v11, `Review Requested`,
+Action Tesa HDHMR Board qty 9 at ₹3936.90 and RANGER A/T qty 3 at ₹939.06, subtotal ₹6749.28, with an
+accepted proposal. Workspace content loads from the live staging service.
+
+### Open defect: B2B Home header is not tappable
+
+In the deployed `phase2-purchase-drafts-2` build the B2B Home header renders correctly but does not
+receive taps. The Workspace icon is visible at `(226,24,40,40)`, yet none of these controls navigate:
+
+- Workspace icon (`context.push('/b2b/workspace')`)
+- Search field (`/b2b/catalogue`)
+- Delivery-site row (`/b2b/account`)
+- Notifications, cart and account icons
+
+The bottom navigation, quick-order controls and every lower surface do respond, and the same clicks
+were tested with and without the accessibility overlay at several offsets. Directly opening
+`/#/b2b/workspace` loads the screen normally, so this is a header hit-testing/entry-point defect, not
+a missing route or a Workspace data failure.
+
+`/#/b2b/chat` is a separate buyer-seller demo chat; it is not the collaborative Workspace.
+
+This defect is recorded but not repaired under CHG-071. It needs a scoped follow-up change because the
+fix touches the shared B2B home header layout.
+
 ## Remaining governed gaps
 
 - Phase 3 commerce revalidation, difference acknowledgement and cart handoff remain unauthorized.
 - Workspace notification projection and audited operator reads remain unimplemented.
 - Cloudflare Access/MFA and baseline edge security headers remain open pre-production requirements.
+- B2B Home header taps (Workspace, search, delivery site, notifications, cart, account) do not
+  respond in the deployed build; the direct Workspace URL works.
 - Human visual acceptance remains pending.
 - Production release remains unauthorized.
