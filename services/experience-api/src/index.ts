@@ -1493,6 +1493,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const cart = await medusa.createCart(
         body.region_id ?? regionFor(authenticated.authorization),
         body.currency_code ?? "inr",
+        { customerEmail: authenticated.user.email },
       );
       // Medusa's store API allows only a single sales channel per publishable key, so B2B vs B2C is
       // carried as cart metadata. Cart metadata propagates to the canonical order, so the

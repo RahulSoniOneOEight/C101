@@ -32,6 +32,8 @@
     "test:load": "bun run src/scripts/load-test.ts",
     "test:collection-url": "bun run src/scripts/collection-url-test.ts",
     "test:cart-totals": "bun run src/scripts/cart-totals-test.ts",
+    "test:cart-customer-context": "bun run src/scripts/cart-customer-context-test.ts",
+    "test:promotion-acceptance": "bun run src/scripts/promotion-acceptance.ts",
     "test:image-quality-order": "bun run src/scripts/image-quality-order-test.ts"
   },
   "dependencies": {

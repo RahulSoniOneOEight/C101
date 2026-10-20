@@ -23,6 +23,11 @@ the approved Cloudflare Access layer is **deferred** and tracked as a hardening 
 
 ### Recreating services and the edge
 
+Run hosted Compose commands from the governed active release under
+`/opt/buildkart-releases/current/services/hosted`, not the operator's mutable `/opt/buildkart`
+checkout. A stale compose file can silently omit persistent mounts even when the image and database
+are correct.
+
 Recreating `medusa-api` or `experience-api` gives the containers new IPs, and the `proxy` nginx keeps the
 addresses it resolved at start-up. The result is **502 from the edge while every container reports
 healthy**. Restart the proxy after such a release:
@@ -33,6 +38,16 @@ docker restart buildkart-hosted-pilot-proxy-1
 
 Health checks alone will not catch this: check `/health` through the public hostname, not inside the
 network.
+
+After recreating `medusa-api`, verify both the named upload mount and every governed catalogue image:
+
+```sh
+python3 scripts/verify-catalogue-assets.py
+```
+
+The check fails unless the live container mounts `medusa_uploads`, the catalogue remains exactly
+233 products / 500 SKUs, and all 233 thumbnail URLs return HTTP 200. Use `--skip-mount` only when
+running the public-URL portion from a workstation without access to the Docker daemon.
 
 ## Operator / admin console
 

@@ -272,16 +272,23 @@ export class MedusaStoreClient {
   async createCart(
     regionId: string,
     currencyCode: string,
-    salesChannelId?: string,
+    options: {
+      salesChannelId?: string;
+      customerEmail?: string;
+    } = {},
   ): Promise<StoreCart> {
+    const customerEmail = options.customerEmail?.trim().toLowerCase();
     const data = await this.postJson<{ cart: StoreCart }>(
       "/store/carts",
       {
         region_id: regionId,
         currency_code: currencyCode,
-        ...(salesChannelId ? { sales_channel_id: salesChannelId } : {}),
+        // Medusa resolves an existing customer (including customer-group membership) by email.
+        // This value comes only from the Experience API's signed session, never from cart input.
+        ...(customerEmail ? { email: customerEmail } : {}),
+        ...(options.salesChannelId ? { sales_channel_id: options.salesChannelId } : {}),
       },
-      salesChannelId,
+      options.salesChannelId,
     );
     return data.cart;
   }
@@ -482,6 +489,8 @@ export interface StoreCart {
   id: string;
   currency_code: string;
   region_id: string;
+  customer_id?: string | null;
+  email?: string | null;
   completed_at?: string | null;
   metadata?: Record<string, unknown> | null;
   /** Product-line subtotal before item discounts, excluding shipping. */

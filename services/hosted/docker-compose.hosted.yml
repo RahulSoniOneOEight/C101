@@ -113,6 +113,8 @@ services:
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
     networks: [private]
+    volumes:
+      - medusa_uploads:/app/packages/api/static
 
   tryton:
     build: ../tryton

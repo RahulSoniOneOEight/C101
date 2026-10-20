@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _PromoApi extends ExperienceApi {
   _PromoApi() : super(Dio());
 
-  static const String validCode = 'BK-STG-PROMO-TOOLS10';
+  static const String validCode = 'TOOLS10';
   static const String rejectedCode = 'NOPE';
 
   @override
@@ -62,11 +62,11 @@ void main() {
       'shipping_discount_total': 199,
       'total': 10800,
       'promotions': <dynamic>[
-        <String, dynamic>{'code': 'BK-STG-PROMO-TOOLS10', 'is_automatic': false},
+        <String, dynamic>{'code': 'TOOLS10', 'is_automatic': false},
       ],
       'adjustments': <dynamic>[
         <String, dynamic>{
-          'code': 'BK-STG-PROMO-TOOLS10',
+          'code': 'TOOLS10',
           'label': '10% off Power Tools',
           'amount': 1200,
           'target': 'item',
@@ -77,7 +77,7 @@ void main() {
     expect(cart.hasDiscount, isTrue);
     expect(cart.discountTotal!.amount, 1200);
     expect(cart.shippingDiscountTotal!.amount, 199);
-    expect(cart.promotions.single.code, 'BK-STG-PROMO-TOOLS10');
+    expect(cart.promotions.single.code, 'TOOLS10');
     expect(cart.adjustments.single.label, '10% off Power Tools');
     expect(cart.total!.amount, 10800);
   });
