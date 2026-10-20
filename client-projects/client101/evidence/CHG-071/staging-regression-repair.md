@@ -8,7 +8,7 @@
 
 ## Review outcome
 
-The review separated already-fixed items from two live defects:
+The review separated already-fixed items from three live defects:
 
 | Area | Finding |
 |---|---|
@@ -98,6 +98,37 @@ Retained checks:
 | Admin lint | pass |
 | Admin build | pass; existing 6.62 MB entry-chunk warning remains |
 | Workspace TypeScript typecheck | pass |
+
+## Staging deployment and live acceptance
+
+Experience API commits `8e88423` and `0101a60` were built and deployed from clean release
+worktrees. The active release pointer is `/opt/buildkart-releases/release-0101a60`; the mutable
+`/opt/buildkart` checkout was not used. Both Medusa API and worker now run the same existing Medusa
+image and mount `buildkart-hosted-pilot_medusa_uploads` at `/app/packages/api/static`.
+
+Live verification completed at `2026-10-20T09:01:44Z`:
+
+| Check | Result |
+|---|---|
+| Public Experience API health | HTTP 200 |
+| Operator dashboard | HTTP 200 |
+| Experience API container | healthy |
+| Medusa API container | healthy; upload volume mounted |
+| Medusa worker | running; same image as API; upload volume mounted |
+| Governed catalogue | 233 products / 500 SKUs |
+| Governed thumbnails | 233/233 HTTP 200 |
+| New B2B cart canonical customer association | pass |
+| B2B product-to-cart unit-price parity | pass |
+| Indian B2B address and seller shipping option | pass |
+| `TRADE7` for trade customer | pass |
+| `TRADEVIP` for trade customer | pass |
+| `TRADE7` and `TRADEVIP` for non-trade customer | rejected as required |
+| `TOOLS200` fixed discount | pass |
+| automatic `PLY5` existing behaviour | pass |
+| Order completion | **not invoked** |
+
+The deployment changed no commerce entity counts, price lists, price amounts, promotions, sellers,
+orders or region-country assignments.
 
 ## Remaining governed gaps
 
