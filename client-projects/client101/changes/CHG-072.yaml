@@ -1,0 +1,127 @@
+change_id: CHG-072
+revision: 1
+request: >-
+  Add a B2C household project collaboration so a consumer planning a home renovation can invite up
+  to three participants who sign in with their own OTP, chat in the project, share catalogue
+  products and propose quantity changes to one shared list. The owner alone sees delivery and
+  payment details and places the order.
+type: b2c-household-project-collaboration
+extends:
+- CHG-070
+- CHG-050
+- CHG-019
+affected_capabilities:
+- consumer-collaboration
+- shared-purchase-intent
+- workspace-membership
+- workspace-notifications
+affected_domains:
+- workspace
+- experience
+- identity
+- commerce
+affected_surfaces:
+- app.prototype.b2c-storefront
+- experience-api.workspace
+- workspace.service
+- medusa.cart
+already_present:
+- >-
+  Workspace kernel with scope, membership, channels, messages, cursor replay, live WebSocket, product
+  shares, immutable purchase drafts and revisions, proposals, revision-bound approvals and an outbox.
+- >-
+  The Workspace proxy authenticates the pilot actor and signs a short-lived service actor context.
+- >-
+  The data contract already anticipates "a future household" as a possible Workspace scope.
+- >-
+  Twenty staged pilot identities, including B2C consumer identities, with fixed staging OTP 123456.
+missing:
+- >-
+  workspace.scope_type permits only 'business_account', and the actor guard requires a
+  businessAccountId plus a b2b_* role, so a consumer actor is rejected before any collaboration read.
+- >-
+  Membership roles, channel kinds and the Flutter workspace surface all carry B2B procurement
+  semantics; there is no project channel or owner/member model for a household.
+- >-
+  There is no invitation, acceptance, expiry or revocation path for a participant who is not already
+  a member of the scope.
+- >-
+  No rule separates owner-only checkout and delivery/payment visibility from participant
+  collaboration.
+decisions_approved:
+- D-072-01: >-
+    Add 'household' as a Workspace scope type. A household project has exactly one owner and at most
+    three active participants (four people total).
+- D-072-02: >-
+    Participants may chat, share catalogue products and propose quantity changes to the shared list.
+    They may not place an order, change the owner's identity, or invite further participants.
+- D-072-03: >-
+    Only the owner sees saved addresses, phone, GST details and payment methods, and only the owner
+    can check out. Participant responses never include those fields.
+- D-072-04: >-
+    Participants join by an owner-issued email invitation and must complete their own OTP sign-in.
+    Invitations expire, are single-use and can be revoked by the owner.
+- D-072-05: >-
+    Participant quantity edits create proposals. The owner accepts, edits-and-accepts or rejects
+    them, so only the owner mutates an accepted revision.
+- D-072-06: >-
+    Workspace membership remains a projection; scope, role and participant identity are derived from
+    the signed session, never from client input. A project read outside membership returns 404.
+- D-072-07: >-
+    Chat can never create a cart or an order. Commerce handoff remains Phase 3 and stays
+    unauthorized under this change.
+- D-072-08: >-
+    Reuse existing B2C pilot identities for participants. Do not raise the hosted 20-identity
+    allowlist cap under this change.
+conflicts_requiring_a_decision:
+- C-072-01: >-
+    ADR-011 and the collaborative-workspace threat model declare B2C household collaboration out of
+    scope; both must be amended before implementation.
+- C-072-02: >-
+    Household membership needs a privacy model for people who share a purchase but not an address or
+    payment method; the existing B2B threat model has no such actor.
+constraints:
+- Staging only; production release remains unauthorized.
+- Preserve exactly 233 grouped products and 500 source SKUs.
+- Do not create a second commerce or customer register; Medusa remains the commerce owner.
+- Do not expose saved addresses, phone, GST or payment data to participants.
+- Do not let a participant check out, invite others, or mutate an accepted revision directly.
+- Do not implement Phase 3 revalidation or cart handoff.
+- Do not raise the pilot identity cap or add real external users.
+- Do not send WhatsApp or FCM messages to participants under this change.
+required_tests:
+- A consumer owner creates a household project and invites three participants by email.
+- An invited participant completes OTP sign-in and joins only that project.
+- A participant outside the project receives 404 for channel, message, draft and proposal reads.
+- A participant can post a message and see the owner's message in the same channel.
+- A participant can share a catalogue product into the project.
+- A participant quantity change creates a proposal; the accepted revision changes only after the
+  owner accepts it.
+- A participant cannot check out, cannot invite, and never receives address or payment fields.
+- A fourth invitation is rejected once three participants are active.
+- An expired or revoked invitation cannot be accepted.
+- Owner-only checkout fields stay absent from every participant projection.
+- B2B workspace behaviour and its tenant isolation remain unchanged.
+- Chrome 390x844 and 360x800 pass with no horizontal overflow and no console errors.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  status: proposed-awaiting-approval
+  proposed_phases:
+  - phase-a: >-
+      Amend ADR-011 and the threat model for household scope; update the data contract note; add
+      CHG-072 evidence skeleton.
+  - phase-b: >-
+      Schema migration for 'household' scope, project channel kind and owner/member roles; membership
+      and invitation tables with expiry, revocation and a three-participant cap.
+  - phase-c: >-
+      Experience API consumer actor path, invitation endpoints, owner-only field redaction and
+      participant proposal rules.
+  - phase-d: >-
+      Flutter B2C project surface: create project, invite participants, conversation, shared list and
+      proposal state; owner-only checkout entry.
+  - phase-e: >-
+      Staging verification, tenant isolation, negative tests and Chrome acceptance at both sizes.
+status: proposed-awaiting-approval
+production_release_authorized: false
