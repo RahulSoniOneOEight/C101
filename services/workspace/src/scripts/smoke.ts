@@ -213,14 +213,18 @@ const secondProposal = await call(
   "POST",
   `/v1/purchase-drafts/${seeded.id}/proposals`,
   {
-    expected_version: Number(acceptedRevision.version) + 1,
+    expected_version: Number(acceptedRevision.version),
     kind: "update_quantity",
     payload: { line_key: "line_tyre", quantity: 3 },
   },
   { "idempotency-key": `smoke-second-proposal-${Date.now()}` },
 );
 const secondProposalId = String(secondProposal.body.proposal_id ?? "");
-await call(arjun, "POST", `/v1/proposals/${secondProposalId}/accept`);
+const secondAccept = await call(
+  arjun,
+  "POST",
+  `/v1/proposals/${secondProposalId}/accept`,
+);
 const secondView = await call(arjun, "GET", `/v1/purchase-drafts/${seeded.id}`);
 const secondRevision = secondView.body.revision as Record<string, unknown>;
 const pendingApproval = await call(
@@ -262,6 +266,8 @@ const result = {
   approved_lifecycle: approvedDraft?.lifecycle_status ?? null,
   cross_tenant_draft_status: crossTenantDraft.status,
   pending_approval_status: pendingApproval.status,
+  second_proposal_status: secondProposal.status,
+  second_accept_status: secondAccept.status,
   final_version: Number(secondRevision.version),
 };
 console.log(JSON.stringify(result, null, 2));
@@ -275,6 +281,12 @@ check(crossTenantChannel.status === 404, "cross-tenant channel read was not deni
 check(shared.status === 201, "product share failed");
 check(shared.body.id === replayedShare.body.id, "share idempotency replay returned a new message");
 check(crossTenantShare.status === 404, "cross-tenant share was not denied");
+check(secondProposal.status === 201, "second proposal creation failed");
+check(secondAccept.status === 200, "second proposal acceptance failed");
+check(
+  Number(secondRevision.version) === Number(acceptedRevision.version) + 1,
+  "second accepted proposal did not create exactly one revision",
+);
 
 if (failures.length > 0) {
   console.error("WORKSPACE_SMOKE_FAILED");
