@@ -167,11 +167,14 @@ function hasPromotion(cart: Cart, code: string): boolean {
   return Boolean(cart.promotions?.some((promotion) => promotion.code === code));
 }
 
-const [trade, nonTrade, catalogue] = await Promise.all([
+const [trade, nonTrade] = await Promise.all([
   session(tradeIdentifier),
   session(nonTradeIdentifier),
-  jsonRequest<{ products: Product[] }>("/v1/products?limit=250&catalogue_import=CHG-049"),
 ]);
+const catalogue = await jsonRequest<{ products: Product[] }>(
+  "/v1/products?limit=250&catalogue_import=CHG-049",
+  { headers: { authorization: `Bearer ${trade.token}` } },
+);
 
 const basinOffer = offerFor(catalogue.products, "Basin Mixers & Taps");
 const pliersOffer = offerFor(catalogue.products, "Pliers & Cutters");
