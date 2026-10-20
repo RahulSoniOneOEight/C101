@@ -710,45 +710,6 @@ class ProductCard extends StatelessWidget {
                   ),
                 ),
               ),
-            if (onDiscuss != null)
-              Positioned(
-                left: AgencySpacing.xs,
-                bottom: AgencySpacing.xs,
-                child: Tooltip(
-                  message: 'Discuss',
-                  excludeFromSemantics: true,
-                  child: Semantics(
-                    container: true,
-                    explicitChildNodes: true,
-                    button: true,
-                    label: 'Discuss',
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onDiscuss,
-                      child: SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Center(
-                          child: Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color:
-                                  colors.surfaceRaised.withValues(alpha: 0.94),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.chat_bubble_outline,
-                              size: 15,
-                              color: colors.actionPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -1738,45 +1699,6 @@ class CompactProductItem extends StatelessWidget {
                               fontSize: 9,
                               height: 1.2,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (onDiscuss != null)
-                      Positioned(
-                        left: 2,
-                        bottom: 2,
-                        child: Tooltip(
-                          message: 'Discuss',
-                          excludeFromSemantics: true,
-                          child: Semantics(
-                            container: true,
-                            explicitChildNodes: true,
-                            button: true,
-                            label: 'Discuss',
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: onDiscuss,
-                              child: SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Center(
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      color: colors.surfaceRaised
-                                          .withValues(alpha: 0.94),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 14,
-                                      color: colors.actionPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
                             ),
                           ),
                         ),

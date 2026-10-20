@@ -437,44 +437,6 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
                 // Overlay capture keeps the card's text width and height
                 // unchanged; the 44dp hit target sits entirely on the 48dp
                 // thumbnail rather than reflowing the price row.
-                if (onDiscuss != null)
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    child: Tooltip(
-                      message: 'Discuss',
-                      excludeFromSemantics: true,
-                      child: Semantics(
-                        container: true,
-                        explicitChildNodes: true,
-                        button: true,
-                        label: 'Discuss',
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: onDiscuss,
-                          child: SizedBox(
-                            width: 44,
-                            height: 44,
-                            child: Center(
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: colors.surfaceRaised
-                                      .withValues(alpha: 0.94),
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: colors.borderDefault),
-                                ),
-                                child: Icon(Icons.chat_bubble_outline,
-                                    size: 15, color: colors.actionPrimary),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -607,45 +569,6 @@ class TradeProductCardCompact extends StatelessWidget {
                         ],
                       ),
                     ),
-                    if (onDiscuss != null)
-                      Positioned(
-                        left: AgencySpacing.sm,
-                        bottom: AgencySpacing.sm,
-                        child: Tooltip(
-                          message: 'Discuss',
-                          excludeFromSemantics: true,
-                          child: Semantics(
-                            container: true,
-                            explicitChildNodes: true,
-                            button: true,
-                            label: 'Discuss',
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: onDiscuss,
-                              child: SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Center(
-                                  child: Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: colors.surfaceRaised
-                                          .withValues(alpha: 0.94),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.chat_bubble_outline,
-                                      size: 15,
-                                      color: colors.actionPrimary,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),

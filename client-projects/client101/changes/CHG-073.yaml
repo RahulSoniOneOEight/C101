@@ -1,5 +1,5 @@
 change_id: CHG-073
-revision: 2
+revision: 3
 request: >-
   Refine the Phase D conversation layer: make Discuss a compact icon on catalogue tiles, move the
   conversation entry beside the notification bell instead of a bottom floating button, add an
@@ -50,6 +50,9 @@ missing:
 - >-
   There is no governed decision on whether the assistant is automated, human, or both, or on what
   data it may read.
+- >-
+  Card-level Discuss controls compete with the product image and the purchase action. The in-chat
+  picker has no recent-product shortcut.
 proposed_decisions:
 - D-073-01: >-
     On catalogue product tiles and compact search results, Discuss becomes a compact icon-only
@@ -81,6 +84,11 @@ proposed_decisions:
     shared-list projection, replies from governed rules, and writes only its own assistant message.
     This resolves the external-provider privacy question by not sending conversation content to a
     provider. Any future model-backed assistant remains a separate privacy and retention review.
+- D-073-07: >-
+    Remove the card-level Discuss control from catalogue tiles and search result rows; the labelled
+    Discuss action remains on PDPs and cart lines. The in-chat Add product picker gains a horizontal
+    Recently viewed swimlane. Selecting a recent product uses the existing capture path and never
+    writes the cart.
 conflicts_requiring_a_decision:
 - C-073-01: >-
     The assistant introduces a new actor type and may send conversation content to an external model
@@ -110,9 +118,9 @@ constraints:
 - Do not reintroduce the B2B header hit-testing defect.
 proposed_phases:
 - phase-a: >-
-    [complete] UX polish only: compact Discuss icon on tiles/search results, header entry beside
-    the bell with unread badge, remove the bottom launcher, and add the in-chat catalogue picker.
-    No assistant and no commerce write. Deployed and Chrome-accepted.
+    [complete] UX polish only: header entry beside the bell with unread badge, in-chat catalogue
+    picker and recent-product swimlane. Revision 3 removes the card-level Discuss control; PDP and
+    cart-line Discuss remain. No assistant and no commerce write. Deployed and Chrome-accepted.
 - phase-b: >-
     [complete-design-only] Assistant design and governance: automated assistant with human
     escalation, actor identity, permissions, data flow, retention, prompt-injection controls and
@@ -159,6 +167,10 @@ implementation:
   phase_a_frontend_commit: fe3e947
   backend_release: 68ee397
   phase_a_chrome_acceptance: pass-95-of-95-390x844-360x800
+  revision_3_status: card-discuss-removed-recent-swimlane-implemented
+  revision_3_authorized_at_utc: '2026-10-21'
+  revision_3_authorized_by: human-requester
+  revision_3_ui_commit: pending
   phase_b_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
 status: approved-in-progress

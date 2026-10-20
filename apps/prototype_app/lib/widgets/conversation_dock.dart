@@ -1945,11 +1945,27 @@ class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
     super.dispose();
   }
 
+  void _selectProduct(Product product) {
+    ref.read(conversationDockProvider.notifier).discuss(
+          widget.audience,
+          ConversationProductCapture.fromProduct(product),
+        );
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
     final query = _search.text.trim().toLowerCase();
+    final recent = query.isEmpty
+        ? ref
+            .watch(recentlyViewedProvider)
+            .map((id) => widget.products.where((p) => p.id == id).firstOrNull)
+            .whereType<Product>()
+            .take(10)
+            .toList()
+        : const <Product>[];
     final filtered = (query.isEmpty
             ? widget.products
             : widget.products.where((p) {
@@ -1992,6 +2008,36 @@ class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
                 'The product is added to this conversation. Your cart is not changed.',
                 style: TextStyle(fontSize: 11, color: colors.contentSecondary),
               ),
+              if (recent.isNotEmpty) ...<Widget>[
+                const SizedBox(height: AgencySpacing.sm),
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.history,
+                        size: 15, color: colors.contentSecondary),
+                    const SizedBox(width: AgencySpacing.xs),
+                    Text(
+                      'Recently viewed',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: colors.contentPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AgencySpacing.xs),
+                SizedBox(
+                  height: 118,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: recent.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: AgencySpacing.sm),
+                    itemBuilder: (context, index) =>
+                        _recentProductTile(colors, recent[index]),
+                  ),
+                ),
+              ],
               const SizedBox(height: AgencySpacing.sm),
               TextField(
                 controller: _search,
@@ -2072,16 +2118,7 @@ class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
                                 trailing: IconButton(
                                   tooltip:
                                       'Add ${product.title} to conversation',
-                                  onPressed: () {
-                                    ref
-                                        .read(conversationDockProvider.notifier)
-                                        .discuss(
-                                          widget.audience,
-                                          ConversationProductCapture
-                                              .fromProduct(product),
-                                        );
-                                    Navigator.of(context).pop();
-                                  },
+                                  onPressed: () => _selectProduct(product),
                                   icon: Icon(Icons.add_circle_outline,
                                       color: colors.actionPrimary),
                                 ),
@@ -2091,6 +2128,66 @@ class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _recentProductTile(AgencyColors colors, Product product) {
+    final price = product.price?.formatted ?? '';
+    return SizedBox(
+      width: 132,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AgencyRadius.sm),
+        onTap: () => _selectProduct(product),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AgencyRadius.sm),
+              child: SizedBox(
+                width: 132,
+                height: 64,
+                child: product.thumbnail == null
+                    ? ColoredBox(
+                        color: colors.surfacePage,
+                        child: Icon(Icons.inventory_2_outlined,
+                            color: colors.contentSecondary),
+                      )
+                    : Image.network(
+                        product.thumbnail!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => ColoredBox(
+                          color: colors.surfacePage,
+                          child: Icon(Icons.inventory_2_outlined,
+                              color: colors.contentSecondary),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              product.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                color: colors.contentPrimary,
+              ),
+            ),
+            if (price.isNotEmpty)
+              Text(
+                price,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: colors.actionPrimary,
+                ),
+              ),
+          ],
         ),
       ),
     );

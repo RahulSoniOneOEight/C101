@@ -34,8 +34,7 @@ void main() {
     expect(find.text('Out of stock'), findsOneWidget);
   });
 
-  testWidgets('ProductCard Discuss is a compact icon with a 44dp target',
-      (tester) async {
+  testWidgets('ProductCard has no card-level chat action', (tester) async {
     final semantics = tester.ensureSemantics();
     var discussed = false;
     await tester.pumpWidget(host(ProductCard(
@@ -43,13 +42,8 @@ void main() {
       priceLabel: '₹1,499',
       onDiscuss: () => discussed = true,
     )));
-    expect(find.text('Discuss'), findsNothing);
-    final target = find.bySemanticsLabel('Discuss');
-    expect(target, findsOneWidget);
-    expect(tester.getSize(target), const Size(44, 44));
-    await tester.tap(target);
-    await tester.pump();
-    expect(discussed, isTrue);
+    expect(find.bySemanticsLabel('Discuss'), findsNothing);
+    expect(discussed, isFalse);
     semantics.dispose();
   });
 

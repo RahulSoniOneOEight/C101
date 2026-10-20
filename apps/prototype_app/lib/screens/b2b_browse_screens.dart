@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
-import '../domain/conversation_models.dart';
 import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
@@ -625,12 +624,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   }
 
   Widget _resultRow(BuildContext context, AgencyColors colors, TradeProduct p) {
-    final bestSeller = p.bestSeller;
-    final discussedVariant = bestSeller == null
-        ? p.product.defaultVariant
-        : p.product.variants
-            .where((variant) => variant.offerId == bestSeller.id)
-            .firstOrNull;
     return InkWell(
       onTap: () => context.push('/b2b/pdp/${p.product.id}'),
       borderRadius: BorderRadius.circular(AgencyRadius.md),
@@ -663,22 +656,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: colors.actionPrimary)),
-                IconButton(
-                  tooltip: 'Discuss',
-                  onPressed: () =>
-                      ref.read(conversationDockProvider.notifier).discuss(
-                            ConversationAudience.business,
-                            ConversationProductCapture.fromProduct(
-                              p.product,
-                              variant: discussedVariant,
-                              quantity: p.moq,
-                              sellerName: bestSeller?.name,
-                              unitPrice: p.tradePrice,
-                              offerId: bestSeller?.id,
-                            ),
-                          ),
-                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                ),
               ],
             ),
           ],

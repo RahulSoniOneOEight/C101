@@ -241,7 +241,17 @@ class _StateProbeState extends State<_StateProbe> {
 
 List<Override> _overrides(ExperienceApi api) => <Override>[
       experienceApiProvider.overrideWithValue(api),
+      recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
     ];
+
+class _Viewed extends RecentlyViewedNotifier {
+  _Viewed(this.ids);
+
+  final List<String> ids;
+
+  @override
+  List<String> build() => ids;
+}
 
 Widget _host(ExperienceApi api) => ProviderScope(
       overrides: _overrides(api),
@@ -297,6 +307,9 @@ void main() {
 
   testWidgets('chat can add a catalogue product without leaving the dock',
       (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(tester.view.reset);
     final api = _DockApi(householdMember: true, householdRole: 'owner');
     const product = Product(
       id: 'prod_smoke',
@@ -315,6 +328,8 @@ void main() {
       overrides: <Override>[
         experienceApiProvider.overrideWithValue(api),
         productsProvider.overrideWith((ref) => const <Product>[product]),
+        recentlyViewedProvider
+            .overrideWith(() => _Viewed(const <String>['prod_smoke'])),
       ],
     );
     addTearDown(container.dispose);
@@ -347,6 +362,7 @@ void main() {
     await tester.tap(find.byTooltip('Add product'));
     await tester.pumpAndSettle();
     expect(find.text('Add a product'), findsOneWidget);
+    expect(find.text('Recently viewed'), findsOneWidget);
     await tester.enterText(
         find.widgetWithText(TextField, 'Search catalogue'), 'smoke');
     await tester.pumpAndSettle();

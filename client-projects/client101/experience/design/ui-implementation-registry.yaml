@@ -908,6 +908,7 @@ components:
   aliases:
   - add-product-in-chat
   - conversation-catalogue-picker
+  - recently-viewed-swimlane
   flutter:
     owned_component: ConversationDockPanel
     primitive: flutter

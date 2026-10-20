@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
-import '../domain/conversation_models.dart';
 import '../domain/order_models.dart';
 import '../domain/storefront_ux.dart';
 import '../providers/cart_providers.dart';
@@ -767,18 +766,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   fontWeight: FontWeight.w700,
                   color: colors.actionPrimary)),
           onTap: () => context.push('/product/${p.id}'),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: IconButton(
-            tooltip: 'Discuss',
-            onPressed: () =>
-                ref.read(conversationDockProvider.notifier).discuss(
-                      ConversationAudience.household,
-                      ConversationProductCapture.fromProduct(p),
-                    ),
-            icon: const Icon(Icons.chat_bubble_outline, size: 18),
-          ),
         ),
       ],
     );
