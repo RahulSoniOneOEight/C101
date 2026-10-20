@@ -1,0 +1,65 @@
+change_id: CHG-068
+revision: 1
+request: >-
+  Ensure every staging seller has a working vendor-portal login, including the legacy BuildKart
+  Direct seller.
+type: staging-vendor-access-configuration
+extends:
+- CHG-049
+- CHG-067
+affected_capabilities:
+- marketplace-seller-access
+- vendor-portal
+affected_domains:
+- marketplace
+- operations
+affected_surfaces:
+- mercur.vendor-portal
+- medusa.admin.sellers
+already_present:
+- Four seeded sellers with approved owner members and working vendor logins.
+- BuildKart Direct seller, warehouse, catalogue products and repaired shipping coverage.
+missing:
+- BuildKart Direct had no member, no auth identity and no seller-member association, so its vendor
+  login could not be used.
+decisions_approved:
+- D-068-01: >-
+    Give BuildKart Direct an owner member using its existing seller email catalogue@buildkart.test and
+    the same staging demo-seller password as the other four sellers. Do not create a second seller.
+- D-068-02: >-
+    Use the standard seller-administration role and owner flag so the account has the same vendor
+    permissions as the seeded seller owners.
+constraints:
+- No product, offer, price, order, shipping-rate or seller-allocation change.
+- Staging only; production release remains unauthorized.
+- Passwords and session tokens are never written to evidence or source control.
+required_tests:
+- All five seller emails authenticate against the member auth endpoint.
+- Each login resolves exactly its own seller membership.
+- The vendor portal reaches store selection for all five sellers.
+- BuildKart Direct can open its vendor dashboard and see its orders.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-068/vendor-access.md
+  account:
+    seller: BuildKart Direct
+    seller_id: sel_01M5897CE4PTBHS4AA7H0G79G7
+    member_id: mem_01M5BSXBJ9EN890ZMTR8G557JE
+    auth_identity_id: authid_01M5BSXBGWYNKMANWH97ECEPYP
+    email: catalogue@buildkart.test
+    role_id: role_seller_administration
+    is_owner: true
+  verification:
+    api_logins: 5-of-5
+    seller_membership_resolution: 5-of-5
+    vendor_store_select: 5-of-5
+    buildkart_direct_dashboard: pass
+    password_recorded: false
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false
