@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/app_notification.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../providers/notifications_providers.dart';
 import '../providers/workspace_providers.dart';
 import '../providers/trade_offers_providers.dart';
@@ -195,6 +197,13 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                     itemBuilder: (context, i) {
                       final p = products[i];
                       final qty = _quickQty[p.product.id] ?? p.moq;
+                      final bestSeller = p.bestSeller;
+                      final discussedVariant = bestSeller == null
+                          ? p.product.defaultVariant
+                          : p.product.variants
+                              .where(
+                                  (variant) => variant.offerId == bestSeller.id)
+                              .firstOrNull;
                       return CompactQuickOrderSkuCard(
                         title: p.product.title,
                         sku: p.product.id,
@@ -205,6 +214,18 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                         onQuantityChanged: (v) =>
                             setState(() => _quickQty[p.product.id] = v),
                         onAdd: () => _addProduct(p, qty),
+                        onDiscuss: () =>
+                            ref.read(conversationDockProvider.notifier).discuss(
+                                  ConversationAudience.business,
+                                  ConversationProductCapture.fromProduct(
+                                    p.product,
+                                    variant: discussedVariant,
+                                    quantity: qty,
+                                    sellerName: bestSeller?.name,
+                                    unitPrice: p.tradePrice,
+                                    offerId: bestSeller?.id,
+                                  ),
+                                ),
                         onTap: () => context.push('/b2b/pdp/${p.product.id}'),
                       );
                     },

@@ -358,6 +358,7 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
     this.minQuantity = 1,
     this.onQuantityChanged,
     this.onAdd,
+    this.onDiscuss,
     this.onTap,
     super.key,
   });
@@ -370,6 +371,7 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
   final int minQuantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
+  final VoidCallback? onDiscuss;
   final VoidCallback? onTap;
 
   @override
@@ -388,45 +390,86 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
           InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(AgencyRadius.sm),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: <Widget>[
-                _Thumb(imageUrl: imageUrl, size: 48),
-                const SizedBox(width: AgencySpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colors.contentPrimary,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _Thumb(imageUrl: imageUrl, size: 48),
+                    const SizedBox(width: AgencySpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colors.contentPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            sku,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11, color: colors.contentSecondary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            priceLabel,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.actionPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        sku,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11, color: colors.contentSecondary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        priceLabel,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: colors.actionPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // Overlay capture keeps the card's text width and height
+                // unchanged; the 44dp hit target sits entirely on the 48dp
+                // thumbnail rather than reflowing the price row.
+                if (onDiscuss != null)
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    child: Semantics(
+                      container: true,
+                      explicitChildNodes: true,
+                      button: true,
+                      label: 'Discuss',
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onDiscuss,
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              decoration: BoxDecoration(
+                                color: colors.surfaceRaised
+                                    .withValues(alpha: 0.94),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: colors.borderDefault),
+                              ),
+                              child: Icon(Icons.forum_outlined,
+                                  size: 16, color: colors.actionPrimary),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
