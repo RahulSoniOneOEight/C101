@@ -49,6 +49,91 @@ CREATE TABLE IF NOT EXISTS message (
 CREATE INDEX IF NOT EXISTS message_channel_sequence_idx
   ON message(channel_id, sequence);
 
+ALTER TABLE message ADD COLUMN IF NOT EXISTS idempotency_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS message_channel_idempotency_idx
+  ON message(channel_id, idempotency_key)
+  WHERE idempotency_key IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS message_reference (
+  message_id text NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+  reference_type text NOT NULL,
+  reference_id text NOT NULL,
+  display_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (message_id, reference_type, reference_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_draft (
+  id text PRIMARY KEY,
+  workspace_id text NOT NULL REFERENCES workspace(id) ON DELETE CASCADE,
+  channel_id text NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  lifecycle_status text NOT NULL DEFAULT 'draft'
+    CHECK (lifecycle_status IN ('draft', 'review_requested', 'approved', 'changes_requested', 'ordered', 'cancelled')),
+  validation_status text NOT NULL DEFAULT 'unvalidated'
+    CHECK (validation_status IN ('unvalidated', 'valid', 'changed', 'blocked', 'expired')),
+  current_version integer NOT NULL DEFAULT 0,
+  created_by text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS draft_revision (
+  id text PRIMARY KEY,
+  draft_id text NOT NULL REFERENCES purchase_draft(id) ON DELETE CASCADE,
+  version integer NOT NULL,
+  canonical_payload jsonb NOT NULL,
+  commercial_hash text NOT NULL,
+  created_by text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  supersedes_version integer,
+  UNIQUE (draft_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS draft_line_revision (
+  revision_id text NOT NULL REFERENCES draft_revision(id) ON DELETE CASCADE,
+  line_key text NOT NULL,
+  product_id text NOT NULL,
+  variant_id text NOT NULL,
+  seller_id text NOT NULL,
+  offer_id text NOT NULL,
+  fulfilment_context_id text NOT NULL DEFAULT 'default',
+  quantity integer NOT NULL CHECK (quantity > 0),
+  commercial_snapshot jsonb NOT NULL,
+  material_instruction text,
+  PRIMARY KEY (revision_id, line_key)
+);
+
+CREATE TABLE IF NOT EXISTS proposal (
+  id text PRIMARY KEY,
+  draft_id text NOT NULL REFERENCES purchase_draft(id) ON DELETE CASCADE,
+  kind text NOT NULL,
+  payload jsonb NOT NULL,
+  expected_version integer NOT NULL,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'accepted', 'edited_accepted', 'rejected', 'cancelled', 'stale')),
+  proposed_by text NOT NULL,
+  decided_by text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  decided_at timestamptz,
+  idempotency_key text NOT NULL,
+  UNIQUE (draft_id, idempotency_key)
+);
+
+CREATE TABLE IF NOT EXISTS approval_request (
+  id text PRIMARY KEY,
+  draft_id text NOT NULL REFERENCES purchase_draft(id) ON DELETE CASCADE,
+  revision_id text NOT NULL REFERENCES draft_revision(id) ON DELETE CASCADE,
+  commercial_hash text NOT NULL,
+  requested_by text NOT NULL,
+  decided_by text,
+  decision text NOT NULL DEFAULT 'pending'
+    CHECK (decision IN ('pending', 'approved', 'rejected', 'changes_requested', 'superseded')),
+  comment text,
+  requested_at timestamptz NOT NULL DEFAULT now(),
+  decided_at timestamptz
+);
+ALTER TABLE approval_request ADD COLUMN IF NOT EXISTS decision_comment text;
+
 CREATE TABLE IF NOT EXISTS read_cursor (
   channel_id text NOT NULL REFERENCES channel(id) ON DELETE CASCADE,
   user_id text NOT NULL,

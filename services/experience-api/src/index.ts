@@ -2453,7 +2453,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (
     url.pathname === "/v1/workspaces" ||
     url.pathname.startsWith("/v1/workspaces/") ||
-    url.pathname.startsWith("/v1/channels/")
+    url.pathname.startsWith("/v1/channels/") ||
+    url.pathname.startsWith("/v1/purchase-drafts/") ||
+    url.pathname.startsWith("/v1/proposals/") ||
+    url.pathname.startsWith("/v1/approval-requests/")
   ) {
     const authenticated = await authenticate(req);
     if ("response" in authenticated) return authenticated.response;

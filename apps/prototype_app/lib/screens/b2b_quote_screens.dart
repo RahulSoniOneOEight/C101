@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../data/experience_api.dart';
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
@@ -53,6 +54,82 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
   String? _selectedSellerId;
   String? _selectedVariantId;
   bool _showAllSellers = false;
+  bool _sharing = false;
+
+  Future<void> _shareToProcurement(
+    TradeProduct p,
+    ProductVariant? variant,
+    TradeSupplier? seller,
+    int quantity,
+  ) async {
+    if (_sharing) return;
+    final offerId = variant?.offerId ?? p.product.cartOfferId;
+    if (offerId.isEmpty) {
+      PinToast.show(context, 'This SKU has no sellable offer to share',
+          tone: PinToastTone.warning);
+      return;
+    }
+    setState(() => _sharing = true);
+    try {
+      final api = ref.read(experienceApiProvider);
+      final workspaces = await api.getWorkspaces();
+      if (workspaces.isEmpty) {
+        if (mounted) {
+          PinToast.show(context, 'No procurement workspace is available',
+              tone: PinToastTone.warning);
+        }
+        return;
+      }
+      final workspace = workspaces.first;
+      final channels = await api.getWorkspaceChannels(workspace.id);
+      final channel = channels
+              .where((item) => item.kind == 'procurement')
+              .firstOrNull ??
+          channels.firstOrNull;
+      if (channel == null) {
+        if (mounted) {
+          PinToast.show(context, 'No procurement channel is available',
+              tone: PinToastTone.warning);
+        }
+        return;
+      }
+      final unit = variant?.price ?? p.unitPriceFor(quantity);
+      await api.shareProductToWorkspace(
+        channelId: channel.id,
+        productId: p.product.id,
+        variantId: variant?.id ?? p.product.cartVariantId,
+        offerId: offerId,
+        quantity: quantity,
+        productTitle: p.product.title,
+        commercialSnapshot: <String, dynamic>{
+          'product_title': p.product.title,
+          'seller_name':
+              seller?.name ?? variant?.sellerName ?? p.product.brand ?? '',
+          'sku': variant?.sku ?? '',
+          'unit_amount_minor': unit.amount,
+          'currency_code': unit.currencyCode,
+          'thumbnail': p.product.thumbnail,
+        },
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('${p.product.title} shared to Procurement'),
+          action: SnackBarAction(
+            label: 'Open workspace',
+            onPressed: () => context.go('/b2b/workspace'),
+          ),
+        ));
+    } catch (_) {
+      if (mounted) {
+        PinToast.show(context, 'Could not share this product. Please retry.',
+            tone: PinToastTone.warning);
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -309,6 +386,29 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: AgencySpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _sharing
+                  ? null
+                  : () => _shareToProcurement(
+                      p, selectedVariant, selectedSeller, tierQty),
+              icon: _sharing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.group_add_outlined, size: 18),
+              label: const Text('Share to Procurement'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                side: BorderSide(color: colors.borderDefault),
+                foregroundColor: colors.actionPrimary,
+              ),
+            ),
           ),
         ],
       ),

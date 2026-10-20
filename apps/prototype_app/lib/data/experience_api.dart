@@ -559,6 +559,137 @@ class ExperienceApi {
         .toList();
   }
 
+  Future<List<WorkspaceDraft>> getWorkspaceDrafts(String workspaceId) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>(
+        '/v1/workspaces/$workspaceId/purchase-drafts',
+      ),
+    );
+    return (res.data!['drafts'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(WorkspaceDraft.fromJson)
+        .toList();
+  }
+
+  Future<WorkspaceDraftView> getWorkspaceDraft(String draftId) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>('/v1/purchase-drafts/$draftId'),
+    );
+    return WorkspaceDraftView.fromJson(res.data!);
+  }
+
+  Future<void> proposeDraftChange({
+    required String draftId,
+    required int expectedVersion,
+    required String kind,
+    required Map<String, dynamic> payload,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/v1/purchase-drafts/$draftId/proposals',
+      data: {
+        'expected_version': expectedVersion,
+        'kind': kind,
+        'payload': payload,
+      },
+      options: Options(
+        headers: {
+          'Idempotency-Key':
+              'prop_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+  }
+
+  Future<void> acceptProposal(String proposalId) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/v1/proposals/$proposalId/accept',
+      options: Options(
+        headers: {
+          'Idempotency-Key':
+              'accept_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+  }
+
+  Future<void> rejectProposal(String proposalId) async {
+    await _dio.post<void>('/v1/proposals/$proposalId/reject');
+  }
+
+  Future<void> requestDraftApproval({
+    required String draftId,
+    required int expectedVersion,
+    required String revisionId,
+    required String commercialHash,
+    String? comment,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/v1/purchase-drafts/$draftId/approval-requests',
+      data: {
+        'expected_version': expectedVersion,
+        'revision_id': revisionId,
+        'commercial_hash': commercialHash,
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+      options: Options(
+        headers: {
+          'Idempotency-Key':
+              'approval_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+  }
+
+  Future<void> decideDraftApproval(
+    String approvalId,
+    String action, {
+    String? comment,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/v1/approval-requests/$approvalId/$action',
+      data: {
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+    );
+  }
+
+  Future<WorkspaceMessage> shareProductToWorkspace({
+    required String channelId,
+    required String productId,
+    required String variantId,
+    required String offerId,
+    required int quantity,
+    String? sellerId,
+    String? productTitle,
+    String? materialInstruction,
+    Map<String, dynamic>? commercialSnapshot,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/channels/$channelId/shares',
+      data: {
+        'product_id': productId,
+        'variant_id': variantId,
+        'offer_id': offerId,
+        'quantity': quantity,
+        if (sellerId != null) 'seller_id': sellerId,
+        if (productTitle != null) 'product_title': productTitle,
+        if (materialInstruction != null)
+          'material_instruction': materialInstruction,
+        if (commercialSnapshot != null)
+          'commercial_snapshot': commercialSnapshot,
+      },
+      options: Options(
+        headers: {
+          'Idempotency-Key':
+              'share_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+    return WorkspaceMessage.fromJson(res.data ?? const <String, dynamic>{});
+  }
+
   Future<List<WorkspaceChannel>> getWorkspaceChannels(
       String workspaceId) async {
     final res = await _retryTransient(

@@ -1,5 +1,5 @@
 change_id: CHG-070
-revision: 1
+revision: 2
 request: >-
   Implement the B2B collaborative workspace pilot described in the BuildKart Collaborative
   Workspace Implementation Note: shared channels, product sharing, immutable purchase-draft
@@ -138,7 +138,7 @@ required_tests:
 - Push, logs and events contain no unnecessary PII.
 approval_required: true
 decision_approval:
-  status: phase-1-approved
+  status: phase-2-approved
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
   approved_decisions: [D-070-01, D-070-02, D-070-03, D-070-04, D-070-05, D-070-06, D-070-07, D-070-08]
@@ -148,13 +148,19 @@ decision_approval:
     OD-070-03: defer-production-realtime-topology-no-matrix-in-pilot-1
     OD-070-04: designated-support-read-redacted-and-audited
     OD-070-05: separate-workspace-database-in-existing-postgres-cluster
-  runtime_scope: phase-1-workspace-kernel-only
+  runtime_scope: phase-2-purchase-drafts-proposals-and-approvals
+  phase_2_approved_at_utc: '2026-10-20'
+  phase_2_scope: >-
+    Product shares, immutable purchase-draft revisions, proposals, accept/reject/cancel,
+    revision-bound approval requests and approver decisions. Checkout revalidation and cart handoff
+    remain Phase 3 and are not authorized by this approval.
   production_release_authorized: false
 implementation:
-  phase: 1-workspace-kernel
-  status: phase-1-complete-staging-verified
+  phase: 2-purchase-drafts-proposals-approvals
+  status: phase-2-implemented-staging-verification-pending
   service_code_started: true
-  evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
+  evidence: client-projects/client101/evidence/CHG-070/phase-2-purchase-drafts.md
+  phase_1_evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
   artefacts:
   - client-projects/client101/solution/decisions/ADR-client101-011.yaml
   - client-projects/client101/contracts/data-contract.yaml
@@ -164,24 +170,48 @@ implementation:
   - services/workspace
   - services/experience-api/src/index.ts
   - apps/prototype_app/lib/screens/workspace_screen.dart
+  phase_2_artefacts:
+  - services/workspace/src/schema.sql
+  - services/workspace/src/index.ts
+  - services/workspace/src/scripts/smoke.ts
+  - services/experience-api/src/index.ts
+  - apps/prototype_app/lib/domain/workspace_models.dart
+  - apps/prototype_app/lib/data/experience_api.dart
+  - apps/prototype_app/lib/screens/workspace_screen.dart
+  - apps/prototype_app/lib/screens/b2b_quote_screens.dart
+  - apps/prototype_app/test/workspace_screen_test.dart
+  phase_2_limitations:
+  - >-
+    Draft line prices are immutable client-supplied staging snapshots. They are not yet
+    independently revalidated against Mercur/Medusa; Phase 3 must revalidate before checkout.
+  - >-
+    Buyer quantity changes are expressed as proposals and explicitly accepted. A direct
+    buyer-edit endpoint is deferred so every commercial mutation remains auditable.
+  - >-
+    Product shares create a reference message only. Add-to-draft from a share remains a
+    Phase 3 interaction.
+  - >-
+    Checkout preview, difference acknowledgement, cart handoff, order creation and workspace
+    notification projection remain unauthorized and unimplemented.
   verification:
     typescript_typecheck: pass
     flutter_analyze: pass
-    flutter_tests: 238-pass
-    workspace_smoke: pass
-    tenant_isolation: pass
-    arjun_ui: pass
-    shakti_ui: pass
-    console_errors: none
-    websocket_feed: pass
-    outbox_publisher: pass
+    flutter_tests: 241-pass
+    workspace_smoke: pending-staging-run
+    tenant_isolation: pending-staging-run
+    arjun_ui: pending-staging-run
+    shakti_ui: pending-staging-run
+    console_errors: pending-staging-run
+    websocket_feed: pass-phase-1
+    outbox_publisher: pass-phase-1
     outbox_pending_rows: 0
     unread_badge: implemented
+    responsive_widths: [390x844, 360x800]
   deployment:
-    app_build: a39a670
+    app_build: pending-phase-2
     workspace_image: buildkart-hosted-pilot-workspace
     workspace_database: buildkart_workspace
-    experience_api_proxy: enabled
+    experience_api_proxy: enabled-phase-2-routes
     websocket_proxy: enabled
-status: phase-1-deployed-awaiting-human-review
+status: phase-2-in-progress-staging-verification
 production_release_authorized: false

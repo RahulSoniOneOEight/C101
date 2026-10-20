@@ -211,6 +211,23 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/Message'}
   /v1/workspaces/{workspaceId}/purchase-drafts:
+    get:
+      tags: [Purchase drafts]
+      summary: List purchase drafts in a workspace
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Drafts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  drafts:
+                    type: array
+                    items: {$ref: '#/components/schemas/PurchaseDraft'}
+                  correlation_id: {type: string}
     post:
       tags: [Purchase drafts]
       summary: Create a purchase draft
@@ -227,24 +244,27 @@ paths:
               properties:
                 channel_id: {type: string}
                 name: {type: string, maxLength: 120}
+                lines:
+                  type: array
+                  items: {$ref: '#/components/schemas/DraftLineInput'}
       responses:
         '201':
           description: Draft
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PurchaseDraft'}
+              schema: {$ref: '#/components/schemas/PurchaseDraftView'}
   /v1/purchase-drafts/{draftId}:
     get:
       tags: [Purchase drafts]
-      summary: Read a draft and its current revision
+      summary: Read a draft, its current revision, approval and proposals
       parameters:
       - $ref: '#/components/parameters/DraftId'
       responses:
         '200':
-          description: Draft
+          description: Draft aggregate
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/PurchaseDraft'}
+              schema: {$ref: '#/components/schemas/PurchaseDraftView'}
         '404': {$ref: '#/components/responses/NotFound'}
   /v1/purchase-drafts/{draftId}/revisions/{version}:
     get:
@@ -640,6 +660,36 @@ components:
         current_revision: {$ref: '#/components/schemas/DraftRevision'}
         created_by: {type: string}
         created_at: {type: string, format: date-time}
+    PurchaseDraftView:
+      type: object
+      properties:
+        draft: {$ref: '#/components/schemas/PurchaseDraft'}
+        revision:
+          oneOf:
+          - {$ref: '#/components/schemas/DraftRevision'}
+          - {type: 'null'}
+        approval:
+          oneOf:
+          - {$ref: '#/components/schemas/ApprovalRequest'}
+          - {type: 'null'}
+        proposals:
+          type: array
+          items: {$ref: '#/components/schemas/Proposal'}
+    DraftLineInput:
+      type: object
+      required: [line_key, product_id, variant_id, seller_id, offer_id, quantity, unit_amount_minor]
+      properties:
+        line_key: {type: string}
+        product_id: {type: string}
+        variant_id: {type: string}
+        seller_id: {type: string}
+        offer_id: {type: string}
+        fulfilment_context_id: {type: string}
+        quantity: {type: integer, minimum: 1}
+        unit_amount_minor: {type: integer, minimum: 0}
+        currency_code: {type: string}
+        commercial_snapshot: {type: object, additionalProperties: true}
+        material_instruction: {type: [string, 'null'], maxLength: 500}
     DraftRevision:
       type: object
       properties:
@@ -687,8 +737,10 @@ components:
         revision_id: {type: string}
         commercial_hash: {type: string}
         requested_by: {type: string}
-        decision: {type: string, enum: [pending, approved, rejected, changes_requested]}
+        decision: {type: string, enum: [pending, approved, rejected, changes_requested, superseded]}
+        decided_by: {type: [string, 'null']}
         comment: {type: [string, 'null']}
+        decision_comment: {type: [string, 'null']}
         requested_at: {type: string, format: date-time}
         decided_at: {type: [string, 'null'], format: date-time}
     ActivityEvent:
