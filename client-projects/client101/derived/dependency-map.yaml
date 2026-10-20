@@ -99,3 +99,23 @@ critical_cross_domain_flows:
   - commerce
   - operations
   - content
+- id: workspace-share-to-approved-draft
+  domains:
+  - workspace
+  - experience
+  - commerce
+  - marketplace
+  - erp
+- id: purchase-draft-to-checkout-handoff
+  domains:
+  - workspace
+  - experience
+  - commerce
+  - marketplace
+  - erp
+- id: workspace-event-to-notification-inbox
+  domains:
+  - workspace
+  - experience
+  - integration
+  - notifications

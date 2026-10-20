@@ -1,0 +1,740 @@
+openapi: 3.1.0
+info:
+  title: BuildKart Collaborative Workspace API
+  version: 1.0.0-proposed
+  description: >-
+    Proposed client-facing contract for the B2B collaborative workspace pilot. All routes are
+    exposed through the Experience API. Commerce remains authoritative for carts, checkout, orders,
+    prices and inventory. This contract is not approved for production.
+servers:
+- url: https://api-staging.pinakaplay.cloud
+  description: Staging
+security:
+- bearerAuth: []
+tags:
+- name: Workspaces
+- name: Channels
+- name: Purchase drafts
+- name: Proposals
+- name: Approvals
+- name: Checkout handoff
+paths:
+  /v1/workspaces:
+    get:
+      tags: [Workspaces]
+      summary: List workspaces visible to the signed-in member
+      responses:
+        '200':
+          description: Workspace summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  workspaces:
+                    type: array
+                    items: {$ref: '#/components/schemas/Workspace'}
+    post:
+      tags: [Workspaces]
+      summary: Create a business-account workspace
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scope_type, scope_id, name]
+              properties:
+                scope_type: {type: string, enum: [business_account]}
+                scope_id: {type: string}
+                name: {type: string, maxLength: 120}
+      responses:
+        '201':
+          description: Created workspace
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Workspace'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/workspaces/{workspaceId}:
+    get:
+      tags: [Workspaces]
+      summary: Read one workspace
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Workspace
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Workspace'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/workspaces/{workspaceId}/channels:
+    get:
+      tags: [Channels]
+      summary: List channels and the caller's unread state
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Channels
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  channels:
+                    type: array
+                    items: {$ref: '#/components/schemas/Channel'}
+  /v1/workspaces/{workspaceId}/activity:
+    get:
+      tags: [Workspaces]
+      summary: Read the append-only activity timeline
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Activity page
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items: {$ref: '#/components/schemas/ActivityEvent'}
+                  next_cursor: {type: [string, 'null']}
+  /v1/workspaces/{workspaceId}/stream:
+    get:
+      tags: [Workspaces]
+      summary: WebSocket live feed upgrade
+      description: >-
+        Upgrade to a WebSocket carrying ordered workspace events. The cursor is replayed before live
+        events. Authentication and membership are rechecked at upgrade and on revocation.
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '101': {description: Switching protocols}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+  /v1/channels/{channelId}/messages:
+    get:
+      tags: [Channels]
+      summary: Read channel history
+      parameters:
+      - $ref: '#/components/parameters/ChannelId'
+      - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items: {$ref: '#/components/schemas/Message'}
+                  next_cursor: {type: [string, 'null']}
+    post:
+      tags: [Channels]
+      summary: Post a message or mention
+      parameters:
+      - $ref: '#/components/parameters/ChannelId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body, message_type]
+              properties:
+                body: {type: string, maxLength: 4000}
+                message_type: {type: string, enum: [text, mention]}
+                mentioned_user_ids:
+                  type: array
+                  items: {type: string}
+      responses:
+        '201':
+          description: Created message
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Message'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/channels/{channelId}/read-cursor:
+    post:
+      tags: [Channels]
+      summary: Advance the caller's read cursor
+      parameters:
+      - $ref: '#/components/parameters/ChannelId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [last_event_sequence]
+              properties:
+                last_event_sequence: {type: integer, minimum: 0}
+      responses:
+        '204': {description: Cursor advanced}
+  /v1/channels/{channelId}/shares/preview:
+    post:
+      tags: [Channels]
+      summary: Preview a product share without writing
+      parameters:
+      - $ref: '#/components/parameters/ChannelId'
+      requestBody:
+        $ref: '#/components/requestBodies/ShareInput'
+      responses:
+        '200':
+          description: Current and shared-time values
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SharePreview'}
+  /v1/channels/{channelId}/shares:
+    post:
+      tags: [Channels]
+      summary: Share a product reference into a channel
+      parameters:
+      - $ref: '#/components/parameters/ChannelId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShareInput'
+      responses:
+        '201':
+          description: Share message
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Message'}
+  /v1/workspaces/{workspaceId}/purchase-drafts:
+    post:
+      tags: [Purchase drafts]
+      summary: Create a purchase draft
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel_id, name]
+              properties:
+                channel_id: {type: string}
+                name: {type: string, maxLength: 120}
+      responses:
+        '201':
+          description: Draft
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PurchaseDraft'}
+  /v1/purchase-drafts/{draftId}:
+    get:
+      tags: [Purchase drafts]
+      summary: Read a draft and its current revision
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      responses:
+        '200':
+          description: Draft
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PurchaseDraft'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/purchase-drafts/{draftId}/revisions/{version}:
+    get:
+      tags: [Purchase drafts]
+      summary: Read an immutable revision
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      - name: version
+        in: path
+        required: true
+        schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Revision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftRevision'}
+  /v1/purchase-drafts/{draftId}/proposals:
+    post:
+      tags: [Proposals]
+      summary: Propose a draft change
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version, kind, payload]
+              properties:
+                expected_version: {type: integer, minimum: 1}
+                kind: {type: string, enum: [add_line, update_quantity, remove_line, update_instruction]}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        '201':
+          description: Proposal
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Proposal'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/proposals/{proposalId}/accept:
+    post:
+      tags: [Proposals]
+      summary: Accept a proposal
+      parameters:
+      - $ref: '#/components/parameters/ProposalId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: New revision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftRevision'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/proposals/{proposalId}/edit-and-accept:
+    post:
+      tags: [Proposals]
+      summary: Edit and accept a proposal with audit
+      parameters:
+      - $ref: '#/components/parameters/ProposalId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version, payload]
+              properties:
+                expected_version: {type: integer, minimum: 1}
+                payload: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: New revision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DraftRevision'}
+  /v1/proposals/{proposalId}/reject:
+    post:
+      tags: [Proposals]
+      summary: Reject a proposal
+      parameters:
+      - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '204': {description: Rejected}
+  /v1/proposals/{proposalId}/cancel:
+    post:
+      tags: [Proposals]
+      summary: Cancel a proposal
+      parameters:
+      - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '204': {description: Cancelled}
+  /v1/purchase-drafts/{draftId}/approval-requests:
+    post:
+      tags: [Approvals]
+      summary: Request approval for the exact current revision
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_version, revision_id, commercial_hash]
+              properties:
+                expected_version: {type: integer, minimum: 1}
+                revision_id: {type: string}
+                commercial_hash: {type: string}
+                comment: {type: string, maxLength: 2000}
+      responses:
+        '201':
+          description: Approval request
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/approval-requests/{approvalRequestId}/approve:
+    post:
+      tags: [Approvals]
+      summary: Approve the bound revision
+      parameters:
+      - $ref: '#/components/parameters/ApprovalRequestId'
+      responses:
+        '200':
+          description: Approval decision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalRequest'}
+  /v1/approval-requests/{approvalRequestId}/reject:
+    post:
+      tags: [Approvals]
+      summary: Reject the bound revision
+      parameters:
+      - $ref: '#/components/parameters/ApprovalRequestId'
+      responses:
+        '200':
+          description: Approval decision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalRequest'}
+  /v1/approval-requests/{approvalRequestId}/request-changes:
+    post:
+      tags: [Approvals]
+      summary: Request changes and return the draft to draft state
+      parameters:
+      - $ref: '#/components/parameters/ApprovalRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: {type: string, maxLength: 2000}
+      responses:
+        '200':
+          description: Approval decision
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ApprovalRequest'}
+  /v1/purchase-drafts/{draftId}/checkout-preview:
+    post:
+      tags: [Checkout handoff]
+      summary: Revalidate an immutable revision and return structured differences
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision_id, commercial_hash]
+              properties:
+                revision_id: {type: string}
+                commercial_hash: {type: string}
+      responses:
+        '200':
+          description: Preview and optional short-lived validation reference
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutPreview'}
+  /v1/purchase-drafts/{draftId}/acknowledge-differences:
+    post:
+      tags: [Checkout handoff]
+      summary: Acknowledge explicitly allowed differences
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preview_id, difference_ids]
+              properties:
+                preview_id: {type: string}
+                difference_ids:
+                  type: array
+                  items: {type: string}
+      responses:
+        '204': {description: Acknowledged}
+  /v1/purchase-drafts/{draftId}/checkout-handoff:
+    post:
+      tags: [Checkout handoff]
+      summary: Materialise a canonical cart for an approved, revalidated revision
+      parameters:
+      - $ref: '#/components/parameters/DraftId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision_id, commercial_hash, validation_ref]
+              properties:
+                revision_id: {type: string}
+                commercial_hash: {type: string}
+                validation_ref: {type: string}
+      responses:
+        '202':
+          description: Handoff accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutHandoff'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/checkout-handoffs/{handoffId}:
+    get:
+      tags: [Checkout handoff]
+      summary: Read handoff progress
+      parameters:
+      - name: handoffId
+        in: path
+        required: true
+        schema: {type: string}
+      responses:
+        '200':
+          description: Handoff
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CheckoutHandoff'}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    WorkspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      schema: {type: string}
+    ChannelId:
+      name: channelId
+      in: path
+      required: true
+      schema: {type: string}
+    DraftId:
+      name: draftId
+      in: path
+      required: true
+      schema: {type: string}
+    ProposalId:
+      name: proposalId
+      in: path
+      required: true
+      schema: {type: string}
+    ApprovalRequestId:
+      name: approvalRequestId
+      in: path
+      required: true
+      schema: {type: string}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 8}
+  requestBodies:
+    ShareInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [product_id, variant_id, offer_id, quantity]
+            properties:
+              product_id: {type: string}
+              variant_id: {type: string}
+              offer_id: {type: string}
+              quantity: {type: integer, minimum: 1}
+              material_instruction: {type: string, maxLength: 500}
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    NotFound:
+      description: Not found or outside the caller's tenant
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: Stale version, approval conflict or idempotency conflict
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: {type: string}
+        title: {type: string}
+        status: {type: integer}
+        detail: {type: string}
+        code: {type: string}
+        retryable: {type: boolean}
+        correlation_id: {type: string}
+        current_version: {type: [integer, 'null']}
+        required_action: {type: [string, 'null']}
+        differences:
+          type: array
+          items: {type: object, additionalProperties: true}
+    Workspace:
+      type: object
+      properties:
+        id: {type: string}
+        scope_type: {type: string, enum: [business_account]}
+        scope_id: {type: string}
+        name: {type: string}
+        status: {type: string, enum: [active, archived]}
+        role: {type: string}
+        unread_count: {type: integer, minimum: 0}
+        created_at: {type: string, format: date-time}
+    Channel:
+      type: object
+      properties:
+        id: {type: string}
+        workspace_id: {type: string}
+        kind: {type: string, enum: [procurement, approvals]}
+        name: {type: string}
+        status: {type: string, enum: [active, archived]}
+        unread_count: {type: integer, minimum: 0}
+    Message:
+      type: object
+      properties:
+        id: {type: string}
+        channel_id: {type: string}
+        actor_id: {type: string}
+        actor_name: {type: string}
+        body: {type: string}
+        message_type: {type: string, enum: [text, mention, product_share, commerce_event]}
+        references:
+          type: array
+          items: {type: object, additionalProperties: true}
+        created_at: {type: string, format: date-time}
+        edited_at: {type: [string, 'null'], format: date-time}
+    SharePreview:
+      type: object
+      properties:
+        product_id: {type: string}
+        variant_id: {type: string}
+        current:
+          type: object
+          additionalProperties: true
+        shared_at:
+          type: object
+          additionalProperties: true
+        changed: {type: boolean}
+    PurchaseDraft:
+      type: object
+      properties:
+        id: {type: string}
+        workspace_id: {type: string}
+        channel_id: {type: string}
+        name: {type: string}
+        lifecycle_status: {type: string, enum: [draft, review_requested, approved, changes_requested, ordered, cancelled]}
+        validation_status: {type: string, enum: [unvalidated, valid, changed, blocked, expired]}
+        current_version: {type: integer}
+        current_revision: {$ref: '#/components/schemas/DraftRevision'}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+    DraftRevision:
+      type: object
+      properties:
+        id: {type: string}
+        draft_id: {type: string}
+        version: {type: integer}
+        commercial_hash: {type: string}
+        canonical_payload: {type: object, additionalProperties: true}
+        lines:
+          type: array
+          items: {$ref: '#/components/schemas/DraftLine'}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        supersedes_version: {type: [integer, 'null']}
+    DraftLine:
+      type: object
+      properties:
+        line_key: {type: string}
+        product_id: {type: string}
+        variant_id: {type: string}
+        seller_id: {type: string}
+        offer_id: {type: string}
+        fulfilment_context_id: {type: string}
+        quantity: {type: integer, minimum: 1}
+        commercial_snapshot: {type: object, additionalProperties: true}
+        material_instruction: {type: [string, 'null']}
+    Proposal:
+      type: object
+      properties:
+        id: {type: string}
+        draft_id: {type: string}
+        kind: {type: string}
+        payload: {type: object, additionalProperties: true}
+        expected_version: {type: integer}
+        status: {type: string, enum: [pending, accepted, edited_accepted, rejected, cancelled, stale]}
+        proposed_by: {type: string}
+        decided_by: {type: [string, 'null']}
+        created_at: {type: string, format: date-time}
+        decided_at: {type: [string, 'null'], format: date-time}
+    ApprovalRequest:
+      type: object
+      properties:
+        id: {type: string}
+        draft_id: {type: string}
+        revision_id: {type: string}
+        commercial_hash: {type: string}
+        requested_by: {type: string}
+        decision: {type: string, enum: [pending, approved, rejected, changes_requested]}
+        comment: {type: [string, 'null']}
+        requested_at: {type: string, format: date-time}
+        decided_at: {type: [string, 'null'], format: date-time}
+    ActivityEvent:
+      type: object
+      properties:
+        id: {type: string}
+        workspace_id: {type: string}
+        draft_id: {type: [string, 'null']}
+        kind: {type: string}
+        entity_ref: {type: object, additionalProperties: true}
+        actor_id: {type: string}
+        resulting_version: {type: [integer, 'null']}
+        payload_summary: {type: object, additionalProperties: true}
+        occurred_at: {type: string, format: date-time}
+    CheckoutPreview:
+      type: object
+      properties:
+        preview_id: {type: string}
+        revision_id: {type: string}
+        commercial_hash: {type: string}
+        validation_ref: {type: [string, 'null']}
+        validation_expires_at: {type: [string, 'null'], format: date-time}
+        differences:
+          type: array
+          items:
+            type: object
+            properties:
+              code: {type: string}
+              line_key: {type: [string, 'null']}
+              material: {type: boolean}
+              before: {type: object, additionalProperties: true}
+              after: {type: object, additionalProperties: true}
+              message: {type: string}
+        allowed_actions:
+          type: array
+          items: {type: string}
+    CheckoutHandoff:
+      type: object
+      properties:
+        id: {type: string}
+        draft_id: {type: string}
+        revision_id: {type: string}
+        status: {type: string, enum: [pending, materialising, cart_created, completed, failed]}
+        validation_ref: {type: [string, 'null']}
+        medusa_cart_id: {type: [string, 'null']}
+        order_group_id: {type: [string, 'null']}
+        correlation_id: {type: string}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
