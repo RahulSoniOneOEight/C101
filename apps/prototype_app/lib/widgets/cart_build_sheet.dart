@@ -1,7 +1,6 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
@@ -9,7 +8,6 @@ import '../domain/models.dart';
 import '../domain/workspace_models.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/cart_providers.dart';
-import '../providers/conversation_dock_provider.dart';
 
 /// Explicit shared-list → cart handoff.
 ///
@@ -20,12 +18,17 @@ Future<void> showCartBuildSheet(
   BuildContext context, {
   required WorkspaceDraftView view,
   required bool business,
+  VoidCallback? onViewCart,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (_) => _CartBuildSheet(view: view, business: business),
+    builder: (_) => _CartBuildSheet(
+      view: view,
+      business: business,
+      onViewCart: onViewCart,
+    ),
   );
 }
 
@@ -50,10 +53,15 @@ class _BuildLine {
 }
 
 class _CartBuildSheet extends ConsumerStatefulWidget {
-  const _CartBuildSheet({required this.view, required this.business});
+  const _CartBuildSheet({
+    required this.view,
+    required this.business,
+    this.onViewCart,
+  });
 
   final WorkspaceDraftView view;
   final bool business;
+  final VoidCallback? onViewCart;
 
   @override
   ConsumerState<_CartBuildSheet> createState() => _CartBuildSheetState();
@@ -301,7 +309,6 @@ class _CartBuildSheetState extends ConsumerState<_CartBuildSheet> {
       await ref.read(localStoreProvider).markCartBuild(_buildKey);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      final router = GoRouter.of(context);
       Navigator.of(context).pop();
       messenger
         ..hideCurrentSnackBar()
@@ -312,10 +319,7 @@ class _CartBuildSheetState extends ConsumerState<_CartBuildSheet> {
             ),
             action: SnackBarAction(
               label: 'View cart',
-              onPressed: () {
-                ref.read(conversationDockProvider.notifier).close();
-                router.go(widget.business ? '/b2b/cart' : '/cart');
-              },
+              onPressed: () => widget.onViewCart?.call(),
             ),
           ),
         );
@@ -449,10 +453,8 @@ class _CartBuildSheetState extends ConsumerState<_CartBuildSheet> {
                   child: FilledButton.icon(
                     onPressed: _alreadyBuilt
                         ? () {
-                            final router = GoRouter.of(context);
-                            ref.read(conversationDockProvider.notifier).close();
                             Navigator.of(context).pop();
-                            router.go(widget.business ? '/b2b/cart' : '/cart');
+                            widget.onViewCart?.call();
                           }
                         : (_canBuild ? _build : null),
                     icon: Icon(

@@ -1491,6 +1491,14 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                   context,
                   view: view,
                   business: widget.audience == ConversationAudience.business,
+                  onViewCart: () {
+                    final business =
+                        widget.audience == ConversationAudience.business;
+                    ref.read(conversationDockProvider.notifier).close();
+                    if (mounted) {
+                      context.go(business ? '/b2b/cart' : '/cart');
+                    }
+                  },
                 ),
                 icon: const Icon(Icons.shopping_cart_checkout, size: 18),
                 label: const Text('Review before cart build'),
