@@ -29,6 +29,17 @@ class ProductDetailScreen extends ConsumerWidget {
         ref.read(recentlyViewedProvider.notifier).add(value.id);
       }
     });
+    // A direct PDP load can already have the product resolved before this
+    // screen subscribes. Record it once after the first frame so the in-chat
+    // Recently viewed swimlane is populated in that path too.
+    if (product.value != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final value = ref.read(productProvider(productId)).value;
+        if (value != null) {
+          ref.read(recentlyViewedProvider.notifier).add(value.id);
+        }
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
