@@ -174,7 +174,7 @@ implementation:
   phase_e_authorized_by: human-requester
   phase_e_status: complete-staging-verified
   phase_e_scope: staging-only-explicit-cart-handoff
-  phase_e_release: 24be9ca
+  phase_e_release: 0d7d884
   phase_e_chrome_acceptance: pass-b2c-and-b2b-targeted
   phase_a_completed_at_utc: '2026-10-20'
   phase_b_completed_at_utc: '2026-10-20'
@@ -214,3 +214,4 @@ implementation:
       read-only path.
 status: approved-in-progress
 production_release_authorized: false
+

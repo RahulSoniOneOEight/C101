@@ -151,8 +151,8 @@ implementation:
   phase_c_status: complete-staging-verified
   phase_c_mode: deterministic-on-platform-read-only
   phase_c_provider: none
-  phase_c_release: 24be9ca
-  phase_c_frontend_commit: 8c11897
+  phase_c_release: 0d7d884
+  phase_c_frontend_commit: 0d7d884
   phase_c_chrome_acceptance: pass-b2c-and-b2b-targeted
   phase_a_completed_at_utc: '2026-10-21'
   phase_a_release: fe3e947
@@ -163,3 +163,4 @@ implementation:
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
 status: approved-in-progress
 production_release_authorized: false
+
