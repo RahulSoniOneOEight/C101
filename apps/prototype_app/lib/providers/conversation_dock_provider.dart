@@ -4,7 +4,7 @@ import '../domain/conversation_models.dart';
 
 enum ConversationAudience { household, business }
 
-enum ConversationDockTab { chat, sharedList }
+enum ConversationDockTab { chat, sharedList, assistant }
 
 class ConversationDockState {
   const ConversationDockState({

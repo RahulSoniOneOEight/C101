@@ -154,6 +154,7 @@ class DraftLine {
     required this.currencyCode,
     required this.productTitle,
     required this.sellerName,
+    this.sku = '',
     this.materialInstruction,
   });
 
@@ -167,6 +168,7 @@ class DraftLine {
   final String currencyCode;
   final String productTitle;
   final String sellerName;
+  final String sku;
   final String? materialInstruction;
 
   int get lineTotalMinor => quantity * unitAmountMinor;
@@ -184,6 +186,7 @@ class DraftLine {
       currencyCode: snapshot['currency_code'] as String? ?? 'INR',
       productTitle: snapshot['product_title'] as String? ?? 'Catalogue product',
       sellerName: snapshot['seller_name'] as String? ?? '',
+      sku: snapshot['sku'] as String? ?? '',
       materialInstruction: json['material_instruction'] as String?,
     );
   }

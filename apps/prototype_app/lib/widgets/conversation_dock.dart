@@ -15,6 +15,7 @@ import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../providers/workspace_providers.dart';
+import 'cart_build_sheet.dart';
 
 enum _HouseholdProjectAction { create, join }
 
@@ -109,6 +110,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
   List<WorkspaceMessage> _messages = const <WorkspaceMessage>[];
   WorkspaceSummary? _workspace;
   WorkspaceChannel? _channel;
+  WorkspaceChannel? _assistantChannel;
   WorkspaceDraftView? _draftView;
   WorkspaceInvitationPage? _invitationPage;
   WorkspaceInvitationCreated? _createdInvitation;
@@ -122,6 +124,11 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
   Timer? _poll;
 
   bool get _isHousehold => widget.audience == ConversationAudience.household;
+
+  WorkspaceChannel? get _activeChannel =>
+      ref.read(conversationDockProvider).tab == ConversationDockTab.assistant
+          ? _assistantChannel
+          : _channel;
 
   @override
   void initState() {
@@ -206,6 +213,8 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     final channel =
         channels.where((item) => item.kind == expectedKind).firstOrNull ??
             channels.firstOrNull;
+    final assistant =
+        channels.where((item) => item.kind == 'assistant').firstOrNull;
     final drafts = await api.getWorkspaceDrafts(workspace.id);
     final draft =
         drafts.isEmpty ? null : await api.getWorkspaceDraft(drafts.first.id);
@@ -220,6 +229,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     if (!mounted || _workspace?.id != workspace.id) return;
     setState(() {
       _channel = channel;
+      _assistantChannel = assistant;
       _messages = messages.messages;
       _cursor = messages.nextCursor;
       _draftView = draft;
@@ -230,19 +240,50 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     _scrollToBottom();
   }
 
+  Future<void> _selectTab(ConversationDockTab tab) async {
+    if (tab == ref.read(conversationDockProvider).tab) return;
+    ref.read(conversationDockProvider.notifier).selectTab(tab);
+    if (tab == ConversationDockTab.sharedList || !widget.active) return;
+    final channel =
+        tab == ConversationDockTab.assistant ? _assistantChannel : _channel;
+    if (channel == null) {
+      setState(() => _actionError = 'The assistant channel is not available.');
+      return;
+    }
+    setState(() {
+      _messages = const <WorkspaceMessage>[];
+      _cursor = null;
+    });
+    try {
+      final page = await ref
+          .read(experienceApiProvider)
+          .getWorkspaceMessages(channel.id);
+      if (!mounted) return;
+      setState(() {
+        _messages = page.messages;
+        _cursor = page.nextCursor;
+      });
+      await _markRead(page.messages, channel);
+      _scrollToBottom();
+    } catch (error) {
+      if (mounted) setState(() => _actionError = _friendlyError(error));
+    }
+  }
+
   Future<void> _selectWorkspace(WorkspaceSummary workspace) async {
     if (_busy || workspace.id == _workspace?.id) return;
     setState(() {
       _workspace = workspace;
       _channel = null;
+      _assistantChannel = null;
       _messages = const <WorkspaceMessage>[];
       _draftView = null;
       _invitationPage = null;
       _createdInvitation = null;
     });
-    ref
-        .read(conversationDockProvider.notifier)
-        .selectWorkspace(widget.audience, workspace.id);
+    ref.read(conversationDockProvider.notifier)
+      ..selectWorkspace(widget.audience, workspace.id)
+      ..selectTab(ConversationDockTab.chat);
     try {
       await _loadWorkspace(workspace);
       await _processCapture();
@@ -257,7 +298,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
   }
 
   Future<void> _pollMessages() async {
-    final channel = _channel;
+    final channel = _activeChannel;
     if (!widget.active || channel == null || _sending || _busy) return;
     try {
       final page = await ref
@@ -280,8 +321,11 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     }
   }
 
-  Future<void> _markRead(List<WorkspaceMessage> messages) async {
-    final channel = _channel;
+  Future<void> _markRead(
+    List<WorkspaceMessage> messages, [
+    WorkspaceChannel? source,
+  ]) async {
+    final channel = source ?? _activeChannel;
     if (channel == null || messages.isEmpty) return;
     final sequence = messages.last.sequence;
     if (sequence <= 0) return;
@@ -295,8 +339,14 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     }
   }
 
+  void _sendQuickPrompt(String prompt) {
+    if (_sending) return;
+    _composer.text = prompt;
+    unawaited(_send());
+  }
+
   Future<void> _send() async {
-    final channel = _channel;
+    final channel = _activeChannel;
     final text = _composer.text.trim();
     if (channel == null || text.isEmpty || _sending) return;
     setState(() {
@@ -320,7 +370,10 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     } catch (error) {
       if (mounted) setState(() => _actionError = _friendlyError(error));
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() => _sending = false);
+        unawaited(_pollMessages());
+      }
     }
   }
 
@@ -633,11 +686,13 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                       ? _loadError(colors)
                       : _workspace == null
                           ? _emptyWorkspace(colors)
-                          : dock.tab == ConversationDockTab.chat
-                              ? _chat(colors)
-                              : _sharedList(colors),
+                          : dock.tab == ConversationDockTab.sharedList
+                              ? _sharedList(colors)
+                              : _chat(colors),
             ),
-            if (_workspace != null && dock.tab == ConversationDockTab.chat)
+            if (_workspace != null &&
+                (dock.tab == ConversationDockTab.chat ||
+                    dock.tab == ConversationDockTab.assistant))
               _composerBar(colors),
           ],
         ),
@@ -663,16 +718,23 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.forum_outlined, color: colors.actionPrimary),
+                Icon(
+                  dock.tab == ConversationDockTab.assistant
+                      ? Icons.smart_toy_outlined
+                      : Icons.forum_outlined,
+                  color: colors.actionPrimary,
+                ),
                 const SizedBox(width: AgencySpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        _isHousehold
-                            ? 'Project conversation'
-                            : 'Procurement conversation',
+                        dock.tab == ConversationDockTab.assistant
+                            ? 'BuildKart Cart Assistant'
+                            : _isHousehold
+                                ? 'Project conversation'
+                                : 'Procurement conversation',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -680,7 +742,9 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                         ),
                       ),
                       Text(
-                        'Staging · Discussion never changes your cart',
+                        dock.tab == ConversationDockTab.assistant
+                            ? 'Automated · read-only · human escalation available'
+                            : 'Staging · Discussion never changes your cart',
                         style: TextStyle(
                             fontSize: 10, color: colors.contentSecondary),
                       ),
@@ -748,22 +812,27 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<ConversationDockTab>(
-                  segments: const <ButtonSegment<ConversationDockTab>>[
-                    ButtonSegment<ConversationDockTab>(
+                  segments: <ButtonSegment<ConversationDockTab>>[
+                    const ButtonSegment<ConversationDockTab>(
                       value: ConversationDockTab.chat,
                       icon: Icon(Icons.chat_bubble_outline, size: 16),
                       label: Text('Chat'),
                     ),
-                    ButtonSegment<ConversationDockTab>(
+                    const ButtonSegment<ConversationDockTab>(
                       value: ConversationDockTab.sharedList,
                       icon: Icon(Icons.playlist_add_check, size: 17),
                       label: Text('Shared list'),
                     ),
+                    if (_assistantChannel != null)
+                      const ButtonSegment<ConversationDockTab>(
+                        value: ConversationDockTab.assistant,
+                        icon: Icon(Icons.smart_toy_outlined, size: 16),
+                        label: Text('Assistant'),
+                      ),
                   ],
                   selected: <ConversationDockTab>{dock.tab},
-                  onSelectionChanged: (selection) => ref
-                      .read(conversationDockProvider.notifier)
-                      .selectTab(selection.first),
+                  onSelectionChanged: (selection) =>
+                      _selectTab(selection.first),
                 ),
               ),
             ],
@@ -914,6 +983,8 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
   }
 
   Widget _chat(AgencyColors colors) {
+    final assistant = ref.watch(conversationDockProvider).tab ==
+        ConversationDockTab.assistant;
     if (_messages.isEmpty) {
       return Center(
         child: Padding(
@@ -921,16 +992,48 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.chat_bubble_outline,
-                  size: 36, color: colors.contentSecondary),
+              Icon(
+                assistant
+                    ? Icons.smart_toy_outlined
+                    : Icons.chat_bubble_outline,
+                size: 36,
+                color: colors.contentSecondary,
+              ),
               const SizedBox(height: AgencySpacing.sm),
               Text(
-                _isHousehold
-                    ? 'No messages yet. Discuss a product or say hello.'
-                    : 'No messages yet. Start the procurement conversation.',
+                assistant
+                    ? 'Ask me to summarise the shared list, explain cart build, or flag a blocked quantity.'
+                    : _isHousehold
+                        ? 'No messages yet. Discuss a product or say hello.'
+                        : 'No messages yet. Start the procurement conversation.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: colors.contentSecondary),
               ),
+              if (assistant) ...<Widget>[
+                const SizedBox(height: AgencySpacing.md),
+                Wrap(
+                  spacing: AgencySpacing.xs,
+                  runSpacing: AgencySpacing.xs,
+                  alignment: WrapAlignment.center,
+                  children: <Widget>[
+                    ActionChip(
+                      label: const Text('Summarise the list'),
+                      onPressed: () =>
+                          _sendQuickPrompt('Summarise the shared list'),
+                    ),
+                    ActionChip(
+                      label: const Text('What is blocked?'),
+                      onPressed: () =>
+                          _sendQuickPrompt('What is missing or blocked?'),
+                    ),
+                    ActionChip(
+                      label: const Text('How does cart build work?'),
+                      onPressed: () =>
+                          _sendQuickPrompt('How does the cart build work?'),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -954,6 +1057,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
 
   Widget _messageBubble(
       AgencyColors colors, WorkspaceMessage message, bool mine) {
+    final isAssistant = message.actorId == 'assistant_cart';
     return Align(
       alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -962,7 +1066,14 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
         padding: const EdgeInsets.symmetric(
             horizontal: AgencySpacing.md, vertical: AgencySpacing.sm),
         decoration: BoxDecoration(
-          color: mine ? colors.actionPrimary : colors.surfaceInteractive,
+          color: isAssistant
+              ? colors.surfaceRaised
+              : mine
+                  ? colors.actionPrimary
+                  : colors.surfaceInteractive,
+          border: isAssistant
+              ? Border.all(color: colors.actionPrimary.withValues(alpha: 0.35))
+              : null,
           borderRadius: BorderRadius.circular(AgencyRadius.md),
         ),
         child: Column(
@@ -970,13 +1081,28 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
               mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: <Widget>[
             if (!mine)
-              Text(
-                message.actorName,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: colors.actionPrimary,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (isAssistant) ...<Widget>[
+                    Icon(Icons.smart_toy_outlined,
+                        size: 11, color: colors.actionPrimary),
+                    const SizedBox(width: 3),
+                  ],
+                  Flexible(
+                    child: Text(
+                      isAssistant
+                          ? 'Automated · ${message.actorName}'
+                          : message.actorName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: colors.actionPrimary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             Text(
               message.body,
@@ -1340,7 +1466,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
           const SizedBox(height: AgencySpacing.xs),
           Text(
             canSeeEntry
-                ? 'Price, stock, MOQ, seller and tax must be revalidated before this list can become a cart.'
+                ? 'Review the accepted revision. Current price, stock, MOQ and seller are checked before anything is added to the cart.'
                 : household
                     ? 'Only the project owner can see delivery, payment and checkout details.'
                     : 'Approvers can review revisions but cannot build a cart.',
@@ -1352,10 +1478,10 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => PinToast.show(
+                onPressed: () => showCartBuildSheet(
                   context,
-                  'Cart build is gated until Phase E is explicitly authorized.',
-                  tone: PinToastTone.warning,
+                  view: view,
+                  business: widget.audience == ConversationAudience.business,
                 ),
                 icon: const Icon(Icons.shopping_cart_checkout, size: 18),
                 label: const Text('Review before cart build'),
@@ -1367,51 +1493,69 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
     );
   }
 
-  Widget _composerBar(AgencyColors colors) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: colors.surfaceRaised,
-          border: Border(top: BorderSide(color: colors.borderDefault)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AgencySpacing.sm),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
+  Widget _composerBar(AgencyColors colors) {
+    final assistant = ref.watch(conversationDockProvider).tab ==
+        ConversationDockTab.assistant;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        border: Border(top: BorderSide(color: colors.borderDefault)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AgencySpacing.sm),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: <Widget>[
+            if (!assistant)
               IconButton(
                 tooltip: 'Add product',
                 onPressed: _busy ? null : () => _showProductPicker(),
                 icon: const Icon(Icons.add_circle_outline, size: 21),
               ),
-              const SizedBox(width: AgencySpacing.xs),
-              Expanded(
-                child: TextField(
-                  controller: _composer,
-                  minLines: 1,
-                  maxLines: 3,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
-                  decoration: const InputDecoration(
-                    hintText: 'Write a message',
-                    isDense: true,
-                  ),
+            if (!assistant && _assistantChannel != null)
+              IconButton(
+                tooltip: 'Mention cart assistant',
+                onPressed: () {
+                  _composer.text = '@assistant ';
+                  _composer.selection = const TextSelection.collapsed(
+                    offset: 11,
+                  );
+                },
+                icon: const Icon(Icons.smart_toy_outlined, size: 20),
+              ),
+            const SizedBox(width: AgencySpacing.xs),
+            Expanded(
+              child: TextField(
+                controller: _composer,
+                minLines: 1,
+                maxLines: 3,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _send(),
+                decoration: InputDecoration(
+                  hintText: assistant
+                      ? 'Ask the read-only cart assistant'
+                      : 'Write a message',
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: AgencySpacing.xs),
-              IconButton.filled(
-                tooltip: 'Send message',
-                onPressed: _sending ? null : _send,
-                icon: _sending
-                    ? const SizedBox(
-                        width: 17,
-                        height: 17,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send, size: 19),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: AgencySpacing.xs),
+            IconButton.filled(
+              tooltip: 'Send message',
+              onPressed: _sending ? null : _send,
+              icon: _sending
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send, size: 19),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
   Widget _errorStrip(AgencyColors colors, String message) => Container(
         width: double.infinity,

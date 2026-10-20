@@ -1,8 +1,8 @@
 adr_id: ADR-client101-013
 title: Cart assistant as a governed participant
-status: proposed
-decision_scope: design-only
-date_utc: '2026-10-20'
+status: accepted
+decision_scope: phase-c-deterministic-read-only-implementation
+date_utc: '2026-10-21'
 change: CHG-073
 supersedes: null
 context: >-
@@ -13,11 +13,12 @@ context: >-
 decision: >-
   Model the assistant as a distinct, non-human actor in the Workspace bounded context. It is
   mentionable in the project channel and has a separate assistant thread. The first implementation
-  is an automated assistant with a governed human-escalation path. It is read-only: it may summarise
-  the shared list, flag missing quantities or MOQ and suggest next actions. It may not decide
-  proposals, approve revisions, invite members, check out, read owner-only address/payment/GST
-  fields, or write to commerce. Any future cart preparation remains a suggestion. The owner, buyer
-  or account admin must still perform the explicit cart build after Phase E is authorized,
+  is a deterministic, on-platform assistant with a governed human-escalation path. It is read-only:
+  it may summarise the accepted shared list, report pending proposals, explain the cart handoff and
+  flag missing quantities or MOQ. It may not decide proposals, approve revisions, invite members,
+  check out, read owner-only address/payment/GST fields, or write to commerce. It has no external
+  model-provider call in this phase. Any future cart preparation remains a suggestion. The owner,
+  buyer or account admin must still perform the explicit cart build under CHG-072 Phase E, after
   revalidation, difference acknowledgement and the existing idempotent handoff.
 assistant_actor:
   kind: automated
@@ -26,16 +27,17 @@ assistant_actor:
   identity: workspace-scoped assistant principal, never a human user id
   escalation: human operations specialist joins the same thread with a distinct support role
 channels:
-  mention: '@assistant in the project channel'
-  direct_thread: separate assistant thread scoped to the project
-  isolation: assistant messages are not mixed into the human chat without an explicit mention/thread
+  mention: '@assistant in the project or procurement channel'
+  direct_thread: one assistant channel per workspace, visible to every active member
+  isolation: assistant messages enter the human thread only when explicitly mentioned; the direct thread is separate
 permissions:
   allowed:
-  - read project messages and product-share snapshots visible to the caller
-  - read the shared list, current revision and proposals
-  - summarise, flag missing quantities/MOQ/seller information and suggest actions
+  - read the caller's prompt and the accepted shared-list projection in the same workspace
+  - read the current revision totals, line count and pending-proposal count
+  - summarise, flag missing quantities/MOQ/seller information and explain the handoff
   - request human escalation
   forbidden:
+  - read unrelated human messages or owner-only records
   - read owner-only address, phone, GST, payment or checkout data
   - accept or reject proposals
   - approve or request changes to a revision
@@ -44,37 +46,42 @@ permissions:
   - change membership, roles or scope
   - call arbitrary tools or databases outside an allowlist
 privacy:
-  data_minimisation: send only the product/list fields needed for the current answer
-  redaction: strip owner-only fields before any model call
-  provider_training: disabled by contract; no reuse of conversation content for model training
-  retention: define and publish before implementation
-  audit: every assistant message, tool call, escalation and model request is attributable and retained
+  data_minimisation: read only aggregate list fields and product titles/quantities; no owner-only fields
+  redaction: owner-only address, phone, GST, payment and checkout data are never queried
+  provider: none in Phase C; deterministic rules run inside the Workspace service
+  provider_training: not applicable until a provider is approved
+  retention: assistant messages follow the existing workspace message retention in the Workspace database
+  audit: every assistant message and the triggering actor/message are written to activity_event
 prompt_injection:
-  product_content: treated as untrusted data, never as instructions
-  tool_allowlist: read-only assistant tools only
-  cart_write: impossible until a separate Phase E authorization changes the allowlist
-  escalation: suspicious content is surfaced to a human, not acted on
+  product_content: deterministic rules never execute product text as instructions
+  tool_allowlist: no model tools; only fixed read queries over the workspace projection
+  cart_write: impossible; the assistant has no cart or commerce client
+  escalation: policy-sensitive requests receive a human-escalation instruction, not an action
 escalation:
   trigger: user asks for a human, the assistant cannot resolve the request, or a policy-sensitive action is requested
   human_role: support specialist with audited, redacted project access
   continuity: the human joins the same thread; the assistant does not impersonate the human
   fallback: the human conversation remains fully usable if the assistant is unavailable
 phase_e_boundary:
-  current: read-only suggestions only
-  future: assistant may prepare a cart draft for owner/buyer review, but cannot execute the build
+  current: read-only summaries and handoff explanations only
+  handoff: the human owner/buyer opens Review before cart build under CHG-072 Phase E
+  assistant_write: none; the assistant cannot prepare or execute a cart write in Phase C
   required_controls:
-  - revalidate price, stock, MOQ, seller and tax
+  - revalidate price, stock, MOQ and seller
   - show differences and require acknowledgement
-  - idempotent canonical Medusa cart handoff per accepted revision
+  - idempotent handoff per accepted revision
   - no order completion from chat
 consequences:
-- A new assistant principal and channel/thread model are required before code.
-- Provider, residency and retention decisions must be approved before any conversation content leaves the platform.
+- The assistant is a new workspace actor represented by a separate assistant channel, not a human member.
+- No conversation content leaves the platform in Phase C.
 - The assistant cannot be used to bypass owner, buyer or approver rules.
-- Phase A (UX polish) does not depend on this ADR and may ship first.
+- A future model-backed assistant requires a new provider, residency and retention decision.
+implementation:
+  release: pending
+  backend: workspace service creates/ensures an assistant channel and answers deterministically
+  app: dock exposes an Assistant tab, @assistant mention action and visibly automated message styling
+  smoke: household smoke asserts a direct assistant reply and a mention reply
 open_questions:
-- Which model provider and hosting region?
-- What retention period applies to assistant threads and model requests?
 - Does the human escalation path use an existing support queue or a dedicated ops role?
-- Are assistant threads visible to the owner only, or to all project participants?
+- Should assistant unread replies contribute to the global conversation badge, or be shown separately?
 - What is the fallback when the assistant is unavailable or rate-limited?

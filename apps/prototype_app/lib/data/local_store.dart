@@ -33,6 +33,15 @@ class LocalStore {
   static const String _catalogKey = 'catalog_v1';
   static const String _recentlyViewedKey = 'recently_viewed_v1';
   static const String _fulfilmentPreferenceKey = 'fulfilment_preference_v1';
+  static const String _cartBuildsKey = 'cart_builds_v1';
+
+  Set<String> readCartBuilds() =>
+      (_prefs.getStringList(_cartBuildsKey) ?? const <String>[]).toSet();
+
+  Future<void> markCartBuild(String buildKey) async {
+    final keys = readCartBuilds()..add(buildKey);
+    await _prefs.setStringList(_cartBuildsKey, keys.toList());
+  }
 
   List<String> readRecentlyViewed() {
     return _prefs.getStringList(_recentlyViewedKey) ?? const <String>[];
@@ -199,7 +208,7 @@ class LocalStore {
   bool hasPaymentMethods() => _prefs.containsKey(_paymentsKey);
   bool hasTickets() => _prefs.containsKey(_ticketsKey);
 
-  // ---- Procurement lists (Quick Order → list journey) ----------------------
+  // ---- Procurement lists (Quick Order â†’ list journey) ----------------------
   static const String _procurementListsKey = 'procurement_lists_v1';
   bool hasProcurementLists() => _prefs.containsKey(_procurementListsKey);
 

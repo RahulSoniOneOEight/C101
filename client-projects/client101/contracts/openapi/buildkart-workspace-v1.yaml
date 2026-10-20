@@ -1,12 +1,14 @@
 openapi: 3.1.0
 info:
   title: BuildKart Collaborative Workspace API
-  version: 1.1.0-proposed
+  version: 1.2.0-proposed
   description: >-
     Proposed client-facing contract for the business-account and household collaborative workspace
     pilot. All routes are exposed through the Experience API. Commerce remains authoritative for
     carts, checkout, orders, prices and inventory. Household participants never receive owner-only
-    contact, address, GST, payment or checkout fields. This contract is not approved for production.
+    contact, address, GST, payment or checkout fields. Each workspace may expose one 'assistant'
+    channel; its replies are deterministic, read-only and visibly non-human, and have no cart,
+    approval or order write path. This contract is not approved for production.
 servers:
 - url: https://api-staging.pinakaplay.cloud
   description: Staging
@@ -795,7 +797,7 @@ components:
       properties:
         id: {type: string}
         workspace_id: {type: string}
-        kind: {type: string, enum: [procurement, approvals, project]}
+        kind: {type: string, enum: [procurement, approvals, project, assistant]}
         name: {type: string}
         status: {type: string, enum: [active, archived]}
         unread_count: {type: integer, minimum: 0}

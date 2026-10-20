@@ -642,13 +642,41 @@ final homeModulesProvider =
   final recentlyViewedIds = ref.watch(recentlyViewedProvider);
   final splitSlot = _splitSlotFor(recentlyViewedIds, products);
   final layoutModules = <MerchandisingModule>[];
+  List<Product> fallbackFor(String placement) {
+    switch (placement) {
+      case 'flash_deals':
+        final pool = products.where((p) => inFlashDeals(p.id)).toList();
+        return (pool.isEmpty ? products : pool).take(16).toList();
+      case 'best_sellers':
+        final pool = products.where((p) => inBestSellers(p.id)).toList();
+        return (pool.isEmpty ? products.skip(2).toList() : pool)
+            .take(16)
+            .toList();
+      case 'recommended':
+        return products.take(8).toList();
+      default:
+        return const <Product>[];
+    }
+  }
+
   for (final section in sections) {
-    final sectionProducts = ref.watch(sectionProductsProvider(section)).value;
-    // Still resolving, or the referenced collection has no products. A section
-    // that resolves nothing must not render a header over a blank rail; when all
-    // sections are empty the home falls through to the governed catalogue
-    // defaults below.
-    if (sectionProducts == null || sectionProducts.isEmpty) continue;
+    final seeded =
+        ref.watch(sectionProductsProvider(section)).value ?? const <Product>[];
+    // A published section must not disappear because its collection is empty or
+    // still resolving. Keep the operator's title/order and fill the rail from
+    // the governed staging collection, without duplicating server products.
+    final merged = <Product>[];
+    final seen = <String>{};
+    final limit = section.limit ?? 10;
+    for (final product in <Product>[
+      ...seeded,
+      ...fallbackFor(section.placement)
+    ]) {
+      if (seen.add(product.id)) merged.add(product);
+      if (merged.length >= limit) break;
+    }
+    final sectionProducts = merged;
+    if (sectionProducts.isEmpty) continue;
 
     // A section may carry a banner managed under Merchandising → Banners. It renders above the rail so
     // the creative and the products it introduces stay together.

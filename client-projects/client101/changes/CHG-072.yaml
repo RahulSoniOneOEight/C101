@@ -1,5 +1,5 @@
 change_id: CHG-072
-revision: 2
+revision: 3
 request: >-
   Make conversation a first-class layer over the existing storefront and trade pages in both
   channels: capture any catalogue product into a chat from the page the user is already on, discuss
@@ -106,6 +106,15 @@ decisions_approved:
     cart; checkout remains the existing address-first journey with an explicit user confirmation.
 - D-072-14: >-
     Cart build is idempotent per accepted revision, so a retry or double tap cannot duplicate lines.
+- D-072-15: >-
+    Phase E is authorized by the human requester on 2026-10-21 as a staging-only implementation.
+    The handoff revalidates the current offer, shows differences, requires acknowledgement, and
+    writes only the canonical cart for B2C or the existing quotation draft for B2B. It never creates
+    an order and never grants the assistant a commerce write path.
+- D-072-16: >-
+    A published Home section whose collection resolves empty must keep its operator title, order
+    and placement; the governed deterministic catalogue fills that rail instead of silently
+    dropping Best Sellers, Flash Deals or another configured module.
 conflicts_requiring_a_decision:
 - C-072-01: >-
     ADR-011 and the collaborative-workspace threat model declare B2C household collaboration out of
@@ -125,8 +134,9 @@ constraints:
 - Do not create a second commerce or customer register; Medusa remains the commerce owner.
 - Do not expose saved addresses, phone, GST or payment data to participants.
 - Do not let a participant check out, invite others, or mutate an accepted revision directly.
-- Do not implement Phase 3 revalidation or cart handoff until explicit human authorization is
-  recorded against this change.
+- Phase E revalidation and cart handoff are authorized for staging only. Keep the handoff explicit,
+  acknowledged, idempotent per accepted revision, and bound to the existing owner/buyer rules.
+- Never create an order, payment, address or owner-only projection as part of the handoff.
 - Do not carry the existing B2B header hit-testing defect into the new conversation dock.
 - Do not raise the pilot identity cap or add real external users.
 - Do not send WhatsApp or FCM messages to participants under this change.
@@ -158,8 +168,12 @@ implementation:
   requested_at_utc: '2026-10-20'
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
-  approval_scope: phases-a-to-d-only
+  approval_scope: phases-a-to-f
   status: approved-in-progress
+  phase_e_authorized_at_utc: '2026-10-21'
+  phase_e_authorized_by: human-requester
+  phase_e_status: implemented-pending-staging-verification
+  phase_e_scope: staging-only-explicit-cart-handoff
   phase_a_completed_at_utc: '2026-10-20'
   phase_b_completed_at_utc: '2026-10-20'
   phase_c_completed_at_utc: '2026-10-20'
@@ -188,10 +202,12 @@ implementation:
       entry. Deployed as 68ee397; automated tests and 89/89 Chrome checks at 390x844 and 360x800
       pass. No commerce write or cart handoff exists.
   - phase-e: >-
-      Phase 3 cart handoff only after explicit authorization: revalidate price, stock, MOQ, seller
-      and tax, show a difference preview, require acknowledgement, then add confirmed lines to the
-      canonical cart idempotently per revision. No order completion.
+      [in-progress] Authorized staging cart handoff: revalidate current price, stock, MOQ and seller,
+      show a difference preview, require acknowledgement, then add confirmed lines idempotently per
+      revision. B2C writes the canonical Medusa cart; B2B writes the existing quotation draft under
+      the current approval. No order completion.
   - phase-f: >-
-      Staging verification, tenant isolation, negative tests and Chrome acceptance at both sizes.
+      [in-progress] Staging verification, tenant isolation, negative tests and Chrome acceptance at
+      both sizes, including the Home module regression and the optional assistant read-only path.
 status: approved-in-progress
 production_release_authorized: false

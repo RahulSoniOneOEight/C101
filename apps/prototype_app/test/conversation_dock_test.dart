@@ -14,11 +14,15 @@ import 'package:prototype_app/widgets/conversation_bell.dart';
 import 'package:prototype_app/widgets/conversation_dock.dart';
 
 class _DockApi extends ExperienceApi {
-  _DockApi({this.householdMember = false, this.householdRole = 'member'})
-      : super(Dio());
+  _DockApi({
+    this.householdMember = false,
+    this.householdRole = 'member',
+    this.withAssistant = false,
+  }) : super(Dio());
 
   final bool householdMember;
   final String householdRole;
+  final bool withAssistant;
   bool draftCreated = false;
   bool proposalCreated = false;
   int shareCalls = 0;
@@ -32,6 +36,23 @@ class _DockApi extends ExperienceApi {
     workspaceId: 'ws_household',
     kind: 'project',
     name: 'Kitchen renovation',
+  );
+
+  static const assistantChannel = WorkspaceChannel(
+    id: 'ch_assistant',
+    workspaceId: 'ws_household',
+    kind: 'assistant',
+    name: 'BuildKart Cart Assistant',
+  );
+
+  static const assistantMessage = WorkspaceMessage(
+    id: 'msg_assistant',
+    channelId: 'ch_assistant',
+    actorId: 'assistant_cart',
+    actorName: 'BuildKart Cart Assistant',
+    body: 'Shared list has 2 lines and 4 units. I cannot build a cart.',
+    messageType: 'text',
+    sequence: 2,
   );
 
   WorkspaceSummary get workspace => WorkspaceSummary(
@@ -98,7 +119,10 @@ class _DockApi extends ExperienceApi {
   @override
   Future<List<WorkspaceChannel>> getWorkspaceChannels(
           String workspaceId) async =>
-      const <WorkspaceChannel>[channel];
+      <WorkspaceChannel>[
+        channel,
+        if (withAssistant) assistantChannel,
+      ];
 
   @override
   Future<List<WorkspaceDraft>> getWorkspaceDrafts(String workspaceId) async =>
@@ -166,13 +190,20 @@ class _DockApi extends ExperienceApi {
   Future<WorkspaceMessagePage> getWorkspaceMessages(
     String channelId, {
     String? cursor,
-  }) async =>
-      WorkspaceMessagePage(
-        messages: shareCalls == 0
-            ? const <WorkspaceMessage>[]
-            : <WorkspaceMessage>[sharedMessage],
-        nextCursor: shareCalls == 0 ? '0' : '1',
+  }) async {
+    if (channelId == assistantChannel.id) {
+      return const WorkspaceMessagePage(
+        messages: <WorkspaceMessage>[assistantMessage],
+        nextCursor: '2',
       );
+    }
+    return WorkspaceMessagePage(
+      messages: shareCalls == 0
+          ? const <WorkspaceMessage>[]
+          : <WorkspaceMessage>[sharedMessage],
+      nextCursor: shareCalls == 0 ? '0' : '1',
+    );
+  }
 
   @override
   Future<WorkspaceInvitationPage> getWorkspaceInvitations(
@@ -336,6 +367,39 @@ void main() {
     expect(find.text('Conversations'), findsNothing);
 
     await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Project conversation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('assistant has a separate, visibly automated thread at 360',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(360, 800);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(_DockApi(
+      householdMember: true,
+      householdRole: 'owner',
+      withAssistant: true,
+    )));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Assistant'), findsOneWidget);
+    await tester.tap(find.text('Assistant'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('BuildKart Cart Assistant'), findsWidgets);
+    expect(find.text('Automated · BuildKart Cart Assistant'), findsOneWidget);
+    expect(
+      find.text('Shared list has 2 lines and 4 units. I cannot build a cart.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Chat'));
     await tester.pumpAndSettle();
     expect(find.text('Project conversation'), findsOneWidget);
     expect(tester.takeException(), isNull);

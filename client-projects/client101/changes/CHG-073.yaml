@@ -1,5 +1,5 @@
 change_id: CHG-073
-revision: 1
+revision: 2
 request: >-
   Refine the Phase D conversation layer: make Discuss a compact icon on catalogue tiles, move the
   conversation entry beside the notification bell instead of a bottom floating button, add an
@@ -75,10 +75,17 @@ proposed_decisions:
     Any future assistant cart preparation remains read-only until Phase E is explicitly authorized.
     A cart is built only by an explicit owner/buyer action after revalidation, difference review and
     acknowledgement, using the same idempotent handoff as the non-assistant flow.
+- D-073-06: >-
+    Phase C is authorized by the human requester on 2026-10-21. The first implementation is a
+    deterministic, on-platform assistant with no external model provider: it reads only the accepted
+    shared-list projection, replies from governed rules, and writes only its own assistant message.
+    This resolves the external-provider privacy question by not sending conversation content to a
+    provider. Any future model-backed assistant remains a separate privacy and retention review.
 conflicts_requiring_a_decision:
 - C-073-01: >-
     The assistant introduces a new actor type and may send conversation content to an external model
-    provider. A privacy, retention and prompt-injection review is required before implementation.
+    provider. Resolved for Phase C by shipping a deterministic on-platform assistant with no provider
+    call; a model-backed assistant would require a new privacy, retention and prompt-injection review.
 - C-073-02: >-
     "Cart assistant" may mean an automated assistant or a human operations specialist. The actor,
     identity, availability and escalation model differ.
@@ -86,8 +93,9 @@ conflicts_requiring_a_decision:
     Moving the entry into the B2B header touches the known non-tappable header controls. That defect
     must be repaired and regression-tested rather than inherited.
 - C-073-04: >-
-    Phase E remains unauthorized. Assistant suggestions may reference a possible cart, but no
-    commerce write or order completion is permitted under this change until Phase E is approved.
+    Phase E is authorized separately under CHG-072 for the explicit human handoff. Assistant
+    suggestions may reference that control, but the assistant itself still has no cart, checkout or
+    order write path under CHG-073.
 constraints:
 - Staging only; production release remains unauthorized.
 - No cart, checkout or order write in CHG-073 phases A-C.
@@ -110,12 +118,12 @@ proposed_phases:
     escalation, actor identity, permissions, data flow, retention, prompt-injection controls and
     audit. See ADR-client101-013. No assistant code.
 - phase-c: >-
-    Assistant implementation as a read-only participant with mentions and a separate assistant
-    thread. Requires explicit authorization after Phase B review. No proposal decisions, approvals,
-    checkout or commerce writes.
+    [implemented-pending-staging-verification] Read-only assistant participant with a separate
+    channel, @assistant mentions in the human thread, deterministic summaries and explicit limits.
+    No proposal decisions, approvals, checkout or commerce writes.
 - phase-d: >-
-    Optional assistant cart preparation only after Phase E authorization. Revalidation, difference
-    acknowledgement and idempotent canonical cart handoff remain Phase E.
+    [not-implemented] Optional assistant cart preparation. The human cart handoff is delivered under
+    CHG-072 Phase E; the assistant has no write path of its own.
 required_tests:
 - Discuss icon has a 44dp target, an accessible label and no card reflow at 390x844 and 360x800.
 - The header conversation entry sits beside the notification bell, shows unread state and opens the
@@ -136,8 +144,13 @@ implementation:
   requested_at_utc: '2026-10-20'
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
-  approval_scope: phase-a-and-phase-b-design-only
-  status: phase-a-complete-phase-b-design-complete
+  approval_scope: phase-a-to-phase-c
+  status: phase-a-complete-phase-b-design-complete-phase-c-implemented
+  phase_c_authorized_at_utc: '2026-10-21'
+  phase_c_authorized_by: human-requester
+  phase_c_status: implemented-pending-staging-verification
+  phase_c_mode: deterministic-on-platform-read-only
+  phase_c_provider: none
   phase_a_completed_at_utc: '2026-10-21'
   phase_a_release: fe3e947
   phase_a_frontend_commit: fe3e947

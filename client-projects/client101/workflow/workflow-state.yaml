@@ -20,12 +20,12 @@ blocked: false
 human_approvals:
 - change_id: CHG-072
   approved_by: human-requester
-  approved_at_utc: '2026-10-20'
-  scope: phases-a-to-d-only
+  approved_at_utc: '2026-10-21'
+  scope: phases-a-to-f-staging-only
 - change_id: CHG-073
   approved_by: human-requester
-  approved_at_utc: '2026-10-20'
-  scope: phase-a-and-phase-b-design-only
+  approved_at_utc: '2026-10-21'
+  scope: phase-a-to-phase-c-deterministic-assistant
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -34,22 +34,24 @@ active_changes:
   - phase-b
   - phase-c
   - phase-d
-  active_phase: phase-d-human-review
+  active_phase: phase-e-cart-handoff-and-phase-f-verification
   phase_d_completed_at_utc: '2026-10-20'
   phase_d_release: 68ee397
   phase_d_status: chrome-accepted-awaiting-human-review
   phase_c_release: e7e84ba
-  blocked_phases:
-  - phase-e
+  phase_e_authorized_at_utc: '2026-10-21'
+  phase_e_status: implemented-pending-staging-verification
+  phase_f_status: pending-staging-verification
   production_release_authorized: false
 - change_id: CHG-073
   status: approved-in-progress
   approval_required: true
-  approval_scope: phase-a-and-phase-b-design-only
+  approval_scope: phase-a-to-phase-c-deterministic-assistant
   completed_phases:
   - phase-a
   - phase-b-design
-  active_phase: phase-c-awaiting-authorization
+  active_phase: phase-c-staging-verification
+  phase_c_status: implemented-pending-staging-verification
   scope: conversation-ux-and-cart-assistant
   proposal: client-projects/client101/changes/CHG-073.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md

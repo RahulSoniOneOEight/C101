@@ -109,6 +109,8 @@ try {
   );
   const projectChannel = channels.channels.find((channel) => channel.kind === "project");
   assert.ok(projectChannel, "household project must expose a project channel");
+  const assistantChannel = channels.channels.find((channel) => channel.kind === "assistant");
+  assert.ok(assistantChannel, "household project must expose an assistant channel");
 
   // Invitation negatives run while the project still has capacity.
   const misdirected = await call<{ invite_token: string }>(
@@ -321,6 +323,36 @@ try {
   }>(owner, "GET", `/v1/purchase-drafts/${draftId}`);
   assert.equal(accepted.draft.current_version, 2);
   assert.equal(accepted.revision.lines[0].quantity, 3);
+
+  // The assistant is a separate, read-only participant and answers in its own
+  // thread. It reports the accepted revision but never claims a cart write.
+  await call(participant1, "POST", `/v1/channels/${assistantChannel.id}/messages`, {
+    body: "Summarise the shared list",
+  }, 201);
+  const assistantThread = await call<{
+    messages: Array<{ actor_id: string; body: string }>;
+  }>(owner, "GET", `/v1/channels/${assistantChannel.id}/messages`);
+  const assistantReply = assistantThread.messages.find(
+    (message) => message.actor_id === "assistant_cart",
+  );
+  assert.ok(assistantReply, "assistant channel must contain an assistant reply");
+  assert.match(assistantReply.body, /Shared list/);
+  assert.match(assistantReply.body, /cannot change the list|read-only/i);
+
+  // A mention in the human thread is answered by the same assistant actor.
+  await call(participant1, "POST", `/v1/channels/${projectChannel.id}/messages`, {
+    body: "@assistant how does the cart build work?",
+  }, 201);
+  const projectThread = await call<{
+    messages: Array<{ actor_id: string; body: string }>;
+  }>(owner, "GET", `/v1/channels/${projectChannel.id}/messages`);
+  const mentionedReply = projectThread.messages.find(
+    (message) =>
+      message.actor_id === "assistant_cart" &&
+      /cart build|owner or buyer/i.test(message.body),
+  );
+  assert.ok(mentionedReply, "assistant mention must be answered in the human thread");
+  assert.match(mentionedReply.body, /cannot build a cart/i);
 
   // Household has no approval step.
   const approval = await call<{ code?: string }>(

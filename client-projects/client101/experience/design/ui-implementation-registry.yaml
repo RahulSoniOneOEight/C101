@@ -916,6 +916,32 @@ components:
     status: staging-prototype
   qa:
     flutter: widget+role-matrix
+- semantic_id: collaboration.cart-assistant-thread
+  aliases:
+  - buildkart-cart-assistant
+  - assistant-participant
+  - assistant-mention
+  flutter:
+    owned_component: ConversationDockPanel
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+role-matrix+audit
+- semantic_id: collaboration.cart-build-review
+  aliases:
+  - revalidate-before-cart
+  - difference-acknowledgement
+  - shared-list-to-cart
+  flutter:
+    owned_component: CartBuildSheet
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+role-matrix
 specialists:
   icons:
     primary: Phosphor

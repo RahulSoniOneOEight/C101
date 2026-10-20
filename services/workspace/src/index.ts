@@ -270,6 +270,7 @@ async function createWorkspace(req: Request, actor: Actor): Promise<Response> {
   const workspaceId = `ws_${randomUUID().replaceAll("-", "")}`;
   const procurementId = `ch_${randomUUID().replaceAll("-", "")}`;
   const approvalsId = `ch_${randomUUID().replaceAll("-", "")}`;
+  const assistantId = `ch_${randomUUID().replaceAll("-", "")}`;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -285,8 +286,10 @@ async function createWorkspace(req: Request, actor: Actor): Promise<Response> {
     );
     await client.query(
       `insert into channel (id, workspace_id, kind, name)
-       values ($1, $2, 'procurement', 'Procurement'), ($3, $2, 'approvals', 'Approvals')`,
-      [procurementId, workspaceId, approvalsId],
+       values ($1, $2, 'procurement', 'Procurement'),
+              ($3, $2, 'approvals', 'Approvals'),
+              ($4, $2, 'assistant', 'BuildKart Cart Assistant')`,
+      [procurementId, workspaceId, approvalsId, assistantId],
     );
     await client.query(
       `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
@@ -339,6 +342,7 @@ async function createHouseholdProject(req: Request, actor: Actor): Promise<Respo
   const workspaceId = `ws_${randomUUID().replaceAll("-", "")}`;
   const scopeId = `household_${randomUUID().replaceAll("-", "")}`;
   const channelId = `ch_${randomUUID().replaceAll("-", "")}`;
+  const assistantId = `ch_${randomUUID().replaceAll("-", "")}`;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -354,8 +358,9 @@ async function createHouseholdProject(req: Request, actor: Actor): Promise<Respo
     );
     await client.query(
       `insert into channel (id, workspace_id, kind, name)
-       values ($1, $2, 'project', $3)`,
-      [channelId, workspaceId, name],
+       values ($1, $2, 'project', $3),
+              ($4, $2, 'assistant', 'BuildKart Cart Assistant')`,
+      [channelId, workspaceId, name, assistantId],
     );
     await client.query(
       `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
@@ -645,11 +650,137 @@ async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
   });
 }
 
+const ASSISTANT_ACTOR_ID = "assistant_cart";
+const ASSISTANT_ACTOR_NAME = "BuildKart Cart Assistant";
+
+/**
+ * Every workspace gets one assistant channel. It is created lazily for older
+ * workspaces and explicitly for new ones, so existing staging data converges
+ * without a destructive migration.
+ */
+async function ensureAssistantChannel(workspaceId: string): Promise<void> {
+  await pool.query(
+    `insert into channel (id, workspace_id, kind, name)
+     values ($1, $2, 'assistant', 'BuildKart Cart Assistant')
+     on conflict (workspace_id, kind) do nothing`,
+    [`ch_${randomUUID().replaceAll("-", "")}`, workspaceId],
+  );
+}
+
+function moneyLabel(minor: number, currency: string): string {
+  const amount = (minor / 100).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${currency} ${amount}`;
+}
+
+async function assistantReplyText(workspaceId: string, prompt: string): Promise<string> {
+  const draftResult = await pool.query(
+    `select d.id, d.name, d.lifecycle_status, d.current_version, dr.id as revision_id
+       from purchase_draft d
+       left join draft_revision dr
+         on dr.draft_id = d.id and dr.version = d.current_version
+      where d.workspace_id = $1
+      order by d.updated_at desc
+      limit 1`,
+    [workspaceId],
+  );
+  const draft = draftResult.rows[0];
+  if (!draft) {
+    return "There is no shared list in this workspace yet. Open a product and use Discuss to add it to the conversation; I can then summarise the list for everyone.";
+  }
+  if (!draft.revision_id) {
+    return `The shared list “${draft.name}” has no accepted revision yet. Add a product, then the owner or buyer must accept the change before I can report confirmed quantities. I cannot accept it for them.`;
+  }
+
+  const totals = await pool.query(
+    `select count(*)::int as line_count,
+            coalesce(sum(quantity), 0)::int as units,
+            coalesce(sum(quantity * ((commercial_snapshot->>'unit_amount_minor')::int)), 0)::bigint as total_minor,
+            coalesce(max(commercial_snapshot->>'currency_code'), 'INR') as currency
+       from draft_line_revision
+      where revision_id = $1`,
+    [draft.revision_id],
+  );
+  const top = await pool.query(
+    `select commercial_snapshot->>'product_title' as title, quantity, line_key
+       from draft_line_revision
+      where revision_id = $1
+      order by quantity desc, line_key asc
+      limit 3`,
+    [draft.revision_id],
+  );
+  const proposals = await pool.query(
+    `select count(*)::int as count
+       from proposal
+      where draft_id = $1 and status = 'pending'`,
+    [draft.id],
+  );
+  const row = totals.rows[0];
+  const units = Number(row.units ?? 0);
+  const lineCount = Number(row.line_count ?? 0);
+  const total = Number(row.total_minor ?? 0);
+  const currency = String(row.currency ?? "INR");
+  const topText = top.rows.length
+    ? top.rows
+        .map((item) => `${String(item.title || "Catalogue product")} ×${Number(item.quantity)}`)
+        .join(", ")
+    : "no lines";
+  const summary =
+    `Shared list “${draft.name}” · revision v${draft.current_version} · ${draft.lifecycle_status}. ` +
+    `${lineCount} line${lineCount === 1 ? "" : "s"}, ${units} unit${units === 1 ? "" : "s"}, ` +
+    `${moneyLabel(total, currency)} at the accepted snapshot. Top lines: ${topText}. ` +
+    `${Number(proposals.rows[0]?.count ?? 0)} pending proposal(s).`;
+
+  const lower = prompt.toLowerCase();
+  if (/(cart|build|checkout|order)/.test(lower)) {
+    return `${summary} Cart build is a separate, explicit handoff: an owner or buyer opens Review before cart build, sees current price/stock/seller/MOQ differences, and acknowledges them. I cannot build a cart, create an order, approve a revision, invite anyone, or read address/payment/GST data. Human escalation: ask the workspace owner or buyer to review the list.`;
+  }
+  if (/(moq|stock|price|missing|quantity|difference|revalidate)/.test(lower)) {
+    return `${summary} I can flag that MOQ, price, stock and seller are rechecked at cart-build review; I do not hold live commerce data in this chat. A blocked line stays blocked until the shared list is updated. Human escalation: ask the owner or buyer.`;
+  }
+  if (/(help|what can|capabil)/.test(lower)) {
+    return "I am a read-only cart assistant. I can summarise the accepted shared list, quantities and pending proposals, explain the cart handoff, and point a blocked question to a human owner or buyer. I cannot change the list, approve a revision, invite participants, read owner-only fields, build a cart, or create an order.";
+  }
+  return `${summary} I can summarise the list, explain the next cart step, or flag a blocked quantity. I cannot change the list or decide anything; a human owner or buyer remains the decision-maker.`;
+}
+
+async function postAssistantReply(
+  workspaceId: string,
+  channelId: string,
+  prompt: string,
+): Promise<void> {
+  const text = await assistantReplyText(workspaceId, prompt);
+  const messageId = `msg_${randomUUID().replaceAll("-", "")}`;
+  const inserted = await pool.query(
+    `insert into message
+       (id, workspace_id, channel_id, actor_id, actor_name, body, message_type)
+     values ($1, $2, $3, $4, $5, $6, 'text')
+     returning id, workspace_id, channel_id, actor_id, actor_name, body, message_type, sequence, created_at`,
+    [messageId, workspaceId, channelId, ASSISTANT_ACTOR_ID, ASSISTANT_ACTOR_NAME, text.slice(0, 4000)],
+  );
+  const row = inserted.rows[0];
+  await pool.query(
+    `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
+     values ($1, $2, 'message.created', $3, $4, $5)`,
+    [
+      `act_${randomUUID().replaceAll("-", "")}`,
+      workspaceId,
+      JSON.stringify({ type: "message", id: messageId, channel_id: channelId, actor: "assistant" }),
+      ASSISTANT_ACTOR_ID,
+      JSON.stringify({ message_type: "assistant_reply" }),
+    ],
+  );
+  broadcast(workspaceId, { type: "message.created", message: row });
+}
+
 async function listChannels(workspaceId: string, actor: Actor): Promise<Response> {
   const workspace = await workspaceForMember(workspaceId, actor);
   if (!workspace) {
     return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
   }
+  await ensureAssistantChannel(workspaceId);
   const result = await pool.query(
     `select c.id, c.workspace_id, c.kind, c.name, c.status, c.created_at,
             coalesce((
@@ -836,6 +967,16 @@ async function postMessage(
     client.release();
   }
   broadcast(channel.workspace_id, { type: "message.created", message: row });
+  // The assistant is a distinct, read-only participant. It answers in its own
+  // channel and when explicitly mentioned in the group conversation. It never
+  // receives a cart/order write path and its actor id is never a human user.
+  if (channel.kind === "assistant" || /(^|\s)@assistant\b/i.test(text)) {
+    try {
+      await postAssistantReply(channel.workspace_id, channelId, text);
+    } catch (error) {
+      console.warn("[workspace] assistant reply failed:", (error as Error).message);
+    }
+  }
   return json(
     {
       message: row,

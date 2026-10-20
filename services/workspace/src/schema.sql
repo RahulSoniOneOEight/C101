@@ -207,7 +207,7 @@ ALTER TABLE workspace_member ADD CONSTRAINT workspace_member_role_check
 
 ALTER TABLE channel DROP CONSTRAINT IF EXISTS channel_kind_check;
 ALTER TABLE channel ADD CONSTRAINT channel_kind_check
-  CHECK (kind IN ('procurement', 'approvals', 'project'));
+  CHECK (kind IN ('procurement', 'approvals', 'project', 'assistant'));
 
 -- One active owner per workspace. B2B workspaces have no 'owner' row, so this never applies there.
 CREATE UNIQUE INDEX IF NOT EXISTS workspace_one_active_owner_idx
@@ -285,7 +285,9 @@ INSERT INTO channel (id, workspace_id, kind, name)
 VALUES
   ('ch_arjun_procurement', 'ws_arjun_procurement', 'procurement', 'Procurement'),
   ('ch_arjun_approvals', 'ws_arjun_procurement', 'approvals', 'Approvals'),
-  ('ch_shakti_procurement', 'ws_shakti_procurement', 'procurement', 'Procurement')
+  ('ch_arjun_assistant', 'ws_arjun_procurement', 'assistant', 'BuildKart Cart Assistant'),
+  ('ch_shakti_procurement', 'ws_shakti_procurement', 'procurement', 'Procurement'),
+  ('ch_shakti_assistant', 'ws_shakti_procurement', 'assistant', 'BuildKart Cart Assistant')
 ON CONFLICT (workspace_id, kind) DO NOTHING;
 
 INSERT INTO message (id, workspace_id, channel_id, actor_id, actor_name, body, message_type)
