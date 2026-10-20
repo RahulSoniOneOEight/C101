@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
+import '../domain/conversation_models.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 
 /// The **single** shared B2B trade product tile, used by B2B Home, the
 /// Catalogue and Trade Offers & Deals so the card is identical everywhere.
@@ -33,6 +35,12 @@ Widget tradeProductTile(
           ))
       .toList();
   final brand = p.product.brand?.trim();
+  final bestSeller = p.bestSeller;
+  final discussedVariant = bestSeller == null
+      ? p.product.defaultVariant
+      : p.product.variants
+          .where((variant) => variant.offerId == bestSeller.id)
+          .firstOrNull;
   return TradeProductCardCompact(
     title: p.product.title,
     // The grouped SKU count matters more than the variant list on a card: it
@@ -64,6 +72,17 @@ Widget tradeProductTile(
         SnackBar(content: Text('Added $quantity pcs of ${p.product.title}')),
       );
     },
+    onDiscuss: () => ref.read(conversationDockProvider.notifier).discuss(
+          ConversationAudience.business,
+          ConversationProductCapture.fromProduct(
+            p.product,
+            variant: discussedVariant,
+            quantity: quantity,
+            sellerName: bestSeller?.name,
+            unitPrice: p.unitPriceFor(quantity),
+            offerId: bestSeller?.id,
+          ),
+        ),
     onTap: () => context.push('/b2b/pdp/${p.product.id}'),
   );
 }

@@ -196,40 +196,88 @@ try {
   );
   assert.ok(messages.messages.some((message) => message.body === `Participant message ${suffix}`));
 
-  // Owner creates the shared list; the participant proposes a quantity change.
-  const draft = await call<{ draft: { id: string; current_version: number } }>(
+  // A product capture is de-duplicated per conversation.
+  const shareBody = {
+    product_id: "prod_smoke",
+    variant_id: "variant_smoke",
+    offer_id: "offer_smoke",
+    quantity: 1,
+    product_title: "Smoke renovation product",
+    commercial_snapshot: {
+      product_title: "Smoke renovation product",
+      unit_amount_minor: 10000,
+      currency_code: "INR",
+    },
+  };
+  const shared = await call<{ id: string }>(
+    participant1,
+    "POST",
+    `/v1/channels/${projectChannel.id}/shares`,
+    shareBody,
+    201,
+  );
+  const duplicateShare = await call<{ id: string }>(
     owner,
+    "POST",
+    `/v1/channels/${projectChannel.id}/shares`,
+    shareBody,
+  );
+  assert.equal(duplicateShare.id, shared.id);
+
+  const line = {
+    line_key: `line_${suffix}`,
+    product_id: "prod_smoke",
+    variant_id: "variant_smoke",
+    seller_id: "seller_smoke",
+    offer_id: "offer_smoke",
+    fulfilment_context_id: "default",
+    quantity: 1,
+    unit_amount_minor: 10000,
+    currency_code: "INR",
+    commercial_snapshot: {
+      product_title: "Smoke renovation product",
+      unit_amount_minor: 10000,
+      currency_code: "INR",
+    },
+  };
+
+  // A participant cannot create an accepted revision directly.
+  const directRevision = await call<{ code?: string }>(
+    participant1,
+    "POST",
+    `/v1/workspaces/${workspaceId}/purchase-drafts`,
+    {
+      name: "Forbidden direct revision",
+      channel_id: projectChannel.id,
+      lines: [line],
+    },
+    403,
+  );
+  assert.equal(directRevision.code, "participant-must-propose");
+
+  // The participant may initialize an empty shared-list aggregate and propose
+  // its first line. No immutable revision exists until the owner accepts.
+  const draft = await call<{ draft: { id: string; current_version: number } }>(
+    participant1,
     "POST",
     `/v1/workspaces/${workspaceId}/purchase-drafts`,
     {
       name: "Shared renovation list",
       channel_id: projectChannel.id,
-      lines: [
-        {
-          line_key: `line_${suffix}`,
-          product_id: "prod_smoke",
-          variant_id: "variant_smoke",
-          seller_id: "seller_smoke",
-          offer_id: "offer_smoke",
-          fulfilment_context_id: "default",
-          quantity: 1,
-          unit_amount_minor: 10000,
-          currency_code: "INR",
-          commercial_snapshot: { unit_amount_minor: 10000, currency_code: "INR" },
-        },
-      ],
+      lines: [],
     },
     201,
   );
   const draftId = draft.draft.id;
-  const proposal = await call<{ proposal_id: string }>(
+  assert.equal(draft.draft.current_version, 0);
+  const firstLineProposal = await call<{ proposal_id: string }>(
     participant1,
     "POST",
     `/v1/purchase-drafts/${draftId}/proposals`,
     {
       expected_version: draft.draft.current_version,
-      kind: "update_quantity",
-      payload: { line_key: `line_${suffix}`, quantity: 3 },
+      kind: "add_line",
+      payload: { line },
     },
     201,
   );
@@ -238,19 +286,39 @@ try {
   const selfDecision = await call<{ code?: string }>(
     participant1,
     "POST",
-    `/v1/proposals/${proposal.proposal_id}/accept`,
+    `/v1/proposals/${firstLineProposal.proposal_id}/accept`,
     {},
     403,
   );
   assert.equal(selfDecision.code, "proposal-decision-forbidden");
 
-  // The owner accepts, creating exactly one new revision.
-  await call(owner, "POST", `/v1/proposals/${proposal.proposal_id}/accept`, {});
+  await call(owner, "POST", `/v1/proposals/${firstLineProposal.proposal_id}/accept`, {});
+  const firstRevision = await call<{
+    draft: { current_version: number };
+    revision: { lines: Array<{ quantity: number }> };
+  }>(owner, "GET", `/v1/purchase-drafts/${draftId}`);
+  assert.equal(firstRevision.draft.current_version, 1);
+  assert.equal(firstRevision.revision.lines[0].quantity, 1);
+
+  // A participant quantity edit is another proposal; only owner acceptance
+  // creates the next immutable revision.
+  const quantityProposal = await call<{ proposal_id: string }>(
+    participant1,
+    "POST",
+    `/v1/purchase-drafts/${draftId}/proposals`,
+    {
+      expected_version: firstRevision.draft.current_version,
+      kind: "update_quantity",
+      payload: { line_key: `line_${suffix}`, quantity: 3 },
+    },
+    201,
+  );
+  await call(owner, "POST", `/v1/proposals/${quantityProposal.proposal_id}/accept`, {});
   const accepted = await call<{
     draft: { current_version: number };
     revision: { lines: Array<{ quantity: number }> };
   }>(owner, "GET", `/v1/purchase-drafts/${draftId}`);
-  assert.equal(accepted.draft.current_version, draft.draft.current_version + 1);
+  assert.equal(accepted.draft.current_version, 2);
   assert.equal(accepted.revision.lines[0].quantity, 3);
 
   // Household has no approval step.
@@ -284,7 +352,7 @@ try {
   assert.equal(outsiderRead.code, "workspace-not-found");
 
   console.log(
-    "household smoke passed: create, invite x3, cap, chat, proposal, owner acceptance, redaction, 404 isolation, revoke",
+    "household smoke passed: create, invite x3, cap, chat, de-duplicated share, proposal-only participant revisions, owner acceptance, redaction, 404 isolation, revoke",
   );
 } finally {
   if (workspaceId) {

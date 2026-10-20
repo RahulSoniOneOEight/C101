@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
+import '../widgets/conversation_dock.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/quick_add_sheet.dart';
@@ -16,14 +19,31 @@ import '../widgets/quick_add_sheet.dart';
 /// navigation (Home / Browse / Cart / Account). Orders is reached from Account
 /// rather than occupying its own tab.
 class D2CShell extends StatelessWidget {
-  const D2CShell({required this.navigationShell, super.key});
+  const D2CShell({
+    required this.navigationShell,
+    required this.currentPath,
+    super.key,
+  });
 
   final StatefulNavigationShell navigationShell;
+  final String currentPath;
+
+  bool get _conversationEnabled =>
+      currentPath == '/' ||
+      currentPath == '/browse' ||
+      currentPath == '/search' ||
+      currentPath == '/cart' ||
+      currentPath.startsWith('/collections/') ||
+      currentPath.startsWith('/product/');
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: ConversationDockHost(
+        audience: ConversationAudience.household,
+        enabled: _conversationEnabled,
+        child: navigationShell,
+      ),
       bottomNavigationBar: AppBottomNavigation(
         items: const <BottomNavItem>[
           BottomNavItem(label: 'Home', icon: Icons.home_outlined),
@@ -430,10 +450,17 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
       onAddToCart: () => _quickAdd(product),
+      onDiscuss: () => _discuss(product),
       wishlisted: wishlisted,
       onWishlist: () => ref.read(wishlistProvider.notifier).toggle(product.id),
     );
   }
+
+  void _discuss(Product product) =>
+      ref.read(conversationDockProvider.notifier).discuss(
+            ConversationAudience.household,
+            ConversationProductCapture.fromProduct(product),
+          );
 
   Future<void> _quickAdd(Product product) async {
     final variants = purchasableQuickAddVariants(product);
@@ -579,6 +606,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                   variant: ProductCardVariant.compact,
                   onPressed: () => context.push('/product/${p.id}'),
                   onAddToCart: () => _quickAdd(p),
+                  onDiscuss: () => _discuss(p),
                 ),
               );
             },

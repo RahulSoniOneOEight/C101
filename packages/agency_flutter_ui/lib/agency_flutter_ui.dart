@@ -520,6 +520,7 @@ class ProductCard extends StatelessWidget {
     this.variant = ProductCardVariant.compact,
     this.onPressed,
     this.onAddToCart,
+    this.onDiscuss,
     this.wishlisted = false,
     this.onWishlist,
     this.state = CommerceFixture.defaultState,
@@ -539,6 +540,7 @@ class ProductCard extends StatelessWidget {
   final ProductCardVariant variant;
   final VoidCallback? onPressed;
   final VoidCallback? onAddToCart;
+  final VoidCallback? onDiscuss;
   final bool wishlisted;
   final VoidCallback? onWishlist;
   final CommerceFixture state;
@@ -703,6 +705,40 @@ class ProductCard extends StatelessWidget {
                         color: wishlisted
                             ? colors.promotion
                             : colors.contentSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (onDiscuss != null)
+              Positioned(
+                left: AgencySpacing.xs,
+                bottom: AgencySpacing.xs,
+                child: Material(
+                  color: colors.surfaceRaised.withValues(alpha: 0.94),
+                  borderRadius: BorderRadius.circular(999),
+                  child: InkWell(
+                    onTap: onDiscuss,
+                    borderRadius: BorderRadius.circular(999),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(Icons.forum_outlined,
+                                size: 15, color: colors.actionPrimary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Discuss',
+                              style: AgencyText.label.copyWith(
+                                color: colors.actionPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -1635,6 +1671,7 @@ class CompactProductItem extends StatelessWidget {
     this.discountLabel,
     this.onPressed,
     this.onAdd,
+    this.onDiscuss,
     super.key,
   });
 
@@ -1644,6 +1681,7 @@ class CompactProductItem extends StatelessWidget {
   final String? discountLabel;
   final VoidCallback? onPressed;
   final VoidCallback? onAdd;
+  final VoidCallback? onDiscuss;
 
   @override
   Widget build(BuildContext context) {
@@ -1695,6 +1733,37 @@ class CompactProductItem extends StatelessWidget {
                               fontSize: 9,
                               height: 1.2,
                               fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (onDiscuss != null)
+                      Positioned(
+                        left: 4,
+                        bottom: 4,
+                        child: Material(
+                          color: colors.surfaceRaised.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            onTap: onDiscuss,
+                            borderRadius: BorderRadius.circular(999),
+                            child: ConstrainedBox(
+                              constraints:
+                                  const BoxConstraints(minHeight: 44),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 7),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(Icons.forum_outlined, size: 13),
+                                    SizedBox(width: 3),
+                                    Text('Discuss',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),

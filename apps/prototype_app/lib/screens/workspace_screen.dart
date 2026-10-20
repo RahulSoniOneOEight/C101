@@ -156,29 +156,23 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     if (quantity < 1) return;
     await _runDraftAction(
       () => ref.read(experienceApiProvider).proposeDraftChange(
-            draftId: view.draft.id,
-            expectedVersion: revision.version,
-            kind: 'update_quantity',
-            payload: <String, dynamic>{
-              'line_key': line.lineKey,
-              'quantity': quantity,
-            },
-          ),
+        draftId: view.draft.id,
+        expectedVersion: revision.version,
+        kind: 'update_quantity',
+        payload: <String, dynamic>{
+          'line_key': line.lineKey,
+          'quantity': quantity,
+        },
+      ),
     );
   }
 
-  Future<void> _acceptProposal(DraftProposal proposal) =>
-      _runDraftAction(
-        () => ref
-            .read(experienceApiProvider)
-            .acceptProposal(proposal.id),
+  Future<void> _acceptProposal(DraftProposal proposal) => _runDraftAction(
+        () => ref.read(experienceApiProvider).acceptProposal(proposal.id),
       );
 
-  Future<void> _rejectProposal(DraftProposal proposal) =>
-      _runDraftAction(
-        () => ref
-            .read(experienceApiProvider)
-            .rejectProposal(proposal.id),
+  Future<void> _rejectProposal(DraftProposal proposal) => _runDraftAction(
+        () => ref.read(experienceApiProvider).rejectProposal(proposal.id),
       );
 
   Future<void> _requestApproval() async {
@@ -799,8 +793,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 ),
                 Text(
                   'v${revision.version}',
-                  style: TextStyle(
-                      fontSize: 11, color: colors.contentSecondary),
+                  style:
+                      TextStyle(fontSize: 11, color: colors.contentSecondary),
                 ),
               ],
             ),
@@ -829,8 +823,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               Text(
                 '${view.proposals.length - 3} earlier proposals remain in the '
                 'append-only activity history.',
-                style: TextStyle(
-                    fontSize: 10, color: colors.contentSecondary),
+                style: TextStyle(fontSize: 10, color: colors.contentSecondary),
               ),
           ],
           const SizedBox(height: AgencySpacing.lg),
@@ -840,9 +833,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             'Prices are immutable staging snapshots. Phase 3 will revalidate '
             'availability and price before any cart or order is created.',
             style: TextStyle(
-                fontSize: 10,
-                height: 1.35,
-                color: colors.contentSecondary),
+                fontSize: 10, height: 1.35, color: colors.contentSecondary),
           ),
         ],
       ),
@@ -921,8 +912,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               Expanded(
                 child: Text(
                   '${Money(amount: line.unitAmountMinor, currencyCode: line.currencyCode).formatted} each',
-                  style: TextStyle(
-                      fontSize: 11, color: colors.contentSecondary),
+                  style:
+                      TextStyle(fontSize: 11, color: colors.contentSecondary),
                 ),
               ),
               Text(
@@ -995,8 +986,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 'Quantity changes become proposals for explicit acceptance.',
-                style:
-                    TextStyle(fontSize: 9, color: colors.contentSecondary),
+                style: TextStyle(fontSize: 9, color: colors.contentSecondary),
               ),
             ),
         ],
@@ -1033,7 +1023,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     WorkspaceDraftView view,
     DraftProposal proposal,
   ) {
-    final canDecide = view.draft.canEdit && proposal.isPending && !_draftBusy;
+    final canDecide =
+        view.draft.canDecideProposal && proposal.isPending && !_draftBusy;
     return Container(
       padding: const EdgeInsets.all(AgencySpacing.sm),
       decoration: BoxDecoration(
@@ -1071,8 +1062,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
                 Expanded(
                   child: FilledButton(
                     onPressed: () => _acceptProposal(proposal),
-                    style: FilledButton.styleFrom(
-                        minimumSize: const Size(44, 44)),
+                    style:
+                        FilledButton.styleFrom(minimumSize: const Size(44, 44)),
                     child: const Text('Accept'),
                   ),
                 ),
@@ -1115,12 +1106,15 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final draft = view.draft;
     final approval = view.approval;
     final revision = view.revision;
-    final canRequest = draft.canEdit &&
+    final canRequest = !draft.isHouseholdRole &&
+        draft.canEdit &&
         revision != null &&
         (approval == null || !approval.isPending) &&
         !_draftBusy;
-    final canDecide =
-        draft.canApprove && approval != null && approval.isPending && !_draftBusy;
+    final canDecide = draft.canApprove &&
+        approval != null &&
+        approval.isPending &&
+        !_draftBusy;
     return Container(
       padding: const EdgeInsets.all(AgencySpacing.md),
       decoration: BoxDecoration(
@@ -1167,17 +1161,14 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               'Requested by ${approval.requestedBy} for revision '
               '${revision?.version ?? '-'} (${_shortHash(approval.commercialHash)}).',
               style: TextStyle(
-                  fontSize: 11,
-                  height: 1.35,
-                  color: colors.contentSecondary),
+                  fontSize: 11, height: 1.35, color: colors.contentSecondary),
             ),
             if (approval.comment != null &&
                 approval.comment!.isNotEmpty) ...<Widget>[
               const SizedBox(height: AgencySpacing.xs),
               Text(
                 '“${approval.comment}”',
-                style: TextStyle(
-                    fontSize: 11, color: colors.contentPrimary),
+                style: TextStyle(fontSize: 11, color: colors.contentPrimary),
               ),
             ],
             if (approval.decisionComment != null &&
@@ -1185,8 +1176,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               const SizedBox(height: AgencySpacing.xs),
               Text(
                 'Decision note: “${approval.decisionComment}”',
-                style: TextStyle(
-                    fontSize: 11, color: colors.contentPrimary),
+                style: TextStyle(fontSize: 11, color: colors.contentPrimary),
               ),
             ],
           ],
@@ -1194,8 +1184,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             const SizedBox(height: AgencySpacing.sm),
             FilledButton.icon(
               onPressed: _requestApproval,
-              style:
-                  FilledButton.styleFrom(minimumSize: const Size(44, 44)),
+              style: FilledButton.styleFrom(minimumSize: const Size(44, 44)),
               icon: const Icon(Icons.send_outlined, size: 17),
               label: const Text('Request approval for this revision'),
             ),
@@ -1205,8 +1194,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               padding: const EdgeInsets.only(top: AgencySpacing.xs),
               child: Text(
                 'Waiting for an approver. Any edit supersedes this request.',
-                style:
-                    TextStyle(fontSize: 10, color: colors.contentSecondary),
+                style: TextStyle(fontSize: 10, color: colors.contentSecondary),
               ),
             ),
           if (canDecide) ...<Widget>[
@@ -1217,20 +1205,19 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               children: <Widget>[
                 FilledButton(
                   onPressed: () => _decideApproval('approve'),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size(44, 44)),
+                  style:
+                      FilledButton.styleFrom(minimumSize: const Size(44, 44)),
                   child: const Text('Approve'),
                 ),
                 OutlinedButton(
                   onPressed: () => _decideApproval('request-changes'),
-                  style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(44, 44)),
+                  style:
+                      OutlinedButton.styleFrom(minimumSize: const Size(44, 44)),
                   child: const Text('Request changes'),
                 ),
                 TextButton(
                   onPressed: () => _decideApproval('reject'),
-                  style: TextButton.styleFrom(
-                      minimumSize: const Size(44, 44)),
+                  style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
                   child: const Text('Reject'),
                 ),
               ],
@@ -1255,16 +1242,16 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       );
 
   Widget _pill(AgencyColors colors, String label, Color color) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: AgencySpacing.sm, vertical: 3),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AgencySpacing.sm, vertical: 3),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(AgencyRadius.sm),
         ),
         child: Text(
           label,
-          style: TextStyle(
-              fontSize: 9, fontWeight: FontWeight.w700, color: color),
+          style:
+              TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color),
         ),
       );
 
@@ -1288,9 +1275,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 
   String _label(String value) => value
       .split('_')
-      .map((part) => part.isEmpty
-          ? part
-          : '${part[0].toUpperCase()}${part.substring(1)}')
+      .map((part) =>
+          part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
 
   String _shortHash(String hash) =>
@@ -1394,8 +1380,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => setState(() => _surface = 1),
-                style:
-                    TextButton.styleFrom(minimumSize: const Size(44, 44)),
+                style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
                 child: const Text('Open purchase draft'),
               ),
             ),
@@ -1421,8 +1406,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           const SizedBox(width: AgencySpacing.sm),
           Expanded(
             child: Text(message.body,
-                style:
-                    TextStyle(fontSize: 11, color: colors.contentSecondary)),
+                style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
           ),
         ],
       ),

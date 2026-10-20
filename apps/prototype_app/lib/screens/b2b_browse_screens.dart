@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/trade_product_tile.dart';
@@ -617,6 +619,12 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   }
 
   Widget _resultRow(BuildContext context, AgencyColors colors, TradeProduct p) {
+    final bestSeller = p.bestSeller;
+    final discussedVariant = bestSeller == null
+        ? p.product.defaultVariant
+        : p.product.variants
+            .where((variant) => variant.offerId == bestSeller.id)
+            .firstOrNull;
     return InkWell(
       onTap: () => context.push('/b2b/pdp/${p.product.id}'),
       borderRadius: BorderRadius.circular(AgencyRadius.md),
@@ -641,11 +649,37 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
             ),
-            Text(p.tradePrice.formatted,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: colors.actionPrimary)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(p.tradePrice.formatted,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: colors.actionPrimary)),
+                TextButton.icon(
+                  onPressed: () =>
+                      ref.read(conversationDockProvider.notifier).discuss(
+                            ConversationAudience.business,
+                            ConversationProductCapture.fromProduct(
+                              p.product,
+                              variant: discussedVariant,
+                              quantity: p.moq,
+                              sellerName: bestSeller?.name,
+                              unitPrice: p.tradePrice,
+                              offerId: bestSeller?.id,
+                            ),
+                          ),
+                  icon: const Icon(Icons.forum_outlined, size: 14),
+                  label: const Text('Discuss'),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(44, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    textStyle: const TextStyle(fontSize: 10),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

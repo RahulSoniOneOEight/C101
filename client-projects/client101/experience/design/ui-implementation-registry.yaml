@@ -856,6 +856,42 @@ components:
     status: staging-prototype
   qa:
     flutter: widget+mobile-visual
+- semantic_id: collaboration.conversation-dock
+  aliases:
+  - conversation-dock
+  - collaboration-drawer
+  flutter:
+    owned_component: ConversationDockHost
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
+- semantic_id: collaboration.shared-list
+  aliases:
+  - shared-purchase-list
+  - quantity-proposals
+  flutter:
+    owned_component: ConversationDockPanel
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+role-matrix
+- semantic_id: collaboration.household-invitations
+  aliases:
+  - project-participants
+  - household-invite-sheet
+  flutter:
+    owned_component: ConversationDockPanel
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+authorization-matrix
 specialists:
   icons:
     primary: Phosphor

@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/storefront_collection.dart';
 import '../providers/collection_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 
 /// The page behind a collection's customer-facing URL.
 ///
@@ -56,13 +58,13 @@ class CollectionScreen extends ConsumerWidget {
   }
 }
 
-class _Grid extends StatelessWidget {
+class _Grid extends ConsumerWidget {
   const _Grid({required this.products});
 
   final List<Product> products;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       physics: const AlwaysScrollableScrollPhysics(),
@@ -87,6 +89,10 @@ class _Grid extends StatelessWidget {
           badges: product.badges.isEmpty ? const <String>[] : product.badges,
           variant: ProductCardVariant.large,
           onPressed: () => context.push('/product/${product.id}'),
+          onDiscuss: () => ref.read(conversationDockProvider.notifier).discuss(
+                ConversationAudience.household,
+                ConversationProductCapture.fromProduct(product),
+              ),
         );
       },
     );

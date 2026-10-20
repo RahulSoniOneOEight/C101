@@ -17,4 +17,22 @@ completed:
 - solution-architecture
 - experience-directions
 blocked: false
-human_approvals: []
+human_approvals:
+- change_id: CHG-072
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  scope: phases-a-to-d-only
+active_changes:
+- change_id: CHG-072
+  status: approved-in-progress
+  completed_phases:
+  - phase-a
+  - phase-b
+  - phase-c
+  active_phase: phase-d
+  phase_d_implemented_at_utc: '2026-10-20'
+  phase_d_status: implemented-awaiting-chrome-review-and-deployment
+  phase_c_release: e7e84ba
+  blocked_phases:
+  - phase-e
+  production_release_authorized: false

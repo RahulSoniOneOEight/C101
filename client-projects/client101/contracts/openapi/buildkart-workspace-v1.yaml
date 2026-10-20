@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: BuildKart Collaborative Workspace API
-  version: 1.0.0-proposed
+  version: 1.1.0-proposed
   description: >-
-    Proposed client-facing contract for the B2B collaborative workspace pilot. All routes are
-    exposed through the Experience API. Commerce remains authoritative for carts, checkout, orders,
-    prices and inventory. This contract is not approved for production.
+    Proposed client-facing contract for the business-account and household collaborative workspace
+    pilot. All routes are exposed through the Experience API. Commerce remains authoritative for
+    carts, checkout, orders, prices and inventory. Household participants never receive owner-only
+    contact, address, GST, payment or checkout fields. This contract is not approved for production.
 servers:
 - url: https://api-staging.pinakaplay.cloud
   description: Staging
@@ -13,6 +14,8 @@ security:
 - bearerAuth: []
 tags:
 - name: Workspaces
+- name: Household projects
+- name: Invitations
 - name: Channels
 - name: Purchase drafts
 - name: Proposals
@@ -45,17 +48,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [scope_type, scope_id, name]
+              required: [name]
               properties:
-                scope_type: {type: string, enum: [business_account]}
-                scope_id: {type: string}
                 name: {type: string, maxLength: 120}
       responses:
         '201':
           description: Created workspace
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Workspace'}
+              schema: {$ref: '#/components/schemas/WorkspaceEnvelope'}
         '409': {$ref: '#/components/responses/Conflict'}
   /v1/workspaces/{workspaceId}:
     get:
@@ -68,8 +69,118 @@ paths:
           description: Workspace
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Workspace'}
+              schema: {$ref: '#/components/schemas/WorkspaceEnvelope'}
         '404': {$ref: '#/components/responses/NotFound'}
+  /v1/household-projects:
+    post:
+      tags: [Household projects]
+      summary: Create a household project owned by the signed-in consumer
+      description: A consumer may own at most three active household projects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, minLength: 1, maxLength: 120}
+      responses:
+        '201':
+          description: Household project created with one owner and one project channel
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkspaceEnvelope'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/workspaces/{workspaceId}/invitations:
+    get:
+      tags: [Invitations]
+      summary: List household invitations and participant capacity
+      description: Owner only. Non-members receive 404; household members who are not the owner receive 403.
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      responses:
+        '200':
+          description: Invitation state and active participant count
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InvitationPage'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [Invitations]
+      summary: Create or rotate an email-bound household invitation
+      description: >-
+        Owner only. The token is returned once because staging has no email delivery. It expires in
+        seven days, is single-use and can be revoked.
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: {type: string, format: email, maxLength: 254}
+      responses:
+        '201':
+          description: Invitation created; staging token returned once
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/InvitationCreated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/workspaces/{workspaceId}/invitations/{invitationId}/revoke:
+    post:
+      tags: [Invitations]
+      summary: Revoke a pending household invitation
+      parameters:
+      - $ref: '#/components/parameters/WorkspaceId'
+      - $ref: '#/components/parameters/InvitationId'
+      responses:
+        '200':
+          description: Revoked invitation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invitation: {$ref: '#/components/schemas/Invitation'}
+                  correlation_id: {type: string}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /v1/workspace-invitations/accept:
+    post:
+      tags: [Invitations]
+      summary: Accept an invitation as the email-bound signed-in consumer
+      description: The verified session email must exactly match the invitee email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Invitation accepted and member projection activated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WorkspaceEnvelope'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '410':
+          description: Invitation expired
+          content:
+            application/problem+json:
+              schema: {$ref: '#/components/schemas/Problem'}
   /v1/workspaces/{workspaceId}/channels:
     get:
       tags: [Channels]
@@ -205,6 +316,11 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/ShareInput'
       responses:
+        '200':
+          description: Existing de-duplicated share for this product variant in the channel
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Message'}
         '201':
           description: Share message
           content:
@@ -248,11 +364,17 @@ paths:
                   type: array
                   items: {$ref: '#/components/schemas/DraftLineInput'}
       responses:
+        '200':
+          description: Existing household shared-list aggregate returned idempotently
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PurchaseDraftView'}
         '201':
           description: Draft
           content:
             application/json:
               schema: {$ref: '#/components/schemas/PurchaseDraftView'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /v1/purchase-drafts/{draftId}:
     get:
       tags: [Purchase drafts]
@@ -297,7 +419,10 @@ paths:
               type: object
               required: [expected_version, kind, payload]
               properties:
-                expected_version: {type: integer, minimum: 1}
+                expected_version:
+                  type: integer
+                  minimum: 0
+                  description: Version 0 is valid only for the first add-line proposal on an empty draft.
                 kind: {type: string, enum: [add_line, update_quantity, remove_line, update_instruction]}
                 payload: {type: object, additionalProperties: true}
       responses:
@@ -305,7 +430,7 @@ paths:
           description: Proposal
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Proposal'}
+              schema: {$ref: '#/components/schemas/ProposalReceipt'}
         '409': {$ref: '#/components/responses/Conflict'}
   /v1/proposals/{proposalId}/accept:
     post:
@@ -524,6 +649,11 @@ components:
       in: path
       required: true
       schema: {type: string}
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema: {type: string}
     ChannelId:
       name: channelId
       in: path
@@ -567,6 +697,10 @@ components:
               variant_id: {type: string}
               offer_id: {type: string}
               quantity: {type: integer, minimum: 1}
+              seller_id: {type: string}
+              product_title: {type: string, maxLength: 500}
+              body: {type: string, maxLength: 4000}
+              commercial_snapshot: {type: object, additionalProperties: true}
               material_instruction: {type: string, maxLength: 500}
   responses:
     Unauthorized:
@@ -576,6 +710,11 @@ components:
           schema: {$ref: '#/components/schemas/Problem'}
     NotFound:
       description: Not found or outside the caller's tenant
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Forbidden:
+      description: The caller is a member but the workspace role does not allow this action
       content:
         application/problem+json:
           schema: {$ref: '#/components/schemas/Problem'}
@@ -603,21 +742,65 @@ components:
           items: {type: object, additionalProperties: true}
     Workspace:
       type: object
+      required: [id, scope_type, scope_id, name, status, role]
       properties:
         id: {type: string}
-        scope_type: {type: string, enum: [business_account]}
+        scope_type: {type: string, enum: [business_account, household]}
         scope_id: {type: string}
         name: {type: string}
         status: {type: string, enum: [active, archived]}
-        role: {type: string}
+        role: {type: string, enum: [buyer, admin, approver, owner, member]}
+        owner_user_id:
+          type: string
+          description: Present for the household owner; omitted from participant projections.
         unread_count: {type: integer, minimum: 0}
         created_at: {type: string, format: date-time}
+    WorkspaceEnvelope:
+      type: object
+      required: [workspace]
+      properties:
+        workspace: {$ref: '#/components/schemas/Workspace'}
+        environment: {type: string}
+        test_data: {type: boolean}
+        correlation_id: {type: string}
+    Invitation:
+      type: object
+      required: [id, invitee_email, status]
+      properties:
+        id: {type: string}
+        invitee_email: {type: string, format: email}
+        status: {type: string, enum: [pending, accepted, revoked, expired]}
+        expires_at: {type: string, format: date-time}
+        accepted_at: {type: [string, 'null'], format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+    InvitationCreated:
+      type: object
+      required: [invitation, invite_token]
+      properties:
+        invitation: {$ref: '#/components/schemas/Invitation'}
+        invite_token:
+          type: string
+          description: Returned once in staging because external email delivery is not enabled.
+        environment: {type: string}
+        test_data: {type: boolean}
+        correlation_id: {type: string}
+    InvitationPage:
+      type: object
+      required: [invitations, participants, capacity]
+      properties:
+        invitations:
+          type: array
+          items: {$ref: '#/components/schemas/Invitation'}
+        participants: {type: integer, minimum: 0, maximum: 3}
+        capacity: {type: integer, const: 3}
+        correlation_id: {type: string}
     Channel:
       type: object
       properties:
         id: {type: string}
         workspace_id: {type: string}
-        kind: {type: string, enum: [procurement, approvals]}
+        kind: {type: string, enum: [procurement, approvals, project]}
         name: {type: string}
         status: {type: string, enum: [active, archived]}
         unread_count: {type: integer, minimum: 0}
@@ -659,6 +842,7 @@ components:
         current_version: {type: integer}
         current_revision: {$ref: '#/components/schemas/DraftRevision'}
         created_by: {type: string}
+        role: {type: string, enum: [buyer, admin, approver, owner, member]}
         created_at: {type: string, format: date-time}
     PurchaseDraftView:
       type: object
@@ -729,6 +913,13 @@ components:
         decided_by: {type: [string, 'null']}
         created_at: {type: string, format: date-time}
         decided_at: {type: [string, 'null'], format: date-time}
+    ProposalReceipt:
+      type: object
+      required: [proposal_id, status]
+      properties:
+        proposal_id: {type: string}
+        status: {type: string, enum: [pending]}
+        correlation_id: {type: string}
     ApprovalRequest:
       type: object
       properties:

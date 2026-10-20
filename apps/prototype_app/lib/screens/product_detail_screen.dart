@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../widgets/market_comparison.dart';
 import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../widgets/status_views.dart';
 
 /// Product detail with an add-to-cart action against the default variant.
@@ -158,6 +160,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         const FulfilmentPromiseCard(),
         const SizedBox(height: AgencySpacing.lg),
         _actions(context, ref, canAdd, selected,
+            variant: selectedVariant,
             offerId: effectiveOfferId,
             variantId: effectiveVariantId,
             unitPrice: effectivePrice,
@@ -260,6 +263,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     WidgetRef ref,
     bool canAdd,
     ProductSeller? seller, {
+    required ProductVariant? variant,
     required String offerId,
     required String variantId,
     required Money? unitPrice,
@@ -267,53 +271,82 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   }) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Row(
+    return Column(
       children: <Widget>[
-        Expanded(
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: priceAvailable && canAdd
+                    ? () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        await ref.read(cartProvider.notifier).addItem(
+                            offerId: offerId,
+                            variantId: variantId,
+                            quantity: 1,
+                            unitPrice: unitPrice);
+                        if (context.mounted) {
+                          messenger.showSnackBar(SnackBar(
+                              content: Text(seller == null
+                                  ? 'Added to cart'
+                                  : 'Added to cart · ${seller.name}')));
+                        }
+                      }
+                    : null,
+                icon: const Icon(Icons.add_shopping_cart, size: 18),
+                label: const Text('Add to Cart'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide(color: colors.borderDefault),
+                  foregroundColor: colors.actionPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: FilledButton(
+                onPressed: priceAvailable && canAdd
+                    ? () async {
+                        await ref.read(cartProvider.notifier).addItem(
+                            offerId: offerId,
+                            variantId: variantId,
+                            quantity: 1,
+                            unitPrice: unitPrice);
+                        if (context.mounted) context.push('/checkout');
+                      }
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.actionPrimary,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('Buy Now'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AgencySpacing.sm),
+        SizedBox(
+          width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: priceAvailable && canAdd
-                ? () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: offerId,
+            onPressed: () =>
+                ref.read(conversationDockProvider.notifier).discuss(
+                      ConversationAudience.household,
+                      ConversationProductCapture.fromProduct(
+                        product,
+                        variant: variant,
+                        sellerName: seller?.name,
+                        unitPrice: unitPrice,
                         variantId: variantId,
-                        quantity: 1,
-                        unitPrice: unitPrice);
-                    if (context.mounted) {
-                      messenger.showSnackBar(SnackBar(
-                          content: Text(seller == null
-                              ? 'Added to cart'
-                              : 'Added to cart · ${seller.name}')));
-                    }
-                  }
-                : null,
-            icon: const Icon(Icons.add_shopping_cart, size: 18),
-            label: const Text('Add to Cart'),
+                        offerId: offerId,
+                      ),
+                    ),
+            icon: const Icon(Icons.forum_outlined, size: 18),
+            label: const Text('Discuss'),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
               side: BorderSide(color: colors.borderDefault),
               foregroundColor: colors.actionPrimary,
             ),
-          ),
-        ),
-        const SizedBox(width: AgencySpacing.sm),
-        Expanded(
-          child: FilledButton(
-            onPressed: priceAvailable && canAdd
-                ? () async {
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: offerId,
-                        variantId: variantId,
-                        quantity: 1,
-                        unitPrice: unitPrice);
-                    if (context.mounted) context.push('/checkout');
-                  }
-                : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.actionPrimary,
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: const Text('Buy Now'),
           ),
         ),
       ],
@@ -668,6 +701,12 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 brand: products[i].brand,
                 badges: products[i].badges,
                 variant: ProductCardVariant.compact,
+                onPressed: () => context.push('/product/${products[i].id}'),
+                onDiscuss: () =>
+                    ref.read(conversationDockProvider.notifier).discuss(
+                          ConversationAudience.household,
+                          ConversationProductCapture.fromProduct(products[i]),
+                        ),
               ),
             ),
           ),

@@ -547,7 +547,7 @@ class ExperienceApi {
     await _dio.delete<void>('/v1/me/devices/$deviceId');
   }
 
-  // ---- B2B collaborative workspace (Phase 1: conversation only) ----------
+  // ---- Collaborative workspace (business account + household) ------------
 
   Future<List<WorkspaceSummary>> getWorkspaces() async {
     final res = await _retryTransient(
@@ -557,6 +557,59 @@ class ExperienceApi {
         .whereType<Map<String, dynamic>>()
         .map(WorkspaceSummary.fromJson)
         .toList();
+  }
+
+  Future<WorkspaceSummary> createHouseholdProject(String name) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/household-projects',
+      data: <String, dynamic>{'name': name.trim()},
+    );
+    return WorkspaceSummary.fromJson(
+      res.data!['workspace'] as Map<String, dynamic>? ??
+          const <String, dynamic>{},
+    );
+  }
+
+  Future<WorkspaceInvitationPage> getWorkspaceInvitations(
+    String workspaceId,
+  ) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>(
+        '/v1/workspaces/$workspaceId/invitations',
+      ),
+    );
+    return WorkspaceInvitationPage.fromJson(res.data!);
+  }
+
+  Future<WorkspaceInvitationCreated> inviteWorkspaceParticipant({
+    required String workspaceId,
+    required String email,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/workspaces/$workspaceId/invitations',
+      data: <String, dynamic>{'email': email.trim().toLowerCase()},
+    );
+    return WorkspaceInvitationCreated.fromJson(res.data!);
+  }
+
+  Future<void> revokeWorkspaceInvitation({
+    required String workspaceId,
+    required String invitationId,
+  }) async {
+    await _dio.post<void>(
+      '/v1/workspaces/$workspaceId/invitations/$invitationId/revoke',
+    );
+  }
+
+  Future<WorkspaceSummary> acceptWorkspaceInvitation(String token) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/workspace-invitations/accept',
+      data: <String, dynamic>{'token': token.trim()},
+    );
+    return WorkspaceSummary.fromJson(
+      res.data!['workspace'] as Map<String, dynamic>? ??
+          const <String, dynamic>{},
+    );
   }
 
   Future<List<WorkspaceDraft>> getWorkspaceDrafts(String workspaceId) async {
@@ -578,13 +631,50 @@ class ExperienceApi {
     return WorkspaceDraftView.fromJson(res.data!);
   }
 
+  Future<WorkspaceDraftView> createWorkspaceDraft({
+    required String workspaceId,
+    required String channelId,
+    required String name,
+    required List<Map<String, dynamic>> lines,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/workspaces/$workspaceId/purchase-drafts',
+      data: <String, dynamic>{
+        'name': name,
+        'channel_id': channelId,
+        'lines': lines,
+      },
+      options: Options(
+        headers: <String, dynamic>{
+          'Idempotency-Key':
+              'draft_${workspaceId}_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+    return WorkspaceDraftView.fromJson(res.data!);
+  }
+
   Future<void> proposeDraftChange({
     required String draftId,
     required int expectedVersion,
     required String kind,
     required Map<String, dynamic> payload,
   }) async {
-    await _dio.post<Map<String, dynamic>>(
+    await createDraftProposal(
+      draftId: draftId,
+      expectedVersion: expectedVersion,
+      kind: kind,
+      payload: payload,
+    );
+  }
+
+  Future<String> createDraftProposal({
+    required String draftId,
+    required int expectedVersion,
+    required String kind,
+    required Map<String, dynamic> payload,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
       '/v1/purchase-drafts/$draftId/proposals',
       data: {
         'expected_version': expectedVersion,
@@ -593,11 +683,11 @@ class ExperienceApi {
       },
       options: Options(
         headers: {
-          'Idempotency-Key':
-              'prop_${DateTime.now().microsecondsSinceEpoch}',
+          'Idempotency-Key': 'prop_${DateTime.now().microsecondsSinceEpoch}',
         },
       ),
     );
+    return res.data?['proposal_id'] as String? ?? '';
   }
 
   Future<void> acceptProposal(String proposalId) async {
@@ -605,8 +695,7 @@ class ExperienceApi {
       '/v1/proposals/$proposalId/accept',
       options: Options(
         headers: {
-          'Idempotency-Key':
-              'accept_${DateTime.now().microsecondsSinceEpoch}',
+          'Idempotency-Key': 'accept_${DateTime.now().microsecondsSinceEpoch}',
         },
       ),
     );
@@ -682,8 +771,9 @@ class ExperienceApi {
       },
       options: Options(
         headers: {
-          'Idempotency-Key':
-              'share_${DateTime.now().microsecondsSinceEpoch}',
+          // One catalogue variant appears at most once in a conversation. The
+          // database-enforced channel idempotency key also closes double taps.
+          'Idempotency-Key': 'capture_${channelId}_$variantId',
         },
       ),
     );

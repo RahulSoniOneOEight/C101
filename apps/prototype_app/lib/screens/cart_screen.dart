@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
 
@@ -199,6 +201,11 @@ class CartScreen extends ConsumerWidget {
                     );
                   }
                 },
+                onDiscuss: () =>
+                    ref.read(conversationDockProvider.notifier).discuss(
+                          ConversationAudience.household,
+                          ConversationProductCapture.fromProduct(p),
+                        ),
               ),
             );
           },
@@ -242,6 +249,10 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
   Widget build(BuildContext context) {
     final item = widget.item;
     final related = _related;
+    final product = catalogueProductForCartLine(item, widget.catalogue);
+    final variant = product?.variants
+        .where((candidate) => candidate.id == item.variantId)
+        .firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -257,6 +268,19 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
               .read(cartProvider.notifier)
               .updateQuantity(item.id, item.quantity - 1),
           onRemove: () => ref.read(cartProvider.notifier).removeItem(item.id),
+          onDiscuss: product == null
+              ? null
+              : () => ref.read(conversationDockProvider.notifier).discuss(
+                    ConversationAudience.household,
+                    ConversationProductCapture.fromProduct(
+                      product,
+                      variant: variant,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      variantId: item.variantId,
+                      offerId: variant?.offerId ?? product.cartOfferId,
+                    ),
+                  ),
         ),
         if (related.isNotEmpty)
           Align(
@@ -303,6 +327,11 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                         );
                       }
                     },
+                    onDiscuss: () =>
+                        ref.read(conversationDockProvider.notifier).discuss(
+                              ConversationAudience.household,
+                              ConversationProductCapture.fromProduct(p),
+                            ),
                   ),
                 );
               },

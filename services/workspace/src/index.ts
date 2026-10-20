@@ -711,6 +711,26 @@ async function attachReferences(
   return rows.map((row) => ({ ...row, references: byMessage.get(String(row.id)) ?? [] }));
 }
 
+async function existingProductShare(
+  channelId: string,
+  variantId: string,
+): Promise<Record<string, unknown> | null> {
+  const result = await pool.query(
+    `select m.id, m.workspace_id, m.channel_id, m.actor_id, m.actor_name, m.body,
+            m.message_type, m.sequence, m.created_at, m.edited_at
+       from message m
+       join message_reference mr on mr.message_id = m.id
+      where m.channel_id = $1 and m.deleted_at is null
+        and mr.reference_type = 'product' and mr.reference_id = $2
+      order by m.sequence asc
+      limit 1`,
+    [channelId, variantId],
+  );
+  if (!result.rows[0]) return null;
+  const [withReferences] = await attachReferences([result.rows[0]]);
+  return withReferences ?? null;
+}
+
 async function listMessages(
   channelId: string,
   actor: Actor,
@@ -918,8 +938,12 @@ async function shareProduct(
       return json(withReferences, 201);
     }
   }
+  // Product capture is set-like within one conversation. A second Discuss
+  // action returns the first message and never appends a duplicate reference.
+  const duplicate = await existingProductShare(channelId, body.variant_id as string);
+  if (duplicate) return json(duplicate);
   const title = body.product_title?.trim() || "a catalogue product";
-  const text = body.body?.trim() || `Shared ${title} for procurement review.`;
+  const text = body.body?.trim() || `Shared ${title} for discussion.`;
   const messageId = `msg_${randomUUID().replaceAll("-", "")}`;
   const snapshot = {
     ...(body.commercial_snapshot ?? {}),
@@ -943,9 +967,16 @@ async function shareProduct(
     );
     row = inserted.rows[0];
     await client.query(
-      `insert into message_reference (message_id, reference_type, reference_id, display_snapshot)
-       values ($1, 'product', $2, $3)`,
-      [messageId, body.variant_id, JSON.stringify(snapshot)],
+      `insert into message_reference
+         (message_id, reference_type, reference_id, display_snapshot, channel_id, dedupe_key)
+       values ($1, 'product', $2, $3, $4, $5)`,
+      [
+        messageId,
+        body.variant_id,
+        JSON.stringify(snapshot),
+        channelId,
+        `product:${body.variant_id}`,
+      ],
     );
     await client.query(
       `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
@@ -979,6 +1010,10 @@ async function shareProduct(
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
+    if ((error as { code?: string }).code === "23505") {
+      const existing = await existingProductShare(channelId, body.variant_id as string);
+      if (existing) return json(existing);
+    }
     throw error;
   } finally {
     client.release();
@@ -1778,6 +1813,14 @@ async function createDraft(
     return problem(404, "channel-not-found", "Channel not found in this workspace.", actor.correlationId);
   }
   const lines = body.lines ?? [];
+  if (household && workspace.role === "member" && lines.length > 0) {
+    return problem(
+      403,
+      "participant-must-propose",
+      "A participant must propose products; only the owner can create an accepted revision.",
+      actor.correlationId,
+    );
+  }
   const draftId = `drf_${randomUUID().replaceAll("-", "")}`;
   const draft: DraftRow = {
     id: draftId,
@@ -1793,27 +1836,50 @@ async function createDraft(
     scope_type: workspace.scope_type,
   };
   const client = await pool.connect();
+  let existingDraftId: string | null = null;
   try {
     await client.query("BEGIN");
-    await client.query(
-      `insert into purchase_draft
-         (id, workspace_id, channel_id, name, lifecycle_status, validation_status, current_version, created_by)
-       values ($1,$2,$3,$4,'draft','unvalidated',0,$5)`,
-      [draftId, workspaceId, channelId, name, actor.userId],
-    );
-    if (lines.length) {
-      await createRevision(client, draft, lines, actor.userId, 1);
+    if (household) {
+      // One household project has one shared list. Serialize first creation so
+      // simultaneous Discuss actions cannot manufacture parallel drafts.
+      await client.query("select pg_advisory_xact_lock(hashtext($1))", [workspaceId]);
+      const existing = await client.query(
+        `select id from purchase_draft
+          where workspace_id = $1 and lifecycle_status <> 'cancelled'
+          order by created_at asc limit 1`,
+        [workspaceId],
+      );
+      if (existing.rows[0]) {
+        existingDraftId = String(existing.rows[0].id);
+      }
+    }
+    if (!existingDraftId) {
+      await client.query(
+        `insert into purchase_draft
+           (id, workspace_id, channel_id, name, lifecycle_status, validation_status, current_version, created_by)
+         values ($1,$2,$3,$4,'draft','unvalidated',0,$5)`,
+        [draftId, workspaceId, channelId, name, actor.userId],
+      );
+      if (lines.length) {
+        await createRevision(client, draft, lines, actor.userId, 1);
+      }
     }
     await client.query("COMMIT");
-    broadcast(workspaceId, { type: "draft.updated", workspace_id: workspaceId, draft_id: draftId });
+    if (!existingDraftId) {
+      broadcast(workspaceId, { type: "draft.updated", workspace_id: workspaceId, draft_id: draftId });
+    }
   } catch (error) {
     await client.query("ROLLBACK");
     return problem(400, "draft-create-failed", (error as Error).message, actor.correlationId);
   } finally {
     client.release();
   }
-  const updated = await draftForMember(draftId, actor);
-  return json(updated ? await draftView(updated) : { ok: true }, 201);
+  const resolvedDraftId = existingDraftId ?? draftId;
+  const updated = await draftForMember(resolvedDraftId, actor);
+  return json(
+    updated ? await draftView(updated) : { ok: true },
+    existingDraftId ? 200 : 201,
+  );
 }
 
 async function getDraft(draftId: string, actor: Actor): Promise<Response> {
@@ -1885,8 +1951,16 @@ async function postProposal(
       "select id from draft_revision where draft_id=$1 and version=$2",
       [draftId, draft.current_version],
     );
-    if (!revision.rows[0]) return problem(409, "draft-has-no-revision", "The draft has no current revision.", actor.correlationId);
-    applyProposal(await linesForRevision(revision.rows[0].id), kind, payload);
+    if (!revision.rows[0]) {
+      if (draft.current_version !== 0 || kind !== "add_line") {
+        return problem(409, "draft-has-no-revision", "The draft has no current revision.", actor.correlationId);
+      }
+      // A participant may initialize an empty shared-list aggregate, but the
+      // first accepted revision still requires an owner decision.
+      applyProposal([], kind, payload);
+    } else {
+      applyProposal(await linesForRevision(revision.rows[0].id), kind, payload);
+    }
   } catch (error) {
     return problem(400, "invalid-proposal", (error as Error).message, actor.correlationId);
   }

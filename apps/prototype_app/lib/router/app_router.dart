@@ -26,6 +26,8 @@ import '../screens/product_list_screen.dart';
 import '../screens/quote_detail_screen.dart';
 import '../screens/quote_list_screen.dart';
 import '../screens/workspace_screen.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_dock.dart';
 
 /// The app's route table, provided so it can be overridden in tests.
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -36,8 +38,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // D2C (consumer) shell — persistent 5-tab bottom navigation.
       // ---------------------------------------------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            D2CShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => D2CShell(
+          navigationShell: navigationShell,
+          currentPath: state.uri.path,
+        ),
         branches: <StatefulShellBranch>[
           // Home
           StatefulShellBranch(
@@ -71,6 +75,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/filter',
                 builder: (context, state) => const FilterScreen(),
+              ),
+              GoRoute(
+                path: '/collections/:key',
+                builder: (context, state) => CollectionScreen(
+                    collectionKey: state.pathParameters['key'] ?? ''),
               ),
             ],
           ),
@@ -129,13 +138,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/track',
         builder: (context, state) =>
             TrackPackageScreen(orderId: state.uri.queryParameters['order']),
-      ),
-      // A collection's customer-facing URL. Banner and See All actions point here, and every collection
-      // an operator creates is addressable by its handle.
-      GoRoute(
-        path: '/collections/:key',
-        builder: (context, state) =>
-            CollectionScreen(collectionKey: state.pathParameters['key'] ?? ''),
       ),
       // ---------------------------------------------------------------------
       // Onboarding / auth (top-level, no bottom nav).
@@ -199,8 +201,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // B2B shell — 4-tab bottom navigation.
       // ---------------------------------------------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            B2BShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => B2BShell(
+          navigationShell: navigationShell,
+          currentPath: state.uri.path,
+        ),
         branches: <StatefulShellBranch>[
           StatefulShellBranch(
             routes: <RouteBase>[
@@ -296,8 +300,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ---- B2B catalogue, schemes & price advantage ----
       GoRoute(
         path: '/b2b/offers',
-        builder: (context, state) => TradeOffersPage(
-          initialCollectionId: state.uri.queryParameters['collection'],
+        builder: (context, state) => ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: TradeOffersPage(
+            initialCollectionId: state.uri.queryParameters['collection'],
+          ),
         ),
       ),
       GoRoute(
@@ -306,13 +314,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/b2b/price-advantage',
-        builder: (context, state) => const B2BPriceAdvantageScreen(),
+        builder: (context, state) => const ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: B2BPriceAdvantageScreen(),
+        ),
       ),
       // ---- B2B quote-to-order journey ----
       GoRoute(
         path: '/b2b/pdp/:id',
-        builder: (context, state) =>
-            B2BTradePdpScreen(productId: state.pathParameters['id'] ?? ''),
+        builder: (context, state) => ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: B2BTradePdpScreen(
+            productId: state.pathParameters['id'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: '/b2b/rfq',

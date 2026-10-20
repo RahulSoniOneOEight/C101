@@ -1,4 +1,4 @@
-/// B2B collaborative workspace projections returned by the Experience API.
+/// Collaborative workspace projections returned by the Experience API.
 ///
 /// Phase 2 adds immutable purchase-draft revisions, proposals and
 /// revision-bound approvals. Commerce revalidation and checkout handoff remain
@@ -18,19 +18,29 @@ class WorkspaceSummary {
     required this.id,
     required this.name,
     required this.role,
+    this.scopeType = 'business_account',
     this.unreadCount = 0,
   });
 
   final String id;
   final String name;
   final String role;
+  final String scopeType;
   final int unreadCount;
+
+  bool get isHousehold => scopeType == 'household';
+  bool get isBusinessAccount => scopeType == 'business_account';
+  bool get isOwner => role == 'owner';
+  bool get canManageInvitations => isHousehold && isOwner;
+  bool get canContributeToSharedList =>
+      role == 'owner' || role == 'member' || role == 'buyer' || role == 'admin';
 
   factory WorkspaceSummary.fromJson(Map<String, dynamic> json) =>
       WorkspaceSummary(
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? 'Workspace',
         role: json['role'] as String? ?? 'member',
+        scopeType: json['scope_type'] as String? ?? 'business_account',
         unreadCount: _asInt(json['unread_count']),
       );
 }
@@ -117,7 +127,8 @@ class WorkspaceMessageReference {
   final String referenceId;
   final Map<String, dynamic> snapshot;
 
-  String get title => snapshot['product_title'] as String? ?? 'Catalogue product';
+  String get title =>
+      snapshot['product_title'] as String? ?? 'Catalogue product';
   String get sellerName => snapshot['seller_name'] as String? ?? '';
   String get sku => snapshot['sku'] as String? ?? '';
   int get quantity => _asInt(snapshot['quantity']);
@@ -171,8 +182,7 @@ class DraftLine {
       quantity: _asInt(json['quantity']),
       unitAmountMinor: _asInt(snapshot['unit_amount_minor']),
       currencyCode: snapshot['currency_code'] as String? ?? 'INR',
-      productTitle:
-          snapshot['product_title'] as String? ?? 'Catalogue product',
+      productTitle: snapshot['product_title'] as String? ?? 'Catalogue product',
       sellerName: snapshot['seller_name'] as String? ?? '',
       materialInstruction: json['material_instruction'] as String?,
     );
@@ -193,7 +203,8 @@ class DraftRevision {
   final List<DraftLine> lines;
 
   int get lineCount => lines.length;
-  int get totalMinor => lines.fold<int>(0, (sum, line) => sum + line.lineTotalMinor);
+  int get totalMinor =>
+      lines.fold<int>(0, (sum, line) => sum + line.lineTotalMinor);
 
   factory DraftRevision.fromJson(Map<String, dynamic> json) => DraftRevision(
         id: json['id'] as String? ?? '',
@@ -227,8 +238,15 @@ class WorkspaceDraft {
   final int currentVersion;
   final String role;
 
-  bool get canEdit => role == 'buyer' || role == 'admin';
+  /// Roles that may propose a change to the shared list.
+  bool get canEdit =>
+      role == 'buyer' || role == 'admin' || role == 'owner' || role == 'member';
+
+  bool get canDecideProposal =>
+      role == 'buyer' || role == 'admin' || role == 'owner';
   bool get canApprove => role == 'approver';
+  bool get isHouseholdRole => role == 'owner' || role == 'member';
+  bool get isOwner => role == 'owner';
   bool get isApproved => lifecycleStatus == 'approved';
   bool get isReviewRequested => lifecycleStatus == 'review_requested';
 
@@ -370,4 +388,72 @@ class WorkspaceMessagePage {
 
   final List<WorkspaceMessage> messages;
   final String nextCursor;
+}
+
+class WorkspaceInvitation {
+  const WorkspaceInvitation({
+    required this.id,
+    required this.inviteeEmail,
+    required this.status,
+    this.expiresAt,
+    this.acceptedAt,
+    this.revokedAt,
+  });
+
+  final String id;
+  final String inviteeEmail;
+  final String status;
+  final DateTime? expiresAt;
+  final DateTime? acceptedAt;
+  final DateTime? revokedAt;
+
+  bool get canRevoke => status == 'pending';
+
+  factory WorkspaceInvitation.fromJson(Map<String, dynamic> json) =>
+      WorkspaceInvitation(
+        id: json['id'] as String? ?? '',
+        inviteeEmail: json['invitee_email'] as String? ?? '',
+        status: json['status'] as String? ?? 'pending',
+        expiresAt: DateTime.tryParse(json['expires_at'] as String? ?? ''),
+        acceptedAt: DateTime.tryParse(json['accepted_at'] as String? ?? ''),
+        revokedAt: DateTime.tryParse(json['revoked_at'] as String? ?? ''),
+      );
+}
+
+class WorkspaceInvitationPage {
+  const WorkspaceInvitationPage({
+    required this.invitations,
+    required this.participants,
+    required this.capacity,
+  });
+
+  final List<WorkspaceInvitation> invitations;
+  final int participants;
+  final int capacity;
+
+  factory WorkspaceInvitationPage.fromJson(Map<String, dynamic> json) =>
+      WorkspaceInvitationPage(
+        invitations: (json['invitations'] as List? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map(WorkspaceInvitation.fromJson)
+            .toList(),
+        participants: _asInt(json['participants']),
+        capacity: _asInt(json['capacity']),
+      );
+}
+
+class WorkspaceInvitationCreated {
+  const WorkspaceInvitationCreated({
+    required this.invitation,
+    required this.token,
+  });
+
+  final WorkspaceInvitation invitation;
+  final String token;
+
+  factory WorkspaceInvitationCreated.fromJson(Map<String, dynamic> json) =>
+      WorkspaceInvitationCreated(
+        invitation: WorkspaceInvitation.fromJson(_asMap(json['invitation'])),
+        token: json['invite_token'] as String? ?? '',
+      );
 }

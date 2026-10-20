@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../data/experience_api.dart';
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/models.dart';
 import '../widgets/market_comparison.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../widgets/trade_product_tile.dart';
 
 AgencyColors _c(BuildContext c) =>
@@ -54,81 +55,30 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
   String? _selectedSellerId;
   String? _selectedVariantId;
   bool _showAllSellers = false;
-  bool _sharing = false;
-
-  Future<void> _shareToProcurement(
+  void _shareToProcurement(
     TradeProduct p,
     ProductVariant? variant,
     TradeSupplier? seller,
     int quantity,
   ) async {
-    if (_sharing) return;
-    final offerId = variant?.offerId ?? p.product.cartOfferId;
+    final offerId = variant?.offerId ?? seller?.id ?? p.product.cartOfferId;
     if (offerId.isEmpty) {
       PinToast.show(context, 'This SKU has no sellable offer to share',
           tone: PinToastTone.warning);
       return;
     }
-    setState(() => _sharing = true);
-    try {
-      final api = ref.read(experienceApiProvider);
-      final workspaces = await api.getWorkspaces();
-      if (workspaces.isEmpty) {
-        if (mounted) {
-          PinToast.show(context, 'No procurement workspace is available',
-              tone: PinToastTone.warning);
-        }
-        return;
-      }
-      final workspace = workspaces.first;
-      final channels = await api.getWorkspaceChannels(workspace.id);
-      final channel = channels
-              .where((item) => item.kind == 'procurement')
-              .firstOrNull ??
-          channels.firstOrNull;
-      if (channel == null) {
-        if (mounted) {
-          PinToast.show(context, 'No procurement channel is available',
-              tone: PinToastTone.warning);
-        }
-        return;
-      }
-      final unit = variant?.price ?? p.unitPriceFor(quantity);
-      await api.shareProductToWorkspace(
-        channelId: channel.id,
-        productId: p.product.id,
-        variantId: variant?.id ?? p.product.cartVariantId,
-        offerId: offerId,
-        quantity: quantity,
-        productTitle: p.product.title,
-        commercialSnapshot: <String, dynamic>{
-          'product_title': p.product.title,
-          'seller_name':
-              seller?.name ?? variant?.sellerName ?? p.product.brand ?? '',
-          'sku': variant?.sku ?? '',
-          'unit_amount_minor': unit.amount,
-          'currency_code': unit.currencyCode,
-          'thumbnail': p.product.thumbnail,
-        },
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text('${p.product.title} shared to Procurement'),
-          action: SnackBarAction(
-            label: 'Open workspace',
-            onPressed: () => context.go('/b2b/workspace'),
+    ref.read(conversationDockProvider.notifier).discuss(
+          ConversationAudience.business,
+          ConversationProductCapture.fromProduct(
+            p.product,
+            variant: variant,
+            quantity: quantity,
+            sellerName: variant?.sellerName ?? seller?.name,
+            unitPrice: variant?.price ?? p.unitPriceFor(quantity),
+            variantId: variant?.id ?? p.product.cartVariantId,
+            offerId: offerId,
           ),
-        ));
-    } catch (_) {
-      if (mounted) {
-        PinToast.show(context, 'Could not share this product. Please retry.',
-            tone: PinToastTone.warning);
-      }
-    } finally {
-      if (mounted) setState(() => _sharing = false);
-    }
+        );
   }
 
   @override
@@ -391,18 +341,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: _sharing
-                  ? null
-                  : () => _shareToProcurement(
-                      p, selectedVariant, selectedSeller, tierQty),
-              icon: _sharing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.group_add_outlined, size: 18),
-              label: const Text('Share to Procurement'),
+              onPressed: () => _shareToProcurement(
+                  p, selectedVariant, selectedSeller, tierQty),
+              icon: const Icon(Icons.forum_outlined, size: 18),
+              label: const Text('Discuss'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
                 side: BorderSide(color: colors.borderDefault),
@@ -1596,6 +1538,18 @@ class B2BQuotationCartScreen extends ConsumerWidget {
   Widget _cartLine(BuildContext context, WidgetRef ref, B2BQuotationLine line) {
     final colors = _c(context);
     final notifier = ref.read(b2bQuotationCartProvider.notifier);
+    TradeProduct? catalogueProduct;
+    ProductVariant? selectedVariant;
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
+      final variant = product.product.variants
+          .where((item) => item.sku == line.sku || item.id == line.sku)
+          .firstOrNull;
+      if (variant != null || product.product.id == line.sku) {
+        catalogueProduct = product;
+        selectedVariant = variant;
+        break;
+      }
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
       padding: const EdgeInsets.all(AgencySpacing.sm),
@@ -1632,6 +1586,30 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                     '${line.total.formatted} · ${line.unitPrice.formatted}/unit',
                     style: TextStyle(
                         fontSize: 11, color: colors.contentSecondary)),
+                if (catalogueProduct != null)
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.read(conversationDockProvider.notifier).discuss(
+                              ConversationAudience.business,
+                              ConversationProductCapture.fromProduct(
+                                catalogueProduct!.product,
+                                variant: selectedVariant,
+                                quantity: line.quantity,
+                                sellerName: line.seller,
+                                unitPrice: line.unitPrice,
+                                offerId: selectedVariant?.offerId ??
+                                    catalogueProduct.product.cartOfferId,
+                              ),
+                            ),
+                    icon: const Icon(Icons.forum_outlined, size: 15),
+                    label: const Text('Discuss'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      padding: EdgeInsets.zero,
+                      textStyle: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
               ],
             ),
           ),

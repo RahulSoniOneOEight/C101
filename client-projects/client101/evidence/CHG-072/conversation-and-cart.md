@@ -4,7 +4,9 @@
 
 **Production:** unauthorized
 
-**Status:** Phase A complete; Phases B–D not started; cart handoff awaits explicit authorization.
+**Status:** Phases A–C complete. Phase D implemented and verified by automated tests and a release
+web build, awaiting staging deployment and Chrome acceptance. Cart handoff awaits explicit
+authorization.
 
 ## Scope
 
@@ -147,13 +149,69 @@ fixture draft to v14 as designed; no schema, ownership or commerce state changed
 - No commerce or cart write.
 - No cart handoff.
 
+## Phase D — conversation layer
+
+Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added.
+
+### What changed
+
+| Area | Change |
+|---|---|
+| Shell overlay | `ConversationDockHost` is mounted inside the D2C and B2B shells, so the routed page stays mounted underneath and keeps its scroll, filters and selection |
+| B2B routes | `/b2b/pdp/:id`, `/b2b/offers` and `/b2b/price-advantage` receive the same dock, covering the PDP surfaces outside the shell |
+| Discuss capture | `ProductCard`, `CompactProductItem`, `TradeProductCardCompact`, B2C and B2B search rows, both PDPs and both cart lines expose one `Discuss` action |
+| B2C projects | Create a project, accept an invitation code, owner-only participant sheet with email invitation, one-time staging token, participant count and revoke |
+| Shared list | Owner and participant lines, quantity proposals, owner accept/reject, explicit "not the cart" copy and a disabled Phase E cart-build entry |
+| Redaction | The dock shows no address, phone, GST, payment or checkout data; the cart-build entry is owner/buyer/admin only |
+| B2B roles | An approver can discuss and share product references but cannot create or change purchase intent |
+| Household revisions | A participant may initialize an empty shared list and propose its first line; only owner acceptance creates the immutable revision |
+| Duplicate capture | A product variant is unique per conversation, enforced by a channel-scoped `dedupe_key`; replay returns the original message |
+
+### Contract and governance
+
+- `contracts/openapi/buildkart-workspace-v1.yaml` is now `1.1.0-proposed`: household project,
+  invitation, accept/revoke, project channel, owner/member roles, share dedupe and proposal receipt.
+- `experience/design/ui-implementation-registry.yaml` registers the conversation dock, shared list
+  and household invitation surfaces as staging prototypes resolved through the existing component
+  path.
+- `workflow/workflow-state.yaml` records CHG-072 as the active change with Phase E blocked and
+  production unauthorized.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `flutter analyze` | **pass**, no issues |
+| `flutter test` (app) | **pass**, 259 tests, including new dock/participant tests |
+| `flutter test` (`agency_flutter_ui`) | **pass**, 52 tests |
+| Tests at 390×844 and 360×800 | **pass**; dock opens, page state survives, no overflow exception |
+| Participant capture test | **pass**: chat share, empty aggregate, `add_line` proposal at v0, zero owner accepts |
+| Undo capture guard | **pass**: a stale clear request cannot drop a newer capture |
+| `flutter build web --release` (staging defines) | **pass** |
+| Workspace TypeScript typecheck | **pass** |
+| YAML parse (OpenAPI, workflow, registry) | **pass** |
+| Golden snapshots | refreshed deliberately; visual diffs inspected and limited to the new Discuss chrome/launcher |
+| Workspace household smoke | **not run locally**; requires the staging `WORKSPACE_DATABASE_URL` and service secret |
+| Staging deployment | **not performed** |
+| Chrome acceptance | **not performed**; required before Phase D is called complete |
+| Cart write / order creation | **none** |
+
+### Deliberate limits
+
+- The Phase E button is disabled with an explicit authorization message. No revalidation, cart
+  materialisation or order completion exists.
+- Golden snapshots are platform-specific and excluded from CI; the local refresh does not replace
+  Chrome acceptance.
+- The B2B Home header hit-testing defect remains a separate, known issue; the dock is shell-level
+  and does not reuse that header control.
+
 ## Pending phases
 
 | Phase | Work | Gate |
 |---|---|---|
 | B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | **Complete** |
 | C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | **Complete** |
-| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | Ready to start |
+| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | **Implemented; deployment and Chrome acceptance pending** |
 | E | Revalidation, difference preview, acknowledged cart build, idempotency | **Explicit human authorization required** |
 | F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | After D, and E if authorized |
 

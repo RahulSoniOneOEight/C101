@@ -475,6 +475,7 @@ class TradeProductCardCompact extends StatelessWidget {
     this.quantity = 1,
     this.onQuantityChanged,
     this.onAdd,
+    this.onDiscuss,
     this.onTap,
     this.state = CommerceFixture.defaultState,
     super.key,
@@ -498,6 +499,7 @@ class TradeProductCardCompact extends StatelessWidget {
   final int quantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
+  final VoidCallback? onDiscuss;
 
   final VoidCallback? onTap;
   final CommerceFixture state;
@@ -557,6 +559,42 @@ class TradeProductCardCompact extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (onDiscuss != null)
+                      Positioned(
+                        left: AgencySpacing.sm,
+                        bottom: AgencySpacing.sm,
+                        child: Material(
+                          color: colors.surfaceRaised.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(999),
+                          child: InkWell(
+                            onTap: onDiscuss,
+                            borderRadius: BorderRadius.circular(999),
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(minHeight: 44),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 9),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(Icons.forum_outlined,
+                                        size: 15, color: colors.actionPrimary),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Discuss',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: colors.actionPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

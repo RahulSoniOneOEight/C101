@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_pinned_bar.dart';
 import '../widgets/merchandising_sections.dart';
@@ -158,6 +160,12 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   void _openProduct(Product product) => context.push('/product/${product.id}');
+
+  void _discuss(Product product) =>
+      ref.read(conversationDockProvider.notifier).discuss(
+            ConversationAudience.household,
+            ConversationProductCapture.fromProduct(product),
+          );
 
   bool _isWishlisted(Product product) =>
       ref.watch(wishlistProvider).contains(product.id);
@@ -319,6 +327,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                       module: module,
                       onProductTap: _openProduct,
                       onAddToCart: _addToCart,
+                      onDiscuss: _discuss,
                       onSeeAll: _seeAllFor(module),
                       onBannerTap: _openTag('Clearance Sale'),
                       onBannerAction: (uri) => context.push(uri),
@@ -547,6 +556,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       variant: ProductCardVariant.large,
       onPressed: () => _openProduct(product),
       onAddToCart: () => _addToCart(product),
+      onDiscuss: () => _discuss(product),
       wishlisted: _isWishlisted(product),
       onWishlist: () => _toggleWishlist(product),
     );

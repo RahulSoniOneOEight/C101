@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/order_models.dart';
 import '../domain/storefront_ux.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../providers/orders_providers.dart';
 import '../providers/account_providers.dart';
 import '../providers/pilot_providers.dart';
@@ -733,31 +735,49 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child:
           Icon(Icons.image_outlined, size: 20, color: colors.contentSecondary),
     );
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: ClipRRect(
-        borderRadius: BorderRadius.circular(AgencyRadius.sm),
-        child: SizedBox(
-          width: 44,
-          height: 44,
-          child: p.thumbnail == null
-              ? placeholder
-              : Image.network(p.thumbnail!,
-                  fit: BoxFit.cover, errorBuilder: (_, __, ___) => placeholder),
+    return Column(
+      children: <Widget>[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(AgencyRadius.sm),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: p.thumbnail == null
+                  ? placeholder
+                  : Image.network(p.thumbnail!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => placeholder),
+            ),
+          ),
+          title: Text(p.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
+          subtitle: Text(p.brand ?? '',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+          trailing: Text(p.price?.formatted ?? '',
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: colors.actionPrimary)),
+          onTap: () => context.push('/product/${p.id}'),
         ),
-      ),
-      title: Text(p.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
-      subtitle: Text(p.brand ?? '',
-          style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
-      trailing: Text(p.price?.formatted ?? '',
-          style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: colors.actionPrimary)),
-      onTap: () => context.push('/product/${p.id}'),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () =>
+                ref.read(conversationDockProvider.notifier).discuss(
+                      ConversationAudience.household,
+                      ConversationProductCapture.fromProduct(p),
+                    ),
+            icon: const Icon(Icons.forum_outlined, size: 16),
+            label: const Text('Discuss'),
+            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+          ),
+        ),
+      ],
     );
   }
 

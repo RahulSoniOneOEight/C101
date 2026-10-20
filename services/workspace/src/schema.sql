@@ -64,6 +64,20 @@ CREATE TABLE IF NOT EXISTS message_reference (
   PRIMARY KEY (message_id, reference_type, reference_id)
 );
 
+-- A product capture is unique per conversation. Existing Phase 1 rows keep a
+-- null dedupe key so immutable history is not rewritten; all new captures use
+-- the channel-scoped key below.
+ALTER TABLE message_reference
+  ADD COLUMN IF NOT EXISTS channel_id text REFERENCES channel(id) ON DELETE CASCADE;
+ALTER TABLE message_reference ADD COLUMN IF NOT EXISTS dedupe_key text;
+UPDATE message_reference mr
+   SET channel_id = m.channel_id
+  FROM message m
+ WHERE mr.message_id = m.id AND mr.channel_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS message_reference_channel_dedupe_idx
+  ON message_reference(channel_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS purchase_draft (
   id text PRIMARY KEY,
   workspace_id text NOT NULL REFERENCES workspace(id) ON DELETE CASCADE,
