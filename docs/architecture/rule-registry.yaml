@@ -629,17 +629,20 @@ journey_rules:
     audit: []
 
   - rule_key: return_eligibility
-    rule_type: journey
+    rule_type: commercial
     owner: commerce
-    trigger: return_request
+    trigger: order_line_read
     conditions: []
-    parameters: { check: [line, quantity, category, seller, window] }
+    parameters:
+      window_days: 7
+      requires_delivery: true
+      resolution_options: [refund, replacement]
     scope: [b2c, b2b]
     priority: 100
     effective_from: null
     effective_to: null
-    fallback: block
-    status: pending-approval
+    fallback: deny_with_reason
+    status: new-capability
     audit: []
 
   - rule_key: refund_initiation

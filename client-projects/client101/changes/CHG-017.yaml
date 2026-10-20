@@ -1,5 +1,5 @@
 change_id: CHG-017
-revision: 6
+revision: 7
 request: >-
   Establish the governed contract baseline and implement the first production-shaped
   BuildKart marketplace-order vertical slice: authenticated buyer, composed product
@@ -11,6 +11,9 @@ request: >-
   Tryton invoice/accounting projection, logistics shipment projection,
   and customer/operator order visibility. The work includes the minimum backend
   administration UI needed to inspect the order, allocation and integration failures.
+  Revision 7 incorporates CHG-035 Phase 1 delivery capture and returns: durable shipment/event
+  persistence, allocation-driven booking, delivery evidence, and return cases with no Medusa money
+  or Tryton stock effect.
 type: architecture
 affected_capabilities:
 - authentication
@@ -60,6 +63,12 @@ affected_entities:
 - order
 - marketplace-order-allocation
 - shipment
+- shipment-event
+- delivery-evidence
+- return-case
+- return-line
+- return-evidence
+- return-event
 - integration-delivery
 - audit-record
 - recovery-case
@@ -78,6 +87,9 @@ affected_events:
 - marketplace-allocation.created
 - shipment.created
 - shipment.status-changed
+- return.requested
+- return.decision
+- return.status-changed
 - integration.delivery-failed
 - checkout.attempt-created
 - checkout.recovery-required
@@ -126,6 +138,13 @@ required_tests:
 - unsafe routing to production ERP, live payment, production logistics or customer notifications fails closed
 - editorial CMS content cannot determine transactional eligibility, price, stock, seller, payment or order success
 - shipment and accounting failures remain separate from canonical commercial order state
+- shipment and delivery evidence survive a service restart, dedupe provider events and reject
+  out-of-order regression
+- one durable shipment is booked per Mercur allocation, not per order-confirmation event
+- customer and operator shipment reads and operator repair routes are authenticated and authorized
+- return eligibility is computed from delivered evidence and the frozen policy snapshot; ineligible
+  requests are refused with a reason
+- return requests are idempotent and have no Medusa money effect and no Tryton stock effect
 - G0 through G6 evidence is traceable to the exact contract and release-candidate revision
 approval_required: true
 required_approvals:
@@ -262,11 +281,12 @@ drafting_authorization:
   - runtime implementation
   - production release
 decision_approval:
-  revision: 6
+  revision: 7
   status: all-required-decision-role-outcomes-recorded
   inherited_revision: 4
   inherited_decisions: [D-017-01, D-017-02, D-017-03, D-017-04, D-017-05, D-017-06, D-017-07, D-017-08, D-017-09, D-017-11, D-017-12, D-017-13, D-017-14, D-017-15, D-017-16, D-017-18, D-017-19, D-017-22, D-017-24]
   affected_decisions: [D-017-10, D-017-17, D-017-20, D-017-21, D-017-23]
+  affected_decision_source_revision: 6
   approved_by: Rahul Soni
   authorized_roles: [product, architecture, security, marketplace, finance, operations, integration-owners, release-authority]
   approved_at_utc: '2026-10-04T18:38:29Z'

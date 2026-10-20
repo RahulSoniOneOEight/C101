@@ -26,6 +26,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-21'
   scope: phase-a-to-phase-c-deterministic-assistant
+- change_id: CHG-035
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  scope: delivery-returns-commit-1-contracts-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -63,5 +67,21 @@ active_changes:
   proposal: client-projects/client101/changes/CHG-073.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
   assistant_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
+  production_release_authorized: false
+- change_id: CHG-035
+  status: contracts-drafted
+  approval_required: true
+  approval_scope: delivery-returns-commit-1-contracts-only
+  completed_phases:
+  - commit-1-contracts
+  active_phase: commit-1-validator-report
+  scope: delivery-capture-shipment-evidence-and-phase-1-returns
+  proposal: client-projects/client101/changes/CHG-035.yaml
+  evidence: client-projects/client101/evidence/CHG-035/contracts.md
+  parent_change: CHG-017
+  contract_validation: pass
+  rule_registry_validation: pass
+  chg017_approval_validation: pass
+  runtime_authorized: false
   production_release_authorized: false
 

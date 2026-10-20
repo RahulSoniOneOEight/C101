@@ -1,106 +1,176 @@
 change_id: CHG-035
-revision: 2
+revision: 1
 request: >-
-  Refine the common commerce and CMS administration experience into one logically organised,
-  Medusa-native Merchandising workspace. Operators must be able to review and update editorial
-  items, compare governed merchandising presets with live commerce records, and open promotions,
-  campaigns, collections and categories in their authoritative native editors. The hero banners,
-  category banners, category display names, supporting text and approved icons currently rendered
-  in the customer app must be delivered from the backend rather than hardcoded in Flutter.
-type: operator-merchandising-workspace-refinement
+  Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
+  append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
+  reads, authenticated operator simulation/reconciliation, return cases with policy snapshots and
+  idempotent requests, admin shipment and return workbenches, and an API-backed customer timeline
+  and return flow. Returns must have no Medusa money effect and no Tryton stock effect.
+type: delivery-capture-and-returns
 extends:
-- CHG-029
-- CHG-030
-- CHG-034
+- CHG-017
 affected_capabilities:
-- operator-administration
-- editorial-content
-- storefront-composition
-- promotions
-- marketplace-merchandising
+- fulfilment
+- delivery-evidence
+- returns
+- ops-exceptions
+- customer-orders
+- notifications
 affected_domains:
-- experience
-- content
 - commerce
 - marketplace
+- logistics
+- experience
+- operations
+- integration
+- notifications
 affected_surfaces:
-- mercur.admin.merchandising
-- mercur.admin.content
-- mercur.admin.promotions
-- mercur.admin.campaigns
-- mercur.admin.collections
-- mercur.admin.categories
-affected_entities:
-- storefront-layout
-- banner
-- curated-collection
-- category-editorial
-- product-editorial
-- faq-article
-- category-presentation
-- storefront-banner
-- promotion
-- campaign
-- merchandising-preset
-affected_integrations:
-- mercur-admin-to-medusa-content-facade
-- medusa-content-facade-to-private-strapi
-- medusa-admin-to-promotion-module
-affected_events:
-- cms.entry.publish
-- cms.entry.unpublish
-decisions:
-  D-035-01: one-top-level-merchandising-workspace-organises-editorial-and-commerce-tools
-  D-035-02: editorial-records-use-medusa-native-list-drawer-form-and-confirmation-patterns
-  D-035-03: commerce-promotions-and-campaigns-open-in-the-existing-native-medusa-editors
-  D-035-04: governed-preset-definitions-remain-read-only-baselines-and-are-compared-with-live-records
-  D-035-05: no-duplicate-promotion-or-campaign-write-api-is-created
-  D-035-06: cms-remains-editorial-only-and-commerce-remains-authoritative-for-transactional-fields
-  D-035-07: dangerous-publish-and-unpublish-actions-require-explicit-operator-confirmation
-  D-035-08: raw-json-is-limited-to-structured-layout-fields-until-a-governed-module-builder-is-approved
-  D-035-09: medusa-owns-category-identity-hierarchy-and-product-membership
-  D-035-10: cms-owns-localized-category-label-text-icon-key-and-banner-presentation
-  D-035-11: experience-api-composes-medusa-category-records-with-published-cms-presentation
-  D-035-12: flutter-consumes-presentation-through-experience-api-with-reviewed-offline-fallbacks
-  D-035-13: icon-keys-are-allowlisted-and-resolved-to-app-design-system-icons
-  D-035-14: https-image-references-bridge-current-staging-creative-until-media-upload-is-approved
-required_tests:
-- One Merchandising sidebar entry provides overview, editorial content and preset review navigation.
-- Existing `/content` and `/merchandising-presets` links remain compatible or redirect safely.
-- CMS create and edit actions use a Medusa drawer and preserve explicit draft-only save semantics.
-- Publish and unpublish actions require confirmation and still create operator audit records.
-- The preset review shows whether each governed campaign and promotion resolves to a live Medusa id.
-- Live campaigns and promotions link to their native Medusa detail editors.
-- CMS collections link to the editable curated-collection view while commerce categories stay native.
-- Preset and offer-lab screens never directly mutate promotion values, budgets or funding.
-- Invalid and commerce-owned CMS fields remain rejected by the server boundary.
-- Admin, CMS and backend builds pass with no second UI framework or hardcoded visual tokens.
-- Existing app hero banners are returned by the Experience API and rendered from backend payloads.
-- Root category names, supporting text, icons and banner images are returned by the Experience API.
-- Missing or invalid CMS presentation falls back without blocking category navigation or commerce.
-- Flutter no longer treats its embedded hero/category presentation as the routine live source.
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.logistics
+- experience-api.returns
+- commerce-admin.shipments
+- commerce-admin.returns
+- ops-console.integration-exceptions
+already_present:
+- >-
+  CHG-017 defines marketplace allocation, commerce shipment projection and provider execution
+  evidence ownership.
+- >-
+  The staging order read, checkout completion and operator audit patterns exist in the Experience
+  API.
+- >-
+  The notification template registry and source-event dedupe index exist.
+- >-
+  Customer order history is seeded in Flutter and is not yet API-backed.
+missing:
+- >-
+  Shipments are held in an in-memory Map and do not survive a service restart.
+- >-
+  Shipment booking is triggered from the wrong point and is not keyed by a Mercur allocation.
+- >-
+  There is no durable shipment event store, per-line delivered quantity, proof reference or
+  delivery evidence read.
+- >-
+  POST /v1/shipments/{id}/advance has no authentication and is not a safe replacement for an
+  operator simulation endpoint.
+- >-
+  There are no authenticated shipment, exception or reconciliation admin routes.
+- >-
+  There are no return cases, return lines, evidence references, policy snapshots, decisions or
+  return events.
+- >-
+  There are no return eligibility rules or return notification templates.
+- >-
+  The Flutter order provider is synchronous and seeded; the order detail and track-package screens
+  cannot consume an API-backed shipment timeline or return eligibility.
+proposed_decisions:
+- D-035-01: >-
+    Create one durable shipment per Mercur marketplace allocation and book from a durable
+    marketplace-allocation.created consumer. order.confirmed remains an order-timeline and
+    notification trigger, not the booking trigger.
+- D-035-02: >-
+    Persist shipments and append-only events in Postgres using the notification-store pattern:
+    pooled connection, idempotent schema, partial unique indexes and explicit staging/test markers.
+- D-035-03: >-
+    Apply a monotonic status-rank state machine. Persist every event; only a higher rank changes
+    status; same-rank corrections require an audited reconcile, never a normal event.
+- D-035-04: >-
+    Delivery evidence records delivered_at, per-line delivered_qty and a proof reference. Phase 1
+    stores evidence references only, never binaries in Postgres.
+- D-035-05: >-
+    Compute return eligibility per order line from delivered shipment state, the policy window,
+    already-requested quantity, reason/category rules and order cancellation. Freeze the policy
+    version and inputs onto the case at request time.
+- D-035-06: >-
+    A return request is idempotent by (user_id, idempotency_key). Replay with the same payload
+    returns the existing case with 200; reuse with different payload returns 409.
+- D-035-07: >-
+    Returns are workflow evidence only in Phase 1: no refund execution, no Medusa money mutation,
+    no Tryton movement or stock mutation. Phase 1 decisions stop at approved or rejected.
+- D-035-08: >-
+    Every operator route requires in-handler authentication, explicit role gating before the admin
+    catch-all, and a privileged audit record. The open customer shipment booking/advance endpoint
+    is removed.
+- D-035-09: >-
+    Migrate the Flutter order provider to an asynchronous API-backed provider, remove the seeded
+    order success path, and render shipment timelines and return eligibility from the server.
+- D-035-10: >-
+    Add delivery_delivered_v1, delivery_exception_v1, return_requested_v1 and return_decision_v1
+    templates while preserving source-event dedupe.
+open_decisions:
+- id: OD-035-01
+  decision: Final return window and category/reason matrix
+  proposed: Seven calendar days from delivery; damaged, wrong item and not-as-described
+  blocks: Runtime eligibility and return flow
+- id: OD-035-02
+  decision: Evidence upload versus reference-only in Phase 1
+  proposed: Reference-only, no binary storage or virus scanning
+  blocks: Return evidence UI and storage
+- id: OD-035-03
+  decision: Return approver roles
+  proposed: support_operator and marketplace_operator, with super_admin override
+  blocks: Admin decision authorization
+- id: OD-035-04
+  decision: Whether an approved return changes the order stage
+  proposed: No; return status remains a separate field and the order stays Delivered
+  blocks: App/order projection
 constraints:
-- Staging only; no production release or production content migration.
-- Use `@medusajs/ui`, `@medusajs/icons` and public Mercur dashboard primitives only.
-- No iframe and no direct browser-to-Strapi call.
-- No duplicate commerce write model in CMS or the preset catalogue.
-- Existing media references are preserved; media upload remains deferred.
-- Promotion funding, stacking, GST and commission treatment remain subject to Finance/Tax approval.
-- Production release remains unauthorized.
+- Staging only; production release remains separately human-authorized.
+- test_data=true, environment=staging and logistics_mode=simulated on every shipment, event,
+  return, decision and notification.
+- No real carrier integration, pickup scheduling or seller-side return handling in Phase 1.
+- No refund execution, payment-provider call, Medusa money mutation or Tryton stock/movement effect
+  from a return.
+- No attachment binaries in Postgres; store references and metadata only.
+- Do not make the layout/CMS, app or admin console authoritative for eligibility, price, stock,
+  seller, shipment status or order success.
+- Booking must not be coupled to checkout completion; allocations are asynchronous.
+- Do not leave a customer-facing shipment booking/advance endpoint without authentication.
+- Do not silently edit the CHG-017 approvals ledger.
+required_tests:
+- Duplicate provider events produce one row and one status outcome.
+- An out-of-order event after delivered does not move status backwards.
+- A shipment record survives a new store/service instance.
+- One shipment exists per Mercur allocation and booking is idempotent.
+- Unauthenticated shipment/return operator calls return 401; an ordinary customer gets 404;
+  an authorized operator gets 200.
+- Simulated failed, damaged, lost, RTO, duplicate and out-of-order scenarios produce the expected
+  timeline and exception state.
+- Reconcile repairs only policy-approved inconsistency and writes an audit record.
+- Return eligibility covers delivered/in-window, expired, over-quantity and non-delivered branches.
+- Return replay with the same key/payload returns the same case with 200; different payload returns
+  409.
+- Return requests preserve the policy snapshot and never call Medusa or Tryton.
+- Return operator decisions are authenticated, role-gated and audited.
+- Customer order detail returns lines, shipments and per-line eligibility.
+- Flutter order history, order detail and track-package render API data with loading, empty and error
+  states.
+- Chrome/Flutter checks pass at the target mobile widths with no console errors.
 approval_required: true
-implementation_request:
-  requested_by: human-requester
-  requested_at_utc: '2026-10-13'
-  scope: bounded-hosted-staging-admin-refinement
-  human_visual_review_required: true
-production_release_authorized: false
 implementation:
-  branch: feat/medusa-native-merchandising-admin
-  local_verification:
-  - Mercur Admin production build passed.
-  - Medusa API production build passed.
-  - Route type generation passed.
-  - Five focused unit tests passed across live catalogue reconciliation and the CMS operator client.
-  hosted_deployment: pending
-  human_visual_review: pending
-status: implemented-awaiting-hosted-review
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approval_scope: commit-1-contracts-only
+  status: commit-1-contracts-validated-runtime-pending
+  runtime_authorized: false
+  contract_phase: commit-1
+  contract_validation: pass
+  rule_registry_validation: pass
+  chg017_approval_validation: pass
+  validator_evidence: local validators run 2026-10-21
+  planned_commits:
+  - commit-1: Contracts only — CHG-017 rev 7, CHG-035, approvals ledger, data contract,
+      validators, dependency map, AsyncAPI and rule registry.
+  - commit-2: Durable shipment store and provider interface; no routes.
+  - commit-3: Allocation-driven booking consumer and removal of customer booking endpoint.
+  - commit-4: Delivery evidence, customer reads, admin simulation/reconcile/exceptions/webhook,
+      auth and audit.
+  - commit-5: Returns backend, eligibility, idempotency, events and templates.
+  - commit-6: Admin shipments and returns workbenches.
+  - commit-7: Flutter async orders, shipment timeline, return flow and routes.
+  - commit-8: Verification scripts and acceptance.
+  evidence: client-projects/client101/evidence/CHG-035/contracts.md
+  production_release_authorized: false
+status: commit-1-contracts-validated
+production_release_authorized: false

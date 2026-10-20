@@ -36,7 +36,7 @@ def main() -> None:
 
     assert change["change_id"] == ledger["change_id"] == "CHG-017"
     current_revision = change["revision"]
-    assert current_revision == ledger["decision_pack_revision"] == 6
+    assert current_revision == ledger["decision_pack_revision"] == 7
 
     hashes = ledger["revision_hashes"]
     assert hashes["decision_pack_sha256"] == sha256(PACK), "decision-pack hash is stale"
@@ -156,11 +156,13 @@ def main() -> None:
                     }
                 )
         scope = ledger["current_revision_approval_scope"]
-        expected_decisions = (
-            set(required_by_decision)
-            if revision == scope["inherited_revision"]
-            else set(scope["affected_decisions"])
-        )
+        historical_scopes = ledger.get("revision_decision_scope", {})
+        if revision in historical_scopes:
+            expected_decisions = set(historical_scopes[revision])
+        elif revision == scope["inherited_revision"]:
+            expected_decisions = set(required_by_decision)
+        else:
+            expected_decisions = set(scope["affected_decisions"])
         assert batch_decisions == expected_decisions, "batch decision scope is incomplete"
         if revision == current_revision:
             batch_decision_count += len(batch_decisions)
@@ -178,8 +180,13 @@ def main() -> None:
     current_outcomes: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for decision in inherited_decisions:
         current_outcomes[decision].extend(outcomes_by_revision[inherited_revision][decision])
+    affected_source_revision = scope.get(
+        "affected_decision_source_revision", current_revision
+    )
     for decision in affected_decisions:
-        current_outcomes[decision].extend(outcomes_by_revision[current_revision][decision])
+        current_outcomes[decision].extend(
+            outcomes_by_revision[affected_source_revision][decision]
+        )
 
     outstanding: dict[str, list[str]] = {}
     blocking_outcomes: list[str] = []

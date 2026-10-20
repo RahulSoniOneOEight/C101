@@ -1,5 +1,5 @@
 client_id: client101
-governance_note: CHG-017 Revision 5 proposes staging-payment simulation; affected-role approval and other G0 evidence remain pending.
+governance_note: CHG-017 Revision 7 inherits the Revision 6 decision outcomes and adds the CHG-035 delivery/returns contract baseline; runtime phases remain staged and production release is unauthorized.
 critical_cross_domain_flows:
 - id: editorial-content-to-app-shell
   domains:
@@ -43,6 +43,30 @@ critical_cross_domain_flows:
   - commerce
   - integration
   - erp
+- id: allocation-to-shipment-booking
+  domains:
+  - commerce
+  - marketplace
+  - logistics
+  - integration
+  - experience
+- id: shipment-event-to-delivery-evidence
+  domains:
+  - logistics
+  - integration
+  - experience
+  - operations
+- id: delivery-evidence-to-return-eligibility
+  domains:
+  - experience
+  - commerce
+  - logistics
+  - operations
+- id: return-decision-to-notification
+  domains:
+  - experience
+  - notifications
+  - operations
 - id: return-to-refund
   domains:
   - experience

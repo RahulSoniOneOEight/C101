@@ -1,7 +1,7 @@
 contract_id: DC-client101-001
 client_id: client101
 change_contract: CHG-017
-change_contract_revision: 5
+change_contract_revision: 7
 governance_status: decision-approvals-recorded-evidence-conditions-pending
 governed_amendments:
 - change_contract: CHG-018
@@ -20,6 +20,10 @@ governed_amendments:
   revision: 1
   status: bounded-staging-phase-1-approved
   scope: b2b-collaborative-workspace-messaging-purchase-drafts-approvals-and-checkout-handoff
+- change_contract: CHG-035
+  revision: 1
+  status: contracts-drafted-runtime-pending
+  scope: delivery-capture-shipment-evidence-and-phase-1-returns
 entities:
   - name: order
     canonical_owner: commerce
@@ -80,6 +84,55 @@ entities:
     projections: [commerce-fulfilment-status, erp-shipment-projection, experience-tracking]
     notes:
     - One destination and shipment are permitted per checkout in this slice.
+    - CHG-035 requires one durable staging shipment per Mercur allocation, with delivered_at,
+      per-line delivered quantity and proof reference. Provider events remain evidence and never
+      become commerce state.
+    - Booking is driven by marketplace-allocation.created, not order.confirmed.
+  - name: shipment-event
+    canonical_owner: logistics-provider
+    consumers: [experience, operations]
+    projections: [experience-shipment-timeline, operator-shipment-exceptions]
+    notes:
+    - Append-only provider evidence deduplicated by (provider, provider_event_id).
+    - Stores duplicate and out-of-order events without regressing the derived status.
+    - Provider events never mutate Medusa order success or Tryton stock.
+  - name: delivery-evidence
+    canonical_owner: logistics-provider
+    consumers: [experience, commerce, operations]
+    projections: [experience-delivery-proof, return-eligibility-input]
+    notes:
+    - Records delivered_at, per-line delivered quantity and a proof reference.
+    - Phase 1 stores references and metadata only; no binaries in Postgres.
+  - name: return-case
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-status, operator-return-queue]
+    notes:
+    - CHG-035 Phase 1 workflow case with a frozen policy version and snapshot.
+    - Idempotent by (user_id, idempotency_key); replay returns the existing case.
+    - Has no Medusa money effect and no Tryton stock or movement effect.
+    - Phase 1 decisions stop at approved or rejected; pickup, restock and refund are out of scope.
+  - name: return-line
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-line]
+    notes:
+    - Captures ordered, delivered, requested and approved quantity plus its reason code.
+    - Eligibility is computed at request time and never re-evaluated against a newer policy.
+  - name: return-evidence
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [operator-return-evidence]
+    notes:
+    - Stores object references, content type, size, hash and scan status only.
+    - No attachment binary is stored in Postgres.
+  - name: return-event
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-timeline, audited-return-decision]
+    notes:
+    - Append-only actor, role, event type, detail and timestamp.
+    - Records operator decisions and customer-visible state changes without financial or stock effect.
   - name: invoice
     canonical_owner: erp-accounting
     consumers: [commerce, experience, finance]
