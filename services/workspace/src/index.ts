@@ -1155,9 +1155,27 @@ async function handleProposalDecision(
     }, 409);
   }
   if (action === "reject" || action === "cancel") {
+    const status = action === "reject" ? "rejected" : "cancelled";
     await pool.query(
       "update proposal set status=$2, decided_by=$3, decided_at=now() where id=$1",
-      [proposalId, action === "reject" ? "rejected" : "cancelled", actor.userId],
+      [proposalId, status, actor.userId],
+    );
+    await pool.query(
+      `insert into workspace_outbox
+         (id, event_type, aggregate_type, aggregate_id, correlation_id, payload)
+       values ($1,$2,'purchase_draft',$3,$4,$5)`,
+      [
+        `out_${randomUUID().replaceAll("-", "")}`,
+        `proposal.${status}`,
+        proposal.draft_id,
+        actor.correlationId,
+        JSON.stringify({
+          workspace_id: proposal.workspace_id,
+          draft_id: proposal.draft_id,
+          proposal_id: proposalId,
+          status,
+        }),
+      ],
     );
     return new Response(null, { status: 204 });
   }
@@ -1193,9 +1211,27 @@ async function handleProposalDecision(
   try {
     await client.query("BEGIN");
     const created = await createRevision(client, draft, lines, actor.userId, draft.current_version + 1);
+    const proposalStatus = action === "edit-and-accept" ? "edited_accepted" : "accepted";
     await client.query(
       `update proposal set status=$2, decided_by=$3, decided_at=now() where id=$1`,
-      [proposalId, action === "edit-and-accept" ? "edited_accepted" : "accepted", actor.userId],
+      [proposalId, proposalStatus, actor.userId],
+    );
+    await client.query(
+      `insert into workspace_outbox
+         (id, event_type, aggregate_type, aggregate_id, correlation_id, payload)
+       values ($1,'proposal.accepted','purchase_draft',$2,$3,$4)`,
+      [
+        `out_${randomUUID().replaceAll("-", "")}`,
+        draft.id,
+        actor.correlationId,
+        JSON.stringify({
+          workspace_id: draft.workspace_id,
+          draft_id: draft.id,
+          proposal_id: proposalId,
+          status: proposalStatus,
+          version: created.version,
+        }),
+      ],
     );
     await client.query("COMMIT");
     broadcast(draft.workspace_id, {
@@ -1506,6 +1542,17 @@ async function postProposal(
       JSON.stringify({ kind }),
     ],
   );
+  await pool.query(
+    `insert into workspace_outbox
+       (id, event_type, aggregate_type, aggregate_id, correlation_id, payload)
+     values ($1,'proposal.created','purchase_draft',$2,$3,$4)`,
+    [
+      `out_${randomUUID().replaceAll("-", "")}`,
+      draftId,
+      actor.correlationId,
+      JSON.stringify({ workspace_id: draft.workspace_id, draft_id: draftId, proposal_id: proposalId, kind }),
+    ],
+  );
   broadcast(draft.workspace_id, { type: "draft.updated", workspace_id: draft.workspace_id, draft_id: draftId });
   return json({ proposal_id: proposalId, status: "pending", correlation_id: actor.correlationId }, 201);
 }
@@ -1572,6 +1619,24 @@ async function requestApproval(
         actor.userId,
         draft.current_version,
         JSON.stringify({ commercial_hash: current.commercial_hash }),
+      ],
+    );
+    await client.query(
+      `insert into workspace_outbox
+         (id, event_type, aggregate_type, aggregate_id, correlation_id, payload)
+       values ($1,'approval.requested','purchase_draft',$2,$3,$4)`,
+      [
+        `out_${randomUUID().replaceAll("-", "")}`,
+        draftId,
+        actor.correlationId,
+        JSON.stringify({
+          workspace_id: draft.workspace_id,
+          draft_id: draftId,
+          approval_id: approvalId,
+          revision_id: current.id,
+          commercial_hash: current.commercial_hash,
+          requested_by: actor.userId,
+        }),
       ],
     );
     await client.query("COMMIT");
