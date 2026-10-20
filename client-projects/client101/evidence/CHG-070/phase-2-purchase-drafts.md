@@ -1,8 +1,9 @@
 # CHG-070 — Phase 2 purchase drafts, proposals and approvals
 
 **Date:** 2026-10-20
+**App build:** `e04e300` (`phase2-purchase-drafts-2`)
 **Environment:** staging only
-**Status:** implementation complete; staging verification pending
+**Status:** Phase 2 complete on staging; awaiting human review
 **Production:** unauthorized
 
 ## Outcome
@@ -64,7 +65,25 @@ The workspace never owns carts, orders, payments, products, prices, sellers or n
 | Workspace model parsing (string versions, line snapshots) | pass |
 | Buyer proposal and approval-request widget journey | pass |
 | Approver bound-revision decision widget journey | pass |
-| Workspace smoke (signed actors, tenant isolation, share, proposal, approval) | pending staging run |
-| Chrome 390×844 / 360×800 | pending staging run |
-| Approval superseded by a later revision | pending staging run |
-| Cross-tenant draft and share access | pending staging run |
+| Workspace smoke (signed actors, tenant isolation, share, proposal, approval) | **pass** |
+| Proposal acceptance creates exactly one revision | pass (v6 → v7 → v8 → v9) |
+| Approval is bound to the current revision and hash | pass |
+| Later material revision supersedes a pending/approved approval | pass |
+| One pending approval per draft | pass (unique partial index + `409`) |
+| Approver cannot propose | **403** |
+| Approver UI decision | **Approved** on Chrome |
+| Product share UI from B2B PDP | **201**, snackbar + Procurement share card |
+| Share idempotency replay | same message id |
+| Cross-tenant draft read | **404** |
+| Cross-tenant share | **404** |
+| Shakti workspace draft pane | explicit empty state, no Arjun data |
+| Chrome 390×844 | no overflow, no API console errors |
+| Chrome 360×800 | no overflow, no API console errors |
+| Staging final state | draft v9, two lines, approval `pending` for human review |
+
+### Pre-existing issue observed
+
+Twelve catalogue image URLs under `https://ops-staging.pinakaplay.cloud/static/` return `404`
+(for example `homerun-action-tesa-hdhmr-board-plain-8-x-4.webp` and `jktyre-ranger-a-t.png`). These
+are catalogue asset gaps, not workspace API failures; the workspace and draft surfaces still load.
+The asset gap remains open for the catalogue owner.

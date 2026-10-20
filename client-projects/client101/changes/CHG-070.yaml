@@ -157,7 +157,7 @@ decision_approval:
   production_release_authorized: false
 implementation:
   phase: 2-purchase-drafts-proposals-approvals
-  status: phase-2-implemented-staging-verification-pending
+  status: phase-2-complete-staging-verified
   service_code_started: true
   evidence: client-projects/client101/evidence/CHG-070/phase-2-purchase-drafts.md
   phase_1_evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
@@ -197,21 +197,36 @@ implementation:
     typescript_typecheck: pass
     flutter_analyze: pass
     flutter_tests: 241-pass
-    workspace_smoke: pending-staging-run
-    tenant_isolation: pending-staging-run
-    arjun_ui: pending-staging-run
-    shakti_ui: pending-staging-run
-    console_errors: pending-staging-run
-    websocket_feed: pass-phase-1
-    outbox_publisher: pass-phase-1
+    workspace_smoke: pass
+    tenant_isolation: pass
+    arjun_ui: pass
+    shakti_ui: pass
+    console_errors: pass-no-api-errors
+    websocket_feed: pass
+    outbox_publisher: pass
     outbox_pending_rows: 0
     unread_badge: implemented
     responsive_widths: [390x844, 360x800]
+    proposal_creates_one_revision: pass
+    approval_bound_to_revision_hash: pass
+    self_approval_blocked: pass
+    approver_cannot_propose: pass
+    one_pending_approval_per_draft: pass
+    product_share_reference: pass
+    share_idempotency_replay: pass
+    cross_tenant_draft_read: 404
+    cross_tenant_share: 404
+    approver_ui_decision: pass-approved
+    browser_console_api_errors: none
+    pre_existing_catalogue_image_404s: >-
+      Twelve catalogue image URLs under ops-staging.pinakaplay.cloud/static/ return 404.
+      This is a pre-existing catalogue asset gap, not a workspace API failure; it remains open.
   deployment:
-    app_build: pending-phase-2
+    app_build: e04e300
+    app_build_id: phase2-purchase-drafts-2
     workspace_image: buildkart-hosted-pilot-workspace
     workspace_database: buildkart_workspace
     experience_api_proxy: enabled-phase-2-routes
     websocket_proxy: enabled
-status: phase-2-in-progress-staging-verification
+status: phase-2-deployed-awaiting-human-review
 production_release_authorized: false
