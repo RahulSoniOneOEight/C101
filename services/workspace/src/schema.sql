@@ -133,6 +133,9 @@ CREATE TABLE IF NOT EXISTS approval_request (
   decided_at timestamptz
 );
 ALTER TABLE approval_request ADD COLUMN IF NOT EXISTS decision_comment text;
+CREATE UNIQUE INDEX IF NOT EXISTS approval_request_one_pending_idx
+  ON approval_request(draft_id)
+  WHERE decision = 'pending';
 
 CREATE TABLE IF NOT EXISTS read_cursor (
   channel_id text NOT NULL REFERENCES channel(id) ON DELETE CASCADE,

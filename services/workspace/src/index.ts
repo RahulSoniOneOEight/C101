@@ -1274,6 +1274,12 @@ async function handleApprovalAction(
       [approvalId, decision, actor.userId, comment],
     );
     await client.query(
+      `update approval_request
+          set decision='superseded', decided_at=now()
+        where draft_id=$1 and id<>$2 and decision='pending'`,
+      [approval.draft_id, approvalId],
+    );
+    await client.query(
       "update purchase_draft set lifecycle_status=$2, updated_at=now() where id=$1",
       [approval.draft_id, lifecycle],
     );
@@ -1572,6 +1578,9 @@ async function requestApproval(
     broadcast(draft.workspace_id, { type: "draft.updated", workspace_id: draft.workspace_id, draft_id: draftId, lifecycle_status: "review_requested" });
   } catch (error) {
     await client.query("ROLLBACK");
+    if ((error as { code?: string }).code === "23505") {
+      return problem(409, "approval-already-pending", "An approval request is already pending for this draft.", actor.correlationId);
+    }
     return problem(500, "approval-request-failed", "The approval request could not be saved.", actor.correlationId);
   } finally {
     client.release();
