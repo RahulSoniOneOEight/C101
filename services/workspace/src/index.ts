@@ -941,7 +941,7 @@ async function shareProduct(
   // Product capture is set-like within one conversation. A second Discuss
   // action returns the first message and never appends a duplicate reference.
   const duplicate = await existingProductShare(channelId, body.variant_id as string);
-  if (duplicate) return json(duplicate);
+  if (duplicate) return json(duplicate, 201);
   const title = body.product_title?.trim() || "a catalogue product";
   const text = body.body?.trim() || `Shared ${title} for discussion.`;
   const messageId = `msg_${randomUUID().replaceAll("-", "")}`;
@@ -1012,7 +1012,7 @@ async function shareProduct(
     await client.query("ROLLBACK");
     if ((error as { code?: string }).code === "23505") {
       const existing = await existingProductShare(channelId, body.variant_id as string);
-      if (existing) return json(existing);
+      if (existing) return json(existing, 201);
     }
     throw error;
   } finally {

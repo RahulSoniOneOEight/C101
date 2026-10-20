@@ -221,6 +221,7 @@ try {
     "POST",
     `/v1/channels/${projectChannel.id}/shares`,
     shareBody,
+    201,
   );
   assert.equal(duplicateShare.id, shared.id);
 

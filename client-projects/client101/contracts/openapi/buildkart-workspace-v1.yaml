@@ -316,13 +316,8 @@ paths:
       requestBody:
         $ref: '#/components/requestBodies/ShareInput'
       responses:
-        '200':
-          description: Existing de-duplicated share for this product variant in the channel
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/Message'}
         '201':
-          description: Share message
+          description: Share message, or the existing message when this variant was already captured in the channel
           content:
             application/json:
               schema: {$ref: '#/components/schemas/Message'}
