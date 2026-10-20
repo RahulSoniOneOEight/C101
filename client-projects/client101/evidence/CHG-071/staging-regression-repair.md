@@ -14,6 +14,7 @@ The review separated already-fixed items from two live defects:
 |---|---|
 | Catalogue assets | The catalogue remained exactly 233 products / 500 SKUs, but all 233 thumbnail URLs returned HTTP 404. |
 | Trade promotions | `TRADE7` and `TRADEVIP` targeted the correct four-member group, but Experience API carts had no canonical Medusa customer association. |
+| B2B delivery region | The countryless B2B pricing region rejected an Indian address, so B2B shipping could not be selected. |
 | Cart thumbnails | CHG-061 implementation is present; no second implementation required. |
 | B2B quick order / deals | CHG-062 implementation is present; existing tests and staging content require revalidation only. |
 | Operator console | CHG-063 source passes lint and build; the documented large entry chunk remains a performance warning. |
@@ -59,6 +60,22 @@ This keeps ownership unchanged:
 - Experience authenticates the pilot actor and passes server-owned context.
 - Medusa owns and resolves the customer, group membership and canonical cart.
 - The Workspace service is not involved.
+
+## B2B delivery-region correction
+
+Medusa stores a country under exactly one operational region (`region_country.iso_2` is the primary
+key). India is correctly assigned to the `India` region. The separate `BuildKart B2B` region has no
+countries and is therefore valid only as a read-side pricing context; a cart created there cannot
+accept an Indian shipping address.
+
+The only price list scoped to the B2B region has 52 prices, all attached to archived draft variants.
+It has **zero** prices attached to the governed CHG-049 catalogue. Canonical B2C and B2B carts now
+default to the existing operational India region while read-side B2B pricing remains unchanged. No
+country assignment, price-list rule, price amount, product or offer was modified.
+
+The hosted promotion acceptance check additionally proves that a governed B2B offer has the same
+unit price in the product payload and cart, the Indian address is accepted, and at least one seller
+shipping option resolves before `TRADEVIP` is evaluated.
 
 Retained checks:
 

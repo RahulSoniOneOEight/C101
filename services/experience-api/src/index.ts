@@ -1491,7 +1491,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const channel = wantsB2B ? "b2b" : "b2c";
     try {
       const cart = await medusa.createCart(
-        body.region_id ?? regionFor(authenticated.authorization),
+        // A Medusa country belongs to one operational region. The separate B2B region is a
+        // read-side pricing context and has no countries, so it cannot accept an Indian address.
+        // Canonical carts default to the India delivery region for both channels.
+        body.region_id ?? config.medusaRegionId,
         body.currency_code ?? "inr",
         { customerEmail: authenticated.user.email },
       );

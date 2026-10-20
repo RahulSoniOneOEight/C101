@@ -1,5 +1,5 @@
 change_id: CHG-071
-revision: 1
+revision: 2
 request: >-
   Review the deployed staging implementation and resolve known regressions that can be repaired
   without entering Workspace Phase 3, changing commercial terms, or authorizing production.
@@ -43,6 +43,13 @@ findings:
 - >-
   Cart thumbnail fallback, B2B quick-order/trade-deal content, and the CHG-063 operator-console fixes
   are already implemented; they require revalidation rather than a second implementation.
+- >-
+  The configured BuildKart B2B region is a countryless pricing context. Medusa assigns each country
+  to exactly one operational region, and India is correctly assigned to the existing India region.
+  A B2B cart created in the pricing-only region therefore rejects an Indian delivery address before
+  shipping can be selected. Its 52 price-list entries resolve only to archived draft variants and to
+  zero CHG-049 governed SKUs, so the current 233-product / 500-SKU catalogue does not depend on that
+  region for a different cart price.
 decisions_approved:
 - D-071-01: >-
     Restore the existing governed catalogue files by attaching the retained medusa_uploads volume
@@ -57,9 +64,15 @@ decisions_approved:
 - D-071-04: >-
     Revalidate the existing cart-thumbnail, B2B merchandising, operator-console and promotion paths.
     Correct defects only where the prior approved contracts already define the intended behaviour.
+- D-071-05: >-
+    Default canonical B2C and B2B carts to the operational India region so an Indian address,
+    shipping options and checkout remain valid. Keep the countryless B2B region available as the
+    existing read-side pricing context and do not modify any price list, price amount or region-country
+    ownership under this repair.
 constraints:
 - Preserve exactly 233 grouped products and 500 source SKUs; do not create replacement product cards.
 - Do not change product, variant, seller, offer, list-price, discount, campaign or promotion ownership.
+- Do not move India between regions or modify the B2B Trade Pricing price list.
 - Cart customer identity is derived only from the signed server session.
 - Do not expose credentials, tokens, host environment values, or staging customer data in evidence.
 - Do not implement Workspace Phase 3 revalidation or checkout handoff.
@@ -73,6 +86,8 @@ required_tests:
 - TRADE7 applies only to an eligible trade customer and matching Basin Mixers & Taps line.
 - TRADEVIP applies only to an eligible trade customer after a shipping method exists.
 - A non-trade customer remains ineligible for both trade promotions.
+- A B2B cart accepts an Indian address and resolves at least one seller shipping option.
+- The selected governed offer has the same unit price in the B2B product view and canonical cart.
 - Existing TOOLS200 and automatic PLY5 behaviour is unchanged.
 - Cart thumbnail fallback and B2B quick-order/trade-deal modules still pass their existing checks.
 - Experience API typecheck and relevant Flutter tests pass.
