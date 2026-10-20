@@ -1,11 +1,13 @@
 change_id: CHG-072
-revision: 1
+revision: 2
 request: >-
-  Add a B2C household project collaboration so a consumer planning a home renovation can invite up
-  to three participants who sign in with their own OTP, chat in the project, share catalogue
-  products and propose quantity changes to one shared list. The owner alone sees delivery and
-  payment details and places the order.
-type: b2c-household-project-collaboration
+  Make conversation a first-class layer over the existing storefront and trade pages in both
+  channels: capture any catalogue product into a chat from the page the user is already on, discuss
+  it with the right participants, grow a shared list with quantities, and build the canonical cart
+  from that list on an explicit action. B2C adds a household project (owner plus up to three
+  participants who sign in with their own OTP); B2B reuses the existing procurement workspace and
+  its approval rules.
+type: cross-channel-conversation-and-cart-handoff
 extends:
 - CHG-070
 - CHG-050
@@ -22,7 +24,9 @@ affected_domains:
 - commerce
 affected_surfaces:
 - app.prototype.b2c-storefront
+- app.prototype.b2b-trade
 - experience-api.workspace
+- experience-api.carts
 - workspace.service
 - medusa.cart
 already_present:
@@ -48,6 +52,15 @@ missing:
 - >-
   No rule separates owner-only checkout and delivery/payment visibility from participant
   collaboration.
+- >-
+  Product capture is page-bound: B2B has a PDP share action and B2C has none, and there is no way to
+  start or continue a conversation from a product card, browse grid, cart line or search result.
+- >-
+  There is no cart-build step from a shared list. Workspace intent and the canonical Medusa cart are
+  deliberately disconnected, so moving a list into the cart is Phase 3 handoff work.
+- >-
+  The conversation lives on its own route and replaces the page. Users lose the catalogue context
+  they were shopping in, which conflicts with the requested "over the existing app pages" flow.
 decisions_approved:
 - D-072-01: >-
     Add 'household' as a Workspace scope type. A household project has exactly one owner and at most
@@ -68,11 +81,31 @@ decisions_approved:
     Workspace membership remains a projection; scope, role and participant identity are derived from
     the signed session, never from client input. A project read outside membership returns 404.
 - D-072-07: >-
-    Chat can never create a cart or an order. Commerce handoff remains Phase 3 and stays
-    unauthorized under this change.
+    Chat never creates a cart or an order automatically. Adding to the cart is always an explicit,
+    separately authorized action; Phase 3 remains unauthorized until human approval is recorded.
 - D-072-08: >-
     Reuse existing B2C pilot identities for participants. Do not raise the hosted 20-identity
     allowlist cap under this change.
+- D-072-09: >-
+    Conversation is a slide-over dock available on the existing Home, Browse, Search, PDP and Cart
+    pages in both channels. Opening it keeps the current page and scroll position; the existing
+    workspace deep link remains as a full-page fallback.
+- D-072-10: >-
+    Every product card, search result, PDP and cart line gains one capture action ("Discuss").
+    It attaches a product reference with a display snapshot to the active conversation, or starts a
+    conversation when none is active. It never adds to the cart by itself.
+- D-072-11: >-
+    The shared list is purchase intent, not commerce state. Building the cart is a separate explicit
+    action that re-resolves price, stock, MOQ, seller and tax from Commerce, shows any difference,
+    and only then adds the confirmed lines to the canonical Medusa cart.
+- D-072-12: >-
+    B2C cart build is owner-only. B2B cart build requires a buyer or account admin acting on a
+    revision whose approval is current; an approver cannot build the cart.
+- D-072-13: >-
+    Chat never completes an order and never creates an order. The cart build stops at the canonical
+    cart; checkout remains the existing address-first journey with an explicit user confirmation.
+- D-072-14: >-
+    Cart build is idempotent per accepted revision, so a retry or double tap cannot duplicate lines.
 conflicts_requiring_a_decision:
 - C-072-01: >-
     ADR-011 and the collaborative-workspace threat model declare B2C household collaboration out of
@@ -80,13 +113,21 @@ conflicts_requiring_a_decision:
 - C-072-02: >-
     Household membership needs a privacy model for people who share a purchase but not an address or
     payment method; the existing B2B threat model has no such actor.
+- C-072-03: >-
+    Building the cart from a shared list is Workspace Phase 3 handoff. It requires explicit human
+    authorization, and it is the only part of this change that may write commerce state.
+- C-072-04: >-
+    The slide-over dock changes shared navigation chrome in both channels; it needs a governed UI
+    decision so the B2B header defect is not carried into the B2C surface.
 constraints:
 - Staging only; production release remains unauthorized.
 - Preserve exactly 233 grouped products and 500 source SKUs.
 - Do not create a second commerce or customer register; Medusa remains the commerce owner.
 - Do not expose saved addresses, phone, GST or payment data to participants.
 - Do not let a participant check out, invite others, or mutate an accepted revision directly.
-- Do not implement Phase 3 revalidation or cart handoff.
+- Do not implement Phase 3 revalidation or cart handoff until explicit human authorization is
+  recorded against this change.
+- Do not carry the existing B2B header hit-testing defect into the new conversation dock.
 - Do not raise the pilot identity cap or add real external users.
 - Do not send WhatsApp or FCM messages to participants under this change.
 required_tests:
@@ -101,6 +142,14 @@ required_tests:
 - A fourth invitation is rejected once three participants are active.
 - An expired or revoked invitation cannot be accepted.
 - Owner-only checkout fields stay absent from every participant projection.
+- From Home, Browse, Search, PDP and Cart, "Discuss" attaches the same product to the active
+  conversation and does not change the cart.
+- Opening and closing the dock preserves the underlying page, filter state and scroll position.
+- A product captured twice is de-duplicated per conversation.
+- Cart build shows revalidated price, stock, MOQ and seller; a changed line requires acknowledgement.
+- Cart build adds the confirmed lines once, and a retry does not duplicate them.
+- B2B cart build is refused for an approver and for a revision whose approval is stale.
+- Chat and cart build never complete an order.
 - B2B workspace behaviour and its tenant isolation remain unchanged.
 - Chrome 390x844 and 360x800 pass with no horizontal overflow and no console errors.
 approval_required: true
@@ -119,9 +168,14 @@ implementation:
       Experience API consumer actor path, invitation endpoints, owner-only field redaction and
       participant proposal rules.
   - phase-d: >-
-      Flutter B2C project surface: create project, invite participants, conversation, shared list and
-      proposal state; owner-only checkout entry.
+      Conversation dock over the existing pages in both channels, with one "Discuss" capture action
+      on product cards, search results, PDP and cart lines; B2C project creation and invitations;
+      shared list with participant proposals; owner-only checkout entry.
   - phase-e: >-
+      Phase 3 cart handoff only after explicit authorization: revalidate price, stock, MOQ, seller
+      and tax, show a difference preview, require acknowledgement, then add confirmed lines to the
+      canonical cart idempotently per revision. No order completion.
+  - phase-f: >-
       Staging verification, tenant isolation, negative tests and Chrome acceptance at both sizes.
 status: proposed-awaiting-approval
 production_release_authorized: false
