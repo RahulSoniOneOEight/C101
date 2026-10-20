@@ -9,6 +9,7 @@ import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/notifications_providers.dart';
+import '../providers/workspace_providers.dart';
 import '../providers/trade_offers_providers.dart';
 import '../widgets/b2b_home_header.dart';
 import '../widgets/trade_product_tile.dart';
@@ -86,6 +87,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                         context.push('/notifications?audience=b2b'),
                     notificationCount: ref.watch(
                         unreadNotificationsProvider(NotificationAudience.b2b)),
+                    workspaceUnreadCount:
+                        ref.watch(workspaceUnreadCountProvider).value ?? 0,
                     onWorkspace: () => context.push('/b2b/workspace'),
                     onCart: () => context.go('/b2b/cart'),
                     onAccount: () => context.go('/b2b/account'),

@@ -94,6 +94,25 @@ class WorkspaceMessage {
       );
 }
 
+class WorkspaceStreamTicket {
+  const WorkspaceStreamTicket({
+    required this.ticket,
+    required this.signature,
+    required this.expiresInSeconds,
+  });
+
+  final String ticket;
+  final String signature;
+  final int expiresInSeconds;
+
+  factory WorkspaceStreamTicket.fromJson(Map<String, dynamic> json) =>
+      WorkspaceStreamTicket(
+        ticket: json['ticket'] as String? ?? '',
+        signature: json['signature'] as String? ?? '',
+        expiresInSeconds: _asInt(json['expires_in_seconds']),
+      );
+}
+
 class WorkspaceMessagePage {
   const WorkspaceMessagePage({
     required this.messages,

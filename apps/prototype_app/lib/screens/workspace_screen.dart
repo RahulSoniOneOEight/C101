@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../domain/workspace_models.dart';
+import '../providers/workspace_providers.dart';
 
 /// B2B collaborative workspace — Phase 1 conversation surface.
 ///
@@ -34,6 +38,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   bool _sending = false;
   String? _error;
   Timer? _poll;
+  WebSocketChannel? _stream;
 
   @override
   void initState() {
@@ -44,6 +49,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
   @override
   void dispose() {
     _poll?.cancel();
+    _stream?.sink.close();
     _composer.dispose();
     _scroll.dispose();
     super.dispose();
@@ -79,6 +85,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
         _loading = false;
       });
       if (channel != null) await _loadMessages(channel);
+      await _connectStream();
       _startPolling();
     } catch (error) {
       if (!mounted) return;
@@ -110,6 +117,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
         _channel = channel;
       });
       if (channel != null) await _loadMessages(channel);
+      await _connectStream();
       _startPolling();
     } catch (error) {
       if (mounted) setState(() => _error = _friendlyError(error));
@@ -172,6 +180,63 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     _poll = Timer.periodic(const Duration(seconds: 6), (_) => _pollMessages());
   }
 
+  Future<void> _connectStream() async {
+    final workspace = _workspace;
+    final channel = _channel;
+    if (workspace == null || channel == null) return;
+    try {
+      await _stream?.sink.close();
+      _stream = null;
+      final ticket = await ref
+          .read(experienceApiProvider)
+          .createWorkspaceStreamTicket(workspace.id);
+      if (!mounted || _workspace?.id != workspace.id) return;
+      final base = AppConfig.experienceApiBaseUrl
+          .replaceFirst(RegExp(r'^https'), 'wss')
+          .replaceFirst(RegExp(r'^http'), 'ws');
+      final uri = Uri.parse('$base/v1/workspaces/${workspace.id}/stream')
+          .replace(queryParameters: <String, String>{
+        'ticket': ticket.ticket,
+        'signature': ticket.signature,
+        'cursor': _cursor ?? '0',
+      });
+      final socket = WebSocketChannel.connect(uri);
+      _stream = socket;
+      socket.stream.listen(
+        _onStreamEvent,
+        onDone: () => _stream = null,
+        onError: (_) => _stream = null,
+        cancelOnError: true,
+      );
+    } catch (_) {
+      // REST polling remains available when the realtime feed cannot connect.
+      _stream = null;
+    }
+  }
+
+  void _onStreamEvent(dynamic raw) {
+    if (raw is! String) return;
+    try {
+      final payload = jsonDecode(raw);
+      if (payload is! Map<String, dynamic>) return;
+      if (payload['type'] != 'message.created') return;
+      final messageJson = payload['message'];
+      if (messageJson is! Map<String, dynamic>) return;
+      final message = WorkspaceMessage.fromJson(messageJson);
+      final channel = _channel;
+      if (channel == null || message.channelId != channel.id) return;
+      if (_messages.any((existing) => existing.id == message.id)) return;
+      setState(() {
+        _messages = <WorkspaceMessage>[..._messages, message];
+        _cursor = '${message.sequence}';
+      });
+      _markRead(channel, <WorkspaceMessage>[message]);
+      _scrollToBottom();
+    } catch (_) {
+      // Ignore malformed or non-message frames; polling still reconciles.
+    }
+  }
+
   Future<void> _markRead(
     WorkspaceChannel channel,
     List<WorkspaceMessage> messages,
@@ -180,6 +245,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     if (last <= 0) return;
     try {
       await ref.read(experienceApiProvider).markWorkspaceRead(channel.id, last);
+      ref.invalidate(workspaceUnreadCountProvider);
     } catch (_) {
       // Unread state is non-critical; never block the conversation.
     }

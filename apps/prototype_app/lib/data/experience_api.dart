@@ -618,6 +618,15 @@ class ExperienceApi {
       data: {'last_event_sequence': sequence},
     );
   }
+
+  Future<WorkspaceStreamTicket> createWorkspaceStreamTicket(
+    String workspaceId,
+  ) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/workspaces/$workspaceId/stream-ticket',
+    );
+    return WorkspaceStreamTicket.fromJson(res.data!);
+  }
 }
 
 /// A promotion code the engine refused, with a reason the UI can explain.

@@ -88,6 +88,13 @@ class _FakeWorkspaceApi extends ExperienceApi {
   Future<void> markWorkspaceRead(String channelId, int sequence) async {
     readCalls += 1;
   }
+
+  @override
+  Future<WorkspaceStreamTicket> createWorkspaceStreamTicket(
+    String workspaceId,
+  ) async {
+    throw UnsupportedError('WebSocket is not available in this test');
+  }
 }
 
 void main() {
