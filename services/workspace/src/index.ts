@@ -672,7 +672,7 @@ function moneyLabel(minor: number, currency: string): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return `${currency} ${amount}`;
+  return `${currency.toUpperCase()} ${amount}`;
 }
 
 async function assistantReplyText(workspaceId: string, prompt: string): Promise<string> {

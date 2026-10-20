@@ -9,6 +9,7 @@ import '../domain/models.dart';
 import '../domain/workspace_models.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/cart_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 
 /// Explicit shared-list → cart handoff.
 ///
@@ -311,8 +312,10 @@ class _CartBuildSheetState extends ConsumerState<_CartBuildSheet> {
             ),
             action: SnackBarAction(
               label: 'View cart',
-              onPressed: () =>
-                  router.go(widget.business ? '/b2b/cart' : '/cart'),
+              onPressed: () {
+                ref.read(conversationDockProvider.notifier).close();
+                router.go(widget.business ? '/b2b/cart' : '/cart');
+              },
             ),
           ),
         );
@@ -447,6 +450,7 @@ class _CartBuildSheetState extends ConsumerState<_CartBuildSheet> {
                     onPressed: _alreadyBuilt
                         ? () {
                             final router = GoRouter.of(context);
+                            ref.read(conversationDockProvider.notifier).close();
                             Navigator.of(context).pop();
                             router.go(widget.business ? '/b2b/cart' : '/cart');
                           }

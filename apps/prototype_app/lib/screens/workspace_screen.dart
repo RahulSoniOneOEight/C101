@@ -535,7 +535,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
             const SizedBox(width: AgencySpacing.sm),
             Expanded(
               child: Text(
-                'Staging pilot · Phase 2 conversation, purchase drafts and revision-bound approvals. Checkout handoff stays disabled until Phase 3.',
+                'Staging pilot · conversation, purchase drafts and revision-bound approvals. Cart build is explicit and revalidated; checkout remains a separate step.',
                 style: TextStyle(
                     fontSize: 10, height: 1.35, color: colors.contentSecondary),
               ),
@@ -830,8 +830,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           _approvalCard(colors, view),
           const SizedBox(height: AgencySpacing.lg),
           Text(
-            'Prices are immutable staging snapshots. Phase 3 will revalidate '
-            'availability and price before any cart or order is created.',
+            'Prices are immutable staging snapshots. Cart build revalidates '
+            'availability, seller, MOQ and price before adding; checkout and '
+            'order creation remain separate.',
             style: TextStyle(
                 fontSize: 10, height: 1.35, color: colors.contentSecondary),
           ),

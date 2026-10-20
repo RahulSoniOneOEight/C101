@@ -326,7 +326,7 @@ void main() {
     expect(find.text('Procurement'), findsOneWidget);
     expect(find.text('Approvals'), findsOneWidget);
     expect(find.text('Procurement workspace ready.'), findsOneWidget);
-    expect(find.textContaining('Phase 2 conversation'), findsOneWidget);
+    expect(find.textContaining('Cart build is explicit'), findsOneWidget);
     expect(api.readCalls, greaterThan(0));
 
     await tester.enterText(find.byType(TextField), 'Need 50 more units');

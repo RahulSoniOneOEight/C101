@@ -385,7 +385,7 @@ try {
   assert.equal(outsiderRead.code, "workspace-not-found");
 
   console.log(
-    "household smoke passed: create, invite x3, cap, chat, de-duplicated share, proposal-only participant revisions, owner acceptance, redaction, 404 isolation, revoke",
+    "household smoke passed: create, invite x3, cap, chat, de-duplicated share, proposal-only participant revisions, owner acceptance, assistant thread + mention, redaction, 404 isolation, revoke",
   );
 } finally {
   if (workspaceId) {

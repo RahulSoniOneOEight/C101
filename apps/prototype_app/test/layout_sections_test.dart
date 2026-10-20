@@ -41,7 +41,11 @@ void main() {
           'limit': 8,
           'visible': true,
         },
-        {'placement': 'best_sellers', 'label': 'Best Sellers', 'visible': false},
+        {
+          'placement': 'best_sellers',
+          'label': 'Best Sellers',
+          'visible': false
+        },
       ],
     };
     final sections = parseLayoutSections(layout);
@@ -52,27 +56,45 @@ void main() {
     expect(sections[1].visible, isFalse);
   });
 
-  test('an absent or malformed layout yields no sections rather than throwing', () {
+  test('an absent or malformed layout yields no sections rather than throwing',
+      () {
     expect(parseLayoutSections(null), isEmpty);
     expect(parseLayoutSections(<String, dynamic>{}), isEmpty);
-    expect(parseLayoutSections(<String, dynamic>{'sections': 'nonsense'}), isEmpty);
+    expect(parseLayoutSections(<String, dynamic>{'sections': 'nonsense'}),
+        isEmpty);
   });
 
   test('a section title falls back to its label', () {
-    expect(_section(placement: 'flash_deals', label: 'Flash Deals').displayTitle, 'Flash Deals');
     expect(
-      _section(placement: 'flash_deals', label: 'Flash Deals', title: 'Weekend deals').displayTitle,
+        _section(placement: 'flash_deals', label: 'Flash Deals').displayTitle,
+        'Flash Deals');
+    expect(
+      _section(
+              placement: 'flash_deals',
+              label: 'Flash Deals',
+              title: 'Weekend deals')
+          .displayTitle,
       'Weekend deals',
     );
   });
 
-  test('the layout decides section order, titles, badges and visibility', () async {
+  test('the layout decides section order, titles, badges and visibility',
+      () async {
     // Deliberately reverse the conventional order, and hide one section, so a local default that
     // ignored the layout would fail this test.
     final sections = <StorefrontSection>[
-      _section(placement: 'recommended', label: 'Recommended', title: 'Picked for you', badge: 'Curated'),
-      _section(placement: 'flash_deals', label: 'Flash Deals', title: 'Tonight only', badge: 'Up to 60% OFF'),
-      _section(placement: 'best_sellers', label: 'Best Sellers', visible: false),
+      _section(
+          placement: 'recommended',
+          label: 'Recommended',
+          title: 'Picked for you',
+          badge: 'Curated'),
+      _section(
+          placement: 'flash_deals',
+          label: 'Flash Deals',
+          title: 'Tonight only',
+          badge: 'Up to 60% OFF'),
+      _section(
+          placement: 'best_sellers', label: 'Best Sellers', visible: false),
     ];
     final product = demoProducts.first;
 
@@ -81,7 +103,8 @@ void main() {
         productsProvider.overrideWith((ref) async => demoProducts),
         recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
         layoutSectionsProvider.overrideWith((ref) async => sections),
-        sectionProductsProvider.overrideWith((ref, section) async => <Product>[product]),
+        sectionProductsProvider
+            .overrideWith((ref, section) async => <Product>[product]),
       ],
     );
     addTearDown(container.dispose);
@@ -95,12 +118,14 @@ void main() {
 
     final modules = container.read(homeModulesProvider);
     final titles = modules
-        .where((module) => module.type != MerchandisingModuleType.secondaryBanner)
+        .where(
+            (module) => module.type != MerchandisingModuleType.secondaryBanner)
         .map((module) => module.title)
         .toList();
 
     expect(titles, <String>['Picked for you', 'Tonight only'],
-        reason: 'order comes from the layout and the hidden section is not rendered');
+        reason:
+            'order comes from the layout and the hidden section is not rendered');
     expect(
       modules.first.tag,
       'Curated',
@@ -108,7 +133,9 @@ void main() {
     );
   });
 
-  test('a section banner renders above its rail, and See All follows the layout', () async {
+  test(
+      'a section banner renders above its rail, and See All follows the layout',
+      () async {
     const withBanner = StorefrontSection(
       placement: 'flash_deals',
       label: 'Flash Deals',
@@ -124,8 +151,10 @@ void main() {
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
         recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
-        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[withBanner]),
-        sectionProductsProvider.overrideWith((ref, section) async => <Product>[product]),
+        layoutSectionsProvider
+            .overrideWith((ref) async => <StorefrontSection>[withBanner]),
+        sectionProductsProvider
+            .overrideWith((ref, section) async => <Product>[product]),
         presentationProvider.overrideWith((ref) => StorefrontPresentation(
               banners: <StorefrontBanner>[
                 const StorefrontBanner(
@@ -159,7 +188,8 @@ void main() {
     expect(
       modules[1].seeAllUri,
       '/browse?tag=Flash%20Deals',
-      reason: 'See All follows the layout destination rather than a local tag heuristic',
+      reason:
+          'See All follows the layout destination rather than a local tag heuristic',
     );
     expect(modules[1].seeAllLabel, 'See all deals');
   });
@@ -170,8 +200,10 @@ void main() {
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
         recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
-        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[section]),
-        sectionProductsProvider.overrideWith((ref, requested) async => <Product>[demoProducts.first]),
+        layoutSectionsProvider
+            .overrideWith((ref) async => <StorefrontSection>[section]),
+        sectionProductsProvider.overrideWith(
+            (ref, requested) async => <Product>[demoProducts.first]),
         presentationProvider.overrideWith((ref) => const StorefrontPresentation(
               banners: <StorefrontBanner>[],
               categories: <StorefrontCategory>[],
@@ -185,22 +217,83 @@ void main() {
     await container.read(sectionProductsProvider(section).future);
 
     expect(
-      container
-          .read(homeModulesProvider)
-          .where((module) => module.type == MerchandisingModuleType.secondaryBanner),
+      container.read(homeModulesProvider).where(
+          (module) => module.type == MerchandisingModuleType.secondaryBanner),
       isEmpty,
-      reason: 'a promotional banner must exist in published CMS content before the app can show it',
+      reason:
+          'a promotional banner must exist in published CMS content before the app can show it',
     );
   });
 
+  test('an empty published collection does not drop a configured rail',
+      () async {
+    final sections = <StorefrontSection>[
+      _section(
+        placement: 'flash_deals',
+        label: 'Flash Deals',
+        title: 'Flash Deals',
+        limit: 8,
+      ),
+      _section(
+        placement: 'best_sellers',
+        label: 'Best Sellers',
+        title: 'Best Sellers',
+        limit: 10,
+      ),
+      _section(
+        placement: 'recommended',
+        label: 'Recommended',
+        title: 'Recommended for You',
+        limit: 6,
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [
+        productsProvider.overrideWith((ref) async => demoProducts),
+        recentlyViewedProvider.overrideWith(() => _Viewed(const <String>[])),
+        layoutSectionsProvider.overrideWith((ref) async => sections),
+        sectionProductsProvider
+            .overrideWith((ref, section) async => const <Product>[]),
+        presentationProvider.overrideWith((ref) => const StorefrontPresentation(
+              banners: <StorefrontBanner>[],
+              categories: <StorefrontCategory>[],
+            )),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await container.read(productsProvider.future);
+    await container.read(layoutSectionsProvider.future);
+    for (final section in sections) {
+      await container.read(sectionProductsProvider(section).future);
+    }
+
+    final modules = container
+        .read(homeModulesProvider)
+        .where(
+            (module) => module.type != MerchandisingModuleType.secondaryBanner)
+        .toList();
+    expect(
+      modules.map((module) => module.title),
+      <String>['Flash Deals', 'Best Sellers', 'Recommended for You'],
+      reason:
+          'the operator order and labels survive an empty commerce collection',
+    );
+    expect(modules.every((module) => module.products.isNotEmpty), isTrue);
+    expect(modules.first.products.length, lessThanOrEqualTo(8));
+  });
+
   test('a layout-driven Recommended keeps the Recently viewed tile', () async {
-    final section = _section(placement: 'recommended', label: 'Recommended', limit: 6);
+    final section =
+        _section(placement: 'recommended', label: 'Recommended', limit: 6);
     final viewed = demoProducts.first;
     final container = ProviderContainer(
       overrides: [
         productsProvider.overrideWith((ref) async => demoProducts),
-        layoutSectionsProvider.overrideWith((ref) async => <StorefrontSection>[section]),
-        sectionProductsProvider.overrideWith((ref, requested) async => demoProducts.take(6).toList()),
+        layoutSectionsProvider
+            .overrideWith((ref) async => <StorefrontSection>[section]),
+        sectionProductsProvider.overrideWith(
+            (ref, requested) async => demoProducts.take(6).toList()),
         recentlyViewedProvider.overrideWith(() => _Viewed(<String>[viewed.id])),
         presentationProvider.overrideWith((ref) => const StorefrontPresentation(
               banners: <StorefrontBanner>[],
@@ -214,14 +307,15 @@ void main() {
     await container.read(layoutSectionsProvider.future);
     await container.read(sectionProductsProvider(section).future);
 
-    final composition = container
-        .read(homeModulesProvider)
-        .firstWhere((module) => module.type == MerchandisingModuleType.productComposition);
+    final composition = container.read(homeModulesProvider).firstWhere(
+        (module) => module.type == MerchandisingModuleType.productComposition);
     expect(composition.splitSlot?.label, 'Recently viewed',
-        reason: 'the tile must survive the CMS-driven path, not only the local fallback');
+        reason:
+            'the tile must survive the CMS-driven path, not only the local fallback');
     expect(composition.splitSlot?.products.single.id, viewed.id);
     expect(composition.products, hasLength(5),
-        reason: 'a sixth product would leave a dangling cell beside the split tile');
+        reason:
+            'a sixth product would leave a dangling cell beside the split tile');
   });
 }
 

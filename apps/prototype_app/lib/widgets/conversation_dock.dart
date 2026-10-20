@@ -816,18 +816,27 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                     const ButtonSegment<ConversationDockTab>(
                       value: ConversationDockTab.chat,
                       icon: Icon(Icons.chat_bubble_outline, size: 16),
-                      label: Text('Chat'),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Chat'),
+                      ),
                     ),
                     const ButtonSegment<ConversationDockTab>(
                       value: ConversationDockTab.sharedList,
                       icon: Icon(Icons.playlist_add_check, size: 17),
-                      label: Text('Shared list'),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text('Shared list'),
+                      ),
                     ),
                     if (_assistantChannel != null)
                       const ButtonSegment<ConversationDockTab>(
                         value: ConversationDockTab.assistant,
                         icon: Icon(Icons.smart_toy_outlined, size: 16),
-                        label: Text('Assistant'),
+                        label: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text('Assistant'),
+                        ),
                       ),
                   ],
                   selected: <ConversationDockTab>{dock.tab},
