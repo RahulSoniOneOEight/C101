@@ -5,6 +5,11 @@
 /// modelled here yet.
 library;
 
+int _asInt(Object? value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
 class WorkspaceSummary {
   const WorkspaceSummary({
     required this.id,
@@ -23,7 +28,7 @@ class WorkspaceSummary {
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? 'Workspace',
         role: json['role'] as String? ?? 'member',
-        unreadCount: (json['unread_count'] as num?)?.toInt() ?? 0,
+        unreadCount: _asInt(json['unread_count']),
       );
 }
 
@@ -48,7 +53,7 @@ class WorkspaceChannel {
         workspaceId: json['workspace_id'] as String? ?? '',
         kind: json['kind'] as String? ?? 'procurement',
         name: json['name'] as String? ?? 'Procurement',
-        unreadCount: (json['unread_count'] as num?)?.toInt() ?? 0,
+        unreadCount: _asInt(json['unread_count']),
       );
 }
 
@@ -84,7 +89,7 @@ class WorkspaceMessage {
         actorName: json['actor_name'] as String? ?? 'Member',
         body: json['body'] as String? ?? '',
         messageType: json['message_type'] as String? ?? 'text',
-        sequence: (json['sequence'] as num?)?.toInt() ?? 0,
+        sequence: _asInt(json['sequence']),
         createdAt: DateTime.tryParse(json['created_at'] as String? ?? ''),
       );
 }

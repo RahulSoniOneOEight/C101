@@ -91,6 +91,28 @@ class _FakeWorkspaceApi extends ExperienceApi {
 }
 
 void main() {
+  test('workspace models accept bigint sequence values serialized as strings',
+      () {
+    final message = WorkspaceMessage.fromJson(const <String, dynamic>{
+      'id': 'msg_1',
+      'channel_id': 'ch_1',
+      'actor_id': 'pilot_buyer_b2b01',
+      'actor_name': 'Buyer',
+      'body': 'Hello',
+      'message_type': 'text',
+      'sequence': '42',
+    });
+    final workspace = WorkspaceSummary.fromJson(const <String, dynamic>{
+      'id': 'ws_1',
+      'name': 'Workspace',
+      'role': 'buyer',
+      'unread_count': '3',
+    });
+
+    expect(message.sequence, 42);
+    expect(workspace.unreadCount, 3);
+  });
+
   testWidgets('workspace loads channels, messages and sends a message',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);
