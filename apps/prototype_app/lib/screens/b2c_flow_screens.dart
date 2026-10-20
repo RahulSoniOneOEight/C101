@@ -14,6 +14,7 @@ import '../providers/orders_providers.dart';
 import '../providers/account_providers.dart';
 import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/order_progress_timeline.dart';
 
 AgencyColors _c(BuildContext c) =>
@@ -531,6 +532,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           onSubmitted: _submit,
           onFilterTap: () => context.push('/filter'),
         ),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.household),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -766,15 +770,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: TextButton.icon(
+          child: IconButton(
+            tooltip: 'Discuss',
             onPressed: () =>
                 ref.read(conversationDockProvider.notifier).discuss(
                       ConversationAudience.household,
                       ConversationProductCapture.fromProduct(p),
                     ),
-            icon: const Icon(Icons.forum_outlined, size: 16),
-            label: const Text('Discuss'),
-            style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+            icon: const Icon(Icons.chat_bubble_outline, size: 18),
           ),
         ),
       ],

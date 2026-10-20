@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'notification_bell.dart';
+import 'conversation_bell.dart';
+import '../providers/conversation_dock_provider.dart';
 
 /// The pinned Home bar: title row plus search field.
 ///
@@ -138,15 +140,20 @@ class _TitleRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             const SizedBox(width: AgencySpacing.sm),
-            const Text(
-              'BuildKart',
-              style: TextStyle(
-                fontSize: 20,
-                height: 1.2,
-                fontWeight: FontWeight.w700,
+            const Expanded(
+              child: Text(
+                'BuildKart',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 20,
+                  height: 1.2,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            const Spacer(),
+            const ConversationBellButton(
+                audience: ConversationAudience.household),
             BadgeTheme(
               data: BadgeThemeData(
                 backgroundColor: palette.alert,

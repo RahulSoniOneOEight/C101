@@ -10,6 +10,7 @@ import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/conversation_dock.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
@@ -42,7 +43,6 @@ class D2CShell extends StatelessWidget {
       body: ConversationDockHost(
         audience: ConversationAudience.household,
         enabled: _conversationEnabled,
-        showLauncher: currentPath != '/cart',
         child: navigationShell,
       ),
       bottomNavigationBar: AppBottomNavigation(
@@ -281,6 +281,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       appBar: AppBar(
         title: const Text('Browse'),
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           const NotificationBell(),
           IconButton(
             tooltip: 'Cart',

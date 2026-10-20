@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prototype_app/providers/b2b_trade_providers.dart';
+import 'package:prototype_app/providers/conversation_dock_provider.dart';
 import 'package:prototype_app/screens/b2b_browse_screens.dart';
 import 'package:prototype_app/screens/b2b_home_screen.dart';
 import 'package:prototype_app/screens/b2b_quick_order_screen.dart';
@@ -31,6 +32,26 @@ Future<void> _pumpPhone(WidgetTester tester, Widget child) async {
 void main() {
   testWidgets('B2B home has no overflow at 411x914', (tester) async {
     await _pumpPhone(tester, const B2BHomeScreen());
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('B2B home header conversation entry is tappable', (tester) async {
+    _phoneSurface(tester);
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const B2BHomeScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations').first);
+    await tester.pump();
+    expect(container.read(conversationDockProvider).isOpen, isTrue);
     expect(tester.takeException(), isNull);
   });
 

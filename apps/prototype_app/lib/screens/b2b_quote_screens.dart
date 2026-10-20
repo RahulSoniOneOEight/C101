@@ -8,6 +8,7 @@ import '../domain/b2b_trade_models.dart';
 import '../domain/conversation_models.dart';
 import '../domain/models.dart';
 import '../widgets/market_comparison.dart';
+import '../widgets/conversation_bell.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/conversation_dock_provider.dart';
@@ -94,7 +95,12 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     }
     if (match == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Product · Trade')),
+        appBar: AppBar(
+          title: const Text('Product · Trade'),
+          actions: const <Widget>[
+            ConversationBellButton(audience: ConversationAudience.business),
+          ],
+        ),
         body: const Center(child: Text('Product not found')),
       );
     }
@@ -126,7 +132,12 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     final stockQty = selectedVariant?.stockQty ?? p.stockQty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Product · Trade')),
+      appBar: AppBar(
+        title: const Text('Product · Trade'),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -1369,7 +1380,10 @@ class B2BQuotationCartScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quotation Cart'),
-        actions: _b2bHomeActions(context),
+        actions: <Widget>[
+          const ConversationBellButton(audience: ConversationAudience.business),
+          ..._b2bHomeActions(context),
+        ],
       ),
       body: Column(
         children: <Widget>[

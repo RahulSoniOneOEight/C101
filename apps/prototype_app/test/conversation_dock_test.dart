@@ -8,13 +8,17 @@ import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/domain/conversation_models.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/domain/workspace_models.dart';
+import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/conversation_dock_provider.dart';
+import 'package:prototype_app/widgets/conversation_bell.dart';
 import 'package:prototype_app/widgets/conversation_dock.dart';
 
 class _DockApi extends ExperienceApi {
-  _DockApi({this.householdMember = false}) : super(Dio());
+  _DockApi({this.householdMember = false, this.householdRole = 'member'})
+      : super(Dio());
 
   final bool householdMember;
+  final String householdRole;
   bool draftCreated = false;
   bool proposalCreated = false;
   int shareCalls = 0;
@@ -23,13 +27,6 @@ class _DockApi extends ExperienceApi {
   String? proposalKind;
   List<Map<String, dynamic>>? initialDraftLines;
 
-  static const workspace = WorkspaceSummary(
-    id: 'ws_household',
-    name: 'Kitchen renovation',
-    role: 'member',
-    scopeType: 'household',
-  );
-
   static const channel = WorkspaceChannel(
     id: 'ch_project',
     workspaceId: 'ws_household',
@@ -37,7 +34,14 @@ class _DockApi extends ExperienceApi {
     name: 'Kitchen renovation',
   );
 
-  WorkspaceDraft get draft => const WorkspaceDraft(
+  WorkspaceSummary get workspace => WorkspaceSummary(
+        id: 'ws_household',
+        name: 'Kitchen renovation',
+        role: householdRole,
+        scopeType: 'household',
+      );
+
+  WorkspaceDraft get draft => WorkspaceDraft(
         id: 'drf_shared',
         workspaceId: 'ws_household',
         channelId: 'ch_project',
@@ -45,7 +49,7 @@ class _DockApi extends ExperienceApi {
         lifecycleStatus: 'draft',
         validationStatus: 'unvalidated',
         currentVersion: 0,
-        role: 'member',
+        role: householdRole,
       );
 
   DraftProposal get proposal => const DraftProposal(
@@ -89,7 +93,7 @@ class _DockApi extends ExperienceApi {
 
   @override
   Future<List<WorkspaceSummary>> getWorkspaces() async =>
-      householdMember ? const <WorkspaceSummary>[workspace] : const [];
+      householdMember ? <WorkspaceSummary>[workspace] : const [];
 
   @override
   Future<List<WorkspaceChannel>> getWorkspaceChannels(
@@ -171,6 +175,15 @@ class _DockApi extends ExperienceApi {
       );
 
   @override
+  Future<WorkspaceInvitationPage> getWorkspaceInvitations(
+          String workspaceId) async =>
+      const WorkspaceInvitationPage(
+        invitations: <WorkspaceInvitation>[],
+        participants: 0,
+        capacity: 3,
+      );
+
+  @override
   Future<void> markWorkspaceRead(String channelId, int sequence) async {}
 }
 
@@ -203,10 +216,17 @@ Widget _host(ExperienceApi api) => ProviderScope(
       overrides: _overrides(api),
       child: MaterialApp(
         theme: AgencyTheme.light(),
-        home: const ConversationDockHost(
-          audience: ConversationAudience.household,
-          enabled: true,
-          child: _StateProbe(),
+        home: Scaffold(
+          appBar: AppBar(
+            actions: const <Widget>[
+              ConversationBellButton(audience: ConversationAudience.household),
+            ],
+          ),
+          body: const ConversationDockHost(
+            audience: ConversationAudience.household,
+            enabled: true,
+            child: _StateProbe(),
+          ),
         ),
       ),
     );
@@ -244,10 +264,27 @@ void main() {
     expect(container.read(conversationDockProvider).pendingCapture, isNull);
   });
 
-  testWidgets('launcher can hide on a cart without disabling capture',
+  testWidgets('chat can add a catalogue product without leaving the dock',
       (tester) async {
+    final api = _DockApi(householdMember: true, householdRole: 'owner');
+    const product = Product(
+      id: 'prod_smoke',
+      title: 'Smoke tile',
+      variants: <ProductVariant>[
+        ProductVariant(
+          id: 'variant_smoke',
+          label: 'Default',
+          sku: 'SKU-SMOKE',
+          offerId: 'offer_smoke',
+          price: Money(amount: 12500, currencyCode: 'INR'),
+        ),
+      ],
+    );
     final container = ProviderContainer(
-      overrides: _overrides(_DockApi(householdMember: true)),
+      overrides: <Override>[
+        experienceApiProvider.overrideWithValue(api),
+        productsProvider.overrideWith((ref) => const <Product>[product]),
+      ],
     );
     addTearDown(container.dispose);
     await tester.pumpWidget(
@@ -255,30 +292,50 @@ void main() {
         container: container,
         child: MaterialApp(
           theme: AgencyTheme.light(),
-          home: const ConversationDockHost(
-            audience: ConversationAudience.household,
-            enabled: true,
-            showLauncher: false,
-            child: _StateProbe(),
+          home: Scaffold(
+            appBar: AppBar(
+              actions: const <Widget>[
+                ConversationBellButton(
+                    audience: ConversationAudience.household),
+              ],
+            ),
+            body: const ConversationDockHost(
+              audience: ConversationAudience.household,
+              enabled: true,
+              child: _StateProbe(),
+            ),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+    expect(find.text('Project conversation'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Add product'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add a product'), findsOneWidget);
+    await tester.enterText(
+        find.widgetWithText(TextField, 'Search catalogue'), 'smoke');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_circle_outline).last);
+    await tester.pumpAndSettle();
+
+    expect(api.shareCalls, 1);
+    expect(api.draftCreated, isTrue);
+    expect(api.proposalCreated, isTrue);
+    expect(api.acceptCalls, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('header bell opens the conversation without a bottom launcher',
+      (tester) async {
+    await tester.pumpWidget(_host(_DockApi(householdMember: true)));
+    await tester.pumpAndSettle();
     expect(find.text('Conversations'), findsNothing);
 
-    container.read(conversationDockProvider.notifier).discuss(
-          ConversationAudience.household,
-          const ConversationProductCapture(
-            productId: 'prod_smoke',
-            variantId: 'variant_smoke',
-            offerId: 'offer_smoke',
-            title: 'Smoke tile',
-            quantity: 1,
-            unitAmountMinor: 12500,
-            currencyCode: 'INR',
-          ),
-        );
+    await tester.tap(find.byTooltip('Conversations'));
     await tester.pumpAndSettle();
     expect(find.text('Project conversation'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -297,7 +354,7 @@ void main() {
       await tester.pump();
       expect(find.text('Underlying state 1'), findsOneWidget);
 
-      await tester.tap(find.text('Conversations'));
+      await tester.tap(find.byTooltip('Conversations'));
       await tester.pumpAndSettle();
       expect(find.text('Start a renovation project'), findsOneWidget);
       expect(tester.takeException(), isNull);

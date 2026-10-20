@@ -22,6 +22,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
   scope: phases-a-to-d-only
+- change_id: CHG-073
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  scope: phase-a-and-phase-b-design-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -37,4 +41,17 @@ active_changes:
   phase_c_release: e7e84ba
   blocked_phases:
   - phase-e
+  production_release_authorized: false
+- change_id: CHG-073
+  status: approved-in-progress
+  approval_required: true
+  approval_scope: phase-a-and-phase-b-design-only
+  completed_phases:
+  - phase-a
+  - phase-b-design
+  active_phase: phase-c-awaiting-authorization
+  scope: conversation-ux-and-cart-assistant
+  proposal: client-projects/client101/changes/CHG-073.yaml
+  evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
+  assistant_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
   production_release_authorized: false

@@ -89,9 +89,11 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
                         context.push('/notifications?audience=b2b'),
                     notificationCount: ref.watch(
                         unreadNotificationsProvider(NotificationAudience.b2b)),
-                    workspaceUnreadCount:
+                    conversationUnreadCount:
                         ref.watch(workspaceUnreadCountProvider).value ?? 0,
-                    onWorkspace: () => context.push('/b2b/workspace'),
+                    onConversations: () => ref
+                        .read(conversationDockProvider.notifier)
+                        .open(ConversationAudience.business),
                     onCart: () => context.go('/b2b/cart'),
                     onAccount: () => context.go('/b2b/account'),
                     onBannerAction: (uri) => context.push(uri),

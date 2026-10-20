@@ -9,8 +9,10 @@ import 'package:go_router/go_router.dart';
 
 import '../data/experience_api.dart';
 import '../domain/conversation_models.dart';
-import '../domain/models.dart' show Money;
+import '../domain/models.dart' show Money, Product;
 import '../domain/workspace_models.dart';
+import '../providers/b2b_trade_providers.dart';
+import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../providers/workspace_providers.dart';
 
@@ -24,7 +26,6 @@ class ConversationDockHost extends ConsumerWidget {
     required this.child,
     required this.audience,
     required this.enabled,
-    this.showLauncher = true,
     super.key,
   });
 
@@ -32,15 +33,10 @@ class ConversationDockHost extends ConsumerWidget {
   final ConversationAudience audience;
   final bool enabled;
 
-  /// Cart screens keep the dock available from their line actions but hide the
-  /// floating launcher so it can never cover the primary checkout CTA.
-  final bool showLauncher;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(conversationDockProvider);
     final open = enabled && state.isOpen && state.audience == audience;
-    final unread = ref.watch(workspaceUnreadCountProvider).value ?? 0;
     return LayoutBuilder(
       builder: (context, constraints) {
         final panelWidth = constraints.maxWidth <= 600
@@ -50,27 +46,6 @@ class ConversationDockHost extends ConsumerWidget {
           clipBehavior: Clip.none,
           children: <Widget>[
             Positioned.fill(child: child),
-            if (enabled && showLauncher && !open)
-              Positioned(
-                right: AgencySpacing.md,
-                bottom: AgencySpacing.md,
-                child: Semantics(
-                  button: true,
-                  label: 'Open conversations',
-                  child: FloatingActionButton.extended(
-                    heroTag: 'conversation-${audience.name}',
-                    onPressed: () => ref
-                        .read(conversationDockProvider.notifier)
-                        .open(audience),
-                    icon: Badge(
-                      isLabelVisible: unread > 0,
-                      label: Text('$unread'),
-                      child: const Icon(Icons.forum_outlined),
-                    ),
-                    label: const Text('Conversations'),
-                  ),
-                ),
-              ),
             if (open)
               Positioned.fill(
                 child: GestureDetector(
@@ -1185,6 +1160,17 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
             style: TextStyle(fontSize: 12, color: colors.contentSecondary),
           ),
         ],
+        if (view.draft.canEdit) ...<Widget>[
+          const SizedBox(height: AgencySpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : () => _showProductPicker(),
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text('Add product'),
+            ),
+          ),
+        ],
         const SizedBox(height: AgencySpacing.md),
         _checkoutBoundary(colors, view),
       ],
@@ -1391,6 +1377,12 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: <Widget>[
+              IconButton(
+                tooltip: 'Add product',
+                onPressed: _busy ? null : () => _showProductPicker(),
+                icon: const Icon(Icons.add_circle_outline, size: 21),
+              ),
+              const SizedBox(width: AgencySpacing.xs),
               Expanded(
                 child: TextField(
                   controller: _composer,
@@ -1455,6 +1447,39 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
               TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color),
         ),
       );
+
+  List<Product> _pickerProducts() {
+    if (_isHousehold) {
+      return ref.read(productsProvider).value ?? const <Product>[];
+    }
+    return ref
+        .read(tradeCatalogueViewProvider)
+        .map((item) => item.product)
+        .toList();
+  }
+
+  Future<void> _showProductPicker() async {
+    if (_isHousehold) {
+      // The dock may be opened before the storefront has subscribed to the
+      // catalogue. Resolve the existing provider instead of showing an empty
+      // picker.
+      try {
+        await ref.read(productsProvider.future);
+      } catch (_) {
+        // The picker shows its explicit loading/empty state below.
+      }
+      if (!mounted) return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (_) => _ProductPickerSheet(
+        audience: widget.audience,
+        products: _pickerProducts(),
+      ),
+    );
+  }
 
   Future<void> _showCreateProjectSheet(AgencyColors colors) async {
     _projectName.clear();
@@ -1728,6 +1753,178 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _ProductPickerSheet extends ConsumerStatefulWidget {
+  const _ProductPickerSheet({required this.audience, required this.products});
+
+  final ConversationAudience audience;
+  final List<Product> products;
+
+  @override
+  ConsumerState<_ProductPickerSheet> createState() =>
+      _ProductPickerSheetState();
+}
+
+class _ProductPickerSheetState extends ConsumerState<_ProductPickerSheet> {
+  final TextEditingController _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    final query = _search.text.trim().toLowerCase();
+    final filtered = (query.isEmpty
+            ? widget.products
+            : widget.products.where((p) {
+                final sku =
+                    p.variants.map((v) => v.sku ?? '').join(' ').toLowerCase();
+                return p.title.toLowerCase().contains(query) ||
+                    (p.brand ?? '').toLowerCase().contains(query) ||
+                    p.id.toLowerCase().contains(query) ||
+                    sku.contains(query);
+              }).toList())
+        .take(40)
+        .toList();
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          AgencySpacing.md,
+          0,
+          AgencySpacing.md,
+          MediaQuery.viewInsetsOf(context).bottom + AgencySpacing.md,
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Text(
+                'Add a product',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: colors.contentPrimary,
+                ),
+              ),
+              const SizedBox(height: AgencySpacing.xs),
+              Text(
+                'The product is added to this conversation. Your cart is not changed.',
+                style: TextStyle(fontSize: 11, color: colors.contentSecondary),
+              ),
+              const SizedBox(height: AgencySpacing.sm),
+              TextField(
+                controller: _search,
+                autofocus: true,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  labelText: 'Search catalogue',
+                  hintText: 'Product, brand or SKU',
+                  prefixIcon: Icon(Icons.search),
+                ),
+              ),
+              const SizedBox(height: AgencySpacing.sm),
+              Flexible(
+                child: widget.products.isEmpty
+                    ? Center(
+                        child: Text(
+                          'The catalogue is still loading. Please retry in a moment.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: colors.contentSecondary),
+                        ),
+                      )
+                    : filtered.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No product matches the search.',
+                              style: TextStyle(color: colors.contentSecondary),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final product = filtered[index];
+                              final price = product.price?.formatted ?? '';
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Container(
+                                  width: 44,
+                                  height: 44,
+                                  clipBehavior: Clip.antiAlias,
+                                  decoration: BoxDecoration(
+                                    color: colors.surfacePage,
+                                    borderRadius:
+                                        BorderRadius.circular(AgencyRadius.sm),
+                                  ),
+                                  child: product.thumbnail == null
+                                      ? Icon(Icons.inventory_2_outlined,
+                                          color: colors.contentSecondary)
+                                      : Image.network(
+                                          product.thumbnail!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => Icon(
+                                              Icons.inventory_2_outlined,
+                                              color: colors.contentSecondary),
+                                        ),
+                                ),
+                                title: Text(
+                                  product.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.contentPrimary,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  '${product.brand ?? product.variantLabel}'
+                                  '${price.isEmpty ? '' : ' · $price'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: colors.contentSecondary),
+                                ),
+                                trailing: IconButton(
+                                  tooltip:
+                                      'Add ${product.title} to conversation',
+                                  onPressed: () {
+                                    ref
+                                        .read(conversationDockProvider.notifier)
+                                        .discuss(
+                                          widget.audience,
+                                          ConversationProductCapture
+                                              .fromProduct(product),
+                                        );
+                                    Navigator.of(context).pop();
+                                  },
+                                  icon: Icon(Icons.add_circle_outline,
+                                      color: colors.actionPrimary),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

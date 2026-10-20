@@ -11,6 +11,7 @@ import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
 import '../widgets/storefront_control_bar.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// B2B catalogue / category browse. Entry points are the home category rail,
@@ -367,7 +368,12 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                     'Catalogue';
 
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: NotificationListener<ScrollNotification>(
         onNotification: (n) {
           // Auto-append as the buyer nears the end — a long, seamless scroll.
@@ -657,7 +663,8 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: colors.actionPrimary)),
-                TextButton.icon(
+                IconButton(
+                  tooltip: 'Discuss',
                   onPressed: () =>
                       ref.read(conversationDockProvider.notifier).discuss(
                             ConversationAudience.business,
@@ -670,13 +677,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                               offerId: bestSeller?.id,
                             ),
                           ),
-                  icon: const Icon(Icons.forum_outlined, size: 14),
-                  label: const Text('Discuss'),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(44, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    textStyle: const TextStyle(fontSize: 10),
-                  ),
+                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
                 ),
               ],
             ),
@@ -715,7 +716,12 @@ class B2BSchemesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final schemes = ref.watch(tradeDashboardProvider).schemes;
     return Scaffold(
-      appBar: AppBar(title: const Text('Schemes & Offers')),
+      appBar: AppBar(
+        title: const Text('Schemes & Offers'),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -770,7 +776,12 @@ class B2BPriceAdvantageScreen extends ConsumerWidget {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Price Advantage')),
+      appBar: AppBar(
+        title: const Text('My Price Advantage'),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[

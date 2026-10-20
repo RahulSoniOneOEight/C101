@@ -32,7 +32,6 @@ class B2BShell extends StatelessWidget {
       body: ConversationDockHost(
         audience: ConversationAudience.business,
         enabled: _conversationEnabled,
-        showLauncher: currentPath != '/b2b/cart',
         child: navigationShell,
       ),
       bottomNavigationBar: AppBottomNavigation(

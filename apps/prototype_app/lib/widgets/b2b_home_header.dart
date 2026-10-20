@@ -17,11 +17,11 @@ class B2bHomeHeader extends StatelessWidget {
     this.onSearch,
     this.onLocation,
     this.onNotifications,
-    this.onWorkspace,
+    this.onConversations,
     this.onCart,
     this.onAccount,
     this.notificationCount = 0,
-    this.workspaceUnreadCount = 0,
+    this.conversationUnreadCount = 0,
     this.onBannerAction,
     this.rotationMs = 0,
     super.key,
@@ -32,11 +32,11 @@ class B2bHomeHeader extends StatelessWidget {
   final VoidCallback? onSearch;
   final VoidCallback? onLocation;
   final VoidCallback? onNotifications;
-  final VoidCallback? onWorkspace;
+  final VoidCallback? onConversations;
   final VoidCallback? onCart;
   final VoidCallback? onAccount;
   final int notificationCount;
-  final int workspaceUnreadCount;
+  final int conversationUnreadCount;
   final ValueChanged<String>? onBannerAction;
 
   /// Hero auto-advance interval from the layout settings. 0 keeps the carousel still.
@@ -105,14 +105,14 @@ class B2bHomeHeader extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (onWorkspace != null)
+                            if (onConversations != null)
                               IconButton(
-                                onPressed: onWorkspace,
-                                tooltip: 'Workspace',
-                                icon: workspaceUnreadCount > 0
+                                onPressed: onConversations,
+                                tooltip: 'Conversations',
+                                icon: conversationUnreadCount > 0
                                     ? Badge(
                                         isLabelVisible: true,
-                                        label: Text('$workspaceUnreadCount'),
+                                        label: Text('$conversationUnreadCount'),
                                         child: const Icon(Icons.forum_outlined),
                                       )
                                     : const Icon(Icons.forum_outlined),

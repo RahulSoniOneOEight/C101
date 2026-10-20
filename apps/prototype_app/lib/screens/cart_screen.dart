@@ -8,6 +8,7 @@ import '../domain/conversation_models.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
 
@@ -25,6 +26,8 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Cart'),
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           IconButton(
             tooltip: 'My Orders',
             onPressed: () => context.push('/orders'),

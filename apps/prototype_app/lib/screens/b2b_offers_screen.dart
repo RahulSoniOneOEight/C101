@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_trade_models.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../providers/trade_offers_providers.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// Which sort option is active on the offers grid.
@@ -81,7 +83,12 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
     // say so instead of showing fixtures that can only open an empty lane.
     if (!ref.watch(tradeOffersHaveAnyProductsProvider)) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Trade Offers & Deals')),
+        appBar: AppBar(
+          title: const Text('Trade Offers & Deals'),
+          actions: const <Widget>[
+            ConversationBellButton(audience: ConversationAudience.business),
+          ],
+        ),
         body: Padding(
           padding: const EdgeInsets.all(AgencySpacing.lg),
           child: Column(
@@ -118,7 +125,12 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Trade Offers & Deals')),
+      appBar: AppBar(
+        title: const Text('Trade Offers & Deals'),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[

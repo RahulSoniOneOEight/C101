@@ -892,6 +892,30 @@ components:
     status: staging-prototype
   qa:
     flutter: widget+authorization-matrix
+- semantic_id: collaboration.conversation-entry
+  aliases:
+  - conversation-bell
+  - header-discuss
+  flutter:
+    owned_component: ConversationBellButton
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+mobile-visual
+- semantic_id: collaboration.in-chat-product-picker
+  aliases:
+  - add-product-in-chat
+  - conversation-catalogue-picker
+  flutter:
+    owned_component: ConversationDockPanel
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+    status: staging-prototype
+  qa:
+    flutter: widget+role-matrix
 specialists:
   icons:
     primary: Phosphor

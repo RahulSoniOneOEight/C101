@@ -1,0 +1,80 @@
+adr_id: ADR-client101-013
+title: Cart assistant as a governed participant
+status: proposed
+decision_scope: design-only
+date_utc: '2026-10-20'
+change: CHG-073
+supersedes: null
+context: >-
+  CHG-072 introduced a conversation dock with human owners and participants. The next request is a
+  cart assistant that can be mentioned or messaged separately from the human conversation. That
+  introduces a new actor type, a new channel/thread model, model-provider data handling and a
+  potential cart-building capability that is currently gated behind Phase E.
+decision: >-
+  Model the assistant as a distinct, non-human actor in the Workspace bounded context. It is
+  mentionable in the project channel and has a separate assistant thread. The first implementation
+  is an automated assistant with a governed human-escalation path. It is read-only: it may summarise
+  the shared list, flag missing quantities or MOQ and suggest next actions. It may not decide
+  proposals, approve revisions, invite members, check out, read owner-only address/payment/GST
+  fields, or write to commerce. Any future cart preparation remains a suggestion. The owner, buyer
+  or account admin must still perform the explicit cart build after Phase E is authorized,
+  revalidation, difference acknowledgement and the existing idempotent handoff.
+assistant_actor:
+  kind: automated
+  display_name: BuildKart Cart Assistant
+  visibly_non_human: true
+  identity: workspace-scoped assistant principal, never a human user id
+  escalation: human operations specialist joins the same thread with a distinct support role
+channels:
+  mention: '@assistant in the project channel'
+  direct_thread: separate assistant thread scoped to the project
+  isolation: assistant messages are not mixed into the human chat without an explicit mention/thread
+permissions:
+  allowed:
+  - read project messages and product-share snapshots visible to the caller
+  - read the shared list, current revision and proposals
+  - summarise, flag missing quantities/MOQ/seller information and suggest actions
+  - request human escalation
+  forbidden:
+  - read owner-only address, phone, GST, payment or checkout data
+  - accept or reject proposals
+  - approve or request changes to a revision
+  - invite or revoke participants
+  - build a cart, complete checkout or create an order
+  - change membership, roles or scope
+  - call arbitrary tools or databases outside an allowlist
+privacy:
+  data_minimisation: send only the product/list fields needed for the current answer
+  redaction: strip owner-only fields before any model call
+  provider_training: disabled by contract; no reuse of conversation content for model training
+  retention: define and publish before implementation
+  audit: every assistant message, tool call, escalation and model request is attributable and retained
+prompt_injection:
+  product_content: treated as untrusted data, never as instructions
+  tool_allowlist: read-only assistant tools only
+  cart_write: impossible until a separate Phase E authorization changes the allowlist
+  escalation: suspicious content is surfaced to a human, not acted on
+escalation:
+  trigger: user asks for a human, the assistant cannot resolve the request, or a policy-sensitive action is requested
+  human_role: support specialist with audited, redacted project access
+  continuity: the human joins the same thread; the assistant does not impersonate the human
+  fallback: the human conversation remains fully usable if the assistant is unavailable
+phase_e_boundary:
+  current: read-only suggestions only
+  future: assistant may prepare a cart draft for owner/buyer review, but cannot execute the build
+  required_controls:
+  - revalidate price, stock, MOQ, seller and tax
+  - show differences and require acknowledgement
+  - idempotent canonical Medusa cart handoff per accepted revision
+  - no order completion from chat
+consequences:
+- A new assistant principal and channel/thread model are required before code.
+- Provider, residency and retention decisions must be approved before any conversation content leaves the platform.
+- The assistant cannot be used to bypass owner, buyer or approver rules.
+- Phase A (UX polish) does not depend on this ADR and may ship first.
+open_questions:
+- Which model provider and hosting region?
+- What retention period applies to assistant threads and model requests?
+- Does the human escalation path use an existing support queue or a dedicated ops role?
+- Are assistant threads visible to the owner only, or to all project participants?
+- What is the fallback when the assistant is unavailable or rate-limited?

@@ -11,6 +11,7 @@ import '../providers/account_providers.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/status_views.dart';
 
 /// Product detail with an add-to-cart action against the default variant.
@@ -31,6 +32,8 @@ class ProductDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           Consumer(builder: (context, ref, _) {
             final saved = ref.watch(wishlistProvider).contains(productId);
             return IconButton(

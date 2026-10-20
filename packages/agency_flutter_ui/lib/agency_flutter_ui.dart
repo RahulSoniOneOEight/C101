@@ -714,30 +714,35 @@ class ProductCard extends StatelessWidget {
               Positioned(
                 left: AgencySpacing.xs,
                 bottom: AgencySpacing.xs,
-                child: Material(
-                  color: colors.surfaceRaised.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(999),
-                  child: InkWell(
-                    onTap: onDiscuss,
-                    borderRadius: BorderRadius.circular(999),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 44),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 9),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(Icons.forum_outlined,
-                                size: 15, color: colors.actionPrimary),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Discuss',
-                              style: AgencyText.label.copyWith(
-                                color: colors.actionPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                child: Tooltip(
+                  message: 'Discuss',
+                  excludeFromSemantics: true,
+                  child: Semantics(
+                    container: true,
+                    explicitChildNodes: true,
+                    button: true,
+                    label: 'Discuss',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: onDiscuss,
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: Center(
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color:
+                                  colors.surfaceRaised.withValues(alpha: 0.94),
+                              shape: BoxShape.circle,
                             ),
-                          ],
+                            child: Icon(
+                              Icons.chat_bubble_outline,
+                              size: 15,
+                              color: colors.actionPrimary,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -1739,29 +1744,37 @@ class CompactProductItem extends StatelessWidget {
                       ),
                     if (onDiscuss != null)
                       Positioned(
-                        left: 4,
-                        bottom: 4,
-                        child: Material(
-                          color: colors.surfaceRaised.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(999),
-                          child: InkWell(
-                            onTap: onDiscuss,
-                            borderRadius: BorderRadius.circular(999),
-                            child: ConstrainedBox(
-                              constraints:
-                                  const BoxConstraints(minHeight: 44),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 7),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Icon(Icons.forum_outlined, size: 13),
-                                    SizedBox(width: 3),
-                                    Text('Discuss',
-                                        style: TextStyle(
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w700)),
-                                  ],
+                        left: 2,
+                        bottom: 2,
+                        child: Tooltip(
+                          message: 'Discuss',
+                          excludeFromSemantics: true,
+                          child: Semantics(
+                            container: true,
+                            explicitChildNodes: true,
+                            button: true,
+                            label: 'Discuss',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: onDiscuss,
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Center(
+                                  child: Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      color: colors.surfaceRaised
+                                          .withValues(alpha: 0.94),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 14,
+                                      color: colors.actionPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),

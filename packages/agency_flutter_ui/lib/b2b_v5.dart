@@ -457,8 +457,8 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
                             height: 44,
                             child: Center(
                               child: Container(
-                                width: 30,
-                                height: 30,
+                                width: 28,
+                                height: 28,
                                 decoration: BoxDecoration(
                                   color: colors.surfaceRaised
                                       .withValues(alpha: 0.94),
@@ -466,8 +466,8 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
                                   border:
                                       Border.all(color: colors.borderDefault),
                                 ),
-                                child: Icon(Icons.forum_outlined,
-                                    size: 16, color: colors.actionPrimary),
+                                child: Icon(Icons.chat_bubble_outline,
+                                    size: 15, color: colors.actionPrimary),
                               ),
                             ),
                           ),
@@ -611,32 +611,35 @@ class TradeProductCardCompact extends StatelessWidget {
                       Positioned(
                         left: AgencySpacing.sm,
                         bottom: AgencySpacing.sm,
-                        child: Material(
-                          color: colors.surfaceRaised.withValues(alpha: 0.94),
-                          borderRadius: BorderRadius.circular(999),
-                          child: InkWell(
-                            onTap: onDiscuss,
-                            borderRadius: BorderRadius.circular(999),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 44),
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 9),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: <Widget>[
-                                    Icon(Icons.forum_outlined,
-                                        size: 15, color: colors.actionPrimary),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Discuss',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: colors.actionPrimary,
-                                      ),
+                        child: Tooltip(
+                          message: 'Discuss',
+                          excludeFromSemantics: true,
+                          child: Semantics(
+                            container: true,
+                            explicitChildNodes: true,
+                            button: true,
+                            label: 'Discuss',
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: onDiscuss,
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Center(
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: colors.surfaceRaised
+                                          .withValues(alpha: 0.94),
+                                      shape: BoxShape.circle,
                                     ),
-                                  ],
+                                    child: Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 15,
+                                      color: colors.actionPrimary,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
