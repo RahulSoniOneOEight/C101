@@ -175,6 +175,7 @@ implementation:
     console_errors: none
     websocket_feed: pass
     outbox_publisher: pass
+    outbox_pending_rows: 0
     unread_badge: implemented
   deployment:
     app_build: a39a670

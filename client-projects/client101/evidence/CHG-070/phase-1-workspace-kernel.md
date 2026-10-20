@@ -63,7 +63,7 @@ back to **Polling**. The header workspace icon uses the unread count projection.
 | WebSocket ready + backlog | pass, ready cursor returned |
 | Live cross-user push | pass — admin message appeared in the buyer screen within 2.5 s |
 | Flutter socket state | **Live** badge shown, no console errors |
-| Outbox publisher | NATS connected; outbox publisher active |
+| Outbox publisher | NATS connected; 11 of 11 outbox rows published, 0 pending |
 | Unread badge | implemented from the workspace unread projection |
 
 Artifacts:
