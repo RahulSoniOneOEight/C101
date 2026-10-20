@@ -210,23 +210,26 @@ entities:
     consumers: [experience, operations]
     projections: [experience-workspace-summary]
     notes:
-    - CHG-070 proposes Workspace as a new bounded context; approval is pending.
-    - Scope is a Commerce-owned business account or a future household. Membership is a projection and cannot grant access independently.
+    - CHG-070 approved Workspace as a bounded context; CHG-072 extends it to household scope.
+    - Scope is either a business account or a household project. Membership is a projection and cannot grant access independently.
+    - Household and business-account scopes never satisfy each other's authorization checks.
     - Workspace must never duplicate carts, orders, payments, inventory, products, prices or notification inboxes.
+    - Purchase intent stays in Workspace; only an explicit, revalidated, idempotent handoff may add canonical cart lines.
   - name: workspace-membership-projection
     canonical_owner: workspace
     consumers: [experience]
     projections: [experience-workspace-permissions]
     notes:
-    - Projected from authoritative Commerce business-account membership.
-    - Revocation must end REST and WebSocket access promptly.
+    - Projected from authoritative membership for the owning scope, either a business account or a household project.
+    - A household participant projection never carries owner address, phone, GST or payment data.
+    - Revocation, invitation expiry and owner removal must end REST and WebSocket access promptly.
   - name: workspace-channel
     canonical_owner: workspace
     consumers: [experience]
     projections: [experience-channel-list]
     notes:
-    - Pilot channels are Procurement and Approvals.
-    - Channel scope never crosses the owning workspace/business account.
+    - B2B pilot channels are Procurement and Approvals; a household project uses a project channel.
+    - Channel scope never crosses the owning workspace, business account or household.
   - name: workspace-message
     canonical_owner: workspace
     consumers: [experience, operations]
@@ -241,6 +244,14 @@ entities:
     notes:
     - Stores a reference and display snapshot only; current product values are hydrated through the Experience API.
     - Never becomes a second product, price or stock store.
+  - name: workspace-invitation
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-invitation-status]
+    notes:
+    - Household only under CHG-072; created by the owner and bound to one invitee email and scope.
+    - Single-use, expiring and revocable; acceptance requires the invited identity to complete OTP.
+    - Never grants access before acceptance and never carries checkout data.
   - name: workspace-read-cursor
     canonical_owner: workspace
     consumers: [experience]
@@ -297,6 +308,7 @@ entities:
     - Records draft/revision/hash, idempotency key, validation reference, Medusa cart id, order-group id and correlation id.
     - One approved revision may create at most one canonical order.
     - Workspace never creates the order directly; Commerce completion remains authoritative.
+    - CHG-072 cart build records the revalidation result, acknowledged differences and the canonical cart reference; it never records an order.
   - name: workspace-outbox
     canonical_owner: workspace
     consumers: [notification-integration, operations]

@@ -1,8 +1,9 @@
 # Collaborative Workspace — Threat Model (Pilot 1)
 
 **Status:** Proposed for CHG-070; security and legal/privacy approval required  
-**Scope:** B2B bounded-staging pilot  
-**Out of scope:** B2C household collaboration, seller messaging, attachments, production release
+**Scope:** B2B bounded-staging pilot, plus the CHG-072 household and conversation extension in section 7
+
+**Out of scope:** seller participation, attachments, order completion from chat, production release
 
 ## 1. Assets
 
@@ -79,3 +80,61 @@
 - Simulated payment and no real order fulfilment.
 - Cloudflare Access is not yet protecting the operator host; this is a known gap.
 - Production release remains separately human-authorised.
+
+## 7. Household extension (CHG-072)
+
+**Status:** proposed for CHG-072; security and legal/privacy review required before production.
+**Scope:** B2C household project collaboration, conversation dock, and cart handoff.
+**Explicitly excluded:** order completion from chat, seller participation, attachments, payments
+between participants.
+
+### 7.1 Additional assets
+
+- Household project identity, owner and participant membership projections.
+- Invitations: invitee email, token, expiry, revocation state and acceptance evidence.
+- Participant-visible conversation and shared-list projections.
+- Owner-only checkout data: addresses, phone, GST details and payment methods.
+- Cart-handoff evidence: revalidation result, acknowledged differences and idempotency key.
+
+### 7.2 Additional actors
+
+| Actor | Trust |
+|---|---|
+| Household owner | Authenticated consumer; invites, accepts proposals and checks out |
+| Household participant | Authenticated consumer invited by the owner; may chat, share and propose |
+| Invitee (not yet a member) | Holds an invitation but no project authority until OTP sign-in |
+| External attacker | Untrusted; may hold a stolen token, a leaked invitation or a guessed project id |
+
+### 7.3 Additional threats and controls
+
+| Threat | Impact | Control |
+|---|---|---|
+| Participant reads owner address, phone, GST or payment | Privacy breach | Server-side redaction on every participant projection; owner-only fields never serialised for a participant role |
+| Participant places the order | Unauthorized purchase | Checkout requires the owner role; participant checkout returns 403 |
+| Participant invites further people | Scope creep | Invitation endpoint restricted to the owner; participant attempts return 403 |
+| Leaked or forwarded invitation joins the project | Unauthorized membership | Single-use, expiring, revocable token; acceptance requires the invited email to complete OTP |
+| Invitation replay after revocation | Unauthorized membership | Token bound to invitation row + status check; revoked or consumed tokens fail closed |
+| Household scope used to reach a business account | Cross-tenant leak | Scope type is part of every query; household membership never satisfies business-account checks |
+| Participant enumerates projects by id | Data leak | Membership-constrained lookup returns 404 outside scope |
+| Shared list becomes commerce truth | Wrong purchase | List stores intent only; cart handoff revalidates Commerce and shows differences |
+| Silent price or stock change at handoff | Wrong purchase | Revalidation diff with explicit acknowledgement; no automatic substitution |
+| Double handoff creates duplicate lines | Duplicate purchase | Idempotency key derived from accepted revision; unique constraint; retry-safe |
+| Chat message triggers an order | Uncontrolled purchase | No order endpoint in Workspace; cart handoff stops at the canonical cart |
+
+### 7.4 Additional invariants
+
+1. A household participant is never serialised owner checkout or payment data.
+2. Household and business-account scopes never satisfy each other's authorization checks.
+3. Invitations are single-use, expiring and revocable, and acceptance requires the invited identity.
+4. Only the owner mutates an accepted revision; participant edits are proposals.
+5. Cart handoff revalidates Commerce and requires acknowledgement of any material difference.
+6. Cart handoff creates at most one set of lines per accepted revision.
+7. Chat never completes checkout and never creates an order.
+
+### 7.5 Open decisions
+
+- Invitation retention and deletion of an invitee email that never joins.
+- Whether a participant may leave and be replaced, and the resulting audit trail.
+- Retention of household conversation content and shared lists.
+- Whether a household project is visible to operator support, and under what redaction.
+- Terms and privacy copy for inviting a third party into a purchase conversation.

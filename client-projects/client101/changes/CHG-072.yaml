@@ -156,11 +156,17 @@ approval_required: true
 implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-20'
-  status: proposed-awaiting-approval
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  approval_scope: phases-a-to-d-only
+  status: approved-in-progress
+  phase_a_completed_at_utc: '2026-10-20'
+  adr: client-projects/client101/solution/decisions/ADR-client101-012.yaml
+  evidence: client-projects/client101/evidence/CHG-072/conversation-and-cart.md
   proposed_phases:
   - phase-a: >-
-      Amend ADR-011 and the threat model for household scope; update the data contract note; add
-      CHG-072 evidence skeleton.
+      [complete] Amend ADR-011 with ADR-012, extend the threat model for household scope, update the
+      data contract and create the CHG-072 evidence record.
   - phase-b: >-
       Schema migration for 'household' scope, project channel kind and owner/member roles; membership
       and invitation tables with expiry, revocation and a three-participant cap.
@@ -177,5 +183,5 @@ implementation:
       canonical cart idempotently per revision. No order completion.
   - phase-f: >-
       Staging verification, tenant isolation, negative tests and Chrome acceptance at both sizes.
-status: proposed-awaiting-approval
+status: approved-in-progress
 production_release_authorized: false
