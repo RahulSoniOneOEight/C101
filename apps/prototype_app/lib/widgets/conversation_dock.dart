@@ -24,12 +24,17 @@ class ConversationDockHost extends ConsumerWidget {
     required this.child,
     required this.audience,
     required this.enabled,
+    this.showLauncher = true,
     super.key,
   });
 
   final Widget child;
   final ConversationAudience audience;
   final bool enabled;
+
+  /// Cart screens keep the dock available from their line actions but hide the
+  /// floating launcher so it can never cover the primary checkout CTA.
+  final bool showLauncher;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -45,7 +50,7 @@ class ConversationDockHost extends ConsumerWidget {
           clipBehavior: Clip.none,
           children: <Widget>[
             Positioned.fill(child: child),
-            if (enabled && !open)
+            if (enabled && showLauncher && !open)
               Positioned(
                 right: AgencySpacing.md,
                 bottom: AgencySpacing.md,

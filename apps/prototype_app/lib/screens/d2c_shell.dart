@@ -42,6 +42,7 @@ class D2CShell extends StatelessWidget {
       body: ConversationDockHost(
         audience: ConversationAudience.household,
         enabled: _conversationEnabled,
+        showLauncher: currentPath != '/cart',
         child: navigationShell,
       ),
       bottomNavigationBar: AppBottomNavigation(

@@ -244,6 +244,46 @@ void main() {
     expect(container.read(conversationDockProvider).pendingCapture, isNull);
   });
 
+  testWidgets('launcher can hide on a cart without disabling capture',
+      (tester) async {
+    final container = ProviderContainer(
+      overrides: _overrides(_DockApi(householdMember: true)),
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const ConversationDockHost(
+            audience: ConversationAudience.household,
+            enabled: true,
+            showLauncher: false,
+            child: _StateProbe(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Conversations'), findsNothing);
+
+    container.read(conversationDockProvider.notifier).discuss(
+          ConversationAudience.household,
+          const ConversationProductCapture(
+            productId: 'prod_smoke',
+            variantId: 'variant_smoke',
+            offerId: 'offer_smoke',
+            title: 'Smoke tile',
+            quantity: 1,
+            unitAmountMinor: 12500,
+            currencyCode: 'INR',
+          ),
+        );
+    await tester.pumpAndSettle();
+    expect(find.text('Project conversation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final size in <Size>[const Size(390, 844), const Size(360, 800)]) {
     testWidgets(
         'dock preserves its page at ${size.width.toInt()}x${size.height.toInt()}',
