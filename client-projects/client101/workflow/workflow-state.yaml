@@ -29,9 +29,11 @@ active_changes:
   - phase-a
   - phase-b
   - phase-c
-  active_phase: phase-d
-  phase_d_implemented_at_utc: '2026-10-20'
-  phase_d_status: implemented-awaiting-chrome-review-and-deployment
+  - phase-d
+  active_phase: phase-d-human-review
+  phase_d_completed_at_utc: '2026-10-20'
+  phase_d_release: 68ee397
+  phase_d_status: chrome-accepted-awaiting-human-review
   phase_c_release: e7e84ba
   blocked_phases:
   - phase-e

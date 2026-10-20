@@ -164,8 +164,10 @@ implementation:
   phase_b_completed_at_utc: '2026-10-20'
   phase_c_completed_at_utc: '2026-10-20'
   phase_c_release: e7e84ba
-  phase_d_implemented_at_utc: '2026-10-20'
-  phase_d_status: implemented-awaiting-chrome-review-and-deployment
+  phase_d_completed_at_utc: '2026-10-20'
+  phase_d_release: 68ee397
+  phase_d_status: complete-awaiting-human-review
+  phase_d_chrome_acceptance: 'pass-89-of-89-390x844-360x800'
   phase_d_cart_write: none
   adr: client-projects/client101/solution/decisions/ADR-client101-012.yaml
   evidence: client-projects/client101/evidence/CHG-072/conversation-and-cart.md
@@ -180,11 +182,11 @@ implementation:
       [complete] Experience API consumer actor path, household project and invitation endpoints,
       owner-only field redaction and participant proposal rules; deployed as e7e84ba.
   - phase-d: >-
-      [implemented-awaiting-review] Conversation dock over the existing pages in both channels, with
-      one "Discuss" capture action on product cards, search results, PDP and cart lines; B2C project
-      creation and invitations; shared list with participant proposals; owner-only checkout entry.
-      Automated tests and the staging web build pass. No deployment, Chrome acceptance or commerce
-      write has occurred.
+      [complete-awaiting-human-review] Conversation dock over the existing pages in both channels,
+      with one "Discuss" capture action on product cards, search results, PDP and cart lines; B2C
+      project creation and invitations; shared list with participant proposals; owner-only checkout
+      entry. Deployed as 68ee397; automated tests and 89/89 Chrome checks at 390x844 and 360x800
+      pass. No commerce write or cart handoff exists.
   - phase-e: >-
       Phase 3 cart handoff only after explicit authorization: revalidate price, stock, MOQ, seller
       and tax, show a difference preview, require acknowledgement, then add confirmed lines to the

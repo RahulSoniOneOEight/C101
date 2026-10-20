@@ -4,8 +4,8 @@
 
 **Production:** unauthorized
 
-**Status:** Phases A–C complete. Phase D implemented and verified by automated tests and a release
-web build, awaiting staging deployment and Chrome acceptance. Cart handoff awaits explicit
+**Status:** Phases A–D complete and deployed to staging. Phase D passed 89/89 Chrome checks at
+390×844 and 360×800. Human visual review is pending. Cart handoff (Phase E) awaits explicit
 authorization.
 
 ## Scope
@@ -151,7 +151,21 @@ fixture draft to v14 as designed; no schema, ownership or commerce state changed
 
 ## Phase D — conversation layer
 
-Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added.
+Completed and deployed on 2026-10-20 as commit `68ee397`. No commerce or cart write was added.
+
+### Deployment
+
+| Item | Value |
+|---|---|
+| Workspace / Experience API | `/opt/buildkart-releases/release-68ee397`; `current` points there |
+| Workspace image | rebuilt from `68ee397`; container healthy |
+| Web hosting | `https://buildkart-staging.web.app` deployed from `68ee397` |
+| Household smoke | **pass** on the deployed release |
+| B2B smoke | **pass** (tenant isolation, proposals, approvals) |
+| Workspace scope counts after cleanup | 2 business-account, 0 household |
+| Invitations after cleanup | 0 |
+| Arjun fixture draft | v19 (B2B smoke plus a Chrome cart-line Discuss capture) |
+| Cart write / order creation | **none** |
 
 ### What changed
 
@@ -159,13 +173,16 @@ Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added
 |---|---|
 | Shell overlay | `ConversationDockHost` is mounted inside the D2C and B2B shells, so the routed page stays mounted underneath and keeps its scroll, filters and selection |
 | B2B routes | `/b2b/pdp/:id`, `/b2b/offers` and `/b2b/price-advantage` receive the same dock, covering the PDP surfaces outside the shell |
-| Discuss capture | `ProductCard`, `CompactProductItem`, `TradeProductCardCompact`, B2C and B2B search rows, both PDPs and both cart lines expose one `Discuss` action |
+| Discuss capture | `ProductCard`, `CompactProductItem`, `TradeProductCardCompact`, the B2B quick-order card, B2C and B2B search rows, both PDPs and both cart lines expose one `Discuss` action |
+| B2B quick-order card | The Discuss action is a 44dp overlay on the thumbnail with a visible forum icon, a long-press hint and an accessible `Discuss` label; it does not reflow the title or price |
+| Cart launcher | The floating launcher is hidden on cart screens so it cannot cover the checkout CTA; the dock remains available from each cart line's `Discuss` |
 | B2C projects | Create a project, accept an invitation code, owner-only participant sheet with email invitation, one-time staging token, participant count and revoke |
 | Shared list | Owner and participant lines, quantity proposals, owner accept/reject, explicit "not the cart" copy and a disabled Phase E cart-build entry |
 | Redaction | The dock shows no address, phone, GST, payment or checkout data; the cart-build entry is owner/buyer/admin only |
 | B2B roles | An approver can discuss and share product references but cannot create or change purchase intent |
 | Household revisions | A participant may initialize an empty shared list and propose its first line; only owner acceptance creates the immutable revision |
-| Duplicate capture | A product variant is unique per conversation, enforced by a channel-scoped `dedupe_key`; replay returns the original message |
+| Duplicate capture | A product variant is unique per conversation, enforced by a channel-scoped `dedupe_key`; replay returns the original message with `201` |
+| Snackbar cleanup | Closing the dock dismisses the capture snackbar so it cannot intercept the next page action |
 
 ### Contract and governance
 
@@ -182,19 +199,40 @@ Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added
 | Check | Result |
 |---|---|
 | `flutter analyze` | **pass**, no issues |
-| `flutter test` (app) | **pass**, 259 tests, including new dock/participant tests |
-| `flutter test` (`agency_flutter_ui`) | **pass**, 52 tests |
+| `flutter test` (app) | **pass**, 260 tests, including dock, hidden-launcher and participant tests |
+| `flutter test` (`agency_flutter_ui`) | **pass**, 53 tests, 27 skipped golden captures |
 | Tests at 390×844 and 360×800 | **pass**; dock opens, page state survives, no overflow exception |
 | Participant capture test | **pass**: chat share, empty aggregate, `add_line` proposal at v0, zero owner accepts |
 | Undo capture guard | **pass**: a stale clear request cannot drop a newer capture |
+| B2B quick-order separation | **pass**: Discuss fires without firing Add; 44dp semantic target |
 | `flutter build web --release` (staging defines) | **pass** |
 | Workspace TypeScript typecheck | **pass** |
 | YAML parse (OpenAPI, workflow, registry) | **pass** |
 | Golden snapshots | refreshed deliberately; visual diffs inspected and limited to the new Discuss chrome/launcher |
-| Workspace household smoke | **not run locally**; requires the staging `WORKSPACE_DATABASE_URL` and service secret |
-| Staging deployment | **not performed** |
-| Chrome acceptance | **not performed**; required before Phase D is called complete |
+| Workspace household smoke | **pass** on the deployed release |
+| Workspace B2B smoke | **pass**; tenant isolation, proposal and approval rules unchanged |
+| Staging deployment | **complete** (release `68ee397`) |
+| Chrome acceptance | **pass 89/89** at 390×844 and 360×800, no console errors |
 | Cart write / order creation | **none** |
+
+### Chrome acceptance
+
+Method: headless Google Chrome via Playwright 1.64 with the Flutter accessibility tree enabled,
+real OTP sign-in on staging, at 390×844 and 360×800.
+
+| Surface | B2C | B2B |
+|---|---|---|
+| Home | Discuss present, launcher opens `Project conversation` | Discuss present on quick-order cards, launcher opens `Procurement conversation` |
+| Browse | Discuss present, page survives dock | Catalogue Discuss present, page survives dock |
+| Search | `#/search?q=tank` Discuss present | Trade search covered by catalogue |
+| PDP | Discuss + Add to Cart reachable after scroll | Discuss reachable after scroll |
+| Cart | Discuss on the line, launcher hidden, checkout visible | Discuss on the line, launcher hidden, `Proceed to Checkout` unobstructed |
+| Page state | Home/Browse/PDP/Cart remain after close | Home/PDP/Cart remain after close |
+| Overflow | none in the Flutter surface | none in the Flutter surface |
+| Console errors | none | none |
+
+Screenshots: `evidence/CHG-072/screenshots/` — B2C home and dock at 390×844, B2C cart at 360×800,
+B2B dock at 360×800, B2B cart at 390×844.
 
 ### Deliberate limits
 
@@ -202,6 +240,7 @@ Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added
   materialisation or order completion exists.
 - Golden snapshots are platform-specific and excluded from CI; the local refresh does not replace
   Chrome acceptance.
+- Human visual review of the deployed Phase D screens is still pending.
 - The B2B Home header hit-testing defect remains a separate, known issue; the dock is shell-level
   and does not reuse that header control.
 
@@ -211,9 +250,9 @@ Implemented on 2026-10-20. **Not deployed.** No commerce or cart write was added
 |---|---|---|
 | B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | **Complete** |
 | C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | **Complete** |
-| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | **Implemented; deployment and Chrome acceptance pending** |
+| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | **Complete; Chrome accepted; human review pending** |
 | E | Revalidation, difference preview, acknowledged cart build, idempotency | **Explicit human authorization required** |
-| F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | After D, and E if authorized |
+| F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | Phase D Chrome checks **complete**; E checks await authorization |
 
 ## Open privacy decisions
 
