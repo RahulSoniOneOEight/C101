@@ -7,7 +7,8 @@
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "typecheck": "bunx tsc --noEmit",
-    "test:smoke": "bun run src/scripts/smoke.ts"
+    "test:smoke": "bun run src/scripts/smoke.ts",
+    "test:household": "bun run src/scripts/household-smoke.ts"
   },
   "dependencies": {
     "nats": "^2.29.3",

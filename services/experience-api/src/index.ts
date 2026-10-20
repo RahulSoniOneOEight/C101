@@ -246,6 +246,7 @@ function signWorkspaceTicket(
   const payload = {
     userId: user.id,
     name: user.name,
+    email: user.email,
     roles: authorization.roles,
     businessAccountId: authorization.businessAccountId,
     sellerId: authorization.sellerId,
@@ -266,7 +267,7 @@ function verifyWorkspaceTicket(
   signature: string,
   workspaceId: string,
   cid: string,
-): { userId: string; businessAccountId: string } | Response {
+): { userId: string; businessAccountId?: string } | Response {
   let payload: {
     userId?: string;
     roles?: string[];
@@ -294,14 +295,15 @@ function verifyWorkspaceTicket(
   } else {
     return problem(503, "workspace-not-configured", "The workspace service is not configured.");
   }
+  const hasWorkspaceRole = payload.roles?.some((role) =>
+    ["b2b_buyer", "b2b_account_admin", "b2b_approver", "super_admin", "customer"].includes(role),
+  );
   if (
     payload.purpose !== "workspace-stream" ||
     payload.workspaceId !== workspaceId ||
     !payload.userId ||
-    !payload.businessAccountId ||
-    !payload.roles?.some((role) =>
-      ["b2b_buyer", "b2b_account_admin", "b2b_approver", "super_admin"].includes(role),
-    ) ||
+    (!payload.businessAccountId && !payload.roles?.includes("customer")) ||
+    !hasWorkspaceRole ||
     !Number.isInteger(payload.iat) ||
     Math.abs(Date.now() / 1000 - (payload.iat as number)) > 120
   ) {
@@ -353,15 +355,15 @@ async function proxyWorkspace(
   if (!config.workspaceServiceUrl || !config.workspaceServiceSecret) {
     return problem(503, "workspace-not-configured", "The workspace service is not configured.");
   }
-  if (!authorization.businessAccountId) {
-    return problem(403, "business-account-required", "A business-account context is required.");
-  }
+  // B2B members and B2C consumers share the workspace proxy. The workspace service performs the
+  // scope and membership check; this layer only rejects identities with no collaboration role.
   if (
     !hasAnyRole(authorization, [
       "b2b_buyer",
       "b2b_account_admin",
       "b2b_approver",
       "super_admin",
+      "customer",
     ])
   ) {
     return problem(404, "not-found");
@@ -371,6 +373,7 @@ async function proxyWorkspace(
   const actor = {
     userId: user.id,
     name: user.name,
+    email: user.email,
     roles: authorization.roles,
     businessAccountId: authorization.businessAccountId,
     sellerId: authorization.sellerId,
@@ -2430,15 +2433,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     const authenticated = await authenticate(req);
     if ("response" in authenticated) return authenticated.response;
-    if (!authenticated.authorization.businessAccountId) {
-      return problem(403, "business-account-required", "A business-account context is required.");
-    }
     if (
       !hasAnyRole(authenticated.authorization, [
         "b2b_buyer",
         "b2b_account_admin",
         "b2b_approver",
         "super_admin",
+        "customer",
       ])
     ) {
       return problem(404, "not-found");
@@ -2453,10 +2454,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     );
   }
 
-  // Workspace collaboration is B2B-only and always proxied to the internal service.
+  // Workspace collaboration (B2B and household) is always proxied to the internal service.
   if (
     url.pathname === "/v1/workspaces" ||
     url.pathname.startsWith("/v1/workspaces/") ||
+    url.pathname === "/v1/household-projects" ||
+    url.pathname === "/v1/workspace-invitations/accept" ||
     url.pathname.startsWith("/v1/channels/") ||
     url.pathname.startsWith("/v1/purchase-drafts/") ||
     url.pathname.startsWith("/v1/proposals/") ||

@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import type { ServerWebSocket } from "bun";
 import { connect, type NatsConnection } from "nats";
 import { Pool, type PoolClient } from "pg";
@@ -20,6 +20,8 @@ type Role =
 type Actor = {
   userId: string;
   name: string;
+  /** Verified pilot email; required for household invitation acceptance. */
+  email?: string;
   roles: Role[];
   businessAccountId?: string;
   sellerId?: string;
@@ -62,13 +64,20 @@ const ALLOWED_ROLES = new Set<Role>([
   "b2b_account_admin",
   "b2b_approver",
   "super_admin",
+  "customer",
 ]);
-const WRITE_ROLES = new Set<Role>([
-  "b2b_buyer",
-  "b2b_account_admin",
-  "b2b_approver",
-  "super_admin",
-]);
+/** Workspace-member roles that may write collaboration content in their own scope. */
+const WRITE_WORKSPACE_ROLES = new Set(["buyer", "admin", "approver", "owner", "member"]);
+
+/**
+ * A membership row is not enough on its own. A business-account workspace additionally requires the
+ * actor's business account to match the workspace scope; a household workspace is authorized by
+ * membership alone. The two scope types never satisfy each other.
+ */
+function scopePredicate(workspaceAlias: string, scopeParam: string): string {
+  return `(${workspaceAlias}.scope_type = 'household'
+    or (${workspaceAlias}.scope_type = 'business_account' and ${workspaceAlias}.scope_id = ${scopeParam}))`;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -109,7 +118,10 @@ function verifyActor(encoded: string, signature: string): Actor | Response {
   if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
     return problem(401, "invalid-workspace-signature", "Actor signature is invalid.", actor.correlationId ?? "unknown");
   }
-  if (!actor.userId || !actor.name || !Array.isArray(actor.roles) || !actor.businessAccountId) {
+  if (!actor.userId || !actor.name || !Array.isArray(actor.roles)) {
+    return problem(401, "incomplete-workspace-context", "Actor context is incomplete.", actor.correlationId ?? "unknown");
+  }
+  if (!actor.businessAccountId && !actor.roles.includes("customer")) {
     return problem(401, "incomplete-workspace-context", "Actor context is incomplete.", actor.correlationId ?? "unknown");
   }
   if (!Number.isInteger(actor.iat) || Math.abs(Date.now() / 1000 - actor.iat) > 120) {
@@ -165,9 +177,10 @@ async function workspaceForMember(
     `select w.id, w.scope_type, w.scope_id, w.owner_user_id, w.name, w.status, w.created_at, wm.role
        from workspace w
        join workspace_member wm on wm.workspace_id = w.id
-      where w.id = $1 and w.scope_id = $2 and w.status = 'active'
+      where w.id = $1 and w.status = 'active'
+        and ${scopePredicate("w", "$2")}
         and wm.user_id = $3 and wm.status = 'active'`,
-    [workspaceId, actor.businessAccountId, actor.userId],
+    [workspaceId, actor.businessAccountId ?? null, actor.userId],
   );
   return result.rows[0] ?? null;
 }
@@ -193,15 +206,16 @@ async function channelForMember(
        join workspace w on w.id = c.workspace_id
        join workspace_member wm on wm.workspace_id = w.id
       where c.id = $1 and c.status = 'active'
-        and w.scope_id = $2 and w.status = 'active'
+        and ${scopePredicate("w", "$2")} and w.status = 'active'
         and wm.user_id = $3 and wm.status = 'active'`,
-    [channelId, actor.businessAccountId, actor.userId],
+    [channelId, actor.businessAccountId ?? null, actor.userId],
   );
   return result.rows[0] ?? null;
 }
 
-function canWrite(actor: Actor): boolean {
-  return actor.roles.some((role) => WRITE_ROLES.has(role));
+/** Writing is decided by the actor's role in this workspace, not by a global pilot role. */
+function canWriteRole(role?: string | null): boolean {
+  return Boolean(role && WRITE_WORKSPACE_ROLES.has(role));
 }
 
 async function listWorkspaces(actor: Actor): Promise<Response> {
@@ -219,9 +233,10 @@ async function listWorkspaces(actor: Actor): Promise<Response> {
        from workspace w
        join workspace_member wm on wm.workspace_id = w.id
       where wm.user_id = $2 and wm.status = 'active' and w.status = 'active'
-        and w.scope_id = $1
+        and (w.scope_type = 'household'
+          or (w.scope_type = 'business_account' and w.scope_id = $1))
       order by w.created_at asc`,
-    [actor.businessAccountId, actor.userId],
+    [actor.businessAccountId ?? null, actor.userId],
   );
   return json({
     workspaces: result.rows,
@@ -295,6 +310,341 @@ async function createWorkspace(req: Request, actor: Actor): Promise<Response> {
   return json({ workspace: created }, 201);
 }
 
+/**
+ * A consumer's project. The scope id is opaque: it is not a customer id and cannot be used to reach
+ * another system. Membership alone authorizes the scope.
+ */
+async function createHouseholdProject(req: Request, actor: Actor): Promise<Response> {
+  if (!actor.roles.includes("customer")) {
+    return problem(403, "consumer-role-required", "A consumer account is required.", actor.correlationId);
+  }
+  let body: { name?: string };
+  try {
+    body = (await req.json()) as { name?: string };
+  } catch {
+    return problem(400, "invalid-request-body", "Expected a JSON body.", actor.correlationId);
+  }
+  const name = body.name?.trim();
+  if (!name || name.length > 120) {
+    return problem(400, "invalid-project-name", "A project name of 1-120 characters is required.", actor.correlationId);
+  }
+  const owned = await pool.query(
+    `select count(*)::int as count from workspace
+      where scope_type = 'household' and owner_user_id = $1 and status = 'active'`,
+    [actor.userId],
+  );
+  if (owned.rows[0].count >= 3) {
+    return problem(409, "project-limit-reached", "An account can hold at most three active projects.", actor.correlationId);
+  }
+  const workspaceId = `ws_${randomUUID().replaceAll("-", "")}`;
+  const scopeId = `household_${randomUUID().replaceAll("-", "")}`;
+  const channelId = `ch_${randomUUID().replaceAll("-", "")}`;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `insert into workspace (id, scope_type, scope_id, owner_user_id, name)
+       values ($1, 'household', $2, $3, $4)`,
+      [workspaceId, scopeId, actor.userId, name],
+    );
+    await client.query(
+      `insert into workspace_member (workspace_id, user_id, role)
+       values ($1, $2, 'owner')`,
+      [workspaceId, actor.userId],
+    );
+    await client.query(
+      `insert into channel (id, workspace_id, kind, name)
+       values ($1, $2, 'project', $3)`,
+      [channelId, workspaceId, name],
+    );
+    await client.query(
+      `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
+       values ($1, $2, 'workspace.created', $3, $4, $5)`,
+      [
+        `act_${randomUUID().replaceAll("-", "")}`,
+        workspaceId,
+        JSON.stringify({ type: "workspace", id: workspaceId }),
+        actor.userId,
+        JSON.stringify({ message: "Household project created" }),
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  const created = await workspaceForMember(workspaceId, actor);
+  return json({ workspace: created ? workspaceView(created, actor) : null }, 201);
+}
+
+/** Household participants never receive the owner's internal user id. */
+function workspaceView(workspace: WorkspaceRow, actor: Actor): Record<string, unknown> {
+  const { owner_user_id: ownerUserId, ...rest } = workspace;
+  if (workspace.scope_type === "household" && workspace.owner_user_id !== actor.userId) {
+    return rest;
+  }
+  return { ...rest, owner_user_id: ownerUserId };
+}
+
+const MAX_HOUSEHOLD_PARTICIPANTS = 3;
+const INVITATION_TTL_DAYS = 7;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function ownerHousehold(
+  workspaceId: string,
+  actor: Actor,
+): Promise<WorkspaceRow | Response> {
+  const workspace = await workspaceForMember(workspaceId, actor);
+  if (!workspace || workspace.scope_type !== "household") {
+    return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
+  }
+  if (workspace.role !== "owner") {
+    return problem(403, "owner-required", "Only the project owner can manage participants.", actor.correlationId);
+  }
+  return workspace;
+}
+
+async function activeParticipantCount(workspaceId: string): Promise<number> {
+  const result = await pool.query(
+    `select count(*)::int as count from workspace_member
+      where workspace_id = $1 and role = 'member' and status = 'active'`,
+    [workspaceId],
+  );
+  return result.rows[0].count as number;
+}
+
+async function inviteParticipant(
+  req: Request,
+  workspaceId: string,
+  actor: Actor,
+): Promise<Response> {
+  const workspace = await ownerHousehold(workspaceId, actor);
+  if (workspace instanceof Response) return workspace;
+  let body: { email?: string };
+  try {
+    body = (await req.json()) as { email?: string };
+  } catch {
+    return problem(400, "invalid-request-body", "Expected a JSON body.", actor.correlationId);
+  }
+  const email = body.email?.trim().toLowerCase() ?? "";
+  if (!EMAIL_PATTERN.test(email) || email.length > 254) {
+    return problem(400, "invalid-invitee-email", "A valid invitee email is required.", actor.correlationId);
+  }
+  if ((await activeParticipantCount(workspaceId)) >= MAX_HOUSEHOLD_PARTICIPANTS) {
+    return problem(409, "participant-limit-reached", "This project already has three participants.", actor.correlationId);
+  }
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const existing = await pool.query(
+    `select id from workspace_invitation
+      where workspace_id = $1 and lower(invitee_email) = $2 and status = 'pending'`,
+    [workspaceId, email],
+  );
+  let invitationId: string;
+  let expiresAt: string;
+  if (existing.rows[0]) {
+    const updated = await pool.query(
+      `update workspace_invitation
+          set token_hash = $2, expires_at = now() + ($3 || ' days')::interval,
+              invited_by = $4
+        where id = $1
+        returning id, expires_at`,
+      [existing.rows[0].id, tokenHash, INVITATION_TTL_DAYS, actor.userId],
+    );
+    invitationId = updated.rows[0].id;
+    expiresAt = updated.rows[0].expires_at;
+  } else {
+    invitationId = `inv_${randomUUID().replaceAll("-", "")}`;
+    const inserted = await pool.query(
+      `insert into workspace_invitation
+         (id, workspace_id, invitee_email, token_hash, invited_by, expires_at)
+       values ($1, $2, $3, $4, $5, now() + ($6 || ' days')::interval)
+       returning expires_at`,
+      [invitationId, workspaceId, email, tokenHash, actor.userId, INVITATION_TTL_DAYS],
+    );
+    expiresAt = inserted.rows[0].expires_at;
+  }
+  await pool.query(
+    `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id, payload_summary)
+     values ($1, $2, 'invitation.created', $3, $4, $5)`,
+    [
+      `act_${randomUUID().replaceAll("-", "")}`,
+      workspaceId,
+      JSON.stringify({ type: "workspace_invitation", id: invitationId }),
+      actor.userId,
+      JSON.stringify({ invitee_email: email }),
+    ],
+  );
+  return json(
+    {
+      invitation: {
+        id: invitationId,
+        invitee_email: email,
+        status: "pending",
+        expires_at: expiresAt,
+      },
+      // Staging has no email delivery. The owner shares this token out of band; it is returned once.
+      invite_token: token,
+      environment: process.env.BUILDKART_ENVIRONMENT ?? "staging",
+      test_data: true,
+      correlation_id: actor.correlationId,
+    },
+    201,
+  );
+}
+
+async function listInvitations(
+  workspaceId: string,
+  actor: Actor,
+): Promise<Response> {
+  const workspace = await ownerHousehold(workspaceId, actor);
+  if (workspace instanceof Response) return workspace;
+  const result = await pool.query(
+    `select id, invitee_email, status, expires_at, accepted_at, revoked_at, created_at
+       from workspace_invitation
+      where workspace_id = $1
+      order by created_at desc`,
+    [workspaceId],
+  );
+  return json({
+    invitations: result.rows,
+    participants: await activeParticipantCount(workspaceId),
+    capacity: MAX_HOUSEHOLD_PARTICIPANTS,
+    correlation_id: actor.correlationId,
+  });
+}
+
+async function revokeInvitation(
+  workspaceId: string,
+  invitationId: string,
+  actor: Actor,
+): Promise<Response> {
+  const workspace = await ownerHousehold(workspaceId, actor);
+  if (workspace instanceof Response) return workspace;
+  const revoked = await pool.query(
+    `update workspace_invitation
+        set status = 'revoked', revoked_at = now()
+      where id = $1 and workspace_id = $2 and status = 'pending'
+      returning id, invitee_email, status`,
+    [invitationId, workspaceId],
+  );
+  if (!revoked.rows[0]) {
+    return problem(404, "invitation-not-found", "No pending invitation matched.", actor.correlationId);
+  }
+  await pool.query(
+    `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id)
+     values ($1, $2, 'invitation.revoked', $3, $4)`,
+    [
+      `act_${randomUUID().replaceAll("-", "")}`,
+      workspaceId,
+      JSON.stringify({ type: "workspace_invitation", id: invitationId }),
+      actor.userId,
+    ],
+  );
+  return json({ invitation: revoked.rows[0], correlation_id: actor.correlationId });
+}
+
+async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
+  if (!actor.email) {
+    return problem(400, "email-required", "The invited identity must provide a verified email.", actor.correlationId);
+  }
+  let body: { token?: string };
+  try {
+    body = (await req.json()) as { token?: string };
+  } catch {
+    return problem(400, "invalid-request-body", "Expected a JSON body.", actor.correlationId);
+  }
+  const token = body.token?.trim();
+  if (!token) {
+    return problem(400, "invitation-token-required", "An invitation token is required.", actor.correlationId);
+  }
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const found = await pool.query(
+    `select i.id, i.workspace_id, i.invitee_email, i.expires_at, w.scope_type, w.status as workspace_status
+       from workspace_invitation i
+       join workspace w on w.id = i.workspace_id
+      where i.token_hash = $1 and i.status = 'pending'`,
+    [tokenHash],
+  );
+  const invitation = found.rows[0];
+  if (!invitation) {
+    return problem(404, "invitation-not-found", "This invitation is invalid or already used.", actor.correlationId);
+  }
+  if (new Date(invitation.expires_at).getTime() <= Date.now()) {
+    await pool.query("update workspace_invitation set status='expired' where id=$1", [invitation.id]);
+    return problem(410, "invitation-expired", "This invitation has expired.", actor.correlationId);
+  }
+  if (
+    invitation.workspace_status !== "active" ||
+    invitation.scope_type !== "household"
+  ) {
+    return problem(404, "invitation-not-found", "This invitation is invalid or already used.", actor.correlationId);
+  }
+  if (String(invitation.invitee_email).toLowerCase() !== actor.email.toLowerCase()) {
+    return problem(403, "invitation-email-mismatch", "This invitation was issued to a different email.", actor.correlationId);
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const membership = await client.query(
+      `select role, status from workspace_member where workspace_id = $1 and user_id = $2`,
+      [invitation.workspace_id, actor.userId],
+    );
+    if (!membership.rows[0]) {
+      await client.query(
+        `insert into workspace_member (workspace_id, user_id, role)
+         values ($1, $2, 'member')`,
+        [invitation.workspace_id, actor.userId],
+      );
+    } else if (membership.rows[0].status !== "active") {
+      if (membership.rows[0].role === "owner") {
+        await client.query(
+          `update workspace_member set status='active' where workspace_id=$1 and user_id=$2`,
+          [invitation.workspace_id, actor.userId],
+        );
+      } else {
+        await client.query(
+          `update workspace_member set status='active', role='member'
+            where workspace_id=$1 and user_id=$2`,
+          [invitation.workspace_id, actor.userId],
+        );
+      }
+    }
+    await client.query(
+      `update workspace_invitation
+          set status='accepted', accepted_by=$2, accepted_at=now()
+        where id=$1`,
+      [invitation.id, actor.userId],
+    );
+    await client.query(
+      `insert into activity_event (id, workspace_id, kind, entity_ref, actor_id)
+       values ($1, $2, 'invitation.accepted', $3, $4)`,
+      [
+        `act_${randomUUID().replaceAll("-", "")}`,
+        invitation.workspace_id,
+        JSON.stringify({ type: "workspace_invitation", id: invitation.id }),
+        actor.userId,
+      ],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if ((error as { code?: string }).code === "23514") {
+      return problem(409, "participant-limit-reached", "This project already has three participants.", actor.correlationId);
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+  const workspace = await workspaceForMember(invitation.workspace_id, actor);
+  return json({
+    workspace: workspace ? workspaceView(workspace, actor) : null,
+    correlation_id: actor.correlationId,
+  });
+}
+
 async function listChannels(workspaceId: string, actor: Actor): Promise<Response> {
   const workspace = await workspaceForMember(workspaceId, actor);
   if (!workspace) {
@@ -312,7 +662,8 @@ async function listChannels(workspaceId: string, actor: Actor): Promise<Response
             ), 0)::int as unread_count
        from channel c
       where c.workspace_id = $1 and c.status = 'active' and $2 = true
-      order by case c.kind when 'procurement' then 0 else 1 end, c.created_at asc`,
+      order by case c.kind when 'project' then 0 when 'procurement' then 0 else 1 end,
+               c.created_at asc`,
     [workspaceId, true, actor.userId],
   );
   return json({
@@ -329,7 +680,7 @@ async function getWorkspace(workspaceId: string, actor: Actor): Promise<Response
     return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
   }
   return json({
-    workspace,
+    workspace: workspaceView(workspace, actor),
     environment: process.env.BUILDKART_ENVIRONMENT ?? "staging",
     test_data: true,
     correlation_id: actor.correlationId,
@@ -401,7 +752,7 @@ async function postMessage(
   if (!channel) {
     return problem(404, "channel-not-found", "Channel not found.", actor.correlationId);
   }
-  if (!canWrite(actor)) {
+  if (!canWriteRole(channel.role)) {
     return problem(403, "message-write-forbidden", "This role cannot post messages.", actor.correlationId);
   }
   let body: { body?: string; message_type?: string };
@@ -543,7 +894,7 @@ async function shareProduct(
 ): Promise<Response> {
   const channel = await channelForMember(channelId, actor);
   if (!channel) return problem(404, "channel-not-found", "Channel not found.", actor.correlationId);
-  if (!canWrite(actor)) {
+  if (!canWriteRole(channel.role)) {
     return problem(403, "share-forbidden", "This role cannot share products.", actor.correlationId);
   }
   let body: ShareBody;
@@ -851,6 +1202,7 @@ type DraftRow = {
   created_by: string;
   role: string;
   scope_id: string;
+  scope_type?: string;
 };
 
 function stableStringify(value: unknown): string {
@@ -978,13 +1330,14 @@ async function createRevision(
 async function draftForMember(draftId: string, actor: Actor): Promise<DraftRow | null> {
   const result = await pool.query<DraftRow>(
     `select d.id, d.workspace_id, d.channel_id, d.name, d.lifecycle_status,
-            d.validation_status, d.current_version, d.created_by, wm.role, w.scope_id
+            d.validation_status, d.current_version, d.created_by, wm.role,
+            w.scope_id, w.scope_type
        from purchase_draft d
        join workspace w on w.id = d.workspace_id
        join workspace_member wm on wm.workspace_id = w.id
-      where d.id = $1 and w.scope_id = $2 and wm.user_id = $3
+      where d.id = $1 and ${scopePredicate("w", "$2")} and wm.user_id = $3
         and wm.status = 'active' and w.status = 'active'`,
-    [draftId, actor.businessAccountId, actor.userId],
+    [draftId, actor.businessAccountId ?? null, actor.userId],
   );
   return result.rows[0] ?? null;
 }
@@ -1118,25 +1471,27 @@ async function handleProposalDecision(
 ): Promise<Response> {
   const result = await pool.query(
     `select p.*, d.workspace_id, d.channel_id, d.name, d.lifecycle_status,
-            d.validation_status, d.current_version, d.created_by, d.role
+            d.validation_status, d.current_version, d.created_by, d.role,
+            d.scope_id, d.scope_type
        from proposal p
        join (
-         select pd.*, wm.role
+         select pd.*, wm.role, w.scope_id, w.scope_type
            from purchase_draft pd
            join workspace w on w.id = pd.workspace_id
            join workspace_member wm on wm.workspace_id = w.id
-          where w.scope_id = $2 and wm.user_id = $3 and wm.status = 'active'
+          where ${scopePredicate("w", "$2")} and wm.user_id = $3 and wm.status = 'active'
        ) d on d.id = p.draft_id
       where p.id = $1`,
-    [proposalId, actor.businessAccountId, actor.userId],
+    [proposalId, actor.businessAccountId ?? null, actor.userId],
   );
   const proposal = result.rows[0];
   if (!proposal) return problem(404, "proposal-not-found", "Proposal not found.", actor.correlationId);
   if (action === "cancel" && proposal.proposed_by !== actor.userId) {
     return problem(403, "proposal-cancel-forbidden", "Only the proposer can cancel.", actor.correlationId);
   }
-  if (action !== "cancel" && !["buyer", "admin"].includes(proposal.role)) {
-    return problem(403, "proposal-decision-forbidden", "Only a buyer or account admin can decide a proposal.", actor.correlationId);
+  const deciderRoles = proposal.scope_type === "household" ? ["owner"] : ["buyer", "admin"];
+  if (action !== "cancel" && !deciderRoles.includes(proposal.role)) {
+    return problem(403, "proposal-decision-forbidden", "This role cannot decide a proposal.", actor.correlationId);
   }
   if (proposal.status !== "pending") {
     return problem(409, "proposal-not-pending", "This proposal is no longer pending.", actor.correlationId);
@@ -1205,7 +1560,8 @@ async function handleProposalDecision(
     current_version: proposal.current_version,
     created_by: proposal.created_by,
     role: proposal.role,
-    scope_id: actor.businessAccountId as string,
+    scope_id: proposal.scope_id,
+    scope_type: proposal.scope_type,
   };
   const client = await pool.connect();
   try {
@@ -1278,14 +1634,14 @@ async function handleApprovalAction(
             d.validation_status, d.current_version, d.created_by, d.role
        from approval_request a
        join (
-         select pd.*, wm.role
+         select pd.*, wm.role, w.scope_type
            from purchase_draft pd
            join workspace w on w.id = pd.workspace_id
            join workspace_member wm on wm.workspace_id = w.id
-          where w.scope_id = $2 and wm.user_id = $3 and wm.status = 'active'
+          where ${scopePredicate("w", "$2")} and wm.user_id = $3 and wm.status = 'active'
        ) d on d.id = a.draft_id
       where a.id = $1`,
-    [approvalId, actor.businessAccountId, actor.userId],
+    [approvalId, actor.businessAccountId ?? null, actor.userId],
   );
   const approval = result.rows[0];
   if (!approval) return problem(404, "approval-not-found", "Approval request not found.", actor.correlationId);
@@ -1389,8 +1745,10 @@ async function createDraft(
 ): Promise<Response> {
   const workspace = await workspaceForMember(workspaceId, actor);
   if (!workspace) return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
-  if (!["buyer", "admin"].includes(workspace.role ?? "")) {
-    return problem(403, "draft-write-forbidden", "Only a buyer or account admin can create a draft.", actor.correlationId);
+  const household = workspace.scope_type === "household";
+  const allowedCreators = household ? ["owner", "member"] : ["buyer", "admin"];
+  if (!allowedCreators.includes(workspace.role ?? "")) {
+    return problem(403, "draft-write-forbidden", "This role cannot create a draft.", actor.correlationId);
   }
   let body: { name?: string; channel_id?: string; lines?: DraftLineInput[] };
   try {
@@ -1400,10 +1758,21 @@ async function createDraft(
   }
   const name = body.name?.trim();
   if (!name) return problem(400, "invalid-draft-name", "A draft name is required.", actor.correlationId);
-  const channelId = body.channel_id ??
-    (workspace.id === "ws_arjun_procurement"
-      ? "ch_arjun_procurement"
-      : "ch_shakti_procurement");
+  let channelId = body.channel_id;
+  if (!channelId) {
+    const firstChannel = await pool.query(
+      `select id from channel
+        where workspace_id = $1 and status = 'active'
+        order by case kind when 'project' then 0 when 'procurement' then 0 else 1 end,
+                 created_at asc
+        limit 1`,
+      [workspaceId],
+    );
+    channelId = firstChannel.rows[0]?.id;
+  }
+  if (!channelId) {
+    return problem(409, "workspace-has-no-channel", "This workspace has no active channel.", actor.correlationId);
+  }
   const channel = await channelForMember(channelId, actor);
   if (!channel || channel.workspace_id !== workspaceId) {
     return problem(404, "channel-not-found", "Channel not found in this workspace.", actor.correlationId);
@@ -1420,7 +1789,8 @@ async function createDraft(
     current_version: 0,
     created_by: actor.userId,
     role: workspace.role ?? "buyer",
-    scope_id: actor.businessAccountId as string,
+    scope_id: workspace.scope_id,
+    scope_type: workspace.scope_type,
   };
   const client = await pool.connect();
   try {
@@ -1482,8 +1852,10 @@ async function postProposal(
 ): Promise<Response> {
   const draft = await draftForMember(draftId, actor);
   if (!draft) return problem(404, "draft-not-found", "Purchase draft not found.", actor.correlationId);
-  if (!["buyer", "admin"].includes(draft.role)) {
-    return problem(403, "proposal-forbidden", "Only a buyer or account admin can propose a change.", actor.correlationId);
+  const household = draft.scope_type === "household";
+  const allowedProposers = household ? ["owner", "member"] : ["buyer", "admin"];
+  if (!allowedProposers.includes(draft.role)) {
+    return problem(403, "proposal-forbidden", "This role cannot propose a change.", actor.correlationId);
   }
   let body: { expected_version?: number; kind?: string; payload?: Record<string, unknown> };
   try {
@@ -1564,6 +1936,9 @@ async function requestApproval(
 ): Promise<Response> {
   const draft = await draftForMember(draftId, actor);
   if (!draft) return problem(404, "draft-not-found", "Purchase draft not found.", actor.correlationId);
+  if (draft.scope_type === "household") {
+    return problem(403, "approval-not-supported", "A household project uses owner decisions, not approvals.", actor.correlationId);
+  }
   if (!["buyer", "admin"].includes(draft.role)) {
     return problem(403, "approval-request-forbidden", "Only a buyer or account admin can request approval.", actor.correlationId);
   }
@@ -1752,6 +2127,25 @@ async function route(req: Request): Promise<Response> {
   }
   if (path === "/v1/workspaces" && req.method === "POST") {
     return createWorkspace(req, actor);
+  }
+  if (path === "/v1/household-projects" && req.method === "POST") {
+    return createHouseholdProject(req, actor);
+  }
+  if (path === "/v1/workspace-invitations/accept" && req.method === "POST") {
+    return acceptInvitation(req, actor);
+  }
+  const invitationsMatch = path.match(/^\/v1\/workspaces\/([^/]+)\/invitations$/);
+  if (invitationsMatch && req.method === "GET") {
+    return listInvitations(invitationsMatch[1], actor);
+  }
+  if (invitationsMatch && req.method === "POST") {
+    return inviteParticipant(req, invitationsMatch[1], actor);
+  }
+  const invitationRevokeMatch = path.match(
+    /^\/v1\/workspaces\/([^/]+)\/invitations\/([^/]+)\/revoke$/,
+  );
+  if (invitationRevokeMatch && req.method === "POST") {
+    return revokeInvitation(invitationRevokeMatch[1], invitationRevokeMatch[2], actor);
   }
 
   const workspaceMatch = path.match(/^\/v1\/workspaces\/([^/]+)$/);
