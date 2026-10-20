@@ -110,9 +110,47 @@ try {
   const projectChannel = channels.channels.find((channel) => channel.kind === "project");
   assert.ok(projectChannel, "household project must expose a project channel");
 
+  // Invitation negatives run while the project still has capacity.
+  const misdirected = await call<{ invite_token: string }>(
+    owner,
+    "POST",
+    `/v1/workspaces/${workspaceId}/invitations`,
+    { email: `someone.${suffix}@buildkart.test` },
+    201,
+  );
+  const mismatch = await call<{ code?: string }>(
+    outsider,
+    "POST",
+    "/v1/workspace-invitations/accept",
+    { token: misdirected.invite_token },
+    403,
+  );
+  assert.equal(mismatch.code, "invitation-email-mismatch");
+
+  const revokeTarget = await call<{ invite_token: string; invitation: { id: string } }>(
+    owner,
+    "POST",
+    `/v1/workspaces/${workspaceId}/invitations`,
+    { email: `revoked.${suffix}@buildkart.test` },
+    201,
+  );
+  await call(owner, "POST", `/v1/workspaces/${workspaceId}/invitations/${revokeTarget.invitation.id}/revoke`);
+  const revoked = await call<{ code?: string }>(
+    {
+      userId: `smoke_revoked_${suffix}`,
+      name: "Revoked Invitee",
+      email: `revoked.${suffix}@buildkart.test`,
+      roles: ["customer"],
+    },
+    "POST",
+    "/v1/workspace-invitations/accept",
+    { token: revokeTarget.invite_token },
+    404,
+  );
+  assert.equal(revoked.code, "invitation-not-found");
+
   // Owner invites three participants and each accepts with their own identity.
   const participants = [participant1, participant2, participant3];
-  const tokens: string[] = [];
   for (const participant of participants) {
     const invited: { invite_token: string } = await call<{ invite_token: string }>(
       owner,
@@ -121,7 +159,6 @@ try {
       { email: participant.email },
       201,
     );
-    tokens.push(invited.invite_token);
     const accepted: { workspace: Record<string, unknown> } = await call<{
       workspace: Record<string, unknown>;
     }>(
@@ -245,46 +282,6 @@ try {
     404,
   );
   assert.equal(outsiderRead.code, "workspace-not-found");
-
-  // An invitation is bound to the invited email.
-  const misdirected = await call<{ invite_token: string }>(
-    owner,
-    "POST",
-    `/v1/workspaces/${workspaceId}/invitations`,
-    { email: `someone.${suffix}@buildkart.test` },
-    201,
-  );
-  const mismatch = await call<{ code?: string }>(
-    outsider,
-    "POST",
-    "/v1/workspace-invitations/accept",
-    { token: misdirected.invite_token },
-    403,
-  );
-  assert.equal(mismatch.code, "invitation-email-mismatch");
-
-  // Revocation closes the token.
-  const revokeTarget = await call<{ invite_token: string; invitation: { id: string } }>(
-    owner,
-    "POST",
-    `/v1/workspaces/${workspaceId}/invitations`,
-    { email: `revoked.${suffix}@buildkart.test` },
-    201,
-  );
-  await call(owner, "POST", `/v1/workspaces/${workspaceId}/invitations/${revokeTarget.invitation.id}/revoke`);
-  const revoked = await call<{ code?: string }>(
-    {
-      userId: `smoke_revoked_${suffix}`,
-      name: "Revoked Invitee",
-      email: `revoked.${suffix}@buildkart.test`,
-      roles: ["customer"],
-    },
-    "POST",
-    "/v1/workspace-invitations/accept",
-    { token: revokeTarget.invite_token },
-    404,
-  );
-  assert.equal(revoked.code, "invitation-not-found");
 
   console.log(
     "household smoke passed: create, invite x3, cap, chat, proposal, owner acceptance, redaction, 404 isolation, revoke",

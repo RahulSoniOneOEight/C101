@@ -162,6 +162,8 @@ implementation:
   status: approved-in-progress
   phase_a_completed_at_utc: '2026-10-20'
   phase_b_completed_at_utc: '2026-10-20'
+  phase_c_completed_at_utc: '2026-10-20'
+  phase_c_release: e7e84ba
   adr: client-projects/client101/solution/decisions/ADR-client101-012.yaml
   evidence: client-projects/client101/evidence/CHG-072/conversation-and-cart.md
   proposed_phases:
@@ -172,8 +174,8 @@ implementation:
       [complete] Schema migration for 'household' scope, project channel kind and owner/member roles;
       invitation table with expiry, revocation and a database-enforced three-participant cap.
   - phase-c: >-
-      Experience API consumer actor path, invitation endpoints, owner-only field redaction and
-      participant proposal rules.
+      [complete] Experience API consumer actor path, household project and invitation endpoints,
+      owner-only field redaction and participant proposal rules; deployed as e7e84ba.
   - phase-d: >-
       Conversation dock over the existing pages in both channels, with one "Discuss" capture action
       on product cards, search results, PDP and cart lines; B2C project creation and invitations;

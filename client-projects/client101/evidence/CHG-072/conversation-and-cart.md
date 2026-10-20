@@ -88,13 +88,72 @@ No B2B row was rewritten, and no household row was left behind by the rolled-bac
 - No commerce or cart write.
 - No cart handoff.
 
+## Phase C — household API
+
+Deployed as workspace and Experience API commit `e7e84ba` from
+`/opt/buildkart-releases/release-e7e84ba`; `current` now points there.
+
+### Scope and role model
+
+- Membership is resolved per workspace. A business-account workspace still requires the actor's
+  business account to match the scope; a household workspace is authorized by membership alone.
+- Writing uses the actor's **workspace role**, not a global pilot role.
+- Household roles are `owner` and `member`. B2B keeps `buyer`, `admin` and `approver`.
+- A participant proposal is decided only by the owner; B2B proposals remain buyer/admin.
+- Household projects have no approval step and return `approval-not-supported`.
+
+### Endpoints
+
+| Method | Path | Rule |
+|---|---|---|
+| `POST` | `/v1/household-projects` | Consumer creates a project; maximum three active projects per owner |
+| `POST` | `/v1/workspaces/{id}/invitations` | Owner only; email invite; returns a one-time staging token |
+| `GET` | `/v1/workspaces/{id}/invitations` | Owner only; statuses, participant count and capacity |
+| `POST` | `/v1/workspaces/{id}/invitations/{invitationId}/revoke` | Owner only |
+| `POST` | `/v1/workspace-invitations/accept` | Invitee's own verified email must match; token is single-use |
+
+The Experience API now signs `email` into the workspace actor context and proxies household routes
+for consumer identities, without weakening the business-account path.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| Household smoke (`test:household`) | **pass** |
+| Create project | pass |
+| Invite and accept three participants | pass |
+| Fourth participant | **409 participant-limit-reached** |
+| Participant posts a message; owner reads it | pass |
+| Participant proposes a quantity change | pass |
+| Participant decides own proposal | **403** |
+| Owner accepts; one new revision, quantity 3 | pass |
+| Household approval request | **403 approval-not-supported** |
+| Participant lists invitations | **403 owner-required** |
+| Outsider reads the project | **404** |
+| Invitation email mismatch | **403 invitation-email-mismatch** |
+| Revoked invitation token | **404** |
+| Participant projection carries `owner_user_id` | **no** |
+| B2B smoke (`test:smoke`) | **pass** (tenant isolation, proposals, approvals) |
+| Live end-to-end through the Experience API | pass as `rsoni001@gmail.com` + `rs.jgd108@gmail.com` |
+
+The household smoke deletes its project. The live project was deleted after the check; the workspace
+database contains only the two B2B workspaces and zero invitations. The B2B smoke advanced the Arjun
+fixture draft to v14 as designed; no schema, ownership or commerce state changed.
+
+### What Phase C did not do
+
+- No Flutter surface.
+- No product capture from a page yet.
+- No commerce or cart write.
+- No cart handoff.
+
 ## Pending phases
 
 | Phase | Work | Gate |
 |---|---|---|
 | B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | **Complete** |
-| C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | Ready to start |
-| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | After C |
+| C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | **Complete** |
+| D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | Ready to start |
 | E | Revalidation, difference preview, acknowledged cart build, idempotency | **Explicit human authorization required** |
 | F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | After D, and E if authorized |
 
