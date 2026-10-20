@@ -70,7 +70,7 @@ The workspace never owns carts, orders, payments, products, prices, sellers or n
 | Proposal acceptance creates exactly one revision | pass (v6 → v7 → v8 → v9) |
 | Approval is bound to the current revision and hash | pass |
 | Later material revision supersedes a pending/approved approval | pass |
-| One pending approval per draft | pass (unique partial index + `409`) |
+| One pending approval per draft | pass (unique partial index; duplicate request returns `409 approval-already-pending`) |
 | Approver cannot propose | **403** |
 | Approver UI decision | **Approved** on Chrome |
 | Product share UI from B2B PDP | **201**, snackbar + Procurement share card |
