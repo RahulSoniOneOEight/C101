@@ -161,6 +161,7 @@ implementation:
   approval_scope: phases-a-to-d-only
   status: approved-in-progress
   phase_a_completed_at_utc: '2026-10-20'
+  phase_b_completed_at_utc: '2026-10-20'
   adr: client-projects/client101/solution/decisions/ADR-client101-012.yaml
   evidence: client-projects/client101/evidence/CHG-072/conversation-and-cart.md
   proposed_phases:
@@ -168,8 +169,8 @@ implementation:
       [complete] Amend ADR-011 with ADR-012, extend the threat model for household scope, update the
       data contract and create the CHG-072 evidence record.
   - phase-b: >-
-      Schema migration for 'household' scope, project channel kind and owner/member roles; membership
-      and invitation tables with expiry, revocation and a three-participant cap.
+      [complete] Schema migration for 'household' scope, project channel kind and owner/member roles;
+      invitation table with expiry, revocation and a database-enforced three-participant cap.
   - phase-c: >-
       Experience API consumer actor path, invitation endpoints, owner-only field redaction and
       participant proposal rules.

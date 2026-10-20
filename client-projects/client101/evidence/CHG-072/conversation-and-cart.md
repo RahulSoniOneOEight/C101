@@ -46,12 +46,54 @@ Completed:
 - No deployment.
 - No Phase 3 revalidation or cart handoff.
 
+## Phase B — household schema
+
+Applied to the staging `buildkart_workspace` database on 2026-10-20. All statements are idempotent
+and re-run by `ensureSchema()` on every service boot.
+
+| Change | Detail |
+|---|---|
+| Scope | `workspace_scope_type_check` now allows `business_account` and `household` |
+| Roles | `workspace_member_role_check` adds `owner`; `member` is the invited participant |
+| Channel | `channel_kind_check` adds `project` |
+| Owner | Partial unique index allows one active `owner` per workspace |
+| Invitations | `workspace_invitation` with hashed token, status, expiry, acceptance and revocation |
+| Invite uniqueness | One live pending invitation per project and invitee email |
+| Participant cap | Trigger raises `23514` when a fourth active household participant is inserted |
+
+### Verification
+
+The full schema was executed twice inside one transaction to prove idempotency, then applied.
+
+| Check | Result |
+|---|---|
+| Schema re-run twice | pass |
+| Household project with owner + 3 participants | pass |
+| Fourth participant | rejected (`23514`) |
+| Second active owner | rejected (`unique_violation`) |
+| `project` channel on a household | pass |
+| Existing B2B workspaces | **2**, unchanged |
+| Arjun members / Shakti members | **3 / 1**, unchanged |
+| B2B channels | approvals + procurement + procurement, unchanged |
+| Messages | **22**, unchanged |
+| Invitations before use | 0 |
+| Workspace container health | healthy |
+
+No B2B row was rewritten, and no household row was left behind by the rolled-back fixture tests.
+
+### What Phase B did not do
+
+- No API route, role check or invitation endpoint yet.
+- No Flutter change.
+- No commerce or cart write.
+- No cart handoff.
+
 ## Pending phases
 
 | Phase | Work | Gate |
 |---|---|---|
-| B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | Ready to start |
-| C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | After B |
+| B | `household` scope, project channel, owner/member roles, invitations with expiry/revocation and a three-participant cap | **Complete** |
+| C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | Ready to start |
 | D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | After C |
 | E | Revalidation, difference preview, acknowledged cart build, idempotency | **Explicit human authorization required** |
 | F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | After D, and E if authorized |

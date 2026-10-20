@@ -1,5 +1,7 @@
--- BuildKart Workspace Service — Phase 1 kernel.
+-- BuildKart Workspace Service — Phase 1 kernel, with the CHG-072 household extension.
 -- Own database; no shared tables with Medusa, Experience API or Tryton.
+--
+-- Every statement below is idempotent: ensureSchema() re-runs this file on each boot.
 
 CREATE TABLE IF NOT EXISTS workspace (
   id text PRIMARY KEY,
@@ -176,6 +178,78 @@ CREATE TABLE IF NOT EXISTS workspace_outbox (
 
 CREATE INDEX IF NOT EXISTS workspace_outbox_unpublished_idx
   ON workspace_outbox(created_at) WHERE published_at IS NULL;
+
+-- CHG-072: a household project shares the kernel with a business-account workspace, but never
+-- shares its scope. Existing rows keep scope_type = 'business_account'.
+ALTER TABLE workspace DROP CONSTRAINT IF EXISTS workspace_scope_type_check;
+ALTER TABLE workspace ADD CONSTRAINT workspace_scope_type_check
+  CHECK (scope_type IN ('business_account', 'household'));
+
+-- 'owner' is the single household owner; 'member' is an invited participant.
+-- B2B keeps buyer/admin/approver.
+ALTER TABLE workspace_member DROP CONSTRAINT IF EXISTS workspace_member_role_check;
+ALTER TABLE workspace_member ADD CONSTRAINT workspace_member_role_check
+  CHECK (role IN ('buyer', 'admin', 'approver', 'member', 'owner'));
+
+ALTER TABLE channel DROP CONSTRAINT IF EXISTS channel_kind_check;
+ALTER TABLE channel ADD CONSTRAINT channel_kind_check
+  CHECK (kind IN ('procurement', 'approvals', 'project'));
+
+-- One active owner per workspace. B2B workspaces have no 'owner' row, so this never applies there.
+CREATE UNIQUE INDEX IF NOT EXISTS workspace_one_active_owner_idx
+  ON workspace_member(workspace_id)
+  WHERE role = 'owner' AND status = 'active';
+
+CREATE TABLE IF NOT EXISTS workspace_invitation (
+  id text PRIMARY KEY,
+  workspace_id text NOT NULL REFERENCES workspace(id) ON DELETE CASCADE,
+  invitee_email text NOT NULL,
+  token_hash text NOT NULL UNIQUE,
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+  invited_by text NOT NULL,
+  accepted_by text,
+  expires_at timestamptz NOT NULL,
+  accepted_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- One live invitation per invitee email per project; re-inviting rotates the token instead.
+CREATE UNIQUE INDEX IF NOT EXISTS workspace_invitation_one_pending_idx
+  ON workspace_invitation(workspace_id, lower(invitee_email))
+  WHERE status = 'pending';
+
+CREATE INDEX IF NOT EXISTS workspace_invitation_status_idx
+  ON workspace_invitation(workspace_id, status);
+
+-- The three-participant cap is enforced in the database, not only in the API.
+CREATE OR REPLACE FUNCTION enforce_household_member_limits() RETURNS trigger AS $$
+DECLARE
+  scope text;
+  participants integer;
+BEGIN
+  SELECT scope_type INTO scope FROM workspace WHERE id = NEW.workspace_id;
+  IF scope = 'household' AND NEW.status = 'active' AND NEW.role = 'member' THEN
+    SELECT count(*) INTO participants
+      FROM workspace_member
+     WHERE workspace_id = NEW.workspace_id
+       AND role = 'member'
+       AND status = 'active'
+       AND user_id <> NEW.user_id;
+    IF participants >= 3 THEN
+      RAISE EXCEPTION 'household participant cap reached'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS household_member_limits ON workspace_member;
+CREATE TRIGGER household_member_limits
+  BEFORE INSERT OR UPDATE OF role, status ON workspace_member
+  FOR EACH ROW EXECUTE FUNCTION enforce_household_member_limits();
 
 -- Deterministic staging seed for the two approved business accounts. These are
 -- membership projections for the pilot, not a second business-account register.
