@@ -80,6 +80,9 @@ rendered the submitted body. This is a test-harness typing artifact, not a UI da
 - Operator audited-read view is not built.
 - Host compose and secret files were updated in staging (workspace DB URL, HMAC secret, Firebase
   credential mount). Secrets remain outside Git. A compose backup was created before the edit.
+- Recreating the Experience API exposed a pre-existing missing `GOOGLE_APPLICATION_CREDENTIALS`
+  path. The existing `firebase-admin.json` is now mounted read-only at
+  `/etc/buildkart/secrets/firebase-admin.json`; no credential value is in Git.
 - Full human visual acceptance remains outstanding.
 
 Staging only; production remains unauthorized.
