@@ -1,0 +1,73 @@
+change_id: CHG-069
+revision: 1
+request: >-
+  Activate the other pilot test users, not only the primary B2C tester.
+type: staging-pilot-user-activation-verification
+extends:
+- CHG-066
+- CHG-068
+affected_capabilities:
+- pilot-authentication
+- role-based-access
+affected_domains:
+- identity
+- operations
+affected_surfaces:
+- experience-api.auth
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- Twenty staged pilot identities in PILOT_USERS_JSON.
+- A role assignment for every identity in PILOT_ROLE_ASSIGNMENTS_JSON.
+- Fixed staging OTP 123456 and Redis-backed sessions.
+missing:
+- The wider tester set had not been verified or documented as active.
+findings:
+- All 20 identities already have a valid allowlist entry and role assignment; there are no unassigned users.
+- No activation flag or database state gates pilot login; the allowlist and role assignment are the activation.
+- Hosted pilot allowlist is at its supported maximum of 20 identities.
+decisions_approved:
+- D-069-01: >-
+    Do not change the identity configuration because every configured tester already authenticates.
+    Record the verification and add the full tester list to the restricted operator reference file.
+- D-069-02: >-
+    Keep tester email addresses out of Git; the authoritative list remains PILOT_USERS_JSON on the
+    staging host and the restricted Desktop reference file.
+constraints:
+- No new customer, seller or admin credential is created by this verification.
+- No production identity provider is introduced.
+- Staging only; production release remains unauthorized.
+required_tests:
+- Every configured pilot identity completes an OTP challenge and verify call.
+- Every identity has at least one known role.
+- The primary B2C, additional B2C, B2B, seller-role and ops-role groups are represented.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: verified-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-069/pilot-users-verification.md
+  verification:
+    configured_users: 20
+    role_assigned_users: 20
+    otp_logins_verified: 20
+    max_supported_users: 20
+    configuration_changed: false
+  role_mix:
+    customer: 6
+    b2b_buyer: 2
+    b2b_account_admin: 1
+    b2b_approver: 1
+    seller_admin: 2
+    seller_catalog_manager: 1
+    seller_order_manager: 2
+    support_operator: 1
+    marketplace_operator: 1
+    erp_operator: 1
+    finance_operator: 1
+    super_admin: 1
+status: verified-staging
+production_release_authorized: false
