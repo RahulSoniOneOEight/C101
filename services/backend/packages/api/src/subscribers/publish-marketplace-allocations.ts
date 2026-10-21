@@ -78,9 +78,11 @@ async function loadSource(
           "id",
           "created_at",
           "items.id",
-          "items.quantity",
-          "items.variant_id",
-          "items.variant_sku",
+          "items.detail.quantity",
+          "items.detail.variant_id",
+          "items.detail.variant_sku",
+          "items.variant.id",
+          "items.variant.sku",
         ],
         filters: { id: orderIds },
       }),
@@ -153,6 +155,23 @@ async function loadSourceWithRetry(
   throw lastError;
 }
 
+export async function publishOrderGroupAllocations(
+  container: SubscriberArgs["container"],
+  orderGroupId: string,
+): Promise<void> {
+  const logger = container.resolve("logger") as Logger;
+  const query = container.resolve(ContainerRegistrationKeys.QUERY) as Query;
+  const source = await loadSourceWithRetry(query, logger, orderGroupId);
+  const events = buildMarketplaceAllocationEvents(source);
+  const jetstream = runtimePublisher();
+  for (const allocationEvent of events) {
+    const acknowledgement = await jetstream.publish(allocationEvent);
+    logger.info(
+      `[marketplace-allocation] published ${allocationEvent.aggregate_id} order_group=${orderGroupId} seller=${allocationEvent.data.seller_id} stream_sequence=${acknowledgement.seq} duplicate=${acknowledgement.duplicate}`,
+    );
+  }
+}
+
 /**
  * Mercur emits a thin order_group.created event after checkout has split and linked seller orders.
  * This subscriber reads the completed projection and publishes one canonical allocation per seller
@@ -165,16 +184,7 @@ export default async function publishMarketplaceAllocations({
   const logger = container.resolve("logger") as Logger;
   const orderGroupId = event.data.id;
   try {
-    const query = container.resolve(ContainerRegistrationKeys.QUERY) as Query;
-    const source = await loadSourceWithRetry(query, logger, orderGroupId);
-    const events = buildMarketplaceAllocationEvents(source);
-    const jetstream = runtimePublisher();
-    for (const allocationEvent of events) {
-      const acknowledgement = await jetstream.publish(allocationEvent);
-      logger.info(
-        `[marketplace-allocation] published ${allocationEvent.aggregate_id} order_group=${orderGroupId} seller=${allocationEvent.data.seller_id} stream_sequence=${acknowledgement.seq} duplicate=${acknowledgement.duplicate}`,
-      );
-    }
+    await publishOrderGroupAllocations(container, orderGroupId);
   } catch (error) {
     logger.error(
       `[marketplace-allocation] failed order_group=${orderGroupId}: ${(error as Error).message}`,

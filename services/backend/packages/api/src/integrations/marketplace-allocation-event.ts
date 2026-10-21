@@ -24,6 +24,15 @@ interface NativeOrderLineSource {
   quantity?: unknown;
   variant_id?: string | null;
   variant_sku?: string | null;
+  detail?: {
+    quantity?: unknown;
+    variant_id?: string | null;
+    variant_sku?: string | null;
+  } | null;
+  variant?: {
+    id?: string | null;
+    sku?: string | null;
+  } | null;
 }
 
 interface SellerOrderSource {
@@ -105,7 +114,11 @@ function requiredString(value: unknown, field: string): string {
 }
 
 function positiveQuantity(value: unknown, field: string): number {
-  const quantity = Number(value);
+  const candidate =
+    value && typeof value === "object" && "value" in value
+      ? (value as { value?: unknown }).value
+      : value;
+  const quantity = Number(candidate);
   if (!Number.isInteger(quantity) || quantity < 1) {
     throw new Error(`Marketplace allocation source has invalid ${field}.`);
   }
@@ -119,7 +132,20 @@ function allocationIdForOrder(orderId: string): string {
 
 function lineVariantId(line: CartLineSource | NativeOrderLineSource): string {
   if ("variant" in line && line.variant?.id) return String(line.variant.id);
-  return line.variant_id ? String(line.variant_id) : "";
+  if (line.variant_id) return String(line.variant_id);
+  if ("detail" in line && line.detail?.variant_id)
+    return String(line.detail.variant_id);
+  return "";
+}
+
+function nativeLineQuantity(line: NativeOrderLineSource): unknown {
+  return line.detail?.quantity ?? line.quantity;
+}
+
+function nativeLineSku(line: NativeOrderLineSource): string {
+  return String(
+    line.detail?.variant_sku ?? line.variant_sku ?? line.variant?.sku ?? "",
+  );
 }
 
 function nativeLineForCartLine(
@@ -135,15 +161,17 @@ function nativeLineForCartLine(
   let index = available.findIndex(
     (line) =>
       lineVariantId(line) === variantId &&
-      positiveQuantity(line.quantity, `quantity for order line ${line.id}`) ===
-        quantity,
+      positiveQuantity(
+        nativeLineQuantity(line),
+        `quantity for order line ${line.id}`,
+      ) === quantity,
   );
   if (index < 0 && sku) {
     index = available.findIndex(
       (line) =>
-        String(line.variant_sku ?? "") === sku &&
+        nativeLineSku(line) === sku &&
         positiveQuantity(
-          line.quantity,
+          nativeLineQuantity(line),
           `quantity for order line ${line.id}`,
         ) === quantity,
     );
@@ -195,7 +223,7 @@ export function buildMarketplaceAllocationEvents(
         `variant_id for ${lineKey}`,
       );
       const sku = requiredString(
-        cartLine.variant?.sku ?? nativeLine.variant_sku,
+        cartLine.variant?.sku ?? nativeLineSku(nativeLine),
         `sku for ${lineKey}`,
       );
       const quantity = positiveQuantity(

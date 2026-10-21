@@ -29,9 +29,11 @@ const source = () => ({
       lines: [
         {
           id: "ordli_a",
-          quantity: 2,
-          variant_id: "variant_a",
-          variant_sku: "SKU-A",
+          detail: {
+            quantity: 2,
+            variant_id: "variant_a",
+            variant_sku: "SKU-A",
+          },
         },
       ],
     },
@@ -42,9 +44,11 @@ const source = () => ({
       lines: [
         {
           id: "ordli_b",
-          quantity: 1,
-          variant_id: "variant_b",
-          variant_sku: "SKU-B",
+          detail: {
+            quantity: 1,
+            variant_id: "variant_b",
+            variant_sku: "SKU-B",
+          },
         },
       ],
     },
