@@ -951,5 +951,16 @@ export type Routes = {
         };
         stores: typeof import("@mercurjs/core/api/vendor/stores/route");
         uploads: typeof import("@mercurjs/core/api/vendor/uploads/route");
+        buildkart: {
+            returns: typeof import("../src/api/vendor/buildkart/returns/route") & {
+                $id: typeof import("../src/api/vendor/buildkart/returns/[id]/route");
+            };
+            shipmentExceptions: typeof import("../src/api/vendor/buildkart/shipment-exceptions/route");
+            shipments: typeof import("../src/api/vendor/buildkart/shipments/route") & {
+                $id: typeof import("../src/api/vendor/buildkart/shipments/[id]/route") & {
+                    status: typeof import("../src/api/vendor/buildkart/shipments/[id]/status/route");
+                };
+            };
+        };
     };
 };

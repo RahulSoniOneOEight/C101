@@ -18,6 +18,7 @@ existing environment/provider evidence.
 | 4 | `src/index.ts` shipment routes | Owner-scoped customer reads, operator delivery-evidence/simulate/reconcile/exceptions/webhook, auth + privileged audit |
 | 5 | `src/store/return-store.ts`, `src/returns/eligibility.ts`, `src/index.ts` | Return case/lines/events/evidence, policy snapshot, eligibility, idempotency, decisions, notification templates |
 | 6 | `services/backend/apps/admin/src/routes/shipments`, `returns` | Shipments queue/detail/timeline/reconcile and returns workbench, backed by an authenticated Mercur admin proxy |
+| 6b | `services/backend/apps/vendor/src/routes/shipments`, `returns` | Seller-scoped shipment updates and read-only return visibility in the vendor portal |
 | 7 | `apps/prototype_app` | Async API-backed orders, shipment timeline, per-line eligibility, return request/status routes |
 | 8 | `src/scripts/*shipment*`, `src/scripts/*return*` | Verification scripts for ordering, restart, auth, reconcile, idempotency, eligibility and no-effects |
 
@@ -40,6 +41,12 @@ existing environment/provider evidence.
 - Admin console has three status views: a combined order delivery/returns list, a shipment queue
   with status filters, and a returns workbench with status filters. These views refresh every 15
   seconds; shipment/return actions invalidate the order-status list immediately.
+- Vendor portal adds seller-scoped shipments and returns. A seller can update only its own
+  shipment status and delivery evidence. Return approval remains operator-owned in Phase 1; sellers
+  see only their own return lines and current status.
+- Seller identity is supplied by the authenticated Mercur vendor session to the Experience API
+  through the staging service secret and `x-buildkart-seller-id`; a seller cannot read or update
+  another seller's shipment.
 - Customer order detail renders shipment events, per-shipment delivered quantities, and return cases
   with a link to return status.
 - Flutter order history has no seeded success fallback; loading, empty and error states are explicit.
@@ -54,6 +61,7 @@ Contract validation                          PASS (38 paths, 25 event channels)
 Rule registry                                PASS (59 rules)
 CHG-017 approvals                            PASS (G0)
 Admin panel: bun run build                   PASS
+Vendor panel: bun run build                  PASS (bundles seller pages; SDK base-path warning only)
 Flutter: flutter analyze                     PASS (no issues)
 Flutter: flutter test                        PASS (266 tests)
 Return eligibility test                      PASS
@@ -63,6 +71,7 @@ Shipment restart test                        PASS
 Shipment exception/reconcile test            PASS
 Return idempotency test                      PASS
 Shipment auth test                           PASS (with dummy service secret)
+Seller shipment isolation test               PASS (seller A updates; seller B gets 404)
 ```
 
 The schema bootstrap now takes a Postgres advisory lock, so concurrent service/test instances cannot

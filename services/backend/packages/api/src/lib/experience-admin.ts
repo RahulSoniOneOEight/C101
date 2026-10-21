@@ -40,6 +40,7 @@ export async function experienceAdminFetch(
   options: {
     method?: "GET" | "POST";
     actorId?: string | null;
+    sellerId?: string | null;
     query?: string;
     body?: unknown;
   } = {},
@@ -51,6 +52,7 @@ export async function experienceAdminFetch(
       "content-type": "application/json",
       "x-buildkart-admin-service-secret": secret,
       "x-operator-user-id": options.actorId ?? "admin_console",
+      ...(options.sellerId ? { "x-buildkart-seller-id": options.sellerId } : {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });

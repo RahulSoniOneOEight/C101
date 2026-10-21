@@ -31,6 +31,8 @@ affected_surfaces:
 - experience-api.returns
 - commerce-admin.shipments
 - commerce-admin.returns
+- commerce-vendor.shipments
+- commerce-vendor.returns
 - ops-console.integration-exceptions
 already_present:
 - >-
@@ -166,6 +168,8 @@ implementation:
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass
+    vendor_panel_build: pass
+    seller_shipment_isolation_test: pass
     flutter_analyze: pass
     flutter_test: pass-266
     return_eligibility_test: pass

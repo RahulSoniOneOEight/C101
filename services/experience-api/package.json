@@ -38,6 +38,7 @@
     "test:shipment-ordering": "bun run src/scripts/shipment-event-ordering-test.ts",
     "test:shipment-restart": "bun run src/scripts/shipment-restart-test.ts",
     "test:shipment-auth": "bun run src/scripts/shipment-auth-test.ts",
+    "test:seller-shipment-auth": "bun run src/scripts/seller-shipment-auth-test.ts",
     "test:shipment-reconcile": "bun run src/scripts/shipment-exception-reconcile-test.ts",
     "test:return-idempotency": "bun run src/scripts/return-idempotency-test.ts",
     "test:return-eligibility": "bun run src/scripts/return-eligibility-test.ts",

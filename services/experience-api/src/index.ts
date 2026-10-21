@@ -579,6 +579,25 @@ async function shipmentsWithEvents(orderGroupId: string) {
   );
 }
 
+async function sellerScopedReturns(sellerId: string, limit = 100) {
+  const cases = await returns.listAll(limit);
+  const scoped = [];
+  for (const record of cases) {
+    if (!record.orderGroupId) continue;
+    const shipments = await logistics.listByOrderGroup(record.orderGroupId);
+    const lineKeys = new Set(
+      shipments
+        .filter((shipment) => shipment.sellerId === sellerId)
+        .flatMap((shipment) => shipment.lines.map((line) => line.lineKey)),
+    );
+    if (lineKeys.size === 0) continue;
+    const lines = record.lines.filter((line) => lineKeys.has(line.lineKey));
+    if (lines.length === 0) continue;
+    scoped.push({ ...record, lines, seller_scope: sellerId });
+  }
+  return scoped;
+}
+
 async function orderEligibility(
   orderId: string,
   userId: string,
@@ -636,6 +655,58 @@ async function requireOperator(req: Request): Promise<AuthenticationResult> {
     return { response: problem(403, "operator-required", "An operator role is required.") };
   }
   return authenticated;
+}
+
+/**
+ * Seller identity for the vendor portal proxy. The trusted Mercur backend supplies the seller id
+ * after authenticating the vendor session; the shared service secret prevents public spoofing.
+ */
+function serviceSellerAuthentication(req: Request): AuthenticationResult | null {
+  const expected = config.adminServiceSecret;
+  if (!expected) return null;
+  const supplied = req.headers.get("x-buildkart-admin-service-secret") ?? "";
+  if (
+    supplied.length !== expected.length ||
+    !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+  ) {
+    return null;
+  }
+  const sellerId = req.headers.get("x-buildkart-seller-id")?.trim();
+  if (!sellerId) return null;
+  const authorization: PilotAuthorization = {
+    userId: req.headers.get("x-operator-user-id")?.trim() || `seller:${sellerId}`,
+    roles: ["seller_admin", "seller_order_manager"],
+    sellerId,
+  };
+  return {
+    user: {
+      id: authorization.userId,
+      email: "seller-portal@buildkart.invalid",
+      name: "Seller portal",
+    },
+    token: "seller-portal-service",
+    authorization,
+  };
+}
+
+async function requireSeller(req: Request): Promise<AuthenticationResult> {
+  const service = serviceSellerAuthentication(req);
+  if (service && !("response" in service)) return service;
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (
+    !hasAnyRole(authenticated.authorization, ["seller_admin", "seller_order_manager"]) ||
+    !authenticated.authorization.sellerId
+  ) {
+    return {
+      response: problem(403, "seller-required", "A seller role with a seller scope is required."),
+    };
+  }
+  return authenticated;
+}
+
+function sellerIdOf(authentication: Exclude<AuthenticationResult, { response: Response }>): string | null {
+  return authentication.authorization.sellerId ?? null;
 }
 
 function findValidSimulatedSession(
@@ -1139,6 +1210,191 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       environment: config.environment,
       test_data: true,
       logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  // Seller-scoped shipment queue. Sellers only see and update their own shipments.
+  if (url.pathname === "/v1/seller/shipments" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const all = await logistics.list(500);
+    return json({
+      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/seller/shipment-exceptions" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const all = await logistics.listExceptions(500);
+    return json({
+      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerShipment = url.pathname.match(/^\/v1\/seller\/shipments\/([^/]+)$/);
+  if (sellerShipment && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const shipment = await logistics.get(sellerShipment[1]);
+    if (!shipment || shipment.sellerId !== seller.authorization.sellerId) {
+      return problem(404, "shipment-not-found");
+    }
+    return json({
+      shipment,
+      events: await logistics.listEvents(shipment.id),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: seller.authorization.sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerShipmentStatus = url.pathname.match(
+    /^\/v1\/seller\/shipments\/([^/]+)\/status$/,
+  );
+  if (sellerShipmentStatus && req.method === "POST") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const shipment = await logistics.get(sellerShipmentStatus[1]);
+    if (!shipment || shipment.sellerId !== seller.authorization.sellerId) {
+      return problem(404, "shipment-not-found");
+    }
+    let body: {
+      status?: string;
+      occurred_at?: string;
+      proof_ref?: string;
+      note?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const allowed = [
+      "picked_up",
+      "in_transit",
+      "out_for_delivery",
+      "delivery_failed",
+      "delivered",
+      "rto_in_transit",
+    ];
+    if (!body.status || !allowed.includes(body.status)) {
+      return problem(400, "invalid-seller-status", `Status must be one of ${allowed.join(", ")}.`);
+    }
+    const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+      lineKey: String(line.line_key ?? ""),
+      deliveredQty: Number(line.delivered_qty ?? 0),
+    }));
+    if (
+      body.status === "delivered" &&
+      (!body.proof_ref?.trim() ||
+        deliveredLines.length === 0 ||
+        deliveredLines.some((line) => !line.lineKey || line.deliveredQty <= 0))
+    ) {
+      return problem(
+        400,
+        "delivery-evidence-required",
+        "Delivered status requires proof_ref and positive per-line delivered quantities.",
+      );
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: seller.user.id,
+      actorRoles: seller.authorization.roles,
+      sellerId: seller.authorization.sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const idempotencyKey = req.headers.get("idempotency-key")?.trim() ||
+        `seller:${randomUUID()}`;
+      const result = await logistics.appendEvent({
+        shipmentId: shipment.id,
+        providerEventId: idempotencyKey,
+        eventType: `seller.shipment.${body.status}`,
+        status: body.status as import("./logistics/shipment-store.js").ShipmentStatus,
+        occurredAt: body.occurred_at ?? new Date().toISOString(),
+        payload: {
+          source: "seller_portal",
+          seller_id: seller.authorization.sellerId,
+          note: body.note ?? null,
+        },
+        deliveredLines: body.status === "delivered" ? deliveredLines : undefined,
+        proofRef: body.status === "delivered" ? body.proof_ref?.trim() : null,
+      });
+      if (!result.duplicate && result.statusChanged) {
+        await events.append({
+          event_type: "shipment.status_changed",
+          aggregate_type: "order_group",
+          aggregate_id: shipment.orderGroupId,
+          correlation_id: cid,
+          payload: {
+            shipment_id: shipment.id,
+            status: result.event.status,
+            seller_id: seller.authorization.sellerId,
+            source: "seller_portal",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        seller_id: seller.authorization.sellerId,
+        correlation_id: cid,
+      }, result.duplicate ? 200 : 201);
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  if (url.pathname === "/v1/seller/returns" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    return json({
+      items: await sellerScopedReturns(sellerId, 200),
+      environment: config.environment,
+      test_data: true,
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerReturn = url.pathname.match(/^\/v1\/seller\/returns\/([^/]+)$/);
+  if (sellerReturn && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const record = (await sellerScopedReturns(sellerId, 500))
+      .find((candidate) => candidate.id === sellerReturn[1]);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      seller_id: sellerId,
       correlation_id: cid,
     });
   }
