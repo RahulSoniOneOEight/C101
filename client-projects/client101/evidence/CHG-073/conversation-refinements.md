@@ -39,8 +39,12 @@ the assistant has no write path. Production remains unauthorized.
   enters the normal capture path.
 - Refreshed the affected goldens (`b2b_home`, `b2b_catalogue`, `browse`); no other golden
   changed.
-- Verified at 360×800 in the dock picker test and at both target widths in Chrome after
-  deployment.
+- Verified at 360×800 in the dock picker test and at 390×844 in Chrome after deployment.
+- Direct PDP loads also record the product once after the first frame, so the recents rail
+  works on a hard reload.
+- A recently viewed product outside the current `CHG-049` import is resolved by id when the
+  picker opens; the live check showed WoodWise Plywood in Recently viewed even though it is
+  not in the imported 233-product picker list.
 
 ### In-chat add product
 
@@ -99,7 +103,7 @@ without duplicating server products. Flash Deals, Best Sellers and Recommended f
 | Check | Result |
 |---|---|
 | `flutter analyze` | **pass** |
-| `flutter test` (app) | **pass**, 265 tests |
+| `flutter test` (app) | **pass**, 266 tests |
 | `flutter test` (`agency_flutter_ui`) | **pass** (unchanged), 54 tests, 27 skipped golden captures |
 | Golden snapshots | refreshed; reviewed the icon/header changes |
 | `flutter build web --release` (staging defines) | **pass** |
@@ -114,6 +118,8 @@ without duplicating server products. Flash Deals, Best Sellers and Recommended f
 | Idempotent retry | repeated builds leave the same line count |
 | B2B approval gate | pass; unapproved revision showed “Approval is not currentâ€ and a disabled action |
 | Home merchandising | Flash Deals, Best Sellers and Recommended for You all render |
+| Card-level chat | removed; B2C home exposes 0 `Discuss` buttons |
+| Chat recently viewed | pass; resolves a viewed product outside the imported catalogue |
 | Commerce write / order creation | none beyond the authorized cart handoff; no order |
 | Workspace B2B smoke (backend) | **pass** on `release-24be9ca` (assistant-only change after that) |
 | Household smoke (backend) | **pass** on `release-0d7d884`, includes assistant thread, mention and escalation path |
@@ -124,7 +130,7 @@ Screenshots: `evidence/CHG-073/screenshots/` — home rails, 360 dock, assistant
 
 | Item | Value |
 |---|---|
-| Frontend | `https://buildkart-staging.web.app`, commit `0d7d884`, build `0d7d884` |
+| Frontend | `https://buildkart-staging.web.app`, commit/build `cb787c6` (revision 3 UI) |
 | Workspace service | `/opt/buildkart-releases/release-0d7d884`; `current` points there |
 | Workspace schema | assistant kind + lazily ensured assistant channel; re-applied on boot |
 | User-created household project | `x` retained; not test data |

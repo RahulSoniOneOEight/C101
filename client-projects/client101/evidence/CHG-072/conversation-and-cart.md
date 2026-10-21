@@ -1,10 +1,10 @@
-# CHG-072 â€” conversation layer and cart build
+# CHG-072 — conversation layer and cart build
 
 **Environment:** staging only
 
 **Production:** unauthorized
 
-**Status:** Phases Aâ€“F complete and staging-verified. Phase E was explicitly authorized on
+**Status:** Phases A–F complete and staging-verified. Phase E was explicitly authorized on
 2026-10-21 and implements the revalidated, acknowledged cart handoff. Human visual review is still
 pending. Production remains unauthorized.
 
@@ -21,7 +21,7 @@ Conversation becomes a layer over the existing pages in both channels:
 Building the cart is deliberately separate. Phase E implements it as an explicit revalidated
 handoff; chat itself still never changes the cart.
 
-## Phase A â€” governance
+## Phase A — governance
 
 Completed:
 
@@ -49,7 +49,7 @@ Completed:
 - No deployment.
 - No Phase 3 revalidation or cart handoff.
 
-## Phase B â€” household schema
+## Phase B — household schema
 
 Applied to the staging `buildkart_workspace` database on 2026-10-20. All statements are idempotent
 and re-run by `ensureSchema()` on every service boot.
@@ -91,7 +91,7 @@ No B2B row was rewritten, and no household row was left behind by the rolled-bac
 - No commerce or cart write.
 - No cart handoff.
 
-## Phase C â€” household API
+## Phase C — household API
 
 Deployed as workspace and Experience API commit `e7e84ba` from
 `/opt/buildkart-releases/release-e7e84ba`; `current` now points there.
@@ -150,7 +150,7 @@ fixture draft to v14 as designed; no schema, ownership or commerce state changed
 - No commerce or cart write.
 - No cart handoff.
 
-## Phase D â€” conversation layer
+## Phase D — conversation layer
 
 Completed and deployed on 2026-10-20 as commit `68ee397`. No commerce or cart write was added.
 
@@ -202,7 +202,7 @@ Completed and deployed on 2026-10-20 as commit `68ee397`. No commerce or cart wr
 | `flutter analyze` | **pass**, no issues |
 | `flutter test` (app) | **pass**, 260 tests, including dock, hidden-launcher and participant tests |
 | `flutter test` (`agency_flutter_ui`) | **pass**, 53 tests, 27 skipped golden captures |
-| Tests at 390Ã—844 and 360Ã—800 | **pass**; dock opens, page state survives, no overflow exception |
+| Tests at 390×844 and 360×800 | **pass**; dock opens, page state survives, no overflow exception |
 | Participant capture test | **pass**: chat share, empty aggregate, `add_line` proposal at v0, zero owner accepts |
 | Undo capture guard | **pass**: a stale clear request cannot drop a newer capture |
 | B2B quick-order separation | **pass**: Discuss fires without firing Add; 44dp semantic target |
@@ -213,13 +213,13 @@ Completed and deployed on 2026-10-20 as commit `68ee397`. No commerce or cart wr
 | Workspace household smoke | **pass** on the deployed release |
 | Workspace B2B smoke | **pass**; tenant isolation, proposal and approval rules unchanged |
 | Staging deployment | **complete** (release `68ee397`) |
-| Chrome acceptance | **pass 89/89** at 390Ã—844 and 360Ã—800, no console errors |
+| Chrome acceptance | **pass 89/89** at 390×844 and 360×800, no console errors |
 | Cart write / order creation | **none** |
 
 ### Chrome acceptance
 
 Method: headless Google Chrome via Playwright 1.64 with the Flutter accessibility tree enabled,
-real OTP sign-in on staging, at 390Ã—844 and 360Ã—800.
+real OTP sign-in on staging, at 390×844 and 360×800.
 
 | Surface | B2C | B2B |
 |---|---|---|
@@ -232,10 +232,10 @@ real OTP sign-in on staging, at 390Ã—844 and 360Ã—800.
 | Overflow | none in the Flutter surface | none in the Flutter surface |
 | Console errors | none | none |
 
-Screenshots: `evidence/CHG-072/screenshots/` â€” B2C home and dock at 390Ã—844, B2C cart at 360Ã—800,
-B2B dock at 360Ã—800, B2B cart at 390Ã—844.
+Screenshots: `evidence/CHG-072/screenshots/` — B2C home and dock at 390×844, B2C cart at 360×800,
+B2B dock at 360×800, B2B cart at 390×844.
 
-## Phase E â€” revalidated cart handoff
+## Phase E — revalidated cart handoff
 
 Authorized by the human requester on 2026-10-21. Implemented in the Flutter handoff with the
 existing Commerce/Experience API, not by giving chat a write path.
@@ -265,7 +265,7 @@ existing Commerce/Experience API, not by giving chat a write path.
 | Workspace B2B smoke | **pass** on `release-24be9ca`; the later `0d7d884` change is assistant-escalation only |
 | Household smoke | **pass** on `release-0d7d884`, including assistant thread, mention and escalation path |
 | B2C Chrome | cart review showed 3 current lines; add produced cart count 3; repeated add stayed at 3 |
-| B2B Chrome | unapproved revision showed â€œApproval is not currentâ€ and disabled action; after approver approval, 4 lines added to the quotation cart with GST 18% |
+| B2B Chrome | unapproved revision showed “Approval is not currentâ€ and disabled action; after approver approval, 4 lines added to the quotation cart with GST 18% |
 | Order creation | **none** |
 | Production authorized | **No** |
 
@@ -282,7 +282,7 @@ draft (the B2B prototype's cart), not the B2C Medusa cart. The idempotency guard
 | C | Consumer actor path, invitation endpoints, owner-only redaction, participant proposal rules | **Complete** |
 | D | Conversation dock, Discuss capture on five surfaces, B2C project and invite UI, shared list | **Complete; Chrome accepted; human review pending** |
 | E | Revalidation, difference preview, acknowledged cart build, idempotency | **Complete and staging-verified under explicit authorization** |
-| F | Staging verification, isolation tests, Chrome 390Ã—844 and 360Ã—800 | **Complete for the delivered scope** |
+| F | Staging verification, isolation tests, Chrome 390×844 and 360×800 | **Complete for the delivered scope** |
 
 ## Open privacy decisions
 

@@ -167,10 +167,11 @@ implementation:
   phase_a_frontend_commit: fe3e947
   backend_release: 68ee397
   phase_a_chrome_acceptance: pass-95-of-95-390x844-360x800
-  revision_3_status: card-discuss-removed-recent-swimlane-implemented
+  revision_3_status: card-discuss-removed-recent-swimlane-staging-verified
   revision_3_authorized_at_utc: '2026-10-21'
   revision_3_authorized_by: human-requester
-  revision_3_ui_commit: pending
+  revision_3_ui_commit: cb787c6
+  revision_3_chrome_acceptance: pass-390x844-and-360x800-widget
   phase_b_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
   evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
 status: approved-in-progress

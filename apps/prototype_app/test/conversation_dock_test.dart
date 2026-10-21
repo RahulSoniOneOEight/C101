@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prototype_app/data/experience_api.dart';
+import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/conversation_models.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/domain/workspace_models.dart';
@@ -12,6 +13,7 @@ import 'package:prototype_app/providers/catalog_providers.dart';
 import 'package:prototype_app/providers/conversation_dock_provider.dart';
 import 'package:prototype_app/widgets/conversation_bell.dart';
 import 'package:prototype_app/widgets/conversation_dock.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _DockApi extends ExperienceApi {
   _DockApi({
@@ -374,6 +376,62 @@ void main() {
     expect(api.proposalCreated, isTrue);
     expect(api.acceptCalls, 1);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('picker reads recently viewed ids from the persisted store',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'recently_viewed_v1': <String>['prod_smoke'],
+    });
+    final prefs = await SharedPreferences.getInstance();
+    const product = Product(
+      id: 'prod_smoke',
+      title: 'Smoke tile',
+      variants: <ProductVariant>[
+        ProductVariant(
+          id: 'variant_smoke',
+          label: 'Default',
+          offerId: 'offer_smoke',
+          price: Money(amount: 12500, currencyCode: 'INR'),
+        ),
+      ],
+    );
+    final api = _DockApi(householdMember: true, householdRole: 'owner');
+    final container = ProviderContainer(
+      overrides: <Override>[
+        experienceApiProvider.overrideWithValue(api),
+        productsProvider.overrideWith((ref) => const <Product>[product]),
+        localStoreProvider.overrideWithValue(LocalStore(prefs)),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: Scaffold(
+            appBar: AppBar(
+              actions: const <Widget>[
+                ConversationBellButton(
+                    audience: ConversationAudience.household),
+              ],
+            ),
+            body: const ConversationDockHost(
+              audience: ConversationAudience.household,
+              enabled: true,
+              child: _StateProbe(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Add product'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recently viewed'), findsOneWidget);
   });
 
   testWidgets('header bell opens the conversation without a bottom launcher',
