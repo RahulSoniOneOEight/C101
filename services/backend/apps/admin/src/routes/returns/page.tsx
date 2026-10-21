@@ -43,6 +43,7 @@ export default function ReturnsPage() {
   const returns = useQuery({
     queryKey: ["buildkart", "staging-returns"],
     queryFn: () => client.admin.buildkart.returns.query(),
+    refetchInterval: 15_000,
   });
   const [statusFilter, setStatusFilter] = useState("all");
   const allReturns = returns.data?.items ?? [];

@@ -47,6 +47,7 @@ export default function OrderStatusesPage() {
   const statuses = useQuery({
     queryKey: ["buildkart", "staging-order-statuses"],
     queryFn: () => client.admin.buildkart.orderStatuses.query(),
+    refetchInterval: 15_000,
   });
 
   return (

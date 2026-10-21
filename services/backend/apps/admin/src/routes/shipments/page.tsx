@@ -43,10 +43,12 @@ export default function ShipmentsPage() {
   const shipments = useQuery({
     queryKey: ["buildkart", "staging-shipments"],
     queryFn: () => client.admin.buildkart.shipments.query(),
+    refetchInterval: 15_000,
   });
   const exceptions = useQuery({
     queryKey: ["buildkart", "staging-shipment-exceptions"],
     queryFn: () => client.admin.buildkart.shipmentExceptions.query(),
+    refetchInterval: 15_000,
   });
   const [statusFilter, setStatusFilter] = useState("all");
   const allShipments = shipments.data?.items ?? [];

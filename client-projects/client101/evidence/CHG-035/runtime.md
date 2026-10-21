@@ -38,7 +38,8 @@ existing environment/provider evidence.
   must supply a real secret. The logistics webhook likewise uses
   `buildkart-staging-dummy-logistics-webhook-secret` in staging.
 - Admin console has three status views: a combined order delivery/returns list, a shipment queue
-  with status filters, and a returns workbench with status filters.
+  with status filters, and a returns workbench with status filters. These views refresh every 15
+  seconds; shipment/return actions invalidate the order-status list immediately.
 - Customer order detail renders shipment events, per-shipment delivered quantities, and return cases
   with a link to return status.
 - Flutter order history has no seeded success fallback; loading, empty and error states are explicit.

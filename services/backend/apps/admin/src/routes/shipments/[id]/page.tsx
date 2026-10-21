@@ -50,6 +50,7 @@ export default function ShipmentDetailPage() {
     queryFn: () =>
       client.admin.buildkart.shipments.$id.query({ $id: id! }),
     enabled: Boolean(id),
+    refetchInterval: 10_000,
   });
   const simulate = useMutation({
     mutationFn: () =>
@@ -67,6 +68,9 @@ export default function ShipmentDetailPage() {
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-shipment-exceptions"],
       });
+      void queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
+      });
     },
   });
   const reconcile = useMutation({
@@ -77,6 +81,9 @@ export default function ShipmentDetailPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-shipment", id],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
       });
     },
   });
@@ -98,6 +105,9 @@ export default function ShipmentDetailPage() {
       });
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-shipments"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
       });
     },
   });

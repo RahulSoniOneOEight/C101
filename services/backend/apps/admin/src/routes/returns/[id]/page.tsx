@@ -31,6 +31,7 @@ export default function ReturnDetailPage() {
     queryKey: ["buildkart", "staging-return", id],
     queryFn: () => client.admin.buildkart.returns.$id.query({ $id: id! }),
     enabled: Boolean(id),
+    refetchInterval: 10_000,
   });
   const decide = useMutation({
     mutationFn: (decision: "approve" | "reject") =>
@@ -49,6 +50,9 @@ export default function ReturnDetailPage() {
       });
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-returns"],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
       });
     },
   });
