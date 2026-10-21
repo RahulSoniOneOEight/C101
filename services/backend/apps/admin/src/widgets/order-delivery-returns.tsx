@@ -61,6 +61,29 @@ const decidedQuantity = (record: ReturnCase) =>
     ? approvedQuantity(record)
     : requestedQuantity(record);
 
+const Meta = ({
+  label: metaLabel,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) => (
+  <div className="min-w-0">
+    <Text size="xsmall" className="text-ui-fg-subtle">
+      {metaLabel}
+    </Text>
+    <Text
+      size="small"
+      weight="plus"
+      className={mono ? "break-all font-mono" : "break-words"}
+    >
+      {value}
+    </Text>
+  </div>
+);
+
 const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
   const queryClient = useQueryClient();
   const orderGroup = useQuery({
@@ -145,114 +168,127 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
 
   if (!order) return null;
 
+  if (orderGroup.isPending || (orderGroupId && lifecycle.isPending)) {
+    return (
+      <Container>
+        <Text size="small" className="text-ui-fg-subtle">
+          Loading shipment and return status…
+        </Text>
+      </Container>
+    );
+  }
+
+  if (orderGroup.isError || !orderGroupId) {
+    return (
+      <Container>
+        <Heading level="h2">Shipment</Heading>
+        <Text size="small" className="mt-2" weight="plus">
+          No Mercur order group is linked.
+        </Text>
+        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+          Delivery tracking starts for orders completed through the marketplace
+          checkout.
+        </Text>
+      </Container>
+    );
+  }
+
+  if (lifecycle.isError || !lifecycle.data) {
+    return (
+      <Container>
+        <Heading level="h2">Shipment</Heading>
+        <Text size="small" className="mt-2 text-ui-fg-error">
+          Could not load the shipment and return projection. Check the
+          Experience API proxy.
+        </Text>
+      </Container>
+    );
+  }
+
+  const data = lifecycle.data;
+
   return (
-    <Container className="divide-y p-0">
-      <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Heading level="h2">Delivery &amp; returns</Heading>
-            <StatusBadge color="orange">Staging</StatusBadge>
+    <div className="flex flex-col gap-y-3">
+      <Container className="divide-y p-0">
+        <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Heading level="h2">Shipment</Heading>
+              <StatusBadge color="grey">{data.shipments.length}</StatusBadge>
+            </div>
+            <Text size="small" className="mt-1 text-ui-fg-subtle">
+              Delivery evidence for order #{order.display_id ?? order.id}. This
+              does not change native Medusa fulfilment status.
+            </Text>
           </div>
-          <Text size="small" className="mt-1 text-ui-fg-subtle">
-            Shipment evidence and customer return cases for order #
-            {order.display_id ?? order.id}.
-          </Text>
-        </div>
-        <div className="flex flex-wrap gap-2">
           <Button asChild size="small" variant="secondary">
             <Link to="/shipments">All shipments</Link>
           </Button>
-          <Button asChild size="small" variant="secondary">
-            <Link to="/returns">All returns</Link>
-          </Button>
         </div>
-      </div>
 
-      {orderGroup.isPending || (orderGroupId && lifecycle.isPending) ? (
-        <Text size="small" className="px-6 py-6 text-ui-fg-subtle">
-          Loading delivery and return status…
-        </Text>
-      ) : orderGroup.isError || !orderGroupId ? (
-        <div className="px-6 py-6">
-          <Text size="small" weight="plus">
-            No Mercur order group is linked.
-          </Text>
-          <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-            Delivery tracking starts for orders completed through the
-            marketplace checkout.
-          </Text>
-        </div>
-      ) : lifecycle.isError || !lifecycle.data ? (
-        <Text size="small" className="px-6 py-6 text-ui-fg-error">
-          Could not load the delivery and return projection. Check the
-          Experience API proxy.
-        </Text>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 px-6 py-4 md:grid-cols-2">
-            <div className="min-w-0">
-              <Text size="xsmall" className="text-ui-fg-subtle">
-                Order group
-              </Text>
-              <Text size="small" weight="plus" className="break-all">
-                {lifecycle.data.order_group_id}
-              </Text>
-            </div>
-            <div className="min-w-0">
-              <Text size="xsmall" className="text-ui-fg-subtle">
-                Customer checkout
-              </Text>
-              <Text size="small" weight="plus" className="break-all">
-                {lifecycle.data.order_id}
-              </Text>
-            </div>
-            <div className="min-w-0">
-              <Text size="xsmall" className="text-ui-fg-subtle">
-                Last update
-              </Text>
-              <Text size="small" weight="plus">
-                {new Date(lifecycle.data.latest_update).toLocaleString("en-IN")}
-              </Text>
-            </div>
-          </div>
-
-          <div className="px-6 py-5">
-            <div className="mb-4 flex items-center justify-between">
-              <Heading level="h3">Shipments</Heading>
-              <StatusBadge color="grey">
-                {lifecycle.data.shipments.length}
-              </StatusBadge>
-            </div>
-            {lifecycle.data.shipments.length === 0 ? (
-              <Text size="small" className="text-ui-fg-subtle">
-                No shipment has been booked for this order group yet.
-              </Text>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {lifecycle.data.shipments.map((shipment) => (
+        <div className="px-6 py-5">
+          {data.shipments.length === 0 ? (
+            <Text size="small" className="text-ui-fg-subtle">
+              No shipment has been booked for this order yet.
+            </Text>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {data.shipments.map((shipment) => {
+                const delivered = deliveredQuantity(shipment);
+                const ordered = orderedQuantity(shipment);
+                const progress = ordered > 0 ? (delivered / ordered) * 100 : 0;
+                const lastEvent = shipment.events.at(-1);
+                return (
                   <div
                     key={shipment.id}
                     className="rounded-lg border border-ui-border-base p-4"
                   >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Text size="small" weight="plus">
-                            {shipment.trackingNumber}
-                          </Text>
                           <StatusBadge color={shipmentColor(shipment.status)}>
                             {label(shipment.status)}
                           </StatusBadge>
+                          <Text size="small" weight="plus">
+                            {shipment.trackingNumber}
+                          </Text>
                         </div>
-                        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                          Seller {shipment.sellerId} ·{" "}
-                          {deliveredQuantity(shipment)}/
-                          {orderedQuantity(shipment)} units delivered ·{" "}
+                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-3">
+                          <Meta
+                            label="Delivered"
+                            value={`${delivered} of ${ordered} units`}
+                          />
+                          <Meta label="Seller" value={shipment.sellerId} mono />
+                          <Meta
+                            label="Proof"
+                            value={shipment.proofRef ?? "Not captured"}
+                          />
+                        </div>
+                        <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
                           {shipment.events.length} events
+                          {lastEvent
+                            ? ` · last update ${new Date(
+                                lastEvent.occurredAt,
+                              ).toLocaleString("en-IN")}`
+                            : ""}
                         </Text>
-                        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                          Proof: {shipment.proofRef ?? "Not captured"}
-                        </Text>
+                        <div
+                          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ui-bg-subtle"
+                          role="progressbar"
+                          aria-label={`${delivered} of ${ordered} units delivered`}
+                          aria-valuemin={0}
+                          aria-valuemax={ordered}
+                          aria-valuenow={delivered}
+                        >
+                          <div
+                            className={
+                              shipment.status === "delivered"
+                                ? "h-full rounded-full bg-ui-tag-green-icon"
+                                : "h-full rounded-full bg-ui-tag-blue-icon"
+                            }
+                            style={{ width: `${Math.min(progress, 100)}%` }}
+                          />
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {shipment.status !== "delivered" ? (
@@ -277,117 +313,153 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="px-6 py-5">
-            <div className="mb-2 flex items-center justify-between">
-              <Heading level="h3">Returns</Heading>
-              <StatusBadge color="grey">
-                {lifecycle.data.returns.length}
-              </StatusBadge>
+                );
+              })}
             </div>
-            <Text size="xsmall" className="mb-4 text-ui-fg-subtle">
+          )}
+        </div>
+      </Container>
+
+      <Container className="divide-y p-0">
+        <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Heading level="h2">Returns</Heading>
+              <StatusBadge color="grey">{data.returns.length}</StatusBadge>
+            </div>
+            <Text size="small" className="mt-1 text-ui-fg-subtle">
               Customers initiate returns from their order page. Operators
-              approve or reject them here.
+              approve or reject them here without issuing a refund or moving
+              stock.
             </Text>
-            {lifecycle.data.returns.length === 0 ? (
-              <Text size="small" className="text-ui-fg-subtle">
-                No customer return request for this order.
-              </Text>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {lifecycle.data.returns.map((record) => (
-                  <div
-                    key={record.id}
-                    className="rounded-lg border border-ui-border-base p-4"
-                  >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Text size="small" weight="plus">
-                            {record.id}
-                          </Text>
-                          <StatusBadge color={returnColor(record.status)}>
-                            {label(record.status)}
-                          </StatusBadge>
-                        </div>
-                        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                          {label(record.reasonCode)} · {decidedQuantity(record)}{" "}
-                          unit(s) · Requested{" "}
-                          {new Date(record.requestedAt).toLocaleString("en-IN")}
+          </div>
+          <Button asChild size="small" variant="secondary">
+            <Link to="/returns">All returns</Link>
+          </Button>
+        </div>
+
+        <div className="px-6 py-5">
+          {data.returns.length === 0 ? (
+            <Text size="small" className="text-ui-fg-subtle">
+              No customer return request for this order.
+            </Text>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {data.returns.map((record) => (
+                <div
+                  key={record.id}
+                  className="rounded-lg border border-ui-border-base p-4"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge color={returnColor(record.status)}>
+                          {label(record.status)}
+                        </StatusBadge>
+                        <Text size="small" weight="plus">
+                          {label(record.reasonCode)}
                         </Text>
-                        {record.decisionComment ? (
-                          <Text
-                            size="xsmall"
-                            className="mt-1 text-ui-fg-subtle"
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-3">
+                        <Meta
+                          label={
+                            record.status === "approved"
+                              ? "Approved"
+                              : "Requested"
+                          }
+                          value={`${decidedQuantity(record)} unit(s)`}
+                        />
+                        <Meta
+                          label="Requested"
+                          value={new Date(record.requestedAt).toLocaleString(
+                            "en-IN",
+                          )}
+                        />
+                        <Meta
+                          label="Decision"
+                          value={record.decidedBy ?? "Awaiting operator"}
+                        />
+                      </div>
+                      {record.decisionComment ? (
+                        <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+                          “{record.decisionComment}”
+                        </Text>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {record.status === "requested" ? (
+                        <>
+                          <Button
+                            size="small"
+                            variant="primary"
+                            isLoading={
+                              decideReturn.isPending &&
+                              decideReturn.variables?.record.id === record.id
+                            }
+                            disabled={decideReturn.isPending}
+                            onClick={() =>
+                              decideReturn.mutate({
+                                record,
+                                decision: "approve",
+                              })
+                            }
                           >
-                            Decision: {record.decisionComment}
-                          </Text>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {record.status === "requested" ? (
-                          <>
-                            <Button
-                              size="small"
-                              variant="primary"
-                              disabled={decideReturn.isPending}
-                              onClick={() =>
-                                decideReturn.mutate({
-                                  record,
-                                  decision: "approve",
-                                })
-                              }
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="danger"
-                              disabled={decideReturn.isPending}
-                              onClick={() =>
-                                decideReturn.mutate({
-                                  record,
-                                  decision: "reject",
-                                })
-                              }
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button asChild size="small" variant="secondary">
-                          <Link to={`/returns/${record.id}`}>View case</Link>
-                        </Button>
-                      </div>
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="danger"
+                            disabled={decideReturn.isPending}
+                            onClick={() =>
+                              decideReturn.mutate({
+                                record,
+                                decision: "reject",
+                              })
+                            }
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      ) : null}
+                      <Button asChild size="small" variant="secondary">
+                        <Link to={`/returns/${record.id}`}>View return</Link>
+                      </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Container>
 
-          <div className="px-6 py-3">
-            <Text size="xsmall" className="text-ui-fg-subtle">
-              Staging workflow evidence only. Delivery and return decisions do
-              not change native Medusa fulfilment/payment status, create no
-              refund, Medusa money effect or Tryton stock movement.
-            </Text>
+      <Container className="p-0">
+        <div className="px-6 py-4">
+          <Heading level="h3">References</Heading>
+          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Meta label="Order group" value={data.order_group_id} mono />
+            <Meta label="Customer checkout" value={data.order_id} mono />
+            <Meta
+              label="Last update"
+              value={new Date(data.latest_update).toLocaleString("en-IN")}
+            />
           </div>
-        </>
-      )}
-    </Container>
+          <Text size="xsmall" className="mt-4 text-ui-fg-subtle">
+            Staging workflow evidence only. Delivery and return decisions do not
+            change native Medusa fulfilment or payment status, create no refund,
+            Medusa money effect or Tryton stock movement.
+          </Text>
+        </div>
+      </Container>
+    </div>
   );
 };
 
-// Place operational status above the native order sections so it is visible without scrolling past
-// payment, fulfillment, metadata and JSON panels.
+// Native order detail, payment and fulfilment stay first. Delivery and returns
+// follow them in the same logical reading order used by Shopify's order page.
 // eslint-disable-next-line react-refresh/only-export-components
 export const config = defineWidgetConfig({
-  zone: "orders.detail.main.before",
+  zone: "orders.detail.main.after",
 });
 
 export default OrderDeliveryReturns;
