@@ -28,9 +28,12 @@ type ShipmentList = InferClientOutput<
 type Shipment = ShipmentList["items"][number];
 
 const statusColor = (status: string) => {
-  if (status === "delivered" || status === "rto_delivered") return "green" as const;
-  if (["delivery_failed", "damaged", "lost"].includes(status)) return "red" as const;
-  if (["out_for_delivery", "in_transit", "picked_up"].includes(status)) return "blue" as const;
+  if (status === "delivered" || status === "rto_delivered")
+    return "green" as const;
+  if (["delivery_failed", "damaged", "lost"].includes(status))
+    return "red" as const;
+  if (["out_for_delivery", "in_transit", "picked_up"].includes(status))
+    return "blue" as const;
   return "orange" as const;
 };
 
@@ -50,8 +53,16 @@ export default function ShipmentsPage() {
     queryFn: () => client.admin.buildkart.shipmentExceptions.query(),
     refetchInterval: 15_000,
   });
+  const orderStatuses = useQuery({
+    queryKey: ["buildkart", "staging-order-statuses"],
+    queryFn: () => client.admin.buildkart.orderStatuses.query(),
+    refetchInterval: 15_000,
+  });
   const [statusFilter, setStatusFilter] = useState("all");
-  const allShipments = shipments.data?.items ?? [];
+  const allShipments = useMemo(
+    () => shipments.data?.items ?? [],
+    [shipments.data?.items],
+  );
   const statusCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const shipment of allShipments) {
@@ -59,9 +70,19 @@ export default function ShipmentsPage() {
     }
     return counts;
   }, [allShipments]);
-  const visibleShipments = statusFilter === "all"
-    ? allShipments
-    : allShipments.filter((shipment) => shipment.status === statusFilter);
+  const visibleShipments =
+    statusFilter === "all"
+      ? allShipments
+      : allShipments.filter((shipment) => shipment.status === statusFilter);
+  const orderByGroup = useMemo(
+    () =>
+      new Map(
+        (orderStatuses.data?.items ?? [])
+          .filter((order) => order.medusa_order_group_id)
+          .map((order) => [order.medusa_order_group_id!, order]),
+      ),
+    [orderStatuses.data?.items],
+  );
 
   return (
     <SingleColumnPage>
@@ -74,8 +95,9 @@ export default function ShipmentsPage() {
                 <StatusBadge color="orange">Simulated staging data</StatusBadge>
               </div>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
-                Shipments are booked from Mercur allocations. No real carrier is
-                called and no money or stock is moved here.
+                Shipments are seller-scoped and persisted with an append-only
+                timeline. No real carrier is called and no money or stock is
+                moved here.
               </Text>
             </div>
             <StatusBadge color="grey">
@@ -120,40 +142,67 @@ export default function ShipmentsPage() {
                 <Table.Header>
                   <Table.Row>
                     <Table.HeaderCell>Shipment</Table.HeaderCell>
-                    <Table.HeaderCell>Order group</Table.HeaderCell>
+                    <Table.HeaderCell>Order</Table.HeaderCell>
                     <Table.HeaderCell>Seller</Table.HeaderCell>
                     <Table.HeaderCell>Status</Table.HeaderCell>
+                    <Table.HeaderCell>Delivery</Table.HeaderCell>
                     <Table.HeaderCell>Tracking</Table.HeaderCell>
                     <Table.HeaderCell>Updated</Table.HeaderCell>
                     <Table.HeaderCell />
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                  {visibleShipments.map((shipment: Shipment) => (
-                    <Table.Row key={shipment.id}>
-                      <Table.Cell>
-                        <Text size="small" weight="plus">
-                          {shipment.id}
-                        </Text>
-                      </Table.Cell>
-                      <Table.Cell>{shipment.orderGroupId}</Table.Cell>
-                      <Table.Cell>{shipment.sellerId}</Table.Cell>
-                      <Table.Cell>
-                        <StatusBadge color={statusColor(shipment.status)}>
-                          {label(shipment.status)}
-                        </StatusBadge>
-                      </Table.Cell>
-                      <Table.Cell>{shipment.trackingNumber}</Table.Cell>
-                      <Table.Cell>
-                        {new Date(shipment.updatedAt).toLocaleString("en-IN")}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Button asChild size="small" variant="secondary">
-                          <Link to={`/shipments/${shipment.id}`}>Open</Link>
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
+                  {visibleShipments.map((shipment: Shipment) => {
+                    const order = orderByGroup.get(shipment.orderGroupId);
+                    const delivered = shipment.lines.reduce(
+                      (total, line) => total + line.deliveredQty,
+                      0,
+                    );
+                    const ordered = shipment.lines.reduce(
+                      (total, line) => total + line.orderedQty,
+                      0,
+                    );
+                    return (
+                      <Table.Row key={shipment.id}>
+                        <Table.Cell>
+                          <Text size="small" weight="plus">
+                            {shipment.id}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text size="small" weight="plus">
+                            {order?.order_id ?? "Uncorrelated"}
+                          </Text>
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            {shipment.orderGroupId}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>{shipment.sellerId}</Table.Cell>
+                        <Table.Cell>
+                          <StatusBadge color={statusColor(shipment.status)}>
+                            {label(shipment.status)}
+                          </StatusBadge>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text size="small" weight="plus">
+                            {delivered}/{ordered} units
+                          </Text>
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            {shipment.proofRef ? "Proof captured" : "No proof"}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>{shipment.trackingNumber}</Table.Cell>
+                        <Table.Cell>
+                          {new Date(shipment.updatedAt).toLocaleString("en-IN")}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Button asChild size="small" variant="secondary">
+                            <Link to={`/shipments/${shipment.id}`}>Open</Link>
+                          </Button>
+                        </Table.Cell>
+                      </Table.Row>
+                    );
+                  })}
                 </Table.Body>
               </Table>
             </div>

@@ -1,5 +1,5 @@
 change_id: CHG-035
-revision: 1
+revision: 2
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
@@ -31,6 +31,7 @@ affected_surfaces:
 - experience-api.returns
 - commerce-admin.shipments
 - commerce-admin.returns
+- commerce-admin.orders.detail
 - commerce-vendor.shipments
 - commerce-vendor.returns
 - ops-console.integration-exceptions
@@ -100,6 +101,14 @@ proposed_decisions:
 - D-035-10: >-
     Add delivery_delivered_v1, delivery_exception_v1, return_requested_v1 and return_decision_v1
     templates while preserving source-event dedupe.
+- D-035-11: >-
+    Embed a read-through delivery and returns panel on the native Mercur order detail page. Resolve
+    the Medusa seller order through its Mercur order group, then read shipment and return truth from
+    the Experience API; do not duplicate lifecycle ownership in the dashboard.
+- D-035-12: >-
+    Create deterministic staging lifecycle fixtures through the real checkout, seller shipment and
+    customer return APIs so the operational workbenches contain booked, in-transit, exception,
+    delivered, requested, approved and rejected examples. Fixture creation remains staging-only.
 open_decisions:
 - id: OD-035-01
   decision: Final return window and category/reason matrix
@@ -177,6 +186,12 @@ implementation:
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
   implementation_commit: b6d7684
+  order_detail_increment:
+    requested_by: human-requester
+    requested_at_utc: '2026-10-21'
+    approved_scope: native-order-detail-widget-workbench-enrichment-and-staging-lifecycle-fixtures
+    status: approved-in-progress
+    production_release_authorized: false
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass

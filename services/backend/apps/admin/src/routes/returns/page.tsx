@@ -46,7 +46,10 @@ export default function ReturnsPage() {
     refetchInterval: 15_000,
   });
   const [statusFilter, setStatusFilter] = useState("all");
-  const allReturns = returns.data?.items ?? [];
+  const allReturns = useMemo(
+    () => returns.data?.items ?? [],
+    [returns.data?.items],
+  );
   const statusCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const record of allReturns) {
@@ -54,9 +57,10 @@ export default function ReturnsPage() {
     }
     return counts;
   }, [allReturns]);
-  const visibleReturns = statusFilter === "all"
-    ? allReturns
-    : allReturns.filter((record) => record.status === statusFilter);
+  const visibleReturns =
+    statusFilter === "all"
+      ? allReturns
+      : allReturns.filter((record) => record.status === statusFilter);
 
   return (
     <SingleColumnPage>
@@ -116,37 +120,81 @@ export default function ReturnsPage() {
                   <Table.HeaderCell>Order</Table.HeaderCell>
                   <Table.HeaderCell>Customer</Table.HeaderCell>
                   <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell>Resolution</Table.HeaderCell>
+                  <Table.HeaderCell>Reason / resolution</Table.HeaderCell>
+                  <Table.HeaderCell>Quantity</Table.HeaderCell>
+                  <Table.HeaderCell>Decision</Table.HeaderCell>
                   <Table.HeaderCell>Requested</Table.HeaderCell>
                   <Table.HeaderCell />
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {visibleReturns.map((record: ReturnCase) => (
-                  <Table.Row key={record.id}>
-                    <Table.Cell>
-                      <Text size="small" weight="plus">
-                        {record.id}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>{record.orderId}</Table.Cell>
-                    <Table.Cell>{record.userId}</Table.Cell>
-                    <Table.Cell>
-                      <StatusBadge color={statusColor(record.status)}>
-                        {label(record.status)}
-                      </StatusBadge>
-                    </Table.Cell>
-                    <Table.Cell>{label(record.resolution)}</Table.Cell>
-                    <Table.Cell>
-                      {new Date(record.requestedAt).toLocaleString("en-IN")}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button asChild size="small" variant="secondary">
-                        <Link to={`/returns/${record.id}`}>Open</Link>
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
+                {visibleReturns.map((record: ReturnCase) => {
+                  const requested = record.lines.reduce(
+                    (total, line) => total + line.requestedQty,
+                    0,
+                  );
+                  const approved = record.lines.reduce(
+                    (total, line) => total + (line.approvedQty ?? 0),
+                    0,
+                  );
+                  return (
+                    <Table.Row key={record.id}>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {record.id}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {record.orderId}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {record.orderGroupId ?? "No order group"}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>{record.userId}</Table.Cell>
+                      <Table.Cell>
+                        <StatusBadge color={statusColor(record.status)}>
+                          {label(record.status)}
+                        </StatusBadge>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {label(record.reasonCode)}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {label(record.resolution)}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {requested} requested
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {record.status === "approved"
+                            ? `${approved} approved`
+                            : `${record.lines.length} line(s)`}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {record.decidedBy ?? "Awaiting operator"}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {record.decisionComment ?? "No decision note"}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>
+                        {new Date(record.requestedAt).toLocaleString("en-IN")}
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Button asChild size="small" variant="secondary">
+                          <Link to={`/returns/${record.id}`}>Open</Link>
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                })}
               </Table.Body>
             </Table>
           </div>

@@ -528,7 +528,7 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
     return ["marketplace_operator", "super_admin"];
   }
   if (
-    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses)(?:\/|$)/.test(
+    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses|order-groups)(?:\/|$)/.test(
       pathname,
     )
   ) {
@@ -1435,6 +1435,47 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     );
     return json({
       items,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  // Native Mercur order-detail widgets resolve the seller order to an order group first, then
+  // request the complete delivery/return projection here. The dashboard remains a read-through
+  // surface; shipment and return ownership stays in the Experience API stores.
+  const adminOrderGroupLifecycle = url.pathname.match(
+    /^\/v1\/admin\/order-groups\/([^/]+)\/delivery-returns$/,
+  );
+  if (adminOrderGroupLifecycle && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const orderGroupId = decodeURIComponent(adminOrderGroupLifecycle[1]);
+    const ref = await correlation.getByOrderGroup(orderGroupId);
+    if (!ref) return problem(404, "order-group-correlation-not-found");
+    const groupShipments = await logistics.listByOrderGroup(orderGroupId);
+    const groupReturns = (await returns.listAll(500)).filter(
+      (record) =>
+        record.orderGroupId === orderGroupId || record.orderId === ref.checkout_ref,
+    );
+    const shipments = await Promise.all(
+      groupShipments.map(async (shipment) => ({
+        ...shipment,
+        events: await logistics.listEvents(shipment.id),
+      })),
+    );
+    const latestUpdates = [
+      ...shipments.map((shipment) => shipment.updatedAt),
+      ...groupReturns.map((record) => record.decidedAt ?? record.requestedAt),
+    ].sort();
+    return json({
+      order_group_id: orderGroupId,
+      order_id: ref.checkout_ref,
+      owner_user_id: ref.owner_user_id,
+      shipments,
+      returns: groupReturns,
+      latest_update: latestUpdates.at(-1) ?? ref.updated_at,
       environment: config.environment,
       test_data: true,
       logistics_mode: "simulated",

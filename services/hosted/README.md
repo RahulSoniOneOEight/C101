@@ -290,6 +290,12 @@ Two helper scripts run against the deployed API and are safe to re-run:
 # usage: bun seed-orders.ts <count> <customerEmail> <sellerName>
 bun services/hosted/scripts/seed-orders.ts 20 rsoni001@gmail.com "BuildMaster Supplies"
 
+# Create six operational examples through the real APIs: booked, in-transit,
+# delivery-failed, return-requested, return-approved and return-rejected.
+# The script refuses hosts whose names do not contain "staging".
+bun services/hosted/scripts/seed-delivery-return-lifecycles.ts \
+  rsoni001@gmail.com "BuildMaster Supplies"
+
 # Sync offer SKUs to Tryton and create ERP reservations for the seeded carts
 bun services/hosted/scripts/populate-tryton.ts carts.json
 ```
@@ -297,6 +303,11 @@ bun services/hosted/scripts/populate-tryton.ts carts.json
 `seed-orders.ts` authenticates as a pilot customer (OTP `123456`), so orders are canonical and
 allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
 `order_summary.created_at` (staging dummy data only).
+
+`seed-delivery-return-lifecycles.ts` additionally waits for allocation/fallback shipment booking,
+uses seller-scoped status updates, records delivery proof and quantities, initiates returns as the
+customer, and records requested/approved/rejected admin states. Approval remains workflow evidence
+only: no refund, Medusa money mutation or Tryton stock movement occurs.
 
 ## Marketplace merchandising (CHG-029 / CHG-030)
 

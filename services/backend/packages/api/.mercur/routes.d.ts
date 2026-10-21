@@ -516,6 +516,11 @@ export type Routes = {
             };
             merchandisingOffers: typeof import("../src/api/admin/buildkart/merchandising-offers/route");
             merchandisingPresets: typeof import("../src/api/admin/buildkart/merchandising-presets/route");
+            orderGroups: {
+                $id: {
+                    deliveryReturns: typeof import("../src/api/admin/buildkart/order-groups/[id]/delivery-returns/route");
+                };
+            };
             orderStatuses: typeof import("../src/api/admin/buildkart/order-statuses/route");
             returns: typeof import("../src/api/admin/buildkart/returns/route") & {
                 $id: typeof import("../src/api/admin/buildkart/returns/[id]/route") & {

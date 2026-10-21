@@ -38,6 +38,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-21'
   scope: delivery-returns-staging-deployment
+- change_id: CHG-035
+  approved_by: human-requester
+  approved_at_utc: '2026-10-21'
+  scope: native-order-detail-widget-workbench-enrichment-and-staging-lifecycle-fixtures
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -118,6 +122,7 @@ active_changes:
   staging_release: b6d7684
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
+  order_detail_increment_status: approved-in-progress
   runtime_authorized: false
   production_release_authorized: false
 
