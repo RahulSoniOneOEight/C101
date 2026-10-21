@@ -53,6 +53,14 @@ const orderedQuantity = (shipment: Shipment) =>
 const requestedQuantity = (record: ReturnCase) =>
   record.lines.reduce((total, line) => total + line.requestedQty, 0);
 
+const approvedQuantity = (record: ReturnCase) =>
+  record.lines.reduce((total, line) => total + (line.approvedQty ?? 0), 0);
+
+const decidedQuantity = (record: ReturnCase) =>
+  record.status === "approved"
+    ? approvedQuantity(record)
+    : requestedQuantity(record);
+
 const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
   const queryClient = useQueryClient();
   const orderGroup = useQuery({
@@ -307,8 +315,8 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                           </StatusBadge>
                         </div>
                         <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                          {label(record.reasonCode)} ·{" "}
-                          {requestedQuantity(record)} unit(s) · Requested{" "}
+                          {label(record.reasonCode)} · {decidedQuantity(record)}{" "}
+                          unit(s) · Requested{" "}
                           {new Date(record.requestedAt).toLocaleString("en-IN")}
                         </Text>
                         {record.decisionComment ? (
