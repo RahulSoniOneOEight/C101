@@ -176,7 +176,7 @@ implementation:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: b6d7684
+  staging_release: 6c291a5
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   contract_phase: commit-1
@@ -185,12 +185,19 @@ implementation:
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: b6d7684
+  implementation_commit: 6c291a5
   order_detail_increment:
     requested_by: human-requester
     requested_at_utc: '2026-10-21'
     approved_scope: native-order-detail-widget-workbench-enrichment-and-staging-lifecycle-fixtures
-    status: approved-in-progress
+    status: staging-deployed-verified
+    admin_widget_commit: cdad481
+    staging_release: 6c291a5
+    native_order_detail_build: pass
+    lifecycle_fixture_orders: 6
+    staging_shipment_records: 7
+    staging_return_records: 4
+    return_event_outbox_backlog: 0
     production_release_authorized: false
   verification:
     experience_api_typecheck: pass

@@ -104,6 +104,46 @@ a running Experience API; the operator branch uses the dummy staging service sec
   `(order_group_id, seller_id)`.
 - Production remains unauthorized.
 
+## Native order detail and populated workbenches (2026-10-21)
+
+- Deployed staging release `6c291a5`; the native admin order widget was introduced in `cdad481`.
+- Added a `Delivery & returns` widget at `orders.detail.main.before` on the Mercur admin order page.
+  It resolves the native seller order through Mercur's order-group relation and reads lifecycle truth
+  from the Experience API.
+- The widget shows shipment status, tracking, seller, delivered/ordered quantity, proof, event count,
+  return status, reason, requested quantity and decision note. Operators can record delivery evidence
+  and approve/reject requested returns without leaving the native order page.
+- Customer return initiation remains customer-owned; the widget explicitly directs operators to
+  review rather than create customer requests.
+- The Shipments workbench now shows customer checkout/order-group correlation, delivered quantity
+  and proof state. The Returns workbench now shows order group, reason, resolution, quantity and
+  decision details.
+- Native order `#87` (`order_01M5ESQWMSTFWBEHMBZX3D0JNQ`) resolves to
+  `og_01M5ESQWN32RNWWM1DN9AZ1JG5` and returns one delivered shipment plus one approved return.
+- Ran the governed staging lifecycle fixture through real checkout, seller-status, customer-return
+  and admin-decision APIs:
+
+| Native order | Scenario | Shipment | Return |
+| --- | --- | --- | --- |
+| `#88` | booked | booked | none |
+| `#89` | in transit | in_transit | none |
+| `#90` | delivery exception | delivery_failed | none |
+| `#91` | awaiting decision | delivered | requested |
+| `#92` | approved return | delivered | approved |
+| `#93` | rejected return | delivered | rejected |
+
+- Staging workbench totals after fixture creation: **7 shipments** (`4 delivered`, `1 booked`,
+  `1 in_transit`, `1 delivery_failed`) and **4 returns** (`2 approved`, `1 requested`, `1 rejected`).
+- Return decision events for the approved and rejected fixtures both record `money_effect=none` and
+  `stock_effect=none`.
+- Fixed JetStream coverage by adding and idempotently reconciling the `return.>` stream subject.
+  The return-event outbox drained from seven unpublished records to **zero**, with no continuing 503
+  publish warnings.
+- Final hosted acceptance: **11/11 pass**. Extended shipment/order-group authorization test: pass.
+- Admin root, Shipments and Returns routes each respond `200`; the deployed admin bundle contains the
+  order-detail widget.
+- Production remains unauthorized.
+
 ## Open decisions still requiring human approval
 
 | ID | Decision | Implemented staging default |
