@@ -121,6 +121,18 @@ export class CorrelationStore {
     }
   }
 
+  async getByOrderGroup(orderGroupId: string): Promise<CorrelationRecord | null> {
+    await this.ready;
+    const result = await this.pool.query<CorrelationRecord>(
+      `SELECT checkout_ref, owner_user_id, medusa_order_group_id, medusa_order_group, payment_evidence,
+              tryton_move_id, created_at, updated_at
+         FROM correlation WHERE medusa_order_group_id = $1
+        LIMIT 1`,
+      [orderGroupId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async get(checkoutRef: string): Promise<CorrelationRecord | null> {
     await this.ready;
     const result = await this.pool.query(
@@ -133,6 +145,19 @@ export class CorrelationStore {
   }
 
   /** List recent correlations (most recently updated first) for the operator order queue. */
+  async listForUser(userId: string, limit = 50): Promise<CorrelationRecord[]> {
+    await this.ready;
+    const result = await this.pool.query<CorrelationRecord>(
+      `SELECT checkout_ref, owner_user_id, medusa_order_group_id, medusa_order_group, payment_evidence,
+              tryton_move_id, created_at, updated_at
+         FROM correlation WHERE owner_user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2`,
+      [userId, Math.min(Math.max(limit, 1), 200)],
+    );
+    return result.rows;
+  }
+
   async list(limit = 200): Promise<CorrelationRecord[]> {
     await this.ready;
     const result = await this.pool.query(

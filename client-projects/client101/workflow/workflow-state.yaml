@@ -30,6 +30,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-20'
   scope: delivery-returns-commit-1-contracts-only
+- change_id: CHG-035
+  approved_by: human-requester
+  approved_at_utc: '2026-10-21'
+  scope: delivery-returns-commits-2-to-8-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -71,19 +75,36 @@ active_changes:
   assistant_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
   production_release_authorized: false
 - change_id: CHG-035
-  status: contracts-drafted
+  status: staging-runtime-implemented-open-decisions-pending
   approval_required: true
-  approval_scope: delivery-returns-commit-1-contracts-only
+  approval_scope: delivery-returns-commits-1-to-8-staging-only
   completed_phases:
   - commit-1-contracts
-  active_phase: commit-1-validator-report
+  - commit-2-shipment-store
+  - commit-3-allocation-booking
+  - commit-4-delivery-evidence-and-operator-routes
+  - commit-5-returns-backend
+  - commit-6-admin-workbenches
+  - commit-7-flutter-api-orders-and-return-flow
+  - commit-8-verification
+  active_phase: human-review-open-decisions
   scope: delivery-capture-shipment-evidence-and-phase-1-returns
   proposal: client-projects/client101/changes/CHG-035.yaml
   evidence: client-projects/client101/evidence/CHG-035/contracts.md
+  runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
   parent_change: CHG-017
   contract_validation: pass
   rule_registry_validation: pass
   chg017_approval_validation: pass
+  experience_api_typecheck: pass
+  admin_panel_build: pass
+  flutter_analyze: pass
+  flutter_test: pass-266
+  shipment_db_tests: pass
+  return_idempotency_db_test: pass
+  shipment_auth_http_test: pass
+  open_decisions_required_for_production: true
+  staging_runtime_authorized: true
   runtime_authorized: false
   production_release_authorized: false
 

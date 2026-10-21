@@ -75,8 +75,15 @@ export class NotificationProcessor {
       : {};
     const checkoutRef = typeof payload.cart_id === "string"
       ? payload.cart_id
-      : String(event.aggregate_id ?? "");
-    const record = checkoutRef ? await this.correlation.get(checkoutRef) : null;
+      : typeof payload.checkout_ref === "string"
+        ? payload.checkout_ref
+        : typeof payload.order_id === "string"
+          ? payload.order_id
+          : String(event.aggregate_id ?? "");
+    const record = checkoutRef
+      ? (await this.correlation.get(checkoutRef)) ??
+        (await this.correlation.getByOrderGroup(checkoutRef))
+      : null;
     if (!record?.owner_user_id) {
       throw new Error(`No canonical pilot owner for notification event ${String(event.id ?? "?")}.`);
     }

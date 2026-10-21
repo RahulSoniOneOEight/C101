@@ -507,6 +507,8 @@ export interface StoreCart {
     product_title: string | null;
     product_id?: string | null;
     variant_id?: string | null;
+    sku?: string | null;
+    seller_id?: string | null;
     thumbnail?: string | null;
     quantity: number;
     unit_price: number;

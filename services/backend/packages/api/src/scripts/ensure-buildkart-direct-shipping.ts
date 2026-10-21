@@ -66,9 +66,9 @@ export default async function ensureBuildKartDirectShipping({
     filters: { id: seller.id },
   });
   const linkedLocationIds = new Set(
-    (sellerWithLocations[0]?.stock_locations ?? []).map(
-      (entry: { id: string }) => entry.id,
-    ),
+    (sellerWithLocations[0]?.stock_locations ?? [])
+      .map((entry) => entry?.id)
+      .filter((id): id is string => Boolean(id)),
   );
   if (!linkedLocationIds.has(location.id)) {
     await link.create({
@@ -107,7 +107,9 @@ export default async function ensureBuildKartDirectShipping({
   }
 
   const existingChannelNames = new Set(
-    (location.sales_channels ?? []).map((channel: { name: string }) => channel.name),
+    (location.sales_channels ?? [])
+      .map((channel) => channel?.name)
+      .filter((name): name is string => Boolean(name)),
   );
   const missingChannels = CHANNEL_NAMES.filter(
     (name) => !existingChannelNames.has(name),

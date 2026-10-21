@@ -516,8 +516,23 @@ export type Routes = {
             };
             merchandisingOffers: typeof import("../src/api/admin/buildkart/merchandising-offers/route");
             merchandisingPresets: typeof import("../src/api/admin/buildkart/merchandising-presets/route");
+            orderStatuses: typeof import("../src/api/admin/buildkart/order-statuses/route");
+            returns: typeof import("../src/api/admin/buildkart/returns/route") & {
+                $id: typeof import("../src/api/admin/buildkart/returns/[id]/route") & {
+                    approve: typeof import("../src/api/admin/buildkart/returns/[id]/approve/route");
+                    reject: typeof import("../src/api/admin/buildkart/returns/[id]/reject/route");
+                };
+            };
             settlementStatements: typeof import("../src/api/admin/buildkart/settlement-statements/route") & {
                 $id: typeof import("../src/api/admin/buildkart/settlement-statements/[id]/route");
+            };
+            shipmentExceptions: typeof import("../src/api/admin/buildkart/shipment-exceptions/route");
+            shipments: typeof import("../src/api/admin/buildkart/shipments/route") & {
+                $id: typeof import("../src/api/admin/buildkart/shipments/[id]/route") & {
+                    deliveryEvidence: typeof import("../src/api/admin/buildkart/shipments/[id]/delivery-evidence/route");
+                    reconcile: typeof import("../src/api/admin/buildkart/shipments/[id]/reconcile/route");
+                    simulateEvent: typeof import("../src/api/admin/buildkart/shipments/[id]/simulate-event/route");
+                };
             };
         };
         custom: typeof import("../src/api/admin/custom/route");

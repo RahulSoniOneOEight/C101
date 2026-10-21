@@ -374,6 +374,68 @@ class ExperienceApi {
     return ms > 0 ? ms : 0;
   }
 
+  /// API-backed consumer order history.
+  Future<List<Map<String, dynamic>>> getMyOrders({int limit = 50}) async {
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/me/orders',
+          queryParameters: <String, dynamic>{'limit': limit},
+        ));
+    return (res.data?['items'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  /// Customer order read with lines, shipment timeline and return eligibility.
+  Future<Map<String, dynamic>> getOrder(String orderId) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>('/v1/orders/$orderId'),
+    );
+    return res.data ?? const <String, dynamic>{};
+  }
+
+  /// Create a Phase 1 return request. The server computes eligibility and freezes policy.
+  Future<Map<String, dynamic>> requestReturn({
+    required String orderId,
+    required String idempotencyKey,
+    required String resolution,
+    required String reasonCode,
+    required List<Map<String, dynamic>> lines,
+    String? customerComment,
+  }) async {
+    final res = await _retryTransient(
+      () => _dio.post<Map<String, dynamic>>(
+        '/v1/orders/$orderId/returns',
+        options: Options(headers: <String, dynamic>{
+          'Idempotency-Key': idempotencyKey,
+        }),
+        data: <String, dynamic>{
+          'resolution': resolution,
+          'reason_code': reasonCode,
+          if (customerComment != null) 'customer_comment': customerComment,
+          'lines': lines,
+        },
+      ),
+    );
+    return res.data ?? const <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> getReturn(String returnId) async {
+    final res = await _retryTransient(
+      () => _dio.get<Map<String, dynamic>>('/v1/returns/$returnId'),
+    );
+    return res.data ?? const <String, dynamic>{};
+  }
+
+  Future<List<Map<String, dynamic>>> getMyReturns({int limit = 50}) async {
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/me/returns',
+          queryParameters: <String, dynamic>{'limit': limit},
+        ));
+    return (res.data?['items'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
   /// Composed product detail (best-price offer drives price + variant identity).
   Future<Product> getComposedProduct(String productId,
       {String channel = 'b2c'}) async {

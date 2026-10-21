@@ -45,7 +45,15 @@ import {
   type PilotAuthorization,
   type PilotRole,
 } from "./auth/pilot-authorization.js";
-import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
+import { checkServiceability } from "./logistics/simulated-logistics.js";
+import { ShipmentStore } from "./logistics/shipment-store.js";
+import { SimulatedLogisticsProvider } from "./logistics/provider.js";
+import { ReturnStore } from "./store/return-store.js";
+import {
+  RETURN_POLICY,
+  computeReturnEligibility,
+  orderLineSnapshots,
+} from "./returns/eligibility.js";
 import { itemSubtotalMinor } from "./commerce/cart-totals.js";
 import {
   imageQualityScore,
@@ -63,6 +71,9 @@ const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
+const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
+const logistics = new SimulatedLogisticsProvider(shipmentStore);
+const returns = new ReturnStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
 const cmsContentStore = new CmsContentStore(config.experienceDatabaseUrl);
 const cmsContent = new CmsContentAdapter(
@@ -175,8 +186,12 @@ const json = (body: unknown, status = 200) =>
     },
   });
 
-const problem = (status: number, title: string, detail?: string) =>
-  json({ type: "about:blank", title, status, detail }, status);
+const problem = (
+  status: number,
+  title: string,
+  detail?: string,
+  extensions?: Record<string, unknown>,
+) => json({ type: "about:blank", title, status, detail, ...(extensions ?? {}) }, status);
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
@@ -214,7 +229,41 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
   }
 }
 
+/**
+ * Staging-only service identity for the Mercur admin console proxy. The shared secret is never
+ * accepted unless configured, and the resulting actor is always an operator, never a customer.
+ */
+function serviceOperatorAuthentication(req: Request): AuthenticationResult | null {
+  const expected = config.adminServiceSecret;
+  if (!expected) return null;
+  const supplied = req.headers.get("x-buildkart-admin-service-secret") ?? "";
+  if (
+    supplied.length !== expected.length ||
+    !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+  ) {
+    return null;
+  }
+  const userId = req.headers.get("x-operator-user-id")?.trim() || "admin_console";
+  const authorization: PilotAuthorization = {
+    userId,
+    roles: ["marketplace_operator", "support_operator"],
+  };
+  return {
+    user: {
+      id: userId,
+      email: "admin-console@buildkart.invalid",
+      name: "Admin console operator",
+    },
+    token: "admin-console-service",
+    authorization,
+  };
+}
+
 async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promise<AuthenticationResult> {
+  const service = serviceOperatorAuthentication(req);
+  if (service && !("response" in service) && hasAnyRole(service.authorization, roles)) {
+    return service;
+  }
   const authenticated = await authenticate(req);
   if ("response" in authenticated) return authenticated;
   if (!hasAnyRole(authenticated.authorization, roles)) {
@@ -478,6 +527,13 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
   if (/^\/v1\/admin\/notifications(?:\/|$)/.test(pathname)) {
     return ["marketplace_operator", "super_admin"];
   }
+  if (
+    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses)(?:\/|$)/.test(
+      pathname,
+    )
+  ) {
+    return ["marketplace_operator", "support_operator", "super_admin"];
+  }
   if (/^\/v1\/admin\/(events|orders)(?:\/|$)/.test(pathname)) {
     return ["support_operator", "marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
   }
@@ -509,6 +565,75 @@ async function authorizeCheckoutOwner(req: Request, checkoutRef: string): Promis
   if (!record || record.owner_user_id !== authenticated.user.id) {
     // Use 404 so one pilot user cannot use this endpoint to enumerate another user's references.
     return { response: problem(404, "checkout-not-found", "No checkout was found for this user.") };
+  }
+  return authenticated;
+}
+
+async function shipmentsWithEvents(orderGroupId: string) {
+  const shipments = await logistics.listByOrderGroup(orderGroupId);
+  return Promise.all(
+    shipments.map(async (shipment) => ({
+      ...shipment,
+      events: await logistics.listEvents(shipment.id),
+    })),
+  );
+}
+
+async function orderEligibility(
+  orderId: string,
+  userId: string,
+  ref: {
+    medusa_order_group_id?: string | null;
+    medusa_order_group?: Record<string, unknown> | null;
+  },
+) {
+  const orderLines = orderLineSnapshots(ref);
+  const shipments = ref.medusa_order_group_id
+    ? await logistics.listByOrderGroup(ref.medusa_order_group_id)
+    : [];
+  const alreadyRequested = await returns.requestedQuantitiesForOrder(userId, orderId);
+  return computeReturnEligibility({
+    orderLines,
+    shipments,
+    alreadyRequested,
+  });
+}
+
+function returnPolicySnapshot(lines: Array<{ line_key: string; delivered_qty: number; returnable_qty: number }>) {
+  return {
+    policy_version: RETURN_POLICY.version,
+    window_days: RETURN_POLICY.windowDays,
+    requires_delivery: RETURN_POLICY.requiresDelivery,
+    resolution_options: [...RETURN_POLICY.resolutions],
+    allowed_reasons: [...RETURN_POLICY.reasons],
+    evaluated_at: new Date().toISOString(),
+    line_inputs: lines,
+    money_effect: "none",
+    stock_effect: "none",
+  };
+}
+
+async function authorizeShipmentOwner(req: Request, shipmentId: string) {
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  const shipment = await logistics.get(shipmentId);
+  if (!shipment) {
+    return { response: problem(404, "shipment-not-found", "Shipment not found.") };
+  }
+  const ref = await correlation.getByOrderGroup(shipment.orderGroupId);
+  if (!ref || ref.owner_user_id !== authenticated.user.id) {
+    return { response: problem(404, "shipment-not-found", "Shipment not found.") };
+  }
+  return { ...authenticated, shipment, ref };
+}
+
+async function requireOperator(req: Request): Promise<AuthenticationResult> {
+  const service = serviceOperatorAuthentication(req);
+  if (service && !("response" in service)) return service;
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (!hasAnyRole(authenticated.authorization, ["marketplace_operator", "support_operator", "super_admin"])) {
+    return { response: problem(403, "operator-required", "An operator role is required.") };
   }
   return authenticated;
 }
@@ -982,51 +1107,615 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json({ ...result, environment: config.environment, test_data: true, correlation_id: cid });
   }
 
-  // POST /v1/checkouts/{checkoutId}/shipment — book a simulated shipment (Step 3)
-  const bookShipmentMatch = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/shipment$/);
-  if (bookShipmentMatch && req.method === "POST") {
-    const checkoutId = bookShipmentMatch[1];
-    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+  // Customer shipment timeline for one order.
+  const orderShipments = url.pathname.match(/^\/v1\/orders\/([^/]+)\/shipments$/);
+  if (orderShipments && req.method === "GET") {
+    const orderId = orderShipments[1];
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
     if ("response" in authenticated) return authenticated.response;
-    const shipment = bookShipment(checkoutId);
-    await events.append({
-      event_type: "shipment.status_changed",
-      aggregate_type: "order_group",
-      aggregate_id: checkoutId,
+    const ref = await correlation.get(orderId);
+    if (!ref) return problem(404, "order-not-found", "No correlated order for this reference.");
+    const shipments = ref.medusa_order_group_id
+      ? await shipmentsWithEvents(ref.medusa_order_group_id)
+      : [];
+    return json({
+      order_id: orderId,
+      shipments,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
       correlation_id: cid,
-      payload: { shipment_id: shipment.id, status: shipment.status, tracking_number: shipment.tracking_number },
     });
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid }, 201);
   }
 
-  // GET /v1/shipments/{shipmentId} — simulated tracking (Step 3)
+  // Owner-scoped shipment detail and timeline.
   const shipmentMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)$/);
   if (shipmentMatch && req.method === "GET") {
-    const shipment = getShipment(shipmentMatch[1]);
-    if (!shipment) return problem(404, "unknown-shipment");
-    const authenticated = await authorizeCheckoutOwner(req, shipment.order_group_id);
-    if ("response" in authenticated) return authenticated.response;
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+    const authorized = await authorizeShipmentOwner(req, shipmentMatch[1]);
+    if ("response" in authorized) return authorized.response;
+    return json({
+      shipment: authorized.shipment,
+      events: await logistics.listEvents(authorized.shipment.id),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
   }
 
-  // POST /v1/shipments/{shipmentId}/advance — demo-only status progression (Step 3)
-  const advanceMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)\/advance$/);
-  if (advanceMatch && req.method === "POST") {
-    const shipment = advanceShipment(advanceMatch[1]);
-    if (!shipment) return problem(404, "unknown-shipment");
-    await events.append({
-      event_type: "shipment.status_changed",
-      aggregate_type: "order_group",
-      aggregate_id: shipment.order_group_id,
+  // Combined order-level delivery and return status for the admin console.
+  if (url.pathname === "/v1/admin/order-statuses" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const correlations = await correlation.list(200);
+    const allReturns = await returns.listAll(500);
+    const items = await Promise.all(
+      correlations.map(async (ref) => {
+        const shipments = ref.medusa_order_group_id
+          ? await logistics.listByOrderGroup(ref.medusa_order_group_id)
+          : [];
+        const orderReturns = allReturns.filter(
+          (record) => record.orderId === ref.checkout_ref,
+        );
+        return {
+          order_id: ref.checkout_ref,
+          medusa_order_group_id: ref.medusa_order_group_id,
+          owner_user_id: ref.owner_user_id,
+          created_at: ref.created_at,
+          shipment_statuses: [...new Set(shipments.map((shipment) => shipment.status))],
+          shipment_count: shipments.length,
+          latest_shipment_update: shipments
+            .map((shipment) => shipment.updatedAt)
+            .sort()
+            .at(-1) ?? null,
+          return_statuses: [...new Set(orderReturns.map((record) => record.status))],
+          return_count: orderReturns.length,
+          latest_return_update: orderReturns
+            .map((record) => record.decidedAt ?? record.requestedAt)
+            .sort()
+            .at(-1) ?? null,
+        };
+      }),
+    );
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
       correlation_id: cid,
-      payload: {
-        shipment_id: shipment.id,
-        status: shipment.status,
-        tracking_number: shipment.tracking_number,
-        cart_id: shipment.order_group_id,
-      },
     });
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  // Operator shipment queue.
+  if (url.pathname === "/v1/admin/shipments" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await logistics.list(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  const adminShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)$/);
+  if (adminShipment && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const shipment = await logistics.get(adminShipment[1]);
+    if (!shipment) return problem(404, "shipment-not-found");
+    return json({
+      shipment,
+      events: await logistics.listEvents(shipment.id),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const deliveryEvidence = url.pathname.match(
+    /^\/v1\/admin\/shipments\/([^/]+)\/delivery-evidence$/,
+  );
+  if (deliveryEvidence && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      proof_ref?: string;
+      delivered_at?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.proof_ref?.trim()) {
+      return problem(400, "proof-ref-required", "A proof reference is required.");
+    }
+    const shipment = await logistics.get(deliveryEvidence[1]);
+    if (!shipment) return problem(404, "shipment-not-found");
+    const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+      lineKey: String(line.line_key ?? ""),
+      deliveredQty: Number(line.delivered_qty ?? 0),
+    }));
+    if (
+      deliveredLines.length === 0 ||
+      deliveredLines.some((line) => !line.lineKey || line.deliveredQty <= 0)
+    ) {
+      return problem(
+        400,
+        "delivery-lines-required",
+        "At least one positive delivered quantity is required.",
+      );
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const result = await logistics.deliver({
+        shipmentId: shipment.id,
+        proofRef: body.proof_ref.trim(),
+        deliveredAt: body.delivered_at,
+        deliveredLines,
+      });
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: {
+          shipment_id: shipment.id,
+          status: "delivered",
+          proof_ref: body.proof_ref.trim(),
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  const simulateShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)\/simulate-event$/);
+  if (simulateShipment && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      scenario?: string;
+      proof_ref?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const scenarios = ["failed_attempt", "delay", "damaged", "lost", "rto", "duplicate", "out_of_order"] as const;
+    if (!body.scenario || !scenarios.includes(body.scenario as (typeof scenarios)[number])) {
+      return problem(400, "invalid-scenario", `Scenario must be one of ${scenarios.join(", ")}.`);
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const shipment = await logistics.get(simulateShipment[1]);
+      if (!shipment) {
+        await privilegedAudit.complete(auditId, 404);
+        return problem(404, "shipment-not-found");
+      }
+      const result = await logistics.simulate({
+        shipmentId: shipment.id,
+        scenario: body.scenario as (typeof scenarios)[number],
+        proofRef: body.proof_ref,
+        deliveredLines: (body.delivered_lines ?? []).map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          deliveredQty: Number(line.delivered_qty ?? 0),
+        })),
+      });
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: {
+          shipment_id: shipment.id,
+          status: result.event.status,
+          simulated: true,
+          scenario: body.scenario,
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  const reconcileShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)\/reconcile$/);
+  if (reconcileShipment && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    const result = await logistics.reconcile(reconcileShipment[1]);
+    if (!result) {
+      await privilegedAudit.complete(auditId, 404);
+      return problem(404, "shipment-not-found");
+    }
+    await privilegedAudit.complete(auditId, 200);
+    return json({
+      reconciliation: result,
+      shipment: await logistics.get(reconcileShipment[1]),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/admin/shipment-exceptions" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await logistics.listExceptions(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  const logisticsWebhook = url.pathname.match(/^\/v1\/integrations\/logistics\/webhooks\/([^/]+)$/);
+  if (logisticsWebhook && req.method === "POST") {
+    if (!config.logisticsWebhookSecret) {
+      return problem(503, "webhook-not-configured", "Logistics webhook is not configured.");
+    }
+    const supplied = req.headers.get("x-logistics-webhook-secret") ?? "";
+    const expected = config.logisticsWebhookSecret;
+    if (
+      supplied.length !== expected.length ||
+      !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+    ) {
+      return problem(401, "invalid-webhook-secret", "Invalid logistics webhook secret.");
+    }
+    let body: {
+      shipment_id?: string;
+      provider_event_id?: string;
+      event_type?: string;
+      status?: string;
+      occurred_at?: string;
+      payload?: Record<string, unknown>;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+      proof_ref?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.shipment_id || !body.provider_event_id || !body.status) {
+      return problem(400, "missing-fields", "shipment_id, provider_event_id and status are required.");
+    }
+    const shipment = await logistics.get(body.shipment_id);
+    if (!shipment) return problem(404, "shipment-not-found");
+    const status = body.status as import("./logistics/shipment-store.js").ShipmentStatus;
+    if (!["booked", "picked_up", "in_transit", "delivery_failed", "out_for_delivery", "damaged", "lost", "delivered", "rto_in_transit", "rto_delivered", "cancelled"].includes(status)) {
+      return problem(400, "invalid-shipment-status");
+    }
+    const result = await logistics.appendEvent({
+      shipmentId: shipment.id,
+      providerEventId: body.provider_event_id,
+      eventType: body.event_type ?? "shipment.status_changed",
+      status,
+      occurredAt: body.occurred_at ?? new Date().toISOString(),
+      payload: body.payload ?? {},
+      proofRef: body.proof_ref,
+      deliveredLines: (body.delivered_lines ?? []).map((line) => ({
+        lineKey: String(line.line_key ?? ""),
+        deliveredQty: Number(line.delivered_qty ?? 0),
+      })),
+    });
+    if (!result.duplicate && result.statusChanged) {
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: { shipment_id: shipment.id, status: result.event.status, provider: logisticsWebhook[1] },
+      });
+    }
+    return json({
+      accepted: true,
+      duplicate: result.duplicate,
+      status_changed: result.statusChanged,
+      event: result.event,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, result.duplicate ? 200 : 201);
+  }
+
+  // Customer creates a Phase 1 return request. Eligibility is server-computed.
+  const createReturn = url.pathname.match(/^\/v1\/orders\/([^/]+)\/returns$/);
+  if (createReturn && req.method === "POST") {
+    const orderId = createReturn[1];
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
+    if ("response" in authenticated) return authenticated.response;
+    const idempotencyKey = req.headers.get("idempotency-key")?.trim();
+    if (!idempotencyKey || idempotencyKey.length < 8) {
+      return problem(400, "idempotency-key-required", "An Idempotency-Key header is required.");
+    }
+    let body: {
+      resolution?: string;
+      reason_code?: string;
+      customer_comment?: string;
+      lines?: Array<{ line_key?: string; requested_qty?: number; reason_code?: string }>;
+      evidence?: Array<{
+        line_key?: string;
+        object_key?: string;
+        content_type?: string;
+        size_bytes?: number;
+        sha256?: string;
+      }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const resolution = body.resolution === "replacement" ? "replacement" : "refund";
+    const requestedLines = (body.lines ?? []).filter(
+      (line) => line.line_key && Number(line.requested_qty ?? 0) > 0,
+    );
+    if (requestedLines.length === 0) {
+      return problem(400, "return-lines-required", "At least one return line is required.");
+    }
+    const ref = await correlation.get(orderId);
+    if (!ref) return problem(404, "order-not-found", "No correlated order for this reference.");
+    const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
+    const eligibilityByLine = new Map(eligibility.map((line) => [line.line_key, line]));
+    const lines = [];
+    for (const requested of requestedLines) {
+      const line = eligibilityByLine.get(String(requested.line_key));
+      if (!line || !line.eligible) {
+        return problem(409, "return-line-ineligible", "A requested line is not eligible for return.", {
+          correlation_id: cid,
+          line_key: requested.line_key,
+          reason: line?.ineligible_reason ?? "line_not_found",
+        });
+      }
+      const reason = requested.reason_code ?? body.reason_code ?? RETURN_POLICY.reasons[0];
+      if (!RETURN_POLICY.reasons.includes(reason as (typeof RETURN_POLICY.reasons)[number])) {
+        return problem(400, "invalid-return-reason", "The return reason is not allowed.");
+      }
+      const quantity = Number(requested.requested_qty);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > line.returnable_qty) {
+        return problem(409, "return-quantity-invalid", "The requested quantity exceeds the returnable quantity.", {
+          correlation_id: cid,
+          line_key: requested.line_key,
+          returnable_qty: line.returnable_qty,
+        });
+      }
+      lines.push({
+        lineKey: line.line_key,
+        sku: line.sku,
+        orderedQty: line.ordered_qty,
+        deliveredQty: line.delivered_qty,
+        requestedQty: quantity,
+        reasonCode: reason,
+      });
+    }
+    const evidence = (body.evidence ?? [])
+      .filter((item) => item.object_key && item.content_type)
+      .map((item) => ({
+        lineKey: item.line_key ?? null,
+        objectKey: String(item.object_key),
+        contentType: String(item.content_type),
+        sizeBytes: Number(item.size_bytes ?? 0),
+        sha256: item.sha256 ?? null,
+      }));
+    try {
+      const result = await returns.request({
+        orderId,
+        orderGroupId: ref.medusa_order_group_id ?? null,
+        userId: authenticated.user.id,
+        idempotencyKey,
+        policyVersion: RETURN_POLICY.version,
+        policySnapshot: returnPolicySnapshot(eligibility),
+        resolution,
+        reasonCode: body.reason_code ?? lines[0].reasonCode,
+        customerComment: body.customer_comment ?? null,
+        lines,
+        evidence,
+      });
+      if (!result.replayed) {
+        await events.append({
+          event_type: "return.requested",
+          aggregate_type: "return",
+          aggregate_id: result.returnCase.id,
+          correlation_id: cid,
+          payload: {
+            return_id: result.returnCase.id,
+            order_id: orderId,
+            checkout_ref: orderId,
+            status: result.returnCase.status,
+            resolution: result.returnCase.resolution,
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        });
+      }
+      return json({
+        return: result.returnCase,
+        replayed: result.replayed,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, result.replayed ? 200 : 201);
+    } catch (error) {
+      if ((error as { code?: string }).code === "idempotency-key-reuse") {
+        return problem(409, "idempotency-key-reuse", "This idempotency key was used with a different payload.");
+      }
+      throw error;
+    }
+  }
+
+  if (url.pathname === "/v1/me/returns" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (!hasAnyRole(authenticated.authorization, ["customer", "b2b_buyer", "b2b_account_admin"])) {
+      return problem(403, "customer-role-required");
+    }
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    return json({
+      items: await returns.listForUser(authenticated.user.id, Number.isFinite(limit) ? limit : 50),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const customerReturn = url.pathname.match(/^\/v1\/returns\/([^/]+)$/);
+  if (customerReturn && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const record = await returns.getForUser(customerReturn[1], authenticated.user.id);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/admin/returns" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await returns.listAll(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const adminReturnDetail = url.pathname.match(/^\/v1\/admin\/returns\/([^/]+)$/);
+  if (adminReturnDetail && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const record = await returns.get(adminReturnDetail[1]);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const adminReturn = url.pathname.match(/^\/v1\/admin\/returns\/([^/]+)\/(approve|reject)$/);
+  if (adminReturn && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      comment?: string;
+      approved_lines?: Array<{ line_key?: string; approved_qty?: number }>;
+    } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body when supplied.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const record = await returns.decide({
+        id: adminReturn[1],
+        decision: adminReturn[2] === "approve" ? "approved" : "rejected",
+        actorId: operator.user.id,
+        actorRole: operator.authorization.roles.includes("support_operator")
+          ? "support_operator"
+          : "marketplace_operator",
+        comment: body.comment ?? null,
+        approvedLines: (body.approved_lines ?? []).map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          approvedQty: Number(line.approved_qty ?? 0),
+        })),
+      });
+      await privilegedAudit.complete(auditId, 200);
+      await events.append({
+        event_type: "return.decision",
+        aggregate_type: "return",
+        aggregate_id: record.id,
+        correlation_id: cid,
+        payload: {
+          return_id: record.id,
+          order_id: record.orderId,
+          checkout_ref: record.orderId,
+          status: record.status,
+          resolution: record.resolution,
+          money_effect: "none",
+          stock_effect: "none",
+        },
+      });
+      return json({
+        return: record,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      await privilegedAudit.complete(auditId, code === "return-not-found" ? 404 : 409);
+      if (code === "return-not-found") return problem(404, "return-not-found");
+      if (code === "return-not-decidable") return problem(409, "return-not-decidable");
+      throw error;
+    }
   }
 
   // GET /v1/me/notifications — durable per-user inbox. Legacy path remains a bounded alias.
@@ -1765,9 +2454,24 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             payment_mode: "simulated" as const,
             test_data: true as const,
           };
+          const orderGroupPayload = {
+            ...(result.order_group ?? {}),
+            destination_postcode:
+              (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+            lines: (cart.items ?? []).map((item) => ({
+              line_key: item.id,
+              sku: item.sku ?? item.variant_id ?? item.id,
+              title: item.product_title ?? item.title,
+              quantity: item.quantity,
+              unit_price: item.unit_price,
+              product_id: item.product_id ?? null,
+              variant_id: item.variant_id ?? null,
+              seller_id: item.seller_id ?? null,
+            })),
+          };
           await correlation.link(cartId, {
             orderGroup: result.order_group?.id,
-            orderGroupPayload: result.order_group,
+            orderGroupPayload,
             paymentEvidence,
           });
           await events.appendOrderConfirmed({
@@ -1778,6 +2482,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             payload: {
               cart_id: cartId,
               order_group: result.order_group,
+              lines: orderGroupPayload.lines,
               payment: paymentEvidence,
             },
           });
@@ -2374,6 +3079,34 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  // GET /v1/me/orders — API-backed customer order history.
+  if (url.pathname === "/v1/me/orders" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (!hasAnyRole(authenticated.authorization, ["customer", "b2b_buyer", "b2b_account_admin"])) {
+      return problem(403, "customer-role-required");
+    }
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    const records = await correlation.listForUser(
+      authenticated.user.id,
+      Number.isFinite(limit) ? limit : 50,
+    );
+    return json({
+      items: records.map((ref) => ({
+        order_id: ref.checkout_ref,
+        medusa_order_group_id: ref.medusa_order_group_id,
+        status: ref.medusa_order_group_id ? "confirmed" : "not_started",
+        created_at: ref.created_at,
+        lines: orderLineSnapshots(ref),
+        payment_mode: config.paymentAdapterMode,
+        test_data: true,
+      })),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   // GET /v1/orders/{orderId} — customer order read (correlated staging references)
   const customerOrder = url.pathname.match(/^\/v1\/orders\/([^/]+)$/);
   if (customerOrder && req.method === "GET") {
@@ -2386,6 +3119,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     const trytonMove = ref.tryton_move_id ?? null;
     const orderGroup = ref.medusa_order_group_id ?? null;
+    const shipments = orderGroup ? await shipmentsWithEvents(orderGroup) : [];
+    const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
+    const relatedReturns = (await returns.listForUser(authenticated.user.id, 50))
+      .filter((item) => item.orderId === orderId);
     return json({
       order_id: orderId,
       medusa_order_group_id: orderGroup,
@@ -2396,6 +3133,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       reservation_id: trytonMove ? `tryton_move_${trytonMove}` : null,
       reservation_status: trytonMove ? "committed" : "not_started",
       reconciled: Boolean(orderGroup && trytonMove),
+      lines: orderLineSnapshots(ref),
+      shipments,
+      return_eligibility: eligibility,
+      returns: relatedReturns,
+      logistics_mode: "simulated",
       correlation_id: cid,
     });
   }

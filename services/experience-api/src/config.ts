@@ -76,6 +76,10 @@ export interface Config {
   workspaceServiceUrl?: string;
   /** HMAC secret used only for the Experience API → Workspace actor context. */
   workspaceServiceSecret?: string;
+  /** Staging-only shared secret for the simulated logistics webhook. */
+  logisticsWebhookSecret?: string;
+  /** Staging-only service secret used by the Mercur admin console proxy. */
+  adminServiceSecret?: string;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -186,6 +190,23 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     );
   }
 
+  // Staging/dummy service credentials. Production must supply real secrets from the secret manager;
+  // the dummy values are deliberately not applied when BUILDKART_ENVIRONMENT=production.
+  // Production is rejected earlier by the pilot-identity guard, so this staging fallback cannot
+  // become a production credential.
+  const logisticsWebhookSecret =
+    env.LOGISTICS_WEBHOOK_SECRET?.trim() ||
+    "buildkart-staging-dummy-logistics-webhook-secret";
+  if (logisticsWebhookSecret.length < 24) {
+    throw new Error("LOGISTICS_WEBHOOK_SECRET must be at least 24 characters when configured.");
+  }
+  const adminServiceSecret =
+    env.BUILDKART_ADMIN_SERVICE_SECRET?.trim() ||
+    "buildkart-staging-dummy-admin-service-secret";
+  if (adminServiceSecret.length < 24) {
+    throw new Error("BUILDKART_ADMIN_SERVICE_SECRET must be at least 24 characters when configured.");
+  }
+
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
@@ -241,5 +262,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     ),
     workspaceServiceUrl,
     workspaceServiceSecret,
+    logisticsWebhookSecret,
+    adminServiceSecret,
   };
 }

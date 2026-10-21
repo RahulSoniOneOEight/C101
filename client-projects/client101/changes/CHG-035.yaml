@@ -151,14 +151,29 @@ approval_required: true
 implementation:
   requested_by: human-requester
   requested_at_utc: '2026-10-20'
-  approval_scope: commit-1-contracts-only
-  status: commit-1-contracts-validated-runtime-pending
+  staging_runtime_requested_at_utc: '2026-10-21'
+  approval_scope: delivery-returns-commits-1-to-8-staging-only
+  status: staging-runtime-implemented-open-decisions-pending
   runtime_authorized: false
+  staging_runtime_implemented: true
   contract_phase: commit-1
   contract_validation: pass
   rule_registry_validation: pass
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
+  runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
+  verification:
+    experience_api_typecheck: pass
+    admin_panel_build: pass
+    flutter_analyze: pass
+    flutter_test: pass-266
+    return_eligibility_test: pass
+    return_no_effects_test: pass
+    shipment_db_tests: pass
+    return_idempotency_db_test: pass
+    shipment_auth_http_test: pass
+  open_decisions_implemented_as_staging_defaults: true
+  open_decisions_production_approved: false
   planned_commits:
   - commit-1: Contracts only — CHG-017 rev 7, CHG-035, approvals ledger, data contract,
       validators, dependency map, AsyncAPI and rule registry.
@@ -171,6 +186,16 @@ implementation:
   - commit-7: Flutter async orders, shipment timeline, return flow and routes.
   - commit-8: Verification scripts and acceptance.
   evidence: client-projects/client101/evidence/CHG-035/contracts.md
+  runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
+  completed_commits:
+  - commit-1
+  - commit-2
+  - commit-3
+  - commit-4
+  - commit-5
+  - commit-6
+  - commit-7
+  - commit-8
   production_release_authorized: false
-status: commit-1-contracts-validated
+status: staging-runtime-implemented-open-decisions-pending
 production_release_authorized: false

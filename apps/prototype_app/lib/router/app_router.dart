@@ -25,6 +25,7 @@ import '../screens/product_detail_screen.dart';
 import '../screens/product_list_screen.dart';
 import '../screens/quote_detail_screen.dart';
 import '../screens/quote_list_screen.dart';
+import '../screens/return_flow_screens.dart';
 import '../screens/workspace_screen.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../widgets/conversation_dock.dart';
@@ -133,6 +134,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/orders/:id',
         builder: (context, state) =>
             OrderDetailScreen(orderId: state.pathParameters['id'] ?? ''),
+        routes: <RouteBase>[
+          GoRoute(
+            path: 'return',
+            builder: (context, state) => ReturnRequestScreen(
+              orderId: state.pathParameters['id'] ?? '',
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/returns/:id',
+        builder: (context, state) => ReturnStatusScreen(
+          returnId: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/track',

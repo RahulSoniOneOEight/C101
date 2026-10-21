@@ -15,6 +15,7 @@ import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
 import '../widgets/conversation_bell.dart';
 import '../widgets/order_progress_timeline.dart';
+import 'return_flow_screens.dart';
 
 AgencyColors _c(BuildContext c) =>
     Theme.of(c).extension<AgencyColors>() ?? AgencyColors.light;
@@ -894,8 +895,32 @@ class D2COrdersScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(ordersProvider);
-    if (orders.isEmpty) {
+    final ordersAsync = ref.watch(apiOrdersProvider);
+    final orders = ordersAsync.value;
+    if (ordersAsync.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('My Orders')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (ordersAsync.hasError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('My Orders')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const EmptyView(message: 'Orders could not be loaded'),
+              TextButton(
+                onPressed: () => ref.read(apiOrdersProvider.notifier).refresh(),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (orders == null || orders.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('My Orders')),
         body: const EmptyView(message: 'No orders yet'),
@@ -992,7 +1017,32 @@ class TrackPackageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
-    final order = ref.watch(orderByIdProvider(orderId ?? ''));
+    final orderAsync = ref.watch(apiOrderProvider(orderId ?? ''));
+    if (orderAsync.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Track Package')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (orderAsync.hasError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Track Package')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const EmptyView(message: 'Tracking could not be loaded'),
+              TextButton(
+                onPressed: () =>
+                    ref.invalidate(apiOrderProvider(orderId ?? '')),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final order = orderAsync.value;
     if (order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Track Package')),
@@ -1038,6 +1088,29 @@ class TrackPackageScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (order.shipments.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.sm),
+            Row(
+              children: <Widget>[
+                const Icon(Icons.science_outlined, size: 15),
+                const SizedBox(width: 4),
+                Text(
+                  'Simulated delivery',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: colors.feedbackWarning,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  order.shipments.first.trackingNumber,
+                  style: TextStyle(
+                      fontSize: 10, color: colors.contentSecondary),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: AgencySpacing.lg),
           Text('Order progress',
               style: TextStyle(
@@ -1103,7 +1176,31 @@ class OrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
-    final order = ref.watch(orderByIdProvider(orderId));
+    final orderAsync = ref.watch(apiOrderProvider(orderId));
+    if (orderAsync.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Order')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (orderAsync.hasError) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Order')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const EmptyView(message: 'Order could not be loaded'),
+              TextButton(
+                onPressed: () => ref.invalidate(apiOrderProvider(orderId)),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final order = orderAsync.value;
     if (order == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Order')),
@@ -1155,6 +1252,18 @@ class OrderDetailScreen extends ConsumerWidget {
           const SizedBox(height: AgencySpacing.md),
           _section(context, 'Items'),
           for (final line in order.lines) _line(context, line),
+          if (order.shipments.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.md),
+            _section(context, 'Delivery'),
+            for (final shipment in order.shipments)
+              _shipmentCard(context, shipment),
+          ],
+          if (order.returns.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.md),
+            _section(context, 'Returns'),
+            for (final record in order.returns)
+              _returnCard(context, record),
+          ],
           const SizedBox(height: AgencySpacing.md),
           _section(context, 'Delivery address'),
           Text(order.addressLabel,
@@ -1167,54 +1276,134 @@ class OrderDetailScreen extends ConsumerWidget {
           const Divider(),
           _row(context, 'Total paid', order.total.formatted, bold: true),
           const SizedBox(height: AgencySpacing.lg),
-          if (order.cancelEligible)
-            PinWorkflowAction(
-              label: 'Cancel order',
-              hierarchy: PinWorkflowHierarchy.destructive,
-              onPressed: () => _cancel(context, ref, order),
-            ),
-          if (order.returnEligible) ...<Widget>[
-            const SizedBox(height: AgencySpacing.sm),
+          if (order.returnEligible)
             PinWorkflowAction(
               label: 'Return / Replace',
               hierarchy: PinWorkflowHierarchy.secondary,
               onPressed: () => _return(context, ref, order),
             ),
-          ],
         ],
       ),
     );
   }
 
-  Future<void> _cancel(
-      BuildContext context, WidgetRef ref, CustomerOrder order) async {
-    final ok = await PinDialog.confirm(
-      context,
-      title: 'Cancel this order?',
-      message:
-          'Order ${order.number} will be cancelled. This cannot be undone.',
-      confirmLabel: 'Cancel order',
-      destructive: true,
-    );
-    if (!(ok ?? false) || !context.mounted) return;
-    ref.read(ordersProvider.notifier).cancel(order.id);
-    PinToast.show(context, 'Order cancelled', tone: PinToastTone.info);
-  }
-
   Future<void> _return(
       BuildContext context, WidgetRef ref, CustomerOrder order) async {
-    final ok = await PinDialog.confirm(
-      context,
-      title: 'Request a return?',
-      message:
-          'We will arrange a pickup for ${order.number}. Refunds are issued to '
-          'the original payment method after inspection.',
-      confirmLabel: 'Request return',
-    );
-    if (!(ok ?? false) || !context.mounted) return;
-    ref.read(ordersProvider.notifier).requestReturn(order.id);
-    PinToast.show(context, 'Return requested', tone: PinToastTone.success);
+    await showReturnRequestSheet(context, ref, order);
   }
+
+  Widget _shipmentCard(BuildContext context, Shipment shipment) {
+    final colors = _c(context);
+    final delivered = shipment.status == 'delivered';
+    final exception = const <String>[
+      'delivery_failed',
+      'damaged',
+      'lost',
+    ].contains(shipment.status);
+    return Container(
+      margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
+      padding: const EdgeInsets.all(AgencySpacing.sm),
+      decoration: BoxDecoration(
+        color: colors.surfaceRaised,
+        borderRadius: BorderRadius.circular(AgencyRadius.md),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  _label(shipment.status),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: delivered
+                        ? colors.actionPrimary
+                        : exception
+                            ? colors.feedbackError
+                            : colors.contentPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                shipment.trackingNumber,
+                style: TextStyle(fontSize: 10, color: colors.contentSecondary),
+              ),
+            ],
+          ),
+          Text(
+            [
+              'Simulated delivery',
+              if (shipment.deliveredAt != null)
+                'delivered ${_shortDate(shipment.deliveredAt!)}',
+              if (shipment.proofRef != null) 'proof captured',
+            ].join(' · '),
+            style: TextStyle(fontSize: 10, color: colors.contentSecondary),
+          ),
+          const SizedBox(height: 4),
+          for (final line in shipment.lines)
+            Text(
+              '${line.sku} · delivered ${line.deliveredQty} of ${line.orderedQty}',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _returnCard(BuildContext context, ReturnSummary record) {
+    final colors = _c(context);
+    return InkWell(
+      onTap: () => context.push('/returns/${record.id}'),
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
+        padding: const EdgeInsets.all(AgencySpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
+          border: Border.all(color: colors.borderDefault),
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    '${_label(record.status)} · ${_label(record.resolution)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: colors.contentPrimary,
+                    ),
+                  ),
+                  Text(
+                    '${record.lines.fold<int>(0, (sum, line) => sum + line.quantity)} item(s) · no refund or stock movement in this phase',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: colors.contentSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: colors.contentSecondary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _label(String value) {
+    final words = value.replaceAll('_', ' ');
+    return words.isEmpty ? value : words[0].toUpperCase() + words.substring(1);
+  }
+
+  String _shortDate(DateTime value) =>
+      '${value.day}/${value.month}/${value.year}';
 
   Widget _section(BuildContext context, String title) => Padding(
         padding: const EdgeInsets.only(bottom: AgencySpacing.xs),
@@ -1242,6 +1431,18 @@ class OrderDetailScreen extends ConsumerWidget {
                   Text(line.brand!,
                       style: TextStyle(
                           fontSize: 11, color: colors.contentSecondary)),
+                if (line.deliveredQty > 0)
+                  Text(
+                    'Delivered ${line.deliveredQty} · returnable ${line.returnableQty}',
+                    style: TextStyle(
+                        fontSize: 10, color: colors.contentSecondary),
+                  ),
+                if (!line.returnEligible && line.ineligibleReason != null)
+                  Text(
+                    line.ineligibleReason!.replaceAll('_', ' '),
+                    style: TextStyle(
+                        fontSize: 10, color: colors.feedbackWarning),
+                  ),
               ],
             ),
           ),

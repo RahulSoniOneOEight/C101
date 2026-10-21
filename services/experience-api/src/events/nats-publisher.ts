@@ -15,6 +15,9 @@ const SUBJECT_BY_EVENT: Record<string, string> = {
   "inventory.reservation_committed": "inventory.reservation.committed.v1",
   "inventory.reservation_released": "inventory.reservation.released.v1",
   "shipment.status_changed": "logistics.shipment.status-changed.v1",
+  "return.requested": "return.requested.v1",
+  "return.decision": "return.decision.v1",
+  "return.status-changed": "return.status-changed.v1",
 };
 
 export function eventSubject(eventType: string): string {

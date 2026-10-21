@@ -3,6 +3,10 @@ export const PILOT_NOTIFICATION_TEMPLATES = [
   "price_drop_v1",
   "order_confirmed_v1",
   "delivery_update_v1",
+  "delivery_delivered_v1",
+  "delivery_exception_v1",
+  "return_requested_v1",
+  "return_decision_v1",
 ] as const;
 
 export type PilotNotificationTemplate = typeof PILOT_NOTIFICATION_TEMPLATES[number];
@@ -73,13 +77,51 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
       };
     }
     case "shipment.status_changed": {
+      const status = text(payload.status, "");
+      const delivered = status === "delivered";
+      const exception = ["delivery_failed", "damaged", "lost"].includes(status);
       return {
-        templateKey: "delivery_update_v1",
+        templateKey: delivered
+          ? "delivery_delivered_v1"
+          : exception
+            ? "delivery_exception_v1"
+            : "delivery_update_v1",
         audience: "order-owner",
-        title: "Delivery Status Update",
-        body: "Your simulated shipment status changed. Open BuildKart to see details.",
+        title: delivered
+          ? "Delivered Successfully"
+          : exception
+            ? "Delivery Needs Attention"
+            : "Delivery Status Update",
+        body: delivered
+          ? "Your simulated delivery is complete. Open BuildKart to review the order."
+          : exception
+            ? "A simulated delivery exception was recorded. Open BuildKart for details."
+            : "Your simulated shipment status changed. Open BuildKart to see details.",
         deepLink: `/track?order=${encodeURIComponent(aggregateId)}`,
         imageUrl: IMAGE.delivery,
+      };
+    }
+    case "return.requested": {
+      return {
+        templateKey: "return_requested_v1",
+        audience: "order-owner",
+        title: "Return Requested",
+        body: "Your return request was recorded. A support operator will review it.",
+        deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
+        imageUrl: IMAGE.order,
+      };
+    }
+    case "return.decision": {
+      const status = text(payload.status, "decision");
+      return {
+        templateKey: "return_decision_v1",
+        audience: "order-owner",
+        title: status === "approved" ? "Return Approved" : "Return Update",
+        body: status === "approved"
+          ? "Your return was approved. No refund or stock movement is executed in this phase."
+          : "Your return decision was recorded. Open BuildKart for the outcome.",
+        deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
+        imageUrl: IMAGE.order,
       };
     }
     default:
