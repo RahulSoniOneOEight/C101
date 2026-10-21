@@ -98,10 +98,8 @@ a running Experience API; the operator branch uses the dummy staging service sec
   - Customer created return `ret_5ba8c1104472417f8aee93aec14070eb`.
   - Admin approved it; decision event records `money_effect=none`, `stock_effect=none`.
   - Seller view showed `approved`, decided by the admin, with one seller-scoped line.
-- Mercur does not currently publish `marketplace-allocation.created` into the Experience API NATS
-  stream. A staging-only `order.confirmed` fallback books one shipment per seller from
-  seller-enriched line snapshots. The allocation consumer remains primary and dedupes by
-  `(order_group_id, seller_id)`.
+- Superseded on 2026-10-21: the temporary `order.confirmed` staging booking fallback was removed.
+  Mercur now publishes `marketplace-allocation.created` (see the allocation-producer section below).
 - Production remains unauthorized.
 
 ## Native order detail and populated workbenches (2026-10-21)
@@ -142,6 +140,49 @@ a running Experience API; the operator branch uses the dummy staging service sec
 - Final hosted acceptance: **11/11 pass**. Extended shipment/order-group authorization test: pass.
 - Admin root, Shipments and Returns routes each respond `200`; the deployed admin bundle contains the
   order-detail widget.
+- Production remains unauthorized.
+
+## Allocation-driven booking producer (2026-10-21)
+
+- Deployed staging release `7eb7689`; producer introduced in `1c1435e`, with native order-line
+  projection corrected in `7eb7689`.
+- The Mercur worker subscribes to the documented `order_group.created` event, reads the completed
+  cart, order-group, seller-order and order-line projection, and publishes one canonical
+  `marketplace-allocation.created` event per seller order to
+  `marketplace-allocation.created.v1`.
+- Allocation and event IDs are deterministic:
+  `allocation_id = alloc_<native seller order suffix>`, event ID derived from the allocation ID.
+  Redelivery and retry therefore converge instead of creating a second allocation.
+- Line evidence comes from the native order-line `detail` (quantity, variant, SKU) and the canonical
+  cart line key. The producer fails closed when a seller order cannot be traced to its source cart
+  lines or when the native projection has unmatched lines.
+- The payload carries `order_id`, `order_group_id`, `seller_id`, `seller_order_id`,
+  `order_line_ids`, per-line `line_key`/`sku`/`variant_id`/`quantity`, `destination_postcode`,
+  `status=confirmed`, `environment=staging` and `test_data=true`.
+- The Experience API consumer filter is now `marketplace-allocation.>`; the old catch-all filter was
+  reconciled in place. The `order.confirmed` booking fallback is removed from the worker.
+- Real staging proof:
+  - Fresh order `cart_01M5EZYVTCPMWQGNNJSAYCTS47` / `og_01M5EZYZ4KKWAP9H9Z49SX32C7` produced
+    allocation `alloc_01M5EZYZ3QBQXT9QPZVYS7RAS9` and shipment
+    `ship_f41f6f25780f4829963d4ab9ce76349d` with no fallback.
+  - Delivery recorded with proof `staging://allocation-cycle/...` and `3/3` delivered units.
+  - Customer requested return `ret_986e2124bf7745dc8b99bc3477bc00df` for 2 units (damaged).
+  - Admin approved it as `support_operator`; the decision event records `money_effect=none` and
+    `stock_effect=none`.
+- The one order that failed during the producer rollout (`og_01M5EZB5WTR8MRDKGHNW5JNA98`) was
+  repaired through the governed staging repair script; it now has allocation
+  `alloc_01M5EZB5W5QWK03V7SFFC7S9JD` and shipment `ship_058caf6fbaf1437797c6810c221541c1`.
+- JetStream stream subjects now include `marketplace-allocation.>`. The active durable consumers are
+  `pilot-notification-dispatch`, `reconciliation-tracker`, `tryton-reservation` and
+  `marketplace-allocation-shipment-booking`; the retired `order-confirmed-staging-shipment-fallback`
+  and an obsolete experimental consumer were deleted.
+- Staging totals after the allocation cycle: **9 shipments** (`5 delivered`, `2 booked`,
+  `1 in_transit`, `1 delivery_failed`) and **5 returns** (`3 approved`, `1 requested`, `1 rejected`).
+- Historical shipments created before the switch retain their `order-confirmed:` allocation IDs as
+  immutable staging evidence; every shipment created after the switch uses `alloc_...`.
+- Verification: allocation-event unit tests **3/3 pass**, backend typecheck pass, hosted acceptance
+  **11/11 pass**, shipment/order-group authorization test pass, and the event outbox backlog is
+  **zero**.
 - Production remains unauthorized.
 
 ## Open decisions still requiring human approval

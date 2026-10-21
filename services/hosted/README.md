@@ -304,10 +304,29 @@ bun services/hosted/scripts/populate-tryton.ts carts.json
 allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
 `order_summary.created_at` (staging dummy data only).
 
-`seed-delivery-return-lifecycles.ts` additionally waits for allocation/fallback shipment booking,
+`seed-delivery-return-lifecycles.ts` additionally waits for allocation-driven shipment booking,
 uses seller-scoped status updates, records delivery proof and quantities, initiates returns as the
 customer, and records requested/approved/rejected admin states. Approval remains workflow evidence
 only: no refund, Medusa money mutation or Tryton stock movement occurs.
+
+### Allocation event producer
+
+Mercur publishes `marketplace-allocation.created` from its worker. The subscriber reads the
+documented `order_group.created` event, resolves the completed cart and seller orders, and emits one
+deterministic allocation per seller order to the `marketplace-allocation.created.v1` JetStream
+subject. `order.confirmed` is not a booking trigger.
+
+The worker needs `NATS_URL` and the NATS credentials (compose loads `nats.env` into `medusa-worker`).
+If publication failed during a rollout, repair specific order groups through the same idempotent
+producer:
+
+```sh
+docker compose -f docker-compose.hosted.yml exec -T \
+  -e REPAIR_ORDER_GROUP_IDS=og_...,og_... \
+  medusa-worker npm run repair:marketplace-allocations
+```
+
+The repair script refuses to run outside `BUILDKART_ENVIRONMENT=staging`.
 
 ## Marketplace merchandising (CHG-029 / CHG-030)
 

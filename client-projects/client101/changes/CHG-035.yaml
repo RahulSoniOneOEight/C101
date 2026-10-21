@@ -1,5 +1,5 @@
 change_id: CHG-035
-revision: 2
+revision: 3
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
@@ -109,6 +109,13 @@ proposed_decisions:
     Create deterministic staging lifecycle fixtures through the real checkout, seller shipment and
     customer return APIs so the operational workbenches contain booked, in-transit, exception,
     delivered, requested, approved and rejected examples. Fixture creation remains staging-only.
+- D-035-13: >-
+    The Mercur worker owns a marketplace-allocation.created producer. It subscribes to the documented
+    order_group.created event, reads the completed cart, seller-order and order-line projection, and
+    publishes one canonical allocation event per seller order to JetStream with deterministic event
+    and allocation IDs. Quantity and variant evidence come from the native order-line detail, never
+    from an inferred fallback. order.confirmed remains an order-timeline and notification trigger.
+    The staging order.confirmed booking fallback is removed.
 open_decisions:
 - id: OD-035-01
   decision: Final return window and category/reason matrix
@@ -176,7 +183,7 @@ implementation:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: 6c291a5
+  staging_release: 7eb7689
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   contract_phase: commit-1
@@ -185,7 +192,7 @@ implementation:
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: 6c291a5
+  implementation_commit: 7eb7689
   order_detail_increment:
     requested_by: human-requester
     requested_at_utc: '2026-10-21'
@@ -199,6 +206,31 @@ implementation:
     staging_return_records: 4
     return_event_outbox_backlog: 0
     production_release_authorized: false
+  allocation_increment:
+    status: staging-deployed-verified
+    producer_commit: 1c1435e
+    detail_projection_fix_commit: 7eb7689
+    staging_release: 7eb7689
+    producer_source_event: order_group.created
+    published_event: marketplace-allocation.created
+    published_subject: marketplace-allocation.created.v1
+    allocation_consumer_filter: marketplace-allocation.>
+    fallback_removed: true
+    allocation_event_unit_test: pass-3-of-3
+    allocation_booking_smoke: pass
+    repaired_order_group: og_01M5EZB5WTR8MRDKGHNW5JNA98
+    repaired_shipment: ship_058caf6fbaf1437797c6810c221541c1
+    repaired_allocation: alloc_01M5EZB5W5QWK03V7SFFC7S9JD
+    cycle_order: cart_01M5EZYVTCPMWQGNNJSAYCTS47
+    cycle_order_group: og_01M5EZYZ4KKWAP9H9Z49SX32C7
+    cycle_shipment: ship_f41f6f25780f4829963d4ab9ce76349d
+    cycle_allocation: alloc_01M5EZYZ3QBQXT9QPZVYS7RAS9
+    cycle_return: ret_986e2124bf7745dc8b99bc3477bc00df
+    cycle_return_status: approved
+    cycle_money_effect: none
+    cycle_stock_effect: none
+    stale_consumers_removed: true
+    production_release_authorized: false
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass
@@ -211,6 +243,9 @@ implementation:
     shipment_db_tests: pass
     return_idempotency_db_test: pass
     shipment_auth_http_test: pass
+    allocation_event_unit_test: pass
+    allocation_producer_typecheck: pass
+    allocation_booking_cycle: pass
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:
