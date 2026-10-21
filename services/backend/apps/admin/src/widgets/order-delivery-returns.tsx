@@ -73,10 +73,12 @@ const Meta = ({
   label: metaLabel,
   value,
   mono = false,
+  truncate = false,
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  truncate?: boolean;
 }) => (
   <div className="min-w-0">
     <Text size="xsmall" className="text-ui-fg-subtle">
@@ -85,7 +87,14 @@ const Meta = ({
     <Text
       size="small"
       weight="plus"
-      className={mono ? "break-all font-mono" : "break-words"}
+      className={
+        truncate
+          ? `truncate${mono ? " font-mono" : ""}`
+          : mono
+            ? "break-all font-mono"
+            : "break-words"
+      }
+      title={truncate ? value : undefined}
     >
       {value}
     </Text>
@@ -220,16 +229,22 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       <Container className="divide-y p-0">
         <div className="flex flex-col gap-3 px-6 py-5 items-start md:flex-row md:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Heading level="h2">Shipment</Heading>
               <StatusBadge color="grey">{data.shipments.length}</StatusBadge>
+              <StatusBadge color="orange">Evidence only</StatusBadge>
             </div>
             <Text size="small" className="mt-1 text-ui-fg-subtle">
               Delivery evidence for order #{order.display_id ?? order.id}. This
               does not change native Medusa fulfilment status.
             </Text>
           </div>
-          <Button asChild size="small" variant="secondary">
+          <Button
+            asChild
+            size="small"
+            variant="secondary"
+            className="shrink-0 whitespace-nowrap"
+          >
             <Link to="/shipments">All shipments</Link>
           </Button>
         </div>
@@ -269,11 +284,17 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             label="Delivered"
                             value={`${delivered} of ${ordered} units`}
                           />
-                          <Meta label="Seller" value={shipment.sellerId} mono />
+                          <Meta
+                            label="Seller"
+                            value={shipment.sellerId}
+                            mono
+                            truncate
+                          />
                         </div>
                         <Text
                           size="xsmall"
-                          className="mt-2 break-all text-ui-fg-subtle"
+                          className="mt-2 truncate text-ui-fg-subtle"
+                          title={shipment.proofRef ?? "Not captured"}
                         >
                           Proof: {shipment.proofRef ?? "Not captured"}
                         </Text>
@@ -316,7 +337,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             Record delivery
                           </Button>
                         ) : null}
-                        <Button asChild size="small" variant="secondary">
+                        <Button asChild size="small" variant="transparent">
                           <Link to={`/shipments/${shipment.id}`}>
                             View timeline
                           </Link>
@@ -334,7 +355,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       <Container className="divide-y p-0">
         <div className="flex flex-col gap-3 px-6 py-5 items-start md:flex-row md:justify-between">
           <div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Heading level="h2">Returns</Heading>
               <StatusBadge color="grey">{data.returns.length}</StatusBadge>
             </div>
@@ -344,7 +365,12 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
               stock.
             </Text>
           </div>
-          <Button asChild size="small" variant="secondary">
+          <Button
+            asChild
+            size="small"
+            variant="secondary"
+            className="shrink-0 whitespace-nowrap"
+          >
             <Link to="/returns">All returns</Link>
           </Button>
         </div>
@@ -433,7 +459,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                           </Button>
                         </>
                       ) : null}
-                      <Button asChild size="small" variant="secondary">
+                      <Button asChild size="small" variant="transparent">
                         <Link to={`/returns/${record.id}`}>View return</Link>
                       </Button>
                     </div>
@@ -458,11 +484,13 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
           <Text size="xsmall" className="mt-3 text-ui-fg-subtle">
             Last update: {shortDateTime(data.latest_update)}
           </Text>
-          <Text size="xsmall" className="mt-4 text-ui-fg-subtle">
-            Staging workflow evidence only. Delivery and return decisions do not
-            change native Medusa fulfilment or payment status, create no refund,
-            Medusa money effect or Tryton stock movement.
-          </Text>
+          <div className="mt-4 rounded-md bg-ui-bg-subtle px-3 py-2">
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Staging workflow evidence only. Delivery and return decisions do
+              not change native Medusa fulfilment or payment status, create no
+              refund, Medusa money effect or Tryton stock movement.
+            </Text>
+          </div>
         </div>
       </Container>
     </div>
