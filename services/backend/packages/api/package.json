@@ -49,6 +49,7 @@
     "@medusajs/draft-order": "2.20.1",
     "@mercurjs/core": "2.3.4",
     "@mercurjs/types": "2.3.4",
+    "nats": "^2.29.3",
     "http-proxy-middleware": "3.0.7",
     "@mercurjs/cli": "2.3.4"
   },

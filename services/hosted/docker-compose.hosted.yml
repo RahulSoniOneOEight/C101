@@ -105,13 +105,18 @@ services:
       args:
         MERCUR_BACKEND_URL: ${MERCUR_BACKEND_URL:?set MERCUR_BACKEND_URL}
     restart: unless-stopped
-    env_file: /etc/buildkart/secrets/medusa.env
+    env_file:
+      - /etc/buildkart/secrets/medusa.env
+      - /etc/buildkart/secrets/nats.env
     environment:
       MEDUSA_WORKER_MODE: worker
       DISABLE_MEDUSA_ADMIN: "true"
       PORT: "9011"
+      NATS_URL: nats://nats:4222
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
+      nats: {condition: service_healthy}
+      experience-api: {condition: service_healthy}
     networks: [private]
     volumes:
       - medusa_uploads:/app/packages/api/static

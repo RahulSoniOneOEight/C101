@@ -30,6 +30,7 @@ const STREAM_SUBJECTS = [
   "inventory.>",
   "logistics.>",
   "return.>",
+  "marketplace-allocation.>",
   "buildkart.>",
 ];
 const sc = StringCodec();
