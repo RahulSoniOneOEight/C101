@@ -261,7 +261,10 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             {shipment.trackingNumber}
                           </Text>
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2">
+                        <div
+                          className="mt-3 grid grid-cols-2"
+                          style={{ columnGap: "1.5rem", rowGap: "0.5rem" }}
+                        >
                           <Meta
                             label="Delivered"
                             value={`${delivered} of ${ordered} units`}
@@ -368,7 +371,10 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                           {label(record.reasonCode)}
                         </Text>
                       </div>
-                      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-3">
+                      <div
+                        className="mt-3 grid grid-cols-2 md:grid-cols-3"
+                        style={{ columnGap: "1.5rem", rowGap: "0.5rem" }}
+                      >
                         <Meta
                           label={
                             record.status === "approved"
@@ -442,14 +448,16 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       <Container className="p-0">
         <div className="px-6 py-4">
           <Heading level="h3">References</Heading>
-          <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div
+            className="mt-3 grid grid-cols-1 md:grid-cols-2"
+            style={{ columnGap: "1.5rem", rowGap: "0.5rem" }}
+          >
             <Meta label="Order group" value={data.order_group_id} mono />
             <Meta label="Customer checkout" value={data.order_id} mono />
-            <Meta
-              label="Last update"
-              value={new Date(data.latest_update).toLocaleString("en-IN")}
-            />
           </div>
+          <Text size="xsmall" className="mt-3 text-ui-fg-subtle">
+            Last update: {shortDateTime(data.latest_update)}
+          </Text>
           <Text size="xsmall" className="mt-4 text-ui-fg-subtle">
             Staging workflow evidence only. Delivery and return decisions do not
             change native Medusa fulfilment or payment status, create no refund,
