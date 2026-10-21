@@ -85,10 +85,13 @@ class ShipmentLine {
   final int deliveredQty;
 
   factory ShipmentLine.fromJson(Map<String, dynamic> json) => ShipmentLine(
-        lineKey: json['line_key'] as String? ?? '',
+        lineKey: (json['lineKey'] ?? json['line_key']) as String? ?? '',
         sku: json['sku'] as String? ?? '',
-        orderedQty: (json['ordered_qty'] as num?)?.toInt() ?? 0,
-        deliveredQty: (json['delivered_qty'] as num?)?.toInt() ?? 0,
+        orderedQty:
+            ((json['orderedQty'] ?? json['ordered_qty']) as num?)?.toInt() ?? 0,
+        deliveredQty:
+            ((json['deliveredQty'] ?? json['delivered_qty']) as num?)?.toInt() ??
+                0,
       );
 }
 
@@ -110,9 +113,14 @@ class ShipmentEvent {
   factory ShipmentEvent.fromJson(Map<String, dynamic> json) => ShipmentEvent(
         id: json['id'] as String? ?? '',
         status: json['status'] as String? ?? 'booked',
-        eventType: json['event_type'] as String? ?? 'shipment.status_changed',
-        occurredAt: DateTime.tryParse(json['occurred_at'] as String? ?? ''),
-        providerEventId: json['provider_event_id'] as String? ?? '',
+        eventType: (json['eventType'] ?? json['event_type']) as String? ??
+            'shipment.status_changed',
+        occurredAt: DateTime.tryParse(
+          (json['occurredAt'] ?? json['occurred_at']) as String? ?? '',
+        ),
+        providerEventId: (json['providerEventId'] ??
+                json['provider_event_id']) as String? ??
+            '',
       );
 }
 
@@ -140,10 +148,13 @@ class Shipment {
   factory Shipment.fromJson(Map<String, dynamic> json) => Shipment(
         id: json['id'] as String? ?? '',
         status: json['status'] as String? ?? 'booked',
-        trackingNumber: json['tracking_number'] as String? ?? '',
+        trackingNumber:
+            (json['trackingNumber'] ?? json['tracking_number']) as String? ?? '',
         provider: json['provider'] as String? ?? 'simulated',
-        deliveredAt: DateTime.tryParse(json['delivered_at'] as String? ?? ''),
-        proofRef: json['proof_ref'] as String?,
+        deliveredAt: DateTime.tryParse(
+          (json['deliveredAt'] ?? json['delivered_at']) as String? ?? '',
+        ),
+        proofRef: (json['proofRef'] ?? json['proof_ref']) as String?,
         lines: (json['lines'] as List? ?? const <dynamic>[])
             .whereType<Map<String, dynamic>>()
             .map(ShipmentLine.fromJson)
@@ -176,9 +187,14 @@ class ReturnSummary {
             .whereType<Map<String, dynamic>>()
             .map((line) => OrderLine(
                   title: line['sku'] as String? ?? 'Returned item',
-                  quantity: (line['requested_qty'] as num?)?.toInt() ?? 0,
+                  quantity: ((line['approvedQty'] ??
+                              line['approved_qty'] ??
+                              line['requestedQty'] ??
+                              line['requested_qty']) as num?)
+                          ?.toInt() ??
+                      0,
                   unitPriceMinor: 0,
-                  lineKey: line['line_key'] as String? ?? '',
+                  lineKey: (line['lineKey'] ?? line['line_key']) as String? ?? '',
                   sku: line['sku'] as String? ?? '',
                 ))
             .toList(),
