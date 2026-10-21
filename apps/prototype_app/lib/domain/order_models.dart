@@ -316,11 +316,12 @@ class CustomerOrder {
           OrderEvent(
             label: _statusLabel(event.status),
             timeLabel: _dateTimeLabel(event.occurredAt!),
-            done: const <String>[
-              'delivered',
-              'rto_delivered',
-              'cancelled',
-            ].contains(event.status),
+            done: event != shipmentEvents.last ||
+                const <String>[
+                  'delivered',
+                  'rto_delivered',
+                  'cancelled',
+                ].contains(event.status),
             active: event == shipmentEvents.last &&
                 !const <String>['delivered', 'rto_delivered', 'cancelled']
                     .contains(event.status),

@@ -42,6 +42,13 @@ void main() {
           ],
           'events': <Map<String, dynamic>>[
             {
+              'id': 'shev_booked',
+              'status': 'booked',
+              'eventType': 'booked',
+              'occurredAt': '2026-10-21T10:26:27.683Z',
+              'providerEventId': 'booked:alloc_01TEST',
+            },
+            {
               'id': 'shev_01TEST',
               'status': 'delivered',
               'eventType': 'seller.shipment.delivered',
@@ -73,7 +80,9 @@ void main() {
     expect(shipment.proofRef, 'staging://proof');
     expect(shipment.lines.single.orderedQty, 3);
     expect(shipment.lines.single.deliveredQty, 3);
-    expect(shipment.events.single.eventType, 'seller.shipment.delivered');
+    expect(shipment.events.last.eventType, 'seller.shipment.delivered');
+    expect(order.timeline.every((event) => event.done), isTrue);
+    expect(order.timeline.last.label, 'Delivered');
     expect(order.returns.single.status, 'approved');
     expect(order.returns.single.lines.single.quantity, 2);
     expect(order.returnStatus, 'approved');

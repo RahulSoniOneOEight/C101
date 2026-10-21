@@ -394,8 +394,8 @@ class ReturnStatusScreen extends ConsumerWidget {
                   contentPadding: EdgeInsets.zero,
                   title: Text(line['sku'] as String? ?? 'Returned item'),
                   subtitle: Text(
-                    'Requested ${line['requested_qty'] ?? 0}'
-                    '${line['approved_qty'] == null ? '' : ' � Approved ${line['approved_qty']}'}',
+                    'Requested ${line['requestedQty'] ?? line['requested_qty'] ?? 0}'
+                    '${(line['approvedQty'] ?? line['approved_qty']) == null ? '' : ' · Approved ${line['approvedQty'] ?? line['approved_qty']}'}',
                   ),
                 ),
             ],
