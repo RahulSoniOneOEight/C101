@@ -61,6 +61,14 @@ const decidedQuantity = (record: ReturnCase) =>
     ? approvedQuantity(record)
     : requestedQuantity(record);
 
+const shortDateTime = (value: string) =>
+  new Date(value).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 const Meta = ({
   label: metaLabel,
   value,
@@ -210,7 +218,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
   return (
     <div className="flex flex-col gap-y-3">
       <Container className="divide-y p-0">
-        <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 px-6 py-5 items-start md:flex-row md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <Heading level="h2">Shipment</Heading>
@@ -243,7 +251,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                     key={shipment.id}
                     className="rounded-lg border border-ui-border-base p-4"
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge color={shipmentColor(shipment.status)}>
@@ -253,23 +261,23 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             {shipment.trackingNumber}
                           </Text>
                         </div>
-                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 md:grid-cols-3">
+                        <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2">
                           <Meta
                             label="Delivered"
                             value={`${delivered} of ${ordered} units`}
                           />
                           <Meta label="Seller" value={shipment.sellerId} mono />
-                          <Meta
-                            label="Proof"
-                            value={shipment.proofRef ?? "Not captured"}
-                          />
                         </div>
-                        <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+                        <Text
+                          size="xsmall"
+                          className="mt-2 break-all text-ui-fg-subtle"
+                        >
+                          Proof: {shipment.proofRef ?? "Not captured"}
+                        </Text>
+                        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
                           {shipment.events.length} events
                           {lastEvent
-                            ? ` · last update ${new Date(
-                                lastEvent.occurredAt,
-                              ).toLocaleString("en-IN")}`
+                            ? ` · last update ${shortDateTime(lastEvent.occurredAt)}`
                             : ""}
                         </Text>
                         <div
@@ -290,7 +298,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                           />
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-start gap-2">
                         {shipment.status !== "delivered" ? (
                           <Button
                             size="small"
@@ -321,7 +329,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       </Container>
 
       <Container className="divide-y p-0">
-        <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-3 px-6 py-5 items-start md:flex-row md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <Heading level="h2">Returns</Heading>
@@ -350,7 +358,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                   key={record.id}
                   className="rounded-lg border border-ui-border-base p-4"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="flex flex-col items-start gap-4 lg:flex-row lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge color={returnColor(record.status)}>
@@ -364,19 +372,17 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                         <Meta
                           label={
                             record.status === "approved"
-                              ? "Approved"
-                              : "Requested"
+                              ? "Approved quantity"
+                              : "Requested quantity"
                           }
                           value={`${decidedQuantity(record)} unit(s)`}
                         />
                         <Meta
-                          label="Requested"
-                          value={new Date(record.requestedAt).toLocaleString(
-                            "en-IN",
-                          )}
+                          label="Opened"
+                          value={shortDateTime(record.requestedAt)}
                         />
                         <Meta
-                          label="Decision"
+                          label="Decided by"
                           value={record.decidedBy ?? "Awaiting operator"}
                         />
                       </div>
@@ -386,7 +392,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                         </Text>
                       ) : null}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-start gap-2">
                       {record.status === "requested" ? (
                         <>
                           <Button
