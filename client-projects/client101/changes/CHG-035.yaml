@@ -112,6 +112,12 @@ open_decisions:
 - id: OD-035-03
   decision: Return approver roles
   proposed: support_operator and marketplace_operator, with super_admin override
+  status: resolved
+  resolution: >-
+    Admin approves or rejects returns; the seller follows the admin decision and cannot approve or
+    reject a return.
+  resolved_by: human-requester
+  resolved_at_utc: '2026-10-21'
   blocks: Admin decision authorization
 - id: OD-035-04
   decision: Whether an approved return changes the order stage
@@ -158,6 +164,8 @@ implementation:
   status: staging-runtime-implemented-open-decisions-pending
   runtime_authorized: false
   staging_runtime_implemented: true
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-21'
   contract_phase: commit-1
   contract_validation: pass
   rule_registry_validation: pass

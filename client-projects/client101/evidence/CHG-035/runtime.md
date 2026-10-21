@@ -87,7 +87,7 @@ a running Experience API; the operator branch uses the dummy staging service sec
 |---|---|---|
 | OD-035-01 | Return window and reason/category matrix | 7 days; damaged, wrong item, not as described |
 | OD-035-02 | Evidence upload vs reference-only | Reference-only |
-| OD-035-03 | Return approver roles | `support_operator`, `marketplace_operator`, `super_admin` |
+| OD-035-03 | Return approver roles | Resolved 2026-10-21: admin-only; seller follows the admin decision |
 | OD-035-04 | Approved return changes order stage | No |
 
 These defaults are staging-only and must not be treated as approved production business rules.
