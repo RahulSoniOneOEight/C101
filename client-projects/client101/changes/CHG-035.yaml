@@ -1,5 +1,5 @@
 change_id: CHG-035
-revision: 4
+revision: 5
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
@@ -116,6 +116,12 @@ proposed_decisions:
     and allocation IDs. Quantity and variant evidence come from the native order-line detail, never
     from an inferred fallback. order.confirmed remains an order-timeline and notification trigger.
     The staging order.confirmed booking fallback is removed.
+- D-035-14: >-
+    Admin order detail follows the Shopify information hierarchy: native order summary and items
+    first, then payment and native fulfilment, then delivery evidence, then returns, then technical
+    references. Shipment and returns are separate cards; shipment carries an Evidence only badge so
+    the intentional separation from native Medusa status is visible. Collection links are secondary,
+    row links are tertiary, and status/quantity metadata is compact and scannable.
 open_decisions:
 - id: OD-035-01
   decision: Final return window and category/reason matrix
@@ -183,7 +189,7 @@ implementation:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: c05116e
+  staging_release: c259ab5
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   contract_phase: commit-1
@@ -192,7 +198,7 @@ implementation:
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: c05116e
+  implementation_commit: c259ab5
   order_detail_increment:
     requested_by: human-requester
     requested_at_utc: '2026-10-21'
@@ -267,6 +273,37 @@ implementation:
     visual_review: pass-1440x1200
     temporary_verifier_account_removed: true
     production_release_authorized: false
+  admin_order_ux_increment:
+    status: staging-deployed-verified
+    implementation_commit: c259ab5
+    staging_release: c259ab5
+    benchmark: shopify-admin-order-detail
+    page_order:
+    - order-summary
+    - payments
+    - unfulfilled-items
+    - shipment
+    - returns
+    - references
+    widget_zone: orders.detail.main.after
+    shipment_evidence_badge: true
+    action_hierarchy: collection-secondary-row-tertiary
+    visual_qc_model: openai/gpt-5.6-sol-fast
+    visual_qc_verdict: acceptable-for-staging-handoff
+    visual_qc_findings_fixed: 5
+    visual_qc_remaining: low-cosmetic-long-identifiers
+    test_order: order_01M5F3FDJ3J3S3NZYDGSC7AJ9H
+    test_order_display_id: 96
+    test_order_group: og_01M5F3FDJQZJ3Z2DF50J4174X7
+    test_shipment: ship_384b3f9242da4be5a1d68a6f579dc168
+    test_return: ret_438b90b1893b4607ad915cce2307357a
+    test_return_status: approved
+    test_delivery: 3-of-3-units
+    test_money_effect: none
+    test_stock_effect: none
+    console_errors: 0
+    temporary_verifier_account_removed: true
+    production_release_authorized: false
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass
@@ -286,6 +323,8 @@ implementation:
     customer_order_model_test: pass
     customer_mobile_visual_review: pass
     admin_widget_visual_review: pass
+    admin_order_ux_visual_qc: pass
+    order_96_delivery_return_cycle: pass
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:

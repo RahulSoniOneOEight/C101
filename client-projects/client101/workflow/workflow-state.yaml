@@ -42,6 +42,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-21'
   scope: native-order-detail-widget-workbench-enrichment-and-staging-lifecycle-fixtures
+- change_id: CHG-035
+  approved_by: human-requester
+  approved_at_utc: '2026-10-21'
+  scope: admin-order-detail-ux-benchmark-and-single-order-cycle
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -100,7 +104,7 @@ active_changes:
   proposal: client-projects/client101/changes/CHG-035.yaml
   evidence: client-projects/client101/evidence/CHG-035/contracts.md
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: c05116e
+  implementation_commit: c259ab5
   parent_change: CHG-017
   contract_validation: pass
   rule_registry_validation: pass
@@ -119,14 +123,14 @@ active_changes:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: c05116e
+  staging_release: c259ab5
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   order_detail_increment_status: staging-deployed-verified
   order_detail_widget_build: pass
   lifecycle_fixture_orders: 6
-  staging_shipment_records: 9
-  staging_return_records: 5
+  staging_shipment_records: 10
+  staging_return_records: 6
   return_event_outbox_backlog: 0
   allocation_producer_status: staging-deployed-verified
   allocation_producer_commit: 1c1435e
@@ -153,6 +157,16 @@ active_changes:
   customer_visual_console_errors: 0
   admin_widget_visual_review: pass-1440x1200
   temporary_admin_verifier_removed: true
+  admin_order_ux_status: staging-deployed-verified
+  admin_order_ux_benchmark: shopify-admin-order-detail
+  admin_order_ux_page_order: order-summary,payments,unfulfilled-items,shipment,returns,references
+  admin_order_ux_visual_qc_model: openai/gpt-5.6-sol-fast
+  admin_order_ux_visual_qc_verdict: acceptable-for-staging-handoff
+  admin_order_ux_visual_defects_remaining: low-cosmetic-only
+  admin_order_ux_test_order: order_01M5F3FDJ3J3S3NZYDGSC7AJ9H
+  admin_order_ux_test_return: ret_438b90b1893b4607ad915cce2307357a
+  admin_order_ux_test_money_effect: none
+  admin_order_ux_test_stock_effect: none
   runtime_authorized: false
   production_release_authorized: false
 

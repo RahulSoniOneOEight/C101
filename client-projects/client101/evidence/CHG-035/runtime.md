@@ -230,6 +230,38 @@ a running Experience API; the operator branch uses the dummy staging service sec
   (rather than requested quantity) once a return is approved.
 - Production remains unauthorized.
 
+## Admin order-detail UX benchmark (2026-10-21)
+
+- Deployed staging release `c259ab5`.
+- Benchmarked the native Mercur admin order page against Shopify Admin’s order detail pattern:
+  status and actions in the header, then one card per concern, then customer/activity in the
+  sidebar. Shopify keeps order contents, payment and fulfilment as distinct sections with
+  action-oriented labels and compact status metadata.
+- Moved the delivery/returns widget from `orders.detail.main.before` to
+  `orders.detail.main.after`. The rendered reading order is now:
+  **order summary → payments → unfulfilled items → shipment → returns → references**.
+- Split the old combined panel into separate **Shipment** and **Returns** cards. Added an
+  **Evidence only** badge beside Shipment so the staging delivery record is not mistaken for the
+  native Medusa fulfilment status.
+- Corrected the layout defects found in the first browser pass: stretched collection and row
+  buttons, overlapping return metadata (`pmui-cycle`), duplicated “Approved” labels, and awkward
+  long-ID wrapping.
+- Final visual QC used **GPT‑5.6 Sol Fast** (`openai/gpt-5.6-sol-fast`) against 1440 px screenshots.
+  Verdict: **acceptable for staging handoff**; no critical or high-severity visual defects. One
+  low cosmetic note remains: long seller/proof identifiers are visually dense but do not overflow.
+- Completed one new end-to-end admin cycle on order **#96**
+  (`order_01M5F3FDJ3J3S3NZYDGSC7AJ9H` / `og_01M5F3FDJQZJ3Z2DF50J4174X7`):
+  - allocation-driven shipment `ship_384b3f9242da4be5a1d68a6f579dc168` booked;
+  - seller recorded delivery with proof and **3 of 3 units**;
+  - customer requested return `ret_438b90b1893b4607ad915cce2307357a` for 2 damaged units;
+  - admin approved it; decision records `money_effect=none`, `stock_effect=none`;
+  - admin order page shows one delivered shipment and one approved return in the intended section
+    order, with zero browser console errors.
+- Staging totals after this cycle: **10 shipments** and **6 returns**.
+- The temporary admin visual-QC account was deleted after review; only the original admin user
+  remains.
+- Production remains unauthorized.
+
 ## Open decisions still requiring human approval
 
 | ID | Decision | Implemented staging default |
