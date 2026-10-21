@@ -181,24 +181,24 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
         </Text>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 px-6 py-4 md:grid-cols-3">
-            <div>
+          <div className="grid grid-cols-1 gap-4 px-6 py-4 md:grid-cols-2">
+            <div className="min-w-0">
               <Text size="xsmall" className="text-ui-fg-subtle">
                 Order group
               </Text>
-              <Text size="small" weight="plus">
+              <Text size="small" weight="plus" className="break-all">
                 {lifecycle.data.order_group_id}
               </Text>
             </div>
-            <div>
+            <div className="min-w-0">
               <Text size="xsmall" className="text-ui-fg-subtle">
                 Customer checkout
               </Text>
-              <Text size="small" weight="plus">
+              <Text size="small" weight="plus" className="break-all">
                 {lifecycle.data.order_id}
               </Text>
             </div>
-            <div>
+            <div className="min-w-0">
               <Text size="xsmall" className="text-ui-fg-subtle">
                 Last update
               </Text>
@@ -364,8 +364,9 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
 
           <div className="px-6 py-3">
             <Text size="xsmall" className="text-ui-fg-subtle">
-              Staging workflow evidence only. Return decisions create no refund,
-              Medusa money effect or Tryton stock movement.
+              Staging workflow evidence only. Delivery and return decisions do
+              not change native Medusa fulfilment/payment status, create no
+              refund, Medusa money effect or Tryton stock movement.
             </Text>
           </div>
         </>
