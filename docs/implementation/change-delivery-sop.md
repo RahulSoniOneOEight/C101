@@ -169,6 +169,21 @@ local dev servers and batch deployment; do not fall back to per-edit full image 
 - Change Contract and workflow state are updated once.
 - Residual limitations and production blockers are stated explicitly.
 
+## 10. Shared adoption outside C101
+
+This SOP is the reference implementation of the shared change-delivery rule. Other repositories
+should use the same lane model and adapt only the tool names:
+
+- **A — UI only:** hot reload + static bundle delivery.
+- **B — UI + API, no schema:** preview stack + one integrated deploy.
+- **C — schema/dependency:** preview migration + one full build.
+- **D — event/integration:** preview workers/broker + one deploy.
+- **E — production:** immutable release + human authorization.
+
+If another repository already has a stricter SOP, follow the stricter one. The shared rules that
+must not be weakened are: classify before coding, batch edits, preview before deploy, one deploy
+per bundle, keep production immutable, and record evidence once.
+
 ## Appendix A — Intake record template
 
 Copy this block into the session note or Change Contract before implementation:
