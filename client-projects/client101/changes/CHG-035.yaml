@@ -1,5 +1,5 @@
 change_id: CHG-035
-revision: 3
+revision: 4
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
@@ -183,7 +183,7 @@ implementation:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: 7eb7689
+  staging_release: c05116e
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   contract_phase: commit-1
@@ -192,7 +192,7 @@ implementation:
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: 7eb7689
+  implementation_commit: c05116e
   order_detail_increment:
     requested_by: human-requester
     requested_at_utc: '2026-10-21'
@@ -231,6 +231,42 @@ implementation:
     cycle_stock_effect: none
     stale_consumers_removed: true
     production_release_authorized: false
+  vendor_identity_increment:
+    status: staging-deployed-verified
+    implementation_commit: 796f14a
+    seller_context_source: mercur-vendor-middleware
+    member_actor_id_used_as_seller: false
+    verified_seller: sel_01M4EC9C7YNSFGCG6A4B3Q6PG8
+    verified_shipments: 9
+    verified_returns: 5
+    other_seller_shipments: 0
+    cross_seller_header_status: 400
+    admin_proxy_origin: http://experience-api:9020
+    admin_proxy_status: 200
+    production_release_authorized: false
+  customer_detail_increment:
+    status: staging-deployed-verified
+    implementation_commit: 8b811a7
+    customer_web_build: 8b811a7
+    order_models_test: pass-2-of-2
+    visual_review: pass-390x844-and-360x800
+    defects_fixed:
+    - camelCase shipment and return quantities rendered as zero
+    - prior shipment timeline events were not marked complete
+    verified_order: cart_01M5EZYVTCPMWQGNNJSAYCTS47
+    verified_delivery: 3-of-3 units
+    verified_return: 2-of-2 units approved
+    console_errors: 0
+    production_release_authorized: false
+  admin_widget_layout_increment:
+    status: staging-deployed-verified
+    implementation_commit: c05116e
+    long_identifier_overlap_fixed: true
+    native_status_disclaimer_added: true
+    approved_return_quantity_displayed: true
+    visual_review: pass-1440x1200
+    temporary_verifier_account_removed: true
+    production_release_authorized: false
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass
@@ -246,6 +282,10 @@ implementation:
     allocation_event_unit_test: pass
     allocation_producer_typecheck: pass
     allocation_booking_cycle: pass
+    vendor_seller_context_http_test: pass
+    customer_order_model_test: pass
+    customer_mobile_visual_review: pass
+    admin_widget_visual_review: pass
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:

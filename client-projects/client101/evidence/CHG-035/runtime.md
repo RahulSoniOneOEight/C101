@@ -185,6 +185,51 @@ a running Experience API; the operator branch uses the dummy staging service sec
   **zero**.
 - Production remains unauthorized.
 
+## Vendor identity and admin proxy (2026-10-21)
+
+- Deployed staging release `796f14a`.
+- A real hosted vendor login (`/auth/member/emailpass`) returns a **member** actor (`mem_...`), not a
+  seller ID. The custom vendor proxy previously used `req.auth_context.actor_id` as the seller ID,
+  which made the Vendor UI unable to resolve its shipments.
+- Fixed all six vendor Experience API proxies to use Mercur's server-resolved
+  `req.seller_context.seller_id` (populated by `ensureSellerMiddleware` after verifying the member's
+  `x-seller-id` membership). The member actor is still forwarded for audit.
+- Hosted verification as BuildMaster Supplies (`sel_01M4EC9C7YNSFGCG6A4B3Q6PG8`): **9 shipments**
+  and **5 returns**, including the allocation-cycle delivery and approved return.
+- Hosted verification as PowerMax Depot (`sel_01M4EC9CVVHG168X1DHHBY29HY`): **0 shipments**, **0
+  returns**. Sending PowerMax's token with BuildMaster's seller header is rejected with **400**.
+- The admin proxy preferred the public `EXPERIENCE_API_URL`, which the dashboard container cannot
+  resolve. It now prefers the private `EXPERIENCE_OPERATOR_BASE_URL`
+  (`http://experience-api:9020`). A direct in-container proxy call returned **200** with one shipment.
+- Native admin order `#95` renders the delivery/returns widget with one delivered shipment (3/3 units,
+  proof captured, 2 events) and one approved return (2 units, decision note).
+
+## Customer detail and mobile review (2026-10-21)
+
+- Deployed customer web build `8b811a7` at `https://buildkart-staging.web.app`.
+- Visual and console review at **390×844** and **360×800**, using the real pilot login
+  (`rsoni001@gmail.com`, OTP `123456`):
+  - home, account, order list, order detail and return status pages render without horizontal
+    overflow or console errors;
+  - order detail shows tracking `SIM-70DFBB2C2F71`, proof captured, **delivered 3 of 3**, timeline
+    `Order placed → Booked → Delivered`, and the approved return;
+  - return detail shows **Requested 2 · Approved 2** and the no-refund/no-stock notice.
+- Fixed the customer order model to accept the Experience API's camelCase projection
+  (`trackingNumber`, `orderedQty`, `deliveredQty`, `requestedQty`, `approvedQty`, `eventType`,
+  `occurredAt`) while retaining legacy snake_case compatibility. Previously these cards rendered
+  `delivered 0 of 0` and `0 item(s)`.
+- Fixed the return status screen to read the same camelCase/approved quantities.
+- Added `test/order_models_api_test.dart` (2 passing tests) covering the API projection, legacy
+  compatibility and completed shipment timeline events.
+- Final admin widget layout check at 1440×1200: long order-group/checkout IDs wrap instead of
+  overlapping, and the widget states that native Medusa fulfilment/payment status is not mutated by
+  staging delivery or return evidence. A short-lived staging verifier account was used for this
+  browser check and then deleted from the user, identity and provider tables.
+- Final staging release `c05116e`; hosted acceptance remains **11/11**, shipment authorization test
+  passes, and the event outbox backlog is **zero**. The final widget also displays approved quantity
+  (rather than requested quantity) once a return is approved.
+- Production remains unauthorized.
+
 ## Open decisions still requiring human approval
 
 | ID | Decision | Implemented staging default |

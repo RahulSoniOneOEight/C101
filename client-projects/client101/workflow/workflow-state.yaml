@@ -100,7 +100,7 @@ active_changes:
   proposal: client-projects/client101/changes/CHG-035.yaml
   evidence: client-projects/client101/evidence/CHG-035/contracts.md
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: 7eb7689
+  implementation_commit: c05116e
   parent_change: CHG-017
   contract_validation: pass
   rule_registry_validation: pass
@@ -119,7 +119,7 @@ active_changes:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
   staging_deployment_status: deployed
-  staging_release: 7eb7689
+  staging_release: c05116e
   staging_acceptance: pass-11-of-11
   staging_smoke: pass
   order_detail_increment_status: staging-deployed-verified
@@ -140,6 +140,19 @@ active_changes:
   allocation_cycle_money_effect: none
   allocation_cycle_stock_effect: none
   stale_jetstream_consumers_removed: true
+  vendor_seller_identity_status: staging-deployed-verified
+  vendor_seller_context_source: mercur-vendor-middleware
+  vendor_seller_verified_shipments: 9
+  vendor_seller_other_shipments: 0
+  vendor_cross_seller_header_status: 400
+  admin_proxy_origin: http://experience-api:9020
+  admin_proxy_status: 200
+  customer_web_release: 8b811a7
+  customer_order_models_test: pass-2-of-2
+  customer_mobile_visual_review: pass-390x844-360x800
+  customer_visual_console_errors: 0
+  admin_widget_visual_review: pass-1440x1200
+  temporary_admin_verifier_removed: true
   runtime_authorized: false
   production_release_authorized: false
 
