@@ -84,14 +84,55 @@ export default function VendorReturnDetailPage() {
               </div>
               <div>
                 <Text size="xsmall" className="text-ui-fg-subtle">
-                  Decision
+                  Admin decision
                 </Text>
                 <Text size="small" weight="plus">
-                  Operator-owned in Phase 1
+                  {record.status === "requested"
+                    ? "Awaiting admin decision"
+                    : label(record.status)}
                 </Text>
               </div>
             </div>
           )}
+        </Container>
+
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Decision you must follow</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Admin approves or rejects the return. The seller follows the
+              decision; Phase 1 records evidence only, with no refund execution
+              or stock movement.
+            </Text>
+          </div>
+          <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-3">
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                Decided by
+              </Text>
+              <Text size="small" weight="plus">
+                {record?.decidedBy ?? "Pending"}
+              </Text>
+            </div>
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                Decided at
+              </Text>
+              <Text size="small" weight="plus">
+                {record?.decidedAt
+                  ? new Date(record.decidedAt).toLocaleString("en-IN")
+                  : "Pending"}
+              </Text>
+            </div>
+            <div>
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                Decision note
+              </Text>
+              <Text size="small" weight="plus">
+                {record?.decisionComment ?? "—"}
+              </Text>
+            </div>
+          </div>
         </Container>
 
         <Container className="p-0">

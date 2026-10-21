@@ -42,8 +42,8 @@ existing environment/provider evidence.
   with status filters, and a returns workbench with status filters. These views refresh every 15
   seconds; shipment/return actions invalidate the order-status list immediately.
 - Vendor portal adds seller-scoped shipments and returns. A seller can update only its own
-  shipment status and delivery evidence. Return approval remains operator-owned in Phase 1; sellers
-  see only their own return lines and current status.
+  shipment status and delivery evidence. Admin decides return approval/rejection; the seller follows
+  that decision and sees only its own return lines, decision note and current status.
 - Seller identity is supplied by the authenticated Mercur vendor session to the Experience API
   through the staging service secret and `x-buildkart-seller-id`; a seller cannot read or update
   another seller's shipment.
