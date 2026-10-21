@@ -1638,13 +1638,36 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
       }
       if (!mounted) return;
     }
+    final products = List<Product>.of(_pickerProducts());
+    final known = products.map((product) => product.id).toSet();
+    var recentIds = <String>{...ref.read(recentlyViewedProvider)};
+    try {
+      recentIds.addAll(ref.read(localStoreProvider).readRecentlyViewed());
+    } catch (_) {
+      // Widget tests and early boot may not have a local store yet.
+    }
+    // A viewed product can sit outside the currently imported catalogue (for
+    // example a layout section from an older collection). Resolve those ids
+    // individually so the recents rail never silently loses a valid product.
+    for (final id in recentIds.take(10)) {
+      if (!known.add(id)) continue;
+      try {
+        products.add(await ref.read(experienceApiProvider).getComposedProduct(
+              id,
+              channel: _isHousehold ? 'b2c' : 'b2b',
+            ));
+      } catch (_) {
+        // A removed product is simply omitted from recents.
+      }
+    }
+    if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (_) => _ProductPickerSheet(
         audience: widget.audience,
-        products: _pickerProducts(),
+        products: products,
       ),
     );
   }
