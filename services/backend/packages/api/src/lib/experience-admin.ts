@@ -11,7 +11,12 @@ export function experienceAdminConfig(): { baseUrl: string; secret: string } {
   if (environment === "production") {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Not found");
   }
-  const baseUrl = process.env.EXPERIENCE_API_URL?.trim().replace(/\/$/, "") ??
+  // The dashboard runs inside the private compose network. Prefer the operator service origin
+  // (`http://experience-api:9020` in hosted staging); a public hostname may not resolve from the
+  // container and would fail DNS even though the browser can reach it.
+  const baseUrl =
+    process.env.EXPERIENCE_OPERATOR_BASE_URL?.trim().replace(/\/$/, "") ??
+    process.env.EXPERIENCE_API_URL?.trim().replace(/\/$/, "") ??
     (environment === "development" || environment === "integration"
       ? "http://localhost:9020"
       : undefined);
@@ -46,16 +51,22 @@ export async function experienceAdminFetch(
   } = {},
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const { baseUrl, secret } = experienceAdminConfig();
-  const response = await fetch(`${baseUrl}${path}${options.query ? `?${options.query}` : ""}`, {
-    method: options.method ?? "GET",
-    headers: {
-      "content-type": "application/json",
-      "x-buildkart-admin-service-secret": secret,
-      "x-operator-user-id": options.actorId ?? "admin_console",
-      ...(options.sellerId ? { "x-buildkart-seller-id": options.sellerId } : {}),
+  const response = await fetch(
+    `${baseUrl}${path}${options.query ? `?${options.query}` : ""}`,
+    {
+      method: options.method ?? "GET",
+      headers: {
+        "content-type": "application/json",
+        "x-buildkart-admin-service-secret": secret,
+        "x-operator-user-id": options.actorId ?? "admin_console",
+        ...(options.sellerId
+          ? { "x-buildkart-seller-id": options.sellerId }
+          : {}),
+      },
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  );
   let body: Record<string, unknown> = {};
   try {
     body = (await response.json()) as Record<string, unknown>;
