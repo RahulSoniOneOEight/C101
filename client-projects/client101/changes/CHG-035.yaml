@@ -162,6 +162,7 @@ implementation:
   chg017_approval_validation: pass
   validator_evidence: local validators run 2026-10-21
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
+  implementation_commit: 0c441c2
   verification:
     experience_api_typecheck: pass
     admin_panel_build: pass

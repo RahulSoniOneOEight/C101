@@ -7,6 +7,8 @@ existing environment/provider evidence.
 
 **Production:** unauthorized
 
+**Commit:** `0c441c2` on `feat/medusa-native-merchandising-admin`
+
 ## Implemented
 
 | Commit | Artefact | Status |
