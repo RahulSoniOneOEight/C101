@@ -7,7 +7,9 @@ existing environment/provider evidence.
 
 **Production:** unauthorized
 
-**Commit:** `0c441c2` on `feat/medusa-native-merchandising-admin`
+**Commit:** `b6d7684` on `feat/medusa-native-merchandising-admin`
+
+**Staging release:** `/opt/buildkart-releases/release-b6d7684` (`current` symlink)
 
 ## Implemented
 
@@ -80,6 +82,26 @@ race `CREATE TABLE IF NOT EXISTS` into a duplicate `pg_type` row.
 The DB-backed scripts require `EXPERIENCE_DATABASE_URL` (local staging default:
 `postgres://buildkart:buildkart@localhost:5433/buildkart_experience`). The auth script also requires
 a running Experience API; the operator branch uses the dummy staging service secret.
+
+## Staging deployment and smoke (2026-10-21)
+
+- Deployed release `b6d7684` to the hosted staging stack.
+- Hosted acceptance run inside the event-worker container: **11/11 pass**.
+- Public health: `https://api-staging.pinakaplay.cloud/health` — `environment=staging`,
+  `payment_mode=simulated`, NATS and identity store connected.
+- Admin and vendor panels respond on `https://ops-staging.pinakaplay.cloud`.
+- Staging smoke order: `cart_01M5ESQT6VZDV4M1AXHWE7PT8H`.
+  - Shipment booked: `ship_569d0a75c40d4925a5cae9967a261c8d`.
+  - Seller updated it to `delivered` with proof `staging://smoke/proof` and per-line quantity.
+  - Customer order read returned one shipment and eligible return quantity.
+  - Customer created return `ret_5ba8c1104472417f8aee93aec14070eb`.
+  - Admin approved it; decision event records `money_effect=none`, `stock_effect=none`.
+  - Seller view showed `approved`, decided by the admin, with one seller-scoped line.
+- Mercur does not currently publish `marketplace-allocation.created` into the Experience API NATS
+  stream. A staging-only `order.confirmed` fallback books one shipment per seller from
+  seller-enriched line snapshots. The allocation consumer remains primary and dedupes by
+  `(order_group_id, seller_id)`.
+- Production remains unauthorized.
 
 ## Open decisions still requiring human approval
 

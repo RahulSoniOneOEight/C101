@@ -114,6 +114,10 @@ active_changes:
   staging_runtime_authorized: true
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
+  staging_deployment_status: deployed
+  staging_release: b6d7684
+  staging_acceptance: pass-11-of-11
+  staging_smoke: pass
   runtime_authorized: false
   production_release_authorized: false
 

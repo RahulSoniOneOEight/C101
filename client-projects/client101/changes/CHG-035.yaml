@@ -166,6 +166,10 @@ implementation:
   staging_runtime_implemented: true
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-21'
+  staging_deployment_status: deployed
+  staging_release: b6d7684
+  staging_acceptance: pass-11-of-11
+  staging_smoke: pass
   contract_phase: commit-1
   contract_validation: pass
   rule_registry_validation: pass
