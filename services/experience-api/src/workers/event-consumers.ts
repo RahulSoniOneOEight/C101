@@ -109,6 +109,59 @@ const definitions: WorkerDefinition[] = [
     },
   },
   {
+    name: "order-confirmed-staging-shipment-fallback",
+    // Staging fallback only. Mercur currently does not publish marketplace-allocation.created into
+    // NATS, so order.confirmed carries seller-enriched line snapshots and books one shipment per
+    // seller. The allocation consumer remains primary and dedupes by order group/seller.
+    subject: "commerce.>",
+    handle: async (event, subject) => {
+      if (String(event.event_type ?? "") !== "order.confirmed") return;
+      const payload = event.payload && typeof event.payload === "object"
+        ? event.payload as Record<string, unknown>
+        : {};
+      const orderGroupId = String(
+        (payload.order_group as Record<string, unknown> | undefined)?.id ??
+          payload.order_group_id ??
+          "",
+      );
+      const lines = Array.isArray(payload.lines)
+        ? payload.lines as Array<Record<string, unknown>>
+        : [];
+      if (!orderGroupId || lines.length === 0) return;
+      const bySeller = new Map<string, Array<Record<string, unknown>>>();
+      for (const line of lines) {
+        const sellerId = line.seller_id ? String(line.seller_id) : "";
+        if (!sellerId) continue;
+        const bucket = bySeller.get(sellerId) ?? [];
+        bucket.push(line);
+        bySeller.set(sellerId, bucket);
+      }
+      if (bySeller.size === 0) {
+        console.warn(
+          `[shipment-fallback] ${subject} order ${orderGroupId} has no seller-enriched lines`,
+        );
+        return;
+      }
+      for (const [sellerId, sellerLines] of bySeller) {
+        const shipmentLines = sellerLines.map((line) => ({
+          lineKey: String(line.line_key ?? line.id ?? ""),
+          sku: String(line.sku ?? line.variant_id ?? line.line_key ?? ""),
+          orderedQty: Number(line.quantity ?? line.ordered_qty ?? 1),
+        })).filter((line) => line.lineKey && line.orderedQty > 0);
+        if (shipmentLines.length === 0) continue;
+        const result = await shipments.book({
+          orderGroupId,
+          allocationId: `order-confirmed:${orderGroupId}:${sellerId}`,
+          sellerId,
+          lines: shipmentLines,
+        });
+        console.log(
+          `[shipment-fallback] ${orderGroupId}/${sellerId} ${result.created ? "booked" : "already-booked"} ${result.shipment.id}`,
+        );
+      }
+    },
+  },
+  {
     name: "tryton-reservation",
     subject: "inventory.>",
     handle: async (event, subject) => {

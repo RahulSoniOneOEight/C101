@@ -209,6 +209,8 @@ export class ShipmentStore {
       );
       CREATE INDEX IF NOT EXISTS pilot_shipment_order_group_idx
         ON pilot_shipment (order_group_id, created_at DESC);
+      CREATE UNIQUE INDEX IF NOT EXISTS pilot_shipment_order_seller_uidx
+        ON pilot_shipment (order_group_id, seller_id);
       CREATE INDEX IF NOT EXISTS pilot_shipment_status_updated_idx
         ON pilot_shipment (status, updated_at);
 
@@ -258,6 +260,11 @@ export class ShipmentStore {
     await this.ready;
     const existing = await this.findByAllocation(input.allocationId);
     if (existing) return { shipment: existing, created: false };
+    const existingForSeller = await this.findByOrderGroupSeller(
+      input.orderGroupId,
+      input.sellerId,
+    );
+    if (existingForSeller) return { shipment: existingForSeller, created: false };
 
     const client = await this.pool.connect();
     try {
@@ -306,9 +313,14 @@ export class ShipmentStore {
       return { shipment, created: true };
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
-      // A concurrent booking may have won the unique allocation race; return that record.
+      // A concurrent booking may have won the allocation or order-group/seller race.
       const current = await this.findByAllocation(input.allocationId).catch(() => null);
       if (current) return { shipment: current, created: false };
+      const currentForSeller = await this.findByOrderGroupSeller(
+        input.orderGroupId,
+        input.sellerId,
+      ).catch(() => null);
+      if (currentForSeller) return { shipment: currentForSeller, created: false };
       throw error;
     } finally {
       client.release();
@@ -443,6 +455,23 @@ export class ShipmentStore {
     const result = await this.pool.query<ShipmentRow>(
       `SELECT * FROM pilot_shipment WHERE allocation_id = $1`,
       [allocationId],
+    );
+    if (!result.rows[0]) return null;
+    const lines = await this.pool.query<ShipmentLineRow>(
+      `SELECT * FROM pilot_shipment_line WHERE shipment_id = $1 ORDER BY line_key`,
+      [result.rows[0].id],
+    );
+    return mapShipment(result.rows[0], lines.rows);
+  }
+
+  async findByOrderGroupSeller(
+    orderGroupId: string,
+    sellerId: string,
+  ): Promise<ShipmentRecord | null> {
+    await this.ready;
+    const result = await this.pool.query<ShipmentRow>(
+      `SELECT * FROM pilot_shipment WHERE order_group_id = $1 AND seller_id = $2 LIMIT 1`,
+      [orderGroupId, sellerId],
     );
     if (!result.rows[0]) return null;
     const lines = await this.pool.query<ShipmentLineRow>(

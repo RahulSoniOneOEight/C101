@@ -2710,20 +2710,39 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             payment_mode: "simulated" as const,
             test_data: true as const,
           };
+          const productIds = [
+            ...new Set(
+              (cart.items ?? [])
+                .map((item) => item.product_id)
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ];
+          const completionOffers = await medusa.listOffersByProducts(
+            productIds,
+            regionFor(authenticated.authorization),
+          );
+          const offerById = new Map(
+            completionOffers.map((offer) => [offer.id, offer]),
+          );
           const orderGroupPayload = {
             ...(result.order_group ?? {}),
             destination_postcode:
               (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
-            lines: (cart.items ?? []).map((item) => ({
-              line_key: item.id,
-              sku: item.sku ?? item.variant_id ?? item.id,
-              title: item.product_title ?? item.title,
-              quantity: item.quantity,
-              unit_price: item.unit_price,
-              product_id: item.product_id ?? null,
-              variant_id: item.variant_id ?? null,
-              seller_id: item.seller_id ?? null,
-            })),
+            lines: (cart.items ?? []).map((item) => {
+              const offer = item.metadata?.offer_id
+                ? offerById.get(item.metadata.offer_id)
+                : undefined;
+              return {
+                line_key: item.id,
+                sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
+                title: item.product_title ?? item.title,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                product_id: item.product_id ?? null,
+                variant_id: item.variant_id ?? null,
+                seller_id: item.seller_id ?? offer?.seller_id ?? null,
+              };
+            }),
           };
           await correlation.link(cartId, {
             orderGroup: result.order_group?.id,
