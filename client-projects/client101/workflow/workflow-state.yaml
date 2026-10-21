@@ -96,7 +96,7 @@ active_changes:
   proposal: client-projects/client101/changes/CHG-035.yaml
   evidence: client-projects/client101/evidence/CHG-035/contracts.md
   runtime_evidence: client-projects/client101/evidence/CHG-035/runtime.md
-  implementation_commit: 0c441c2
+  implementation_commit: b6d7684
   parent_change: CHG-017
   contract_validation: pass
   rule_registry_validation: pass

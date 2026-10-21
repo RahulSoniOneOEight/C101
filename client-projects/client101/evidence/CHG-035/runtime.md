@@ -86,6 +86,7 @@ a running Experience API; the operator branch uses the dummy staging service sec
 ## Staging deployment and smoke (2026-10-21)
 
 - Deployed release `b6d7684` to the hosted staging stack.
+- Customer web deployed to `https://buildkart-staging.web.app` with `BUILD_ID=b6d7684`.
 - Hosted acceptance run inside the event-worker container: **11/11 pass**.
 - Public health: `https://api-staging.pinakaplay.cloud/health` — `environment=staging`,
   `payment_mode=simulated`, NATS and identity store connected.
