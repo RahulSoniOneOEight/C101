@@ -596,8 +596,8 @@ export function ProductStudioForm({
           </Link>
         </Container>
       ) : (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <Container className="p-0">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+          <Container className="p-0 xl:col-span-2">
             <div className="px-6 py-5">
               <Heading level="h2">Catalogue search</Heading>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
@@ -640,7 +640,8 @@ export function ProductStudioForm({
                           <img
                             src={item.thumbnail}
                             alt=""
-                            className="h-9 w-9 rounded object-cover"
+                            className="rounded object-cover"
+                            style={{ width: 36, height: 36, flexShrink: 0 }}
                           />
                         ) : (
                           <div className="h-9 w-9 rounded bg-ui-bg-subtle" />
