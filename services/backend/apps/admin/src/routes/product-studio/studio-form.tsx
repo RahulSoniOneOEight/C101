@@ -596,8 +596,8 @@ export function ProductStudioForm({
           </Link>
         </Container>
       ) : (
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-          <Container className="p-0 xl:col-span-2">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start">
+          <Container className="min-w-0 flex-1 p-0">
             <div className="px-6 py-5">
               <Heading level="h2">Catalogue search</Heading>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
@@ -1003,7 +1003,10 @@ export function ProductStudioForm({
             </div>
           </Container>
 
-          <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-col gap-3"
+            style={{ width: 360, maxWidth: "100%", flexShrink: 0 }}
+          >
             <Container className="p-0">
               <div className="border-b border-ui-border-base px-5 py-4">
                 <Heading level="h2">Customer preview</Heading>
