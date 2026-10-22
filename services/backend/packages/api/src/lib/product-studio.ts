@@ -97,6 +97,7 @@ const productFields = [
   "tags.value",
   "options.id",
   "options.title",
+  "options.metadata",
   "options.values.id",
   "options.values.value",
   "product_attribute_values.id",
@@ -417,10 +418,11 @@ async function replaceOptionsAndVariants(
   if (options.length > 0) {
     const { result } = await createProductOptionsWorkflow(scope).run({
       input: {
-        product_options: options.map((option) => ({
+        product_options: options.map((option, index) => ({
           title: option.name,
           values: option.values,
           is_exclusive: true,
+          metadata: { studio_order: index },
         })) as any,
       },
     });
@@ -686,16 +688,54 @@ export async function loadStudioProduct(
     .map((option: any) => ({
       id: option.id,
       name: String(option.title ?? ""),
+      studio_order: Number(option.metadata?.studio_order ?? 0),
       values: (option.values ?? [])
         .map((value: any) => value.value)
         .filter((value: unknown): value is string => Boolean(value)),
     }))
-    .filter((option: any) => option.name !== "__default__");
+    .filter((option: any) => option.name !== "__default__")
+    .sort((left: any, right: any) => left.studio_order - right.studio_order);
 
   const metadata = product.metadata ?? {};
   const canEdit =
     mode === "admin" || (owned && String(product.status) === "draft");
   const studioManaged = metadata.buildkart_product_studio === true;
+
+  const valueRank = new Map<string, Map<string, number>>(
+    optionRows.map((option: any) => [
+      option.name,
+      new Map<string, number>(
+        option.values.map((value: string, index: number) => [value, index]),
+      ),
+    ]),
+  );
+  const loadedVariants = (variantRows ?? [])
+    .map((variant: any) => ({
+      id: variant.id,
+      title: variant.title ?? "",
+      sku: variant.sku ?? "",
+      ean: variant.ean ?? "",
+      upc: variant.upc ?? "",
+      barcode: variant.barcode ?? "",
+      manage_inventory: Boolean(variant.manage_inventory),
+      allow_backorder: Boolean(variant.allow_backorder),
+      options: Object.fromEntries(
+        (variant.options ?? [])
+          .map((entry: any) => [entry?.option?.title, entry?.value])
+          .filter(([name, value]: [unknown, unknown]) => Boolean(name && value)),
+      ),
+    }))
+    .sort((left: any, right: any) => {
+      for (const option of optionRows) {
+        const leftValue = left.options[option.name] ?? "";
+        const rightValue = right.options[option.name] ?? "";
+        const difference =
+          (valueRank.get(option.name)?.get(leftValue) ?? 999) -
+          (valueRank.get(option.name)?.get(rightValue) ?? 999);
+        if (difference !== 0) return difference;
+      }
+      return String(left.title).localeCompare(String(right.title));
+    });
 
   return {
     product: {
@@ -722,24 +762,7 @@ export async function loadStudioProduct(
         name: option.name,
         values: option.values,
       })),
-      variants: (variantRows ?? []).map((variant: any) => ({
-        id: variant.id,
-        title: variant.title ?? "",
-        sku: variant.sku ?? "",
-        ean: variant.ean ?? "",
-        upc: variant.upc ?? "",
-        barcode: variant.barcode ?? "",
-        manage_inventory: Boolean(variant.manage_inventory),
-        allow_backorder: Boolean(variant.allow_backorder),
-        options: Object.fromEntries(
-          (variant.options ?? [])
-            .map((entry: any) => [
-              entry?.option?.title,
-              entry?.value,
-            ])
-            .filter(([name, value]: [unknown, unknown]) => Boolean(name && value)),
-        ),
-      })),
+      variants: loadedVariants,
       can_edit: canEdit,
       options_editable: studioManaged && canEdit,
       studio_managed: studioManaged,
