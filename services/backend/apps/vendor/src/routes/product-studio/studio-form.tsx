@@ -116,9 +116,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const clean = (value: string | null | undefined) =>
-  value && value.trim() ? value.trim() : null;
-
 function Section({
   number,
   title,
