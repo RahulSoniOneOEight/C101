@@ -1,9 +1,59 @@
 # Product editor assessment and implementation plan
 
 Date: 2026-10-22  
-Status: assessment complete; first editor slice not yet started  
+Status: Slice 1 implemented in staging; Slice 2 next  
 Scope: Admin and Seller product creation/edit  
 Related: CHG-074 approved operating defaults
+
+## Slice 1 delivery (2026-10-23)
+
+Slice 1 is live on staging at `/dashboard/product-studio` and
+`/seller/product-studio`.
+
+Implemented:
+
+- Shared Admin/Seller create and edit page with the same seven-section shell.
+- Product details: title, short/full description, category, product type,
+  brand, manufacturer, model/part number, HSN/GST, unit of measure, thumbnail.
+- Existing-catalogue search with direct links to the native product record.
+- Tag chip editor with suggestions, comma paste and case-insensitive dedupe.
+- Structured specification rows with name, value and optional unit.
+- Draft create and edit for the product master record.
+- Local autosave recovery in the browser plus explicit server save.
+- Customer preview and readiness checks.
+- Seller-scoped create and edit; sellers can only edit their own drafts.
+- Admin and seller tag creation through one audited facade per surface.
+- Product-scoped specification attributes flagged with
+  `metadata.buildkart_studio = true`; existing catalogue attributes are never
+  removed by the editor.
+- `studio_order` metadata keeps specification order stable across saves.
+
+Verification on staging:
+
+- Admin API create returned a draft with two tags and four specifications.
+- Admin API edit changed the title, tags and specifications without deleting
+  the imported catalogue attribute.
+- Admin UI create navigated to the edit page with 3/3 sections ready.
+- Seller UI create produced a draft linked to `BuildMaster Supplies`.
+- Admin and seller screenshots passed visual QC.
+- Temporary QC products and tags were deleted after verification.
+
+Deliberate Slice 1 boundaries:
+
+- Variants, SKUs, pricing, inventory and publish are visible as next slices,
+  not as inactive fake controls.
+- Seller draft edits write directly to the draft. Published product changes and
+  seller submission will move through ProductChange in Slice 5.
+- Product type is stored in product metadata until the native product-type
+  mapping is approved.
+- HSN/GST and unit of measure are stored on product metadata plus native
+  `hs_code`; the tax/UOM mapping remains open.
+- Technical-document storage remains out of scope until the document-storage
+  decision is approved.
+- Catalogue search informs the operator; it does not yet block duplicate
+  creation or create a seller offer against an existing master product.
+- Save and continue is not implemented yet; save draft returns the operator to
+  the same editor.
 
 ## Immediate cleanup completed
 
@@ -155,5 +205,6 @@ The editor must not create a second product, attribute, price or inventory model
 ## Staging state
 
 - Copper Cable attribute cleanup: complete.
-- Product editor: not yet implemented.
+- Product editor Slice 1: live on staging.
+- Product editor Slice 2: next.
 - Production remains unauthorized.

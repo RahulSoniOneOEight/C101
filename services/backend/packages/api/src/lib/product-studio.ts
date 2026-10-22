@@ -106,12 +106,13 @@ function studioAttributes(specifications: StudioSpecInput[] | null | undefined) 
     .filter((spec): spec is { name: string; value: string; unit: string | null } =>
       Boolean(spec.name && spec.value),
     )
-    .map((spec) => ({
+    .map((spec, index) => ({
       title: spec.name,
       type: spec.unit ? AttributeType.UNIT : AttributeType.TEXT,
       value: spec.unit ? attributeScalar(spec.value) : spec.value,
       metadata: {
         [STUDIO_ATTRIBUTE_FLAG]: true,
+        studio_order: index,
         ...(spec.unit ? { unit: spec.unit } : {}),
       },
     }));
@@ -296,8 +297,12 @@ export async function loadStudioProduct(
       value: (valueMap.get(attribute.id) ?? []).join(", "),
       unit: clean(attribute?.metadata?.unit) ?? "",
       rank: attribute.rank ?? 0,
+      studio_order: Number(attribute?.metadata?.studio_order ?? 0),
     }))
-    .sort((a: any, b: any) => a.rank - b.rank);
+    .sort(
+      (a: any, b: any) =>
+        a.studio_order - b.studio_order || a.rank - b.rank,
+    );
 
   const metadata = product.metadata ?? {};
   const canEdit =

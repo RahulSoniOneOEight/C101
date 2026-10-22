@@ -220,6 +220,11 @@ active_changes:
   production_release_authorized: false
   implemented_slice: seller-pricing-quantity-tiers-admin-parity
   implemented_slice_release: 3b2e853
+  product_studio_slice_1_status: staging-verified
+  product_studio_slice_1_release: 4b7951b
+  product_studio_slice_1_scope: product-details-tags-specifications-draft
+  product_studio_slice_1_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice1.md
+  product_studio_next_slice: variants-and-skus
   remaining_items:
   - full-rbac-role-templates
   - list-vs-selling-price
