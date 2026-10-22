@@ -679,13 +679,15 @@ export async function loadStudioProduct(
     filters: { product_id: productId },
     pagination: { take: 500, skip: 0 },
   });
-  const optionRows = (product.options ?? []).map((option: any) => ({
-    id: option.id,
-    name: String(option.title ?? ""),
-    values: (option.values ?? [])
-      .map((value: any) => value.value)
-      .filter((value: unknown): value is string => Boolean(value)),
-  }));
+  const optionRows = (product.options ?? [])
+    .map((option: any) => ({
+      id: option.id,
+      name: String(option.title ?? ""),
+      values: (option.values ?? [])
+        .map((value: any) => value.value)
+        .filter((value: unknown): value is string => Boolean(value)),
+    }))
+    .filter((option: any) => option.name !== "__default__");
 
   const metadata = product.metadata ?? {};
   const canEdit =
@@ -798,7 +800,11 @@ export async function saveStudioProduct(
     if (!created?.id) {
       throw new StudioError(500, "Product draft was created without an id.");
     }
-    await replaceOptionsAndVariants(scope, created.id, options, variants);
+    if (options.length === 0) {
+      await syncVariants(scope, created.id, variants);
+    } else {
+      await replaceOptionsAndVariants(scope, created.id, options, variants);
+    }
     return loadStudioProduct(scope, mode, sellerId, created.id);
   }
 
@@ -831,13 +837,19 @@ export async function saveStudioProduct(
 
   const studioManaged = current.metadata?.buildkart_product_studio === true;
   const currentOptions = await loadCurrentOptions(scope, productId);
-  const optionsChanged = !optionsEqual(
-    currentOptions.map((option) => ({
+  const currentEditorOptions = currentOptions
+    .filter((option) => option.name !== "__default__")
+    .map((option) => ({
       name: option.name,
       values: option.values,
-    })),
-    options,
-  );
+    }));
+  const optionsChanged = !optionsEqual(currentEditorOptions, options);
+  if (studioManaged && optionsChanged && options.length === 0) {
+    throw new StudioError(
+      409,
+      "Removing all options from an existing draft is not supported in this slice. Create a new default-only draft instead.",
+    );
+  }
 
   if (!studioManaged) {
     if (optionsChanged) {
