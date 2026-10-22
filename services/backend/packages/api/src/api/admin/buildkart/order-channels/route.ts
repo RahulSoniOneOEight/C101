@@ -1,8 +1,8 @@
+import { getOrdersListWorkflow } from "@medusajs/core-flows";
 import type {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http";
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 
 type OrderChannel = "all" | "b2b" | "b2c";
 
@@ -78,25 +78,31 @@ export async function GET(
     Number.parseInt(String(req.query.offset ?? "0"), 10) || 0,
   );
 
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY);
-  const { data } = await query.graph({
-    entity: "order",
-    fields: [
-      "id",
-      "display_id",
-      "email",
-      "created_at",
-      "total",
-      "currency_code",
-      "status",
-      "metadata",
-      "customer.email",
-      "summary.current_order_total",
-    ],
-    pagination: { take: 1000, skip: 0 },
+  const { result } = await getOrdersListWorkflow(req.scope).run({
+    input: {
+      fields: [
+        "id",
+        "display_id",
+        "email",
+        "created_at",
+        "total",
+        "currency_code",
+        "status",
+        "metadata",
+        "customer.email",
+      ],
+      variables: {
+        filters: { is_draft_order: false },
+        skip: 0,
+        take: 1000,
+      },
+    },
   });
+  const data =
+    (result as { rows?: ChannelOrderRow[] }).rows ??
+    (result as ChannelOrderRow[]);
 
-  const rows = (data as ChannelOrderRow[]).map((row) => {
+  const rows = data.map((row) => {
     const createdAt =
       row.created_at instanceof Date
         ? row.created_at.toISOString()
