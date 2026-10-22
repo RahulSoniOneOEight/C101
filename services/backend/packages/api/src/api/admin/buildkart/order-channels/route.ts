@@ -10,12 +10,13 @@ type ChannelOrderRow = {
   id: string;
   display_id?: number | string | null;
   email?: string | null;
-  created_at?: string | null;
-  total?: number | null;
+  created_at?: string | Date | null;
+  total?: number | string | null;
   currency_code?: string | null;
-  payment_status?: string | null;
-  fulfillment_status?: string | null;
+  status?: string | null;
   metadata?: Record<string, unknown> | null;
+  customer?: { email?: string | null } | null;
+  summary?: { current_order_total?: number | null } | null;
 };
 
 export interface AdminOrderChannelItem {
@@ -26,8 +27,7 @@ export interface AdminOrderChannelItem {
   total: number | null;
   currency_code: string;
   channel: "b2b" | "b2c" | "unknown";
-  payment_status: string | null;
-  fulfillment_status: string | null;
+  status: string | null;
 }
 
 export interface AdminOrderChannelResponse {
@@ -88,31 +88,49 @@ export async function GET(
       "created_at",
       "total",
       "currency_code",
-      "payment_status",
-      "fulfillment_status",
+      "status",
       "metadata",
+      "customer.email",
+      "summary.current_order_total",
     ],
     pagination: { take: 1000, skip: 0 },
   });
 
-  const rows = (data as ChannelOrderRow[]).map((row) => ({
-    id: String(row.id),
-    display_id: row.display_id ?? null,
-    email: typeof row.email === "string" ? row.email : null,
-    created_at: typeof row.created_at === "string" ? row.created_at : null,
-    total: typeof row.total === "number" ? row.total : null,
-    currency_code:
-      typeof row.currency_code === "string" && row.currency_code
-        ? row.currency_code
-        : "inr",
-    channel: orderChannel(row),
-    payment_status:
-      typeof row.payment_status === "string" ? row.payment_status : null,
-    fulfillment_status:
-      typeof row.fulfillment_status === "string"
-        ? row.fulfillment_status
-        : null,
-  }));
+  const rows = (data as ChannelOrderRow[]).map((row) => {
+    const createdAt =
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : typeof row.created_at === "string"
+          ? row.created_at
+          : null;
+    const total =
+      typeof row.total === "number"
+        ? row.total
+        : typeof row.total === "string" && row.total
+          ? Number(row.total)
+          : typeof row.summary?.current_order_total === "number"
+            ? row.summary.current_order_total
+            : null;
+    return {
+      id: String(row.id),
+      display_id: row.display_id ?? null,
+      email:
+        typeof row.customer?.email === "string"
+          ? row.customer.email
+          : typeof row.email === "string"
+            ? row.email
+            : null,
+      created_at: createdAt,
+      total:
+        typeof total === "number" && Number.isFinite(total) ? total : null,
+      currency_code:
+        typeof row.currency_code === "string" && row.currency_code
+          ? row.currency_code
+          : "inr",
+      channel: orderChannel(row),
+      status: typeof row.status === "string" ? row.status : null,
+    };
+  });
 
   const summary = rows.reduce(
     (result, row) => {

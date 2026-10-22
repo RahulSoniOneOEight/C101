@@ -10,8 +10,7 @@ export interface OrderChannelItem {
   total: number | null;
   currency_code: string;
   channel: "b2b" | "b2c" | "unknown";
-  payment_status: string | null;
-  fulfillment_status: string | null;
+  status: string | null;
 }
 
 export interface OrderChannelResponse {

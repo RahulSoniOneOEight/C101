@@ -146,8 +146,7 @@ export default function OrderChannelsPage() {
                   <Table.HeaderCell>Customer</Table.HeaderCell>
                   <Table.HeaderCell>Placed</Table.HeaderCell>
                   <Table.HeaderCell>Total</Table.HeaderCell>
-                  <Table.HeaderCell>Payment</Table.HeaderCell>
-                  <Table.HeaderCell>Fulfilment</Table.HeaderCell>
+                  <Table.HeaderCell>Status</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
@@ -186,8 +185,7 @@ export default function OrderChannelsPage() {
                         {money(order.total, order.currency_code)}
                       </Text>
                     </Table.Cell>
-                    <Table.Cell>{label(order.payment_status)}</Table.Cell>
-                    <Table.Cell>{label(order.fulfillment_status)}</Table.Cell>
+                    <Table.Cell>{label(order.status)}</Table.Cell>
                   </Table.Row>
                 ))}
               </Table.Body>
