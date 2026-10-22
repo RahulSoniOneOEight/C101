@@ -187,11 +187,15 @@ active_changes:
   admin_seller_first_slice: seller-pricing-quantity-tiers-admin-parity
   admin_seller_console_implemented: partial
   seller_pricing_slice_status: staging-deployed-verified
-  seller_pricing_slice_release: 1711ede
+  seller_pricing_slice_release: 3b2e853
   seller_pricing_admin_parity: pass
   seller_pricing_seller_isolation: pass-404
   seller_pricing_validation: pass
-  seller_pricing_audit: deferred-audit-contract-required
+  seller_pricing_audit: pass-domain-event
+  seller_pricing_activity_page: staging-deployed-verified
+  seller_pricing_native_edit_guard: pass-422
+  seller_pricing_seller_role_gate: pass-403
+  seller_pricing_platform_rbac: deferred-role-template-decision
   seller_pricing_evidence: docs/implementation/session-note-2026-10-22-seller-pricing-slice.md
   runtime_authorized: false
   production_release_authorized: false

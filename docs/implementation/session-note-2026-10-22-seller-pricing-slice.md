@@ -78,33 +78,69 @@ Same `Seller pricing` widget on the native admin offer detail page.
 - No console errors in either panel.
 - Temporary pricing verification admin account removed after the check.
 
-## Captured gap
+## Follow-up completed in the same pricing bundle
 
-Price-change **audit** (actor, acting-for seller, before/after, reason,
-correlation) is not yet recorded. The existing privileged audit store lives in
-the Experience API and the native Medusa offer workflow does not carry actor
-context. A follow-up needs one of:
+### Price-change audit
 
-1. a small governed `seller_activity` audit sink in the Experience API plus an
-   internal append endpoint; or
-2. an audit table in the Medusa database with an explicit Change Contract.
+Every successful price update now appends an immutable
+`seller.offer.price_changed` event to the existing `domain_event` store through
+a private Experience API endpoint. No new table or schema migration was needed.
 
-Until then, the price update is canonical and tenant-checked, but it does not
-yet satisfy the brief's full activity-centre acceptance criterion.
+The event contains:
 
-## Deferred by design
+- seller, offer and product IDs;
+- actor user and actor role;
+- source (`admin_console` or `seller_portal`);
+- reason (optional);
+- before and after price ladders;
+- correlation ID;
+- staging/test marker.
 
+The pricing API response includes `audit.recorded` and the event ID. The UI
+does not claim success if the price mutation fails.
+
+### Seller Activity page
+
+Added `/dashboard/seller-activity` with:
+
+- immutable event feed;
+- seller, offer, before/after price summary;
+- actor and role;
+- source and reason;
+- deep link to the native offer page.
+
+This is a read model over domain events, not a second source of truth.
+
+### Native edit-price guard
+
+The native `POST /vendor/offers/:id` path now rejects requests containing
+`prices` with **422 pricing-facade-required**. Sellers must use the validated,
+audited Seller pricing editor. Verified with a real seller session.
+
+### Pricing authorization
+
+- Seller pricing writes require `role_seller_administration`.
+- A seller support/order-management member receives **403**.
+- Admin writes remain available only through the authenticated Medusa admin
+  surface, which is the BuildKart administrator superset.
+- Platform-wide Mercur RBAC remains off; this is a pricing-specific authorization
+  gate, not the full role-template rollout.
+
+## Remaining gaps
+
+- Full Mercur RBAC feature flag, role templates and route-policy enforcement.
 - B2C list price vs selling price and discount display.
 - B2B pricing and MOQ.
 - Effective dates, policy floors and GST validation.
-- Seller Activity Centre, assignment, acknowledgement and notifications.
-- Price history timeline.
+- Activity assignment, acknowledgement and notification routing.
+- Price history timeline and admin override reason enforcement.
 
-These need approved pricing-model and audit-contract decisions.
+These require the pricing-model/RBAC decisions recorded in the Admin/Seller
+brief assessment.
 
 ## Release
 
-- Functional release: `1711ede`
-- Active staging release: `/opt/buildkart-releases/release-1711ede`
+- Functional release: `3b2e853` (Experience API) with Medusa image from `cae9372`
+- Active staging release: `/opt/buildkart-releases/release-3b2e853`
 - No schema migration.
 - Production remains unauthorized.
