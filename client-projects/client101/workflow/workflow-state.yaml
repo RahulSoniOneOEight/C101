@@ -224,7 +224,11 @@ active_changes:
   product_studio_slice_1_release: 7334e92
   product_studio_slice_1_scope: product-details-tags-specifications-draft
   product_studio_slice_1_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice1.md
-  product_studio_next_slice: variants-and-skus
+  product_studio_slice_2_status: staging-verified
+  product_studio_slice_2_release: e554634
+  product_studio_slice_2_scope: options-variants-skus-bulk-assignment
+  product_studio_slice_2_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice2.md
+  product_studio_next_slice: pricing
   remaining_items:
   - full-rbac-role-templates
   - list-vs-selling-price

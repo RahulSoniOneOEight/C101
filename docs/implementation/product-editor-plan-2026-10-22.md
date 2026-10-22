@@ -1,7 +1,7 @@
 # Product editor assessment and implementation plan
 
 Date: 2026-10-22  
-Status: Slice 1 implemented in staging; Slice 2 next  
+Status: Slices 1 and 2 implemented in staging; Slice 3 next  
 Scope: Admin and Seller product creation/edit  
 Related: CHG-074 approved operating defaults
 
@@ -90,6 +90,54 @@ The correct representation is:
 
 These must be structured specifications, not a numeric field called
 `Coppe Cable`.
+
+## Slice 2 delivery (2026-10-23)
+
+Slice 2 is live on staging in the same Admin/Seller studio page.
+
+Implemented:
+
+- Up to three variant options per draft, each with ordered values.
+- Combination generator with a 100-combination limit.
+- Per-variant title, SKU, EAN, UPC and barcode.
+- Bulk SKU prefix that fills only blank SKUs.
+- Duplicate SKU and duplicate combination blocking in the UI and API.
+- Default-only draft support: no options produces one `Default` variant.
+- Native Medusa exclusive product options and variants for studio-managed
+  drafts.
+- Option labels and variant rows retain the operator's entry order.
+- Option-axis edits on a studio draft replace variants atomically through the
+  studio save, then record a confirmed ProductChange audit.
+- Imported catalogue option axes are read-only in this slice; their existing
+  variant SKU/EAN/UPC/barcode fields remain editable.
+- Removing all options from an existing optioned draft is blocked in favor of
+  creating a new default-only draft.
+
+Verification on staging:
+
+- API create with `Size × Colour` produced two ordered options and four
+  variants in the expected order.
+- API edit with unchanged axes updated SKUs and removed a variant without
+  changing option axes.
+- API edit that added a value regenerated the options and six variants.
+- Default-only create and SKU edit passed.
+- Duplicate SKU create was rejected with `422`.
+- Admin UI create with two options produced four variants and four SKU fields.
+- Seller UI create produced a seller-owned draft with two variants and SKUs.
+- Admin and seller visual QC passed after option/spec rows were made inline.
+- Temporary QC products, orphan test options and tags were removed.
+
+Deliberate Slice 2 boundaries:
+
+- Seller/admin variant edits apply to draft products only.
+- Published imported catalogue variants remain read-only in this slice.
+- Options use native Medusa product options; Mercur axis attributes are not
+  introduced for new studio drafts.
+- Variant inventory remains `manage_inventory: false`; Tryton and stock levels
+  are Slice 4.
+- Option changes recreate variant IDs on a draft. This is bounded to drafts and
+  must not be extended to live offers without a migration plan.
+- No offers, pricing, stock or publication effects are introduced.
 
 ## Current product flow
 
@@ -209,5 +257,6 @@ The editor must not create a second product, attribute, price or inventory model
 
 - Copper Cable attribute cleanup: complete.
 - Product editor Slice 1: live on staging.
-- Product editor Slice 2: next.
+- Product editor Slice 2: live on staging.
+- Product editor Slice 3 (pricing): next.
 - Production remains unauthorized.
