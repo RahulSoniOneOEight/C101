@@ -167,6 +167,16 @@ active_changes:
   admin_order_ux_test_return: ret_438b90b1893b4607ad915cce2307357a
   admin_order_ux_test_money_effect: none
   admin_order_ux_test_stock_effect: none
+  customer_order_intake_status: staging-deployed-verified
+  customer_order_intake_release: 686cebc
+  customer_order_intake_test_order: order_01M5H927PNYHCK5AGJRHXGMNC5
+  order_channel_filter_status: staging-deployed-verified
+  order_channel_filter_release: 842d166
+  order_channel_filter_b2c_order: order_01M5H927PNYHCK5AGJRHXGMNC5
+  order_channel_filter_b2b_order: order_01M5H9TNX4PSJ47EPV3Q87P1T2
+  order_channel_filter_summary: all-99-b2c-94-b2b-5
+  order_channel_filter_b2b_app_checkout: local-only-not-canonical
+  order_channel_filter_evidence: docs/implementation/session-note-2026-10-22-order-channels.md
   runtime_authorized: false
   production_release_authorized: false
 
