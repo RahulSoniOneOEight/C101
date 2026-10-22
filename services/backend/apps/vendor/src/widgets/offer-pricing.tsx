@@ -389,8 +389,8 @@ function OfferPricingWidget({ data }: { data?: Product }) {
         const base = inrPrices(
           (offer.prices ?? []).map((price, index) => ({
             id: `row-${index}`,
-            amount: Number(price.amount ?? 0),
-            currency_code: price.currency_code ?? "inr",
+            amount: Number(price?.amount ?? 0),
+            currency_code: price?.currency_code ?? "inr",
             min_quantity: null,
             max_quantity: null,
           })),
