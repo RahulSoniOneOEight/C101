@@ -8,7 +8,7 @@ import '../domain/conversation_models.dart';
 import '../widgets/market_comparison.dart';
 import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
-import '../providers/cart_providers.dart';
+import '../providers/cart_actions.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../widgets/conversation_bell.dart';
@@ -294,17 +294,20 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 onPressed: priceAvailable && canAdd
                     ? () async {
                         final messenger = ScaffoldMessenger.of(context);
-                        await ref.read(cartProvider.notifier).addItem(
-                            offerId: offerId,
-                            variantId: variantId,
-                            quantity: 1,
-                            unitPrice: unitPrice);
-                        if (context.mounted) {
-                          messenger.showSnackBar(SnackBar(
-                              content: Text(seller == null
+                        final added = await addToCartSafely(
+                          ref,
+                          offerId: offerId,
+                          variantId: variantId,
+                          unitPrice: unitPrice,
+                        );
+                        if (!context.mounted) return;
+                        messenger.showSnackBar(SnackBar(
+                          content: Text(added
+                              ? (seller == null
                                   ? 'Added to cart'
-                                  : 'Added to cart · ${seller.name}')));
-                        }
+                                  : 'Added to cart · ${seller.name}')
+                              : 'Could not add to cart. Please retry.'),
+                        ));
                       }
                     : null,
                 icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -321,12 +324,22 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
               child: FilledButton(
                 onPressed: priceAvailable && canAdd
                     ? () async {
-                        await ref.read(cartProvider.notifier).addItem(
-                            offerId: offerId,
-                            variantId: variantId,
-                            quantity: 1,
-                            unitPrice: unitPrice);
-                        if (context.mounted) context.push('/checkout');
+                        final messenger = ScaffoldMessenger.of(context);
+                        final added = await addToCartSafely(
+                          ref,
+                          offerId: offerId,
+                          variantId: variantId,
+                          unitPrice: unitPrice,
+                        );
+                        if (!context.mounted) return;
+                        if (added) {
+                          context.push('/checkout');
+                        } else {
+                          messenger.showSnackBar(const SnackBar(
+                            content:
+                                Text('Could not start checkout. Please retry.'),
+                          ));
+                        }
                       }
                     : null,
                 style: FilledButton.styleFrom(

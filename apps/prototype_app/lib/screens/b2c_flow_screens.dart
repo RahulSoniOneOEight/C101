@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/models.dart';
 import '../domain/order_models.dart';
 import '../domain/storefront_ux.dart';
-import '../providers/cart_providers.dart';
+import '../providers/cart_actions.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../providers/orders_providers.dart';
@@ -1619,13 +1619,21 @@ class _WishlistTile extends ConsumerWidget {
                   width: double.infinity,
                   child: FilledButton(
                     onPressed: () async {
-                      await ref.read(cartProvider.notifier).addItem(
-                          offerId: product.cartOfferId,
-                          variantId: product.cartVariantId,
-                          quantity: 1);
+                      final added = await addToCartSafely(
+                        ref,
+                        offerId: product.cartOfferId,
+                        variantId: product.cartVariantId,
+                      );
                       if (context.mounted) {
-                        PinToast.show(context, 'Added to cart',
-                            tone: PinToastTone.success);
+                        PinToast.show(
+                          context,
+                          added
+                              ? 'Added to cart'
+                              : 'Could not add to cart. Please retry.',
+                          tone: added
+                              ? PinToastTone.success
+                              : PinToastTone.warning,
+                        );
                       }
                     },
                     style: FilledButton.styleFrom(

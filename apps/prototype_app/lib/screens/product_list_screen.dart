@@ -8,6 +8,7 @@ import '../domain/merchandising.dart';
 import '../domain/models.dart';
 import '../domain/conversation_models.dart';
 import '../providers/account_providers.dart';
+import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
@@ -139,22 +140,27 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
     } else if (variants.length == 1) {
       selected = variants.single;
     }
-    await ref.read(cartProvider.notifier).addItem(
-        offerId: selected?.offerId ?? product.cartOfferId,
-        variantId: selected?.id ?? product.cartVariantId,
-        quantity: 1,
-        unitPrice: selected?.price ?? product.price);
+    final added = await addToCartSafely(
+      ref,
+      offerId: selected?.offerId ?? product.cartOfferId,
+      variantId: selected?.id ?? product.cartVariantId,
+      unitPrice: selected?.price ?? product.price,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(selected == null
-            ? 'Added to cart'
-            : 'Added ${selected.label} to cart'),
-        action: SnackBarAction(
-          label: 'View cart',
-          // Cart is a sibling shell branch; `go` switches the tab explicitly.
-          onPressed: () => context.go('/cart'),
-        ),
+        content: Text(added
+            ? (selected == null
+                ? 'Added to cart'
+                : 'Added ${selected.label} to cart')
+            : 'Could not add to cart. Please retry.'),
+        action: added
+            ? SnackBarAction(
+                label: 'View cart',
+                // Cart is a sibling shell branch; `go` switches the tab.
+                onPressed: () => context.go('/cart'),
+              )
+            : null,
       ),
     );
   }

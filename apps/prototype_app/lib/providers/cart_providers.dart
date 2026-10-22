@@ -1,9 +1,27 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/models.dart';
 import 'catalog_providers.dart';
+
+/// Raised when the canonical cart cannot be reached or created.
+///
+/// The UI must show a retryable error instead of claiming the item was added.
+class CartUnavailable implements Exception {
+  const CartUnavailable([this.message = 'Cart is temporarily unavailable']);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+const String _localCartId = 'local_cart';
+
+bool _isServerCart(Cart? cart) => cart != null && cart.id.startsWith('cart_');
 
 /// Cart state controller.
 ///
@@ -19,6 +37,12 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
   @override
   AsyncValue<Cart?> build() {
     final restored = ref.read(localStoreProvider).readCart();
+    if (restored != null && !_isServerCart(restored)) {
+      // A fake cart from an older offline fallback is not addressable by the
+      // API. Discard it rather than letting every later operation 404.
+      Future<void>.microtask(() => _store.writeCart(null));
+      return const AsyncValue.data(null);
+    }
     return AsyncValue.data(restored);
   }
 
@@ -45,14 +69,20 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
     }
   }
 
-  /// Returns the existing cart or creates one on first use.
+  /// Returns the existing canonical cart or creates one on first use.
+  ///
+  /// A restored `local_cart` is deliberately treated as absent: it cannot be
+  /// addressed by the API and would fail every subsequent operation.
   Future<Cart> _requireCart() async {
     final existing = state.value;
-    if (existing != null) return existing;
+    if (_isServerCart(existing)) return existing!;
     final cart = await _client.createCart();
     await _setCart(cart);
     return cart;
   }
+
+  static bool _isMissingCartError(Object error) =>
+      error is DioException && error.response?.statusCode == 404;
 
   // ---- offline (local) cart helpers ---------------------------------------
 
@@ -127,14 +157,33 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
       required int quantity,
       Money? unitPrice}) async {
     try {
-      final cart = await _requireCart();
-      final updated = await _client.addLineItem(cart.id, offerId, quantity);
-      await _setCart(updated);
+      var cart = await _requireCart();
+      try {
+        final updated = await _client.addLineItem(cart.id, offerId, quantity);
+        await _setCart(updated);
+        return;
+      } catch (error) {
+        // A cached server cart can expire or be deleted server-side. Recover
+        // once with a fresh cart; never retry a validation failure.
+        if (!_isMissingCartError(error)) rethrow;
+        cart = await _client.createCart();
+        await _setCart(cart);
+        final retried = await _client.addLineItem(cart.id, offerId, quantity);
+        await _setCart(retried);
+        return;
+      }
     } catch (_) {
-      // Offline / demo: keep a working local cart rather than an error state.
-      final base = state.value ?? const Cart(id: 'local_cart');
-      await _setCart(
-          _localAdd(base, variantId, quantity, unitPrice: unitPrice));
+      // The offline cart is an explicit development-only mode. In staging and
+      // production a failure is surfaced so the UI cannot claim success.
+      if (AppConfig.allowOfflineCart) {
+        final base = _isServerCart(state.value)
+            ? state.value!
+            : const Cart(id: _localCartId);
+        await _setCart(
+            _localAdd(base, variantId, quantity, unitPrice: unitPrice));
+        return;
+      }
+      throw const CartUnavailable();
     }
   }
 

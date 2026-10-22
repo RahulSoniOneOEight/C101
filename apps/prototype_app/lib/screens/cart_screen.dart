@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
 import '../domain/conversation_models.dart';
+import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
@@ -194,13 +195,18 @@ class CartScreen extends ConsumerWidget {
                 variant: ProductCardVariant.compact,
                 onPressed: () => context.push('/product/${p.id}'),
                 onAddToCart: () async {
-                  await ref.read(cartProvider.notifier).addItem(
-                      offerId: p.cartOfferId,
-                      variantId: p.cartVariantId,
-                      quantity: 1);
+                  final added = await addToCartSafely(
+                    ref,
+                    offerId: p.cartOfferId,
+                    variantId: p.cartVariantId,
+                  );
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Added to cart')),
+                      SnackBar(
+                        content: Text(added
+                            ? 'Added to cart'
+                            : 'Could not add to cart. Please retry.'),
+                      ),
                     );
                   }
                 },
@@ -320,13 +326,18 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                     variant: ProductCardVariant.compact,
                     onPressed: () => context.push('/product/${p.id}'),
                     onAddToCart: () async {
-                      await ref.read(cartProvider.notifier).addItem(
-                          offerId: p.cartOfferId,
-                          variantId: p.cartVariantId,
-                          quantity: 1);
+                      final added = await addToCartSafely(
+                        ref,
+                        offerId: p.cartOfferId,
+                        variantId: p.cartVariantId,
+                      );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Added to cart')),
+                          SnackBar(
+                            content: Text(added
+                                ? 'Added to cart'
+                                : 'Could not add to cart. Please retry.'),
+                          ),
                         );
                       }
                     },
