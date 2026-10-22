@@ -3258,6 +3258,114 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   // Internal append point for canonical seller actions performed in the Medusa
   // admin/vendor facades. nginx blocks /v1/internal on the public hosts; the
   // service credential is the same one used by the admin console proxy.
+  if (url.pathname === "/v1/internal/inventory/summary" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: { skus?: string[] };
+    try {
+      body = (await req.json()) as { skus?: string[] };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const skus = Array.from(
+      new Set(
+        (body.skus ?? [])
+          .map((sku) => String(sku ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 200);
+    const items = await Promise.all(
+      skus.map(async (sku) => {
+        let tryton:
+          | Awaited<ReturnType<typeof erp.stockSummary>>
+          | { found: false; error: string };
+        try {
+          tryton = await erp.stockSummary(sku);
+        } catch (error) {
+          tryton = { found: false, error: (error as Error).message };
+        }
+        const ledger = await reservations.getLedger(sku);
+        return {
+          sku,
+          tryton,
+          platform: ledger
+            ? {
+                available: ledger.available,
+                reserved: ledger.reserved,
+                atp: Math.max(0, ledger.available - ledger.reserved),
+                source: "reservation_ledger_fixture",
+              }
+            : null,
+        };
+      }),
+    );
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      tryton_authoritative: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/internal/inventory/request" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      sku?: string;
+      quantity_delta?: number;
+      reason?: string;
+      seller_id?: string | null;
+      offer_id?: string | null;
+      product_id?: string | null;
+      actor_role?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const sku = String(body.sku ?? "").trim();
+    const delta = Number(body.quantity_delta);
+    const reason = String(body.reason ?? "").trim();
+    if (!sku || !Number.isInteger(delta) || delta === 0 || !reason) {
+      return problem(
+        422,
+        "invalid-inventory-request",
+        "sku, non-zero integer quantity_delta and reason are required.",
+      );
+    }
+    const event = await events.append({
+      event_type: "inventory.adjustment_requested",
+      aggregate_type: "inventory",
+      aggregate_id: sku,
+      correlation_id: cid,
+      payload: {
+        sku,
+        quantity_delta: delta,
+        reason,
+        seller_id: body.seller_id ?? null,
+        offer_id: body.offer_id ?? null,
+        product_id: body.product_id ?? null,
+        actor_user_id: operator.user.id,
+        actor_role: body.actor_role ?? "admin",
+        source: body.seller_id ? "seller_portal" : "admin_console",
+        stock_effect: "none",
+      },
+    });
+    return json({
+      request_id: event.id,
+      sku,
+      quantity_delta: delta,
+      reason,
+      status: "requested",
+      stock_effect: "none",
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   if (url.pathname === "/v1/internal/seller-activity" && req.method === "POST") {
     const operator = await requireOperator(req);
     if ("response" in operator) return operator.response;

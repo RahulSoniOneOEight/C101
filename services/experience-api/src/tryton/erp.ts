@@ -19,6 +19,7 @@ export interface ErpReference {
 export class TrytonErp {
   private productBySku = new Map<string, number>();
   private moveByRef = new Map<string, number>();
+  private storageLocations?: Array<{ id: number; name: string }>;
 
   constructor(
     private readonly client: TrytonClient,
@@ -189,6 +190,148 @@ export class TrytonErp {
 
   async release(moveId: number): Promise<void> {
     await this.client.write("stock.move", [moveId], { state: "cancelled" });
+  }
+
+  async locations(): Promise<Array<{ id: number; name: string }>> {
+    if (this.storageLocations) return this.storageLocations;
+    const ids = await this.client.search(
+      "stock.location",
+      [["type", "=", "storage"]],
+      50,
+    );
+    const rows = ids.length
+      ? await this.client.read("stock.location", ids, ["id", "name"])
+      : [];
+    this.storageLocations = rows.map((row) => ({
+      id: Number(row.id),
+      name: String(row.name ?? ""),
+    }));
+    return this.storageLocations;
+  }
+
+  async stockSummary(sku: string): Promise<{
+    found: boolean;
+    product_id: number | null;
+    on_hand: number;
+    reserved: number;
+    draft: number;
+    atp: number;
+    locations: Array<{
+      id: number;
+      name: string;
+      on_hand: number;
+      reserved: number;
+      draft: number;
+      atp: number;
+    }>;
+  }> {
+    const empty = {
+      found: false,
+      product_id: null,
+      on_hand: 0,
+      reserved: 0,
+      draft: 0,
+      atp: 0,
+      locations: [] as Array<{
+        id: number;
+        name: string;
+        on_hand: number;
+        reserved: number;
+        draft: number;
+        atp: number;
+      }>,
+    };
+
+    let productId: number;
+    try {
+      productId = await this.findProductBySku(sku);
+    } catch {
+      return empty;
+    }
+
+    const locations = await this.locations();
+    const locationIds = new Set(locations.map((location) => location.id));
+    const moveIds = await this.client.search(
+      "stock.move",
+      [["product", "=", productId]],
+      5000,
+    );
+    const moves = moveIds.length
+      ? await this.client.read("stock.move", moveIds, [
+          "id",
+          "quantity",
+          "state",
+          "from_location",
+          "to_location",
+        ])
+      : [];
+
+    const byLocation = new Map<
+      number,
+      { on_hand: number; reserved: number; draft: number }
+    >();
+    const record = (id: number) => {
+      const current = byLocation.get(id) ?? {
+        on_hand: 0,
+        reserved: 0,
+        draft: 0,
+      };
+      byLocation.set(id, current);
+      return current;
+    };
+    let onHand = 0;
+    let reserved = 0;
+    let draft = 0;
+
+    for (const move of moves) {
+      const quantity = Number(move.quantity ?? 0);
+      const state = String(move.state ?? "");
+      const from = Number(move.from_location ?? 0);
+      const to = Number(move.to_location ?? 0);
+      if (state === "done") {
+        if (locationIds.has(to) && to) {
+          onHand += quantity;
+          record(to).on_hand += quantity;
+        }
+        if (locationIds.has(from) && from) {
+          onHand -= quantity;
+          record(from).on_hand -= quantity;
+        }
+      } else if (state === "assigned" && locationIds.has(from) && from) {
+        reserved += quantity;
+        record(from).reserved += quantity;
+      } else if (state === "draft" && locationIds.has(from) && from) {
+        draft += quantity;
+        record(from).draft += quantity;
+      }
+    }
+
+    const round = (value: number) =>
+      Math.round((value + Number.EPSILON) * 1000) / 1000;
+
+    return {
+      found: true,
+      product_id: productId,
+      on_hand: round(onHand),
+      reserved: round(reserved),
+      draft: round(draft),
+      atp: round(onHand - reserved),
+      locations: locations.map((location) => {
+        const values = byLocation.get(location.id) ?? {
+          on_hand: 0,
+          reserved: 0,
+          draft: 0,
+        };
+        return {
+          id: location.id,
+          name: location.name,
+          on_hand: round(values.on_hand),
+          reserved: round(values.reserved),
+          draft: round(values.draft),
+          atp: round(values.on_hand - values.reserved),
+        };
+      }),
+    };
   }
 
   getMoveIdByRef(checkoutRef: string): number | undefined {

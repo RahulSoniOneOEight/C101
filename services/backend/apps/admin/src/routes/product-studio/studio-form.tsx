@@ -4,6 +4,7 @@ import {
   Heading,
   Input,
   StatusBadge,
+  Table,
   Text,
   Textarea,
 } from "@medusajs/ui";
@@ -56,6 +57,35 @@ type Offer = {
   product_id?: string | null;
   sku: string;
   prices: OfferPrice[];
+};
+type InventoryLocation = {
+  id: number;
+  name: string;
+  on_hand: number;
+  reserved: number;
+  draft: number;
+  atp: number;
+};
+type InventoryTryton = {
+  found: boolean;
+  product_id?: number | null;
+  on_hand: number;
+  reserved: number;
+  draft: number;
+  atp: number;
+  locations: InventoryLocation[];
+  error?: string;
+};
+type InventoryPlatform = {
+  available: number;
+  reserved: number;
+  atp: number;
+  source: string;
+};
+type InventoryItem = {
+  sku: string;
+  tryton: InventoryTryton;
+  platform: InventoryPlatform | null;
 };
 type StudioProduct = {
   id: string;
@@ -604,6 +634,103 @@ function OfferPricingEditor({
   );
 }
 
+function InventoryRequestForm({
+  offer,
+  mode,
+}: {
+  offer: Offer;
+  mode: StudioMode;
+}) {
+  const [delta, setDelta] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    const parsed = Number(delta);
+    if (!Number.isInteger(parsed) || parsed === 0) {
+      setError("Enter a non-zero whole-number quantity change.");
+      return;
+    }
+    if (!reason.trim()) {
+      setError("A reason is required for an inventory request.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const endpoint =
+        mode === "admin"
+          ? "/admin/buildkart/inventory/requests"
+          : "/vendor/buildkart/inventory/requests";
+      const result = await request<{
+        request_id: string;
+        status: string;
+        stock_effect: string;
+      }>(endpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          offer_id: offer.id,
+          quantity_delta: parsed,
+          reason: reason.trim(),
+        }),
+      });
+      setMessage(
+        `Request ${result.request_id} recorded. Stock effect: ${result.stock_effect}.`,
+      );
+      setDelta("");
+      setReason("");
+    } catch (requestError) {
+      setError((requestError as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 border-t border-ui-border-base pt-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
+        Stock adjustment request
+      </p>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+        <Input
+          inputMode="numeric"
+          value={delta}
+          onChange={(event) => setDelta(event.target.value)}
+          placeholder="Quantity change (+/-)"
+          className="sm:w-40"
+        />
+        <Input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Reason for request"
+          className="sm:flex-1"
+        />
+        <Button
+          size="small"
+          type="button"
+          variant="secondary"
+          isLoading={saving}
+          onClick={submit}
+        >
+          Request adjustment
+        </Button>
+      </div>
+      {message ? (
+        <p className="mt-2 text-xs text-ui-fg-success">{message}</p>
+      ) : null}
+      {error ? (
+        <p className="mt-2 text-xs text-ui-fg-error">{error}</p>
+      ) : null}
+      <p className="mt-2 text-xs text-ui-fg-subtle">
+        This records an audit request only. It does not change Tryton stock.
+      </p>
+    </div>
+  );
+}
+
 export function ProductStudioForm({
   mode,
   productId,
@@ -624,6 +751,9 @@ export function ProductStudioForm({
   const [options, setOptions] = useState<Option[]>([]);
   const [variants, setVariants] = useState<Variant[]>([emptyVariant()]);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [inventoryError, setInventoryError] = useState<string | null>(null);
   const [optionsEditable, setOptionsEditable] = useState(true);
   const [studioManaged, setStudioManaged] = useState(true);
   const [skuPrefix, setSkuPrefix] = useState("");
@@ -646,6 +776,35 @@ export function ProductStudioForm({
         `${apiBase}?q=${encodeURIComponent(appliedSearch)}`,
       ),
   });
+
+  async function loadInventory(skus: string[]) {
+    const unique = Array.from(
+      new Set(skus.map((sku) => sku.trim()).filter(Boolean)),
+    );
+    if (unique.length === 0) {
+      setInventory([]);
+      setInventoryError(null);
+      return;
+    }
+    setInventoryLoading(true);
+    setInventoryError(null);
+    try {
+      const endpoint =
+        mode === "admin"
+          ? "/admin/buildkart/inventory/summary"
+          : "/vendor/buildkart/inventory/summary";
+      const result = await request<{ items: InventoryItem[] }>(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ skus: unique }),
+      });
+      setInventory(result.items ?? []);
+    } catch (error) {
+      setInventoryError((error as Error).message);
+      setInventory([]);
+    } finally {
+      setInventoryLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!productId) {
@@ -745,6 +904,15 @@ export function ProductStudioForm({
     }, 700);
     return () => window.clearTimeout(handle);
   }, [canEdit, draftKey, form, loaded, options, specs, tags, variants]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const skus = Array.from(
+      new Set(offers.map((offer) => offer.sku).filter(Boolean)),
+    );
+    void loadInventory(skus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, offers]);
 
   const validSpecs = useMemo(
     () => specs.filter((spec) => spec.name.trim() && spec.value.trim()),
@@ -1239,8 +1407,9 @@ export function ProductStudioForm({
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
               One continuous product record. This slice covers product
-              details, search tags, structured specifications, variants, SKUs
-              and B2C pricing. Inventory and publishing follow in later slices.
+              details, search tags, structured specifications, variants, SKUs,
+              B2C pricing and read-only Tryton inventory. Publishing follows
+              in the final slice.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1981,12 +2150,164 @@ export function ProductStudioForm({
                 </Text>
               </div>
             </Section>
-            <UpcomingSection
+            <Section
               number={6}
               title="Inventory"
-              description="Tryton-backed stock visibility, reorder points and stock location scope."
-              next="Planned next: Tryton remains the inventory authority."
-            />
+              description="Read-only Tryton stock summary by SKU, plus an audited adjustment request that never changes stock directly."
+            >
+              {offers.length === 0 ? (
+                <Text size="small" className="text-ui-fg-subtle">
+                  No seller offer/SKU exists for this product yet. Inventory
+                  becomes visible after offer provisioning.
+                </Text>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {inventoryLoading ? (
+                    <Text size="small" className="text-ui-fg-subtle">
+                      Loading inventory from Tryton…
+                    </Text>
+                  ) : inventoryError ? (
+                    <Text size="small" className="text-ui-fg-error">
+                      {inventoryError}
+                    </Text>
+                  ) : (
+                    offers.map((offer) => {
+                      const item = inventory.find(
+                        (row) => row.sku === offer.sku,
+                      );
+                      const variant =
+                        variants.find(
+                          (row) => row.id === offer.variant_id,
+                        ) ?? null;
+                      const locationRows =
+                        item?.tryton.locations.filter(
+                          (location) =>
+                            location.on_hand !== 0 ||
+                            location.reserved !== 0 ||
+                            location.draft !== 0,
+                        ) ?? [];
+                      return (
+                        <div
+                          key={offer.id}
+                          className="rounded-lg border border-ui-border-base p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-medium text-ui-fg-base">
+                                {variant?.title || offer.sku}
+                              </p>
+                              <p className="text-xs text-ui-fg-subtle">
+                                {offer.sku} · {offer.seller_name}
+                              </p>
+                            </div>
+                            <StatusBadge
+                              color={item?.tryton.found ? "green" : "orange"}
+                            >
+                              {item?.tryton.found
+                                ? "Tryton product found"
+                                : "Not in Tryton"}
+                            </StatusBadge>
+                          </div>
+
+                          {item?.tryton.found ? (
+                            <>
+                              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                                {[
+                                  ["On hand", item.tryton.on_hand],
+                                  ["Reserved", item.tryton.reserved],
+                                  ["ATP", item.tryton.atp],
+                                  ["Draft moves", item.tryton.draft],
+                                ].map(([label, value]) => (
+                                  <div
+                                    key={String(label)}
+                                    className="rounded-md bg-ui-bg-subtle px-3 py-2"
+                                  >
+                                    <p className="text-xs text-ui-fg-subtle">
+                                      {label}
+                                    </p>
+                                    <p className="text-sm font-semibold text-ui-fg-base">
+                                      {String(value)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                              {locationRows.length > 0 ? (
+                                <div className="mt-3 overflow-x-auto">
+                                  <Table>
+                                    <Table.Header>
+                                      <Table.Row>
+                                        <Table.HeaderCell>
+                                          Tryton location
+                                        </Table.HeaderCell>
+                                        <Table.HeaderCell>
+                                          On hand
+                                        </Table.HeaderCell>
+                                        <Table.HeaderCell>
+                                          Reserved
+                                        </Table.HeaderCell>
+                                        <Table.HeaderCell>
+                                          ATP
+                                        </Table.HeaderCell>
+                                      </Table.Row>
+                                    </Table.Header>
+                                    <Table.Body>
+                                      {locationRows.map((location) => (
+                                        <Table.Row key={location.id}>
+                                          <Table.Cell>
+                                            {location.name}
+                                          </Table.Cell>
+                                          <Table.Cell>
+                                            {location.on_hand}
+                                          </Table.Cell>
+                                          <Table.Cell>
+                                            {location.reserved}
+                                          </Table.Cell>
+                                          <Table.Cell>
+                                            {location.atp}
+                                          </Table.Cell>
+                                        </Table.Row>
+                                      ))}
+                                    </Table.Body>
+                                  </Table>
+                                </div>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="mt-3 text-xs text-ui-fg-subtle">
+                              Tryton has no product or stock movements for this
+                              SKU yet. On-hand, reserved and ATP are not
+                              provisioned.
+                            </p>
+                          )}
+
+                          {item?.platform ? (
+                            <p className="mt-3 text-xs text-ui-fg-subtle">
+                              Staging reservation ledger:{" "}
+                              {item.platform.available} available,{" "}
+                              {item.platform.reserved} reserved (fixture data,
+                              not Tryton).
+                            </p>
+                          ) : null}
+
+                          <InventoryRequestForm
+                            offer={offer}
+                            mode={mode}
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+              <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                <Text size="small" className="text-ui-fg-subtle">
+                  Tryton remains the inventory authority. Adjustment requests
+                  are audited events with no stock effect. Low-stock thresholds,
+                  non-stock policy and direct Tryton posting remain pending
+                  approval.
+                </Text>
+              </div>
+            </Section>
             <UpcomingSection
               number={7}
               title="Review and publish"
