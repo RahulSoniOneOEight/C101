@@ -27,6 +27,9 @@ Implemented:
   `metadata.buildkart_studio = true`; existing catalogue attributes are never
   removed by the editor.
 - `studio_order` metadata keeps specification order stable across saves.
+- Every product-studio draft save appends a confirmed ProductChange `UPDATE`
+  audit record with actor, role, before/after title and metadata, tag ids and
+  specification count. Product creation already records `PRODUCT_ADD`.
 
 Verification on staging:
 

@@ -2,7 +2,7 @@
 
 Date: 2026-10-23  
 Lane: C (shared Admin/Seller product editor, additive API facade)  
-Release: `4b7951b`  
+Release: `7334e92`  
 Status: staging verified; production unauthorized
 
 ## Delivered
@@ -25,6 +25,9 @@ Status: staging verified; production unauthorized
 - Shared tag creation and product save facade:
   - `/admin/buildkart/product-studio`
   - `/vendor/buildkart/product-studio`
+- Confirmed Mercur ProductChange `UPDATE` audit on every editor save, with
+  actor, role, before/after title and metadata, tag ids and specification count.
+  Creation already records `PRODUCT_ADD`.
 
 ## Canonical ownership
 
