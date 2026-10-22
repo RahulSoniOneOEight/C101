@@ -1,0 +1,151 @@
+change_id: CHG-074
+revision: 1
+status: approved-decisions-recorded-implementation-pending
+request: >-
+  Record the approved BuildKart Admin and Seller operating defaults covering RBAC, pricing,
+  B2B terms, listing approval, inventory ownership, returns, manual payments, delivery states,
+  admin acting-for-seller, activity routing and automatic promotion behaviour.
+type: admin-seller-operating-model
+extends:
+- CHG-017
+approved_by: human-requester
+approved_at_utc: '2026-10-22'
+approval_scope: admin-seller-business-defaults-rows-1-to-15
+production_release_authorized: false
+production_authorization_note: >-
+  Row 16 remains pending. Human production authorization is not granted by this contract and
+  must be recorded separately after the open OD-035 decisions and production evidence close.
+affected_capabilities:
+- product-listing
+- seller-pricing
+- inventory
+- order-fulfilment
+- returns
+- payments
+- delivery
+- admin-governance
+- seller-activity
+- promotions
+affected_domains:
+- commerce
+- marketplace
+- erp
+- experience
+- operations
+- finance
+affected_surfaces:
+- commerce-admin
+- commerce-vendor
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api
+decisions:
+- id: DEC-074-01
+  area: RBAC role matrix
+  approved_default: >-
+    Seller administrator manages own pricing, inventory and orders. BuildKart Catalogue and
+    Marketplace administrators manage cross-seller pricing for their assigned scope. Finance
+    manages refunds only. Granular action permissions are enforced server-side.
+- id: DEC-074-02
+  area: List price vs selling price
+  approved_default: >-
+    List price is required. Selling price must not exceed list price. An above-list selling price
+    requires an authorized admin reason and audit.
+- id: DEC-074-03
+  area: B2B pricing
+  approved_default: >-
+    Start with a separate B2B selling price per offer. Defer customer-group and contractual tier
+    pricing until a separate contract.
+- id: DEC-074-04
+  area: MOQ and quantity tiers
+  approved_default: >-
+    MOQ applies to B2B. B2C quantity tiers are optional. Higher quantities must never cost more
+    per unit than lower quantities.
+- id: DEC-074-05
+  area: Price effective dates
+  approved_default: >-
+    Allow at most one future effective price period per offer. Overlapping effective periods are
+    rejected.
+- id: DEC-074-06
+  area: Price floors and policy holds
+  approved_default: >-
+    Price changes greater than 20 percent, or below the approved category floor, are held for
+    admin review.
+- id: DEC-074-07
+  area: GST and tax-inclusive pricing
+  approved_default: >-
+    B2C selling prices are entered tax-inclusive. The GST component is shown separately on
+    commercial documents.
+- id: DEC-074-08
+  area: Seller listing approval
+  approved_default: >-
+    A valid seller offer against an existing approved master product auto-publishes after
+    validation. A new master product, master-specification change, category change or tax change
+    requires admin review. Sellers may pause their own listing.
+- id: DEC-074-09
+  area: Inventory ownership
+  approved_default: >-
+    All stock adjustments are processed through the Tryton-backed boundary. Large or negative
+    adjustments require admin approval and audit.
+- id: DEC-074-10
+  area: Return ownership
+  approved_default: >-
+    Pilot return cases are canonical for staging seller/admin return operations. Native Medusa
+    returns remain separate and are deferred until the return model is reconciled.
+- id: DEC-074-11
+  area: Manual payments and refunds
+  approved_default: >-
+    Finance records and approves refunds. Support may record payment evidence but cannot approve
+    refunds. Confirmed payments are never edited in place; corrections are linked adjustments.
+- id: DEC-074-12
+  area: Delivery status model
+  approved_default: >-
+    Keep the current shipment statuses for staging. Add governed correction events with previous
+    state, corrected state, reason and evidence before production.
+- id: DEC-074-13
+  area: Admin acting for seller
+  approved_default: >-
+    An authorized admin may act for any seller with a mandatory reason and actor/acting-for audit
+    context. Admin actions must never appear as seller actions.
+- id: DEC-074-14
+  area: Activity routing
+  approved_default: >-
+    Price changes greater than 20 percent and stock corrections require review. Allocation
+    rejection is important. Cross-tenant or impossible-quantity activity is critical. Routine
+    small changes are informational.
+- id: DEC-074-15
+  area: Automatic promotion removal
+  approved_default: >-
+    Allow one coupon per order. Compare automatic and coupon benefits and use the better benefit
+    rather than stacking. Allow an explicit customer opt-out from automatic promotions through a
+    governed cart/engine change.
+pending:
+- id: DEC-074-16
+  area: Production release
+  status: pending-human-authorization
+  note: >-
+    OD-035-01, OD-035-02 and OD-035-04 remain unresolved. Production evidence and human release
+    authorization are required separately.
+implementation:
+  pricing_slice:
+    status: staging-deployed-verified
+    release: 3b2e853
+    implemented_decisions:
+    - DEC-074-01-partial
+    - DEC-074-03-partial
+    - DEC-074-04-partial
+    - DEC-074-13-partial
+  remaining:
+  - full RBAC role templates
+  - list-vs-selling price fields
+  - B2B price and MOQ UI
+  - effective dates
+  - policy floors and holds
+  - GST display
+  - listing lifecycle
+  - Tryton seller adjustment boundary
+  - seller return operations
+  - manual payments and refunds
+  - delivery correction model
+  - activity assignment/notification
+  - promotion engine opt-out

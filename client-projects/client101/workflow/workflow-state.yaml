@@ -46,6 +46,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-21'
   scope: admin-order-detail-ux-benchmark-and-single-order-cycle
+- change_id: CHG-074
+  approved_by: human-requester
+  approved_at_utc: '2026-10-22'
+  scope: admin-seller-business-defaults-rows-1-to-15
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -199,4 +203,30 @@ active_changes:
   seller_pricing_evidence: docs/implementation/session-note-2026-10-22-seller-pricing-slice.md
   runtime_authorized: false
   production_release_authorized: false
+- change_id: CHG-074
+  status: approved-decisions-recorded-implementation-pending
+  approval_required: true
+  approval_scope: admin-seller-business-defaults-rows-1-to-15
+  approved_by: human-requester
+  approved_at_utc: '2026-10-22'
+  proposal: client-projects/client101/changes/CHG-074.yaml
+  decisions_approved: 15
+  production_decision: pending-row-16
+  production_release_authorized: false
+  implemented_slice: seller-pricing-quantity-tiers-admin-parity
+  implemented_slice_release: 3b2e853
+  remaining_items:
+  - full-rbac-role-templates
+  - list-vs-selling-price
+  - b2b-price-and-moq
+  - effective-dates
+  - policy-floors-and-holds
+  - gst-display
+  - seller-listing-lifecycle
+  - tryton-seller-adjustment-boundary
+  - seller-return-operations
+  - manual-payments-and-refunds
+  - delivery-correction-model
+  - activity-assignment-and-notifications
+  - promotion-engine-opt-out
 
