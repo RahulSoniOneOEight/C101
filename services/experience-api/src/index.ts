@@ -528,7 +528,7 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
     return ["marketplace_operator", "super_admin"];
   }
   if (
-    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses|order-groups)(?:\/|$)/.test(
+    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses|order-groups|seller-activity)(?:\/|$)/.test(
       pathname,
     )
   ) {
