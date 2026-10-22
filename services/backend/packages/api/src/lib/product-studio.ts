@@ -428,10 +428,7 @@ async function replaceOptionsAndVariants(
     input: {
       selector: { id: productId },
       update: {
-        options: createdOptions.map((option) => ({
-          id: option.id,
-          value_ids: (option.values ?? []).map((value: any) => value.id),
-        })),
+        option_ids: createdOptions.map((option) => option.id),
       } as any,
     },
   });
