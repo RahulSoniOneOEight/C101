@@ -92,9 +92,11 @@ void main() {
     expect(_selected(tester, 'Relevance'), isTrue);
     expect(_selected(tester, 'Price ↑'), isFalse);
 
-    final header = tester
-        .widget<SliverPersistentHeader>(find.byType(SliverPersistentHeader));
-    expect(header.pinned, isTrue);
+    final headers = tester
+        .widgetList<SliverPersistentHeader>(find.byType(SliverPersistentHeader))
+        .toList();
+    expect(headers, isNotEmpty);
+    expect(headers.every((header) => header.pinned), isTrue);
     semantics.dispose();
   });
 

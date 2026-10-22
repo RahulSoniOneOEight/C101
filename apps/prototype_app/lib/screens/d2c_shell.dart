@@ -14,6 +14,7 @@ import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
 import '../widgets/conversation_bell.dart';
 import '../widgets/conversation_dock.dart';
+import '../widgets/home_pinned_bar.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/quick_add_sheet.dart';
@@ -74,6 +75,41 @@ extension on BrowseSort {
         BrowseSort.priceHighLow => 'Price ↓',
         BrowseSort.rating => 'Rating',
       };
+}
+
+/// Pins the Browse search field below the app bar, matching the Home bar's
+/// staying power without changing the Browse control rail.
+class _BrowseSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _BrowseSearchHeaderDelegate({
+    required this.height,
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  final double height;
+  final Color backgroundColor;
+  final Widget child;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(color: backgroundColor, child: child);
+  }
+
+  @override
+  bool shouldRebuild(_BrowseSearchHeaderDelegate oldDelegate) =>
+      oldDelegate.height != height ||
+      oldDelegate.backgroundColor != backgroundColor ||
+      oldDelegate.child != child;
 }
 
 /// Marketplace **Browse** tab: search + category filters + sort/filter
@@ -278,6 +314,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final productsState = ref.watch(productsProvider);
     final categories = ref.watch(categoriesProvider);
     final itemCount = ref.watch(cartProvider).value?.itemCount ?? 0;
+    final colors = _colors(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -314,7 +351,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             },
             child: CustomScrollView(
               slivers: <Widget>[
-                SliverToBoxAdapter(child: _searchBar()),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _BrowseSearchHeaderDelegate(
+                    height: HomePinnedBar.searchFieldHeight + AgencySpacing.md,
+                    backgroundColor: colors.surfacePage,
+                    child: _searchBar(),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _browseBanner()),
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverPersistentHeader(
@@ -397,26 +441,45 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
 
   Widget _searchBar() {
     final colors = _colors(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(HomePinnedBar.searchRadius),
+      borderSide: BorderSide(color: context.homePalette.barBorder),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
-      child: TextField(
-        controller: _search,
-        decoration: InputDecoration(
-          hintText: 'Search products, brands or SKU',
-          prefixIcon: const Icon(Icons.search),
-          isDense: true,
-          filled: true,
-          fillColor: colors.surfacePage,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AgencyRadius.md),
-            borderSide: BorderSide(color: colors.borderDefault),
+        AgencySpacing.md,
+        AgencySpacing.sm,
+        AgencySpacing.md,
+        AgencySpacing.sm,
+      ),
+      child: SizedBox(
+        height: HomePinnedBar.searchFieldHeight,
+        child: TextField(
+          controller: _search,
+          textInputAction: TextInputAction.search,
+          style: TextStyle(fontSize: 13, color: colors.contentPrimary),
+          decoration: InputDecoration(
+            hintText: 'Search products, brands or SKU',
+            hintStyle: TextStyle(fontSize: 13, color: colors.contentSecondary),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 18,
+              color: colors.contentSecondary,
+            ),
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            border: border,
+            enabledBorder: border,
+            focusedBorder: border,
+            disabledBorder: border,
           ),
+          onChanged: (v) => setState(() {
+            _query = v;
+            _resetPaging();
+          }),
         ),
-        onChanged: (v) => setState(() {
-          _query = v;
-          _resetPaging();
-        }),
       ),
     );
   }
