@@ -232,7 +232,11 @@ active_changes:
   product_studio_slice_3_release: b23e774
   product_studio_slice_3_scope: offer-b2c-pricing-and-quantity-tiers
   product_studio_slice_3_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice3.md
-  product_studio_next_slice: inventory
+  product_studio_slice_4_status: staging-verified
+  product_studio_slice_4_release: 1f9c711
+  product_studio_slice_4_scope: tryton-stock-read-and-adjustment-requests
+  product_studio_slice_4_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice4.md
+  product_studio_next_slice: review-and-publish
   remaining_items:
   - full-rbac-role-templates
   - list-vs-selling-price

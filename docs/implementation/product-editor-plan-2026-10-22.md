@@ -1,7 +1,7 @@
 # Product editor assessment and implementation plan
 
 Date: 2026-10-22  
-Status: Slices 1–3 implemented in staging; Slice 4 next  
+Status: Slices 1–4 implemented in staging; Slice 5 next  
 Scope: Admin and Seller product creation/edit  
 Related: CHG-074 approved operating defaults
 
@@ -183,6 +183,55 @@ Deliberate Slice 3 boundaries:
   priced through the native offer editor until the review/publish slice.
 - No second price store or product-level price is created.
 
+## Slice 4 delivery (2026-10-23)
+
+Slice 4 adds read-only Tryton stock visibility and audited adjustment requests
+to the studio.
+
+Implemented:
+
+- Tryton stock summary per offer SKU:
+  - on hand
+  - reserved (assigned moves)
+  - ATP
+  - draft moves
+- Per-storage-location breakdown from Tryton.
+- Read-only staging reservation-ledger figures, shown separately and labelled
+  as fixture data, never as Tryton stock.
+- Audited stock-adjustment request:
+  - offer/SKU scoped
+  - quantity delta and mandatory reason
+  - seller/admin actor and role
+  - returns `stock_effect: none`
+- Admin summary endpoint uses the existing Experience API service credential.
+- Seller summary is restricted to the seller's own offer SKUs.
+- Seller adjustment requests require the seller-administration role.
+- Internal Experience API endpoint computes Tryton stock from `stock.move`
+  records and writes `inventory.adjustment_requested` audit events.
+
+Verification on staging:
+
+- Admin summary returned a Tryton product with location breakdown and a
+  non-synced SKU with `found: false`.
+- Admin UI rendered Tryton on-hand/reserved/ATP/draft values and the
+  location table.
+- Admin adjustment request recorded an audit event with reason and
+  `stock_effect: none`.
+- Tryton `stock_move` count remained unchanged at 51.
+- Staging health remained OK after deploying both services.
+
+Deliberate Slice 4 boundaries:
+
+- Tryton is the stock authority; the staging reservation ledger is fixture
+  data and is labelled as such.
+- Direct Tryton posting is not implemented. Requests are audit events only.
+- Tryton currently has no done/assigned stock moves in staging, so on-hand and
+  ATP are zero and draft moves are visible.
+- Low-stock thresholds, non-stock policy, opening-stock posting and a
+  location selector remain pending approval.
+- New studio variants still need offer/inventory provisioning before inventory
+  can be shown.
+
 ## Current product flow
 
 ### Admin
@@ -303,5 +352,6 @@ The editor must not create a second product, attribute, price or inventory model
 - Product editor Slice 1: live on staging.
 - Product editor Slice 2: live on staging.
 - Product editor Slice 3 (pricing): live on staging.
-- Product editor Slice 4 (inventory): next.
+- Product editor Slice 4 (inventory read/request): live on staging.
+- Product editor Slice 5 (review and publish): next.
 - Production remains unauthorized.
