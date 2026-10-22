@@ -737,6 +737,74 @@ export async function loadStudioProduct(
       return String(left.title).localeCompare(String(right.title));
     });
 
+  const variantIds = loadedVariants
+    .map((variant: any) => variant.id)
+    .filter((id: unknown): id is string => Boolean(id));
+  const { data: offerRows } = variantIds.length
+    ? await q.graph({
+        entity: "offer",
+        fields: [
+          "id",
+          "seller_id",
+          "variant_id",
+          "product_id",
+          "sku",
+          "prices.id",
+          "prices.amount",
+          "prices.currency_code",
+          "prices.min_quantity",
+          "prices.max_quantity",
+          "prices.price_rules.attribute",
+          "prices.price_rules.value",
+        ],
+        filters:
+          mode === "vendor" && sellerId
+            ? { variant_id: variantIds, seller_id: sellerId }
+            : { variant_id: variantIds },
+        pagination: { take: 500, skip: 0 },
+      })
+    : { data: [] };
+
+  const sellerIds = Array.from(
+    new Set(
+      (offerRows ?? [])
+        .map((offer: any) => offer.seller_id)
+        .filter((id: unknown): id is string => Boolean(id)),
+    ),
+  );
+  const { data: sellerRows } = sellerIds.length
+    ? await q.graph({
+        entity: "seller",
+        fields: ["id", "name"],
+        filters: { id: sellerIds },
+        pagination: { take: 100, skip: 0 },
+      })
+    : { data: [] };
+  const sellerNames = new Map<string, string>(
+    (sellerRows ?? []).map((seller: any) => [seller.id, seller.name]),
+  );
+
+  const loadedOffers = (offerRows ?? []).map((offer: any) => ({
+    id: offer.id,
+    seller_id: offer.seller_id,
+    seller_name: sellerNames.get(offer.seller_id) ?? offer.seller_id,
+    variant_id: offer.variant_id,
+    product_id: offer.product_id ?? null,
+    sku: offer.sku ?? "",
+    prices: (offer.prices ?? []).map((price: any) => ({
+      id: price.id,
+      amount: Number(price.amount),
+      currency_code: price.currency_code,
+      min_quantity: price.min_quantity ?? null,
+      max_quantity: price.max_quantity ?? null,
+      rules: Object.fromEntries(
+        (price.price_rules ?? [])
+          .filter((rule: any) => rule.attribute !== "offer_id")
+          .map((rule: any) => [rule.attribute, rule.value]),
+      ),
+    })),
+  }));
+
   return {
     product: {
       id: product.id,
@@ -763,6 +831,7 @@ export async function loadStudioProduct(
         values: option.values,
       })),
       variants: loadedVariants,
+      offers: loadedOffers,
       can_edit: canEdit,
       options_editable: studioManaged && canEdit,
       studio_managed: studioManaged,

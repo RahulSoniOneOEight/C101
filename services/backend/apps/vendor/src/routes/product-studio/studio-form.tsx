@@ -40,6 +40,23 @@ type Variant = {
   barcode: string;
   options: Record<string, string>;
 };
+type OfferPrice = {
+  id: string;
+  amount: number;
+  currency_code: string;
+  min_quantity?: number | null;
+  max_quantity?: number | null;
+  rules?: Record<string, string>;
+};
+type Offer = {
+  id: string;
+  seller_id: string;
+  seller_name: string;
+  variant_id: string;
+  product_id?: string | null;
+  sku: string;
+  prices: OfferPrice[];
+};
 type StudioProduct = {
   id: string;
   title: string;
@@ -59,6 +76,7 @@ type StudioProduct = {
   specifications: Spec[];
   options: Option[];
   variants: Variant[];
+  offers: Offer[];
   can_edit: boolean;
   options_editable: boolean;
   studio_managed: boolean;
@@ -241,6 +259,351 @@ function UpcomingSection({
   );
 }
 
+type TierDraft = { id?: string; min: string; max: string; amount: string };
+
+const inr = (minor: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(minor / 100);
+
+const rupees = (minor: number) => String(minor / 100);
+
+function validatePriceLadder(base: string, tiers: TierDraft[]): string[] {
+  const errors: string[] = [];
+  const baseAmount = Math.round(Number(base) * 100);
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) {
+    errors.push("Base price must be greater than zero.");
+  }
+  if (tiers.length > 10) errors.push("Use at most 10 quantity tiers.");
+  const parsed = tiers.map((tier, index) => ({
+    index,
+    min: Number(tier.min),
+    max: tier.max.trim() ? Number(tier.max) : null,
+    amount: Math.round(Number(tier.amount) * 100),
+  }));
+  for (const [index, tier] of parsed.entries()) {
+    if (!Number.isInteger(tier.min) || tier.min < 2) {
+      errors.push(`Tier ${index + 1}: minimum quantity must be 2 or more.`);
+    }
+    if (
+      tier.max !== null &&
+      (!Number.isInteger(tier.max) || tier.max < tier.min)
+    ) {
+      errors.push(`Tier ${index + 1}: maximum quantity is invalid.`);
+    }
+    if (
+      !Number.isFinite(tier.amount) ||
+      tier.amount <= 0 ||
+      tier.amount > baseAmount
+    ) {
+      errors.push(
+        `Tier ${index + 1}: price must be positive and no more than the base price.`,
+      );
+    }
+    if (index > 0) {
+      const previous = parsed[index - 1];
+      if (previous.max === null || tier.min <= previous.max) {
+        errors.push(
+          `Tier ${index + 1}: quantity range overlaps the previous tier.`,
+        );
+      }
+      if (tier.amount > previous.amount) {
+        errors.push(
+          `Tier ${index + 1}: higher quantities cannot cost more.`,
+        );
+      }
+    }
+  }
+  return errors;
+}
+
+function OfferPricingEditor({
+  offer,
+  mode,
+  variantLabel,
+  onSaved,
+}: {
+  offer: Offer;
+  mode: StudioMode;
+  variantLabel: string;
+  onSaved: (pricing: Offer) => void;
+}) {
+  const [base, setBase] = useState("");
+  const [baseId, setBaseId] = useState<string | undefined>();
+  const [tiers, setTiers] = useState<TierDraft[]>([]);
+  const [otherPrices, setOtherPrices] = useState<OfferPrice[]>([]);
+  const [reason, setReason] = useState("");
+  const [errors, setErrors] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const inrPrices = offer.prices.filter(
+      (price) => price.currency_code === "inr",
+    );
+    const basePrice = inrPrices.find(
+      (price) =>
+        price.min_quantity === null || price.min_quantity === undefined,
+    );
+    setBase(basePrice ? rupees(basePrice.amount) : "");
+    setBaseId(basePrice?.id);
+    setTiers(
+      inrPrices
+        .filter(
+          (price) =>
+            price.min_quantity !== null && price.min_quantity !== undefined,
+        )
+        .sort(
+          (left, right) =>
+            Number(left.min_quantity) - Number(right.min_quantity),
+        )
+        .map((price) => ({
+          id: price.id,
+          min: String(price.min_quantity),
+          max:
+            price.max_quantity === null ||
+            price.max_quantity === undefined
+              ? ""
+              : String(price.max_quantity),
+          amount: rupees(price.amount),
+        })),
+    );
+    setOtherPrices(
+      offer.prices.filter((price) => price.currency_code !== "inr"),
+    );
+    setErrors([]);
+  }, [offer]);
+
+  const save = async () => {
+    const nextErrors = validatePriceLadder(base, tiers);
+    setErrors(nextErrors);
+    if (nextErrors.length > 0) return;
+    setSaving(true);
+    try {
+      const payload = [
+        ...otherPrices.map((price) => ({
+          id: price.id,
+          amount: price.amount,
+          currency_code: price.currency_code,
+          min_quantity: price.min_quantity ?? null,
+          max_quantity: price.max_quantity ?? null,
+          ...(price.rules && Object.keys(price.rules).length > 0
+            ? { rules: price.rules }
+            : {}),
+        })),
+        {
+          ...(baseId ? { id: baseId } : {}),
+          amount: Math.round(Number(base) * 100),
+          currency_code: "inr",
+          min_quantity: null,
+          max_quantity: null,
+        },
+        ...tiers.map((tier) => ({
+          ...(tier.id ? { id: tier.id } : {}),
+          amount: Math.round(Number(tier.amount) * 100),
+          currency_code: "inr",
+          min_quantity: Number(tier.min),
+          max_quantity: tier.max.trim() ? Number(tier.max) : null,
+        })),
+      ];
+      const endpoint =
+        mode === "admin"
+          ? `/admin/buildkart/offers/${offer.id}/pricing`
+          : `/vendor/buildkart/offers/${offer.id}/pricing`;
+      const result = await request<{
+        pricing: {
+          offer_id: string;
+          seller_id: string;
+          product_id?: string | null;
+          variant_id: string;
+          sku: string;
+          prices: OfferPrice[];
+        };
+      }>(endpoint, {
+        method: "POST",
+        body: JSON.stringify({ prices: payload, reason: reason || null }),
+      });
+      const updated: Offer = {
+        ...offer,
+        sku: result.pricing.sku,
+        prices: result.pricing.prices,
+      };
+      onSaved(updated);
+      setErrors([]);
+      setReason("");
+    } catch (error) {
+      setErrors([(error as Error).message]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-ui-border-base p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-ui-fg-base">
+            {variantLabel || offer.sku}
+          </p>
+          <p className="text-xs text-ui-fg-subtle">
+            {offer.sku || "No SKU"} · {offer.seller_name}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-semibold text-ui-fg-base">
+            {base ? inr(Math.round(Number(base) * 100)) : "No base price"}
+          </p>
+          <p className="text-xs text-ui-fg-subtle">
+            B2C selling price · INR
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ui-fg-subtle">
+            Base selling price (INR)
+          </span>
+          <Input
+            inputMode="decimal"
+            value={base}
+            onChange={(event) => setBase(event.target.value)}
+            placeholder="e.g. 436.90"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ui-fg-subtle">
+            Reason (optional)
+          </span>
+          <Input
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Why is this price changing?"
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-ui-fg-base">
+              Quantity tiers
+            </p>
+            <p className="text-xs text-ui-fg-subtle">
+              Higher quantities should not cost more per unit.
+            </p>
+          </div>
+          <Button
+            size="small"
+            type="button"
+            variant="secondary"
+            onClick={() =>
+              setTiers((current) => [
+                ...current,
+                {
+                  min: current.length
+                    ? String(Number(current[current.length - 1].max || 1) + 1)
+                    : "10",
+                  max: "",
+                  amount: base,
+                },
+              ])
+            }
+          >
+            Add tier
+          </Button>
+        </div>
+        {tiers.length === 0 ? (
+          <Text size="small" className="text-ui-fg-subtle">
+            No quantity tiers. The base price applies to every quantity.
+          </Text>
+        ) : (
+          tiers.map((tier, index) => (
+            <div
+              key={index}
+              className="flex flex-col gap-2 rounded-md border border-ui-border-base p-2 sm:flex-row sm:items-center"
+            >
+              <Input
+                inputMode="numeric"
+                value={tier.min}
+                onChange={(event) =>
+                  setTiers((current) =>
+                    current.map((row, position) =>
+                      position === index
+                        ? { ...row, min: event.target.value }
+                        : row,
+                    ),
+                  )
+                }
+                placeholder="Min qty"
+                className="sm:w-28"
+              />
+              <Input
+                inputMode="numeric"
+                value={tier.max}
+                onChange={(event) =>
+                  setTiers((current) =>
+                    current.map((row, position) =>
+                      position === index
+                        ? { ...row, max: event.target.value }
+                        : row,
+                    ),
+                  )
+                }
+                placeholder="Max qty"
+                className="sm:w-28"
+              />
+              <Input
+                inputMode="decimal"
+                value={tier.amount}
+                onChange={(event) =>
+                  setTiers((current) =>
+                    current.map((row, position) =>
+                      position === index
+                        ? { ...row, amount: event.target.value }
+                        : row,
+                    ),
+                  )
+                }
+                placeholder="Unit price (INR)"
+                className="sm:flex-1"
+              />
+              <Button
+                size="small"
+                type="button"
+                variant="transparent"
+                className="shrink-0"
+                onClick={() =>
+                  setTiers((current) =>
+                    current.filter((_, position) => position !== index),
+                  )
+                }
+              >
+                Remove
+              </Button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {errors.length > 0 ? (
+        <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error px-3 py-2 text-xs text-ui-fg-error">
+          {errors.map((error) => (
+            <p key={error}>{error}</p>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex justify-end">
+        <Button size="small" type="button" isLoading={saving} onClick={save}>
+          Save pricing
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ProductStudioForm({
   mode,
   productId,
@@ -260,6 +623,7 @@ export function ProductStudioForm({
   const [tags, setTags] = useState<string[]>([]);
   const [options, setOptions] = useState<Option[]>([]);
   const [variants, setVariants] = useState<Variant[]>([emptyVariant()]);
+  const [offers, setOffers] = useState<Offer[]>([]);
   const [optionsEditable, setOptionsEditable] = useState(true);
   const [studioManaged, setStudioManaged] = useState(true);
   const [skuPrefix, setSkuPrefix] = useState("");
@@ -341,6 +705,7 @@ export function ProductStudioForm({
         setVariants(
           product.variants?.length ? product.variants : [emptyVariant()],
         );
+        setOffers(product.offers ?? []);
         setOptionsEditable(Boolean(product.options_editable));
         setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
@@ -444,6 +809,22 @@ export function ProductStudioForm({
     duplicateSkus.size === 0 &&
     duplicateCombinations.size === 0;
 
+  const hasPricedVariants =
+    variants.length > 0 &&
+    variants.every((variant) =>
+      offers.some(
+        (offer) =>
+          offer.variant_id === variant.id &&
+          offer.prices.some(
+            (price) =>
+              price.currency_code === "inr" &&
+              (price.min_quantity === null ||
+                price.min_quantity === undefined) &&
+              price.amount > 0,
+          ),
+      ),
+    );
+
   const checks = useMemo(
     () => [
       { label: "Title", ok: Boolean(form.title.trim()), required: true },
@@ -455,12 +836,14 @@ export function ProductStudioForm({
       { label: "Search tags", ok: tags.length > 0 },
       { label: "Specifications", ok: validSpecs.length > 0 },
       { label: "Variants and SKUs", ok: variantsReady },
+      { label: "Pricing", ok: hasPricedVariants },
       { label: "Thumbnail", ok: Boolean(form.thumbnail.trim()) },
     ],
     [
       form.category_id,
       form.thumbnail,
       form.title,
+      hasPricedVariants,
       tags,
       validSpecs,
       variantsReady,
@@ -471,11 +854,13 @@ export function ProductStudioForm({
   const sectionTwoDone = tags.length > 0;
   const sectionThreeDone = validSpecs.length > 0;
   const sectionFourDone = variantsReady;
+  const sectionFiveDone = hasPricedVariants;
   const readySections = [
     sectionOneDone,
     sectionTwoDone,
     sectionThreeDone,
     sectionFourDone,
+    sectionFiveDone,
   ].filter(Boolean).length;
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -782,6 +1167,7 @@ export function ProductStudioForm({
           ? result.product.variants
           : [emptyVariant()],
       );
+      setOffers(result.product.offers ?? []);
       setOptionsEditable(Boolean(result.product.options_editable));
       setStudioManaged(Boolean(result.product.studio_managed));
       setNotice({
@@ -852,8 +1238,8 @@ export function ProductStudioForm({
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
               One continuous product record. This slice covers product
-              details, search tags, structured specifications, variants and
-              SKUs. Pricing, inventory and publishing follow in later slices.
+              details, search tags, structured specifications, variants, SKUs
+              and B2C pricing. Inventory and publishing follow in later slices.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -875,7 +1261,7 @@ export function ProductStudioForm({
         <div className="border-t border-ui-border-base px-6 py-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-ui-fg-subtle">
             <span className="font-medium text-ui-fg-base">
-              {readySections}/4 available sections ready
+              {readySections}/5 available sections ready
             </span>
             <span>·</span>
             <span>
@@ -888,7 +1274,7 @@ export function ProductStudioForm({
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ui-bg-subtle">
             <div
               className="h-full rounded-full bg-ui-bg-interactive transition-all"
-              style={{ width: `${(readySections / 4) * 100}%` }}
+              style={{ width: `${(readySections / 5) * 100}%` }}
             />
           </div>
         </div>
@@ -1532,12 +1918,68 @@ export function ProductStudioForm({
                 })}
               </div>
             </Section>
-            <UpcomingSection
+            <Section
               number={5}
               title="Pricing"
-              description="List price, selling price, quantity tiers and the audited pricing facade."
-              next="Planned next: offer-scoped pricing, not a second price store on the product."
-            />
+              description="Offer-scoped B2C selling prices and quantity tiers. Pricing is audited through the existing seller price-change facade."
+              complete={sectionFiveDone}
+            >
+              {variants.length === 0 ? (
+                <Text size="small" className="text-ui-fg-subtle">
+                  Add a variant before setting pricing.
+                </Text>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {variants.map((variant) => {
+                    const variantOffers = offers.filter(
+                      (offer) => offer.variant_id === variant.id,
+                    );
+                    const variantLabel =
+                      variant.title || variant.sku || "Unnamed variant";
+                    return (
+                      <div key={variant.id ?? variantLabel} className="flex flex-col gap-2">
+                        {variantOffers.length === 0 ? (
+                          <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                            <p className="text-sm font-medium text-ui-fg-base">
+                              {variantLabel}
+                            </p>
+                            <p className="mt-1 text-xs text-ui-fg-subtle">
+                              No seller offer exists for this variant yet.
+                              Pricing becomes available after the offer and
+                              inventory provisioning step.
+                            </p>
+                          </div>
+                        ) : (
+                          variantOffers.map((offer) => (
+                            <OfferPricingEditor
+                              key={offer.id}
+                              offer={offer}
+                              mode={mode}
+                              variantLabel={variantLabel}
+                              onSaved={(updated) =>
+                                setOffers((current) =>
+                                  current.map((row) =>
+                                    row.id === updated.id ? updated : row,
+                                  ),
+                                )
+                              }
+                            />
+                          ))
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                <Text size="small" className="text-ui-fg-subtle">
+                  B2C selling price is stored on the offer, not on the product.
+                  B2B pricing, MOQ, list-vs-selling guardrails and effective
+                  dates remain pending the CHG-074 pricing extensions. Seller
+                  price changes require the seller-administration role.
+                </Text>
+              </div>
+            </Section>
             <UpcomingSection
               number={6}
               title="Inventory"
@@ -1636,6 +2078,20 @@ export function ProductStudioForm({
                     {variants[0]?.sku
                       ? ` · first SKU ${variants[0].sku}`
                       : " · no SKU yet"}
+                  </p>
+                  <p className="mt-1 text-xs text-ui-fg-subtle">
+                    {offers.length === 0
+                      ? "No seller offer pricing yet."
+                      : `${offers.length} offer${
+                          offers.length === 1 ? "" : "s"
+                        } · ${inr(
+                          offers[0].prices.find(
+                            (price) =>
+                              price.currency_code === "inr" &&
+                              (price.min_quantity === null ||
+                                price.min_quantity === undefined),
+                          )?.amount ?? 0,
+                        )}`}
                   </p>
                 </div>
                 <div className="mt-4 border-t border-ui-border-base pt-3">
