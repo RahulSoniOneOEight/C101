@@ -264,7 +264,7 @@ function normalizeVariants(
         ean: null,
         upc: null,
         barcode: null,
-        options: {},
+        options: { __default__: "__default__" },
       },
     ];
   }
@@ -322,7 +322,10 @@ function normalizeVariants(
       ean: clean(variant.ean),
       upc: clean(variant.upc),
       barcode: clean(variant.barcode),
-      options: normalizedOptions,
+      options:
+        options.length > 0
+          ? normalizedOptions
+          : { __default__: "__default__" },
     };
   });
 }
