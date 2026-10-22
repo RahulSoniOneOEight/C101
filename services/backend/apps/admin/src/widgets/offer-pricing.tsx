@@ -216,7 +216,7 @@ function PricingEditor({ offerId }: { offerId: string }) {
         Edit pricing
       </Button>
       <FocusModal open={open} onOpenChange={setOpen}>
-        <FocusModal.Content>
+        <FocusModal.Content className="max-w-2xl">
           <FocusModal.Header>
             <FocusModal.Title>Edit B2C pricing</FocusModal.Title>
             <FocusModal.Description>
