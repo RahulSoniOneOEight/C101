@@ -185,7 +185,14 @@ active_changes:
   admin_seller_brief_status: assessed-first-slice-proposed
   admin_seller_brief_assessment: docs/implementation/session-note-2026-10-22-app-feedback-and-admin-seller-assessment.md
   admin_seller_first_slice: seller-pricing-quantity-tiers-admin-parity
-  admin_seller_console_implemented: false
+  admin_seller_console_implemented: partial
+  seller_pricing_slice_status: staging-deployed-verified
+  seller_pricing_slice_release: 1711ede
+  seller_pricing_admin_parity: pass
+  seller_pricing_seller_isolation: pass-404
+  seller_pricing_validation: pass
+  seller_pricing_audit: deferred-audit-contract-required
+  seller_pricing_evidence: docs/implementation/session-note-2026-10-22-seller-pricing-slice.md
   runtime_authorized: false
   production_release_authorized: false
 
