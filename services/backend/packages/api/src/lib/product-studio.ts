@@ -410,28 +410,35 @@ async function replaceOptionsAndVariants(
   }
 
   const currentOptions = await loadCurrentOptions(scope, productId);
-  if (currentOptions.length > 0) {
-    await updateProductsWorkflow(scope).run({
-      input: {
-        selector: { id: productId },
-        update: { options: [] } as any,
-      },
-    });
-    await deleteProductOptionsWorkflow(scope).run({
-      input: { ids: currentOptions.map((option) => option.id) },
-    });
-  }
-
+  let createdOptions: any[] = [];
   if (options.length > 0) {
-    await createProductOptionsWorkflow(scope).run({
+    const { result } = await createProductOptionsWorkflow(scope).run({
       input: {
         product_options: options.map((option) => ({
           title: option.name,
           values: option.values,
           is_exclusive: true,
-          product_id: productId,
         })) as any,
       },
+    });
+    createdOptions = result ?? [];
+  }
+
+  await updateProductsWorkflow(scope).run({
+    input: {
+      selector: { id: productId },
+      update: {
+        options: createdOptions.map((option) => ({
+          id: option.id,
+          value_ids: (option.values ?? []).map((value: any) => value.id),
+        })),
+      } as any,
+    },
+  });
+
+  if (currentOptions.length > 0) {
+    await deleteProductOptionsWorkflow(scope).run({
+      input: { ids: currentOptions.map((option) => option.id) },
     });
   }
 
