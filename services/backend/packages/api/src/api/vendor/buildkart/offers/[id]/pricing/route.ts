@@ -8,10 +8,12 @@ import {
   type OfferPriceInput,
 } from "../../../../../../lib/offer-pricing";
 import { vendorSellerId } from "../../../../../../lib/vendor-seller";
+import { recordSellerPriceActivity } from "../../../../../../lib/seller-activity";
 import type { MedusaContainer } from "@medusajs/framework";
 
 type PricingBody = {
   prices?: OfferPriceInput[];
+  reason?: string;
 };
 
 async function loadForSeller(
@@ -24,6 +26,15 @@ async function loadForSeller(
     return null;
   }
   return pricing;
+}
+
+function canManagePricing(req: AuthenticatedMedusaRequest): boolean {
+  const role = (
+    req as AuthenticatedMedusaRequest & {
+      seller_context?: { seller_member?: { role_id?: string | null } };
+    }
+  ).seller_context?.seller_member?.role_id;
+  return role === "role_seller_administration";
 }
 
 export async function GET(
@@ -52,6 +63,12 @@ export async function POST(
     res.status(401).json({ message: "Seller authentication required." } as never);
     return;
   }
+  if (!canManagePricing(req)) {
+    res.status(403).json({
+      message: "Only a seller administrator can change pricing.",
+    } as never);
+    return;
+  }
   const body = (req.body ?? {}) as PricingBody;
   if (!Array.isArray(body.prices)) {
     res.status(422).json({ message: "prices must be an array." } as never);
@@ -68,7 +85,18 @@ export async function POST(
       req.params.id,
       body.prices,
     );
-    res.json({ pricing });
+    const audit = await recordSellerPriceActivity({
+      sellerId,
+      offerId: pricing.offer_id,
+      productId: pricing.product_id,
+      actorUserId: req.auth_context?.actor_id ?? sellerId,
+      actorRole: "seller",
+      source: "seller_portal",
+      reason: body.reason ?? null,
+      before: { prices: current.prices },
+      after: { prices: pricing.prices },
+    });
+    res.json({ pricing, audit });
   } catch (error) {
     const candidate = error as { type?: string; message?: string };
     const status = candidate.type === "not_found" ? 404 : 422;

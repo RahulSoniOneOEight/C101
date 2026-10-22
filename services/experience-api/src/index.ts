@@ -3255,6 +3255,79 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   }
 
   // GET /v1/admin/events — durable domain-event log (WP4)
+  // Internal append point for canonical seller actions performed in the Medusa
+  // admin/vendor facades. nginx blocks /v1/internal on the public hosts; the
+  // service credential is the same one used by the admin console proxy.
+  if (url.pathname === "/v1/internal/seller-activity" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      event_type?: string;
+      seller_id?: string;
+      offer_id?: string;
+      product_id?: string | null;
+      actor_user_id?: string;
+      actor_role?: string;
+      source?: string;
+      reason?: string | null;
+      before?: unknown;
+      after?: unknown;
+      correlation_id?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.event_type || !body.seller_id || !body.offer_id) {
+      return problem(422, "invalid-seller-activity", "event_type, seller_id and offer_id are required.");
+    }
+    const event = await events.append({
+      event_type: body.event_type,
+      aggregate_type: "offer",
+      aggregate_id: body.offer_id,
+      correlation_id: body.correlation_id ?? cid,
+      payload: {
+        seller_id: body.seller_id,
+        offer_id: body.offer_id,
+        product_id: body.product_id ?? null,
+        actor_user_id: body.actor_user_id ?? operator.user.id,
+        actor_role: body.actor_role ?? "admin",
+        source: body.source ?? "admin_console",
+        reason: body.reason ?? null,
+        before: body.before ?? null,
+        after: body.after ?? null,
+        environment: config.environment,
+        test_data: true,
+      },
+    });
+    return json({
+      event,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, 201);
+  }
+
+  if (url.pathname === "/v1/admin/seller-activity" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const requestedType = url.searchParams.get("event_type")?.trim() || "seller.";
+    const limit = Math.min(
+      200,
+      Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "100", 10) || 100),
+    );
+    const items = (await events.list("offer", undefined, 500))
+      .filter((event) => event.event_type.startsWith(requestedType))
+      .slice(0, limit);
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   if (url.pathname === "/v1/admin/events" && req.method === "GET") {
     const aggregateType = url.searchParams.get("aggregate_type") ?? undefined;
     const aggregateId = url.searchParams.get("aggregate_id") ?? undefined;

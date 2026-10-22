@@ -7,9 +7,11 @@ import {
   updateOfferPricing,
   type OfferPriceInput,
 } from "../../../../../../lib/offer-pricing";
+import { recordSellerPriceActivity } from "../../../../../../lib/seller-activity";
 
 type PricingBody = {
   prices?: OfferPriceInput[];
+  reason?: string;
 };
 
 export async function GET(
@@ -37,12 +39,24 @@ export async function POST(
     return;
   }
   try {
+    const current = await loadOfferPricing(req.scope, req.params.id);
     const pricing = await updateOfferPricing(
       req.scope,
       req.params.id,
       body.prices,
     );
-    res.json({ pricing });
+    const audit = await recordSellerPriceActivity({
+      sellerId: pricing.seller_id,
+      offerId: pricing.offer_id,
+      productId: pricing.product_id,
+      actorUserId: req.auth_context?.actor_id ?? "admin_console",
+      actorRole: "admin",
+      source: "admin_console",
+      reason: body.reason ?? null,
+      before: { prices: current.prices },
+      after: { prices: pricing.prices },
+    });
+    res.json({ pricing, audit });
   } catch (error) {
     const candidate = error as { type?: string; message?: string };
     res

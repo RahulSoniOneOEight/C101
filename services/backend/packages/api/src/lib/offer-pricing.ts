@@ -18,6 +18,9 @@ export interface OfferPriceRow extends OfferPriceInput {
 export interface OfferPricing {
   offer_id: string;
   seller_id: string;
+  product_id: string | null;
+  variant_id: string;
+  sku: string;
   prices: OfferPriceRow[];
 }
 
@@ -117,6 +120,9 @@ export async function loadOfferPricing(
     fields: [
       "id",
       "seller_id",
+      "product_id",
+      "variant_id",
+      "sku",
       "prices.id",
       "prices.amount",
       "prices.currency_code",
@@ -131,6 +137,9 @@ export async function loadOfferPricing(
     | {
         id: string;
         seller_id: string;
+        product_id?: string | null;
+        variant_id: string;
+        sku: string;
         prices?: Array<{
           id: string;
           amount: number;
@@ -147,6 +156,9 @@ export async function loadOfferPricing(
   return {
     offer_id: offer.id,
     seller_id: offer.seller_id,
+    product_id: offer.product_id ?? null,
+    variant_id: offer.variant_id,
+    sku: offer.sku,
     prices: (offer.prices ?? []).map((price) => ({
       id: price.id,
       amount: Number(price.amount),
