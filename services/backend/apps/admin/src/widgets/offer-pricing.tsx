@@ -278,8 +278,9 @@ function PricingEditor({ offerId }: { offerId: string }) {
                       {tiers.map((tier, index) => (
                         <div key={tier.id ?? `new-${index}`} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
                           <div className="flex flex-col gap-1">
-                            <Label>From qty</Label>
+                            <Label htmlFor={`tier-min-${index}`}>From qty</Label>
                             <Input
+                              id={`tier-min-${index}`}
                               inputMode="numeric"
                               value={tier.min}
                               onChange={(event) => setTiers((current) =>
@@ -290,8 +291,9 @@ function PricingEditor({ offerId }: { offerId: string }) {
                             />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <Label>To qty</Label>
+                            <Label htmlFor={`tier-max-${index}`}>To qty</Label>
                             <Input
+                              id={`tier-max-${index}`}
                               inputMode="numeric"
                               value={tier.max}
                               placeholder="No limit"
@@ -303,8 +305,9 @@ function PricingEditor({ offerId }: { offerId: string }) {
                             />
                           </div>
                           <div className="flex flex-col gap-1">
-                            <Label>Unit price (INR)</Label>
+                            <Label htmlFor={`tier-price-${index}`}>Unit price (INR)</Label>
                             <Input
+                              id={`tier-price-${index}`}
                               inputMode="decimal"
                               value={tier.amount}
                               onChange={(event) => setTiers((current) =>
