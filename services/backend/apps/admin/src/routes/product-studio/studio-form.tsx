@@ -1221,7 +1221,7 @@ export function ProductStudioForm({
                 {specs.map((spec, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-1 gap-2 rounded-lg border border-ui-border-base p-3 sm:grid-cols-[1.2fr_1fr_120px_40px]"
+                    className="flex flex-col gap-2 rounded-lg border border-ui-border-base p-3 sm:flex-row sm:items-center"
                   >
                     <Input
                       list="product-studio-spec-suggestions"
@@ -1230,6 +1230,7 @@ export function ProductStudioForm({
                         updateSpec(index, { name: event.target.value })
                       }
                       placeholder="Specification name"
+                      className="sm:flex-1"
                     />
                     <Input
                       value={spec.value}
@@ -1237,6 +1238,7 @@ export function ProductStudioForm({
                         updateSpec(index, { value: event.target.value })
                       }
                       placeholder="Value"
+                      className="sm:flex-1"
                     />
                     <Input
                       value={spec.unit}
@@ -1244,6 +1246,7 @@ export function ProductStudioForm({
                         updateSpec(index, { unit: event.target.value })
                       }
                       placeholder="Unit (optional)"
+                      className="sm:w-32"
                     />
                     <Button
                       type="button"
@@ -1251,6 +1254,7 @@ export function ProductStudioForm({
                       variant="transparent"
                       onClick={() => removeSpec(index)}
                       aria-label="Remove specification"
+                      className="shrink-0"
                     >
                       ×
                     </Button>
@@ -1315,7 +1319,7 @@ export function ProductStudioForm({
                     {options.map((option, index) => (
                       <div
                         key={index}
-                        className="grid grid-cols-1 gap-2 rounded-lg border border-ui-border-base p-3 sm:grid-cols-[180px_minmax(0,1fr)_40px]"
+                        className="flex flex-col gap-2 rounded-lg border border-ui-border-base p-3 sm:flex-row sm:items-center"
                       >
                         <Input
                           value={option.name}
@@ -1323,6 +1327,7 @@ export function ProductStudioForm({
                             updateOption(index, { name: event.target.value })
                           }
                           placeholder="Option name (e.g. Size)"
+                          className="sm:w-44"
                         />
                         <Input
                           value={option.values.join(", ")}
@@ -1330,6 +1335,7 @@ export function ProductStudioForm({
                             setOptionValues(index, event.target.value)
                           }
                           placeholder="Values separated by commas"
+                          className="sm:flex-1"
                         />
                         <Button
                           type="button"
@@ -1337,6 +1343,7 @@ export function ProductStudioForm({
                           variant="transparent"
                           onClick={() => removeOption(index)}
                           aria-label="Remove option"
+                          className="shrink-0"
                         >
                           ×
                         </Button>
