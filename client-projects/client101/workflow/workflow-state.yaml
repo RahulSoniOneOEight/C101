@@ -203,6 +203,9 @@ active_changes:
   seller_pricing_seller_role_gate: pass-403
   seller_pricing_platform_rbac: deferred-role-template-decision
   seller_pricing_evidence: docs/implementation/session-note-2026-10-22-seller-pricing-slice.md
+  product_editor_status: assessed-first-editor-slice-pending
+  product_editor_plan: docs/implementation/product-editor-plan-2026-10-22.md
+  product_editor_copper_cable_attribute_removed: true
   runtime_authorized: false
   production_release_authorized: false
 - change_id: CHG-074
