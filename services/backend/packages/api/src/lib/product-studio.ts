@@ -4,7 +4,12 @@ import {
   MedusaError,
 } from "@medusajs/framework/utils";
 import {
+  createProductOptionsWorkflow,
   createProductTagsWorkflow,
+  createProductVariantsWorkflow,
+  deleteProductOptionsWorkflow,
+  deleteProductVariantsWorkflow,
+  updateProductVariantsWorkflow,
   updateProductsWorkflow,
 } from "@medusajs/core-flows";
 import {
@@ -22,6 +27,21 @@ export type StudioSpecInput = {
   unit?: string | null;
 };
 
+export type StudioOptionInput = {
+  name?: string | null;
+  values?: string[] | null;
+};
+
+export type StudioVariantInput = {
+  id?: string | null;
+  title?: string | null;
+  sku?: string | null;
+  ean?: string | null;
+  upc?: string | null;
+  barcode?: string | null;
+  options?: Record<string, string> | null;
+};
+
 export type StudioSaveInput = {
   title?: string | null;
   subtitle?: string | null;
@@ -36,6 +56,8 @@ export type StudioSaveInput = {
   thumbnail?: string | null;
   tags?: string[] | null;
   specifications?: StudioSpecInput[] | null;
+  options?: StudioOptionInput[] | null;
+  variants?: StudioVariantInput[] | null;
   seller_id?: string | null;
 };
 
@@ -164,6 +186,343 @@ async function resolveTags(
   return wanted
     .map((value) => byValue.get(value.toLowerCase()))
     .filter((id): id is string => Boolean(id));
+}
+
+type NormalizedOption = { name: string; values: string[] };
+
+type NormalizedVariant = {
+  id: string | null;
+  title: string;
+  sku: string | null;
+  ean: string | null;
+  upc: string | null;
+  barcode: string | null;
+  options: Record<string, string>;
+};
+
+function normalizeOptions(input: StudioOptionInput[] | null | undefined): NormalizedOption[] {
+  const seen = new Set<string>();
+  const options = (input ?? [])
+    .map((option) => {
+      const name = clean(option.name);
+      if (!name) return null;
+      const values: string[] = [];
+      const valueSeen = new Set<string>();
+      for (const raw of option.values ?? []) {
+        const value = clean(raw);
+        if (!value) continue;
+        const key = value.toLowerCase();
+        if (valueSeen.has(key)) continue;
+        valueSeen.add(key);
+        values.push(value);
+      }
+      if (values.length === 0) return null;
+      return { name, values };
+    })
+    .filter((option): option is NormalizedOption => Boolean(option))
+    .filter((option) => {
+      const key = option.name.toLowerCase();
+      if (seen.has(key)) {
+        throw new StudioError(422, `Option "${option.name}" is duplicated.`);
+      }
+      seen.add(key);
+      return true;
+    });
+  if (options.length > 3) {
+    throw new StudioError(422, "A product can have at most 3 options.");
+  }
+  return options;
+}
+
+function normalizeVariants(
+  options: NormalizedOption[],
+  input: StudioVariantInput[] | null | undefined,
+): NormalizedVariant[] {
+  const source = input ?? [];
+  const optionNames = options.map((option) => option.name);
+  const combinationCount = options.reduce(
+    (total, option) => total * Math.max(1, option.values.length),
+    1,
+  );
+  if (combinationCount > 100) {
+    throw new StudioError(
+      422,
+      "A product can generate at most 100 variant combinations in this slice.",
+    );
+  }
+
+  if (options.length === 0 && source.length === 0) {
+    return [
+      {
+        id: null,
+        title: "Default",
+        sku: null,
+        ean: null,
+        upc: null,
+        barcode: null,
+        options: {},
+      },
+    ];
+  }
+
+  if (options.length > 0 && source.length === 0) {
+    throw new StudioError(422, "Generate at least one variant combination.");
+  }
+  if (options.length === 0 && source.length > 1) {
+    throw new StudioError(
+      422,
+      "A product without options can have only one default variant.",
+    );
+  }
+
+  const combinations = new Set<string>();
+  const skus = new Map<string, number>();
+  return source.map((variant, index) => {
+    const values = variant.options ?? {};
+    const normalizedOptions: Record<string, string> = {};
+    for (const name of optionNames) {
+      const value = clean(values[name]);
+      if (!value) {
+        throw new StudioError(
+          422,
+          `Variant ${index + 1} is missing a value for "${name}".`,
+        );
+      }
+      normalizedOptions[name] = value;
+    }
+    const combo = optionNames
+      .map((name) => `${name}:${normalizedOptions[name].toLowerCase()}`)
+      .join("|");
+    if (options.length > 0 && combinations.has(combo)) {
+      throw new StudioError(422, "Variant combinations must be unique.");
+    }
+    combinations.add(combo);
+
+    const sku = clean(variant.sku);
+    if (sku) {
+      const key = sku.toLowerCase();
+      if (skus.has(key)) {
+        throw new StudioError(422, `Duplicate SKU "${sku}".`);
+      }
+      skus.set(key, index);
+    }
+
+    return {
+      id: clean(variant.id),
+      title:
+        clean(variant.title) ||
+        (optionNames.length > 0
+          ? optionNames.map((name) => normalizedOptions[name]).join(" / ")
+          : "Default"),
+      sku,
+      ean: clean(variant.ean),
+      upc: clean(variant.upc),
+      barcode: clean(variant.barcode),
+      options: normalizedOptions,
+    };
+  });
+}
+
+function optionsEqual(a: NormalizedOption[], b: NormalizedOption[]): boolean {
+  if (a.length !== b.length) return false;
+  const normalize = (options: NormalizedOption[]) =>
+    options
+      .map((option) => ({
+        name: option.name.toLowerCase(),
+        values: [...option.values].map((value) => value.toLowerCase()).sort(),
+      }))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
+}
+
+async function loadCurrentOptions(
+  scope: MedusaContainer,
+  productId: string,
+): Promise<Array<{ id: string; name: string; values: string[] }>> {
+  const q = query(scope);
+  const { data: links } = await q.graph({
+    entity: "product_product_option",
+    fields: ["product_option_id"],
+    filters: { product_id: productId },
+  });
+  const ids = (links ?? [])
+    .map((link: any) => link.product_option_id)
+    .filter((id: unknown): id is string => Boolean(id));
+  if (ids.length === 0) return [];
+
+  const { data: options } = await q.graph({
+    entity: "product_option",
+    fields: ["id", "title", "values.id", "values.value"],
+    filters: { id: ids },
+    pagination: { take: 100, skip: 0 },
+  });
+
+  return (options ?? []).map((option: any) => ({
+    id: option.id,
+    name: String(option.title ?? ""),
+    values: (option.values ?? [])
+      .map((value: any) => value.value)
+      .filter((value: unknown): value is string => Boolean(value)),
+  }));
+}
+
+async function validateSkuUniqueness(
+  scope: MedusaContainer,
+  productId: string,
+  variants: NormalizedVariant[],
+) {
+  const skus = variants
+    .map((variant) => variant.sku)
+    .filter((sku): sku is string => Boolean(sku));
+  if (skus.length === 0) return;
+
+  const q = query(scope);
+  const { data: existing } = await q.graph({
+    entity: "variant",
+    fields: ["id", "sku", "product_id"],
+    filters: { sku: skus },
+    pagination: { take: 500, skip: 0 },
+  });
+  for (const row of existing ?? []) {
+    if (productId && row.product_id === productId) {
+      // The draft's own variants may be replaced; payload-level duplicate
+      // checks already prevent two variants sharing the same SKU.
+      continue;
+    }
+    throw new StudioError(422, `SKU "${row.sku}" is already in use.`);
+  }
+}
+
+async function replaceOptionsAndVariants(
+  scope: MedusaContainer,
+  productId: string,
+  options: NormalizedOption[],
+  variants: NormalizedVariant[],
+) {
+  const q = query(scope);
+  const { data: currentVariants } = await q.graph({
+    entity: "variant",
+    fields: ["id"],
+    filters: { product_id: productId },
+    pagination: { take: 500, skip: 0 },
+  });
+  const variantIds = (currentVariants ?? [])
+    .map((variant: any) => variant.id)
+    .filter((id: unknown): id is string => Boolean(id));
+  if (variantIds.length > 0) {
+    await deleteProductVariantsWorkflow(scope).run({
+      input: { ids: variantIds },
+    });
+  }
+
+  const currentOptions = await loadCurrentOptions(scope, productId);
+  if (currentOptions.length > 0) {
+    await updateProductsWorkflow(scope).run({
+      input: {
+        selector: { id: productId },
+        update: { options: [] } as any,
+      },
+    });
+    await deleteProductOptionsWorkflow(scope).run({
+      input: { ids: currentOptions.map((option) => option.id) },
+    });
+  }
+
+  if (options.length > 0) {
+    await createProductOptionsWorkflow(scope).run({
+      input: {
+        product_options: options.map((option) => ({
+          title: option.name,
+          values: option.values,
+          is_exclusive: true,
+          product_id: productId,
+        })) as any,
+      },
+    });
+  }
+
+  if (variants.length > 0) {
+    await createProductVariantsWorkflow(scope).run({
+      input: {
+        product_variants: variants.map((variant) => ({
+          product_id: productId,
+          title: variant.title,
+          sku: variant.sku ?? undefined,
+          ean: variant.ean ?? undefined,
+          upc: variant.upc ?? undefined,
+          barcode: variant.barcode ?? undefined,
+          options: variant.options,
+          manage_inventory: false,
+        })),
+      },
+    });
+  }
+}
+
+async function syncVariants(
+  scope: MedusaContainer,
+  productId: string,
+  variants: NormalizedVariant[],
+) {
+  const q = query(scope);
+  const { data: currentVariants } = await q.graph({
+    entity: "variant",
+    fields: ["id", "title", "sku", "ean", "upc", "barcode"],
+    filters: { product_id: productId },
+    pagination: { take: 500, skip: 0 },
+  });
+  const current = new Map<string, any>(
+    (currentVariants ?? []).map((variant: any) => [variant.id, variant]),
+  );
+  const desiredIds = new Set<string>();
+  const toCreate: NormalizedVariant[] = [];
+
+  for (const variant of variants) {
+    if (!variant.id || !current.has(variant.id)) {
+      toCreate.push(variant);
+      continue;
+    }
+    desiredIds.add(variant.id);
+    const previous = current.get(variant.id);
+    const update: Record<string, unknown> = {};
+    for (const key of ["title", "sku", "ean", "upc", "barcode"] as const) {
+      if ((previous?.[key] ?? null) !== (variant[key] ?? null)) {
+        update[key] = variant[key];
+      }
+    }
+    if (Object.keys(update).length > 0) {
+      await updateProductVariantsWorkflow(scope).run({
+        input: {
+          selector: { id: variant.id, product_id: productId },
+          update,
+        },
+      });
+    }
+  }
+
+  if (toCreate.length > 0) {
+    await createProductVariantsWorkflow(scope).run({
+      input: {
+        product_variants: toCreate.map((variant) => ({
+          product_id: productId,
+          title: variant.title,
+          sku: variant.sku ?? undefined,
+          ean: variant.ean ?? undefined,
+          upc: variant.upc ?? undefined,
+          barcode: variant.barcode ?? undefined,
+          options: variant.options,
+          manage_inventory: false,
+        })),
+      },
+    });
+  }
+
+  const remove = [...current.keys()].filter((id) => !desiredIds.has(id));
+  if (remove.length > 0) {
+    await deleteProductVariantsWorkflow(scope).run({
+      input: { ids: remove },
+    });
+  }
 }
 
 export async function sellerOwnedProductIds(
@@ -305,9 +664,29 @@ export async function loadStudioProduct(
         a.studio_order - b.studio_order || a.rank - b.rank,
     );
 
+  const { data: variantRows } = await q.graph({
+    entity: "variant",
+    fields: [
+      "id",
+      "title",
+      "sku",
+      "ean",
+      "upc",
+      "barcode",
+      "manage_inventory",
+      "allow_backorder",
+      "options.value",
+      "options.option.title",
+    ],
+    filters: { product_id: productId },
+    pagination: { take: 500, skip: 0 },
+  });
+  const optionRows = await loadCurrentOptions(scope, productId);
+
   const metadata = product.metadata ?? {};
   const canEdit =
     mode === "admin" || (owned && String(product.status) === "draft");
+  const studioManaged = metadata.buildkart_product_studio === true;
 
   return {
     product: {
@@ -329,7 +708,32 @@ export async function loadStudioProduct(
         .map((tag: any) => tag?.value)
         .filter((value: unknown): value is string => Boolean(value)),
       specifications,
+      options: optionRows.map((option) => ({
+        id: option.id,
+        name: option.name,
+        values: option.values,
+      })),
+      variants: (variantRows ?? []).map((variant: any) => ({
+        id: variant.id,
+        title: variant.title ?? "",
+        sku: variant.sku ?? "",
+        ean: variant.ean ?? "",
+        upc: variant.upc ?? "",
+        barcode: variant.barcode ?? "",
+        manage_inventory: Boolean(variant.manage_inventory),
+        allow_backorder: Boolean(variant.allow_backorder),
+        options: Object.fromEntries(
+          (variant.options ?? [])
+            .map((entry: any) => [
+              entry?.option?.title,
+              entry?.value,
+            ])
+            .filter(([name, value]: [unknown, unknown]) => Boolean(name && value)),
+        ),
+      })),
       can_edit: canEdit,
+      options_editable: studioManaged && canEdit,
+      studio_managed: studioManaged,
       owned,
     },
   };
@@ -350,6 +754,9 @@ export async function saveStudioProduct(
 
   const tagIds = await resolveTags(scope, input.tags);
   const attributes = studioAttributes(input.specifications);
+  const options = normalizeOptions(input.options);
+  const variants = normalizeVariants(options, input.variants);
+  await validateSkuUniqueness(scope, productId ?? "", variants);
   const requestedSellerId =
     mode === "admin" ? clean(input.seller_id) ?? null : sellerId;
 
@@ -387,6 +794,7 @@ export async function saveStudioProduct(
     if (!created?.id) {
       throw new StudioError(500, "Product draft was created without an id.");
     }
+    await replaceOptionsAndVariants(scope, created.id, options, variants);
     return loadStudioProduct(scope, mode, sellerId, created.id);
   }
 
@@ -417,9 +825,51 @@ export async function saveStudioProduct(
     }
   }
 
+  const studioManaged = current.metadata?.buildkart_product_studio === true;
+  const currentOptions = await loadCurrentOptions(scope, productId);
+  const optionsChanged = !optionsEqual(
+    currentOptions.map((option) => ({
+      name: option.name,
+      values: option.values,
+    })),
+    options,
+  );
+
+  if (!studioManaged) {
+    if (optionsChanged) {
+      throw new StudioError(
+        409,
+        "Option axes for imported catalogue products are read-only in this slice.",
+      );
+    }
+    const { data: currentVariants } = await q.graph({
+      entity: "variant",
+      fields: ["id"],
+      filters: { product_id: productId },
+      pagination: { take: 500, skip: 0 },
+    });
+    const currentIds = new Set(
+      (currentVariants ?? []).map((variant: any) => variant.id),
+    );
+    const desiredIds = new Set(
+      variants
+        .map((variant) => variant.id)
+        .filter((id): id is string => Boolean(id)),
+    );
+    if (
+      currentIds.size !== desiredIds.size ||
+      [...currentIds].some((id) => !desiredIds.has(id))
+    ) {
+      throw new StudioError(
+        409,
+        "Adding or removing variants for imported catalogue products is read-only in this slice.",
+      );
+    }
+  }
+
   const metadata = {
     ...(current.metadata ?? {}),
-    buildkart_product_studio: true,
+    buildkart_product_studio: studioManaged,
     brand: clean(input.brand),
     manufacturer: clean(input.manufacturer),
     model_number: clean(input.model_number),
@@ -470,6 +920,12 @@ export async function saveStudioProduct(
     });
   }
 
+  if (studioManaged && optionsChanged) {
+    await replaceOptionsAndVariants(scope, productId, options, variants);
+  } else {
+    await syncVariants(scope, productId, variants);
+  }
+
   await recordProductAuditChangeWorkflow(scope).run({
     input: {
       actor_id: actorId,
@@ -493,6 +949,9 @@ export async function saveStudioProduct(
                   metadata,
                   tag_ids: tagIds,
                   specification_count: attributes.length,
+                  option_count: options.length,
+                  variant_count: variants.length,
+                  options_changed: optionsChanged,
                 },
               },
             },

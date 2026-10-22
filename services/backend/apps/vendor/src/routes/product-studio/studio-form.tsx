@@ -30,6 +30,16 @@ type MetaResponse = {
   catalogue: CatalogueItem[];
 };
 type Spec = { id?: string; name: string; value: string; unit: string };
+type Option = { id?: string; name: string; values: string[] };
+type Variant = {
+  id?: string;
+  title: string;
+  sku: string;
+  ean: string;
+  upc: string;
+  barcode: string;
+  options: Record<string, string>;
+};
 type StudioProduct = {
   id: string;
   title: string;
@@ -47,7 +57,11 @@ type StudioProduct = {
   unit_of_measure: string;
   tags: string[];
   specifications: Spec[];
+  options: Option[];
+  variants: Variant[];
   can_edit: boolean;
+  options_editable: boolean;
+  studio_managed: boolean;
   owned: boolean;
 };
 
@@ -82,6 +96,21 @@ const EMPTY_FORM: FormState = {
 };
 
 const EMPTY_SPEC: Spec = { name: "", value: "", unit: "" };
+
+const emptyVariant = (): Variant => ({
+  title: "Default",
+  sku: "",
+  ean: "",
+  upc: "",
+  barcode: "",
+  options: {},
+});
+
+function combinationKey(options: Option[], values: Record<string, string>): string {
+  return options
+    .map((option) => `${option.name.trim().toLowerCase()}:${(values[option.name] ?? "").toLowerCase()}`)
+    .join("|");
+}
 
 const SPEC_SUGGESTIONS = [
   "Material",
@@ -229,6 +258,11 @@ export function ProductStudioForm({
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [specs, setSpecs] = useState<Spec[]>([{ ...EMPTY_SPEC }]);
   const [tags, setTags] = useState<string[]>([]);
+  const [options, setOptions] = useState<Option[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([emptyVariant()]);
+  const [optionsEditable, setOptionsEditable] = useState(true);
+  const [studioManaged, setStudioManaged] = useState(true);
+  const [skuPrefix, setSkuPrefix] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -258,10 +292,14 @@ export function ProductStudioForm({
             form?: FormState;
             specs?: Spec[];
             tags?: string[];
+            options?: Option[];
+            variants?: Variant[];
           };
           if (saved.form) setForm({ ...EMPTY_FORM, ...saved.form });
           if (saved.specs?.length) setSpecs(saved.specs);
           if (saved.tags?.length) setTags(saved.tags);
+          if (saved.options?.length) setOptions(saved.options);
+          if (saved.variants?.length) setVariants(saved.variants);
           setNotice({
             kind: "info",
             text: "Restored the unsaved local draft from this browser.",
@@ -299,6 +337,12 @@ export function ProductStudioForm({
             : [{ ...EMPTY_SPEC }],
         );
         setTags(product.tags);
+        setOptions(product.options ?? []);
+        setVariants(
+          product.variants?.length ? product.variants : [emptyVariant()],
+        );
+        setOptionsEditable(Boolean(product.options_editable));
+        setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
         setCanEdit(product.can_edit);
         setLoaded(true);
@@ -323,11 +367,18 @@ export function ProductStudioForm({
     const handle = window.setTimeout(() => {
       localStorage.setItem(
         draftKey,
-        JSON.stringify({ form, specs, tags, updated_at: Date.now() }),
+        JSON.stringify({
+          form,
+          specs,
+          tags,
+          options,
+          variants,
+          updated_at: Date.now(),
+        }),
       );
     }, 700);
     return () => window.clearTimeout(handle);
-  }, [canEdit, draftKey, form, loaded, specs, tags]);
+  }, [canEdit, draftKey, form, loaded, options, specs, tags, variants]);
 
   const validSpecs = useMemo(
     () => specs.filter((spec) => spec.name.trim() && spec.value.trim()),
@@ -343,6 +394,56 @@ export function ProductStudioForm({
     [specs],
   );
 
+  const optionNames = options.map((option) => option.name.trim());
+
+  const optionRowsComplete = options.every(
+    (option) => option.name.trim() && option.values.length > 0,
+  );
+
+  const optionsMatchVariants = useMemo(() => {
+    if (!optionsEditable) return true;
+    if (options.length === 0) return variants.length === 1;
+    if (!optionRowsComplete) return false;
+    return variants.every((variant) =>
+      optionNames.every((name) => Boolean(variant.options[name]?.trim())),
+    );
+  }, [optionNames, optionRowsComplete, options.length, optionsEditable, variants]);
+
+  const duplicateSkus = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const variant of variants) {
+      const sku = variant.sku.trim().toLowerCase();
+      if (!sku) continue;
+      counts.set(sku, (counts.get(sku) ?? 0) + 1);
+    }
+    return new Set(
+      [...counts.entries()]
+        .filter(([, count]) => count > 1)
+        .map(([sku]) => sku),
+    );
+  }, [variants]);
+
+  const duplicateCombinations = useMemo(() => {
+    if (options.length === 0) return new Set<string>();
+    const counts = new Map<string, number>();
+    for (const variant of variants) {
+      const key = combinationKey(options, variant.options);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return new Set(
+      [...counts.entries()]
+        .filter(([, count]) => count > 1)
+        .map(([key]) => key),
+    );
+  }, [options, variants]);
+
+  const variantsReady =
+    variants.length > 0 &&
+    optionRowsComplete &&
+    optionsMatchVariants &&
+    duplicateSkus.size === 0 &&
+    duplicateCombinations.size === 0;
+
   const checks = useMemo(
     () => [
       { label: "Title", ok: Boolean(form.title.trim()), required: true },
@@ -353,17 +454,29 @@ export function ProductStudioForm({
       },
       { label: "Search tags", ok: tags.length > 0 },
       { label: "Specifications", ok: validSpecs.length > 0 },
+      { label: "Variants and SKUs", ok: variantsReady },
       { label: "Thumbnail", ok: Boolean(form.thumbnail.trim()) },
     ],
-    [form.category_id, form.thumbnail, form.title, tags, validSpecs],
+    [
+      form.category_id,
+      form.thumbnail,
+      form.title,
+      tags,
+      validSpecs,
+      variantsReady,
+    ],
   );
 
   const sectionOneDone = Boolean(form.title.trim() && form.category_id);
   const sectionTwoDone = tags.length > 0;
   const sectionThreeDone = validSpecs.length > 0;
-  const readySections = [sectionOneDone, sectionTwoDone, sectionThreeDone].filter(
-    Boolean,
-  ).length;
+  const sectionFourDone = variantsReady;
+  const readySections = [
+    sectionOneDone,
+    sectionTwoDone,
+    sectionThreeDone,
+    sectionFourDone,
+  ].filter(Boolean).length;
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -423,6 +536,174 @@ export function ProductStudioForm({
     setDirty(true);
   };
 
+  const updateOption = (index: number, patch: Partial<Option>) => {
+    setOptions((current) =>
+      current.map((option, position) =>
+        position === index ? { ...option, ...patch } : option,
+      ),
+    );
+    setDirty(true);
+    setNotice(null);
+  };
+
+  const setOptionValues = (index: number, raw: string) => {
+    const values: string[] = [];
+    const seen = new Set<string>();
+    for (const candidate of raw.split(",")) {
+      const value = candidate.trim();
+      if (!value || seen.has(value.toLowerCase())) continue;
+      seen.add(value.toLowerCase());
+      values.push(value);
+    }
+    updateOption(index, { values });
+  };
+
+  const addOption = () => {
+    if (options.length >= 3) {
+      setNotice({
+        kind: "error",
+        text: "A product can have at most three options in this slice.",
+      });
+      return;
+    }
+    setOptions((current) => [...current, { name: "", values: [] }]);
+    setDirty(true);
+  };
+
+  const removeOption = (index: number) => {
+    setOptions((current) =>
+      current.filter((_, position) => position !== index),
+    );
+    setDirty(true);
+  };
+
+  const generateVariants = () => {
+    const usable = options.filter(
+      (option) => option.name.trim() && option.values.length > 0,
+    );
+    if (usable.length !== options.length) {
+      setNotice({
+        kind: "error",
+        text: "Give every option a name and at least one value before generating combinations.",
+      });
+      return;
+    }
+
+    if (usable.length === 0) {
+      setVariants((current) => {
+        const first = current[0] ?? emptyVariant();
+        return [{ ...first, title: first.title || "Default", options: {} }];
+      });
+      setDirty(true);
+      return;
+    }
+
+    const total = usable.reduce(
+      (count, option) => count * option.values.length,
+      1,
+    );
+    if (total > 100) {
+      setNotice({
+        kind: "error",
+        text: "The selected values generate more than 100 combinations. Reduce the option values.",
+      });
+      return;
+    }
+
+    const existing = new Map(
+      variants.map((variant) => [
+        combinationKey(usable, variant.options),
+        variant,
+      ]),
+    );
+    const combinations: Record<string, string>[] = [{}];
+    for (const option of usable) {
+      const next: Record<string, string>[] = [];
+      for (const combination of combinations) {
+        for (const value of option.values) {
+          next.push({ ...combination, [option.name]: value });
+        }
+      }
+      combinations.splice(0, combinations.length, ...next);
+    }
+
+    setVariants(
+      combinations.map((values) => {
+        const key = combinationKey(usable, values);
+        const previous = existing.get(key);
+        return {
+          ...(previous ?? emptyVariant()),
+          title:
+            previous?.title ||
+            usable.map((option) => values[option.name]).join(" / "),
+          options: values,
+        };
+      }),
+    );
+    setDirty(true);
+    setNotice(null);
+  };
+
+  const updateVariant = (index: number, patch: Partial<Variant>) => {
+    setVariants((current) =>
+      current.map((variant, position) =>
+        position === index ? { ...variant, ...patch } : variant,
+      ),
+    );
+    setDirty(true);
+    setNotice(null);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants((current) =>
+      current.filter((_, position) => position !== index),
+    );
+    setDirty(true);
+  };
+
+  const fillBlankSkus = () => {
+    const prefix = skuPrefix.trim();
+    if (!prefix) {
+      setNotice({ kind: "error", text: "Enter a SKU prefix first." });
+      return;
+    }
+    if (!variants.some((variant) => !variant.sku.trim())) {
+      setNotice({ kind: "info", text: "Every variant already has a SKU." });
+      return;
+    }
+
+    const used = new Set(
+      variants
+        .map((variant) => variant.sku.trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const generated: string[] = [];
+    let index = 1;
+    for (const variant of variants) {
+      if (variant.sku.trim()) {
+        generated.push(variant.sku);
+        continue;
+      }
+      let candidate = `${prefix}-${String(index).padStart(2, "0")}`;
+      while (used.has(candidate.toLowerCase())) {
+        index += 1;
+        candidate = `${prefix}-${String(index).padStart(2, "0")}`;
+      }
+      used.add(candidate.toLowerCase());
+      generated.push(candidate);
+      index += 1;
+    }
+
+    setVariants((current) =>
+      current.map((variant, position) => ({
+        ...variant,
+        sku: variant.sku.trim() ? variant.sku : generated[position],
+      })),
+    );
+    setDirty(true);
+    setNotice({ kind: "success", text: "Filled blank SKUs with the prefix." });
+  };
+
   const save = async () => {
     if (!form.title.trim()) {
       setNotice({ kind: "error", text: "Enter a product title before saving." });
@@ -433,6 +714,28 @@ export function ProductStudioForm({
         kind: "error",
         text: "Complete or remove the partially filled specification rows before saving.",
       });
+      return;
+    }
+    if (optionsEditable && !optionRowsComplete) {
+      setNotice({
+        kind: "error",
+        text: "Complete every option name and add at least one value.",
+      });
+      return;
+    }
+    if (optionsEditable && !optionsMatchVariants) {
+      setNotice({
+        kind: "error",
+        text: "Option values changed. Generate combinations before saving.",
+      });
+      return;
+    }
+    if (duplicateSkus.size > 0) {
+      setNotice({ kind: "error", text: "SKUs must be unique." });
+      return;
+    }
+    if (duplicateCombinations.size > 0) {
+      setNotice({ kind: "error", text: "Variant combinations must be unique." });
       return;
     }
 
@@ -447,6 +750,19 @@ export function ProductStudioForm({
           value: spec.value,
           unit: spec.unit,
         })),
+        options: options.map((option) => ({
+          name: option.name,
+          values: option.values,
+        })),
+        variants: variants.map((variant) => ({
+          id: variant.id ?? null,
+          title: variant.title,
+          sku: variant.sku,
+          ean: variant.ean,
+          upc: variant.upc,
+          barcode: variant.barcode,
+          options: variant.options,
+        })),
       };
       const result = await request<{ product: StudioProduct }>(
         productId ? `${apiBase}/${productId}` : apiBase,
@@ -460,6 +776,14 @@ export function ProductStudioForm({
       setLastSaved(new Date().toLocaleTimeString());
       setStatus(result.product.status);
       setCanEdit(result.product.can_edit);
+      setOptions(result.product.options ?? []);
+      setVariants(
+        result.product.variants?.length
+          ? result.product.variants
+          : [emptyVariant()],
+      );
+      setOptionsEditable(Boolean(result.product.options_editable));
+      setStudioManaged(Boolean(result.product.studio_managed));
       setNotice({
         kind: "success",
         text: productId
@@ -485,6 +809,9 @@ export function ProductStudioForm({
     setForm(EMPTY_FORM);
     setSpecs([{ ...EMPTY_SPEC }]);
     setTags([]);
+    setOptions([]);
+    setVariants([emptyVariant()]);
+    setSkuPrefix("");
     setTagInput("");
     setDirty(false);
     setNotice({ kind: "info", text: "Started a new local draft." });
@@ -519,11 +846,14 @@ export function ProductStudioForm({
               >
                 {status}
               </StatusBadge>
+              {!studioManaged ? (
+                <StatusBadge color="grey">Catalogue-managed</StatusBadge>
+              ) : null}
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
-              One continuous product record. This first slice covers product
-              details, search tags and structured specifications. Variants,
-              pricing, inventory and publishing follow in later slices.
+              One continuous product record. This slice covers product
+              details, search tags, structured specifications, variants and
+              SKUs. Pricing, inventory and publishing follow in later slices.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -545,7 +875,7 @@ export function ProductStudioForm({
         <div className="border-t border-ui-border-base px-6 py-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-ui-fg-subtle">
             <span className="font-medium text-ui-fg-base">
-              {readySections}/3 available sections ready
+              {readySections}/4 available sections ready
             </span>
             <span>·</span>
             <span>
@@ -558,7 +888,7 @@ export function ProductStudioForm({
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ui-bg-subtle">
             <div
               className="h-full rounded-full bg-ui-bg-interactive transition-all"
-              style={{ width: `${(readySections / 3) * 100}%` }}
+              style={{ width: `${(readySections / 4) * 100}%` }}
             />
           </div>
         </div>
@@ -948,12 +1278,253 @@ export function ProductStudioForm({
               </div>
             </Section>
 
-            <UpcomingSection
+            <Section
               number={4}
               title="Variants and SKUs"
-              description="Variant axes, SKU uniqueness, EAN/UPC, barcode and default-variant behaviour."
-              next="Planned next: the variant combination builder will use the same product record."
-            />
+              description="Option axes generate the variant combinations. Each variant carries its own SKU, EAN/UPC and barcode."
+              complete={sectionFourDone}
+            >
+              {!optionsEditable ? (
+                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Option axes for this imported catalogue product are
+                    read-only in this slice. Existing variant SKU, EAN/UPC and
+                    barcode fields remain editable.
+                  </Text>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Heading level="h2">Options</Heading>
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      onClick={addOption}
+                      disabled={options.length >= 3}
+                    >
+                      Add option
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-2">
+                    {options.length === 0 ? (
+                      <Text size="small" className="text-ui-fg-subtle">
+                        No options. The product will keep one default variant.
+                      </Text>
+                    ) : null}
+                    {options.map((option, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-1 gap-2 rounded-lg border border-ui-border-base p-3 sm:grid-cols-[180px_minmax(0,1fr)_40px]"
+                      >
+                        <Input
+                          value={option.name}
+                          onChange={(event) =>
+                            updateOption(index, { name: event.target.value })
+                          }
+                          placeholder="Option name (e.g. Size)"
+                        />
+                        <Input
+                          value={option.values.join(", ")}
+                          onChange={(event) =>
+                            setOptionValues(index, event.target.value)
+                          }
+                          placeholder="Values separated by commas"
+                        />
+                        <Button
+                          type="button"
+                          size="small"
+                          variant="transparent"
+                          onClick={() => removeOption(index)}
+                          aria-label="Remove option"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      onClick={generateVariants}
+                    >
+                      Generate combinations
+                    </Button>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {options.length === 0
+                        ? "One default variant"
+                        : `${options.reduce(
+                            (count, option) =>
+                              count * Math.max(1, option.values.length),
+                            1,
+                          )} combinations from ${options.length} option${
+                            options.length === 1 ? "" : "s"
+                          }`}
+                    </Text>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ui-border-base pt-5">
+                <div>
+                  <Heading level="h2">Variants</Heading>
+                  <Text size="small" className="mt-1 text-ui-fg-subtle">
+                    {variants.length} variant
+                    {variants.length === 1 ? "" : "s"} · non-empty SKUs must be
+                    unique.
+                  </Text>
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-ui-fg-subtle">
+                      Bulk SKU prefix
+                    </span>
+                    <Input
+                      value={skuPrefix}
+                      onChange={(event) => setSkuPrefix(event.target.value)}
+                      placeholder="e.g. AK-PPR"
+                      className="w-40"
+                    />
+                  </label>
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="secondary"
+                    onClick={fillBlankSkus}
+                  >
+                    Fill blank SKUs
+                  </Button>
+                </div>
+              </div>
+
+              {!optionsMatchVariants ? (
+                <div className="mt-3 rounded-lg border border-ui-border-error bg-ui-bg-error px-4 py-3 text-sm text-ui-fg-error">
+                  Option values changed. Generate combinations before saving.
+                </div>
+              ) : null}
+
+              <div className="mt-3 flex flex-col gap-2">
+                {variants.map((variant, index) => {
+                  const skuDuplicate = Boolean(
+                    variant.sku.trim() &&
+                      duplicateSkus.has(variant.sku.trim().toLowerCase()),
+                  );
+                  const combinationDuplicate = Boolean(
+                    options.length > 0 &&
+                      duplicateCombinations.has(
+                        combinationKey(options, variant.options),
+                      ),
+                  );
+                  const combinationLabel =
+                    options.length > 0
+                      ? options
+                          .map(
+                            (option) =>
+                              `${option.name}: ${
+                                variant.options[option.name] ?? "—"
+                              }`,
+                          )
+                          .join(" · ")
+                      : "Default variant";
+                  return (
+                    <div
+                      key={variant.id ?? index}
+                      className={`rounded-lg border p-3 ${
+                        skuDuplicate || combinationDuplicate
+                          ? "border-ui-border-error bg-ui-bg-error"
+                          : "border-ui-border-base"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-ui-fg-subtle">
+                          {combinationLabel}
+                        </span>
+                        {optionsEditable && variants.length > 1 ? (
+                          <Button
+                            size="small"
+                            type="button"
+                            variant="transparent"
+                            onClick={() => removeVariant(index)}
+                          >
+                            Remove
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-ui-fg-subtle">
+                            Variant title
+                          </span>
+                          <Input
+                            value={variant.title}
+                            onChange={(event) =>
+                              updateVariant(index, {
+                                title: event.target.value,
+                              })
+                            }
+                            placeholder="Variant title"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-ui-fg-subtle">
+                            SKU {skuDuplicate ? "· duplicate" : ""}
+                          </span>
+                          <Input
+                            value={variant.sku}
+                            onChange={(event) =>
+                              updateVariant(index, {
+                                sku: event.target.value,
+                              })
+                            }
+                            placeholder="Unique SKU"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-ui-fg-subtle">EAN</span>
+                          <Input
+                            value={variant.ean}
+                            onChange={(event) =>
+                              updateVariant(index, {
+                                ean: event.target.value,
+                              })
+                            }
+                            placeholder="EAN"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-ui-fg-subtle">UPC</span>
+                          <Input
+                            value={variant.upc}
+                            onChange={(event) =>
+                              updateVariant(index, {
+                                upc: event.target.value,
+                              })
+                            }
+                            placeholder="UPC"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 md:col-span-2">
+                          <span className="text-xs text-ui-fg-subtle">
+                            Barcode
+                          </span>
+                          <Input
+                            value={variant.barcode}
+                            onChange={(event) =>
+                              updateVariant(index, {
+                                barcode: event.target.value,
+                              })
+                            }
+                            placeholder="Barcode"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
             <UpcomingSection
               number={5}
               title="Pricing"
@@ -1049,6 +1620,17 @@ export function ProductStudioForm({
                     ))}
                   </div>
                 ) : null}
+                <div className="mt-4 border-t border-ui-border-base pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
+                    Variants
+                  </p>
+                  <p className="mt-2 text-xs text-ui-fg-subtle">
+                    {variants.length} variant{variants.length === 1 ? "" : "s"}
+                    {variants[0]?.sku
+                      ? ` · first SKU ${variants[0].sku}`
+                      : " · no SKU yet"}
+                  </p>
+                </div>
                 <div className="mt-4 border-t border-ui-border-base pt-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
                     Specifications
