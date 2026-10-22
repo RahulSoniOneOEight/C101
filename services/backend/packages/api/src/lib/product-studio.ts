@@ -95,6 +95,10 @@ const productFields = [
   "categories.name",
   "tags.id",
   "tags.value",
+  "options.id",
+  "options.title",
+  "options.values.id",
+  "options.values.value",
   "product_attribute_values.id",
   "product_attribute_values.name",
   "product_attribute_values.attribute.id",
@@ -340,22 +344,12 @@ async function loadCurrentOptions(
   productId: string,
 ): Promise<Array<{ id: string; name: string; values: string[] }>> {
   const q = query(scope);
-  const { data: links } = await q.graph({
-    entity: "product_product_option",
-    fields: ["product_option_id"],
-    filters: { product_id: productId },
+  const { data: products } = await q.graph({
+    entity: "product",
+    fields: ["id", "options.id", "options.title", "options.values.id", "options.values.value"],
+    filters: { id: productId },
   });
-  const ids = (links ?? [])
-    .map((link: any) => link.product_option_id)
-    .filter((id: unknown): id is string => Boolean(id));
-  if (ids.length === 0) return [];
-
-  const { data: options } = await q.graph({
-    entity: "product_option",
-    fields: ["id", "title", "values.id", "values.value"],
-    filters: { id: ids },
-    pagination: { take: 100, skip: 0 },
-  });
+  const options = products?.[0]?.options ?? [];
 
   return (options ?? []).map((option: any) => ({
     id: option.id,
@@ -681,7 +675,13 @@ export async function loadStudioProduct(
     filters: { product_id: productId },
     pagination: { take: 500, skip: 0 },
   });
-  const optionRows = await loadCurrentOptions(scope, productId);
+  const optionRows = (product.options ?? []).map((option: any) => ({
+    id: option.id,
+    name: String(option.title ?? ""),
+    values: (option.values ?? [])
+      .map((value: any) => value.value)
+      .filter((value: unknown): value is string => Boolean(value)),
+  }));
 
   const metadata = product.metadata ?? {};
   const canEdit =
