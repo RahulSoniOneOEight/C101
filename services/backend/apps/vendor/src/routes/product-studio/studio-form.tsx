@@ -716,6 +716,7 @@ export function ProductStudioForm({
       .catch((error: Error) => {
         if (!cancelled) {
           setNotice({ kind: "error", text: error.message });
+          setCanEdit(false);
           setLoaded(true);
         }
       })
