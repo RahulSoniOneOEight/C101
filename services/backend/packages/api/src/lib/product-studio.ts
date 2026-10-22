@@ -10,8 +10,9 @@ import {
 import {
   createAndLinkProductAttributesToProductWorkflow,
   createProductsWorkflow,
+  recordProductAuditChangeWorkflow,
 } from "@mercurjs/core/workflows";
-import { AttributeType } from "@mercurjs/types";
+import { AttributeType, ProductChangeActionType } from "@mercurjs/types";
 
 export type StudioMode = "admin" | "vendor";
 
@@ -392,7 +393,7 @@ export async function saveStudioProduct(
   const q = query(scope);
   const { data: products } = await q.graph({
     entity: "product",
-    fields: ["id", "status", "metadata"],
+    fields: ["id", "title", "status", "metadata"],
     filters: { id: productId },
   });
   const current = products?.[0];
@@ -468,6 +469,38 @@ export async function saveStudioProduct(
       },
     });
   }
+
+  await recordProductAuditChangeWorkflow(scope).run({
+    input: {
+      actor_id: actorId,
+      changes: [
+        {
+          product_id: productId,
+          internal_note: "Product studio draft saved",
+          actions: [
+            {
+              product_id: productId,
+              action: ProductChangeActionType.UPDATE,
+              details: {
+                source: "product_studio",
+                actor_role: mode,
+                before: {
+                  title: current.title,
+                  metadata: current.metadata ?? null,
+                },
+                after: {
+                  title,
+                  metadata,
+                  tag_ids: tagIds,
+                  specification_count: attributes.length,
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+  });
 
   return loadStudioProduct(scope, mode, sellerId, productId);
 }
