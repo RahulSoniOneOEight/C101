@@ -1,7 +1,7 @@
 # Product editor assessment and implementation plan
 
 Date: 2026-10-22  
-Status: Slices 1 and 2 implemented in staging; Slice 3 next  
+Status: Slices 1–3 implemented in staging; Slice 4 next  
 Scope: Admin and Seller product creation/edit  
 Related: CHG-074 approved operating defaults
 
@@ -139,6 +139,50 @@ Deliberate Slice 2 boundaries:
   must not be extended to live offers without a migration plan.
 - No offers, pricing, stock or publication effects are introduced.
 
+## Slice 3 delivery (2026-10-23)
+
+Slice 3 embeds the existing audited offer-pricing facade in the same
+Admin/Seller studio page.
+
+Implemented:
+
+- Offer pricing cards beneath the variant section.
+- INR B2C base selling price and up to ten quantity tiers.
+- Add/remove tier controls and the same ladder validation as the native offer
+  pricing editor.
+- Optional reason carried into the price-change audit.
+- Admin sees all seller offers for the variant; seller sees only its own offers.
+- Pricing writes go through the existing audited endpoints:
+  - `/admin/buildkart/offers/:id/pricing`
+  - `/vendor/buildkart/offers/:id/pricing`
+- Price changes append `seller.offer.price_changed` domain events with actor,
+  role, source, reason and before/after prices.
+- Readiness now includes pricing: every variant needs an offer with a positive
+  INR base price.
+
+Verification on staging:
+
+- Admin studio loaded two seller offers for the same catalogue variant with
+  seller names, SKUs and existing INR amounts.
+- Admin UI changed a base price to `₹4,180` with a reason; the database and
+  `seller.offer.price_changed` audit event matched.
+- The price was restored to `₹4,179` through the same audited endpoint.
+- Seller access to a non-owned catalogue product now shows read-only rather
+  than a misleading editable form.
+
+Deliberate Slice 3 boundaries:
+
+- Only the currently implemented offer-scoped B2C selling price and quantity
+  tiers are exposed.
+- List-vs-selling price guardrails, B2B price lists, MOQ, effective dates and
+  policy floors remain pending CHG-074 extensions.
+- GST is displayed as the governed B2C pricing context, not a new stored flag.
+- New studio variants have no seller offer yet, so their pricing card states
+  that pricing becomes available after offer/inventory provisioning.
+- Seller studio editing remains draft-only. Published seller variants are
+  priced through the native offer editor until the review/publish slice.
+- No second price store or product-level price is created.
+
 ## Current product flow
 
 ### Admin
@@ -258,5 +302,6 @@ The editor must not create a second product, attribute, price or inventory model
 - Copper Cable attribute cleanup: complete.
 - Product editor Slice 1: live on staging.
 - Product editor Slice 2: live on staging.
-- Product editor Slice 3 (pricing): next.
+- Product editor Slice 3 (pricing): live on staging.
+- Product editor Slice 4 (inventory): next.
 - Production remains unauthorized.
