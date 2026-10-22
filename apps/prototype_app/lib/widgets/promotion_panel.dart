@@ -66,6 +66,10 @@ class _PromotionPanelState extends ConsumerState<PromotionPanel> {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
     final promotions = widget.cart.promotions;
+    final automatic =
+        promotions.where((promotion) => promotion.isAutomatic).toList();
+    final codes =
+        promotions.where((promotion) => !promotion.isAutomatic).toList();
     return Container(
       padding: const EdgeInsets.all(AgencySpacing.md),
       decoration: BoxDecoration(
@@ -117,13 +121,33 @@ class _PromotionPanelState extends ConsumerState<PromotionPanel> {
             Text(_error!,
                 style: TextStyle(fontSize: 12, color: colors.promotion)),
           ],
-          if (promotions.isNotEmpty) ...<Widget>[
+          if (automatic.isNotEmpty) ...<Widget>[
             const SizedBox(height: AgencySpacing.sm),
             Wrap(
               spacing: AgencySpacing.xs,
               runSpacing: AgencySpacing.xs,
               children: <Widget>[
-                for (final promotion in promotions)
+                for (final promotion in automatic)
+                  Chip(
+                    avatar: const Icon(Icons.auto_awesome, size: 14),
+                    label: Text('${promotion.code} · Auto',
+                        style: const TextStyle(fontSize: 11)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AgencySpacing.xs),
+            Text(
+              'Store-applied offers stay active. You can still add a code and the engine will decide the final discount.',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary),
+            ),
+          ],
+          if (codes.isNotEmpty) ...<Widget>[
+            const SizedBox(height: AgencySpacing.sm),
+            Wrap(
+              spacing: AgencySpacing.xs,
+              runSpacing: AgencySpacing.xs,
+              children: <Widget>[
+                for (final promotion in codes)
                   InputChip(
                     label: Text(promotion.code,
                         style: const TextStyle(fontSize: 11)),

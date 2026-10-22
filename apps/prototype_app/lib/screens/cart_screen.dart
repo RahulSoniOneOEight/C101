@@ -9,6 +9,7 @@ import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
+import '../widgets/cart_feedback.dart';
 import '../widgets/conversation_bell.dart';
 import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
@@ -201,13 +202,9 @@ class CartScreen extends ConsumerWidget {
                     variantId: p.cartVariantId,
                   );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(added
-                            ? 'Added to cart'
-                            : 'Could not add to cart. Please retry.'),
-                      ),
-                    );
+                    added
+                        ? showCartAddedToast(context)
+                        : showCartErrorToast(context);
                   }
                 },
                 onDiscuss: () =>
@@ -332,13 +329,9 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                         variantId: p.cartVariantId,
                       );
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(added
-                                ? 'Added to cart'
-                                : 'Could not add to cart. Please retry.'),
-                          ),
-                        );
+                        added
+                            ? showCartAddedToast(context)
+                            : showCartErrorToast(context);
                       }
                     },
                     onDiscuss: () =>

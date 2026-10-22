@@ -7,6 +7,7 @@ import '../domain/models.dart';
 import '../domain/order_models.dart';
 import '../domain/storefront_ux.dart';
 import '../providers/cart_actions.dart';
+import '../widgets/cart_feedback.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../providers/orders_providers.dart';
@@ -890,6 +891,20 @@ class _FilterScreenState extends State<FilterScreen> {
 // D2C Orders
 // ---------------------------------------------------------------------------
 
+AppBar _ordersAppBar(BuildContext context, {PreferredSizeWidget? bottom}) {
+  return AppBar(
+    title: const Text('My Orders'),
+    bottom: bottom,
+    actions: <Widget>[
+      IconButton(
+        tooltip: 'Back to home',
+        icon: const Icon(Icons.home_outlined),
+        onPressed: () => context.go('/'),
+      ),
+    ],
+  );
+}
+
 class D2COrdersScreen extends ConsumerWidget {
   const D2COrdersScreen({super.key});
 
@@ -899,13 +914,13 @@ class D2COrdersScreen extends ConsumerWidget {
     final orders = ordersAsync.value;
     if (ordersAsync.isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Orders')),
+        appBar: _ordersAppBar(context),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (ordersAsync.hasError) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Orders')),
+        appBar: _ordersAppBar(context),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -922,15 +937,15 @@ class D2COrdersScreen extends ConsumerWidget {
     }
     if (orders == null || orders.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('My Orders')),
+        appBar: _ordersAppBar(context),
         body: const EmptyView(message: 'No orders yet'),
       );
     }
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My Orders'),
+        appBar: _ordersAppBar(
+          context,
           bottom: const TabBar(
             isScrollable: false,
             tabs: <Widget>[
@@ -1168,6 +1183,19 @@ class TrackPackageScreen extends ConsumerWidget {
 // D2C Order detail
 // ---------------------------------------------------------------------------
 
+AppBar _orderAppBar(BuildContext context, String title) {
+  return AppBar(
+    title: Text(title),
+    actions: <Widget>[
+      IconButton(
+        tooltip: 'Back to home',
+        icon: const Icon(Icons.home_outlined),
+        onPressed: () => context.go('/'),
+      ),
+    ],
+  );
+}
+
 class OrderDetailScreen extends ConsumerWidget {
   const OrderDetailScreen({required this.orderId, super.key});
 
@@ -1179,13 +1207,13 @@ class OrderDetailScreen extends ConsumerWidget {
     final orderAsync = ref.watch(apiOrderProvider(orderId));
     if (orderAsync.isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Order')),
+        appBar: _orderAppBar(context, 'Order'),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (orderAsync.hasError) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Order')),
+        appBar: _orderAppBar(context, 'Order'),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -1203,13 +1231,13 @@ class OrderDetailScreen extends ConsumerWidget {
     final order = orderAsync.value;
     if (order == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Order')),
+        appBar: _orderAppBar(context, 'Order'),
         body: const EmptyView(message: 'Order not found'),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(order.number)),
+      appBar: _orderAppBar(context, order.number),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -1625,15 +1653,9 @@ class _WishlistTile extends ConsumerWidget {
                         variantId: product.cartVariantId,
                       );
                       if (context.mounted) {
-                        PinToast.show(
-                          context,
-                          added
-                              ? 'Added to cart'
-                              : 'Could not add to cart. Please retry.',
-                          tone: added
-                              ? PinToastTone.success
-                              : PinToastTone.warning,
-                        );
+                        added
+                            ? showCartAddedToast(context)
+                            : showCartErrorToast(context);
                       }
                     },
                     style: FilledButton.styleFrom(

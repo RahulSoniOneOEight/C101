@@ -12,6 +12,7 @@ import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
+import '../widgets/cart_feedback.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_pinned_bar.dart';
 import '../widgets/merchandising_sections.dart';
@@ -147,22 +148,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       unitPrice: selected?.price ?? product.price,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(added
-            ? (selected == null
-                ? 'Added to cart'
-                : 'Added ${selected.label} to cart')
-            : 'Could not add to cart. Please retry.'),
-        action: added
-            ? SnackBarAction(
-                label: 'View cart',
-                // Cart is a sibling shell branch; `go` switches the tab.
-                onPressed: () => context.go('/cart'),
-              )
-            : null,
-      ),
-    );
+    added
+        ? showCartAddedToast(context)
+        : showCartErrorToast(context, 'Could not add to cart. Please retry.');
   }
 
   void _openProduct(Product product) => context.push('/product/${product.id}');

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
 import '../domain/conversation_models.dart';
+import '../widgets/cart_feedback.dart';
 import '../widgets/market_comparison.dart';
 import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
@@ -293,7 +294,6 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
               child: OutlinedButton.icon(
                 onPressed: priceAvailable && canAdd
                     ? () async {
-                        final messenger = ScaffoldMessenger.of(context);
                         final added = await addToCartSafely(
                           ref,
                           offerId: offerId,
@@ -301,13 +301,9 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                           unitPrice: unitPrice,
                         );
                         if (!context.mounted) return;
-                        messenger.showSnackBar(SnackBar(
-                          content: Text(added
-                              ? (seller == null
-                                  ? 'Added to cart'
-                                  : 'Added to cart · ${seller.name}')
-                              : 'Could not add to cart. Please retry.'),
-                        ));
+                        added
+                            ? showCartAddedToast(context)
+                            : showCartErrorToast(context);
                       }
                     : null,
                 icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -324,7 +320,6 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
               child: FilledButton(
                 onPressed: priceAvailable && canAdd
                     ? () async {
-                        final messenger = ScaffoldMessenger.of(context);
                         final added = await addToCartSafely(
                           ref,
                           offerId: offerId,
@@ -335,10 +330,10 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                         if (added) {
                           context.push('/checkout');
                         } else {
-                          messenger.showSnackBar(const SnackBar(
-                            content:
-                                Text('Could not start checkout. Please retry.'),
-                          ));
+                          showCartErrorToast(
+                            context,
+                            'Could not start checkout. Please retry.',
+                          );
                         }
                       }
                     : null,

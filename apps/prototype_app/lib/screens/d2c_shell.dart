@@ -8,6 +8,7 @@ import '../domain/conversation_models.dart';
 import '../providers/account_providers.dart';
 import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
+import '../widgets/cart_feedback.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
@@ -482,20 +483,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       unitPrice: selected?.price ?? product.price,
     );
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(added
-          ? (selected == null
-              ? 'Added to cart'
-              : 'Added ${selected.label} to cart')
-          : 'Could not add to cart. Please retry.'),
-      action: added
-          ? SnackBarAction(
-              label: 'View cart',
-              // Cart is a sibling shell branch; `go` switches the tab.
-              onPressed: () => context.go('/cart'),
-            )
-          : null,
-    ));
+    added ? showCartAddedToast(context) : showCartErrorToast(context);
   }
 
   /// Shown when the filters/search yield nothing: suggested filters + a few
