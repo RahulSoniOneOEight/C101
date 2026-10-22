@@ -182,9 +182,11 @@ active_changes:
   order_channel_filter_b2b_app_checkout: local-only-not-canonical
   order_channel_filter_evidence: docs/implementation/session-note-2026-10-22-order-channels.md
   customer_app_feedback_status: staging-deployed-verified
-  customer_app_feedback_release: 4af8832
+  customer_app_feedback_release: 3398d8f
   customer_app_cart_toast_ms: 900
   customer_app_order_home_navigation: pass
+  customer_app_browse_search_status: staging-deployed-verified
+  customer_app_browse_search_release: 3398d8f
   promotion_auto_removal_status: unsupported-by-current-engine
   admin_seller_brief_status: assessed-first-slice-proposed
   admin_seller_brief_assessment: docs/implementation/session-note-2026-10-22-app-feedback-and-admin-seller-assessment.md
