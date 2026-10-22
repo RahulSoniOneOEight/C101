@@ -57,6 +57,9 @@ failure. That fake id is not addressable by the backend, so every later add/chec
   `ship_1e30e7d12e3e4611a10a05c49b29f842` booked.
 - Admin order-status projection includes order `#98` with `shipment_count=1`,
   `shipment_statuses=["booked"]`.
+- Native admin order **#98** opened successfully: the page showed one booked shipment, the
+  “Record delivery” action, zero returns, and the correct order-group/checkout references, with
+  zero console errors. The temporary admin verification account was deleted after the check.
 - Order-confirmation screen rendered successfully.
 
 ## Release
