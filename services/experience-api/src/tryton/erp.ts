@@ -355,25 +355,6 @@ export class TrytonErp {
     quantity: number;
     operationKey: string;
   }> {
-    const existing = await this.client.search(
-      "stock.move",
-      [["shipment", "=", input.operationKey]],
-      1,
-    );
-    if (existing.length) {
-      const rows = await this.client.read("stock.move", existing, [
-        "id",
-        "state",
-        "quantity",
-      ]);
-      const row = rows[0];
-      return {
-        moveId: Number(row.id),
-        state: String(row.state ?? ""),
-        quantity: Number(row.quantity ?? 0),
-        operationKey: input.operationKey,
-      };
-    }
     const product = await this.findProductBySku(input.sku);
     const storage = await this.storageLocationId();
     const quantity = Math.abs(input.quantity);
@@ -397,7 +378,6 @@ export class TrytonErp {
       company,
       currency,
       unit_price: 0,
-      shipment: input.operationKey,
     });
     await this.client.write("stock.move", [moveId], { state: "done" });
     const rows = await this.client.read("stock.move", [moveId], [
