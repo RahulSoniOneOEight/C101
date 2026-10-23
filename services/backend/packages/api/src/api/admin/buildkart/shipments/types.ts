@@ -13,6 +13,8 @@ export interface AdminShipment {
   provider: string;
   trackingNumber: string;
   status: string;
+  version: number;
+  allowedTransitions: string[];
   deliveredAt: string | null;
   proofRef: string | null;
   destinationPostcode: string | null;

@@ -10,12 +10,55 @@ import pg from "pg";
 
 export type ReturnStatus =
   | "requested"
+  | "under_review"
   | "approved"
   | "rejected"
   | "cancelled"
   | "pickup_scheduled"
+  | "pickup_attempted"
+  | "in_return_transit"
   | "received"
+  | "inspection_pending"
+  | "inspection_complete"
   | "closed";
+
+export const RETURN_TRANSITIONS: Record<ReturnStatus, ReturnStatus[]> = {
+  requested: ["under_review", "cancelled"],
+  under_review: ["approved", "rejected", "cancelled"],
+  approved: ["pickup_scheduled", "received", "cancelled"],
+  rejected: [],
+  cancelled: [],
+  pickup_scheduled: [
+    "pickup_attempted",
+    "in_return_transit",
+    "received",
+    "cancelled",
+  ],
+  pickup_attempted: ["pickup_scheduled", "in_return_transit", "cancelled"],
+  in_return_transit: ["received"],
+  received: ["inspection_pending", "inspection_complete"],
+  inspection_pending: ["inspection_complete"],
+  inspection_complete: ["closed"],
+  closed: [],
+};
+
+/**
+ * Seller portals advance reverse logistics only. Admin keeps decision and
+ * cancellation authority for the return case.
+ */
+export const SELLER_RETURN_TRANSITIONS = new Set<ReturnStatus>([
+  "pickup_scheduled",
+  "pickup_attempted",
+  "in_return_transit",
+  "received",
+  "inspection_pending",
+  "inspection_complete",
+  "closed",
+]);
+
+export function allowedReturnTransitions(status: ReturnStatus): ReturnStatus[] {
+  return [...RETURN_TRANSITIONS[status]];
+}
 
 export type ReturnResolution = "refund" | "replacement";
 
@@ -65,6 +108,8 @@ export interface ReturnCase {
   policyVersion: string;
   policySnapshot: Record<string, unknown>;
   status: ReturnStatus;
+  version: number;
+  allowedTransitions: ReturnStatus[];
   resolution: ReturnResolution;
   reasonCode: string;
   customerComment: string | null;
@@ -89,6 +134,7 @@ interface ReturnCaseRow {
   policy_version: string;
   policy_snapshot: Record<string, unknown>;
   status: ReturnStatus;
+  version: number;
   resolution: ReturnResolution;
   reason_code: string;
   customer_comment: string | null;
@@ -131,6 +177,7 @@ interface ReturnEventRow {
   actor_id: string | null;
   actor_role: string | null;
   detail: Record<string, unknown>;
+  operation_key: string | null;
   occurred_at: Date | string;
 }
 
@@ -168,6 +215,7 @@ export class ReturnStore {
         policy_version   text NOT NULL,
         policy_snapshot  jsonb NOT NULL,
         status           text NOT NULL,
+        version          integer NOT NULL DEFAULT 1 CHECK (version > 0),
         resolution       text NOT NULL,
         reason_code      text NOT NULL,
         customer_comment text,
@@ -184,6 +232,9 @@ export class ReturnStore {
         ON pilot_return_case (user_id, requested_at DESC);
       CREATE INDEX IF NOT EXISTS pilot_return_case_status_idx
         ON pilot_return_case (status, requested_at);
+
+      ALTER TABLE pilot_return_case
+        ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1;
 
       CREATE TABLE IF NOT EXISTS pilot_return_line (
         id             text PRIMARY KEY,
@@ -205,10 +256,16 @@ export class ReturnStore {
         actor_id       text,
         actor_role     text,
         detail         jsonb NOT NULL DEFAULT '{}'::jsonb,
+        operation_key  text,
         occurred_at    timestamptz NOT NULL DEFAULT now()
       );
+      ALTER TABLE pilot_return_event
+        ADD COLUMN IF NOT EXISTS operation_key text;
       CREATE INDEX IF NOT EXISTS pilot_return_event_case_idx
         ON pilot_return_event (return_case_id, occurred_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS pilot_return_event_operation_uidx
+        ON pilot_return_event (return_case_id, operation_key)
+        WHERE operation_key IS NOT NULL;
 
       CREATE TABLE IF NOT EXISTS pilot_return_evidence (
         id             text PRIMARY KEY,
@@ -404,6 +461,8 @@ export class ReturnStore {
       policyVersion: row.policy_version,
       policySnapshot: row.policy_snapshot,
       status: row.status,
+      version: Number(row.version),
+      allowedTransitions: allowedReturnTransitions(row.status),
       resolution: row.resolution,
       reasonCode: row.reason_code,
       customerComment: row.customer_comment,
@@ -491,26 +550,55 @@ export class ReturnStore {
     decision: "approved" | "rejected";
     actorId: string;
     actorRole: string;
+    expectedVersion?: number | null;
     comment?: string | null;
     approvedLines?: Array<{ lineKey: string; approvedQty: number }>;
   }): Promise<ReturnCase> {
     await this.ready;
     const current = await this.get(input.id);
     if (!current) throw Object.assign(new Error("Return case not found."), { code: "return-not-found" });
-    if (current.status !== "requested") {
+    if (!(["requested", "under_review"] as ReturnStatus[]).includes(current.status)) {
       throw Object.assign(new Error("Return case is not awaiting a decision."), {
         code: "return-not-decidable",
       });
     }
+    if (
+      input.expectedVersion !== undefined &&
+      input.expectedVersion !== null &&
+      current.version !== input.expectedVersion
+    ) {
+      throw Object.assign(
+        new Error(
+          `Return changed from version ${input.expectedVersion} to ${current.version}. Refresh before retrying.`,
+        ),
+        { code: "return-version-conflict", currentVersion: current.version },
+      );
+    }
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query(
+      const updatedCase = await client.query(
         `UPDATE pilot_return_case
-            SET status = $2, decided_at = now(), decided_by = $3, decision_comment = $4
-          WHERE id = $1 AND status = 'requested'`,
-        [input.id, input.decision, input.actorId, input.comment ?? null],
+            SET status = $2, decided_at = now(), decided_by = $3,
+                decision_comment = $4, version = version + 1
+          WHERE id = $1
+            AND status IN ('requested', 'under_review')
+            AND ($5::integer IS NULL OR version = $5)
+          RETURNING version`,
+        [
+          input.id,
+          input.decision,
+          input.actorId,
+          input.comment ?? null,
+          input.expectedVersion ?? null,
+        ],
       );
+      if (updatedCase.rowCount !== 1) {
+        throw Object.assign(
+          new Error("Return changed while the decision was being recorded. Refresh before retrying."),
+          { code: "return-version-conflict" },
+        );
+      }
       if (input.decision === "approved" && input.approvedLines?.length) {
         for (const line of input.approvedLines) {
           await client.query(
@@ -551,6 +639,102 @@ export class ReturnStore {
     }
   }
 
+  async updateStatus(input: {
+    id: string;
+    status: ReturnStatus;
+    expectedVersion: number;
+    idempotencyKey: string;
+    actorId: string;
+    actorRole: string;
+    note?: string | null;
+  }): Promise<{ returnCase: ReturnCase; duplicate: boolean }> {
+    await this.ready;
+    const replay = await this.pool.query<ReturnEventRow>(
+      `SELECT * FROM pilot_return_event
+        WHERE return_case_id = $1 AND operation_key = $2`,
+      [input.id, input.idempotencyKey],
+    );
+    if (replay.rows[0]) {
+      const current = await this.get(input.id);
+      if (!current) {
+        throw Object.assign(new Error("Return case not found."), {
+          code: "return-not-found",
+        });
+      }
+      return { returnCase: current, duplicate: true };
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const locked = await client.query<ReturnCaseRow>(
+        `SELECT * FROM pilot_return_case WHERE id = $1 FOR UPDATE`,
+        [input.id],
+      );
+      const current = locked.rows[0];
+      if (!current) {
+        throw Object.assign(new Error("Return case not found."), {
+          code: "return-not-found",
+        });
+      }
+      if (Number(current.version) !== input.expectedVersion) {
+        throw Object.assign(
+          new Error(
+            `Return changed from version ${input.expectedVersion} to ${current.version}. Refresh before retrying.`,
+          ),
+          { code: "return-version-conflict", currentVersion: Number(current.version) },
+        );
+      }
+      if (
+        ["approved", "rejected", "requested"].includes(input.status) ||
+        !RETURN_TRANSITIONS[current.status].includes(input.status)
+      ) {
+        throw Object.assign(
+          new Error(
+            `Cannot move a return from ${current.status} to ${input.status}.`,
+          ),
+          { code: "invalid-return-transition" },
+        );
+      }
+      await client.query(
+        `UPDATE pilot_return_case
+            SET status = $2, version = version + 1
+          WHERE id = $1`,
+        [input.id, input.status],
+      );
+      await client.query(
+        `INSERT INTO pilot_return_event
+           (id, return_case_id, event_type, actor_id, actor_role, detail,
+            operation_key)
+         VALUES ($1, $2, 'return.status_changed', $3, $4, $5, $6)`,
+        [
+          `rete_${randomUUID().replaceAll("-", "")}`,
+          input.id,
+          input.actorId,
+          input.actorRole,
+          JSON.stringify({
+            previous_status: current.status,
+            status: input.status,
+            note: input.note ?? null,
+            expected_version: input.expectedVersion,
+            resulting_version: input.expectedVersion + 1,
+            money_effect: "none",
+            stock_effect: "none",
+          }),
+          input.idempotencyKey,
+        ],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+    const updated = await this.get(input.id);
+    if (!updated) throw new Error("Return case disappeared after status update.");
+    return { returnCase: updated, duplicate: false };
+  }
+
   async cancel(id: string, userId: string): Promise<ReturnCase> {
     await this.ready;
     const current = await this.getForUser(id, userId);
@@ -561,7 +745,9 @@ export class ReturnStore {
       });
     }
     await this.pool.query(
-      `UPDATE pilot_return_case SET status = 'cancelled', decided_at = now(), decided_by = $2
+      `UPDATE pilot_return_case
+          SET status = 'cancelled', decided_at = now(), decided_by = $2,
+              version = version + 1
         WHERE id = $1 AND status = 'requested'`,
       [id, userId],
     );

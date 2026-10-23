@@ -10,36 +10,269 @@ import pg from "pg";
 
 export type ShipmentStatus =
   | "booked"
+  | "ready_for_pickup"
   | "picked_up"
   | "in_transit"
+  | "delayed"
   | "delivery_failed"
   | "out_for_delivery"
+  | "delivery_attempted"
+  | "buyer_action_required"
+  | "partially_delivered"
   | "damaged"
   | "lost"
   | "delivered"
+  | "returning_to_seller"
+  | "returned_to_seller"
   | "rto_in_transit"
   | "rto_delivered"
   | "cancelled";
 
 export const SHIPMENT_STATUS_RANK: Record<ShipmentStatus, number> = {
   booked: 10,
+  ready_for_pickup: 15,
   picked_up: 20,
   in_transit: 30,
-  delivery_failed: 35,
+  delayed: 32,
+  delivery_failed: 34,
   out_for_delivery: 40,
-  damaged: 45,
-  lost: 45,
+  delivery_attempted: 41,
+  buyer_action_required: 42,
+  partially_delivered: 44,
+  damaged: 46,
+  lost: 47,
   delivered: 50,
+  returning_to_seller: 55,
+  returned_to_seller: 60,
   rto_in_transit: 55,
   rto_delivered: 60,
   cancelled: 70,
 };
 
+/**
+ * Explicit operator transition graph. Unlike provider-event reconciliation this
+ * graph deliberately supports retry loops such as attempted -> out for delivery.
+ */
+export const SHIPMENT_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
+  booked: ["ready_for_pickup", "picked_up", "cancelled"],
+  ready_for_pickup: ["picked_up", "delayed", "cancelled"],
+  picked_up: [
+    "in_transit",
+    "delayed",
+    "damaged",
+    "lost",
+    "returning_to_seller",
+  ],
+  in_transit: [
+    "delayed",
+    "out_for_delivery",
+    "damaged",
+    "lost",
+    "returning_to_seller",
+  ],
+  delayed: [
+    "in_transit",
+    "out_for_delivery",
+    "damaged",
+    "lost",
+    "returning_to_seller",
+    "cancelled",
+  ],
+  out_for_delivery: [
+    "delivery_attempted",
+    "delivery_failed",
+    "buyer_action_required",
+    "partially_delivered",
+    "delivered",
+    "damaged",
+    "lost",
+    "returning_to_seller",
+  ],
+  delivery_attempted: [
+    "out_for_delivery",
+    "delivery_failed",
+    "buyer_action_required",
+    "partially_delivered",
+    "delivered",
+    "returning_to_seller",
+  ],
+  delivery_failed: [
+    "out_for_delivery",
+    "buyer_action_required",
+    "returning_to_seller",
+  ],
+  buyer_action_required: ["out_for_delivery", "returning_to_seller", "cancelled"],
+  partially_delivered: [
+    "partially_delivered",
+    "out_for_delivery",
+    "delivery_attempted",
+    "buyer_action_required",
+    "delivered",
+    "returning_to_seller",
+  ],
+  damaged: ["returning_to_seller", "cancelled"],
+  lost: [],
+  delivered: [],
+  returning_to_seller: ["returned_to_seller"],
+  returned_to_seller: [],
+  // Legacy RTO states remain readable and can finish through either legacy or
+  // canonical labels while existing staging fixtures are retained.
+  rto_in_transit: ["rto_delivered", "returned_to_seller"],
+  rto_delivered: [],
+  cancelled: [],
+};
+
+/**
+ * Seller portals may advance their own allocation, but cancellation and other
+ * consequential closure decisions stay with an Admin operator.
+ */
+export const SELLER_SHIPMENT_TRANSITIONS = new Set<ShipmentStatus>(
+  Object.values(SHIPMENT_TRANSITIONS)
+    .flat()
+    .filter((status) => status !== "cancelled"),
+);
+
+export function allowedShipmentTransitions(status: ShipmentStatus): ShipmentStatus[] {
+  return [...SHIPMENT_TRANSITIONS[status]];
+}
+
+export function sellerAllowedShipmentTransitions(
+  status: ShipmentStatus,
+): ShipmentStatus[] {
+  return SHIPMENT_TRANSITIONS[status].filter((next) =>
+    SELLER_SHIPMENT_TRANSITIONS.has(next),
+  );
+}
+
+export interface DeliveryLineQuantity {
+  lineKey: string;
+  orderedQty: number;
+  deliveredQty: number;
+}
+
+export interface SubmittedDeliveryLine {
+  lineKey: string;
+  deliveredQty: number;
+}
+
+/**
+ * Validates the per-line delivery evidence used by the manual shipment path.
+ * `delivered` must be complete; `partially_delivered` must leave an outstanding unit.
+ */
+export function validateDeliveryQuantities(input: {
+  lines: DeliveryLineQuantity[];
+  deliveredLines: SubmittedDeliveryLine[];
+  target: "partially_delivered" | "delivered";
+}): SubmittedDeliveryLine[] {
+  if (input.deliveredLines.length === 0) {
+    throw Object.assign(
+      new Error("Delivery requires per-line delivered quantities."),
+      { code: "delivery-evidence-required" },
+    );
+  }
+  const submitted = new Map<string, number>();
+  for (const line of input.deliveredLines) {
+    if (submitted.has(line.lineKey)) {
+      throw Object.assign(new Error(`Duplicate delivery line ${line.lineKey}.`), {
+        code: "invalid-delivered-lines",
+      });
+    }
+    submitted.set(line.lineKey, line.deliveredQty);
+  }
+  for (const line of input.lines) {
+    const quantity = submitted.get(line.lineKey);
+    if (
+      quantity === undefined ||
+      !Number.isInteger(quantity) ||
+      quantity < line.deliveredQty ||
+      quantity > line.orderedQty
+    ) {
+      throw Object.assign(
+        new Error(
+          `Delivered quantity for ${line.lineKey} must be an integer between ${line.deliveredQty} and ${line.orderedQty}.`,
+        ),
+        { code: "invalid-delivered-lines" },
+      );
+    }
+  }
+  if (
+    submitted.size !== input.lines.length ||
+    [...submitted.keys()].some(
+      (lineKey) => !input.lines.some((line) => line.lineKey === lineKey),
+    )
+  ) {
+    throw Object.assign(
+      new Error("Delivery evidence must include each shipment line exactly once."),
+      { code: "invalid-delivered-lines" },
+    );
+  }
+  const quantities = input.lines.map((line) => submitted.get(line.lineKey)!);
+  const complete = quantities.every(
+    (quantity, index) => quantity === input.lines[index].orderedQty,
+  );
+  const anyDelivered = quantities.some((quantity) => quantity > 0);
+  if (input.target === "delivered" && !complete) {
+    throw Object.assign(
+      new Error(
+        "Delivered requires every line in full. Use Partially delivered for incomplete quantities.",
+      ),
+      { code: "partial-delivery-status-required" },
+    );
+  }
+  if (input.target === "partially_delivered" && (!anyDelivered || complete)) {
+    throw Object.assign(
+      new Error(
+        "Partially delivered requires at least one delivered unit and at least one outstanding unit.",
+      ),
+      { code: "invalid-partial-delivery" },
+    );
+  }
+  return input.deliveredLines;
+}
+
+/**
+ * Provider/webhook events cannot assert `delivered` without proof and positive
+ * per-line quantities. The caller still normalises an incomplete submission to
+ * `partially_delivered`.
+ */
+export function assertDeliveredEvidence(
+  proofRef: string | null | undefined,
+  deliveredLines: SubmittedDeliveryLine[] | undefined,
+): void {
+  if (!proofRef?.trim() || !deliveredLines?.length) {
+    throw Object.assign(
+      new Error(
+        "Delivered status requires a proof reference and positive per-line delivered quantities.",
+      ),
+      { code: "delivery-evidence-required" },
+    );
+  }
+  const seen = new Set<string>();
+  for (const line of deliveredLines) {
+    if (
+      !line.lineKey ||
+      seen.has(line.lineKey) ||
+      !Number.isInteger(line.deliveredQty) ||
+      line.deliveredQty <= 0
+    ) {
+      throw Object.assign(
+        new Error(
+          "Delivered status requires each line once with a positive integer quantity.",
+        ),
+        { code: "invalid-delivered-lines" },
+      );
+    }
+    seen.add(line.lineKey);
+  }
+}
+
 export const SHIPMENT_STATUSES = Object.keys(SHIPMENT_STATUS_RANK) as ShipmentStatus[];
 export const TERMINAL_SHIPMENT_STATUSES = new Set<ShipmentStatus>([
   "delivered",
+  "returned_to_seller",
   "rto_delivered",
   "cancelled",
+  "lost",
 ]);
 
 export interface ShipmentLineInput {
@@ -60,6 +293,8 @@ export interface ShipmentRecord {
   provider: string;
   trackingNumber: string;
   status: ShipmentStatus;
+  version: number;
+  allowedTransitions: ShipmentStatus[];
   deliveredAt: string | null;
   proofRef: string | null;
   destinationPostcode: string | null;
@@ -103,6 +338,7 @@ interface ShipmentRow {
   provider: string;
   tracking_number: string;
   status: ShipmentStatus;
+  version: number;
   delivered_at: Date | string | null;
   proof_ref: string | null;
   destination_postcode: string | null;
@@ -161,6 +397,8 @@ function mapShipment(row: ShipmentRow, lines: ShipmentLineRow[]): ShipmentRecord
     provider: row.provider,
     trackingNumber: row.tracking_number,
     status: row.status,
+    version: Number(row.version),
+    allowedTransitions: allowedShipmentTransitions(row.status),
     deliveredAt: iso(row.delivered_at),
     proofRef: row.proof_ref,
     destinationPostcode: row.destination_postcode,
@@ -198,6 +436,7 @@ export class ShipmentStore {
         provider             text NOT NULL DEFAULT 'simulated',
         tracking_number      text NOT NULL,
         status               text NOT NULL,
+        version              integer NOT NULL DEFAULT 1 CHECK (version > 0),
         delivered_at         timestamptz,
         proof_ref            text,
         destination_postcode text,
@@ -213,6 +452,9 @@ export class ShipmentStore {
         ON pilot_shipment (order_group_id, seller_id);
       CREATE INDEX IF NOT EXISTS pilot_shipment_status_updated_idx
         ON pilot_shipment (status, updated_at);
+
+      ALTER TABLE pilot_shipment
+        ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1;
 
       CREATE TABLE IF NOT EXISTS pilot_shipment_line (
         shipment_id   text NOT NULL REFERENCES pilot_shipment(id) ON DELETE CASCADE,
@@ -354,15 +596,48 @@ export class ShipmentStore {
       };
     }
 
+    if (input.status === "delivered") {
+      assertDeliveredEvidence(input.proofRef, input.deliveredLines);
+    }
+
+    let eventStatus = input.status;
+    if (
+      input.status === "delivered" &&
+      input.deliveredLines?.some(
+        (line) => !shipment.lines.some((item) => item.lineKey === line.lineKey),
+      )
+    ) {
+      throw Object.assign(
+        new Error("Delivered lines must match the shipment lines."),
+        { code: "invalid-delivered-lines" },
+      );
+    }
+
+    if (input.status === "delivered" && input.deliveredLines?.length) {
+      const deliveredByLine = new Map(
+        input.deliveredLines.map((line) => [line.lineKey, line.deliveredQty]),
+      );
+      const isComplete = shipment.lines.every(
+        (line) =>
+          Math.max(line.deliveredQty, deliveredByLine.get(line.lineKey) ?? 0) >=
+          line.orderedQty,
+      );
+      const hasDelivery = shipment.lines.some(
+        (line) =>
+          Math.max(line.deliveredQty, deliveredByLine.get(line.lineKey) ?? 0) > 0,
+      );
+      if (hasDelivery && !isComplete) eventStatus = "partially_delivered";
+    }
+
     const currentRank = SHIPMENT_STATUS_RANK[shipment.status];
-    const nextRank = SHIPMENT_STATUS_RANK[input.status];
+    const nextRank = SHIPMENT_STATUS_RANK[eventStatus];
     const shouldAdvance = nextRank > currentRank;
     // delivered and rto_delivered can both occur in one lifecycle; rank handles that.
-    const nextStatus = shouldAdvance ? input.status : shipment.status;
-    const deliveredAt = input.status === "delivered"
+    const nextStatus = shouldAdvance ? eventStatus : shipment.status;
+    const deliveredAt = eventStatus === "delivered"
       ? input.occurredAt
       : shipment.deliveredAt;
-    const proofRef = input.status === "delivered"
+    const proofRef = ["delivered", "partially_delivered"].includes(eventStatus)
       ? input.proofRef ?? shipment.proofRef
       : shipment.proofRef;
 
@@ -382,7 +657,7 @@ export class ShipmentStore {
           provider,
           input.providerEventId,
           input.eventType,
-          input.status,
+          eventStatus,
           input.occurredAt,
           JSON.stringify(input.payload ?? {}),
         ],
@@ -402,13 +677,16 @@ export class ShipmentStore {
       if (shouldAdvance || deliveredAt !== shipment.deliveredAt) {
         await client.query(
           `UPDATE pilot_shipment
-              SET status = $2, delivered_at = $3, proof_ref = $4, updated_at = now()
+              SET status = $2, delivered_at = $3, proof_ref = $4,
+                  version = version + 1, updated_at = now()
             WHERE id = $1`,
           [input.shipmentId, nextStatus, deliveredAt, proofRef],
         );
       } else {
         await client.query(
-          `UPDATE pilot_shipment SET updated_at = now() WHERE id = $1`,
+          `UPDATE pilot_shipment
+              SET version = version + 1, updated_at = now()
+            WHERE id = $1`,
           [input.shipmentId],
         );
       }
@@ -427,6 +705,188 @@ export class ShipmentStore {
         event: this.mapEvent(inserted.rows[0]),
         duplicate: false,
         statusChanged: shouldAdvance,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async transitionManual(input: {
+    shipmentId: string;
+    expectedVersion: number;
+    status: ShipmentStatus;
+    occurredAt: string;
+    actorId: string;
+    actorRole: string;
+    source: "admin_console" | "seller_portal";
+    idempotencyKey: string;
+    reason?: string | null;
+    note?: string | null;
+    attemptNumber?: number | null;
+    attemptReason?: string | null;
+    nextAction?: string | null;
+    revisedDeliveryAt?: string | null;
+    notifyCustomer?: boolean;
+    deliveredLines?: Array<{ lineKey: string; deliveredQty: number }>;
+    proofRef?: string | null;
+  }): Promise<{
+    shipment: ShipmentRecord;
+    event: ShipmentEventRecord;
+    duplicate: boolean;
+    statusChanged: boolean;
+  }> {
+    await this.ready;
+    const provider = "manual";
+    const providerEventId = `manual:${input.shipmentId}:${input.idempotencyKey}`;
+    const replay = await this.pool.query<ShipmentEventRow>(
+      `SELECT * FROM pilot_shipment_event
+        WHERE provider = $1 AND provider_event_id = $2`,
+      [provider, providerEventId],
+    );
+    if (replay.rows[0]) {
+      const current = await this.get(input.shipmentId);
+      if (!current) {
+        throw Object.assign(new Error("Shipment not found."), {
+          code: "shipment-not-found",
+        });
+      }
+      return {
+        shipment: current,
+        event: this.mapEvent(replay.rows[0]),
+        duplicate: true,
+        statusChanged: false,
+      };
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const locked = await client.query<ShipmentRow>(
+        `SELECT * FROM pilot_shipment WHERE id = $1 FOR UPDATE`,
+        [input.shipmentId],
+      );
+      const row = locked.rows[0];
+      if (!row) {
+        throw Object.assign(new Error("Shipment not found."), {
+          code: "shipment-not-found",
+        });
+      }
+      if (Number(row.version) !== input.expectedVersion) {
+        throw Object.assign(
+          new Error(
+            `Shipment changed from version ${input.expectedVersion} to ${row.version}. Refresh before retrying.`,
+          ),
+          { code: "shipment-version-conflict", currentVersion: Number(row.version) },
+        );
+      }
+      if (!SHIPMENT_TRANSITIONS[row.status].includes(input.status)) {
+        throw Object.assign(
+          new Error(`Cannot move a shipment from ${row.status} to ${input.status}.`),
+          { code: "invalid-shipment-transition" },
+        );
+      }
+
+      const lineRows = await client.query<ShipmentLineRow>(
+        `SELECT * FROM pilot_shipment_line
+          WHERE shipment_id = $1
+          ORDER BY line_key
+          FOR UPDATE`,
+        [input.shipmentId],
+      );
+      const deliveryStatus = ["partially_delivered", "delivered"].includes(
+        input.status,
+      );
+      if (deliveryStatus) {
+        if (!input.proofRef?.trim()) {
+          throw Object.assign(
+            new Error(
+              "Partial and complete delivery updates require a proof reference.",
+            ),
+            { code: "delivery-evidence-required" },
+          );
+        }
+        validateDeliveryQuantities({
+          lines: lineRows.rows.map((line) => ({
+            lineKey: line.line_key,
+            orderedQty: line.ordered_qty,
+            deliveredQty: line.delivered_qty,
+          })),
+          deliveredLines: input.deliveredLines ?? [],
+          target: input.status as "partially_delivered" | "delivered",
+        });
+      }
+
+      const eventId = `shev_${randomUUID().replaceAll("-", "")}`;
+      const inserted = await client.query<ShipmentEventRow>(
+        `INSERT INTO pilot_shipment_event
+           (id, shipment_id, provider, provider_event_id, event_type, status,
+            occurred_at, payload, test_data)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+         RETURNING *`,
+        [
+          eventId,
+          input.shipmentId,
+          provider,
+          providerEventId,
+          `${input.source}.shipment.${input.status}`,
+          input.status,
+          input.occurredAt,
+          JSON.stringify({
+            source: input.source,
+            actor_id: input.actorId,
+            actor_role: input.actorRole,
+            previous_status: row.status,
+            reason: input.reason ?? null,
+            note: input.note ?? null,
+            attempt_number: input.attemptNumber ?? null,
+            attempt_reason: input.attemptReason ?? null,
+            next_action: input.nextAction ?? null,
+            revised_delivery_at: input.revisedDeliveryAt ?? null,
+            notify_customer: input.notifyCustomer ?? false,
+            expected_version: input.expectedVersion,
+            resulting_version: input.expectedVersion + 1,
+          }),
+        ],
+      );
+      if (deliveryStatus) {
+        for (const line of input.deliveredLines ?? []) {
+          await client.query(
+            `UPDATE pilot_shipment_line
+                SET delivered_qty = $3
+              WHERE shipment_id = $1 AND line_key = $2`,
+            [input.shipmentId, line.lineKey, line.deliveredQty],
+          );
+        }
+      }
+      await client.query(
+        `UPDATE pilot_shipment
+            SET status = $2,
+                delivered_at = CASE WHEN $2 = 'delivered' THEN $3 ELSE delivered_at END,
+                proof_ref = CASE
+                  WHEN $2 IN ('partially_delivered', 'delivered') THEN $4
+                  ELSE proof_ref
+                END,
+                version = version + 1,
+                updated_at = now()
+          WHERE id = $1`,
+        [
+          input.shipmentId,
+          input.status,
+          input.occurredAt,
+          input.proofRef?.trim() ?? null,
+        ],
+      );
+      await client.query("COMMIT");
+      const shipment = await this.get(input.shipmentId);
+      if (!shipment) throw new Error("Shipment disappeared after transition.");
+      return {
+        shipment,
+        event: this.mapEvent(inserted.rows[0]),
+        duplicate: false,
+        statusChanged: true,
       };
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
@@ -524,8 +984,14 @@ export class ShipmentStore {
     await this.ready;
     const result = await this.pool.query<ShipmentRow>(
       `SELECT * FROM pilot_shipment
-        WHERE status IN ('delivery_failed', 'damaged', 'lost', 'rto_in_transit')
-           OR (status NOT IN ('delivered', 'rto_delivered', 'cancelled') AND updated_at < now() - interval '3 days')
+        WHERE status IN (
+          'delayed', 'delivery_attempted', 'delivery_failed',
+          'buyer_action_required', 'damaged', 'lost',
+          'returning_to_seller', 'rto_in_transit'
+        )
+           OR (status NOT IN (
+             'delivered', 'returned_to_seller', 'rto_delivered', 'cancelled', 'lost'
+           ) AND updated_at < now() - interval '3 days')
         ORDER BY updated_at ASC
         LIMIT $1`,
       [Math.min(Math.max(limit, 1), 500)],

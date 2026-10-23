@@ -47,9 +47,20 @@ import {
   type PilotRole,
 } from "./auth/pilot-authorization.js";
 import { checkServiceability } from "./logistics/simulated-logistics.js";
-import { ShipmentStore } from "./logistics/shipment-store.js";
+import {
+  ShipmentStore,
+  SHIPMENT_STATUSES,
+  SELLER_SHIPMENT_TRANSITIONS,
+  sellerAllowedShipmentTransitions,
+  type ShipmentRecord,
+  type ShipmentStatus,
+} from "./logistics/shipment-store.js";
 import { SimulatedLogisticsProvider } from "./logistics/provider.js";
-import { ReturnStore } from "./store/return-store.js";
+import {
+  ReturnStore,
+  SELLER_RETURN_TRANSITIONS,
+  type ReturnStatus,
+} from "./store/return-store.js";
 import {
   RETURN_POLICY,
   computeReturnEligibility,
@@ -581,6 +592,13 @@ async function shipmentsWithEvents(orderGroupId: string) {
   );
 }
 
+function sellerShipmentView(shipment: ShipmentRecord): ShipmentRecord {
+  return {
+    ...shipment,
+    allowedTransitions: sellerAllowedShipmentTransitions(shipment.status),
+  };
+}
+
 async function sellerScopedReturns(sellerId: string, limit = 100) {
   const cases = await returns.listAll(limit);
   const scoped = [];
@@ -595,9 +613,124 @@ async function sellerScopedReturns(sellerId: string, limit = 100) {
     if (lineKeys.size === 0) continue;
     const lines = record.lines.filter((line) => lineKeys.has(line.lineKey));
     if (lines.length === 0) continue;
-    scoped.push({ ...record, lines, seller_scope: sellerId });
+    scoped.push({
+      ...record,
+      lines,
+      allowedTransitions: ["requested", "under_review"].includes(record.status)
+        ? []
+        : record.allowedTransitions.filter((status) =>
+            SELLER_RETURN_TRANSITIONS.has(status)
+          ),
+      seller_scope: sellerId,
+    });
   }
   return scoped;
+}
+
+type ManualShipmentStatusBody = {
+  status?: string;
+  expected_version?: number;
+  operation_key?: string;
+  occurred_at?: string;
+  reason?: string;
+  note?: string;
+  attempt_number?: number;
+  attempt_reason?: string;
+  next_action?: string;
+  revised_delivery_at?: string;
+  notify_customer?: boolean;
+  proof_ref?: string;
+  delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+};
+
+const SHIPMENT_REASON_STATUSES = new Set<ShipmentStatus>([
+  "delayed",
+  "delivery_attempted",
+  "delivery_failed",
+  "buyer_action_required",
+  "damaged",
+  "lost",
+  "returning_to_seller",
+  "returned_to_seller",
+  "rto_in_transit",
+  "rto_delivered",
+  "cancelled",
+]);
+
+function validateManualShipmentBody(
+  body: ManualShipmentStatusBody,
+  requireActingReason: boolean,
+): { status: ShipmentStatus } | Response {
+  if (!body.status || !SHIPMENT_STATUSES.includes(body.status as ShipmentStatus)) {
+    return problem(
+      400,
+      "invalid-shipment-status",
+      `Status must be one of ${SHIPMENT_STATUSES.join(", ")}.`,
+    );
+  }
+  const status = body.status as ShipmentStatus;
+  if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+    return problem(
+      400,
+      "expected-version-required",
+      "expected_version must be a positive integer.",
+    );
+  }
+  if (
+    (requireActingReason || SHIPMENT_REASON_STATUSES.has(status)) &&
+    !body.reason?.trim()
+  ) {
+    return problem(
+      400,
+      "reason-required",
+      requireActingReason
+        ? "A reason is required when an Admin updates a Seller shipment."
+        : "A reason is required for this shipment status.",
+    );
+  }
+  if (
+    ["delivery_attempted", "delivery_failed", "buyer_action_required"].includes(
+      status,
+    ) &&
+    (!Number.isInteger(body.attempt_number) || Number(body.attempt_number) < 1)
+  ) {
+    return problem(
+      400,
+      "attempt-number-required",
+      "attempt_number must be a positive integer for this status.",
+    );
+  }
+  if (
+    ["delivery_attempted", "delivery_failed"].includes(status) &&
+    !body.attempt_reason?.trim()
+  ) {
+    return problem(
+      400,
+      "attempt-reason-required",
+      "attempt_reason is required for an attempted or failed delivery.",
+    );
+  }
+  if (status === "buyer_action_required" && !body.next_action?.trim()) {
+    return problem(
+      400,
+      "next-action-required",
+      "next_action is required when buyer action is needed.",
+    );
+  }
+  if (
+    status === "delayed" &&
+    (!body.revised_delivery_at || Number.isNaN(Date.parse(body.revised_delivery_at)))
+  ) {
+    return problem(
+      400,
+      "revised-delivery-required",
+      "A valid revised_delivery_at timestamp is required for a delay.",
+    );
+  }
+  if (body.occurred_at && Number.isNaN(Date.parse(body.occurred_at))) {
+    return problem(400, "invalid-occurred-at", "occurred_at must be an ISO timestamp.");
+  }
+  return { status };
 }
 
 async function orderEligibility(
@@ -1240,7 +1373,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const sellerId = seller.authorization.sellerId!;
     const all = await logistics.list(500);
     return json({
-      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      items: all
+        .filter((shipment) => shipment.sellerId === sellerId)
+        .map(sellerShipmentView),
       environment: config.environment,
       test_data: true,
       logistics_mode: "simulated",
@@ -1255,7 +1390,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const sellerId = seller.authorization.sellerId!;
     const all = await logistics.listExceptions(500);
     return json({
-      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      items: all
+        .filter((shipment) => shipment.sellerId === sellerId)
+        .map(sellerShipmentView),
       environment: config.environment,
       test_data: true,
       logistics_mode: "simulated",
@@ -1273,7 +1410,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(404, "shipment-not-found");
     }
     return json({
-      shipment,
+      shipment: sellerShipmentView(shipment),
       events: await logistics.listEvents(shipment.id),
       environment: config.environment,
       test_data: true,
@@ -1293,45 +1430,25 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!shipment || shipment.sellerId !== seller.authorization.sellerId) {
       return problem(404, "shipment-not-found");
     }
-    let body: {
-      status?: string;
-      occurred_at?: string;
-      proof_ref?: string;
-      note?: string;
-      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
-    };
+    let body: ManualShipmentStatusBody;
     try {
       body = (await req.json()) as typeof body;
     } catch {
       return problem(400, "invalid-request-body", "Expected a JSON body.");
     }
-    const allowed = [
-      "picked_up",
-      "in_transit",
-      "out_for_delivery",
-      "delivery_failed",
-      "delivered",
-      "rto_in_transit",
-    ];
-    if (!body.status || !allowed.includes(body.status)) {
-      return problem(400, "invalid-seller-status", `Status must be one of ${allowed.join(", ")}.`);
+    const validation = validateManualShipmentBody(body, false);
+    if (validation instanceof Response) return validation;
+    if (!SELLER_SHIPMENT_TRANSITIONS.has(validation.status)) {
+      return problem(
+        403,
+        "seller-action-not-permitted",
+        "This status change is reserved for an Admin operator.",
+      );
     }
     const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
       lineKey: String(line.line_key ?? ""),
       deliveredQty: Number(line.delivered_qty ?? 0),
     }));
-    if (
-      body.status === "delivered" &&
-      (!body.proof_ref?.trim() ||
-        deliveredLines.length === 0 ||
-        deliveredLines.some((line) => !line.lineKey || line.deliveredQty <= 0))
-    ) {
-      return problem(
-        400,
-        "delivery-evidence-required",
-        "Delivered status requires proof_ref and positive per-line delivered quantities.",
-      );
-    }
     const auditId = await privilegedAudit.start({
       actorUserId: seller.user.id,
       actorRoles: seller.authorization.roles,
@@ -1341,23 +1458,29 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       correlationId: cid,
     });
     try {
-      const idempotencyKey = req.headers.get("idempotency-key")?.trim() ||
+      const idempotencyKey = body.operation_key?.trim() ||
+        req.headers.get("idempotency-key")?.trim() ||
         `seller:${randomUUID()}`;
-      const result = await logistics.appendEvent({
+      const result = await shipmentStore.transitionManual({
         shipmentId: shipment.id,
-        providerEventId: idempotencyKey,
-        eventType: `seller.shipment.${body.status}`,
-        status: body.status as import("./logistics/shipment-store.js").ShipmentStatus,
+        expectedVersion: Number(body.expected_version),
+        idempotencyKey,
+        status: validation.status,
         occurredAt: body.occurred_at ?? new Date().toISOString(),
-        payload: {
-          source: "seller_portal",
-          seller_id: seller.authorization.sellerId,
-          note: body.note ?? null,
-        },
-        deliveredLines: body.status === "delivered" ? deliveredLines : undefined,
-        proofRef: body.status === "delivered" ? body.proof_ref?.trim() : null,
+        actorId: seller.user.id,
+        actorRole: "seller",
+        source: "seller_portal",
+        reason: body.reason?.trim() ?? null,
+        note: body.note?.trim() ?? null,
+        attemptNumber: body.attempt_number ?? null,
+        attemptReason: body.attempt_reason?.trim() ?? null,
+        nextAction: body.next_action?.trim() ?? null,
+        revisedDeliveryAt: body.revised_delivery_at ?? null,
+        notifyCustomer: body.notify_customer ?? false,
+        deliveredLines,
+        proofRef: body.proof_ref?.trim() ?? null,
       });
-      if (!result.duplicate && result.statusChanged) {
+      if (!result.duplicate) {
         await events.append({
           event_type: "shipment.status_changed",
           aggregate_type: "order_group",
@@ -1366,6 +1489,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           payload: {
             shipment_id: shipment.id,
             status: result.event.status,
+            previous_status: shipment.status,
+            version: result.shipment.version,
             seller_id: seller.authorization.sellerId,
             source: "seller_portal",
           },
@@ -1373,7 +1498,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       }
       await privilegedAudit.complete(auditId, 200);
       return json({
-        shipment: await logistics.get(shipment.id),
+        shipment: sellerShipmentView(result.shipment),
         event: result.event,
         duplicate: result.duplicate,
         status_changed: result.statusChanged,
@@ -1383,8 +1508,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         correlation_id: cid,
       }, result.duplicate ? 200 : 201);
     } catch (error) {
-      await privilegedAudit.complete(auditId, 500);
-      throw error;
+      const code = (error as { code?: string }).code;
+      const status = code === "shipment-not-found"
+        ? 404
+        : code === "shipment-version-conflict" ||
+            code === "invalid-shipment-transition"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "shipment-transition-failed", (error as Error).message);
     }
   }
 
@@ -1416,6 +1548,161 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       seller_id: sellerId,
       correlation_id: cid,
     });
+  }
+
+  const sellerOrderGroupLifecycle = url.pathname.match(
+    /^\/v1\/seller\/order-groups\/([^/]+)\/delivery-returns$/,
+  );
+  if (sellerOrderGroupLifecycle && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const orderGroupId = decodeURIComponent(sellerOrderGroupLifecycle[1]);
+    const ref = await correlation.getByOrderGroup(orderGroupId);
+    if (!ref) return problem(404, "order-group-correlation-not-found");
+    const sellerShipments = (await logistics.listByOrderGroup(orderGroupId)).filter(
+      (shipment) => shipment.sellerId === sellerId,
+    );
+    if (sellerShipments.length === 0) {
+      return problem(404, "order-group-not-found");
+    }
+    const scopedReturns = (await sellerScopedReturns(sellerId, 500)).filter(
+      (record) =>
+        record.orderGroupId === orderGroupId || record.orderId === ref.checkout_ref,
+    );
+    const shipments = await Promise.all(
+      sellerShipments.map(async (shipment) => ({
+        ...sellerShipmentView(shipment),
+        events: await logistics.listEvents(shipment.id),
+      })),
+    );
+    const latestUpdates = [
+      ...shipments.map((shipment) => shipment.updatedAt),
+      ...scopedReturns.map((record) => record.decidedAt ?? record.requestedAt),
+    ].sort();
+    return json({
+      order_group_id: orderGroupId,
+      order_id: ref.checkout_ref,
+      owner_user_id: null,
+      seller_id: sellerId,
+      shipments,
+      returns: scopedReturns,
+      latest_update: latestUpdates.at(-1) ?? ref.updated_at,
+      effects: {
+        refund: "none",
+        payment: "none",
+        inventory: "none",
+        accounting: "none",
+      },
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  const sellerReturnStatus = url.pathname.match(
+    /^\/v1\/seller\/returns\/([^/]+)\/status$/,
+  );
+  if (sellerReturnStatus && req.method === "POST") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const scoped = (await sellerScopedReturns(sellerId, 500)).find(
+      (candidate) => candidate.id === sellerReturnStatus[1],
+    );
+    if (!scoped) return problem(404, "return-not-found");
+    let body: {
+      status?: string;
+      expected_version?: number;
+      operation_key?: string;
+      note?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (
+      !body.status ||
+      !scoped.allowedTransitions.includes(body.status as ReturnStatus)
+    ) {
+      return problem(
+        409,
+        "invalid-return-transition",
+        `Allowed transitions are ${scoped.allowedTransitions.join(", ") || "none"}.`,
+      );
+    }
+    if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+      return problem(
+        400,
+        "expected-version-required",
+        "expected_version must be a positive integer.",
+      );
+    }
+    if (!body.note?.trim()) {
+      return problem(400, "reason-required", "A reason is required for a return update.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: seller.user.id,
+      actorRoles: seller.authorization.roles,
+      sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const idempotencyKey = body.operation_key?.trim() ||
+        req.headers.get("idempotency-key")?.trim() ||
+        `seller-return:${randomUUID()}`;
+      const transition = await returns.updateStatus({
+        id: scoped.id,
+        status: body.status as ReturnStatus,
+        expectedVersion: Number(body.expected_version),
+        idempotencyKey,
+        actorId: seller.user.id,
+        actorRole: "seller",
+        note: body.note.trim(),
+      });
+      const updated = transition.returnCase;
+      if (!transition.duplicate) {
+        await events.append({
+          event_type: "return.status_changed",
+          aggregate_type: "return",
+          aggregate_id: updated.id,
+          correlation_id: cid,
+          payload: {
+            return_id: updated.id,
+            order_id: updated.orderId,
+            order_group_id: updated.orderGroupId,
+            status: updated.status,
+            version: updated.version,
+            seller_id: sellerId,
+            source: "seller_portal",
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        return: updated,
+        environment: config.environment,
+        test_data: true,
+        duplicate: transition.duplicate,
+        seller_id: sellerId,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "return-not-found"
+        ? 404
+        : code === "return-version-conflict" || code === "invalid-return-transition"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "return-transition-failed", (error as Error).message);
+    }
   }
 
   // Combined order-level delivery and return status for the admin console.
@@ -1495,6 +1782,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       shipments,
       returns: groupReturns,
       latest_update: latestUpdates.at(-1) ?? ref.updated_at,
+      effects: {
+        refund: "none",
+        payment: "none",
+        inventory: "none",
+        accounting: "none",
+      },
       environment: config.environment,
       test_data: true,
       logistics_mode: "simulated",
@@ -1529,6 +1822,101 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       test_data: true,
       correlation_id: cid,
     });
+  }
+
+  const adminShipmentStatus = url.pathname.match(
+    /^\/v1\/admin\/shipments\/([^/]+)\/status$/,
+  );
+  if (adminShipmentStatus && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: ManualShipmentStatusBody;
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const validation = validateManualShipmentBody(body, true);
+    if (validation instanceof Response) return validation;
+    const shipment = await logistics.get(adminShipmentStatus[1]);
+    if (!shipment) return problem(404, "shipment-not-found");
+    const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+      lineKey: String(line.line_key ?? ""),
+      deliveredQty: Number(line.delivered_qty ?? 0),
+    }));
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      sellerId: shipment.sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const idempotencyKey = body.operation_key?.trim() ||
+        req.headers.get("idempotency-key")?.trim() ||
+        `admin:${randomUUID()}`;
+      const result = await shipmentStore.transitionManual({
+        shipmentId: shipment.id,
+        expectedVersion: Number(body.expected_version),
+        idempotencyKey,
+        status: validation.status,
+        occurredAt: body.occurred_at ?? new Date().toISOString(),
+        actorId: operator.user.id,
+        actorRole: operator.authorization.roles.includes("super_admin")
+          ? "super_admin"
+          : "marketplace_operator",
+        source: "admin_console",
+        reason: body.reason?.trim() ?? null,
+        note: body.note?.trim() ?? null,
+        attemptNumber: body.attempt_number ?? null,
+        attemptReason: body.attempt_reason?.trim() ?? null,
+        nextAction: body.next_action?.trim() ?? null,
+        revisedDeliveryAt: body.revised_delivery_at ?? null,
+        notifyCustomer: body.notify_customer ?? false,
+        deliveredLines,
+        proofRef: body.proof_ref?.trim() ?? null,
+      });
+      if (!result.duplicate) {
+        await events.append({
+          event_type: "shipment.status_changed",
+          aggregate_type: "order_group",
+          aggregate_id: shipment.orderGroupId,
+          correlation_id: cid,
+          payload: {
+            shipment_id: shipment.id,
+            status: result.event.status,
+            previous_status: shipment.status,
+            version: result.shipment.version,
+            seller_id: shipment.sellerId,
+            acting_for_seller_id: shipment.sellerId,
+            reason: body.reason?.trim(),
+            source: "admin_console",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: result.shipment,
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, result.duplicate ? 200 : 201);
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "shipment-not-found"
+        ? 404
+        : code === "shipment-version-conflict" ||
+            code === "invalid-shipment-transition"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "shipment-transition-failed", (error as Error).message);
+    }
   }
 
   const deliveryEvidence = url.pathname.match(
@@ -1570,6 +1958,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       actorUserId: operator.user.id,
       actorRoles: operator.authorization.roles,
       businessAccountId: operator.authorization.businessAccountId,
+      sellerId: shipment.sellerId,
       method: "POST",
       path: url.pathname,
       correlationId: cid,
@@ -1581,20 +1970,27 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         deliveredAt: body.delivered_at,
         deliveredLines,
       });
-      await events.append({
-        event_type: "shipment.status_changed",
-        aggregate_type: "order_group",
-        aggregate_id: shipment.orderGroupId,
-        correlation_id: cid,
-        payload: {
-          shipment_id: shipment.id,
-          status: "delivered",
-          proof_ref: body.proof_ref.trim(),
-        },
-      });
+      const updated = await logistics.get(shipment.id);
+      if (!result.duplicate) {
+        await events.append({
+          event_type: "shipment.status_changed",
+          aggregate_type: "order_group",
+          aggregate_id: shipment.orderGroupId,
+          correlation_id: cid,
+          payload: {
+            shipment_id: shipment.id,
+            status: result.event.status,
+            previous_status: shipment.status,
+            seller_id: shipment.sellerId,
+            acting_for_seller_id: shipment.sellerId,
+            proof_ref: body.proof_ref.trim(),
+            source: "admin_console",
+          },
+        });
+      }
       await privilegedAudit.complete(auditId, 200);
       return json({
-        shipment: await logistics.get(shipment.id),
+        shipment: updated,
         event: result.event,
         duplicate: result.duplicate,
         status_changed: result.statusChanged,
@@ -1603,7 +1999,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         correlation_id: cid,
       });
     } catch (error) {
-      await privilegedAudit.complete(auditId, 500);
+      const code = (error as { code?: string }).code;
+      const status = code === "delivery-evidence-required" ||
+          code === "invalid-delivered-lines"
+        ? 400
+        : 500;
+      await privilegedAudit.complete(auditId, status);
+      if (status === 400) {
+        return problem(400, code as string, (error as Error).message);
+      }
       throw error;
     }
   }
@@ -1753,6 +2157,25 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const status = body.status as import("./logistics/shipment-store.js").ShipmentStatus;
     if (!["booked", "picked_up", "in_transit", "delivery_failed", "out_for_delivery", "damaged", "lost", "delivered", "rto_in_transit", "rto_delivered", "cancelled"].includes(status)) {
       return problem(400, "invalid-shipment-status");
+    }
+    if (status === "delivered") {
+      const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+        lineKey: String(line.line_key ?? ""),
+        deliveredQty: Number(line.delivered_qty ?? 0),
+      }));
+      if (
+        !body.proof_ref?.trim() ||
+        deliveredLines.length === 0 ||
+        deliveredLines.some(
+          (line) => !line.lineKey || !Number.isInteger(line.deliveredQty) || line.deliveredQty <= 0,
+        )
+      ) {
+        return problem(
+          400,
+          "delivery-evidence-required",
+          "Delivered status requires a proof reference and positive per-line delivered quantities.",
+        );
+      }
     }
     const result = await logistics.appendEvent({
       shipmentId: shipment.id,
@@ -1973,6 +2396,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if ("response" in operator) return operator.response;
     let body: {
       comment?: string;
+      expected_version?: number;
       approved_lines?: Array<{ line_key?: string; approved_qty?: number }>;
     } = {};
     try {
@@ -1997,6 +2421,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         actorRole: operator.authorization.roles.includes("support_operator")
           ? "support_operator"
           : "marketplace_operator",
+        expectedVersion: Number.isInteger(body.expected_version)
+          ? Number(body.expected_version)
+          : null,
         comment: body.comment ?? null,
         approvedLines: (body.approved_lines ?? []).map((line) => ({
           lineKey: String(line.line_key ?? ""),
@@ -2030,7 +2457,132 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       await privilegedAudit.complete(auditId, code === "return-not-found" ? 404 : 409);
       if (code === "return-not-found") return problem(404, "return-not-found");
       if (code === "return-not-decidable") return problem(409, "return-not-decidable");
+      if (code === "return-version-conflict") {
+        return problem(409, "return-version-conflict", (error as Error).message);
+      }
       throw error;
+    }
+  }
+
+  const adminReturnStatus = url.pathname.match(
+    /^\/v1\/admin\/returns\/([^/]+)\/status$/,
+  );
+  if (adminReturnStatus && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      status?: string;
+      expected_version?: number;
+      operation_key?: string;
+      note?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const current = await returns.get(adminReturnStatus[1]);
+    if (!current) return problem(404, "return-not-found");
+    if (
+      !body.status ||
+      !current.allowedTransitions.includes(body.status as ReturnStatus) ||
+      ["approved", "rejected"].includes(body.status)
+    ) {
+      return problem(
+        409,
+        "invalid-return-transition",
+        `Allowed operational transitions are ${
+          current.allowedTransitions
+            .filter((status) => !["approved", "rejected"].includes(status))
+            .join(", ") || "none"
+        }.`,
+      );
+    }
+    if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+      return problem(
+        400,
+        "expected-version-required",
+        "expected_version must be a positive integer.",
+      );
+    }
+    if (!body.note?.trim()) {
+      return problem(400, "reason-required", "A reason is required for a return update.");
+    }
+    const sellerIds = current.orderGroupId
+      ? [
+          ...new Set(
+            (await logistics.listByOrderGroup(current.orderGroupId))
+              .filter((shipment) =>
+                shipment.lines.some((line) =>
+                  current.lines.some((returnLine) => returnLine.lineKey === line.lineKey)
+                )
+              )
+              .map((shipment) => shipment.sellerId),
+          ),
+        ]
+      : [];
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      sellerId: sellerIds.length === 1 ? sellerIds[0] : undefined,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const idempotencyKey = body.operation_key?.trim() ||
+        req.headers.get("idempotency-key")?.trim() ||
+        `admin-return:${randomUUID()}`;
+      const transition = await returns.updateStatus({
+        id: adminReturnStatus[1],
+        status: body.status as ReturnStatus,
+        expectedVersion: Number(body.expected_version),
+        idempotencyKey,
+        actorId: operator.user.id,
+        actorRole: operator.authorization.roles.includes("super_admin")
+          ? "super_admin"
+          : "marketplace_operator",
+        note: body.note.trim(),
+      });
+      const record = transition.returnCase;
+      if (!transition.duplicate) {
+        await events.append({
+          event_type: "return.status_changed",
+          aggregate_type: "return",
+          aggregate_id: record.id,
+          correlation_id: cid,
+          payload: {
+            return_id: record.id,
+            order_id: record.orderId,
+            order_group_id: record.orderGroupId,
+            status: record.status,
+            version: record.version,
+            seller_ids: sellerIds,
+            acting_for_seller_ids: sellerIds,
+            source: "admin_console",
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        return: record,
+        environment: config.environment,
+        test_data: true,
+        duplicate: transition.duplicate,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "return-not-found"
+        ? 404
+        : code === "return-version-conflict" || code === "invalid-return-transition"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "return-transition-failed", (error as Error).message);
     }
   }
 

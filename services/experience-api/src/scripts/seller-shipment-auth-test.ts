@@ -53,17 +53,40 @@ const crossUpdate = await sellerFetch(
   `/v1/seller/shipments/${booked.shipment.id}/status`,
   {
     method: "POST",
-    body: JSON.stringify({ status: "in_transit" }),
+    body: JSON.stringify({
+      status: "in_transit",
+      expected_version: booked.shipment.version,
+      operation_key: `seller-cross:${runId}`,
+    }),
   },
 );
 assert.equal(crossUpdate.status, 404);
+
+const sellerCancellation = await sellerFetch(
+  sellerA,
+  `/v1/seller/shipments/${booked.shipment.id}/status`,
+  {
+    method: "POST",
+    body: JSON.stringify({
+      status: "cancelled",
+      expected_version: booked.shipment.version,
+      operation_key: `seller-cancel:${runId}`,
+      reason: "Seller attempted to cancel",
+    }),
+  },
+);
+assert.equal(sellerCancellation.status, 403);
 
 const ownUpdate = await sellerFetch(
   sellerA,
   `/v1/seller/shipments/${booked.shipment.id}/status`,
   {
     method: "POST",
-    body: JSON.stringify({ status: "in_transit" }),
+    body: JSON.stringify({
+      status: "in_transit",
+      expected_version: booked.shipment.version,
+      operation_key: `seller-auth:${runId}`,
+    }),
   },
 );
 assert.ok(ownUpdate.status === 200 || ownUpdate.status === 201);

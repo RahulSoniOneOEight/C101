@@ -26,6 +26,8 @@ export interface AdminReturnCase {
   policyVersion: string;
   policySnapshot: Record<string, unknown>;
   status: string;
+  version: number;
+  allowedTransitions: string[];
   resolution: string;
   reasonCode: string;
   customerComment: string | null;
@@ -45,6 +47,7 @@ export interface AdminReturnListResponse {
 
 export interface AdminReturnActionResponse {
   return: AdminReturnCase;
+  duplicate?: boolean;
   environment: string;
   test_data: true;
 }

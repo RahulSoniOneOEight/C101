@@ -1,143 +1,118 @@
-# Order detail workbench — inspection and blockers
+# Order detail workbench — implementation record
 
 Date: 2026-10-23  
 Branch: `feat/order-detail-workbench`  
-Status: inspection complete; runtime UI not changed
+Status: local implementation complete; staging deployment and production release not authorized
 
-## Existing UI
+## Delivered UI
 
-- Admin order detail is the native Mercur order page.
-- BuildKart injects one widget in `orders.detail.main.after`:
-  `apps/admin/src/widgets/order-delivery-returns.tsx`.
-- The widget renders only **Shipment** and **Returns**, plus two raw references.
-- It has a single **Record delivery** button that records all ordered units as
-  delivered and a link to the shipment page.
-- There is no admin order-detail widget for payment, allocation, status
-  dimensions, activity timeline, reconciliation or technical details.
-- Seller order detail is entirely native Mercur; there is no seller
-  delivery/returns widget.
-- Admin shipment detail page is
-  `apps/admin/src/routes/shipments/[id]/page.tsx`.
-- Admin returns list is `apps/admin/src/routes/returns/page.tsx`; there is no
-  create-return action on the order page.
+- Admin order detail keeps the native Mercur order page and now renders one
+  BuildKart workbench in `orders.detail.main.after`
+  (`apps/admin/src/widgets/order-delivery-returns.tsx`).
+- Seller order detail renders the same operational pattern in
+  `apps/vendor/src/widgets/order-delivery-returns.tsx`.
+- Each workbench contains:
+  - one staging banner;
+  - independent **Order, Payment, Allocation, Fulfilment, Delivery, Return,
+    Refund, Inventory effect** tiles;
+  - **Delivery & fulfilment** and **Returns** cards;
+  - an activity timeline;
+  - collapsed **System references** and permission-gated **Technical details**.
+- Actions are permission-aware. Admin return approval/rejection remains an
+  Admin decision; only operational return stages are available to Sellers.
+- The all-or-nothing **Record delivery** action is removed. Delivery updates use
+  per-line quantities and a proof reference. Incomplete quantities persist as
+  `partially_delivered`.
+- Admin and Seller shipment detail pages and both return detail pages now use
+  the same versioned transition contract.
 
-## Backend shipment states that can be persisted
+## Persisted shipment states
 
 `services/experience-api/src/logistics/shipment-store.ts`:
 
 - `booked`
+- `ready_for_pickup`
 - `picked_up`
 - `in_transit`
+- `delayed`
 - `delivery_failed`
 - `out_for_delivery`
+- `delivery_attempted`
+- `buyer_action_required`
+- `partially_delivered`
 - `damaged`
 - `lost`
 - `delivered`
+- `returning_to_seller`
+- `returned_to_seller`
 - `rto_in_transit`
 - `rto_delivered`
 - `cancelled`
 
-Events are append-only in `pilot_shipment_event`.
+Each manual transition writes one append-only `pilot_shipment_event`, increments
+the shipment version, and is covered by privileged audit. Events remain
+append-only and provider replay still deduplicates by provider event ID.
 
-Admin persistence today:
-
-- `POST /admin/buildkart/shipments/:id/simulate-event` accepts only
-  `failed_attempt | delay | damaged | lost | rto | duplicate | out_of_order`.
-- `POST /admin/buildkart/shipments/:id/delivery-evidence` records proof and
-  per-line delivered quantities.
-- There is **no admin status-transition endpoint**.
-- There is a seller status endpoint with only:
-  `picked_up, in_transit, out_for_delivery, delivery_failed, delivered,
-  rto_in_transit`.
-
-## Backend return states that can be persisted
+## Persisted return states
 
 `services/experience-api/src/store/return-store.ts`:
 
 - `requested`
+- `under_review`
 - `approved`
 - `rejected`
 - `cancelled`
 - `pickup_scheduled`
-- `received`
-- `closed`
-
-There is no generic return-status endpoint beyond approve/reject. Return
-approval does not issue a refund, restock inventory or create a Tryton move.
-
-## Required states that are currently BLOCKED
-
-### Shipment
-
-- `ready_for_pickup`
-- `delayed`
-- `delivery_attempted`
-- `buyer_action_required`
-- `returning_to_seller`
-- `returned_to_seller`
-- explicit partial-delivery state
-- controlled delivered-state correction
-
-Reason: no admin transition API and no event contract for attempt reason,
-next action, revised date, evidence reference, customer notification, or
-optimistic locking.
-
-### Returns
-
-- `under_review`
-- `declined` (only `rejected` exists)
 - `pickup_attempted`
 - `in_return_transit`
+- `received`
 - `inspection_pending`
 - `inspection_complete`
-- `restocked`
-- `quarantined`
-- `refund_review`
-- `completed`
+- `closed`
 
-Reason: no transition API or persistence fields beyond approve/reject.
+`approved` and `rejected` remain Admin decisions. Sellers can advance only
+reverse-logistics stages for their own allocation. Every operational transition
+stores `money_effect: "none"` and `stock_effect: "none"` and never calls Medusa
+money APIs or Tryton.
 
-### Order/payment/allocation dimensions
+## Manual transition contracts
 
-The widget does not receive native order, payment, allocation, fulfilment,
-refund or inventory status. It cannot render independent badges without a new
-read model or additional native queries.
+- Admin: `POST /admin/buildkart/shipments/:id/status`,
+  `POST /admin/buildkart/returns/:id/status`.
+- Seller: `POST /vendor/buildkart/shipments/:id/status`,
+  `POST /vendor/buildkart/returns/:id/status`.
+- Both require `expected_version` and `operation_key`.
+- Shipment updates require a reason; attempt states require an attempt number
+  and reason; delay requires a revised date; buyer action requires a next
+  action; delivery states require proof and per-line quantities.
+- Return updates require an operating note.
+- Stale versions return `409`; invalid transitions return `409`; Seller
+  cancellation and cross-seller identifiers are refused.
+- Seller reads are allocation-scoped through
+  `GET /vendor/buildkart/orders/:id/delivery-returns`; there is no
+  cross-seller read path.
 
-## Required backend extension before UI work
+## Residual gaps
 
-1. Add shipment statuses and a transition map:
-   `ready_for_pickup`, `delayed`, `delivery_attempted`,
-   `buyer_action_required`, `partially_delivered`, `returning_to_seller`,
-   `returned_to_seller`.
-2. Add `POST /admin/buildkart/shipments/:id/status` with:
-   expected version, reason rules, attempt fields, revised date, evidence
-   reference, customer notification, audit and append-only event.
-3. Change delivery evidence so a partial line delivery records
-   `partially_delivered`, never `delivered`.
-4. Add a return transition API and status model, with explicit separation from
-   refund, Tryton restock and payment.
-5. Add a seller-scoped order-group delivery/returns read model and transition
-   routes, or no seller widget.
-6. Add native order/payment/allocation read fields to the order-group delivery
-   response, or render them from separate native queries.
+- Payment, refund and native fulfilment tiles are derived from the native order
+  payload supplied to the widget. Allocation and delivery come from the
+  Experience projection. A future order-group read model should expose all
+  dimensions as one authoritative payload rather than relying on native order
+  fields being present on every Mercur version.
+- `restocked`, `quarantined`, `refund_review` and `completed` are intentionally
+  not return states: they imply stock or money effects outside this increment.
+  `rejected` is the decline state and `closed` is the completion state.
+- Controlled correction of an already-`delivered` shipment is not exposed;
+  correction requires a governed reversal contract.
+- Staging runtime verification, screenshots and staging deployment remain to be
+  performed with explicit human authorization.
 
-## UI work that is safe without backend changes
+## Verification performed locally
 
-- Rename **Shipment** to **Delivery & Fulfilment**.
-- Replace the repeated staging warning with one page-level banner.
-- Rename **References** to **System references** and collapse it.
-- Replace the return empty-state sentence with the requested intentional empty
-  state.
-- Show seller ID under Technical details.
-- Remove the all-or-nothing **Record delivery** action only when the partial
-  delivery contract exists; otherwise leave it disabled rather than simulate.
-
-The `Update shipment` menu and drawer must not be added until the transition API
-exists. Hiding or simulating unsupported states would violate the acceptance
-criteria.
-
-## Recommended next step
-
-Implement shipment transition and partial-delivery persistence first, then the
-admin widget and seller widget. Return lifecycle and RBAC/audit UI follow in a
-second package.
+- Experience API typecheck.
+- API package typecheck.
+- Admin and Seller production builds.
+- Targeted ESLint on all changed panel files.
+- Pure transition and partial-delivery contract test
+  (`test:manual-transitions`).
+- Existing return no-effects and return eligibility tests.

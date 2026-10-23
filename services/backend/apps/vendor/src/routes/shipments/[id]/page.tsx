@@ -9,7 +9,7 @@ import {
 import type { InferClientOutput } from "@mercurjs/client";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { client } from "../../../lib/client";
 
@@ -30,18 +30,16 @@ const label = (value: string) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-const sellerStatuses = [
-  "picked_up",
-  "in_transit",
-  "out_for_delivery",
-  "delivery_failed",
-  "delivered",
-] as const;
-
 export default function VendorShipmentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<string>("in_transit");
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [attemptReason, setAttemptReason] = useState("");
+  const [nextAction, setNextAction] = useState("");
+  const [revisedAt, setRevisedAt] = useState("");
   const [proof, setProof] = useState("");
   const [delivered, setDelivered] = useState<Record<string, number>>({});
   const query = useQuery({
@@ -52,29 +50,49 @@ export default function VendorShipmentDetailPage() {
   });
   const shipment = query.data?.shipment;
   const lines = shipment?.lines ?? [];
-
-  useEffect(() => {
-    if (lines.length === 0) return;
-    setDelivered((current) => {
-      if (Object.keys(current).length > 0) return current;
-      return Object.fromEntries(lines.map((line) => [line.lineKey, line.orderedQty]));
-    });
-  }, [lines]);
+  const selectedStatus = shipment?.allowedTransitions.includes(status)
+    ? status
+    : shipment?.allowedTransitions[0] ?? "";
 
   const update = useMutation({
     mutationFn: () =>
       client.vendor.buildkart.shipments.$id.status.mutate({
         $id: id!,
-        status,
+        status: selectedStatus,
+        expected_version: shipment!.version,
+        operation_key: crypto.randomUUID(),
+        reason: reason.trim() || undefined,
+        note: note.trim() || undefined,
+        attempt_number: [
+          "delivery_attempted",
+          "delivery_failed",
+          "buyer_action_required",
+        ].includes(selectedStatus)
+          ? attemptNumber
+          : undefined,
+        attempt_reason: ["delivery_attempted", "delivery_failed"].includes(
+          selectedStatus,
+        )
+          ? attemptReason.trim()
+          : undefined,
+        next_action:
+          selectedStatus === "buyer_action_required" ? nextAction.trim() : undefined,
+        revised_delivery_at:
+          selectedStatus === "delayed" && revisedAt
+            ? new Date(revisedAt).toISOString()
+            : undefined,
         proof_ref:
-          status === "delivered"
-            ? proof.trim() || `staging://seller-proof/${id}`
+          ["partially_delivered", "delivered"].includes(selectedStatus)
+            ? proof.trim()
             : undefined,
         delivered_lines:
-          status === "delivered"
+          ["partially_delivered", "delivered"].includes(selectedStatus)
             ? lines.map((line) => ({
                 line_key: line.lineKey,
-                delivered_qty: delivered[line.lineKey] ?? line.orderedQty,
+                delivered_qty:
+                  selectedStatus === "delivered"
+                    ? line.orderedQty
+                    : delivered[line.lineKey] ?? line.deliveredQty,
               }))
             : undefined,
       } as never),
@@ -85,6 +103,8 @@ export default function VendorShipmentDetailPage() {
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "seller-shipments"],
       });
+      setReason("");
+      setNote("");
     },
   });
 
@@ -156,8 +176,8 @@ export default function VendorShipmentDetailPage() {
           <div className="border-b border-ui-border-base px-6 py-4">
             <Heading level="h2">Update delivery status</Heading>
             <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-              You can only update your own shipments. Delivered status requires
-              a proof reference and per-line delivered quantity.
+              You can only update your own allocation. Updates are versioned;
+              exceptions require a reason and delivery requires evidence.
             </Text>
           </div>
           <div className="flex flex-col gap-3 px-6 py-5">
@@ -167,16 +187,73 @@ export default function VendorShipmentDetailPage() {
             <select
               id="seller-status"
               className="h-8 max-w-xs rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
-              value={status}
+              value={selectedStatus}
               onChange={(event) => setStatus(event.target.value)}
             >
-              {sellerStatuses.map((value) => (
+              {(shipment?.allowedTransitions ?? []).map((value) => (
                 <option key={value} value={value}>
                   {label(value)}
                 </option>
               ))}
             </select>
-            {status === "delivered" ? (
+            <label className="text-sm font-medium" htmlFor="seller-reason">
+              Reason
+            </label>
+            <input
+              id="seller-reason"
+              className="h-8 max-w-md rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+              placeholder="Required for exceptions, RTO or cancellation"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            {[
+              "delivery_attempted",
+              "delivery_failed",
+              "buyer_action_required",
+            ].includes(selectedStatus) ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Attempt number
+                  <input
+                    type="number"
+                    min={1}
+                    className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                    value={attemptNumber}
+                    onChange={(event) => setAttemptNumber(Number(event.target.value))}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Attempt reason
+                  <input
+                    className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                    value={attemptReason}
+                    onChange={(event) => setAttemptReason(event.target.value)}
+                  />
+                </label>
+              </div>
+            ) : null}
+            {selectedStatus === "buyer_action_required" ? (
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Buyer next action
+                <input
+                  className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={nextAction}
+                  onChange={(event) => setNextAction(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {selectedStatus === "delayed" ? (
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Revised delivery date and time
+                <input
+                  type="datetime-local"
+                  className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={revisedAt}
+                  onChange={(event) => setRevisedAt(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {["partially_delivered", "delivered"].includes(selectedStatus) ? (
               <>
                 <label className="text-sm font-medium" htmlFor="seller-proof">
                   Proof reference
@@ -210,10 +287,15 @@ export default function VendorShipmentDetailPage() {
                         <Table.Cell className="text-right">
                           <input
                             type="number"
-                            min={1}
+                            min={line.deliveredQty}
                             max={line.orderedQty}
                             className="w-20 rounded-md border border-ui-border-base bg-ui-bg-field px-2 py-1 text-right text-sm"
-                            value={delivered[line.lineKey] ?? line.orderedQty}
+                            disabled={selectedStatus === "delivered"}
+                            value={
+                              selectedStatus === "delivered"
+                                ? line.orderedQty
+                                : delivered[line.lineKey] ?? line.deliveredQty
+                            }
                             onChange={(event) =>
                               setDelivered((current) => ({
                                 ...current,
@@ -228,11 +310,21 @@ export default function VendorShipmentDetailPage() {
                 </Table>
               </>
             ) : null}
+            <label className="text-sm font-medium" htmlFor="seller-note">
+              Internal note
+            </label>
+            <textarea
+              id="seller-note"
+              className="min-h-20 max-w-xl rounded-md border border-ui-border-base bg-ui-bg-field px-2 py-2 text-sm"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
             <div className="flex items-center gap-2">
               <Button
                 size="small"
                 variant="primary"
                 isLoading={update.isPending}
+                disabled={!shipment || !selectedStatus}
                 onClick={() => update.mutate()}
               >
                 Update status

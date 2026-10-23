@@ -34,6 +34,8 @@ const shipment = (
   provider: "simulated",
   trackingNumber: `SIM-${id}`,
   status: deliveredAt ? "delivered" : "in_transit",
+  version: 1,
+  allowedTransitions: [],
   deliveredAt,
   proofRef: deliveredAt ? `staging://proof/${id}` : null,
   destinationPostcode: "302001",

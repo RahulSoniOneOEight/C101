@@ -514,20 +514,47 @@ export type Routes = {
             content: typeof import("../src/api/admin/buildkart/content/route") & {
                 preview: typeof import("../src/api/admin/buildkart/content/preview/route");
             };
+            inventory: {
+                requests: typeof import("../src/api/admin/buildkart/inventory/requests/route") & {
+                    $id: {
+                        approve: typeof import("../src/api/admin/buildkart/inventory/requests/[id]/approve/route");
+                        post: typeof import("../src/api/admin/buildkart/inventory/requests/[id]/post/route");
+                        posting: typeof import("../src/api/admin/buildkart/inventory/requests/[id]/posting/route");
+                        reconcile: typeof import("../src/api/admin/buildkart/inventory/requests/[id]/reconcile/route");
+                        reject: typeof import("../src/api/admin/buildkart/inventory/requests/[id]/reject/route");
+                    };
+                };
+                summary: typeof import("../src/api/admin/buildkart/inventory/summary/route");
+            };
             merchandisingOffers: typeof import("../src/api/admin/buildkart/merchandising-offers/route");
             merchandisingPresets: typeof import("../src/api/admin/buildkart/merchandising-presets/route");
+            offers: {
+                $id: {
+                    b2bPricing: typeof import("../src/api/admin/buildkart/offers/[id]/b2b-pricing/route");
+                    pricing: typeof import("../src/api/admin/buildkart/offers/[id]/pricing/route");
+                };
+            };
+            orderChannels: typeof import("../src/api/admin/buildkart/order-channels/route");
             orderGroups: {
                 $id: {
                     deliveryReturns: typeof import("../src/api/admin/buildkart/order-groups/[id]/delivery-returns/route");
                 };
             };
             orderStatuses: typeof import("../src/api/admin/buildkart/order-statuses/route");
+            productStudio: typeof import("../src/api/admin/buildkart/product-studio/route") & {
+                $id: typeof import("../src/api/admin/buildkart/product-studio/[id]/route") & {
+                    review: typeof import("../src/api/admin/buildkart/product-studio/[id]/review/route");
+                };
+            };
             returns: typeof import("../src/api/admin/buildkart/returns/route") & {
                 $id: typeof import("../src/api/admin/buildkart/returns/[id]/route") & {
                     approve: typeof import("../src/api/admin/buildkart/returns/[id]/approve/route");
                     reject: typeof import("../src/api/admin/buildkart/returns/[id]/reject/route");
+                    status: typeof import("../src/api/admin/buildkart/returns/[id]/status/route");
                 };
             };
+            sellerActivity: typeof import("../src/api/admin/buildkart/seller-activity/route");
+            sellers: typeof import("../src/api/admin/buildkart/sellers/route");
             settlementStatements: typeof import("../src/api/admin/buildkart/settlement-statements/route") & {
                 $id: typeof import("../src/api/admin/buildkart/settlement-statements/[id]/route");
             };
@@ -537,6 +564,7 @@ export type Routes = {
                     deliveryEvidence: typeof import("../src/api/admin/buildkart/shipments/[id]/delivery-evidence/route");
                     reconcile: typeof import("../src/api/admin/buildkart/shipments/[id]/reconcile/route");
                     simulateEvent: typeof import("../src/api/admin/buildkart/shipments/[id]/simulate-event/route");
+                    status: typeof import("../src/api/admin/buildkart/shipments/[id]/status/route");
                 };
             };
         };
@@ -957,8 +985,30 @@ export type Routes = {
         stores: typeof import("@mercurjs/core/api/vendor/stores/route");
         uploads: typeof import("@mercurjs/core/api/vendor/uploads/route");
         buildkart: {
+            inventory: {
+                requests: typeof import("../src/api/vendor/buildkart/inventory/requests/route");
+                summary: typeof import("../src/api/vendor/buildkart/inventory/summary/route");
+            };
+            offers: {
+                $id: {
+                    b2bPricing: typeof import("../src/api/vendor/buildkart/offers/[id]/b2b-pricing/route");
+                    pricing: typeof import("../src/api/vendor/buildkart/offers/[id]/pricing/route");
+                };
+            };
+            orders: {
+                $id: {
+                    deliveryReturns: typeof import("../src/api/vendor/buildkart/orders/[id]/delivery-returns/route");
+                };
+            };
+            productStudio: typeof import("../src/api/vendor/buildkart/product-studio/route") & {
+                $id: typeof import("../src/api/vendor/buildkart/product-studio/[id]/route") & {
+                    review: typeof import("../src/api/vendor/buildkart/product-studio/[id]/review/route");
+                };
+            };
             returns: typeof import("../src/api/vendor/buildkart/returns/route") & {
-                $id: typeof import("../src/api/vendor/buildkart/returns/[id]/route");
+                $id: typeof import("../src/api/vendor/buildkart/returns/[id]/route") & {
+                    status: typeof import("../src/api/vendor/buildkart/returns/[id]/status/route");
+                };
             };
             shipmentExceptions: typeof import("../src/api/vendor/buildkart/shipment-exceptions/route");
             shipments: typeof import("../src/api/vendor/buildkart/shipments/route") & {

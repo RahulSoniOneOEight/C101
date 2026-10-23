@@ -1,11 +1,14 @@
 change_id: CHG-035
-revision: 5
+revision: 6
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
   reads, authenticated operator simulation/reconciliation, return cases with policy snapshots and
   idempotent requests, admin shipment and return workbenches, and an API-backed customer timeline
-  and return flow. Returns must have no Medusa money effect and no Tryton stock effect.
+  and return flow. Revision 6 adds governed manual shipment and post-decision return operations from
+  both the Admin console and the owning Seller console, including order-detail workbenches, explicit
+  transitions, optimistic versions, reason/evidence rules and immutable audit evidence. Returns must
+  have no Medusa money effect and no Tryton stock effect.
 type: delivery-capture-and-returns
 extends:
 - CHG-017
@@ -122,6 +125,22 @@ proposed_decisions:
     references. Shipment and returns are separate cards; shipment carries an Evidence only badge so
     the intentional separation from native Medusa status is visible. Collection links are secondary,
     row links are tertiary, and status/quantity metadata is compact and scannable.
+- D-035-15: >-
+    Carrier automation is disabled for this increment. Admin operators and authenticated Seller
+    members update shipment stages manually through governed transitions. Every transition requires
+    the current shipment version, writes one append-only shipment event and privileged audit record,
+    and enforces evidence, attempt and reason rules. Partial quantities persist as
+    partially_delivered and can never silently mark the shipment delivered.
+- D-035-16: >-
+    Admin retains exclusive approve/reject authority for a requested return. After approval, Admin
+    operators and the owning Seller may manually advance reverse-pickup, transit, receipt and
+    inspection stages through a versioned transition API. These stages remain independent of refund,
+    payment, accounting and inventory disposition; no transition calls Medusa money APIs or Tryton.
+- D-035-17: >-
+    Admin and Seller native order-detail pages receive a responsive operational workbench. It shows
+    native order/payment/fulfilment facts separately from allocation, delivery, return, refund and
+    inventory-effect projections; exposes only permission- and transition-allowed actions; uses one
+    staging banner; and keeps system references and role-restricted technical details collapsed.
 open_decisions:
 - id: OD-035-01
   decision: Final return window and category/reason matrix
@@ -149,7 +168,10 @@ constraints:
 - Staging only; production release remains separately human-authorized.
 - test_data=true, environment=staging and logistics_mode=simulated on every shipment, event,
   return, decision and notification.
-- No real carrier integration, pickup scheduling or seller-side return handling in Phase 1.
+- No real carrier integration or automatic pickup scheduling. Shipment and reverse-logistics stages
+  are manual evidence updates only; Sellers may update only records scoped to their own allocation.
+- Seller users cannot approve or reject return requests, issue refunds, change payment state, or post
+  inventory. Admin return approval remains a decision record only.
 - No refund execution, payment-provider call, Medusa money mutation or Tryton stock/movement effect
   from a return.
 - No attachment binaries in Postgres; store references and metadata only.
@@ -177,6 +199,15 @@ required_tests:
 - Flutter order history, order detail and track-package render API data with loading, empty and error
   states.
 - Chrome/Flutter checks pass at the target mobile widths with no console errors.
+- Admin and Seller manual shipment transitions reject stale versions, invalid transitions and
+  missing required reason/attempt/evidence fields without writing an event.
+- Partial delivered quantities persist as partially_delivered; only complete per-line evidence can
+  persist delivered.
+- Seller shipment and return reads/writes are allocation-scoped and cross-seller identifiers return
+  404 without mutation.
+- Return operational transitions write immutable audit/event evidence and never create a refund,
+  payment mutation, Medusa money effect or Tryton stock movement.
+- Admin and Seller order workbenches pass keyboard, responsive desktop/tablet and WCAG 2.2 AA checks.
 approval_required: true
 implementation:
   requested_by: human-requester
@@ -303,6 +334,38 @@ implementation:
     test_stock_effect: none
     console_errors: 0
     temporary_verifier_account_removed: true
+    production_release_authorized: false
+  manual_order_workbench_increment:
+    requested_by: human-requester
+    requested_at_utc: '2026-10-23'
+    approved_scope: local-admin-and-seller-order-workbench-manual-shipment-return-operations
+    status: local-implementation-complete-pending-staging-runtime-verification
+    carrier_automation: disabled
+    admin_return_decision_authority: retained
+    seller_operational_updates: own-allocation-only
+    refund_effect: none
+    medusa_money_effect: none
+    tryton_stock_effect: none
+    local_evidence:
+      experience_api_typecheck: pass
+      api_package_typecheck: pass
+      admin_panel_build: pass
+      vendor_panel_build: pass
+      changed_panel_eslint: pass
+      manual_transition_contract_test: pass
+      return_no_effects_test: pass
+      return_eligibility_test: pass
+      partial_delivery_normalisation: implemented
+      seller_cancellation_restriction: implemented
+      seller_read_transition_filtering: implemented
+      delivered_evidence_guard: implemented
+    not_yet_verified:
+    - staging runtime shipment and return update cycle
+    - cross-seller HTTP rejection against the deployed service
+    - responsive desktop and tablet screenshots
+    - WCAG 2.2 AA keyboard review in the deployed dashboards
+    - migration and rollback rehearsal for version columns and operation keys
+    staging_deployment_authorized: false
     production_release_authorized: false
   verification:
     experience_api_typecheck: pass

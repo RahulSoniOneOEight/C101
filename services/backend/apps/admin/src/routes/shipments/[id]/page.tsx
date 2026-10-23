@@ -87,29 +87,76 @@ export default function ShipmentDetailPage() {
       });
     },
   });
-  const deliver = useMutation({
+  const [manualStatus, setManualStatus] = useState("");
+  const [manualReason, setManualReason] = useState("");
+  const [manualNote, setManualNote] = useState("");
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [attemptReason, setAttemptReason] = useState("");
+  const [nextAction, setNextAction] = useState("");
+  const [revisedAt, setRevisedAt] = useState("");
+  const [proofRef, setProofRef] = useState("");
+  const [delivered, setDelivered] = useState<Record<string, number>>({});
+  const [manualError, setManualError] = useState("");
+
+  const shipment = query.data?.shipment;
+  const events = query.data?.events ?? [];
+  const selectedStatus = shipment?.allowedTransitions.includes(manualStatus)
+    ? manualStatus
+    : shipment?.allowedTransitions[0] ?? "";
+
+  const updateStatus = useMutation({
     mutationFn: () => {
-      const lines = query.data?.shipment.lines ?? [];
-      return client.admin.buildkart.shipments.$id.deliveryEvidence.mutate({
+      if (!shipment) throw new Error("Shipment is not loaded.");
+      const deliveryStatus = ["partially_delivered", "delivered"].includes(
+        selectedStatus,
+      );
+      const attemptStatus = [
+        "delivery_attempted",
+        "delivery_failed",
+        "buyer_action_required",
+      ].includes(selectedStatus);
+      return client.admin.buildkart.shipments.$id.status.mutate({
         $id: id!,
-        proof_ref: `staging://proof/${id}`,
-        delivered_lines: lines.map((line) => ({
-          line_key: line.lineKey,
-          delivered_qty: line.orderedQty,
-        })),
+        status: selectedStatus,
+        expected_version: shipment.version,
+        operation_key: crypto.randomUUID(),
+        reason: manualReason.trim(),
+        note: manualNote.trim() || undefined,
+        attempt_number: attemptStatus ? attemptNumber : undefined,
+        attempt_reason: attemptStatus ? attemptReason.trim() || undefined : undefined,
+        next_action:
+          selectedStatus === "buyer_action_required" ? nextAction.trim() : undefined,
+        revised_delivery_at:
+          selectedStatus === "delayed" && revisedAt
+            ? new Date(revisedAt).toISOString()
+            : undefined,
+        proof_ref: deliveryStatus ? proofRef.trim() : undefined,
+        delivered_lines: deliveryStatus
+          ? shipment.lines.map((line) => ({
+              line_key: line.lineKey,
+              delivered_qty:
+                selectedStatus === "delivered"
+                  ? line.orderedQty
+                  : delivered[line.lineKey] ?? line.deliveredQty,
+            }))
+          : undefined,
       } as never);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
+    onSuccess: async () => {
+      setManualError("");
+      setManualReason("");
+      setManualNote("");
+      await queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-shipment", id],
       });
-      void queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-shipments"],
       });
-      void queryClient.invalidateQueries({
+      await queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-order-statuses"],
       });
     },
+    onError: (error) => setManualError((error as Error).message),
   });
 
   const duplicateIds = useMemo(() => {
@@ -122,9 +169,6 @@ export default function ShipmentDetailPage() {
     }
     return counts;
   }, [query.data?.events]);
-
-  const shipment = query.data?.shipment;
-  const events = query.data?.events ?? [];
 
   return (
     <SingleColumnPage>
@@ -231,6 +275,152 @@ export default function ShipmentDetailPage() {
         </Container>
 
         <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Manual shipment update</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Versioned Admin action for the Seller allocation. A reason is
+              mandatory; delivery stages also require evidence and quantities.
+            </Text>
+          </div>
+          <div className="flex flex-col gap-3 px-6 py-5">
+            <label className="text-sm font-medium" htmlFor="admin-shipment-status">
+              New status
+            </label>
+            <select
+              id="admin-shipment-status"
+              className="h-8 max-w-xs rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+              value={selectedStatus}
+              onChange={(event) => setManualStatus(event.target.value)}
+            >
+              {(shipment?.allowedTransitions ?? []).map((value) => (
+                <option key={value} value={value}>
+                  {label(value)}
+                </option>
+              ))}
+            </select>
+            <label className="text-sm font-medium" htmlFor="admin-shipment-reason">
+              Reason
+            </label>
+            <input
+              id="admin-shipment-reason"
+              className="h-8 max-w-md rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+              value={manualReason}
+              onChange={(event) => setManualReason(event.target.value)}
+              placeholder="Required Admin acting reason"
+            />
+            {[
+              "delivery_attempted",
+              "delivery_failed",
+              "buyer_action_required",
+            ].includes(selectedStatus) ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Attempt number
+                  <input
+                    type="number"
+                    min={1}
+                    className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                    value={attemptNumber}
+                    onChange={(event) => setAttemptNumber(Number(event.target.value))}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Attempt reason
+                  <input
+                    className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                    value={attemptReason}
+                    onChange={(event) => setAttemptReason(event.target.value)}
+                  />
+                </label>
+              </div>
+            ) : null}
+            {selectedStatus === "buyer_action_required" ? (
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Buyer next action
+                <input
+                  className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={nextAction}
+                  onChange={(event) => setNextAction(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {selectedStatus === "delayed" ? (
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Revised delivery date and time
+                <input
+                  type="datetime-local"
+                  className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={revisedAt}
+                  onChange={(event) => setRevisedAt(event.target.value)}
+                />
+              </label>
+            ) : null}
+            {["partially_delivered", "delivered"].includes(selectedStatus) ? (
+              <div className="flex flex-col gap-3 rounded-md border border-ui-border-base p-3">
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Evidence reference
+                  <input
+                    className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                    value={proofRef}
+                    onChange={(event) => setProofRef(event.target.value)}
+                  />
+                </label>
+                {(shipment?.lines ?? []).map((line) => (
+                  <label
+                    key={line.lineKey}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span>{line.sku} · {line.deliveredQty}/{line.orderedQty}</span>
+                    <input
+                      type="number"
+                      min={line.deliveredQty}
+                      max={line.orderedQty}
+                      disabled={selectedStatus === "delivered"}
+                      className="h-8 w-20 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-right text-sm"
+                      value={
+                        selectedStatus === "delivered"
+                          ? line.orderedQty
+                          : delivered[line.lineKey] ?? line.deliveredQty
+                      }
+                      onChange={(event) =>
+                        setDelivered((current) => ({
+                          ...current,
+                          [line.lineKey]: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+              </div>
+            ) : null}
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Internal note
+              <textarea
+                className="min-h-20 rounded-md border border-ui-border-base bg-ui-bg-field px-2 py-2 text-sm"
+                value={manualNote}
+                onChange={(event) => setManualNote(event.target.value)}
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <Button
+                size="small"
+                variant="primary"
+                isLoading={updateStatus.isPending}
+                disabled={!selectedStatus || !shipment}
+                onClick={() => updateStatus.mutate()}
+              >
+                Update shipment
+              </Button>
+              {manualError ? (
+                <Text size="xsmall" className="text-ui-fg-error" role="alert">
+                  {manualError}
+                </Text>
+              ) : null}
+            </div>
+          </div>
+        </Container>
+
+        <Container className="p-0">
           <div className="flex flex-col gap-3 border-b border-ui-border-base px-6 py-4 md:flex-row md:items-center md:justify-between">
             <div>
               <Heading level="h2">Timeline</Heading>
@@ -268,18 +458,9 @@ export default function ShipmentDetailPage() {
               >
                 Reconcile
               </Button>
-              <Button
-                size="small"
-                variant="primary"
-                isLoading={deliver.isPending}
-                disabled={!shipment || shipment.status === "delivered"}
-                onClick={() => deliver.mutate()}
-              >
-                Record delivery
-              </Button>
             </div>
           </div>
-          {simulate.isError || reconcile.isError || deliver.isError ? (
+          {simulate.isError || reconcile.isError ? (
             <Text size="small" className="px-6 py-4 text-ui-fg-error">
               The staging action failed. Check the Experience API proxy.
             </Text>

@@ -15,6 +15,20 @@ export interface AdminOrderGroupDeliveryReturnsResponse {
   shipments: AdminOrderGroupShipment[];
   returns: AdminReturnCase[];
   latest_update: string;
+  effects: {
+    refund: "none";
+    payment: "none";
+    inventory: "none";
+    accounting: "none";
+  };
+  capabilities?: {
+    can_update_delivery: boolean;
+    can_update_return: boolean;
+    can_decide_return: boolean;
+    can_view_payment: boolean;
+    can_manage_refund: boolean;
+    can_view_technical: boolean;
+  };
   environment: string;
   test_data: true;
   logistics_mode: "simulated";

@@ -34,16 +34,25 @@ export default function ReturnDetailPage() {
     refetchInterval: 10_000,
   });
   const decide = useMutation({
-    mutationFn: (decision: "approve" | "reject") =>
-      decision === "approve"
+    mutationFn: (decision: "approve" | "reject") => {
+      const current = query.data?.return;
+      if (!current) throw new Error("Return case is not loaded.");
+      return decision === "approve"
         ? client.admin.buildkart.returns.$id.approve.mutate({
             $id: id!,
+            expected_version: current.version,
             comment,
+            approved_lines: current.lines.map((line) => ({
+              line_key: line.lineKey,
+              approved_qty: line.requestedQty,
+            })),
           } as never)
         : client.admin.buildkart.returns.$id.reject.mutate({
             $id: id!,
+            expected_version: current.version,
             comment,
-          } as never),
+          } as never);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: ["buildkart", "staging-return", id],
@@ -57,8 +66,45 @@ export default function ReturnDetailPage() {
     },
   });
 
+  const [manualStatus, setManualStatus] = useState("");
+  const [manualNote, setManualNote] = useState("");
+  const [manualError, setManualError] = useState("");
+  const updateStatus = useMutation({
+    mutationFn: (status: string) => {
+      const current = query.data?.return;
+      if (!current) throw new Error("Return case is not loaded.");
+      return client.admin.buildkart.returns.$id.status.mutate({
+        $id: id!,
+        status,
+        expected_version: current.version,
+        operation_key: crypto.randomUUID(),
+        note: manualNote.trim(),
+      } as never);
+    },
+    onSuccess: async () => {
+      setManualNote("");
+      setManualError("");
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-return", id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-returns"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
+      });
+    },
+    onError: (error) => setManualError((error as Error).message),
+  });
+
   const record = query.data?.return;
-  const canDecide = record?.status === "requested";
+  const canDecide = ["requested", "under_review"].includes(record?.status ?? "");
+  const availableStatuses = (record?.allowedTransitions ?? []).filter(
+    (status) => !["approved", "rejected"].includes(status),
+  );
+  const selectedStatus = availableStatuses.includes(manualStatus)
+    ? manualStatus
+    : availableStatuses[0] ?? "";
 
   return (
     <SingleColumnPage>
@@ -214,6 +260,72 @@ export default function ReturnDetailPage() {
                 </Text>
               ) : null}
             </div>
+          </div>
+        </Container>
+
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Manual return operation</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Advance only a valid operational stage. This action is versioned,
+              audited and has no refund or stock effect.
+            </Text>
+          </div>
+          <div className="flex flex-col gap-3 px-6 py-5">
+            {availableStatuses.length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">
+                No operational transition is available from the current stage.
+              </Text>
+            ) : (
+              <>
+                <label className="text-sm font-medium" htmlFor="admin-return-status">
+                  Next stage
+                </label>
+                <select
+                  id="admin-return-status"
+                  className="h-8 max-w-xs rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={selectedStatus}
+                  onChange={(event) => setManualStatus(event.target.value)}
+                >
+                  {availableStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {label(status)}
+                    </option>
+                  ))}
+                </select>
+                <label className="text-sm font-medium" htmlFor="admin-return-note">
+                  Operating reason
+                </label>
+                <textarea
+                  id="admin-return-note"
+                  className="min-h-20 max-w-xl rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm"
+                  value={manualNote}
+                  onChange={(event) => setManualNote(event.target.value)}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="small"
+                    isLoading={updateStatus.isPending}
+                    disabled={!selectedStatus || !manualNote.trim()}
+                    onClick={() => {
+                      if (
+                        selectedStatus !== "cancelled" ||
+                        window.confirm("Cancel this return workflow?")
+                      ) {
+                        updateStatus.mutate(selectedStatus);
+                      }
+                    }}
+                  >
+                    Update return
+                  </Button>
+                  {manualError ? (
+                    <Text size="xsmall" className="text-ui-fg-error" role="alert">
+                      {manualError}
+                    </Text>
+                  ) : null}
+                </div>
+              </>
+            )}
           </div>
         </Container>
 

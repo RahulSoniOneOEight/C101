@@ -148,9 +148,13 @@ export class SimulatedLogisticsProvider implements LogisticsProvider {
     deliveredAt?: string;
     deliveredLines: Array<{ lineKey: string; deliveredQty: number }>;
   }): Promise<{ event: ShipmentEventRecord; duplicate: boolean; statusChanged: boolean }> {
+    const quantityFingerprint = [...input.deliveredLines]
+      .sort((left, right) => left.lineKey.localeCompare(right.lineKey))
+      .map((line) => `${line.lineKey}:${line.deliveredQty}`)
+      .join("|");
     return this.appendEvent({
       shipmentId: input.shipmentId,
-      providerEventId: `delivery:${input.shipmentId}`,
+      providerEventId: `delivery:${input.shipmentId}:${quantityFingerprint}:${input.proofRef.trim()}`,
       eventType: "shipment.delivered",
       status: "delivered",
       occurredAt: input.deliveredAt ?? new Date().toISOString(),

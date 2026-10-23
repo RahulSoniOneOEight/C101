@@ -12,8 +12,30 @@ import {
   AdminMutateCmsContent,
   AdminPreviewCmsContent,
 } from "./admin/buildkart/content/validators";
+import { ManualReturnStatus } from "./admin/buildkart/returns/[id]/status/validators";
+import { ManualShipmentStatus } from "./admin/buildkart/shipments/[id]/status/validators";
 
 const routes = [
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/shipments/:id/status",
+    middlewares: [validateAndTransformBody(ManualShipmentStatus)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/vendor/buildkart/shipments/:id/status",
+    middlewares: [validateAndTransformBody(ManualShipmentStatus)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/returns/:id/status",
+    middlewares: [validateAndTransformBody(ManualReturnStatus)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/vendor/buildkart/returns/:id/status",
+    middlewares: [validateAndTransformBody(ManualReturnStatus)],
+  },
   {
     method: ["GET"],
     matcher: "/admin/buildkart/content",

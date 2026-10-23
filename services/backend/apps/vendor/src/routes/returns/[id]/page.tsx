@@ -7,7 +7,8 @@ import {
   Text,
 } from "@medusajs/ui";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { client } from "../../../lib/client";
 
@@ -24,6 +25,7 @@ const label = (value: string) =>
 
 export default function VendorReturnDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["buildkart", "seller-return", id],
     queryFn: () => client.vendor.buildkart.returns.$id.query({ $id: id! }),
@@ -31,6 +33,37 @@ export default function VendorReturnDetailPage() {
     refetchInterval: 10_000,
   });
   const record = query.data?.return;
+  const availableStatuses = record?.allowedTransitions ?? [];
+  const [status, setStatus] = useState("");
+  const [note, setNote] = useState("");
+  const [error, setError] = useState("");
+  const selectedStatus = availableStatuses.includes(status)
+    ? status
+    : availableStatuses[0] ?? "";
+
+  const update = useMutation({
+    mutationFn: () => {
+      if (!record) throw new Error("Return case is not loaded.");
+      return client.vendor.buildkart.returns.$id.status.mutate({
+        $id: id!,
+        status: selectedStatus,
+        expected_version: record.version,
+        operation_key: crypto.randomUUID(),
+        note: note.trim(),
+      } as never);
+    },
+    onSuccess: async () => {
+      setError("");
+      setNote("");
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "seller-return", id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "seller-returns"],
+      });
+    },
+    onError: (cause) => setError((cause as Error).message),
+  });
 
   return (
     <SingleColumnPage>
@@ -87,7 +120,7 @@ export default function VendorReturnDetailPage() {
                   Admin decision
                 </Text>
                 <Text size="small" weight="plus">
-                  {record.status === "requested"
+                  {["requested", "under_review"].includes(record.status)
                     ? "Awaiting admin decision"
                     : label(record.status)}
                 </Text>
@@ -132,6 +165,74 @@ export default function VendorReturnDetailPage() {
                 {record?.decisionComment ?? "—"}
               </Text>
             </div>
+          </div>
+        </Container>
+
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Manual return operation</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              After Admin approval, update only the reverse-logistics stages for
+              your allocated lines. No refund or stock action is triggered.
+            </Text>
+          </div>
+          <div className="flex flex-col gap-3 px-6 py-5">
+            {availableStatuses.length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">
+                {record?.status === "requested" || record?.status === "under_review"
+                  ? "Awaiting the Admin decision."
+                  : "No operational transition is available from this stage."}
+              </Text>
+            ) : (
+              <>
+                <label className="text-sm font-medium" htmlFor="seller-return-status">
+                  Next stage
+                </label>
+                <select
+                  id="seller-return-status"
+                  className="h-8 max-w-xs rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                  value={selectedStatus}
+                  onChange={(event) => setStatus(event.target.value)}
+                >
+                  {availableStatuses.map((value) => (
+                    <option key={value} value={value}>
+                      {label(value)}
+                    </option>
+                  ))}
+                </select>
+                <label className="text-sm font-medium" htmlFor="seller-return-note">
+                  Operating reason
+                </label>
+                <textarea
+                  id="seller-return-note"
+                  className="min-h-20 max-w-xl rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm"
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="small"
+                    isLoading={update.isPending}
+                    disabled={!selectedStatus || !note.trim()}
+                    onClick={() => {
+                      if (
+                        selectedStatus !== "cancelled" ||
+                        window.confirm("Cancel this return workflow?")
+                      ) {
+                        update.mutate();
+                      }
+                    }}
+                  >
+                    Update return
+                  </Button>
+                  {error ? (
+                    <Text size="xsmall" className="text-ui-fg-error" role="alert">
+                      {error}
+                    </Text>
+                  ) : null}
+                </div>
+              </>
+            )}
           </div>
         </Container>
 

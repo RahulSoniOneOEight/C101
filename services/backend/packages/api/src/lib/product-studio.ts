@@ -988,11 +988,13 @@ export async function loadStudioProduct(
         .map((tag: any) => tag?.value)
         .filter((value: unknown): value is string => Boolean(value)),
       specifications,
-      options: optionRows.map((option) => ({
-        id: option.id,
-        name: option.name,
-        values: option.values,
-      })),
+      options: optionRows.map(
+        (option: { id: string; name: string; values: string[] }) => ({
+          id: option.id,
+          name: option.name,
+          values: option.values,
+        }),
+      ),
       variants: loadedVariants,
       offers: loadedOffers,
       review: studioReadiness({
