@@ -96,6 +96,7 @@ type StudioProduct = {
   subtitle: string;
   description: string;
   status: string;
+  lifecycle_state?: string | null;
   thumbnail: string;
   category_id: string;
   category_name: string;
@@ -866,6 +867,7 @@ export function ProductStudioForm({
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [status, setStatus] = useState("draft");
+  const [lifecycleState, setLifecycleState] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(true);
 
   const meta = useQuery({
@@ -967,6 +969,7 @@ export function ProductStudioForm({
         setOptionsEditable(Boolean(product.options_editable));
         setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
+        setLifecycleState(product.lifecycle_state ?? null);
         setCanEdit(product.can_edit);
         setLoaded(true);
         setDirty(false);
@@ -1476,7 +1479,17 @@ export function ProductStudioForm({
   };
 
   const runReviewAction = async (
-    action: "submit" | "approve" | "reject" | "request-changes" | "reopen" | "withdraw",
+    action:
+      | "submit"
+      | "approve"
+      | "reject"
+      | "request-changes"
+      | "reopen"
+      | "withdraw"
+      | "unpublish"
+      | "pause"
+      | "archive"
+      | "restore",
   ) => {
     if (!productId) {
       setReviewNotice({
@@ -1510,6 +1523,13 @@ export function ProductStudioForm({
         }),
       });
       setStatus(result.product.status);
+      if (action === "unpublish") setLifecycleState("unpublished");
+      else if (action === "pause") setLifecycleState("paused");
+      else if (action === "archive") setLifecycleState("archived");
+      else if (action === "restore") setLifecycleState("restored");
+      else if (action === "request-changes" && status === "published") {
+        setLifecycleState("changes_requested");
+      } else if (action === "approve") setLifecycleState(null);
       setReviewMessage("");
       setDirty(false);
       setReviewNotice({
@@ -1525,7 +1545,15 @@ export function ProductStudioForm({
                   ? "Product reopened as a draft."
                   : action === "withdraw"
                     ? "Submission withdrawn; product is a draft again."
-                    : "Product submitted for review.",
+                    : action === "unpublish"
+                      ? "Product unpublished and returned to draft."
+                      : action === "pause"
+                        ? "Product paused and removed from the active catalogue."
+                        : action === "archive"
+                          ? "Product archived as a draft."
+                          : action === "restore"
+                            ? "Product restored as a draft."
+                            : "Product submitted for review.",
       });
     } catch (error) {
       setReviewNotice({
@@ -2815,12 +2843,66 @@ export function ProductStudioForm({
                     </Button>
                   ) : null}
 
-                  {status === "published" ? (
-                    <Text size="small" className="text-ui-fg-subtle">
-                      This product is active. Use the native product or offer
-                      pages for post-publish changes until the review flow for
-                      published edits is approved.
-                    </Text>
+                  {status === "published" && mode === "admin" ? (
+                    <>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("request-changes")}
+                      >
+                        Request changes
+                      </Button>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("unpublish")}
+                      >
+                        Unpublish
+                      </Button>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("pause")}
+                      >
+                        Pause
+                      </Button>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="danger"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("archive")}
+                      >
+                        Archive
+                      </Button>
+                    </>
+                  ) : null}
+
+                  {status === "draft" &&
+                  mode === "admin" &&
+                  ["paused", "archived", "unpublished", "changes_requested"].includes(
+                    lifecycleState ?? "",
+                  ) ? (
+                    <>
+                      <Text size="small" className="text-ui-fg-subtle">
+                        Lifecycle state: {lifecycleState}
+                      </Text>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("restore")}
+                      >
+                        Restore as draft
+                      </Button>
+                    </>
                   ) : null}
                 </div>
 

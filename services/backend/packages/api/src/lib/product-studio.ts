@@ -970,6 +970,11 @@ export async function loadStudioProduct(
       subtitle: product.subtitle ?? "",
       description: product.description ?? "",
       status: product.status ?? "draft",
+      metadata,
+      lifecycle_state:
+        typeof metadata.lifecycle_state === "string"
+          ? metadata.lifecycle_state
+          : null,
       thumbnail: product.thumbnail ?? "",
       category_id: product.categories?.[0]?.id ?? "",
       category_name: product.categories?.[0]?.name ?? "",

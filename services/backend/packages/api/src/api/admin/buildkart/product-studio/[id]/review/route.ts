@@ -18,7 +18,16 @@ import {
 } from "../../../../../../lib/product-studio";
 
 type ReviewBody = {
-  action?: "submit" | "approve" | "reject" | "request-changes" | "reopen";
+  action?:
+    | "submit"
+    | "approve"
+    | "reject"
+    | "request-changes"
+    | "reopen"
+    | "unpublish"
+    | "pause"
+    | "archive"
+    | "restore";
   message?: string;
   reason?: string;
   internal_note?: string;
@@ -30,11 +39,15 @@ async function setStatus(
   productId: string,
   status: string,
   note: string,
+  metadata?: Record<string, unknown>,
 ) {
   await updateProductsWorkflow(scope).run({
     input: {
       selector: { id: productId },
-      update: { status } as never,
+      update: {
+        status,
+        ...(metadata ? { metadata } : {}),
+      } as never,
     },
   });
   await recordProductAuditChangeWorkflow(scope).run({
@@ -48,7 +61,12 @@ async function setStatus(
             {
               product_id: productId,
               action: ProductChangeActionType.STATUS_CHANGE,
-              details: { status },
+              details: {
+                status,
+                ...(metadata?.lifecycle_state
+                  ? { lifecycle_state: metadata.lifecycle_state }
+                  : {}),
+              },
             },
           ],
         },
@@ -131,20 +149,96 @@ export async function POST(
         },
       });
     } else if (action === "request-changes") {
-      if (status !== "proposed") {
+      if (status !== "proposed" && status !== "published") {
         throw new StudioError(
           409,
-          "Only a proposed product can receive a change request.",
+          "Only a proposed or published product can receive a change request.",
         );
       }
-      await requestProductChangeWorkflow(req.scope).run({
-        input: {
-          product_id: req.params.id,
-          message:
-            body.message ?? body.reason ?? "Changes requested from Product Studio",
-          actor_id: actorId,
+      if (status === "published") {
+        const message =
+          body.message ?? body.reason ?? "Changes requested from Product Studio";
+        await setStatus(
+          req.scope,
+          actorId,
+          req.params.id,
+          ProductStatus.DRAFT,
+          message,
+          {
+            ...(product.metadata ?? {}),
+            lifecycle_state: "changes_requested",
+            lifecycle_changed_at: new Date().toISOString(),
+            lifecycle_reason: message,
+          },
+        );
+      } else {
+        await requestProductChangeWorkflow(req.scope).run({
+          input: {
+            product_id: req.params.id,
+            message:
+              body.message ?? body.reason ?? "Changes requested from Product Studio",
+            actor_id: actorId,
+          },
+        });
+      }
+    } else if (action === "unpublish" || action === "pause" || action === "archive") {
+      if (action !== "archive" && status !== "published") {
+        throw new StudioError(
+          409,
+          "Only a published product can be unpublished or paused.",
+        );
+      }
+      if (status === "draft" || status === "proposed") {
+        throw new StudioError(
+          409,
+          "Use Reopen or Restore before archiving a draft.",
+        );
+      }
+      const lifecycleState =
+        action === "unpublish"
+          ? "unpublished"
+          : action === "pause"
+            ? "paused"
+            : "archived";
+      const note =
+        body.reason ??
+        body.internal_note ??
+        `Product ${lifecycleState} from Product Studio`;
+      await setStatus(
+        req.scope,
+        actorId,
+        req.params.id,
+        ProductStatus.DRAFT,
+        note,
+        {
+          ...(product.metadata ?? {}),
+          lifecycle_state: lifecycleState,
+          lifecycle_changed_at: new Date().toISOString(),
+          lifecycle_reason: note,
         },
-      });
+      );
+    } else if (action === "restore") {
+      const lifecycleState = String(product.lifecycle_state ?? "");
+      if (!["paused", "archived", "unpublished", "changes_requested"].includes(lifecycleState)) {
+        throw new StudioError(
+          409,
+          "Only a paused, archived, unpublished or changes-requested product can be restored.",
+        );
+      }
+      const note = body.reason ?? "Product restored as a draft from Product Studio";
+      await setStatus(
+        req.scope,
+        actorId,
+        req.params.id,
+        ProductStatus.DRAFT,
+        note,
+        {
+          ...(product.metadata ?? {}),
+          lifecycle_state: "restored",
+          lifecycle_changed_at: new Date().toISOString(),
+          lifecycle_reason: note,
+        },
+      );
     } else if (action === "reopen") {
       if (status !== "rejected") {
         throw new StudioError(409, "Only a rejected product can be reopened.");
