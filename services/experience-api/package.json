@@ -43,7 +43,9 @@
     "test:return-idempotency": "bun run src/scripts/return-idempotency-test.ts",
     "test:return-eligibility": "bun run src/scripts/return-eligibility-test.ts",
     "test:return-no-effects": "bun run src/scripts/return-no-effects-test.ts",
-    "test:manual-transitions": "bun run src/scripts/manual-transition-test.ts"
+    "test:manual-transitions": "bun run src/scripts/manual-transition-test.ts",
+    "test:manual-transitions-db": "bun run src/scripts/manual-transition-db-test.ts",
+    "test:manual-transitions-http": "bun run src/scripts/manual-transition-http-test.ts"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

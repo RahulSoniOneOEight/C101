@@ -482,7 +482,7 @@ function SellerReturnForm({
   };
 
   return (
-    <div className="mt-3 grid grid-cols-1 gap-3 border-t border-ui-border-base pt-3 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] md:items-end">
+    <div className="mt-3 grid grid-cols-1 gap-3 border-t border-ui-border-base pt-3">
       <label className="flex flex-col gap-1 text-sm font-medium">
         Next stage
         <select
@@ -509,7 +509,7 @@ function SellerReturnForm({
         Update return
       </Button>
       {error ? (
-        <Text size="xsmall" className="text-ui-fg-error md:col-span-3" role="alert">
+        <Text size="xsmall" className="text-ui-fg-error" role="alert">
           {error}
         </Text>
       ) : null}
@@ -626,7 +626,7 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
   return (
     <section className="flex flex-col gap-y-3" aria-labelledby="seller-operations-title">
       <Container className="border border-ui-tag-orange-border bg-ui-tag-orange-bg px-5 py-4">
-        <div className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <Text size="small" weight="plus">
               Staging manual operations
@@ -649,7 +649,10 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
             Independent states for order #{order.display_id ?? order.id}.
           </Text>
         </div>
-        <div className="grid grid-cols-2 gap-3 px-6 py-5 md:grid-cols-4">
+        <div
+          className="grid gap-3 px-6 py-5"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}
+        >
           <StateTile name="Order" value={order.status ?? "pending"} />
           <StateTile
             name="Payment"
@@ -682,10 +685,10 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
         </div>
       </Container>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
+      <div className="flex flex-col gap-3">
         <div className="flex min-w-0 flex-col gap-3">
           <Container className="divide-y p-0">
-            <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Heading level="h2">Delivery &amp; fulfilment</Heading>
@@ -720,7 +723,7 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
                         key={shipment.id}
                         className="rounded-lg border border-ui-border-base p-4"
                       >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <StatusBadge color={statusColor(shipment.status)}>
@@ -764,7 +767,7 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
           </Container>
 
           <Container className="divide-y p-0">
-            <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <Heading level="h2">Returns</Heading>
@@ -795,7 +798,7 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
                       key={record.id}
                       className="rounded-lg border border-ui-border-base p-4"
                     >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <StatusBadge color={statusColor(record.status)}>

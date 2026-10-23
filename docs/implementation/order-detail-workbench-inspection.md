@@ -104,8 +104,8 @@ money APIs or Tryton.
   `rejected` is the decline state and `closed` is the completion state.
 - Controlled correction of an already-`delivered` shipment is not exposed;
   correction requires a governed reversal contract.
-- Staging runtime verification, screenshots and staging deployment remain to be
-  performed with explicit human authorization.
+- Staging deployment and production release remain unauthorized. Local runtime
+  verification is complete.
 
 ## Verification performed locally
 
@@ -115,4 +115,21 @@ money APIs or Tryton.
 - Targeted ESLint on all changed panel files.
 - Pure transition and partial-delivery contract test
   (`test:manual-transitions`).
-- Existing return no-effects and return eligibility tests.
+- Database-backed manual transition test (`test:manual-transitions-db`).
+- HTTP Admin/Seller transition and scoping test
+  (`test:manual-transitions-http`).
+- Existing shipment ordering, restart, reconcile, seller isolation, return
+  idempotency, no-effects and eligibility tests.
+- Local Admin/Seller UI flow on order `#15`: approve return, schedule pickup,
+  advance shipment, record delivery and receipt, verify final persisted state.
+- axe-core WCAG 2.0/2.1/2.2 A/AA checks: 0 violations on both workbenches.
+- Keyboard traversal reached every workbench control.
+- Desktop `1440×1200`, tablet `834×1112` and mobile `390×844` checks with no
+  horizontal overflow.
+- Screenshots recorded under
+  `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/`.
+
+The workbench uses container-adaptive state tiles and a single-column activity
+trail because Mercur renders the widget inside a ~740px main column; it does not
+depend on viewport-wide Tailwind breakpoints that the dashboard stylesheet may
+not generate.

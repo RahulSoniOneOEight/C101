@@ -339,7 +339,7 @@ implementation:
     requested_by: human-requester
     requested_at_utc: '2026-10-23'
     approved_scope: local-admin-and-seller-order-workbench-manual-shipment-return-operations
-    status: local-implementation-complete-pending-staging-runtime-verification
+    status: local-runtime-verified-pending-staging-deployment
     carrier_automation: disabled
     admin_return_decision_authority: retained
     seller_operational_updates: own-allocation-only
@@ -353,18 +353,34 @@ implementation:
       vendor_panel_build: pass
       changed_panel_eslint: pass
       manual_transition_contract_test: pass
+      manual_transition_db_test: pass
+      manual_transition_http_test: pass
+      shipment_ordering_test: pass
+      shipment_restart_test: pass
+      shipment_reconcile_test: pass
+      return_idempotency_test: pass
+      seller_shipment_auth_test: pass
       return_no_effects_test: pass
       return_eligibility_test: pass
+      admin_ui_flow: pass
+      seller_ui_flow: pass
+      final_admin_observation: delivered-v5-received-v4
+      console_errors: 0
+      axe_admin: 0-violations-0-incomplete-21-passes
+      axe_seller: 0-violations-0-incomplete-20-passes
+      keyboard_traversal: pass
+      responsive_viewports: desktop-1440-tablet-834-mobile-390
+      horizontal_overflow: none
+      screenshots: client-projects/client101/evidence/CHG-035/order-workbench-screenshots/
       partial_delivery_normalisation: implemented
       seller_cancellation_restriction: implemented
       seller_read_transition_filtering: implemented
       delivered_evidence_guard: implemented
     not_yet_verified:
-    - staging runtime shipment and return update cycle
-    - cross-seller HTTP rejection against the deployed service
-    - responsive desktop and tablet screenshots
-    - WCAG 2.2 AA keyboard review in the deployed dashboards
+    - staging deployment and hosted runtime cycle
     - migration and rollback rehearsal for version columns and operation keys
+    - physical assistive-technology testing
+    - real carrier integration
     staging_deployment_authorized: false
     production_release_authorized: false
   verification:

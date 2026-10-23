@@ -83,7 +83,7 @@ const ownUpdate = await sellerFetch(
   {
     method: "POST",
     body: JSON.stringify({
-      status: "in_transit",
+      status: "picked_up",
       expected_version: booked.shipment.version,
       operation_key: `seller-auth:${runId}`,
     }),
@@ -91,7 +91,7 @@ const ownUpdate = await sellerFetch(
 );
 assert.ok(ownUpdate.status === 200 || ownUpdate.status === 201);
 const updated = await store.get(booked.shipment.id);
-assert.equal(updated?.status, "in_transit");
+assert.equal(updated?.status, "picked_up");
 
 const detailB = await sellerFetch(
   sellerB,
