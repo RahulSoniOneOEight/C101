@@ -56,6 +56,9 @@ type Offer = {
   variant_id: string;
   product_id?: string | null;
   sku: string;
+  metadata?: Record<string, unknown>;
+  list_price_minor?: number | null;
+  gst_inclusive?: boolean;
   prices: OfferPrice[];
 };
 type InventoryLocation = {
@@ -327,6 +330,8 @@ function OfferPricingEditor({
   onSaved: (pricing: Offer) => void;
 }) {
   const [base, setBase] = useState("");
+  const [listPrice, setListPrice] = useState("");
+  const [gstInclusive, setGstInclusive] = useState(true);
   const [baseId, setBaseId] = useState<string | undefined>();
   const [tiers, setTiers] = useState<TierDraft[]>([]);
   const [otherPrices, setOtherPrices] = useState<OfferPrice[]>([]);
@@ -343,6 +348,10 @@ function OfferPricingEditor({
         price.min_quantity === null || price.min_quantity === undefined,
     );
     setBase(basePrice ? rupees(basePrice.amount) : "");
+    setListPrice(
+      offer.list_price_minor ? rupees(offer.list_price_minor) : "",
+    );
+    setGstInclusive(offer.gst_inclusive !== false);
     setBaseId(basePrice?.id);
     setTiers(
       inrPrices
@@ -373,7 +382,27 @@ function OfferPricingEditor({
 
   const save = async () => {
     const nextErrors = validatePriceLadder(base, tiers);
-    setErrors(nextErrors);
+    const listMinor = Math.round(Number(listPrice) * 100);
+    const baseMinor = Math.round(Number(base) * 100);
+    if (!Number.isInteger(listMinor) || listMinor <= 0) {
+      nextErrors.push("List price is required and must be greater than zero.");
+    }
+    if (Number.isFinite(baseMinor) && baseMinor > listMinor) {
+      nextErrors.push("Selling price cannot exceed the list price.");
+    }
+    const currentBase = offer.prices.find(
+      (price) =>
+        price.currency_code === "inr" &&
+        (price.min_quantity === null || price.min_quantity === undefined),
+    );
+    if (
+      currentBase &&
+      baseMinor > Math.ceil(currentBase.amount * 1.2) &&
+      !reason.trim()
+    ) {
+      nextErrors.push("A reason is required for an increase above 20%.");
+    }
+    setErrors([...new Set(nextErrors)]);
     if (nextErrors.length > 0) return;
     setSaving(true);
     try {
@@ -418,11 +447,19 @@ function OfferPricingEditor({
         };
       }>(endpoint, {
         method: "POST",
-        body: JSON.stringify({ prices: payload, reason: reason || null }),
+        body: JSON.stringify({
+          prices: payload,
+          reason: reason || null,
+          list_price_minor: listMinor,
+          gst_inclusive: gstInclusive,
+          enforce_policy: true,
+        }),
       });
       const updated: Offer = {
         ...offer,
         sku: result.pricing.sku,
+        list_price_minor: listMinor,
+        gst_inclusive: gstInclusive,
         prices: result.pricing.prices,
       };
       onSaved(updated);
@@ -451,7 +488,10 @@ function OfferPricingEditor({
             {base ? inr(Math.round(Number(base) * 100)) : "No base price"}
           </p>
           <p className="text-xs text-ui-fg-subtle">
-            B2C selling price · INR
+            B2C selling price · {gstInclusive ? "GST-inclusive" : "GST-exclusive"}
+          </p>
+          <p className="text-xs text-ui-fg-subtle">
+            List: {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "—"}
           </p>
         </div>
       </div>
@@ -459,7 +499,18 @@ function OfferPricingEditor({
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-ui-fg-subtle">
-            Base selling price (INR)
+            List price (INR) *
+          </span>
+          <Input
+            inputMode="decimal"
+            value={listPrice}
+            onChange={(event) => setListPrice(event.target.value)}
+            placeholder="MRP / list price"
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-ui-fg-subtle">
+            Base selling price (INR) *
           </span>
           <Input
             inputMode="decimal"
@@ -468,9 +519,17 @@ function OfferPricingEditor({
             placeholder="e.g. 436.90"
           />
         </label>
+        <label className="flex items-center gap-2 text-sm text-ui-fg-base">
+          <input
+            type="checkbox"
+            checked={gstInclusive}
+            onChange={(event) => setGstInclusive(event.target.checked)}
+          />
+          B2C price is GST-inclusive
+        </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-ui-fg-subtle">
-            Reason (optional)
+            Reason (optional; required above 20% change)
           </span>
           <Input
             value={reason}
@@ -479,6 +538,18 @@ function OfferPricingEditor({
           />
         </label>
       </div>
+      <p className="mt-2 text-xs text-ui-fg-subtle">
+        {Number(listPrice) > 0 && Number(base) > 0
+          ? `${Math.max(
+              0,
+              Math.round(
+                ((Number(listPrice) - Number(base)) / Number(listPrice)) * 100,
+              ),
+            )}% below list · ${
+              gstInclusive ? "GST-inclusive" : "GST-exclusive"
+            }`
+          : "Enter list and selling prices to calculate the discount."}
+      </p>
 
       <div className="mt-4 flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -723,6 +794,11 @@ export function ProductStudioForm({
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewNotice, setReviewNotice] = useState<Notice | null>(null);
+  const [bulkListPrice, setBulkListPrice] = useState("");
+  const [bulkGstInclusive, setBulkGstInclusive] = useState(true);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkNotice, setBulkNotice] = useState<Notice | null>(null);
   const [optionsEditable, setOptionsEditable] = useState(true);
   const [studioManaged, setStudioManaged] = useState(true);
   const [skuPrefix, setSkuPrefix] = useState("");
@@ -1257,6 +1333,92 @@ export function ProductStudioForm({
     );
     setDirty(true);
     setNotice({ kind: "success", text: "Filled blank SKUs with the prefix." });
+  };
+
+  const applyBulkReferencePricing = async () => {
+    const listMinor = Math.round(Number(bulkListPrice) * 100);
+    if (!Number.isInteger(listMinor) || listMinor <= 0) {
+      setBulkNotice({
+        kind: "error",
+        text: "Enter a positive list price before applying bulk reference pricing.",
+      });
+      return;
+    }
+    const eligible = offers.filter((offer) =>
+      offer.prices.some(
+        (price) =>
+          price.currency_code === "inr" &&
+          (price.min_quantity === null || price.min_quantity === undefined),
+      ),
+    );
+    if (eligible.length === 0) {
+      setBulkNotice({
+        kind: "info",
+        text: "No offers have a base selling price yet. Price variants individually first.",
+      });
+      return;
+    }
+    setBulkSaving(true);
+    setBulkNotice(null);
+    const failures: string[] = [];
+    let updatedCount = 0;
+    for (const offer of eligible) {
+      try {
+        const endpoint =
+          mode === "admin"
+            ? `/admin/buildkart/offers/${offer.id}/pricing`
+            : `/vendor/buildkart/offers/${offer.id}/pricing`;
+        const result = await request<{
+          pricing: { sku: string; prices: OfferPrice[] };
+        }>(endpoint, {
+          method: "POST",
+          body: JSON.stringify({
+            prices: offer.prices.map((price) => ({
+              id: price.id,
+              amount: price.amount,
+              currency_code: price.currency_code,
+              min_quantity: price.min_quantity ?? null,
+              max_quantity: price.max_quantity ?? null,
+              ...(price.rules && Object.keys(price.rules).length > 0
+                ? { rules: price.rules }
+                : {}),
+            })),
+            reason: bulkReason || null,
+            list_price_minor: listMinor,
+            gst_inclusive: bulkGstInclusive,
+            enforce_policy: true,
+          }),
+        });
+        setOffers((current) =>
+          current.map((row) =>
+            row.id === offer.id
+              ? {
+                  ...row,
+                  sku: result.pricing.sku,
+                  list_price_minor: listMinor,
+                  gst_inclusive: bulkGstInclusive,
+                  prices: result.pricing.prices,
+                }
+              : row,
+          ),
+        );
+        updatedCount += 1;
+      } catch (error) {
+        failures.push(`${offer.sku}: ${(error as Error).message}`);
+      }
+    }
+    setBulkSaving(false);
+    if (failures.length > 0) {
+      setBulkNotice({
+        kind: "error",
+        text: `${updatedCount} offers updated. Failed: ${failures.join("; ")}`,
+      });
+    } else {
+      setBulkNotice({
+        kind: "success",
+        text: `${updatedCount} offers updated with list price and GST setting. Selling prices were preserved.`,
+      });
+    }
   };
 
   const runReviewAction = async (
@@ -2162,6 +2324,74 @@ export function ProductStudioForm({
                 </Text>
               ) : (
                 <div className="flex flex-col gap-3">
+                  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
+                    <p className="text-sm font-medium text-ui-fg-base">
+                      Bulk reference pricing
+                    </p>
+                    <p className="mt-1 text-xs text-ui-fg-subtle">
+                      Apply the same list price and GST setting to every offer
+                      that already has a selling price. Selling prices and
+                      quantity tiers are preserved.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-end">
+                      <label className="flex flex-col gap-1">
+                        <span className="text-xs text-ui-fg-subtle">
+                          List price (INR)
+                        </span>
+                        <Input
+                          inputMode="decimal"
+                          value={bulkListPrice}
+                          onChange={(event) =>
+                            setBulkListPrice(event.target.value)
+                          }
+                          placeholder="MRP / list price"
+                          className="md:w-44"
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 pb-2 text-sm text-ui-fg-base">
+                        <input
+                          type="checkbox"
+                          checked={bulkGstInclusive}
+                          onChange={(event) =>
+                            setBulkGstInclusive(event.target.checked)
+                          }
+                        />
+                        GST-inclusive
+                      </label>
+                      <label className="flex flex-1 flex-col gap-1">
+                        <span className="text-xs text-ui-fg-subtle">
+                          Reason (optional)
+                        </span>
+                        <Input
+                          value={bulkReason}
+                          onChange={(event) => setBulkReason(event.target.value)}
+                          placeholder="Bulk list-price update reason"
+                        />
+                      </label>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        isLoading={bulkSaving}
+                        onClick={applyBulkReferencePricing}
+                      >
+                        Apply to all offers
+                      </Button>
+                    </div>
+                    {bulkNotice ? (
+                      <p
+                        className={`mt-2 text-xs ${
+                          bulkNotice.kind === "error"
+                            ? "text-ui-fg-error"
+                            : bulkNotice.kind === "success"
+                              ? "text-ui-fg-success"
+                              : "text-ui-fg-subtle"
+                        }`}
+                      >
+                        {bulkNotice.text}
+                      </p>
+                    ) : null}
+                  </div>
                   {variants.map((variant) => {
                     const variantOffers = offers.filter(
                       (offer) => offer.variant_id === variant.id,

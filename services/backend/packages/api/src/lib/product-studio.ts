@@ -899,6 +899,7 @@ export async function loadStudioProduct(
           "variant_id",
           "product_id",
           "sku",
+          "metadata",
           "prices.id",
           "prices.amount",
           "prices.currency_code",
@@ -941,6 +942,13 @@ export async function loadStudioProduct(
     variant_id: offer.variant_id,
     product_id: offer.product_id ?? null,
     sku: offer.sku ?? "",
+    metadata: offer.metadata ?? {},
+    list_price_minor:
+      Number.isInteger(Number(offer.metadata?.list_price_minor)) &&
+      Number(offer.metadata?.list_price_minor) > 0
+        ? Number(offer.metadata?.list_price_minor)
+        : null,
+    gst_inclusive: offer.metadata?.gst_inclusive !== false,
     prices: (offer.prices ?? []).filter(Boolean).map((price: any) => ({
       id: price.id,
       amount: Number(price.amount),

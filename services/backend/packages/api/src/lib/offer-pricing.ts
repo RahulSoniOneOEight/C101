@@ -21,7 +21,17 @@ export interface OfferPricing {
   product_id: string | null;
   variant_id: string;
   sku: string;
+  metadata: Record<string, unknown>;
+  list_price_minor: number | null;
+  gst_inclusive: boolean;
   prices: OfferPriceRow[];
+}
+
+export interface OfferPricingPolicy {
+  list_price_minor?: number | null;
+  gst_inclusive?: boolean;
+  reason?: string | null;
+  enforce_policy?: boolean;
 }
 
 const MAX_TIERS = 10;
@@ -123,6 +133,7 @@ export async function loadOfferPricing(
       "product_id",
       "variant_id",
       "sku",
+      "metadata",
       "prices.id",
       "prices.amount",
       "prices.currency_code",
@@ -140,6 +151,7 @@ export async function loadOfferPricing(
         product_id?: string | null;
         variant_id: string;
         sku: string;
+        metadata?: Record<string, unknown> | null;
         prices?: Array<{
           id: string;
           amount: number;
@@ -153,12 +165,20 @@ export async function loadOfferPricing(
   if (!offer) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, `Offer ${offerId} was not found.`);
   }
+  const metadata = (offer.metadata ?? {}) as Record<string, unknown>;
+  const listCandidate = Number(metadata.list_price_minor);
   return {
     offer_id: offer.id,
     seller_id: offer.seller_id,
     product_id: offer.product_id ?? null,
     variant_id: offer.variant_id,
     sku: offer.sku,
+    metadata,
+    list_price_minor:
+      Number.isInteger(listCandidate) && listCandidate > 0
+        ? listCandidate
+        : null,
+    gst_inclusive: metadata.gst_inclusive !== false,
     prices: (offer.prices ?? []).map((price) => ({
       id: price.id,
       amount: Number(price.amount),
@@ -178,11 +198,79 @@ export async function updateOfferPricing(
   scope: MedusaContainer,
   offerId: string,
   prices: OfferPriceInput[],
+  policy: OfferPricingPolicy = {},
 ): Promise<OfferPricing> {
   const errors = validateOfferPrices(prices);
   if (errors.length > 0) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, errors.join(" "));
   }
+
+  const current = await loadOfferPricing(scope, offerId);
+  const enforcePolicy =
+    policy.enforce_policy === true ||
+    policy.list_price_minor !== undefined ||
+    policy.gst_inclusive !== undefined;
+  const effectiveList =
+    policy.list_price_minor !== undefined
+      ? policy.list_price_minor
+      : current.list_price_minor;
+  if (enforcePolicy) {
+    if (
+      policy.list_price_minor !== undefined &&
+      (!Number.isInteger(policy.list_price_minor) ||
+        Number(policy.list_price_minor) <= 0)
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "List price must be a positive amount in minor units.",
+      );
+    }
+    if (!effectiveList) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "List price is required for B2C pricing.",
+      );
+    }
+    const base = prices.find(
+      (price) =>
+        price.currency_code === "inr" &&
+        (price.min_quantity === undefined || price.min_quantity === null),
+    );
+    if (base && base.amount > effectiveList) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Selling price cannot exceed the list price.",
+      );
+    }
+    const currentBase = current.prices.find(
+      (price) =>
+        price.currency_code === "inr" &&
+        (price.min_quantity === null || price.min_quantity === undefined),
+    );
+    if (
+      base &&
+      currentBase &&
+      base.amount > Math.ceil(currentBase.amount * 1.2) &&
+      !policy.reason?.trim()
+    ) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "A reason is required for a price increase above 20%.",
+      );
+    }
+  }
+
+  const metadata: Record<string, unknown> = {
+    ...current.metadata,
+    ...(policy.list_price_minor !== undefined && effectiveList
+      ? { list_price_minor: effectiveList }
+      : {}),
+    ...(policy.gst_inclusive !== undefined
+      ? { gst_inclusive: policy.gst_inclusive }
+      : {}),
+  };
+  const metadataChanged = enforcePolicy;
+
   await updateOffersWorkflow(scope as never).run({
     input: {
       offers: [
@@ -198,6 +286,7 @@ export async function updateOfferPricing(
               ? { rules: price.rules }
               : {}),
           })),
+          ...(metadataChanged ? { metadata } : {}),
         },
       ],
     },

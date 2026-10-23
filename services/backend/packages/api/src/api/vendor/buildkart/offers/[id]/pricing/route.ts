@@ -14,6 +14,9 @@ import type { MedusaContainer } from "@medusajs/framework";
 type PricingBody = {
   prices?: OfferPriceInput[];
   reason?: string;
+  list_price_minor?: number | null;
+  gst_inclusive?: boolean;
+  enforce_policy?: boolean;
 };
 
 async function loadForSeller(
@@ -84,6 +87,12 @@ export async function POST(
       req.scope,
       req.params.id,
       body.prices,
+      {
+        list_price_minor: body.list_price_minor,
+        gst_inclusive: body.gst_inclusive,
+        reason: body.reason ?? null,
+        enforce_policy: body.enforce_policy,
+      },
     );
     const audit = await recordSellerPriceActivity({
       sellerId,
@@ -93,8 +102,16 @@ export async function POST(
       actorRole: "seller",
       source: "seller_portal",
       reason: body.reason ?? null,
-      before: { prices: current.prices },
-      after: { prices: pricing.prices },
+      before: {
+        prices: current.prices,
+        list_price_minor: current.list_price_minor,
+        gst_inclusive: current.gst_inclusive,
+      },
+      after: {
+        prices: pricing.prices,
+        list_price_minor: pricing.list_price_minor,
+        gst_inclusive: pricing.gst_inclusive,
+      },
     });
     res.json({ pricing, audit });
   } catch (error) {
