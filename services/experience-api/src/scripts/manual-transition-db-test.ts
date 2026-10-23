@@ -328,7 +328,7 @@ assert.equal(
   await codeOf(() =>
     returns.updateStatus({
       id: approved.id,
-      status: "closed",
+      status: "inspection_pending",
       expectedVersion: 3,
       idempotencyKey: `return-invalid:${runId}`,
       actorId: "operator_manual",

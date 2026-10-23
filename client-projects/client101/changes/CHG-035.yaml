@@ -1,5 +1,5 @@
 change_id: CHG-035
-revision: 6
+revision: 7
 request: >-
   Implement Phase 1 of delivery capture and returns for the staging pilot: durable shipment and
   append-only event persistence, allocation-driven booking, delivery evidence, customer shipment
@@ -7,8 +7,11 @@ request: >-
   idempotent requests, admin shipment and return workbenches, and an API-backed customer timeline
   and return flow. Revision 6 adds governed manual shipment and post-decision return operations from
   both the Admin console and the owning Seller console, including order-detail workbenches, explicit
-  transitions, optimistic versions, reason/evidence rules and immutable audit evidence. Returns must
-  have no Medusa money effect and no Tryton stock effect.
+  transitions, optimistic versions, reason/evidence rules and immutable audit evidence. Revision 7
+  corrects the order page to expose only statuses explicitly supplied by the human requester:
+  delivery dispatched, in transit, out for delivery and delivered; return schedule return, waiting
+  for pickup and return completed. It removes inferred operational tiles, the staging banner and
+  technical details. Returns must have no Medusa money effect and no Tryton stock effect.
 type: delivery-capture-and-returns
 extends:
 - CHG-017
@@ -141,6 +144,14 @@ proposed_decisions:
     native order/payment/fulfilment facts separately from allocation, delivery, return, refund and
     inventory-effect projections; exposes only permission- and transition-allowed actions; uses one
     staging banner; and keeps system references and role-restricted technical details collapsed.
+- D-035-18: >-
+    Supersedes the inferred UI portions of D-035-17. The order page exposes only items supplied in
+    the human requester's text. Delivery exposes dispatched, in transit, out for delivery and
+    delivered; return exposes schedule return, waiting for pickup and return completed. The
+    operational status tiles, staging banner and technical details are removed. Delivery status is
+    applied to the seller shipment/allocation, which is the persisted unit; selected-SKU scope is
+    deferred until a line-level delivery-status contract is supplied. Legacy backend states remain
+    only for data compatibility and are not exposed as order-page options.
 open_decisions:
 - id: OD-035-01
   decision: Final return window and category/reason matrix
@@ -406,6 +417,33 @@ implementation:
     - real carrier integration (separate governed change; carrier automation disabled by D-035-15)
     staging_deployment_authorized: true
     staging_deployment_completed: true
+    production_release_authorized: false
+  order_page_status_only_increment:
+    requested_by: human-requester
+    requested_at_utc: '2026-10-23'
+    approved_scope: order-page-status-only-ui-correction
+    status: local-verified-pending-staging-deployment
+    remove_from_order_page:
+    - operational-status-tiles
+    - staging-manual-operations-banner
+    - technical-details
+    delivery_statuses:
+    - dispatched
+    - in_transit
+    - out_for_delivery
+    - delivered
+    return_statuses:
+    - schedule_return
+    - waiting_for_pickup
+    - return_completed
+    delivery_scope: seller-shipment-allocation
+    selected_sku_scope: deferred-line-level-contract-not-supplied
+    legacy_statuses_exposed_in_ui: false
+    local_ui_verification: pass
+    local_delivery_flow: dispatched-to-in-transit-to-out-for-delivery-to-delivered
+    local_return_flow: schedule-return-to-waiting-for-pickup-to-return-completed
+    console_errors: 0
+    staging_deployment_required: true
     production_release_authorized: false
   verification:
     experience_api_typecheck: pass
