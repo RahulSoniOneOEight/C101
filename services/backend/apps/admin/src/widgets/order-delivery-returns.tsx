@@ -1,11 +1,5 @@
-import {
-  Button,
-  Container,
-  Heading,
-  StatusBadge,
-  Text,
-  toast,
-} from "@medusajs/ui";
+/* eslint-disable react-refresh/only-export-components */
+import { Button, Container, Heading, StatusBadge, Text, toast } from "@medusajs/ui";
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import type { InferClientOutput } from "@mercurjs/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,9 +10,14 @@ import { client } from "../lib/client";
 type OrderContext = {
   id: string;
   display_id?: number | string | null;
+  payment_status?: string | null;
+  currency_code?: string | null;
+  summary?: {
+    refunded_total?: number | null;
+  } | null;
 };
 
-type Lifecycle = InferClientOutput<
+export type Lifecycle = InferClientOutput<
   typeof client.admin.buildkart.orderGroups.$id.deliveryReturns.query
 >;
 type Shipment = Lifecycle["shipments"][number];
@@ -62,11 +61,10 @@ const label = (value: string) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
-const deliveryStatusLabel = (status: string) =>
+export const deliveryStatusLabel = (status: string) =>
   DELIVERY_OPTIONS.find((option) => option.value === status)?.label ?? label(status);
 
-const returnStatusLabel = (status: string) =>
-  RETURN_STATUS_LABELS[status] ?? label(status);
+export const returnStatusLabel = (status: string) => RETURN_STATUS_LABELS[status] ?? label(status);
 
 const shortDateTime = (value: string) =>
   new Date(value).toLocaleString("en-IN", {
@@ -76,16 +74,107 @@ const shortDateTime = (value: string) =>
     minute: "2-digit",
   });
 
-const statusColor = (status: string) => {
-  if (status === "delivered" || status === "closed") return "green" as const;
-  if (["cancelled", "rejected"].includes(status)) return "red" as const;
-  if (
-    ["picked_up", "in_transit", "out_for_delivery", "pickup_scheduled"].includes(status)
-  ) {
-    return "blue" as const;
+export type BadgeColor = "green" | "orange" | "blue" | "red" | "grey";
+
+export const statusColor = (status: string): BadgeColor => {
+  if (status === "delivered" || status === "closed") return "green";
+  if (["cancelled", "rejected"].includes(status)) return "red";
+  if (["picked_up", "in_transit", "out_for_delivery", "pickup_scheduled"].includes(status)) {
+    return "blue";
   }
-  return "orange" as const;
+  return "orange";
 };
+
+export const paymentStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    authorized: "Authorized",
+    captured: "Captured",
+    partially_refunded: "Partially Refunded",
+    refunded: "Refunded",
+    pending: "Pending",
+    canceled: "Canceled",
+  };
+  return labels[status] ?? label(status);
+};
+
+export const paymentStatusColor = (status?: string | null): BadgeColor => {
+  if (status === "captured") return "green";
+  if (status === "partially_refunded") return "orange";
+  if (status === "refunded") return "grey";
+  if (status === "authorized" || status === "pending") return "blue";
+  if (status === "canceled") return "red";
+  return "grey";
+};
+
+export const formatCurrency = (amount: number, currencyCode: string) => {
+  if (!Number.isFinite(amount)) return "—";
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: currencyCode.toUpperCase(),
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currencyCode.toUpperCase()} ${amount.toLocaleString("en-IN")}`;
+  }
+};
+
+export const deliverySummary = (shipments: Shipment[]) => {
+  const ordered = shipments.reduce((total, shipment) => total + orderedQuantity(shipment), 0);
+  const delivered = shipments.reduce((total, shipment) => total + deliveredQuantity(shipment), 0);
+  const active = shipments.find((shipment) => shipment.status !== "delivered") ?? shipments[0];
+
+  return {
+    label: active ? deliveryStatusLabel(active.status) : "Awaiting shipment",
+    color: active ? statusColor(active.status) : ("grey" as BadgeColor),
+    detail:
+      shipments.length > 0
+        ? `${delivered} of ${ordered} units${shipments.length > 1 ? ` · ${shipments.length} shipments` : ""}`
+        : "No shipment booked",
+  };
+};
+
+export const returnSummary = (records: ReturnCase[]) => {
+  const requested = records.reduce((total, record) => total + requestedQuantity(record), 0);
+  const active = records.find((record) => record.status !== "closed") ?? records[0];
+
+  return {
+    label: active ? returnStatusLabel(active.status) : "No return",
+    color: active ? statusColor(active.status) : ("grey" as BadgeColor),
+    detail:
+      records.length > 0
+        ? `${requested} unit(s)${records.length > 1 ? ` · ${records.length} returns` : ""}`
+        : "No return requested",
+  };
+};
+
+export function StatusTile({
+  label,
+  value,
+  detail,
+  color,
+}: {
+  label: string;
+  value: string;
+  detail?: string;
+  color: BadgeColor;
+}) {
+  return (
+    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+      <Text size="xsmall" className="text-ui-fg-subtle">
+        {label}
+      </Text>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <StatusBadge color={color}>{value}</StatusBadge>
+      </div>
+      {detail ? (
+        <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+          {detail}
+        </Text>
+      ) : null}
+    </div>
+  );
+}
 
 const deliveredQuantity = (shipment: Shipment) =>
   shipment.lines.reduce((total, line) => total + line.deliveredQty, 0);
@@ -96,24 +185,12 @@ const orderedQuantity = (shipment: Shipment) =>
 const requestedQuantity = (record: ReturnCase) =>
   record.lines.reduce((total, line) => total + line.requestedQty, 0);
 
-const Meta = ({
-  name,
-  value,
-  mono = false,
-}: {
-  name: string;
-  value: string;
-  mono?: boolean;
-}) => (
+const Meta = ({ name, value, mono = false }: { name: string; value: string; mono?: boolean }) => (
   <div className="min-w-0">
     <Text size="xsmall" className="text-ui-fg-subtle">
       {name}
     </Text>
-    <Text
-      size="small"
-      weight="plus"
-      className={mono ? "break-all font-mono" : "break-words"}
-    >
+    <Text size="small" weight="plus" className={mono ? "break-all font-mono" : "break-words"}>
       {value}
     </Text>
   </div>
@@ -217,8 +294,7 @@ function ReturnUpdateForm({
         : [];
   const options = RETURN_OPTIONS.filter(
     (option) =>
-      stateOptions.includes(option.value) &&
-      record.allowedTransitions.includes(option.value),
+      stateOptions.includes(option.value) && record.allowedTransitions.includes(option.value),
   );
   const [status, setStatus] = useState<string>(options[0]?.value ?? "");
   const [pending, setPending] = useState(false);
@@ -299,8 +375,12 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       queryClient.invalidateQueries({
         queryKey: ["buildkart", "order-delivery-returns", orderGroupId],
       }),
-      queryClient.invalidateQueries({ queryKey: ["buildkart", "staging-shipments"] }),
-      queryClient.invalidateQueries({ queryKey: ["buildkart", "staging-returns"] }),
+      queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-shipments"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-returns"],
+      }),
     ]);
   };
 
@@ -340,13 +420,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
   });
 
   const decideReturn = useMutation({
-    mutationFn: ({
-      record,
-      decision,
-    }: {
-      record: ReturnCase;
-      decision: "approve" | "reject";
-    }) =>
+    mutationFn: ({ record, decision }: { record: ReturnCase; decision: "approve" | "reject" }) =>
       decision === "approve"
         ? client.admin.buildkart.returns.$id.approve.mutate({
             $id: record.id,
@@ -384,8 +458,8 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
       <Container>
         <Heading level="h2">Delivery</Heading>
         <Text size="small" className="mt-2 text-ui-fg-subtle">
-          No marketplace order group is linked. Delivery and returns start after
-          marketplace checkout completes.
+          No marketplace order group is linked. Delivery and returns start after marketplace
+          checkout completes.
         </Text>
       </Container>
     );
@@ -407,6 +481,8 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
     can_update_return: false,
     can_decide_return: false,
   };
+  const refundedTotal = Number(order.summary?.refunded_total ?? 0);
+  const currencyCode = order.currency_code ?? "inr";
   const activities = [
     ...data.shipments.flatMap((shipment) =>
       shipment.events.map((event) => ({
@@ -429,238 +505,271 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
     .slice(0, 10);
 
   return (
-    <section className="flex flex-col gap-y-3" aria-labelledby="buildkart-operations-title">
-      <Container className="divide-y p-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Heading id="buildkart-operations-title" level="h2">
-                Delivery
-              </Heading>
-              <StatusBadge color="grey">{data.shipments.length}</StatusBadge>
+    <section className="flex flex-col gap-y-3" aria-label="Delivery and returns">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-3 xl:col-span-2">
+          <Container className="divide-y p-0">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Heading level="h2">Delivery</Heading>
+                  <StatusBadge color="grey">{data.shipments.length}</StatusBadge>
+                </div>
+              </div>
+              <Button asChild size="small" variant="secondary">
+                <Link to="/shipments">All shipments</Link>
+              </Button>
             </div>
-          </div>
-          <Button asChild size="small" variant="secondary">
-            <Link to="/shipments">All shipments</Link>
-          </Button>
-        </div>
-        <div className="px-6 py-5">
-          {data.shipments.length === 0 ? (
-            <Text size="small" className="text-ui-fg-subtle">
-              Awaiting a marketplace allocation; no shipment has been booked.
-            </Text>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {data.shipments.map((shipment) => {
-                const delivered = deliveredQuantity(shipment);
-                const ordered = orderedQuantity(shipment);
-                const progress = ordered > 0 ? (delivered / ordered) * 100 : 0;
-                return (
-                  <article
-                    key={shipment.id}
-                    className="rounded-lg border border-ui-border-base p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge color={statusColor(shipment.status)}>
-                            {deliveryStatusLabel(shipment.status)}
-                          </StatusBadge>
-                          <Text size="small" weight="plus">
-                            {shipment.trackingNumber}
-                          </Text>
-                          <Text size="xsmall" className="text-ui-fg-subtle">
-                            v{shipment.version}
-                          </Text>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                          <Meta name="Delivered" value={`${delivered} of ${ordered} units`} />
-                          <Meta name="Seller" value={shipment.sellerId} mono />
-                        </div>
-                        <div
-                          className="mt-3 h-1.5 overflow-hidden rounded-full bg-ui-bg-subtle"
-                          role="progressbar"
-                          aria-label={`${delivered} of ${ordered} units delivered`}
-                          aria-valuemin={0}
-                          aria-valuemax={ordered}
-                          aria-valuenow={delivered}
-                        >
-                          <div
-                            className="h-full rounded-full bg-ui-bg-interactive"
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                      <Button asChild size="small" variant="transparent">
-                        <Link to={`/shipments/${shipment.id}`}>View timeline</Link>
-                      </Button>
-                    </div>
-                    {capabilities.can_update_delivery &&
-                    DELIVERY_OPTIONS.some((option) =>
-                      shipment.allowedTransitions.includes(option.value),
-                    ) ? (
-                      <details className="mt-3 rounded-md bg-ui-bg-subtle px-3 py-2">
-                        <summary className="cursor-pointer text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive">
-                          Update delivery status
-                        </summary>
-                        <ShipmentUpdateForm
-                          key={`${shipment.id}:${shipment.version}`}
-                          shipment={shipment}
-                          onSubmit={(input) =>
-                            updateShipment.mutateAsync({ id: shipment.id, input })
-                          }
-                        />
-                      </details>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </Container>
-
-      <Container className="divide-y p-0">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Heading level="h2">Returns</Heading>
-              <StatusBadge color="grey">{data.returns.length}</StatusBadge>
-            </div>
-          </div>
-          <Button asChild size="small" variant="secondary">
-            <Link to="/returns">All returns</Link>
-          </Button>
-        </div>
-        <div className="px-6 py-5">
-          {data.returns.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-ui-border-base p-5">
-              <Text size="small" weight="plus">
-                No return is open
-              </Text>
-              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                If the buyer submits a return, the case and allowed actions will appear here.
-              </Text>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {data.returns.map((record) => {
-                const canDecide = ["requested", "under_review"].includes(record.status);
-                return (
-                  <article
-                    key={record.id}
-                    className="rounded-lg border border-ui-border-base p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge color={statusColor(record.status)}>
-                            {returnStatusLabel(record.status)}
-                          </StatusBadge>
-                          <Text size="small" weight="plus">
-                            {label(record.reasonCode)}
-                          </Text>
-                          <Text size="xsmall" className="text-ui-fg-subtle">
-                            v{record.version}
-                          </Text>
-                        </div>
-                        <div className="mt-3 grid grid-cols-2 gap-3">
-                          <Meta name="Quantity" value={`${requestedQuantity(record)} unit(s)`} />
-                          <Meta name="Opened" value={shortDateTime(record.requestedAt)} />
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {canDecide && capabilities.can_decide_return ? (
-                          <>
-                            <Button
-                              size="small"
-                              isLoading={
-                                decideReturn.isPending &&
-                                decideReturn.variables?.record.id === record.id
-                              }
-                              disabled={decideReturn.isPending}
-                              onClick={() =>
-                                decideReturn.mutate({ record, decision: "approve" })
-                              }
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="danger"
-                              disabled={decideReturn.isPending}
-                              onClick={() => {
-                                if (window.confirm("Reject this return request?")) {
-                                  decideReturn.mutate({ record, decision: "reject" });
-                                }
-                              }}
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button asChild size="small" variant="transparent">
-                          <Link to={`/returns/${record.id}`}>View return</Link>
-                        </Button>
-                      </div>
-                    </div>
-                    {capabilities.can_update_return ? (
-                      <ReturnUpdateForm
-                        key={`${record.id}:${record.version}`}
-                        record={record}
-                        onSubmit={(input) =>
-                          updateReturn.mutateAsync({ id: record.id, input })
-                        }
-                      />
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </Container>
-
-      <aside className="flex min-w-0 flex-col gap-3" aria-label="Order activity and references">
-        <Container className="p-0">
-          <div className="border-b border-ui-border-base px-5 py-4">
-            <Heading level="h3">Activity</Heading>
-          </div>
-          <ol className="flex flex-col px-5 py-3">
-            {activities.length === 0 ? (
-              <li>
+            <div className="px-6 py-5">
+              {data.shipments.length === 0 ? (
                 <Text size="small" className="text-ui-fg-subtle">
-                  No delivery or return activity yet.
+                  Awaiting a marketplace allocation; no shipment has been booked.
                 </Text>
-              </li>
-            ) : (
-              activities.map((activity) => (
-                <li key={activity.id} className="border-l border-ui-border-base py-2 pl-3">
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {data.shipments.map((shipment) => {
+                    const delivered = deliveredQuantity(shipment);
+                    const ordered = orderedQuantity(shipment);
+                    const progress = ordered > 0 ? (delivered / ordered) * 100 : 0;
+                    const hasDeliveryOptions =
+                      capabilities.can_update_delivery &&
+                      DELIVERY_OPTIONS.some((option) =>
+                        shipment.allowedTransitions.includes(option.value),
+                      );
+                    return (
+                      <article
+                        key={shipment.id}
+                        className="rounded-lg border border-ui-border-base p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusBadge color={statusColor(shipment.status)}>
+                                {deliveryStatusLabel(shipment.status)}
+                              </StatusBadge>
+                              <Text size="small" weight="plus">
+                                {shipment.trackingNumber}
+                              </Text>
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                v{shipment.version}
+                              </Text>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <Meta name="Delivered" value={`${delivered} of ${ordered} units`} />
+                              <Meta name="Seller" value={shipment.sellerId} mono />
+                            </div>
+                            <div
+                              className="mt-3 h-1.5 overflow-hidden rounded-full bg-ui-bg-subtle"
+                              role="progressbar"
+                              aria-label={`${delivered} of ${ordered} units delivered`}
+                              aria-valuemin={0}
+                              aria-valuemax={ordered}
+                              aria-valuenow={delivered}
+                            >
+                              <div
+                                className="h-full rounded-full bg-ui-bg-interactive"
+                                style={{ width: `${Math.min(progress, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                          <Button asChild size="small" variant="transparent">
+                            <Link to={`/shipments/${shipment.id}`}>View timeline</Link>
+                          </Button>
+                        </div>
+                        {hasDeliveryOptions ? (
+                          <details className="mt-3 rounded-md bg-ui-bg-subtle px-3 py-2">
+                            <summary className="cursor-pointer text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive">
+                              Update delivery status
+                            </summary>
+                            <ShipmentUpdateForm
+                              key={`${shipment.id}:${shipment.version}`}
+                              shipment={shipment}
+                              onSubmit={(input) =>
+                                updateShipment.mutateAsync({
+                                  id: shipment.id,
+                                  input,
+                                })
+                              }
+                            />
+                          </details>
+                        ) : (
+                          <Text size="xsmall" className="mt-3 text-ui-fg-subtle">
+                            {shipment.status === "delivered"
+                              ? "Completed — no further delivery updates."
+                              : capabilities.can_update_delivery
+                                ? "No further delivery status is available."
+                                : "Delivery updates are not available for this order."}
+                          </Text>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Container>
+
+          <Container className="divide-y p-0">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-6 py-5">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Heading level="h2">Returns</Heading>
+                  <StatusBadge color="grey">{data.returns.length}</StatusBadge>
+                </div>
+              </div>
+              <Button asChild size="small" variant="secondary">
+                <Link to="/returns">All returns</Link>
+              </Button>
+            </div>
+            <div className="px-6 py-5">
+              {data.returns.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-ui-border-base p-5">
                   <Text size="small" weight="plus">
-                    {activity.title}
+                    No return is open
                   </Text>
-                  <Text size="xsmall" className="text-ui-fg-subtle">
-                    {activity.detail} · {shortDateTime(activity.occurredAt)}
+                  <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                    If the buyer submits a return, the case and allowed actions will appear here.
+                  </Text>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {data.returns.map((record) => {
+                    const canDecide = ["requested", "under_review"].includes(record.status);
+                    return (
+                      <article
+                        key={record.id}
+                        className="rounded-lg border border-ui-border-base p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <StatusBadge color={statusColor(record.status)}>
+                                {returnStatusLabel(record.status)}
+                              </StatusBadge>
+                              <Text size="small" weight="plus">
+                                {label(record.reasonCode)}
+                              </Text>
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                v{record.version}
+                              </Text>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-3">
+                              <Meta
+                                name="Quantity"
+                                value={`${requestedQuantity(record)} unit(s)`}
+                              />
+                              <Meta name="Opened" value={shortDateTime(record.requestedAt)} />
+                            </div>
+                            {refundedTotal > 0 ? (
+                              <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+                                Refunded on order: {formatCurrency(refundedTotal, currencyCode)}{" "}
+                                (native)
+                              </Text>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {canDecide && capabilities.can_decide_return ? (
+                              <>
+                                <Button
+                                  size="small"
+                                  isLoading={
+                                    decideReturn.isPending &&
+                                    decideReturn.variables?.record.id === record.id
+                                  }
+                                  disabled={decideReturn.isPending}
+                                  onClick={() =>
+                                    decideReturn.mutate({
+                                      record,
+                                      decision: "approve",
+                                    })
+                                  }
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="danger"
+                                  disabled={decideReturn.isPending}
+                                  onClick={() => {
+                                    if (window.confirm("Reject this return request?")) {
+                                      decideReturn.mutate({
+                                        record,
+                                        decision: "reject",
+                                      });
+                                    }
+                                  }}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : null}
+                            <Button asChild size="small" variant="transparent">
+                              <Link to={`/returns/${record.id}`}>View return</Link>
+                            </Button>
+                          </div>
+                        </div>
+                        {capabilities.can_update_return ? (
+                          <ReturnUpdateForm
+                            key={`${record.id}:${record.version}`}
+                            record={record}
+                            onSubmit={(input) => updateReturn.mutateAsync({ id: record.id, input })}
+                          />
+                        ) : null}
+                        {record.status === "closed" ? (
+                          <Text size="xsmall" className="mt-3 text-ui-fg-subtle">
+                            Completed — no further return updates.
+                          </Text>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Container>
+        </div>
+
+        <aside className="flex min-w-0 flex-col gap-3" aria-label="Order activity and references">
+          <Container className="p-0">
+            <div className="border-b border-ui-border-base px-5 py-4">
+              <Heading level="h3">Activity</Heading>
+            </div>
+            <ol className="flex flex-col px-5 py-3">
+              {activities.length === 0 ? (
+                <li>
+                  <Text size="small" className="text-ui-fg-subtle">
+                    No delivery or return activity yet.
                   </Text>
                 </li>
-              ))
-            )}
-          </ol>
-        </Container>
+              ) : (
+                activities.map((activity) => (
+                  <li key={activity.id} className="border-l border-ui-border-base py-2 pl-3">
+                    <Text size="small" weight="plus">
+                      {activity.title}
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      {activity.detail} · {shortDateTime(activity.occurredAt)}
+                    </Text>
+                  </li>
+                ))
+              )}
+            </ol>
+          </Container>
 
-        <Container className="p-0">
-          <details>
-            <summary className="cursor-pointer px-5 py-4 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive">
-              System references
-            </summary>
-            <div className="grid grid-cols-1 gap-3 border-t border-ui-border-base px-5 py-4">
-              <Meta name="Order group" value={data.order_group_id} mono />
-              <Meta name="Customer checkout" value={data.order_id} mono />
-              <Meta name="Projection updated" value={shortDateTime(data.latest_update)} />
-            </div>
-          </details>
-        </Container>
-      </aside>
+          <Container className="p-0">
+            <details>
+              <summary className="cursor-pointer px-5 py-4 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive">
+                System references
+              </summary>
+              <div className="grid grid-cols-1 gap-3 border-t border-ui-border-base px-5 py-4">
+                <Meta name="Order group" value={data.order_group_id} mono />
+                <Meta name="Customer checkout" value={data.order_id} mono />
+                <Meta name="Projection updated" value={shortDateTime(data.latest_update)} />
+              </div>
+            </details>
+          </Container>
+        </aside>
+      </div>
     </section>
   );
 };
