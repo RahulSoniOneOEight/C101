@@ -357,7 +357,7 @@ export class TrytonErp {
   }> {
     const existing = await this.client.search(
       "stock.move",
-      [["origin", "=", input.operationKey]],
+      [["shipment", "=", input.operationKey]],
       1,
     );
     if (existing.length) {
@@ -397,7 +397,7 @@ export class TrytonErp {
       company,
       currency,
       unit_price: 0,
-      origin: input.operationKey,
+      shipment: input.operationKey,
     });
     await this.client.write("stock.move", [moveId], { state: "done" });
     const rows = await this.client.read("stock.move", [moveId], [
