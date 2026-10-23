@@ -284,6 +284,18 @@ Deliberate Slice 5 boundaries:
 - Inventory remains read-only and does not gate publication beyond the offer
   pricing readiness check.
 
+## Offer provisioning follow-through (2026-10-23)
+
+New seller-owned studio variants now receive one seller offer and one
+inventory item per variant, with no stock levels and no invented price. The
+pricing section immediately becomes usable, and the inventory section shows
+the offer SKU. A seller can then enter a base price, submit for review, and an
+admin can publish.
+
+Shipping-profile resolution uses the seller's existing offer profile first and
+the first staging profile as a fallback. That fallback is a staging assumption
+and must be replaced by an explicit assignment policy before production.
+
 ## Current product flow
 
 ### Admin

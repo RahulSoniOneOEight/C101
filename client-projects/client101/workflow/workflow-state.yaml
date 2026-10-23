@@ -241,7 +241,12 @@ active_changes:
   product_studio_slice_5_scope: review-submit-approve-reject-reopen
   product_studio_slice_5_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice5.md
   product_studio_status: slices-1-to-5-staging-verified
-  product_studio_next_slice: offer-provisioning-and-production-readiness
+  product_studio_offer_provisioning_status: staging-verified
+  product_studio_offer_provisioning_release: 1490981
+  product_studio_offer_provisioning_evidence: docs/implementation/session-note-2026-10-23-offer-provisioning.md
+  product_studio_production_readiness: preparation-only-not-authorized
+  product_studio_production_evidence: docs/implementation/product-studio-production-readiness.md
+  product_studio_next_slice: pricing-extensions-inventory-approval-and-publish-governance
   remaining_items:
   - full-rbac-role-templates
   - list-vs-selling-price
