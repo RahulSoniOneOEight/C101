@@ -153,7 +153,6 @@ export default function InventoryRequestsPage() {
                   <Table.HeaderCell>Qty</Table.HeaderCell>
                   <Table.HeaderCell>Reason</Table.HeaderCell>
                   <Table.HeaderCell>Status</Table.HeaderCell>
-                  <Table.HeaderCell>Requested by</Table.HeaderCell>
                   <Table.HeaderCell>Decision</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
@@ -168,6 +167,9 @@ export default function InventoryRequestsPage() {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
+                      </Text>
+                      <Text size="xsmall" className="text-ui-fg-subtle">
+                        {request.requested_by}
                       </Text>
                     </Table.Cell>
                     <Table.Cell>
@@ -191,9 +193,6 @@ export default function InventoryRequestsPage() {
                       <StatusBadge color={statusColor(request.status)}>
                         {request.status}
                       </StatusBadge>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small">{request.requested_by}</Text>
                     </Table.Cell>
                     <Table.Cell>
                       {request.status === "requested" ? (

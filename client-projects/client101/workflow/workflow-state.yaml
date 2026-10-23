@@ -248,6 +248,10 @@ active_changes:
   product_studio_pricing_policy_release: a44a283
   product_studio_pricing_policy_scope: list-price-gst-change-hold-bulk-reference
   product_studio_pricing_policy_evidence: docs/implementation/session-note-2026-10-23-pricing-policy.md
+  product_studio_inventory_approval_status: staging-verified
+  product_studio_inventory_approval_release: 13d6ede
+  product_studio_inventory_approval_scope: request-list-approve-reject-no-stock-write
+  product_studio_inventory_approval_evidence: docs/implementation/session-note-2026-10-23-inventory-approval.md
   product_studio_production_readiness: preparation-only-not-authorized
   product_studio_production_evidence: docs/implementation/product-studio-production-readiness.md
   product_studio_next_slice: b2b-pricing-inventory-approval-and-publish-governance

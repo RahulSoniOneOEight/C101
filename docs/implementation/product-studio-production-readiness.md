@@ -11,10 +11,11 @@ studio toward production. It is not production authorization.
 - Product details, tags, specifications and draft save.
 - Variant options, combinations, SKU uniqueness and bulk SKU assignment.
 - B2C offer pricing and quantity tiers through the audited pricing facade.
-- Tryton stock read and inventory adjustment requests with no stock effect.
+- Tryton stock read, inventory adjustment requests, and an admin approve/reject
+  decision record with no stock effect.
 - Review submission, approval, rejection, change request and reopen.
 - Seller offer and inventory-item provisioning for new studio variants.
-- STATUS_CHANGE, price-change and inventory-request audits.
+- STATUS_CHANGE, price-change, inventory-request and inventory-decision audits.
 
 ## Blocking decisions
 
@@ -26,6 +27,8 @@ studio toward production. It is not production authorization.
 2. **Inventory item and stock authority**
    - Offers create inventory items with no stock.
    - Tryton remains the stock authority.
+   - Adjustment requests now have an approval decision record, but approval does
+     not post stock.
    - Opening stock, direct adjustment posting, low-stock thresholds and
      non-stock policy need approval.
 
