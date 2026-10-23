@@ -14,6 +14,7 @@ import {
 } from "@medusajs/core-flows";
 import {
   createAndLinkProductAttributesToProductWorkflow,
+  createOffersWorkflow,
   createProductsWorkflow,
   recordProductAuditChangeWorkflow,
 } from "@mercurjs/core/workflows";
@@ -598,6 +599,85 @@ export function studioReadiness(product: {
   };
 }
 
+async function ensureSellerOffers(
+  scope: MedusaContainer,
+  sellerId: string,
+  productId: string,
+  actorId: string,
+) {
+  const q = query(scope);
+  const { data: variants } = await q.graph({
+    entity: "variant",
+    fields: ["id", "title", "sku"],
+    filters: { product_id: productId },
+    pagination: { take: 500, skip: 0 },
+  });
+  const candidates = (variants ?? []).filter(
+    (variant: any) => variant.id && String(variant.sku ?? "").trim(),
+  );
+  if (candidates.length === 0) return;
+
+  const { data: existing } = await q.graph({
+    entity: "offer",
+    fields: ["variant_id"],
+    filters: {
+      seller_id: sellerId,
+      variant_id: candidates.map((variant: any) => variant.id),
+    },
+    pagination: { take: 500, skip: 0 },
+  });
+  const existingVariants = new Set(
+    (existing ?? []).map((offer: any) => offer.variant_id),
+  );
+  const missing = candidates.filter(
+    (variant: any) => !existingVariants.has(variant.id),
+  );
+  if (missing.length === 0) return;
+
+  const { data: sellerOffers } = await q.graph({
+    entity: "offer",
+    fields: ["shipping_profile_id"],
+    filters: { seller_id: sellerId },
+    pagination: { take: 50, skip: 0 },
+  });
+  let shippingProfileId =
+    (sellerOffers ?? [])
+      .map((offer: any) => offer.shipping_profile_id)
+      .find(Boolean) ?? null;
+  if (!shippingProfileId) {
+    const { data: profiles } = await q.graph({
+      entity: "shipping_profile",
+      fields: ["id"],
+      pagination: { take: 1, skip: 0 },
+    });
+    shippingProfileId = profiles?.[0]?.id ?? null;
+  }
+  if (!shippingProfileId) {
+    return;
+  }
+
+  await createOffersWorkflow(scope).run({
+    input: {
+      offers: missing.map((variant: any) => ({
+        seller_id: sellerId,
+        variant_id: variant.id,
+        shipping_profile_id: shippingProfileId,
+        sku: variant.sku,
+        inventory_items: [
+          {
+            sku: variant.sku,
+            title: variant.title ?? variant.sku,
+            required_quantity: 1,
+          },
+        ],
+        prices: [],
+        manage_inventory: false,
+        created_by: actorId,
+      })) as any,
+    },
+  });
+}
+
 export async function sellerOwnedProductIds(
   scope: MedusaContainer,
   sellerId: string,
@@ -976,6 +1056,14 @@ export async function saveStudioProduct(
     } else {
       await replaceOptionsAndVariants(scope, created.id, options, variants);
     }
+    if (requestedSellerId) {
+      await ensureSellerOffers(
+        scope,
+        requestedSellerId,
+        created.id,
+        actorId,
+      );
+    }
     return loadStudioProduct(scope, mode, sellerId, created.id);
   }
 
@@ -1111,6 +1199,10 @@ export async function saveStudioProduct(
     await replaceOptionsAndVariants(scope, productId, options, variants);
   } else {
     await syncVariants(scope, productId, variants);
+  }
+
+  if (sellerId) {
+    await ensureSellerOffers(scope, sellerId, productId, actorId);
   }
 
   await recordProductAuditChangeWorkflow(scope).run({
