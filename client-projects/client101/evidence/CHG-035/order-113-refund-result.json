@@ -1,0 +1,21 @@
+{
+  "orderId": "order_01M5MGPWNKX5X6GGZDP2VBCREY",
+  "paymentId": "pay_01M5MGPWWQW6CG7TYKG3YCBFCJ",
+  "paymentCapturedAmount": 40500,
+  "refundId": "ref_01M5MH8358QECHSKV88NWADSSX",
+  "refundAmount": 15300,
+  "refundNote": "Staging QC partial refund — returned 1 of 2 units (ret_9dfbff43b64f4fd0844d2f63c15aaf70)",
+  "orderPaymentStatus": "partially_refunded",
+  "orderRefundedTotal": 15300,
+  "refunds": [
+    {
+      "id": "ref_01M5MH8358QECHSKV88NWADSSX",
+      "amount": 15300,
+      "note": "Staging QC partial refund — returned 1 of 2 units (ret_9dfbff43b64f4fd0844d2f63c15aaf70)",
+      "createdAt": "2026-10-23T14:04:44.072Z"
+    }
+  ],
+  "returnId": "ret_9dfbff43b64f4fd0844d2f63c15aaf70",
+  "returnStatus": "closed",
+  "returnMoneyStockNone": true
+}
