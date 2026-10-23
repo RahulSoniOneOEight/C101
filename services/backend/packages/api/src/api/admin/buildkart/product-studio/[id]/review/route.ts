@@ -199,7 +199,9 @@ export async function POST(
       }
       if (status === "published") {
         const message =
-          body.message ?? body.reason ?? "Changes requested from Product Studio";
+          (body.message ??
+            body.reason ??
+            "Changes requested from Product Studio") + actingNote;
         await setStatus(
           req.scope,
           actorId,
