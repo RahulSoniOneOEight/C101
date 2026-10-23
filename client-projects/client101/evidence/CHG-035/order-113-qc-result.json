@@ -1,0 +1,29 @@
+{
+  "customerEmail": "rsoni001@gmail.com",
+  "orderId": "order_01M5MGPWNKX5X6GGZDP2VBCREY",
+  "cartId": "cart_01M5MGPSBAZ1YE1VAGNBETKGGR",
+  "orderGroupId": "og_01M5MGPWP4H06D52WJAH8BE1Y9",
+  "shipmentId": "ship_2317f395fb2e41cfb07a8b43834d6240",
+  "shipmentStatus": "delivered",
+  "shipmentVersion": 5,
+  "deliveredLines": [
+    {
+      "lineKey": "cali_01M5MGPT2YVTR7AT0WRSCX3W9M",
+      "sku": "VOLTEDGEMODULARSWITCH1WAY-STD",
+      "orderedQty": 2,
+      "deliveredQty": 2
+    }
+  ],
+  "paymentId": "pay_01M5MGPWWQW6CG7TYKG3YCBFCJ",
+  "paymentStatus": null,
+  "paymentCapturedAt": "2026-10-23T13:56:38.854Z",
+  "returnId": "ret_9dfbff43b64f4fd0844d2f63c15aaf70",
+  "returnStatus": "closed",
+  "returnVersion": 4,
+  "returnDeliveredQty": 2,
+  "returnRequestedQty": 1,
+  "returnApprovedQty": 1,
+  "returnMoneyStockNone": true,
+  "orderPaymentStatus": "captured",
+  "orderFulfillmentStatus": "not_fulfilled"
+}

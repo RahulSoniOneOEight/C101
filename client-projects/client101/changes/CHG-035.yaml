@@ -483,6 +483,13 @@ implementation:
     hosted_keyboard: pass
     migration_rollback_rehearsal: pass
     release_4387658_staging: pass
+    order_113_qc: pass
+    order_113_payment: captured
+    order_113_delivery: delivered-v5-2-of-2
+    order_113_partial_return: closed-v4-1-of-2
+    order_113_return_effects: none
+    order_113_console_errors: 0
+    order_113_ux_finding: native-fulfilment-not-synced-with-delivery-projection
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:
