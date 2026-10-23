@@ -861,7 +861,7 @@ export async function loadStudioProduct(
     variant_id: offer.variant_id,
     product_id: offer.product_id ?? null,
     sku: offer.sku ?? "",
-    prices: (offer.prices ?? []).map((price: any) => ({
+    prices: (offer.prices ?? []).filter(Boolean).map((price: any) => ({
       id: price.id,
       amount: Number(price.amount),
       currency_code: price.currency_code,
