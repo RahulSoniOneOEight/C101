@@ -222,7 +222,10 @@ export default function SellerActivityPage() {
           </Text>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="w-full min-w-[960px] table-fixed">
+            <Table
+              className="w-full table-fixed"
+              style={{ minWidth: "960px" }}
+            >
               <Table.Header>
                 <Table.Row>
                   <Table.HeaderCell className="w-[150px]">When</Table.HeaderCell>
