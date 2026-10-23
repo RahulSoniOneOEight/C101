@@ -252,6 +252,10 @@ active_changes:
   product_studio_inventory_approval_release: 13d6ede
   product_studio_inventory_approval_scope: request-list-approve-reject-no-stock-write
   product_studio_inventory_approval_evidence: docs/implementation/session-note-2026-10-23-inventory-approval.md
+  product_studio_lifecycle_status: staging-verified
+  product_studio_lifecycle_release: 7aff5ac
+  product_studio_lifecycle_scope: unpublish-pause-archive-restore-published-change-request
+  product_studio_lifecycle_evidence: docs/implementation/session-note-2026-10-23-lifecycle-governance.md
   product_studio_production_readiness: preparation-only-not-authorized
   product_studio_production_evidence: docs/implementation/product-studio-production-readiness.md
   product_studio_next_slice: b2b-pricing-inventory-approval-and-publish-governance

@@ -42,8 +42,8 @@ studio toward production. It is not production authorization.
    >20% reason hold and bulk reference pricing.
 
 4. **Publish governance**
-   - published-product edit review
-   - pause, archive and unpublish
+   - published-product change request, pause, archive, unpublish and restore
+     are implemented in staging through draft status plus lifecycle metadata
    - seller resubmission after change request
    - admin acting-for reason and audit
    - full RBAC role templates
