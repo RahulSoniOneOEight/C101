@@ -1,7 +1,7 @@
 # Staging handoff — order-page delivery/return UI
 
-Date: 2026-10-23  
-Branch: `feat/order-detail-workbench`  
+Date: 2026-10-23
+Branch: `feat/order-detail-workbench`
 Purpose: let another OpenCode tab continue work against the live staging release without re-discovering deployment details.
 
 ## Current state
