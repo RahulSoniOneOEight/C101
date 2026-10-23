@@ -528,6 +528,76 @@ async function syncVariants(
   }
 }
 
+export function studioReadiness(product: {
+  title?: string | null;
+  category_id?: string | null;
+  variants?: Array<{ id?: string; sku?: string; title?: string }>;
+  offers?: Array<{
+    variant_id: string;
+    prices: Array<{
+      currency_code: string;
+      amount: number;
+      min_quantity?: number | null;
+    }>;
+  }>;
+}) {
+  const variants = product.variants ?? [];
+  const offers = product.offers ?? [];
+  const pricingReady =
+    variants.length > 0 &&
+    variants.every((variant) =>
+      offers.some(
+        (offer) =>
+          offer.variant_id === variant.id &&
+          offer.prices.some(
+            (price) =>
+              price.currency_code === "inr" &&
+              (price.min_quantity === null ||
+                price.min_quantity === undefined) &&
+              price.amount > 0,
+          ),
+      ),
+    );
+  const checks = [
+    {
+      key: "title",
+      label: "Product title",
+      ok: Boolean(product.title?.trim()),
+      required: true,
+    },
+    {
+      key: "category",
+      label: "Category",
+      ok: Boolean(product.category_id),
+      required: true,
+    },
+    {
+      key: "variants",
+      label: "At least one variant",
+      ok: variants.length > 0,
+      required: true,
+    },
+    {
+      key: "skus",
+      label: "Every variant has a SKU",
+      ok:
+        variants.length > 0 &&
+        variants.every((variant) => Boolean(variant.sku?.trim())),
+      required: true,
+    },
+    {
+      key: "pricing",
+      label: "Every variant has an INR base price on an offer",
+      ok: pricingReady,
+      required: true,
+    },
+  ];
+  return {
+    ready: checks.every((check) => !check.required || check.ok),
+    checks,
+  };
+}
+
 export async function sellerOwnedProductIds(
   scope: MedusaContainer,
   sellerId: string,
@@ -832,6 +902,12 @@ export async function loadStudioProduct(
       })),
       variants: loadedVariants,
       offers: loadedOffers,
+      review: studioReadiness({
+        title: product.title,
+        category_id: product.categories?.[0]?.id ?? null,
+        variants: loadedVariants,
+        offers: loadedOffers,
+      }),
       can_edit: canEdit,
       options_editable: studioManaged && canEdit,
       studio_managed: studioManaged,

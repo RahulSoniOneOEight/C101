@@ -255,40 +255,6 @@ function Field({
   );
 }
 
-function UpcomingSection({
-  number,
-  title,
-  description,
-  next,
-}: {
-  number: number;
-  title: string;
-  description: string;
-  next: string;
-}) {
-  return (
-    <section className="border-t border-ui-border-base px-6 py-6">
-      <div className="flex items-start gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ui-bg-subtle text-xs font-semibold text-ui-fg-subtle">
-          {number}
-        </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <Heading level="h2">{title}</Heading>
-            <StatusBadge color="grey">Next slice</StatusBadge>
-          </div>
-          <Text size="small" className="mt-1 text-ui-fg-subtle">
-            {description}
-          </Text>
-          <Text size="small" className="mt-2 text-ui-fg-subtle">
-            {next}
-          </Text>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 type TierDraft = { id?: string; min: string; max: string; amount: string };
 
 const inr = (minor: number) =>
@@ -754,6 +720,9 @@ export function ProductStudioForm({
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [inventoryError, setInventoryError] = useState<string | null>(null);
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewNotice, setReviewNotice] = useState<Notice | null>(null);
   const [optionsEditable, setOptionsEditable] = useState(true);
   const [studioManaged, setStudioManaged] = useState(true);
   const [skuPrefix, setSkuPrefix] = useState("");
@@ -1024,6 +993,38 @@ export function ProductStudioForm({
   const sectionThreeDone = validSpecs.length > 0;
   const sectionFourDone = variantsReady;
   const sectionFiveDone = hasPricedVariants;
+  const reviewChecks = [
+    {
+      label: "Product title",
+      ok: Boolean(form.title.trim()),
+      required: true,
+    },
+    {
+      label: "Category",
+      ok: Boolean(form.category_id),
+      required: true,
+    },
+    {
+      label: "At least one variant",
+      ok: variants.length > 0,
+      required: true,
+    },
+    {
+      label: "Every variant has a SKU",
+      ok:
+        variants.length > 0 &&
+        variants.every((variant) => Boolean(variant.sku.trim())),
+      required: true,
+    },
+    {
+      label: "Every variant has an INR offer price",
+      ok: hasPricedVariants,
+      required: true,
+    },
+  ];
+  const reviewReady = reviewChecks.every(
+    (check) => !check.required || check.ok,
+  );
   const readySections = [
     sectionOneDone,
     sectionTwoDone,
@@ -1258,6 +1259,68 @@ export function ProductStudioForm({
     setNotice({ kind: "success", text: "Filled blank SKUs with the prefix." });
   };
 
+  const runReviewAction = async (
+    action: "submit" | "approve" | "reject" | "request-changes" | "reopen" | "withdraw",
+  ) => {
+    if (!productId) {
+      setReviewNotice({
+        kind: "error",
+        text: "Save the draft before using the review workflow.",
+      });
+      return;
+    }
+    if (
+      (action === "reject" || action === "request-changes") &&
+      !reviewMessage.trim()
+    ) {
+      setReviewNotice({
+        kind: "error",
+        text: "Add a review message before rejecting or requesting changes.",
+      });
+      return;
+    }
+    setReviewLoading(true);
+    setReviewNotice(null);
+    try {
+      const result = await request<{
+        product: { id: string; status: string; title: string };
+        action: string;
+      }>(`${apiBase}/${productId}/review`, {
+        method: "POST",
+        body: JSON.stringify({
+          action,
+          message: reviewMessage || undefined,
+          reason: reviewMessage || undefined,
+        }),
+      });
+      setStatus(result.product.status);
+      setReviewMessage("");
+      setDirty(false);
+      setReviewNotice({
+        kind: "success",
+        text:
+          action === "approve"
+            ? "Product published. A STATUS_CHANGE audit record was written."
+            : action === "reject"
+              ? "Product rejected with the review message."
+              : action === "request-changes"
+                ? "Change request recorded."
+                : action === "reopen"
+                  ? "Product reopened as a draft."
+                  : action === "withdraw"
+                    ? "Submission withdrawn; product is a draft again."
+                    : "Product submitted for review.",
+      });
+    } catch (error) {
+      setReviewNotice({
+        kind: "error",
+        text: (error as Error).message,
+      });
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
   const save = async () => {
     if (!form.title.trim()) {
       setNotice({ kind: "error", text: "Enter a product title before saving." });
@@ -1406,10 +1469,9 @@ export function ProductStudioForm({
               ) : null}
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
-              One continuous product record. This slice covers product
-              details, search tags, structured specifications, variants, SKUs,
-              B2C pricing and read-only Tryton inventory. Publishing follows
-              in the final slice.
+              One continuous product record covering details, search tags,
+              specifications, variants, SKUs, B2C pricing, read-only Tryton
+              inventory and the review-to-publish workflow.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2308,12 +2370,190 @@ export function ProductStudioForm({
                 </Text>
               </div>
             </Section>
-            <UpcomingSection
+            <Section
               number={7}
               title="Review and publish"
-              description="Admin approval, seller submission, validation summary and the publish audit trail."
-              next="Planned next: publish and seller product changes route through Mercur ProductChange."
-            />
+              description="Readiness summary, seller submission, admin approval and the publish audit trail."
+              complete={reviewReady}
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ui-border-base px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-ui-fg-base">
+                      Review status
+                    </p>
+                    <p className="text-xs text-ui-fg-subtle">
+                      Draft → Review required → Active. Rejected and reopened
+                      drafts remain in the audit trail.
+                    </p>
+                  </div>
+                  <StatusBadge
+                    color={
+                      status === "published"
+                        ? "green"
+                        : status === "proposed"
+                          ? "blue"
+                          : status === "rejected"
+                            ? "red"
+                            : "grey"
+                    }
+                  >
+                    {status === "proposed"
+                      ? "Review required"
+                      : status === "published"
+                        ? "Active"
+                        : status === "rejected"
+                          ? "Rejected"
+                          : "Draft"}
+                  </StatusBadge>
+                </div>
+
+                <div className="rounded-lg border border-ui-border-base">
+                  {reviewChecks.map((check) => (
+                    <div
+                      key={check.label}
+                      className="flex items-center justify-between gap-3 border-b border-ui-border-base px-4 py-2.5 text-sm last:border-b-0"
+                    >
+                      <span
+                        className={
+                          check.ok ? "text-ui-fg-base" : "text-ui-fg-subtle"
+                        }
+                      >
+                        {check.label}
+                        {check.required ? " *" : ""}
+                      </span>
+                      <span
+                        className={
+                          check.ok
+                            ? "text-ui-fg-success"
+                            : "text-ui-fg-subtle"
+                        }
+                      >
+                        {check.ok ? "Ready" : "Missing"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {status === "proposed" && mode === "admin" ? (
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-medium text-ui-fg-subtle">
+                      Review message
+                    </span>
+                    <Input
+                      value={reviewMessage}
+                      onChange={(event) => setReviewMessage(event.target.value)}
+                      placeholder="Required for rejection or change request"
+                    />
+                  </label>
+                ) : null}
+
+                {reviewNotice ? (
+                  <div
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      reviewNotice.kind === "error"
+                        ? "border-ui-border-error bg-ui-bg-error text-ui-fg-error"
+                        : "border-ui-border-success bg-ui-bg-success text-ui-fg-success"
+                    }`}
+                  >
+                    {reviewNotice.text}
+                  </div>
+                ) : null}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {status === "draft" ? (
+                    <Button
+                      size="small"
+                      type="button"
+                      isLoading={reviewLoading}
+                      disabled={!reviewReady || reviewLoading}
+                      onClick={() => runReviewAction("submit")}
+                    >
+                      Submit for review
+                    </Button>
+                  ) : null}
+
+                  {status === "proposed" && mode === "admin" ? (
+                    <>
+                      <Button
+                        size="small"
+                        type="button"
+                        isLoading={reviewLoading}
+                        disabled={!reviewReady || reviewLoading}
+                        onClick={() => runReviewAction("approve")}
+                      >
+                        Approve and publish
+                      </Button>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("request-changes")}
+                      >
+                        Request changes
+                      </Button>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        disabled={reviewLoading}
+                        onClick={() => runReviewAction("reject")}
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  ) : null}
+
+                  {status === "proposed" && mode === "vendor" ? (
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      isLoading={reviewLoading}
+                      disabled={reviewLoading}
+                      onClick={() => runReviewAction("withdraw")}
+                    >
+                      Withdraw submission
+                    </Button>
+                  ) : null}
+
+                  {status === "rejected" && mode === "admin" ? (
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      isLoading={reviewLoading}
+                      disabled={reviewLoading}
+                      onClick={() => runReviewAction("reopen")}
+                    >
+                      Reopen as draft
+                    </Button>
+                  ) : null}
+
+                  {status === "published" ? (
+                    <Text size="small" className="text-ui-fg-subtle">
+                      This product is active. Use the native product or offer
+                      pages for post-publish changes until the review flow for
+                      published edits is approved.
+                    </Text>
+                  ) : null}
+                </div>
+
+                {!reviewReady && status === "draft" ? (
+                  <div className="rounded-lg border border-ui-border-error bg-ui-bg-error px-4 py-3 text-sm text-ui-fg-error">
+                    Complete the required checks before submitting. New studio
+                    variants must have an offer with an INR base price first.
+                  </div>
+                ) : null}
+
+                <Text size="small" className="text-ui-fg-subtle">
+                  The customer preview rail reflects the current draft. Admin
+                  approval uses Mercur's ProductChange publish workflow and
+                  records a STATUS_CHANGE audit.
+                </Text>
+              </div>
+            </Section>
 
             <div className="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-ui-border-base bg-ui-bg-base px-6 py-4 md:flex-row md:items-center md:justify-between">
               <Text size="small" className="text-ui-fg-subtle">
