@@ -2,151 +2,117 @@
 
 Date: 2026-10-23  
 Branch: `feat/order-detail-workbench`  
-Status: deployed to staging and verified; production release not authorized
+Status: staging deployed and verified at `release-5628fca`; production release not authorized
 
-## Delivered UI
+## Delivered order-page UI
 
-- Admin order detail keeps the native Mercur order page and now renders one
-  BuildKart workbench in `orders.detail.main.after`
-  (`apps/admin/src/widgets/order-delivery-returns.tsx`).
-- Seller order detail renders the same operational pattern in
-  `apps/vendor/src/widgets/order-delivery-returns.tsx`.
-- Each workbench contains:
-  - one staging banner;
-  - independent **Order, Payment, Allocation, Fulfilment, Delivery, Return,
-    Refund, Inventory effect** tiles;
-  - **Delivery & fulfilment** and **Returns** cards;
-  - an activity timeline;
-  - collapsed **System references** and permission-gated **Technical details**.
-- Actions are permission-aware. Admin return approval/rejection remains an
-  Admin decision; only operational return stages are available to Sellers.
-- The all-or-nothing **Record delivery** action is removed. Delivery updates use
-  per-line quantities and a proof reference. Incomplete quantities persist as
-  `partially_delivered`.
-- Admin and Seller shipment detail pages and both return detail pages now use
-  the same versioned transition contract.
+The Admin and Seller order pages now keep the native Mercur order summary, payment and fulfilment
+sections, and add only two BuildKart cards:
 
-## Persisted shipment states
+- **Delivery**
+- **Returns**
 
-`services/experience-api/src/logistics/shipment-store.ts`:
+The following inferred UI was removed from the order page:
 
-- `booked`
-- `ready_for_pickup`
-- `picked_up`
-- `in_transit`
-- `delayed`
-- `delivery_failed`
-- `out_for_delivery`
-- `delivery_attempted`
-- `buyer_action_required`
-- `partially_delivered`
-- `damaged`
-- `lost`
-- `delivered`
-- `returning_to_seller`
-- `returned_to_seller`
-- `rto_in_transit`
-- `rto_delivered`
-- `cancelled`
+- Operational status tiles
+- Staging manual operations banner
+- Technical details
 
-Each manual transition writes one append-only `pilot_shipment_event`, increments
-the shipment version, and is covered by privileged audit. Events remain
-append-only and provider replay still deduplicates by provider event ID.
+The order page also keeps a compact Activity timeline and collapsed System references.
 
-## Persisted return states
+## Delivery statuses
 
-`services/experience-api/src/store/return-store.ts`:
+The order-page delivery dropdown exposes only:
 
-- `requested`
-- `under_review`
-- `approved`
-- `rejected`
-- `cancelled`
-- `pickup_scheduled`
-- `pickup_attempted`
-- `in_return_transit`
-- `received`
-- `inspection_pending`
-- `inspection_complete`
-- `closed`
+- **Dispatched**
+- **In Transit**
+- **Out For Delivery**
+- **Delivered**
 
-`approved` and `rejected` remain Admin decisions. Sellers can advance only
-reverse-logistics stages for their own allocation. Every operational transition
-stores `money_effect: "none"` and `stock_effect: "none"` and never calls Medusa
-money APIs or Tryton.
+Only valid forward transition options are shown. The status is applied to the seller shipment /
+allocation, which is the persisted delivery unit. Terminal shipments do not show an update control.
 
-## Manual transition contracts
+The backend still stores legacy and exception states for existing data and shipment detail pages,
+but they are not exposed as order-page delivery options.
+
+## Return statuses
+
+The order-page returns section exposes only:
+
+- **Schedule Return**
+- **Waiting For Pickup**
+- **Return Completed**
+
+`Schedule Return` is the operational label after Admin approval. `Waiting For Pickup` maps to the
+scheduled pickup stage. `Return Completed` is terminal. Completed legacy cases are displayed as
+`Return Completed` and do not show an extra update control.
+
+Admin retains approve/reject authority. Seller updates remain scoped to the seller's allocation.
+No return transition creates a refund, payment mutation, Medusa money effect or Tryton stock move.
+
+## Payment and refund
+
+Payment and refund remain in the native Medusa order sections. This workbench does not duplicate
+payment capture, refund approval or refund execution. No payment/refund status vocabulary was
+supplied for manual order-page overrides, so none was added.
+
+## Backend contracts
 
 - Admin: `POST /admin/buildkart/shipments/:id/status`,
   `POST /admin/buildkart/returns/:id/status`.
 - Seller: `POST /vendor/buildkart/shipments/:id/status`,
   `POST /vendor/buildkart/returns/:id/status`.
-- Both require `expected_version` and `operation_key`.
-- Shipment updates require a reason; attempt states require an attempt number
-  and reason; delay requires a revised date; buyer action requires a next
-  action; delivery states require proof and per-line quantities.
-- Return updates require an operating note.
-- Stale versions return `409`; invalid transitions return `409`; Seller
-  cancellation and cross-seller identifiers are refused.
-- Seller reads are allocation-scoped through
-  `GET /vendor/buildkart/orders/:id/delivery-returns`; there is no
-  cross-seller read path.
+- Seller read: `GET /vendor/buildkart/orders/:id/delivery-returns`.
+- Every transition requires the current version and an operation key.
+- Shipment events and return events are append-only and audited.
+- Stale versions return `409`; invalid transitions return `409`; seller cancellation is refused.
+- Delivered still requires complete per-line quantities and a proof reference; the simplified order
+  page supplies a staging proof reference and full quantities for the whole seller shipment.
 
 ## Residual gaps
 
-- Payment, refund and native fulfilment tiles are derived from the native order
-  payload supplied to the widget. Allocation and delivery come from the
-  Experience projection. A future order-group read model should expose all
-  dimensions as one authoritative payload rather than relying on native order
-  fields being present on every Mercur version.
-- `restocked`, `quarantined`, `refund_review` and `completed` are intentionally
-  not return states: they imply stock or money effects outside this increment.
-  `rejected` is the decline state and `closed` is the completion state.
-- Controlled correction of an already-`delivered` shipment is not exposed;
-  correction requires a governed reversal contract.
-- Staging deployment and hosted runtime verification are complete for
-  `release-4387658`. Production release remains unauthorized.
-- Real carrier integration remains a separate governed change; D-035-15 disables
-  carrier automation for this increment.
+- **Selected-SKU delivery status is deferred.** The persisted unit is the seller shipment. A
+  line-level delivery-status contract has not been supplied, so the order page does not fake
+  selected-SKU status.
+- Legacy backend states remain readable for existing data; the order page hides them.
+- Real carrier integration is a separate governed change. Carrier automation is disabled by
+  D-035-15.
+- Production release remains unauthorized.
 
-## Verification performed locally
+## Verification
 
-- Experience API typecheck.
-- API package typecheck.
+Local:
+
+- Experience API typecheck; API package typecheck.
 - Admin and Seller production builds.
-- Targeted ESLint on all changed panel files.
-- Pure transition and partial-delivery contract test
-  (`test:manual-transitions`).
-- Database-backed manual transition test (`test:manual-transitions-db`).
-- HTTP Admin/Seller transition and scoping test
-  (`test:manual-transitions-http`).
-- Existing shipment ordering, restart, reconcile, seller isolation, return
-  idempotency, no-effects and eligibility tests.
-- Local Admin/Seller UI flow on order `#15`: approve return, schedule pickup,
-  advance shipment, record delivery and receipt, verify final persisted state.
-- axe-core WCAG 2.0/2.1/2.2 A/AA checks: 0 violations on both workbenches.
-- Keyboard traversal reached every workbench control.
-- Desktop `1440×1200`, tablet `834×1112` and mobile `390×844` checks with no
-  horizontal overflow.
-- Screenshots recorded under
-  `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/`.
-- Hosted staging release `4387658`: public health, dashboard/seller asset bases,
-  11/11 hosted acceptance checks, migration forward/rollback/re-apply rehearsal,
-  hosted Admin/Seller shipment and return flow, 0 console errors.
-- Hosted axe WCAG A/AA: 0 violations on Admin and Seller.
-- Hosted keyboard traversal and accessibility-tree review completed.
+- Changed panel ESLint.
+- `test:manual-transitions`, `test:manual-transitions-db`, `test:manual-transitions-http`.
+- Shipment ordering, restart and reconcile; return idempotency, no-effects and eligibility.
+- Local UI flow: Dispatched → In Transit → Out For Delivery → Delivered; Schedule Return →
+  Waiting For Pickup → Return Completed.
+- No operational tiles, banner or Technical details in either console.
+- Console errors: 0.
 
-The workbench uses container-adaptive state tiles and a single-column activity
-trail because Mercur renders the widget inside a ~740px main column; it does not
-depend on viewport-wide Tailwind breakpoints that the dashboard stylesheet may
-not generate.
+Hosted staging (`release-5628fca`):
+
+- Public health and both dashboards return `200`.
+- Admin delivery options verified for a booked shipment: only `Dispatched`.
+- Admin completed return displays `Return Completed` with no extra update control.
+- Seller page hides removed sections and terminal update controls.
+- Console errors: 0.
+- Hosted acceptance remains 11/11.
+- Migration forward/rollback/re-apply rehearsal passed for the schema added by this increment.
+
+Screenshots:
+
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-delivery.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-return.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-seller.png`
 
 ## Staging release
 
-- Release: `/opt/buildkart-releases/release-4387658`
+- Release: `/opt/buildkart-releases/release-5628fca`
 - Current symlink: `/opt/buildkart-releases/current`
-- Hosted Admin: `https://ops-staging.pinakaplay.cloud/dashboard/`
-- Hosted Seller: `https://ops-staging.pinakaplay.cloud/seller/`
-- Pre-deploy Experience backup:
-  `/opt/buildkart-releases/backups/buildkart_experience-pre-4387658.dump`
+- Admin: `https://ops-staging.pinakaplay.cloud/dashboard/`
+- Seller: `https://ops-staging.pinakaplay.cloud/seller/`
 - Production release: not authorized.

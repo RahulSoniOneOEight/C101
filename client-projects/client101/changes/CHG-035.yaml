@@ -422,7 +422,7 @@ implementation:
     requested_by: human-requester
     requested_at_utc: '2026-10-23'
     approved_scope: order-page-status-only-ui-correction
-    status: local-verified-pending-staging-deployment
+    status: staging-deployed-verified
     remove_from_order_page:
     - operational-status-tiles
     - staging-manual-operations-banner
@@ -443,7 +443,17 @@ implementation:
     local_delivery_flow: dispatched-to-in-transit-to-out-for-delivery-to-delivered
     local_return_flow: schedule-return-to-waiting-for-pickup-to-return-completed
     console_errors: 0
-    staging_deployment_required: true
+    staging_release: /opt/buildkart-releases/release-5628fca
+    staging_commit: 5628fca
+    staging_current_symlink: /opt/buildkart-releases/current
+    staging_ui_verification: pass
+    staged_delivery_options: dispatched-in-transit-out-for-delivery-delivered
+    staged_return_options: schedule-return-waiting-for-pickup-return-completed
+    staged_removed_sections: operational-status-staging-banner-technical-details
+    staged_terminal_controls_hidden: true
+    staged_console_errors: 0
+    staged_screenshots: client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-*
+    staging_deployment_completed: true
     production_release_authorized: false
   verification:
     experience_api_typecheck: pass

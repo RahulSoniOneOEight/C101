@@ -2,7 +2,7 @@
 
 Change: CHG-035 revision 6, manual order workbench increment
 Branch: `feat/order-detail-workbench`
-Release: `/opt/buildkart-releases/release-4387658` (commit `4387658`)
+Release: `/opt/buildkart-releases/release-5628fca` (commit `5628fca`)
 Scope: local and hosted staging verification. Production release is not in scope.
 
 ## Implemented surfaces
@@ -16,6 +16,34 @@ Scope: local and hosted staging verification. Production release is not in scope
 - Partial delivery persistence and evidence enforcement.
 - Seller transition filtering and seller cancellation restriction.
 - Container-responsive workbench layout for Mercur's ~740px order main column.
+
+## Order-page status-only correction (final)
+
+The order page was reduced to the statuses explicitly supplied by the human requester. Inferred UI
+was removed.
+
+- Removed: **Operational status** tiles, **Staging manual operations** banner, **Technical details**.
+- Delivery exposes: **Dispatched**, **In Transit**, **Out For Delivery**, **Delivered**.
+- Return exposes: **Schedule Return**, **Waiting For Pickup**, **Return Completed**.
+- Delivery is applied to the seller shipment/allocation. Selected-SKU status is deferred because no
+  line-level status contract was supplied.
+- Terminal delivery shipments no longer show an update control.
+- Payment and refund remain the native Medusa finance flows; no duplicate manual payment/refund
+  status vocabulary was added.
+
+Final staging release: `/opt/buildkart-releases/release-5628fca` (commit `5628fca`).
+
+Hosted verification:
+
+- Admin: no operational tiles, banner or technical details.
+- Booked shipment delivery dropdown: only **Dispatched**.
+- Completed return: **Return Completed**, no extra update control.
+- Seller: removed sections absent, terminal delivery control hidden.
+- Console errors: 0.
+- Staging screenshots:
+  - `hosted-simplified-delivery.png`
+  - `hosted-simplified-return.png`
+  - `hosted-simplified-seller.png`
 
 ## Staging deployment
 
