@@ -648,6 +648,23 @@ async function authorizeShipmentOwner(req: Request, shipmentId: string) {
   return { ...authenticated, shipment, ref };
 }
 
+async function requireErpOperator(req: Request): Promise<AuthenticationResult> {
+  const service = serviceOperatorAuthentication(req);
+  if (service && !("response" in service)) return service;
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (!hasAnyRole(authenticated.authorization, ["erp_operator", "super_admin"])) {
+    return {
+      response: problem(
+        403,
+        "erp-operator-required",
+        "An ERP Operator role is required to post inventory.",
+      ),
+    };
+  }
+  return authenticated;
+}
+
 async function requireOperator(req: Request): Promise<AuthenticationResult> {
   const service = serviceOperatorAuthentication(req);
   if (service && !("response" in service)) return service;
@@ -3321,6 +3338,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       offer_id?: string | null;
       product_id?: string | null;
       actor_role?: string;
+      acting_for_seller_id?: string | null;
+      reference?: string | null;
+      correlation_id?: string | null;
     };
     try {
       body = (await req.json()) as typeof body;
@@ -3345,6 +3365,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       quantity_delta: delta,
       reason,
       requested_by: operator.user.id,
+      acting_for_seller_id: body.acting_for_seller_id ?? null,
+      reference: body.reference ?? null,
+      correlation_id: body.correlation_id ?? cid,
     });
     await events.append({
       event_type: "inventory.adjustment_requested",
@@ -3361,7 +3384,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         product_id: body.product_id ?? null,
         actor_user_id: operator.user.id,
         actor_role: body.actor_role ?? "admin",
-        source: body.seller_id ? "seller_portal" : "admin_console",
+        acting_for_seller_id: body.acting_for_seller_id ?? null,
+        reference: body.reference ?? null,
+        source: body.acting_for_seller_id
+          ? "admin_acting_for_seller"
+          : body.seller_id
+            ? "seller_portal"
+            : "admin_console",
         stock_effect: "none",
       },
     });
@@ -3439,6 +3468,165 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json({
       request,
       stock_effect: "none",
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const inventoryPost = url.pathname.match(
+    /^\/v1\/internal\/inventory\/requests\/([^/]+)\/post$/,
+  );
+  if (inventoryPost && req.method === "POST") {
+    const operator = await requireErpOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: { operation_key?: string } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as { operation_key?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const request = await inventoryRequests.get(inventoryPost[1]);
+    if (!request) return problem(404, "inventory-request-not-found");
+    if (request.status !== "approved") {
+      return problem(409, "inventory-request-not-approved");
+    }
+    const operationKey =
+      body.operation_key?.trim() || `inventory-adjustment:${request.id}`;
+    const posting = await inventoryRequests.beginPosting(
+      request.id,
+      operationKey,
+      operator.user.id,
+    );
+    if (posting.status === "posted") {
+      return json({ posting, idempotent: true, environment: config.environment, test_data: true, correlation_id: cid });
+    }
+    try {
+      const result = await erp.postStockAdjustment({
+        operationKey,
+        sku: request.sku,
+        quantity: request.quantity_delta,
+      });
+      const finished = await inventoryRequests.finishPosting(request.id, {
+        status: "posted",
+        trytonMoveId: result.moveId,
+        movementRef: `tryton:stock.move:${result.moveId}`,
+        error: null,
+        reconciliationStatus: "pending",
+      });
+      await events.append({
+        event_type: "inventory.adjustment_posted",
+        aggregate_type: "inventory",
+        aggregate_id: request.sku,
+        correlation_id: cid,
+        payload: {
+          request_id: request.id,
+          operation_key: operationKey,
+          tryton_move_id: result.moveId,
+          movement_ref: `tryton:stock.move:${result.moveId}`,
+          actor_user_id: operator.user.id,
+          stock_effect: "tryton",
+        },
+      });
+      return json({
+        posting: finished,
+        tryton: result,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const message = (error as Error).message;
+      const failed = await inventoryRequests.finishPosting(request.id, {
+        status: "posting_failed",
+        error: message,
+      });
+      await events.append({
+        event_type: "inventory.adjustment_posting_failed",
+        aggregate_type: "inventory",
+        aggregate_id: request.sku,
+        correlation_id: cid,
+        payload: {
+          request_id: request.id,
+          operation_key: operationKey,
+          error: message,
+          actor_user_id: operator.user.id,
+          stock_effect: "none",
+        },
+      });
+      return json(
+        { posting: failed, error: message, environment: config.environment, test_data: true, correlation_id: cid },
+        502,
+      );
+    }
+  }
+
+  const inventoryPosting = url.pathname.match(
+    /^\/v1\/internal\/inventory\/requests\/([^/]+)\/posting$/,
+  );
+  if (inventoryPosting && req.method === "GET") {
+    const operator = await requireErpOperator(req);
+    if ("response" in operator) return operator.response;
+    const request = await inventoryRequests.get(inventoryPosting[1]);
+    if (!request) return problem(404, "inventory-request-not-found");
+    const posting = await inventoryRequests.getPosting(request.id);
+    const tryton =
+      posting?.tryton_move_id != null
+        ? await erp.readStockMove(posting.tryton_move_id)
+        : null;
+    return json({
+      request,
+      posting,
+      tryton,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const inventoryReconcile = url.pathname.match(
+    /^\/v1\/internal\/inventory\/requests\/([^/]+)\/reconcile$/,
+  );
+  if (inventoryReconcile && req.method === "POST") {
+    const operator = await requireErpOperator(req);
+    if ("response" in operator) return operator.response;
+    const request = await inventoryRequests.get(inventoryReconcile[1]);
+    if (!request) return problem(404, "inventory-request-not-found");
+    const posting = await inventoryRequests.getPosting(request.id);
+    if (!posting?.tryton_move_id) {
+      return problem(409, "inventory-posting-not-found");
+    }
+    const move = await erp.readStockMove(posting.tryton_move_id);
+    const expected = Math.abs(request.quantity_delta);
+    const actual = Math.abs(move?.quantity ?? 0);
+    const matches = Boolean(move && move.state === "done" && actual === expected);
+    const reconciled = await inventoryRequests.finishPosting(request.id, {
+      status: matches ? "reconciled" : "reconciliation_required",
+      reconciliationStatus: matches ? "matched" : "mismatch",
+      error: matches
+        ? null
+        : `Expected ${expected} in state done; found ${actual} in ${move?.state ?? "missing"}.`,
+    });
+    await events.append({
+      event_type: "inventory.adjustment_reconciled",
+      aggregate_type: "inventory",
+      aggregate_id: request.sku,
+      correlation_id: cid,
+      payload: {
+        request_id: request.id,
+        tryton_move_id: posting.tryton_move_id,
+        expected,
+        actual,
+        matches,
+        actor_user_id: operator.user.id,
+        stock_effect: "none",
+      },
+    });
+    return json({
+      posting: reconciled,
+      tryton: move,
+      matches,
       environment: config.environment,
       test_data: true,
       correlation_id: cid,

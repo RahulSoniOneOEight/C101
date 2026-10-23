@@ -334,6 +334,103 @@ export class TrytonErp {
     };
   }
 
+  private async supplierLocationId(): Promise<number> {
+    const ids = await this.client.search("stock.location", [["type", "=", "supplier"]], 1);
+    if (ids.length) return ids[0];
+    throw new Error("No supplier location configured in Tryton");
+  }
+
+  /**
+   * Explicit ERP-operator posting of an approved inventory adjustment.
+   * The operation key is stored as the stock-move origin and is the
+   * idempotency guard for retries.
+   */
+  async postStockAdjustment(input: {
+    operationKey: string;
+    sku: string;
+    quantity: number;
+  }): Promise<{
+    moveId: number;
+    state: string;
+    quantity: number;
+    operationKey: string;
+  }> {
+    const existing = await this.client.search(
+      "stock.move",
+      [["origin", "=", input.operationKey]],
+      1,
+    );
+    if (existing.length) {
+      const rows = await this.client.read("stock.move", existing, [
+        "id",
+        "state",
+        "quantity",
+      ]);
+      const row = rows[0];
+      return {
+        moveId: Number(row.id),
+        state: String(row.state ?? ""),
+        quantity: Number(row.quantity ?? 0),
+        operationKey: input.operationKey,
+      };
+    }
+    const product = await this.findProductBySku(input.sku);
+    const storage = await this.storageLocationId();
+    const quantity = Math.abs(input.quantity);
+    const positive = input.quantity > 0;
+    const fromLocation = positive ? await this.supplierLocationId() : storage;
+    const toLocation = positive ? storage : await this.customerLocationId();
+    const company = await this.companyId();
+    const unit = await this.uomId();
+    const currencies = await this.client.search(
+      "currency.currency",
+      [["code", "=", "INR"]],
+      1,
+    );
+    const currency = currencies.length ? currencies[0] : 1;
+    const moveId = await this.client.create("stock.move", {
+      product,
+      from_location: fromLocation,
+      to_location: toLocation,
+      quantity,
+      unit,
+      company,
+      currency,
+      unit_price: 0,
+      origin: input.operationKey,
+    });
+    await this.client.write("stock.move", [moveId], { state: "done" });
+    const rows = await this.client.read("stock.move", [moveId], [
+      "id",
+      "state",
+      "quantity",
+    ]);
+    return {
+      moveId,
+      state: String(rows[0]?.state ?? "done"),
+      quantity: Number(rows[0]?.quantity ?? quantity),
+      operationKey: input.operationKey,
+    };
+  }
+
+  async readStockMove(moveId: number): Promise<{
+    moveId: number;
+    state: string;
+    quantity: number;
+  } | null> {
+    const rows = await this.client.read("stock.move", [moveId], [
+      "id",
+      "state",
+      "quantity",
+    ]);
+    if (!rows.length) return null;
+    return {
+      moveId: Number(rows[0].id),
+      state: String(rows[0].state ?? ""),
+      quantity: Number(rows[0].quantity ?? 0),
+    };
+  }
+
   getMoveIdByRef(checkoutRef: string): number | undefined {
     return this.moveByRef.get(checkoutRef);
   }

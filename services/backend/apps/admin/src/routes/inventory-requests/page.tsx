@@ -31,6 +31,15 @@ type InventoryRequest = {
   decision_note: string | null;
 };
 
+type Posting = {
+  status: string;
+  tryton_move_id: number | null;
+  movement_ref: string | null;
+  attempts: number;
+  last_error: string | null;
+  reconciliation_status: string | null;
+};
+
 export const config: RouteConfig = {
   label: "Inventory requests",
   icon: CheckCircle,
@@ -85,6 +94,39 @@ export default function InventoryRequestsPage() {
   });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [postings, setPostings] = useState<Record<string, Posting>>({});
+  const [postingId, setPostingId] = useState<string | null>(null);
+
+  const postToTryton = async (id: string) => {
+    setPostingId(id);
+    setError("");
+    try {
+      const response = await fetch(
+        `${backend}/admin/buildkart/inventory/requests/${id}/post`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+      );
+      const body = (await response.json().catch(() => ({}))) as {
+        posting?: Posting;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(body.error ?? body.message ?? `Posting failed (${response.status}).`);
+      }
+      if (body.posting) {
+        setPostings((current) => ({ ...current, [id]: body.posting! }));
+      }
+    } catch (postingError) {
+      setError((postingError as Error).message);
+    } finally {
+      setPostingId(null);
+    }
+  };
   const decision = useMutation({
     mutationFn: ({
       id,
@@ -247,7 +289,7 @@ export default function InventoryRequestsPage() {
                           </div>
                         </div>
                       ) : (
-                        <div>
+                        <div className="min-w-[220px]">
                           <Text size="small">
                             {request.decision_note ?? "—"}
                           </Text>
@@ -259,6 +301,27 @@ export default function InventoryRequestsPage() {
                                 ).toLocaleDateString("en-IN")}`
                               : ""}
                           </Text>
+                          {request.status === "approved" ? (
+                            <div className="mt-2 flex flex-col gap-1">
+                              {postings[request.id] ? (
+                                <Text size="xsmall" className="text-ui-fg-subtle">
+                                  {postings[request.id].status} ·{" "}
+                                  {postings[request.id].movement_ref ??
+                                    postings[request.id].last_error ??
+                                    "no reference"}
+                                </Text>
+                              ) : (
+                                <Button
+                                  size="small"
+                                  variant="secondary"
+                                  isLoading={postingId === request.id}
+                                  onClick={() => postToTryton(request.id)}
+                                >
+                                  Post to Tryton
+                                </Button>
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       )}
                     </Table.Cell>
