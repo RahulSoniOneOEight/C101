@@ -774,7 +774,6 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const config = defineWidgetConfig({
   zone: "orders.detail.main.after",
 });

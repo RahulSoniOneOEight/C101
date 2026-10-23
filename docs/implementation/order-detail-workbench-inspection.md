@@ -2,15 +2,19 @@
 
 Date: 2026-10-23  
 Branch: `feat/order-detail-workbench`  
-Status: staging deployed and verified at `release-5628fca`; production release not authorized
+Status: staging deployed and verified at `release-cfe2f25`; production release not authorized
 
 ## Delivered order-page UI
 
 The Admin and Seller order pages now keep the native Mercur order summary, payment and fulfilment
-sections, and add only two BuildKart cards:
+sections, and add a BuildKart operations surface:
 
-- **Delivery**
-- **Returns**
+- **Admin:** an `Order operations` status strip at the top with Payment, Refunded, Delivery and
+  Return tiles, followed by the Delivery and Returns cards.
+- **Seller:** a `Delivery and returns` status strip at the top with Delivery and Return tiles,
+  followed by the same cards without payment or refund information.
+- **Both:** terminal delivery and return cards state that no further updates are available; completed
+  returns show the native refunded amount on Admin.
 
 The following inferred UI was removed from the order page:
 
@@ -53,8 +57,9 @@ No return transition creates a refund, payment mutation, Medusa money effect or 
 ## Payment and refund
 
 Payment and refund remain in the native Medusa order sections. This workbench does not duplicate
-payment capture, refund approval or refund execution. No payment/refund status vocabulary was
-supplied for manual order-page overrides, so none was added.
+payment capture, refund approval or refund execution. The Admin status strip reads
+`payment_status` and `summary.refunded_total`; it does not mutate either. No payment/refund status
+vocabulary was supplied for manual order-page overrides, so none was added.
 
 ## Backend contracts
 
@@ -91,27 +96,40 @@ Local:
 - Local UI flow: Dispatched → In Transit → Out For Delivery → Delivered; Schedule Return →
   Waiting For Pickup → Return Completed.
 - No operational tiles, banner or Technical details in either console.
+- Admin status strip renders Payment, Refunded, Delivery and Return from order and lifecycle data.
+- Seller status strip renders Delivery and Return only; no payment or refund values.
+- Desktop 1440 and mobile 390 layouts have no horizontal overflow.
 - Console errors: 0.
 
-Hosted staging (`release-5628fca`):
+Hosted staging (`release-cfe2f25`):
 
 - Public health and both dashboards return `200`.
-- Admin delivery options verified for a booked shipment: only `Dispatched`.
-- Admin completed return displays `Return Completed` with no extra update control.
+- Admin order #113: status strip is the first order section, with Partially Refunded ₹15,300,
+  Delivered 2 of 2 and Return Completed 1 unit.
+- Admin delivery/return cards show terminal-state messaging and no update controls.
+- Seller order #113: status strip shows Delivered 2 of 2 and Return Completed 1 unit; no payment or
+  refund tile is exposed.
 - Seller page hides removed sections and terminal update controls.
 - Console errors: 0.
-- Hosted acceptance remains 11/11.
-- Migration forward/rollback/re-apply rehearsal passed for the schema added by this increment.
+- Order #113 remained available after the staging container recreation.
+- Hosted acceptance remains 11/11 from the prior runtime release; no API or schema changed here.
+- Migration forward/rollback/re-apply rehearsal remains valid; no schema changed in this UI bundle.
 
 Screenshots:
 
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-admin-header.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-admin-desktop.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-admin-mobile.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-admin-full.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-seller-header.png`
+- `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/qc-workbench-seller-desktop.png`
 - `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-delivery.png`
 - `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-return.png`
 - `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/hosted-simplified-seller.png`
 
 ## Staging release
 
-- Release: `/opt/buildkart-releases/release-5628fca`
+- Release: `/opt/buildkart-releases/release-cfe2f25`
 - Current symlink: `/opt/buildkart-releases/current`
 - Admin: `https://ops-staging.pinakaplay.cloud/dashboard/`
 - Seller: `https://ops-staging.pinakaplay.cloud/seller/`

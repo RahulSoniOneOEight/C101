@@ -643,7 +643,6 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
 
 export default SellerOrderDeliveryReturns;
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const config = defineWidgetConfig({
   zone: "orders.detail.main.after",
 });

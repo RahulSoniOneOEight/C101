@@ -495,6 +495,14 @@ implementation:
     order_113_refund_link_repair: order-payment-collection-link-inserted-staging-only
     order_113_ux_finding: native-fulfilment-not-synced-with-delivery-projection
     order_113_native_summary: capture-predates-link-repair-outstanding-not-reconciled
+    order_workbench_status_ui: pass
+    order_workbench_admin_header: pass
+    order_workbench_admin_desktop: pass
+    order_workbench_admin_mobile: pass-390x844
+    order_workbench_seller: pass
+    order_workbench_console_errors: 0
+    order_workbench_status_ui_release: cfe2f25
+    order_workbench_scope: presentation-only-payment-refund-native
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:

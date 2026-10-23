@@ -20,9 +20,9 @@ repo or paste their contents into chat.
 - Repo: `C:\Users\LENOVO\C101-commission-statements`
 - Branch: `feat/order-detail-workbench`
 - Remote: `origin/feat/order-detail-workbench`
-- Runtime release: `/opt/buildkart-releases/release-5628fca`
-- Runtime commit: `5628fca`
-- Docs-only HEAD: `ecaab55` (not part of the runtime release)
+- Runtime release: `/opt/buildkart-releases/release-cfe2f25`
+- Runtime commit: `cfe2f25`
+- Docs-only HEAD: branch HEAD after this record (not part of the runtime release)
 - Production release: not authorized
 
 ## Public staging URLs

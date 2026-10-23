@@ -132,6 +132,13 @@ active_changes:
   staging_smoke: pass
   order_detail_increment_status: staging-deployed-verified
   order_detail_widget_build: pass
+  order_workbench_status_ui: staging-deployed-verified
+  order_workbench_status_ui_release: cfe2f25
+  latest_staging_release: cfe2f25
+  order_workbench_admin_header: top
+  order_workbench_admin_mobile: pass-390x844
+  order_workbench_seller_scope: pass
+  order_workbench_console_errors: 0
   lifecycle_fixture_orders: 6
   staging_shipment_records: 10
   staging_return_records: 6
