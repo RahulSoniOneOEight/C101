@@ -46,8 +46,13 @@ const RETURN_OPTIONS = [
 ] as const;
 
 const RETURN_STATUS_LABELS: Record<string, string> = {
+  requested: "Schedule Return",
+  under_review: "Schedule Return",
   approved: "Schedule Return",
   pickup_scheduled: "Waiting For Pickup",
+  pickup_attempted: "Waiting For Pickup",
+  in_return_transit: "Waiting For Pickup",
+  received: "Return Completed",
   closed: "Return Completed",
 };
 
@@ -204,8 +209,16 @@ function ReturnUpdateForm({
     note: string;
   }) => Promise<unknown>;
 }) {
-  const options = RETURN_OPTIONS.filter((option) =>
-    record.allowedTransitions.includes(option.value),
+  const stateOptions =
+    record.status === "approved"
+      ? ["pickup_scheduled"]
+      : record.status === "pickup_scheduled"
+        ? ["closed"]
+        : [];
+  const options = RETURN_OPTIONS.filter(
+    (option) =>
+      stateOptions.includes(option.value) &&
+      record.allowedTransitions.includes(option.value),
   );
   const [status, setStatus] = useState<string>(options[0]?.value ?? "");
   const [pending, setPending] = useState(false);
