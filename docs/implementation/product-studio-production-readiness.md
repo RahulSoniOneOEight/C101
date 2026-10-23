@@ -30,13 +30,13 @@ studio toward production. It is not production authorization.
      non-stock policy need approval.
 
 3. **Pricing extensions**
-   - list vs selling price
    - B2B price lists and MOQ
    - effective dates
-   - GST-inclusive display/flag
-   - >20% change hold
    - floor-price override authority
-   - bulk pricing scope
+   - final B2B/B2C display and tax treatment review
+
+   Completed in staging: list-vs-selling guardrail, GST-inclusive flag,
+   >20% reason hold and bulk reference pricing.
 
 4. **Publish governance**
    - published-product edit review

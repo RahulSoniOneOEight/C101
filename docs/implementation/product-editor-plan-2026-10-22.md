@@ -296,6 +296,25 @@ Shipping-profile resolution uses the seller's existing offer profile first and
 the first staging profile as a fallback. That fallback is a staging assumption
 and must be replaced by an explicit assignment policy before production.
 
+## B2C pricing policy follow-through (2026-10-23)
+
+Studio pricing now carries list price and GST-inclusive policy on the offer
+metadata, using the same `list_price_minor` field the storefront fixture
+already reads.
+
+Implemented:
+
+- list price required when studio policy is active
+- selling price cannot exceed list price
+- >20% increase requires a reason
+- GST-inclusive checkbox
+- discount percentage display
+- bulk list/GST update that preserves selling prices and tiers
+- before/after list/GST in the price-change audit
+
+B2B price lists, MOQ, effective dates and floor-price override authority remain
+separate decisions.
+
 ## Current product flow
 
 ### Admin
