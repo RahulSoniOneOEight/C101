@@ -96,6 +96,7 @@ export async function POST(
       productId: pricing.product_id,
       actorUserId: req.auth_context?.actor_id ?? sellerId,
       actorRole: "seller",
+      channel: "b2c",
       source: "seller_portal",
       reason: body.reason ?? null,
       before: {

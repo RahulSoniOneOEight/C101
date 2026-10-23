@@ -4195,6 +4195,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       product_id?: string | null;
       actor_user_id?: string;
       actor_role?: string;
+      channel?: string;
       source?: string;
       reason?: string | null;
       before?: unknown;
@@ -4220,6 +4221,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         product_id: body.product_id ?? null,
         actor_user_id: body.actor_user_id ?? operator.user.id,
         actor_role: body.actor_role ?? "admin",
+        channel: body.channel === "b2b" ? "b2b" : "b2c",
         source: body.source ?? "admin_console",
         reason: body.reason ?? null,
         before: body.before ?? null,

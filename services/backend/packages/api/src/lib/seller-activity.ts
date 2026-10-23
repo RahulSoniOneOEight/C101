@@ -6,6 +6,7 @@ export interface SellerPriceActivityInput {
   productId?: string | null;
   actorUserId?: string | null;
   actorRole: "admin" | "seller";
+  channel: "b2c" | "b2b";
   source: "admin_console" | "seller_portal";
   reason?: string | null;
   actingForSellerId?: string | null;
@@ -30,6 +31,7 @@ export async function recordSellerPriceActivity(
         product_id: input.productId ?? null,
         actor_user_id: input.actorUserId ?? null,
         actor_role: input.actorRole,
+        channel: input.channel,
         source: input.source,
         reason: input.reason ?? null,
         acting_for_seller_id: input.actingForSellerId ?? null,

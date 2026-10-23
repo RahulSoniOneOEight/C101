@@ -20,24 +20,64 @@ type PriceRow = {
   max_quantity?: number | null;
 };
 
+type PriceSnapshot = {
+  prices?: PriceRow[];
+  list_price_minor?: number | null;
+  gst_inclusive?: boolean;
+};
+
+type B2bTier = {
+  min_quantity?: number | null;
+  max_quantity?: number | null;
+  amount?: number | null;
+};
+
+type B2bSnapshot = {
+  configured?: boolean;
+  amount?: number | null;
+  moq?: number | null;
+  tiers?: B2bTier[];
+  price_list_id?: string | null;
+};
+
 type ActivityEvent = {
   id: string;
   event_type: string;
   aggregate_id: string;
   occurred_at: string;
+  channel?: "b2c" | "b2b";
+  seller?: { id: string; name?: string | null } | null;
+  offer?: {
+    id: string;
+    sku?: string | null;
+    product_id?: string | null;
+  } | null;
+  product?: {
+    id: string;
+    title?: string | null;
+    handle?: string | null;
+  } | null;
+  actor?: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    kind?: "admin" | "seller" | "unknown";
+  } | null;
   payload: {
     seller_id?: string;
     offer_id?: string;
     product_id?: string | null;
     actor_user_id?: string | null;
     actor_role?: string;
+    channel?: "b2c" | "b2b";
     source?: string;
     reason?: string | null;
-    before?: { prices?: PriceRow[] } | null;
-    after?: { prices?: PriceRow[] } | null;
+    before?: PriceSnapshot | B2bSnapshot | null;
+    after?: PriceSnapshot | B2bSnapshot | null;
   };
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Seller activity",
   icon: Clock,
@@ -56,8 +96,8 @@ async function fetchActivity(): Promise<ActivityEvent[]> {
   return body.items ?? [];
 }
 
-const money = (amount?: number) =>
-  amount === undefined
+const money = (amount?: number | null) =>
+  amount === undefined || amount === null
     ? "—"
     : new Intl.NumberFormat("en-IN", {
         style: "currency",
@@ -65,8 +105,11 @@ const money = (amount?: number) =>
         maximumFractionDigits: 0,
       }).format(amount / 100);
 
+const tierText = (count: number): string =>
+  count > 0 ? ` · ${count} tier${count === 1 ? "" : "s"}` : "";
+
 function priceSummary(prices: PriceRow[] | undefined): string {
-  if (!prices || prices.length === 0) return "No price";
+  if (!prices || prices.length === 0) return "Not set";
   const inr = prices.filter((price) => (price.currency_code ?? "inr") === "inr");
   const base = inr.find(
     (price) => price.min_quantity === null || price.min_quantity === undefined,
@@ -74,8 +117,68 @@ function priceSummary(prices: PriceRow[] | undefined): string {
   const tiers = inr.filter(
     (price) => price.min_quantity !== null && price.min_quantity !== undefined,
   );
-  const tierText = tiers.length === 0 ? "no tiers" : `${tiers.length} tier${tiers.length === 1 ? "" : "s"}`;
-  return `${money(base?.amount)} · ${tierText}`;
+  return `${money(base?.amount)}${tierText(tiers.length)}`;
+}
+
+function b2bSummary(snapshot: B2bSnapshot | null | undefined): string {
+  if (!snapshot || snapshot.configured === false || snapshot.amount == null) {
+    return "Not configured";
+  }
+  const moq =
+    snapshot.moq && snapshot.moq > 1 ? ` · MOQ ${snapshot.moq}` : "";
+  return `${money(snapshot.amount)}${moq}${tierText(
+    snapshot.tiers?.length ?? 0,
+  )}`;
+}
+
+function eventChannel(event: ActivityEvent): "b2c" | "b2b" {
+  if (event.channel === "b2b" || event.payload.channel === "b2b") return "b2b";
+  return "b2c";
+}
+
+function changeSummary(event: ActivityEvent): {
+  channel: "b2c" | "b2b";
+  before: string;
+  after: string;
+} {
+  const channel = eventChannel(event);
+  if (channel === "b2b") {
+    return {
+      channel,
+      before: b2bSummary(event.payload.before as B2bSnapshot | null),
+      after: b2bSummary(event.payload.after as B2bSnapshot | null),
+    };
+  }
+  return {
+    channel,
+    before: priceSummary(
+      (event.payload.before as PriceSnapshot | null)?.prices,
+    ),
+    after: priceSummary((event.payload.after as PriceSnapshot | null)?.prices),
+  };
+}
+
+function sourceLabel(source?: string): string {
+  if (source === "admin_console") return "Admin console";
+  if (source === "seller_portal") return "Seller portal";
+  return source ?? "Unknown source";
+}
+
+function roleLabel(role?: string): string {
+  if (role === "admin") return "Admin";
+  if (role === "seller") return "Seller";
+  return role ? role.charAt(0).toUpperCase() + role.slice(1) : "Unknown role";
+}
+
+function formatWhen(value: string): string {
+  return new Date(value).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
 }
 
 export default function SellerActivityPage() {
@@ -95,12 +198,13 @@ export default function SellerActivityPage() {
               <StatusBadge color="orange">Staging data</StatusBadge>
             </div>
             <Text size="small" className="mt-1 text-ui-fg-subtle">
-              Canonical seller price changes with actor, source and before/after
-              values. This is a read model over immutable domain events.
+              Seller price changes, newest first. Seller, product and actor names
+              are resolved from the current read model; raw IDs remain available
+              on hover.
             </Text>
           </div>
           <StatusBadge color="grey">
-            {activity.data?.length ?? 0} events
+            {activity.data?.length ?? 0} changes
           </StatusBadge>
         </div>
 
@@ -121,75 +225,151 @@ export default function SellerActivityPage() {
             <Table>
               <Table.Header>
                 <Table.Row>
-                  <Table.HeaderCell>When</Table.HeaderCell>
+                  <Table.HeaderCell className="w-[170px]">When</Table.HeaderCell>
                   <Table.HeaderCell>Seller</Table.HeaderCell>
-                  <Table.HeaderCell>Offer</Table.HeaderCell>
-                  <Table.HeaderCell>Change</Table.HeaderCell>
-                  <Table.HeaderCell>Actor</Table.HeaderCell>
-                  <Table.HeaderCell>Source</Table.HeaderCell>
+                  <Table.HeaderCell>Product / offer</Table.HeaderCell>
+                  <Table.HeaderCell>Price change</Table.HeaderCell>
+                  <Table.HeaderCell>Actor / source</Table.HeaderCell>
                   <Table.HeaderCell>Reason</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {activity.data?.map((event) => (
-                  <Table.Row key={event.id}>
-                    <Table.Cell>
-                      <Text size="small">
-                        {new Date(event.occurred_at).toLocaleString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small" weight="plus">
-                        {event.payload.seller_id ?? "—"}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      {event.payload.product_id ? (
-                        <Link
-                          className="text-ui-fg-interactive text-sm underline"
-                          to={`/offers/${event.payload.product_id}`}
-                        >
-                          {event.payload.offer_id ?? event.aggregate_id}
-                        </Link>
-                      ) : (
-                        <Text size="small">
-                          {event.payload.offer_id ?? event.aggregate_id}
+                {activity.data?.map((event) => {
+                  const sellerId = event.payload.seller_id;
+                  const sellerName =
+                    event.seller?.name ?? sellerId ?? "Unknown seller";
+                  const productId =
+                    event.product?.id ??
+                    event.payload.product_id ??
+                    event.offer?.product_id ??
+                    null;
+                  const offerId =
+                    event.offer?.id ??
+                    event.payload.offer_id ??
+                    event.aggregate_id;
+                  const offerLabel =
+                    event.product?.title ??
+                    event.offer?.sku ??
+                    offerId ??
+                    "Unknown offer";
+                  const offerSecondary = [
+                    event.offer?.sku ? `SKU ${event.offer.sku}` : null,
+                    offerId,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  const sellerQuery = sellerId
+                    ? `?seller_id=${encodeURIComponent(sellerId)}`
+                    : "";
+                  const actorName =
+                    event.actor?.name ??
+                    event.actor?.email ??
+                    event.payload.actor_user_id ??
+                    "Unknown actor";
+                  const actorId = event.payload.actor_user_id ?? null;
+                  const actorSecondary = [
+                    roleLabel(event.payload.actor_role),
+                    sourceLabel(event.payload.source),
+                  ].join(" · ");
+                  const change = changeSummary(event);
+                  const reason = event.payload.reason?.trim();
+
+                  return (
+                    <Table.Row key={event.id}>
+                      <Table.Cell className="whitespace-nowrap align-top">
+                        <Text size="small">{formatWhen(event.occurred_at)}</Text>
+                      </Table.Cell>
+                      <Table.Cell className="align-top">
+                        <span title={sellerName}>
+                          <Text
+                            size="small"
+                            weight="plus"
+                            className="block max-w-[210px] truncate"
+                          >
+                            {sellerName}
+                          </Text>
+                        </span>
+                        {sellerId && sellerName !== sellerId ? (
+                          <span title={sellerId}>
+                            <Text
+                              size="xsmall"
+                              className="mt-0.5 block max-w-[210px] truncate font-mono text-ui-fg-subtle"
+                            >
+                              {sellerId}
+                            </Text>
+                          </span>
+                        ) : null}
+                      </Table.Cell>
+                      <Table.Cell className="align-top">
+                        {productId ? (
+                          <Link
+                            className="block max-w-[300px] truncate text-sm text-ui-fg-interactive underline"
+                            to={`/offers/${productId}${sellerQuery}`}
+                            title={offerLabel}
+                          >
+                            {offerLabel}
+                          </Link>
+                        ) : (
+                          <span title={offerLabel}>
+                            <Text
+                              size="small"
+                              className="block max-w-[300px] truncate"
+                            >
+                              {offerLabel}
+                            </Text>
+                          </span>
+                        )}
+                        <span title={offerId}>
+                          <Text
+                            size="xsmall"
+                            className="mt-0.5 block max-w-[300px] truncate font-mono text-ui-fg-subtle"
+                          >
+                            {offerSecondary}
+                          </Text>
+                        </span>
+                      </Table.Cell>
+                      <Table.Cell className="align-top">
+                        <div className="flex items-center gap-2">
+                          <StatusBadge
+                            color={change.channel === "b2b" ? "blue" : "green"}
+                          >
+                            {change.channel.toUpperCase()}
+                          </StatusBadge>
+                          <Text size="small">{change.before}</Text>
+                        </div>
+                        <Text size="small" className="mt-1 text-ui-fg-subtle">
+                          → {change.after}
                         </Text>
-                      )}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small">
-                        {priceSummary(event.payload.before?.prices)}
-                      </Text>
-                      <Text size="small" className="text-ui-fg-subtle">
-                        → {priceSummary(event.payload.after?.prices)}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small">
-                        {event.payload.actor_user_id ?? "—"}
-                      </Text>
-                      <Text size="xsmall" className="text-ui-fg-subtle">
-                        {event.payload.actor_role ?? "unknown"}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small">
-                        {event.payload.source ?? "—"}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Text size="small">
-                        {event.payload.reason ?? "—"}
-                      </Text>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
+                      </Table.Cell>
+                      <Table.Cell className="align-top">
+                        <span title={actorId ?? actorName}>
+                          <Text
+                            size="small"
+                            className="block max-w-[190px] truncate"
+                          >
+                            {actorName}
+                          </Text>
+                        </span>
+                        <Text
+                          size="xsmall"
+                          className="mt-0.5 block text-ui-fg-subtle"
+                        >
+                          {actorSecondary}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell className="align-top">
+                        <span title={reason ?? undefined}>
+                          <Text
+                            size="small"
+                            className="block max-w-[220px] truncate text-ui-fg-subtle"
+                          >
+                            {reason || "—"}
+                          </Text>
+                        </span>
+                      </Table.Cell>
+                    </Table.Row>
+                  );
+                })}
               </Table.Body>
             </Table>
           </div>

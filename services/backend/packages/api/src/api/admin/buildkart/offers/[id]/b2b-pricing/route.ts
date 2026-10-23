@@ -59,8 +59,10 @@ export async function POST(
     const audit = await recordSellerPriceActivity({
       sellerId: offer.seller_id,
       offerId: req.params.id,
+      productId: offer.product_id,
       actorUserId: acting?.actorUserId ?? req.auth_context?.actor_id ?? "admin_console",
       actorRole: "admin",
+      channel: "b2b",
       source: "admin_console",
       reason: acting?.reason ?? body.reason ?? null,
       actingForSellerId: acting?.sellerId ?? null,
