@@ -89,6 +89,8 @@ async function loadByIds<T>(
     fields,
     filters: { id: ids },
     pagination: { take: Math.min(ids.length, 500), skip: 0 },
+    // Audit rows must still resolve names after a seller, offer or product is archived.
+    withDeleted: true,
   });
   return (data ?? []) as T[];
 }
