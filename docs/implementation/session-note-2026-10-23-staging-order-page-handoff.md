@@ -4,6 +4,9 @@ Date: 2026-10-23
 Branch: `feat/order-detail-workbench`
 Purpose: let another OpenCode tab continue work against the live staging release without re-discovering deployment details.
 
+Broader project/service context: `docs/implementation/staging-environment-context.md`.
+Local-only credentials: `C:\Users\LENOVO\.buildkart\staging-access.txt` (never commit).
+
 ## Current state
 
 | Item | Value |
