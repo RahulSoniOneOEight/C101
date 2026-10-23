@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_config.dart';
+import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
+import '../domain/presentation.dart';
+import 'catalog_providers.dart';
 
 /// Trade category descriptors (icon + label) for the trade rail + catalogue.
 class TradeCategory {
@@ -15,27 +20,9 @@ class TradeCategory {
   final IconData icon;
 }
 
-/// Category-appropriate banner imagery (Pexels) for the B2B catalogue / category
-/// banners. Keys match [TradeCategory.id]; falls back to a general trade shot.
-const Map<String, String> _categoryBanner = <String, String>{
-  'plumbing':
-      'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'electricals':
-      'https://images.pexels.com/photos/257736/pexels-photo-257736.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'sanitary':
-      'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'paints':
-      'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'hardware':
-      'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940',
-  'agri':
-      'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=940',
-};
-
-/// Banner image for a B2B category (changes per category).
-String b2bCategoryBannerImage(String? categoryId) =>
-    _categoryBanner[categoryId] ??
-    'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=940';
+// The B2B category banner used to be a hard-coded per-category Pexels map here. It is now authored in
+// the console like the B2C one and read from the CMS through `b2bCategoryBannerImageProvider`, so no
+// image is invented in the app.
 
 class TradeDashboard {
   const TradeDashboard({
@@ -80,6 +67,9 @@ ProcurementList _list(
   String? campaignRef,
   String? reason,
   ProcurementListAction action = ProcurementListAction.view,
+  List<String> categoryLabels = const <String>[],
+  int? limit,
+  int defaultQuantity = 1,
 }) {
   return ProcurementList(
     id: id,
@@ -93,6 +83,9 @@ ProcurementList _list(
     campaignRef: campaignRef,
     personalizationReason: reason,
     action: action,
+    categoryLabels: categoryLabels,
+    limit: limit,
+    defaultQuantity: defaultQuantity,
   );
 }
 
@@ -174,12 +167,17 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
         items: current.items.where((i) => i.sku != sku).toList())));
   }
 
+  static int _createdSequence = 0;
+
+  String _newListId() =>
+      'pl_user_${DateTime.now().microsecondsSinceEpoch}_${_createdSequence++}';
+
   Future<ProcurementList> createList({
     required String title,
     String description = 'Saved list',
   }) async {
     final list = ProcurementList(
-      id: 'pl_user_${DateTime.now().microsecondsSinceEpoch}',
+      id: _newListId(),
       title: title,
       description: description,
       sourceType: ProcurementListSourceType.buyerSaved,
@@ -239,7 +237,7 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
     List<ProcurementListItem> items = const <ProcurementListItem>[],
   }) async {
     final list = ProcurementList(
-      id: 'pl_user_${DateTime.now().microsecondsSinceEpoch}',
+      id: _newListId(),
       title: title,
       description: description,
       sourceType: ProcurementListSourceType.buyerSaved,
@@ -296,62 +294,60 @@ class ProcurementListsNotifier extends Notifier<List<ProcurementList>> {
 }
 
 List<ProcurementList> _seedLists() => <ProcurementList>[
+      // CHG-062: rule-based staging lists. Membership resolves from the live
+      // catalogue by L1 category, so an import can never leave the list pointing
+      // at archived demonstration ids. Operators can override the title, order
+      // and membership from the console's curated collections.
       _list(
           'pl_seasonal',
-          'Seasonal',
-          'Peak-season electrical demand',
+          'Electrical Essentials',
+          'Lighting, wiring and switchgear',
           ProcurementListSourceType.buyerSaved,
-          <(String, String, int)>[
-            ('prod_led', 'LED Bulb 9W Cool White', 20),
-            ('prod_mcb', 'MCB 32A Single Pole', 10),
-            ('prod_wire', 'Copper Wire 1.5sqmm', 5),
-            ('prod_switch', 'Anchor Switch 6A', 20),
-            ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
-            ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-            ('prod_ballvalve', 'Ball Valve 25mm', 10),
-            ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-            ('prod_paint', 'Emulsion Paint 20L', 4),
-            ('prod_drill', 'Cordless Drill Kit 18V', 2),
-            ('prod_grinder', 'Angle Grinder 4 in', 2),
-            ('prod_fittings', 'Bathroom Fittings Set', 4),
-          ],
-          campaignRef: 'CAM-SEASON-26'),
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Lighting & Electrical'],
+          limit: 20,
+          defaultQuantity: 5),
       _list(
           'pl_kitchen',
-          'Kitchen Works',
-          'Sinks, taps and fittings for kitchen fit-outs',
-          ProcurementListSourceType.buyerSaved, <(String, String, int)>[
-        ('prod_bibcock', 'Bib Cock 15mm Full Turn Chrome', 10),
-        ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-        ('prod_ballvalve', 'Ball Valve 25mm', 10),
-        ('prod_fittings', 'Bathroom Fittings Set', 4),
-        ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-        ('prod_paint', 'Emulsion Paint 20L', 4),
-        ('prod_drill', 'Cordless Drill Kit 18V', 2),
-        ('prod_grinder', 'Angle Grinder 4 in', 2),
-      ]),
+          'Bathroom & Plumbing',
+          'Fittings, sanitaryware and pipes',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Bathroom & Plumbing'],
+          limit: 20,
+          defaultQuantity: 4),
       _list(
           'pl_floor',
-          'Floor Essentials',
-          'Tiles, finishes and flooring consumables',
-          ProcurementListSourceType.buyerSaved, <(String, String, int)>[
-        ('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 10),
-        ('prod_paint', 'Emulsion Paint 20L', 4),
-        ('prod_fittings', 'Bathroom Fittings Set', 4),
-        ('prod_drill', 'Cordless Drill Kit 18V', 2),
-        ('prod_grinder', 'Angle Grinder 4 in', 2),
-        ('prod_ballvalve', 'Ball Valve 25mm', 10),
-        ('prod_cpvc', 'CPVC Pipe 3/4 in', 50),
-        ('prod_wire', 'Copper Wire 1.5sqmm', 5),
-      ]),
+          'Paints & Finishes',
+          'Paints, boards and surface finishes',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>[
+            'Paints & Finishes',
+            'Tiles & Building Materials',
+          ],
+          limit: 18,
+          defaultQuantity: 4),
+      _list(
+          'pl_tools',
+          'Tools & Hardware',
+          'Hand tools, power tools and fasteners',
+          ProcurementListSourceType.buyerSaved,
+          const <(String, String, int)>[],
+          categoryLabels: const <String>['Tools & Hardware'],
+          limit: 20,
+          defaultQuantity: 5),
     ];
 
-/// Expands only the untouched three-item pilot fixtures. Any buyer rename,
-/// quantity change, add or removal makes the legacy signature differ and is
-/// therefore preserved rather than overwritten.
+/// Replaces only untouched demonstration seeds with the current seed.
+///
+/// The 3-item pilot seed and the 12/8/8 demonstration seed are recognised by
+/// their exact id/quantity signature. Any buyer rename, add or removal changes
+/// that signature, so buyer work is preserved rather than overwritten.
+/// Missing seed lists are appended; user-created lists are always kept.
 (List<ProcurementList>, bool) _migrateLegacySeedLists(
     List<ProcurementList> persisted) {
-  const legacy = <String, Map<String, int>>{
+  const legacySignatures = <String, Map<String, int>>{
     'pl_seasonal': <String, int>{
       'prod_led': 20,
       'prod_mcb': 10,
@@ -368,29 +364,73 @@ List<ProcurementList> _seedLists() => <ProcurementList>[
       'prod_fittings': 4,
     },
   };
-  final expanded = <String, ProcurementList>{
-    for (final list in _seedLists()) list.id: list,
+  const demoSeedSignatures = <String, Map<String, int>>{
+    'pl_seasonal': <String, int>{
+      'prod_led': 20,
+      'prod_mcb': 10,
+      'prod_wire': 5,
+      'prod_switch': 20,
+      'prod_bibcock': 10,
+      'prod_cpvc': 50,
+      'prod_ballvalve': 10,
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+      'prod_fittings': 4,
+    },
+    'pl_kitchen': <String, int>{
+      'prod_bibcock': 10,
+      'prod_cpvc': 50,
+      'prod_ballvalve': 10,
+      'prod_fittings': 4,
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+    },
+    'pl_floor': <String, int>{
+      'prod_tiles': 10,
+      'prod_paint': 4,
+      'prod_fittings': 4,
+      'prod_drill': 2,
+      'prod_grinder': 2,
+      'prod_ballvalve': 10,
+      'prod_cpvc': 50,
+      'prod_wire': 5,
+    },
   };
-  var changed = false;
+  const legacyTitles = <String, String>{
+    'pl_seasonal': 'Seasonal',
+    'pl_kitchen': 'Kitchen Works',
+    'pl_floor': 'Floor Essentials',
+  };
+  final seeds = _seedLists();
+  final seedById = <String, ProcurementList>{
+    for (final list in seeds) list.id: list,
+  };
   final result = <ProcurementList>[
     for (final list in persisted)
       if (_matchesLegacyFixture(
-          list, legacy[list.id], expanded[list.id]?.title))
-        expanded[list.id]!
+              list, legacySignatures[list.id], legacyTitles[list.id] ?? '') ||
+          _matchesLegacyFixture(
+              list, demoSeedSignatures[list.id], legacyTitles[list.id] ?? ''))
+        seedById[list.id] ?? list
       else
         list,
   ];
-  for (var i = 0; i < persisted.length; i++) {
-    if (!identical(persisted[i], result[i])) {
-      changed = true;
-      break;
-    }
+  final present = <String>{for (final list in result) list.id};
+  for (final seed in seeds) {
+    if (!present.contains(seed.id)) result.add(seed);
   }
+  final changed = result.length != persisted.length ||
+      <int>[for (var i = 0; i < persisted.length; i++) i]
+          .any((i) => !identical(persisted[i], result[i]));
   return (result, changed);
 }
 
 bool _matchesLegacyFixture(
-    ProcurementList list, Map<String, int>? signature, String? originalTitle) {
+    ProcurementList list, Map<String, int>? signature, String originalTitle) {
   if (signature == null ||
       list.title != originalTitle ||
       list.items.length != signature.length) {
@@ -402,17 +442,172 @@ bool _matchesLegacyFixture(
   return true;
 }
 
+/// Procurement lists with rule-based membership materialised from the live
+/// catalogue (CHG-062).
+///
+/// Persistence keeps the rule, not twenty stale product ids, so a catalogue
+/// change updates every list. Buyer-owned lists (no rule) pass through
+/// unchanged. Screens read this provider; edits go through
+/// [procurementListsProvider].
+final resolvedProcurementListsProvider = Provider<List<ProcurementList>>((ref) {
+  final lists = ref.watch(procurementListsProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  return <ProcurementList>[
+    for (final list in lists) _resolveProcurementList(list, catalogue),
+  ];
+});
+
+ProcurementList _resolveProcurementList(
+    ProcurementList list, List<TradeProduct> catalogue) {
+  if (!list.isRuleBased) return list;
+  final labels = <String>{
+    for (final label in list.categoryLabels) label.trim().toLowerCase(),
+  };
+  final categoryIds = <String>{
+    for (final label in labels)
+      if (TradeCategoryIds.byLabel[label] != null)
+        TradeCategoryIds.byLabel[label]!,
+  };
+  final items = <ProcurementListItem>[];
+  final seen = <String>{};
+  // Buyer additions on a rule list are kept ahead of the rule result.
+  for (final item in list.items) {
+    if (seen.add(item.sku)) items.add(item);
+  }
+  for (final product in catalogue) {
+    if (list.limit != null && items.length >= list.limit!) break;
+    final label = (product.product.categoryLabel ?? '').trim().toLowerCase();
+    final id = product.categoryId;
+    if (!labels.contains(label) && !categoryIds.contains(id)) continue;
+    if (!seen.add(product.product.id)) continue;
+    items.add(ProcurementListItem(
+      sku: product.product.id,
+      name: product.product.title,
+      quantity: list.defaultQuantity,
+      unitPrice: product.tradePrice,
+    ));
+  }
+  return list.copyWith(items: items);
+}
+
 /// The quick-order presets shown on the B2B Home — the kept list names.
-final quickOrderPresetsProvider = Provider<List<String>>((ref) =>
-    <String>[for (final l in ref.watch(procurementListsProvider)) l.title]);
+/// Quick-order lists with console-authored presentation applied (CHG-062).
+///
+/// Console records (placement `b2b.quick_order`) override the governed rule
+/// lists by display position: title, supporting text, category rule, cap and
+/// default quantity. Records beyond the built-in four append new lists. With no
+/// authored record the governed lists pass through unchanged.
+final effectiveProcurementListsProvider =
+    Provider<List<ProcurementList>>((ref) {
+  final base = ref.watch(resolvedProcurementListsProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  final curated = (ref.watch(b2bCuratedCollectionsProvider).value ??
+          const <CuratedCollection>[])
+      .where((item) => item.placement == 'b2b.quick_order')
+      .toList()
+    ..sort((a, b) => (a.displayOrder ?? 999).compareTo(b.displayOrder ?? 999));
+  if (curated.isEmpty) return base;
+
+  final ruleLists = base.where((list) => list.isRuleBased).toList();
+  final others = base.where((list) => !list.isRuleBased).toList();
+  final merged = <ProcurementList>[];
+  for (var i = 0; i < curated.length; i++) {
+    final record = curated[i];
+    final template = i < ruleLists.length ? ruleLists[i] : null;
+    merged.add(ProcurementList(
+      id: template?.id ?? 'pl_cms_${record.collectionKey}',
+      title: record.title,
+      description: record.description ?? template?.description ?? 'Saved list',
+      sourceType: template?.sourceType ?? ProcurementListSourceType.buyerSaved,
+      // A rule template is re-resolved from its (possibly new) rule rather than
+      // inheriting the previously materialised items.
+      items: template != null && template.isRuleBased
+          ? const <ProcurementListItem>[]
+          : (template?.items ?? const <ProcurementListItem>[]),
+      campaignRef: template?.campaignRef,
+      action: template?.action ?? ProcurementListAction.useList,
+      categoryLabels: record.categoryLabels.isEmpty
+          ? (template?.categoryLabels ?? const <String>[])
+          : record.categoryLabels,
+      limit: record.limit ?? template?.limit ?? 20,
+      defaultQuantity: record.defaultQuantity ?? template?.defaultQuantity ?? 1,
+    ));
+  }
+  for (var i = curated.length; i < ruleLists.length; i++) {
+    merged.add(ruleLists[i]);
+  }
+  merged.addAll(others);
+  return <ProcurementList>[
+    for (final list in merged) _resolveProcurementList(list, catalogue),
+  ];
+});
+
+final quickOrderPresetsProvider = Provider<List<String>>((ref) => <String>[
+      for (final l in ref.watch(effectiveProcurementListsProvider)) l.title
+    ]);
 
 final procurementListProvider =
     Provider.autoDispose.family<ProcurementList?, String>((ref, id) {
-  final lists = ref.watch(procurementListsProvider);
+  final lists = ref.watch(effectiveProcurementListsProvider);
   for (final list in lists) {
     if (list.id == id) return list;
   }
   return null;
+});
+
+/// Commerce category ids the trade catalogue is tagged with.
+///
+/// These are the live Medusa category ids, so the rail, the filter and Category presentation all
+/// speak the same identifiers. Renaming a category in the console changes the rail label; it does
+/// not need a code change here.
+abstract final class TradeCategoryIds {
+  static const String bathroom = 'pcat_01M4EC9BNHH212X5V13Z055DDR';
+  static const String electrical = 'pcat_01M4EC9BNKHP80XAET6X0BV6MT';
+  static const String construction = 'pcat_01M4EC9BNG9AVFBH8RAN8MDP0V';
+  static const String tiles = 'pcat_01M4EC9BNJPR8T0YQCBC8W4XFJ';
+  static const String agriculture = 'pcat_01M4EC9BNMNB7AW5Z293YVRWJW';
+  static const String pumps = 'pcat_01M4EC9BNM9X603HVQBQ93J969';
+  static const String paints = 'pcat_01M57QZG8NS654FG2PR3HJ95PW';
+  static const String tools = 'pcat_01M57QZFXG5E8KD9P8K7Q6G89S';
+  static const String automotive = 'pcat_01M57QZGC2DDKFG5775TD4455Q';
+  static const String miscellaneous = 'pcat_01M58989BEMSW5CRGFGZBJF10N';
+
+  /// L1 label to commerce id. Merchandising rules are authored by label because
+  /// that is what the catalogue import and CMS present; the id makes the same
+  /// rule work against fixtures, which carry ids but no label.
+  static const Map<String, String> byLabel = <String, String>{
+    'lighting & electrical': electrical,
+    'bathroom & plumbing': bathroom,
+    'paints & finishes': paints,
+    'tiles & building materials': tiles,
+    'tools & hardware': tools,
+    'agriculture & seeds': agriculture,
+    'building & construction': construction,
+    'pumps & machines': pumps,
+    'automotive & tyres': automotive,
+    'miscellaneous': miscellaneous,
+  };
+}
+
+/// Trade categories for the rail, catalogue chips and filters.
+///
+/// Backend-first: the console's Category presentation supplies the id, label, icon and order for the
+/// B2B channel. The local fixture list is only a fallback for when presentation is unavailable, so a
+/// rename in the admin console reaches the trade surfaces without a code change.
+final tradeCategoryOptionsProvider = Provider<List<TradeCategory>>((ref) {
+  final cms = ref.watch(b2bPresentationProvider).value?.categories ??
+      const <StorefrontCategory>[];
+  if (cms.isEmpty) {
+    return ref.watch(tradeDashboardProvider).categories;
+  }
+  return <TradeCategory>[
+    for (final category in cms)
+      TradeCategory(
+        id: category.id,
+        label: category.label,
+        icon: categoryIconFor(category.iconKey),
+      ),
+  ];
 });
 
 /// Demo trade dashboard fixture. Real data is resolved from the backend later;
@@ -421,23 +616,33 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
   return TradeDashboard(
     categories: const <TradeCategory>[
       TradeCategory(
-          id: 'plumbing', label: 'Plumbing', icon: Icons.water_drop_outlined),
+          id: TradeCategoryIds.electrical,
+          label: 'Lighting & Electrical',
+          icon: Icons.bolt_outlined),
       TradeCategory(
-          id: 'electricals', label: 'Electricals', icon: Icons.bolt_outlined),
+          id: TradeCategoryIds.bathroom,
+          label: 'Bathroom & Plumbing',
+          icon: Icons.water_drop_outlined),
       TradeCategory(
-          id: 'sanitary',
+          id: TradeCategoryIds.paints,
+          label: 'Paints & Finishes',
+          icon: Icons.format_paint_outlined),
+      TradeCategory(
+          id: TradeCategoryIds.bathroom,
           label: 'Premium Sanitary',
           icon: Icons.bathtub_outlined),
       TradeCategory(
-          id: 'paints',
+          id: TradeCategoryIds.construction,
           label: 'Paints & Construction',
           icon: Icons.format_paint_outlined),
       TradeCategory(
-          id: 'hardware',
+          id: TradeCategoryIds.pumps,
           label: 'Hardware & Tools',
           icon: Icons.handyman_outlined),
       TradeCategory(
-          id: 'agri', label: 'Agriculture', icon: Icons.grass_outlined),
+          id: TradeCategoryIds.agriculture,
+          label: 'Agriculture',
+          icon: Icons.grass_outlined),
     ],
     schemes: const <TradeScheme>[
       TradeScheme(
@@ -546,17 +751,15 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
 /// thumbnails come from the catalogue backend; any URL that fails to resolve
 /// falls back to the tile's placeholder icon.
 const Map<String, String> _categoryThumb = <String, String>{
-  'plumbing':
+  TradeCategoryIds.bathroom:
       'https://images.pexels.com/photos/585419/pexels-photo-585419.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'electricals':
+  TradeCategoryIds.electrical:
       'https://images.pexels.com/photos/577514/pexels-photo-577514.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'paints':
+  TradeCategoryIds.construction:
       'https://images.pexels.com/photos/207142/pexels-photo-207142.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'hardware':
+  TradeCategoryIds.pumps:
       'https://images.pexels.com/photos/1249611/pexels-photo-1249611.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'sanitary':
-      'https://images.pexels.com/photos/6492403/pexels-photo-6492403.jpeg?auto=compress&cs=tinysrgb&w=600',
-  'agri':
+  TradeCategoryIds.agriculture:
       'https://images.pexels.com/photos/265216/pexels-photo-265216.jpeg?auto=compress&cs=tinysrgb&w=600',
 };
 
@@ -636,9 +839,145 @@ TradeProduct _withSellers(TradeProduct p) {
   ]);
 }
 
-/// The full B2B trade catalogue, category-tagged and seasonally flagged. This
-/// powers the catalogue/category browse, Best Deals and Seasonal surfaces. In
-/// production it is fed by the product/catalog backend.
+/// Maps a composed catalogue product onto the B2B trade view model.
+///
+/// Only values that actually exist upstream are carried across: catalogue price,
+/// the winning offer's seller and the offer's stock. MOQ stays 1 and quantity
+/// tiers stay empty because there is no governed trade-terms source yet; filling
+/// them with a local convention would fabricate a commercial term.
+/// Quantity ladder for live trade products (CHG-051).
+///
+/// Each step adds five points and the deepest step stops at the governed 10%
+/// promotion ceiling: 1+ list, 10+ 5% off, 25+ 10% off. These are quotation /
+/// trade-price terms, not a Medusa promotion (quantity slabs are not
+/// expressible there).
+const List<(int, int)> _tradeTierLadder = <(int, int)>[
+  (1, 0),
+  (10, 5),
+  (25, 10),
+];
+
+Money _discountedMoney(Money price, int percent) => Money(
+      amount: (price.amount * (100 - percent) / 100).round(),
+      currencyCode: price.currencyCode,
+    );
+
+TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
+  // Show the cheapest sellable SKU on the card, matching the B2C best price.
+  // `defaultVariant` is the first sellable SKU, which is not necessarily the
+  // cheapest and made the same product show two different discounts.
+  ProductVariant? selected;
+  for (final variant in product.variants) {
+    if (!variant.isPurchasable || variant.price == null) continue;
+    if (selected == null || variant.price!.amount < selected.price!.amount) {
+      selected = variant;
+    }
+  }
+  selected ??= product.defaultVariant;
+  final price = selected?.price ??
+      product.price ??
+      const Money(amount: 0, currencyCode: 'INR');
+  return TradeProduct(
+    product: product,
+    tradePrice: price,
+    moq: 1,
+    stockQty: selected?.stockQty ?? 0,
+    // An older composed payload lists variants without stock. Say "unconfirmed"
+    // rather than turning every product into "Out of Stock".
+    stockKnown: selected != null,
+    deliveryLocation: 'Marketplace Shipping',
+    categoryId: categoryId ?? product.categoryId ?? 'all',
+    tiers: price.amount <= 0
+        ? const <TradeTier>[]
+        : <TradeTier>[
+            for (final tier in _tradeTierLadder)
+              TradeTier(
+                quantity: tier.$1,
+                unitPrice:
+                    tier.$2 == 0 ? price : _discountedMoney(price, tier.$2),
+              ),
+          ],
+    sellers: <TradeSupplier>[
+      for (final variant in product.variants)
+        if (variant.isPurchasable)
+          TradeSupplier(
+            id: variant.offerId!,
+            name: variant.sellerName ??
+                product.brand ??
+                'BuildKart Verified Seller',
+            unitPrice: variant.price!,
+            moq: 1,
+            stockQty: variant.stockQty,
+            bestPrice: variant.id == product.variantId,
+          ),
+    ],
+  );
+}
+
+/// Live B2B trade catalogue from the Experience API.
+///
+/// Reads the same staged source catalogue as the storefront, but through the B2B
+/// sales channel, and resolves each product's L1 category id from CMS
+/// presentation so the trade rail filters on commerce identity rather than on a
+/// label guess.
+final tradeCatalogueLiveProvider =
+    FutureProvider.autoDispose<List<TradeProduct>>((ref) async {
+  // Tests and any process that has not bootstrapped the live runtime read the
+  // governed fixture, never a half-started request.
+  if (!AppConfig.liveCatalogueEnabled) return const <TradeProduct>[];
+  final categories = ref.watch(b2bPresentationProvider).value?.categories ??
+      const <StorefrontCategory>[];
+  final categoryIdByLabel = <String, String>{
+    for (final category in categories)
+      if (category.label.trim().isNotEmpty)
+        category.label.trim().toLowerCase(): category.id,
+  };
+  final api = ref.watch(experienceApiProvider);
+  var products = await api.getAllComposedProducts(
+    channel: 'b2b',
+    catalogueImport: AppConfig.catalogueImport,
+  );
+  if (products.isEmpty) {
+    products = await api.getAllComposedProducts(channel: 'b2b');
+  }
+  return <TradeProduct>[
+    for (final product in orderProductsByDisplayImage(products))
+      tradeProductFromCatalogue(
+        product,
+        categoryId: categoryIdByLabel[
+            (product.categoryLabel ?? '').trim().toLowerCase()],
+      ),
+  ];
+});
+
+/// What the trade surfaces are currently showing.
+enum TradeCatalogueSource { loading, live, fallback }
+
+/// The trade catalogue the B2B UI renders.
+///
+/// Live API data wins; the local fixture is only a fallback while the API is
+/// loading or unreachable, so the trade UI never becomes an error page.
+final tradeCatalogueViewProvider = Provider<List<TradeProduct>>((ref) {
+  final live = ref.watch(tradeCatalogueLiveProvider);
+  final products = live.value ?? const <TradeProduct>[];
+  if (products.isNotEmpty) return products;
+  return ref.watch(tradeCatalogueProvider);
+});
+
+final tradeCatalogueSourceProvider = Provider<TradeCatalogueSource>((ref) {
+  final live = ref.watch(tradeCatalogueLiveProvider);
+  if ((live.value ?? const <TradeProduct>[]).isNotEmpty) {
+    return TradeCatalogueSource.live;
+  }
+  return live.isLoading
+      ? TradeCatalogueSource.loading
+      : TradeCatalogueSource.fallback;
+});
+
+/// The full B2B trade catalogue fixture, category-tagged and seasonally flagged.
+///
+/// Kept only as the offline/development fallback for [tradeCatalogueViewProvider].
+/// Live trade surfaces read the Experience API.
 final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
   const freeGoods = TradeScheme(
     title: 'Scheme available',
@@ -659,7 +998,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 485,
       moq: 5,
       stock: 87,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       tag: TradeTagType.bestseller,
       scheme: freeGoods,
       tiers: const [(5, 432), (10, 415), (25, 398), (50, 389)],
@@ -672,7 +1011,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 99,
       moq: 10,
       stock: 420,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(10, 84), (50, 79), (100, 74)],
     ),
     _tp(
@@ -683,7 +1022,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 230,
       moq: 10,
       stock: 150,
-      categoryId: 'plumbing',
+      categoryId: TradeCategoryIds.bathroom,
       scheme: cashOffer,
       tiers: const [(10, 186), (25, 175), (50, 168)],
     ),
@@ -695,7 +1034,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 52,
       moq: 20,
       stock: 900,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       tiers: const [(20, 38), (100, 34), (300, 31)],
     ),
     _tp(
@@ -706,7 +1045,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 1480,
       moq: 5,
       stock: 210,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       tiers: const [(5, 1240), (20, 1180), (50, 1135)],
     ),
     _tp(
@@ -717,7 +1056,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 265,
       moq: 10,
       stock: 340,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       scheme: freeGoods,
       tiers: const [(10, 214), (25, 199), (50, 188)],
     ),
@@ -729,7 +1068,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 90,
       moq: 20,
       stock: 1100,
-      categoryId: 'electricals',
+      categoryId: TradeCategoryIds.electrical,
       seasonal: true,
       tag: TradeTagType.bestseller,
       tiers: const [(20, 68), (100, 61), (300, 57)],
@@ -742,7 +1081,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 4200,
       moq: 5,
       stock: 240,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.construction,
       tag: TradeTagType.premium,
       tiers: const [(5, 3738), (10, 3610), (25, 3495), (50, 3380)],
     ),
@@ -754,7 +1093,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 2850,
       moq: 4,
       stock: 180,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.paints,
       scheme: cashOffer,
       tiers: const [(4, 2350), (10, 2210), (20, 2120)],
     ),
@@ -766,7 +1105,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 7999,
       moq: 2,
       stock: 64,
-      categoryId: 'hardware',
+      categoryId: TradeCategoryIds.pumps,
       tiers: const [(2, 6450), (5, 6190), (10, 5990)],
     ),
     _tp(
@@ -777,7 +1116,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 4599,
       moq: 2,
       stock: 92,
-      categoryId: 'hardware',
+      categoryId: TradeCategoryIds.pumps,
       tag: TradeTagType.premium,
       tiers: const [(2, 3299), (5, 3150), (10, 3050)],
     ),
@@ -789,7 +1128,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 3200,
       moq: 4,
       stock: 130,
-      categoryId: 'sanitary',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(4, 2450), (10, 2320), (20, 2240)],
     ),
     _tp(
@@ -800,7 +1139,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 3890,
       moq: 2,
       stock: 74,
-      categoryId: 'sanitary',
+      categoryId: TradeCategoryIds.bathroom,
       tiers: const [(2, 3200), (5, 3050), (10, 2920)],
     ),
     _tp(
@@ -811,7 +1150,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 925,
       moq: 5,
       stock: 260,
-      categoryId: 'paints',
+      categoryId: TradeCategoryIds.construction,
       tiers: const [(5, 780), (20, 735), (50, 698)],
     ),
     _tp(
@@ -822,7 +1161,7 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 1780,
       moq: 4,
       stock: 118,
-      categoryId: 'agri',
+      categoryId: TradeCategoryIds.agriculture,
       tiers: const [(4, 1450), (10, 1375), (25, 1290)],
     ),
     _tp(
@@ -833,25 +1172,40 @@ final tradeCatalogueProvider = Provider<List<TradeProduct>>((ref) {
       mrp: 7490,
       moq: 2,
       stock: 42,
-      categoryId: 'agri',
+      categoryId: TradeCategoryIds.agriculture,
       tiers: const [(2, 6200), (5, 5940), (10, 5680)],
     ),
   ];
   return <TradeProduct>[for (final p in base) _withSellers(p)];
 });
 
-/// Frequently bought / saved products surfaced in the "Frequent & Saved"
-/// collection swimlane on the B2B home.
+/// Previously ordered products, surfaced in the "Buy Again" swimlane.
+///
+/// Resolved from the buyer's own orders and saved procurement lists, never from
+/// a fixed set of demonstration ids: an empty history means the unit is empty
+/// rather than presenting unrelated catalogue items as "frequent".
 final frequentSavedProvider = Provider<List<TradeProduct>>((ref) {
-  final catalogue = ref.watch(tradeCatalogueProvider);
-  const ids = {'prod_bibcock', 'prod_cpvc', 'prod_switch', 'prod_led'};
-  return catalogue.where((p) => ids.contains(p.product.id)).toList();
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
+  final skus = <String>{
+    for (final order in ref.watch(b2bOrdersProvider))
+      for (final line in order.lines) line.sku,
+    for (final list in ref.watch(procurementListsProvider))
+      for (final item in list.items) item.sku,
+  };
+  if (skus.isEmpty) return const <TradeProduct>[];
+  final matched = <TradeProduct>[
+    for (final product in catalogue)
+      if (product.product.variants.any((v) => skus.contains(v.sku)) ||
+          skus.contains(product.product.id))
+        product,
+  ];
+  return matched.take(6).toList();
 });
 
 /// Products with the buyer's best price advantage (highest savings), surfaced
 /// in the "My Price Advantage" collection swimlane.
 final priceAdvantageProvider = Provider<List<TradeProduct>>((ref) {
-  final catalogue = ref.watch(tradeCatalogueProvider);
+  final catalogue = ref.watch(tradeCatalogueViewProvider);
   final sorted = List<TradeProduct>.of(catalogue)
     ..sort((a, b) => (b.savingsPercent ?? 0).compareTo(a.savingsPercent ?? 0));
   return sorted.take(4).toList();
@@ -887,13 +1241,23 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     }
   }
 
-  void addTradeProduct(TradeProduct product, {int? quantity}) {
+  /// Adds one SKU of a grouped product.
+  ///
+  /// [variant] is the SKU the buyer selected on the product page. Without one,
+  /// the product's first sellable variant is used so a grouped product is never
+  /// added under its product id when real SKUs exist.
+  void addTradeProduct(TradeProduct product,
+      {int? quantity, ProductVariant? variant}) {
+    final selected = variant ?? product.product.defaultVariant;
     final qty = quantity ?? product.moq;
     addSku(
-      sku: product.product.id,
-      name: product.product.title,
+      sku: selected?.sku ?? product.product.id,
+      name: selected == null
+          ? product.product.title
+          : '${product.product.title} · ${selected.label}',
       quantity: qty,
-      unitPrice: product.unitPriceFor(qty),
+      unitPrice: selected?.price ?? product.unitPriceFor(qty),
+      seller: selected?.sellerName,
     );
   }
 
@@ -905,7 +1269,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     String? seller,
   }) {
     if (sku.trim().isEmpty || quantity <= 0) return;
-    final catalogue = ref.read(tradeCatalogueProvider);
+    final catalogue = ref.read(tradeCatalogueViewProvider);
     TradeProduct? match;
     for (final product in catalogue) {
       if (product.product.id == sku ||
@@ -914,8 +1278,13 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         break;
       }
     }
-    final resolvedPrice =
-        unitPrice ?? match?.unitPriceFor(quantity) ?? _inr(100);
+    // Quantity tiers only apply to the local fixture. A real SKU's price comes
+    // from its own offer; there is no trade-terms source to reprice it from.
+    final tierPriced = match != null && match.product.variants.isEmpty;
+    final resolvedPrice = unitPrice ??
+        (tierPriced ? match.unitPriceFor(quantity) : null) ??
+        match?.tradePrice ??
+        _inr(100);
     final index = state.lines.indexWhere((line) => line.sku == sku);
     final next = List<B2BQuotationLine>.of(state.lines);
     if (index >= 0) {
@@ -928,7 +1297,9 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         sku: existing.sku,
         name: existing.name,
         quantity: combinedQuantity,
-        unitPrice: match?.unitPriceFor(combinedQuantity) ?? resolvedPrice,
+        unitPrice: tierPriced
+            ? match.unitPriceFor(combinedQuantity)
+            : existing.unitPrice,
         targetUnitPrice: existing.targetUnitPrice,
         seller: existing.seller ?? seller,
       );
@@ -964,7 +1335,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
   void addRepeatOrder(B2BOrder order) {
     // Reorder drops the *entire* previous order back into the cart.
     if (order.lines.isEmpty) {
-      for (final product in ref.read(tradeCatalogueProvider).take(2)) {
+      for (final product in ref.read(tradeCatalogueViewProvider).take(2)) {
         addTradeProduct(product);
       }
       return;
@@ -985,12 +1356,14 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
       return;
     }
     TradeProduct? catalogueMatch;
-    for (final product in ref.read(tradeCatalogueProvider)) {
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
       if (product.product.id == sku) {
         catalogueMatch = product;
         break;
       }
     }
+    final tierPriced =
+        catalogueMatch != null && catalogueMatch.product.variants.isEmpty;
     _commit(state.copyWith(
       lines: <B2BQuotationLine>[
         for (final line in state.lines)
@@ -999,8 +1372,9 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
                   sku: line.sku,
                   name: line.name,
                   quantity: quantity,
-                  unitPrice:
-                      catalogueMatch?.unitPriceFor(quantity) ?? line.unitPrice,
+                  unitPrice: tierPriced
+                      ? catalogueMatch.unitPriceFor(quantity)
+                      : line.unitPrice,
                   targetUnitPrice: line.targetUnitPrice,
                   seller: line.seller,
                 )

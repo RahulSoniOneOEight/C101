@@ -1,6 +1,7 @@
 import { createHash, createHmac } from "node:crypto";
 import type { Core } from "@strapi/strapi";
 import { ensureCmsOperatorAudit, registerCmsOperatorRoutes } from "./operator-content";
+import { seedStorefrontPresentation } from "./presentation-seed";
 
 const EDITORIAL_UIDS = new Set([
   "api::banner.banner",
@@ -130,5 +131,6 @@ export default {
   },
   async bootstrap({ strapi }: { strapi: Core.Strapi }) {
     await ensureCmsOperatorAudit(strapi);
+    await seedStorefrontPresentation(strapi);
   },
 };

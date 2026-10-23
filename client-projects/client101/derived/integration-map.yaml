@@ -66,3 +66,25 @@ integrations:
   fallback_strategy: queue-and-retry
   events: []
   commands: []
+- id: workspace-event-stream
+  domain: workspace
+  provider_candidates:
+  - nats
+  direction: outbound
+  criticality: high
+  data_classes:
+  - operational
+  - commercial
+  credential_refs:
+  - env:WORKSPACE_NATS_CREDENTIALS
+  sla:
+    availability: client-defined
+    timeout_seconds: 15
+  fallback_strategy: transactional-outbox
+  events:
+  - workspace.*
+  - purchase-draft.*
+  - proposal.*
+  - workspace-approval.*
+  - checkout-handoff.*
+  commands: []

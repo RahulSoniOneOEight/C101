@@ -11,17 +11,28 @@ class MerchandisingModuleView extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onDiscuss,
     this.onBannerTap,
+    this.onBannerAction,
     this.onToggleWishlist,
     this.isWishlisted,
     super.key,
   });
 
+  /// Gap between product tiles. 10 keeps the rails aligned with the 12pt home gutter; the old 8
+  /// looked cramped once the banner above went full-bleed.
+  static const double _tileGap = 10;
+
   final MerchandisingModule module;
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final void Function(Product product)? onDiscuss;
   final VoidCallback? onBannerTap;
+
+  /// Follows the backend banner's action target. Preferred over [onBannerTap]
+  /// whenever the banner carries an [MerchandisingBannerData.actionUri].
+  final void Function(String uri)? onBannerAction;
   final void Function(Product product)? onToggleWishlist;
   final bool Function(Product product)? isWishlisted;
 
@@ -30,20 +41,30 @@ class MerchandisingModuleView extends StatelessWidget {
     switch (module.type) {
       case MerchandisingModuleType.secondaryBanner:
         final banner = module.banner!;
+        final actionUri = banner.actionUri;
         return MerchandisingBanner(
           imageUrl: banner.imageUrl,
+          imageAlt: banner.imageAlt,
           title: banner.title,
           subtitle: banner.subtitle,
           ctaLabel: banner.ctaLabel,
-          onCta: onBannerTap,
+          onCta: actionUri != null && onBannerAction != null
+              ? () => onBannerAction!(actionUri)
+              : onBannerTap,
         );
       case MerchandisingModuleType.productCarousel:
         return _headed(
-          ProductCarousel(children: _cards(ProductCardVariant.compact)),
+          ProductCarousel(
+            gap: _tileGap,
+            children: _cards(ProductCardVariant.compact),
+          ),
         );
       case MerchandisingModuleType.productGrid:
         return _headed(
-          ProductGrid(children: _cards(ProductCardVariant.compact)),
+          ProductGrid(
+            gap: _tileGap,
+            children: _cards(ProductCardVariant.compact),
+          ),
         );
       case MerchandisingModuleType.productComposition:
         return _composition();
@@ -68,8 +89,12 @@ class MerchandisingModuleView extends StatelessWidget {
 
   Widget _composition() {
     final split = module.splitSlot;
-    final Widget special = split == null
-        ? const SizedBox.shrink()
+    // An empty composition must not reserve a grid cell or a module block.
+    if (module.products.isEmpty && (split == null || split.products.isEmpty)) {
+      return const SizedBox.shrink();
+    }
+    final Widget? special = split == null || split.products.isEmpty
+        ? null
         : SplitMerchandisingTile(
             sectionLabel: split.label,
             children: <Widget>[
@@ -87,6 +112,7 @@ class MerchandisingModuleView extends StatelessWidget {
           ),
         if (module.title != null) const SizedBox(height: AgencySpacing.sm),
         ProductCompositionSection(
+          gap: _tileGap,
           regularProducts: _cards(ProductCardVariant.large),
           specialSlot: special,
         ),
@@ -111,9 +137,9 @@ class MerchandisingModuleView extends StatelessWidget {
       variant: variant,
       onPressed: onProductTap == null ? null : () => onProductTap!(p),
       onAddToCart: onAddToCart == null ? null : () => onAddToCart!(p),
+      onDiscuss: onDiscuss == null ? null : () => onDiscuss!(p),
       wishlisted: isWishlisted?.call(p) ?? false,
-      onWishlist:
-          onToggleWishlist == null ? null : () => onToggleWishlist!(p),
+      onWishlist: onToggleWishlist == null ? null : () => onToggleWishlist!(p),
     );
   }
 
@@ -126,6 +152,7 @@ class MerchandisingModuleView extends StatelessWidget {
       imageUrl: p.thumbnail,
       onPressed: onProductTap == null ? null : () => onProductTap!(p),
       onAdd: onAddToCart == null ? null : () => onAddToCart!(p),
+      onDiscuss: onDiscuss == null ? null : () => onDiscuss!(p),
     );
   }
 }
@@ -138,7 +165,9 @@ class HomeScrollFeed extends StatelessWidget {
     this.onProductTap,
     this.onSeeAll,
     this.onAddToCart,
+    this.onDiscuss,
     this.onBannerTap,
+    this.onBannerAction,
     this.onToggleWishlist,
     this.isWishlisted,
     super.key,
@@ -149,7 +178,9 @@ class HomeScrollFeed extends StatelessWidget {
   final void Function(Product product)? onProductTap;
   final VoidCallback? onSeeAll;
   final void Function(Product product)? onAddToCart;
+  final void Function(Product product)? onDiscuss;
   final VoidCallback? onBannerTap;
+  final void Function(String uri)? onBannerAction;
   final void Function(Product product)? onToggleWishlist;
   final bool Function(Product product)? isWishlisted;
 
@@ -168,7 +199,9 @@ class HomeScrollFeed extends StatelessWidget {
             onProductTap: onProductTap,
             onSeeAll: onSeeAll,
             onAddToCart: onAddToCart,
+            onDiscuss: onDiscuss,
             onBannerTap: onBannerTap,
+            onBannerAction: onBannerAction,
             onToggleWishlist: onToggleWishlist,
             isWishlisted: isWishlisted,
           ),

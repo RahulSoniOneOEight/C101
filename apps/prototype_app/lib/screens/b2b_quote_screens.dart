@@ -5,9 +5,13 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/conversation_models.dart';
 import '../domain/models.dart';
+import '../widgets/market_comparison.dart';
+import '../widgets/conversation_bell.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../widgets/trade_product_tile.dart';
 
 AgencyColors _c(BuildContext c) =>
@@ -50,12 +54,38 @@ class B2BTradePdpScreen extends ConsumerStatefulWidget {
 class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
   int _selectedTier = 0;
   String? _selectedSellerId;
+  String? _selectedVariantId;
   bool _showAllSellers = false;
+  void _shareToProcurement(
+    TradeProduct p,
+    ProductVariant? variant,
+    TradeSupplier? seller,
+    int quantity,
+  ) async {
+    final offerId = variant?.offerId ?? seller?.id ?? p.product.cartOfferId;
+    if (offerId.isEmpty) {
+      PinToast.show(context, 'This SKU has no sellable offer to share',
+          tone: PinToastTone.warning);
+      return;
+    }
+    ref.read(conversationDockProvider.notifier).discuss(
+          ConversationAudience.business,
+          ConversationProductCapture.fromProduct(
+            p.product,
+            variant: variant,
+            quantity: quantity,
+            sellerName: variant?.sellerName ?? seller?.name,
+            unitPrice: variant?.price ?? p.unitPriceFor(quantity),
+            variantId: variant?.id ?? p.product.cartVariantId,
+            offerId: offerId,
+          ),
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     TradeProduct? match;
     for (final item in catalogue) {
       if (item.product.id == widget.productId) {
@@ -63,14 +93,25 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
         break;
       }
     }
-    match ??= catalogue.isNotEmpty ? catalogue.first : null;
     if (match == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Product · Trade')),
+        appBar: AppBar(
+          title: const Text('Product · Trade'),
+          actions: const <Widget>[
+            ConversationBellButton(audience: ConversationAudience.business),
+          ],
+        ),
         body: const Center(child: Text('Product not found')),
       );
     }
     final p = match;
+    final variants = p.product.variants;
+    final selectedVariant = variants.isEmpty
+        ? null
+        : variants.firstWhere(
+            (v) => v.id == _selectedVariantId,
+            orElse: () => p.product.defaultVariant ?? variants.first,
+          );
     final sellers = p.sellers;
     final bestSeller = p.bestSeller;
     final selectedSeller = sellers.isEmpty
@@ -84,11 +125,19 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     final tierIndex =
         tiers.isEmpty ? 0 : _selectedTier.clamp(0, tiers.length - 1);
     final tierQty = tiers.isEmpty ? p.moq : tiers[tierIndex].quantity;
-    final unitPrice = selectedSeller?.unitPrice ?? p.unitPriceFor(tierQty);
-    final mrp = p.mrp;
+    final unitPrice = selectedVariant?.price ??
+        selectedSeller?.unitPrice ??
+        p.unitPriceFor(tierQty);
+    final mrp = selectedVariant?.mrp ?? p.mrp;
+    final stockQty = selectedVariant?.stockQty ?? p.stockQty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Product · Trade')),
+      appBar: AppBar(
+        title: const Text('Product · Trade'),
+        actions: const <Widget>[
+          ConversationBellButton(audience: ConversationAudience.business),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -111,7 +160,13 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Positioned(
                 top: 10,
                 left: 10,
-                child: StockBadge(label: p.stockLabel()),
+                child: StockBadge(
+                  label: !p.stockKnown
+                      ? 'Availability on request'
+                      : stockQty > 0
+                          ? 'In Stock ($stockQty)'
+                          : 'Out of Stock',
+                ),
               ),
               if (p.savingsPercent != null)
                 Positioned(
@@ -143,16 +198,42 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: colors.actionPrimary)),
-              const SizedBox(width: AgencySpacing.sm),
-              Text('MRP ${mrp.formatted}',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: colors.contentSecondary,
-                      decoration: TextDecoration.lineThrough)),
+              if (selectedVariant?.mrp != null ||
+                  p.product.mrp != null) ...<Widget>[
+                const SizedBox(width: AgencySpacing.sm),
+                Text('MRP ${mrp.formatted}',
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: colors.contentSecondary,
+                        decoration: TextDecoration.lineThrough)),
+              ],
             ],
           ),
-          // ---- Seller details (multi-seller, best price default) ----
-          if (selectedSeller != null) ...[
+          const SizedBox(height: AgencySpacing.sm),
+          MarketComparison(sellingPrice: unitPrice),
+
+          // ---- Variant (SKU) selection for a grouped product ----
+          if (variants.isNotEmpty) ...[
+            _label(context, 'Variants (${variants.length})'),
+            for (final variant in variants)
+              _VariantRow(
+                variant: variant,
+                selected: variant.id == selectedVariant?.id,
+                onTap: () => setState(() => _selectedVariantId = variant.id),
+              ),
+            if (p.product.catalogueImport != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+                child: Text(
+                  'Stock shown is the explicit staging fixture (50 per SKU), '
+                  'not supplier stock.',
+                  style:
+                      TextStyle(fontSize: 11, color: colors.contentSecondary),
+                ),
+              ),
+          ],
+          // ---- Seller details (fixture catalogue without variant detail) ----
+          if (variants.isEmpty && selectedSeller != null) ...[
             _label(context, 'Sold by'),
             _SellerRow(
               seller: selectedSeller,
@@ -224,12 +305,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: () {
-                    ref.read(b2bQuotationCartProvider.notifier).addSku(
-                          sku: p.product.id,
-                          name: p.product.title,
-                          quantity: tierQty,
-                          unitPrice: unitPrice,
-                        );
+                    ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
+                        p,
+                        quantity: tierQty,
+                        variant: selectedVariant);
                     context.go('/b2b/cart');
                   },
                   icon: const Icon(Icons.add_shopping_cart, size: 18),
@@ -244,13 +323,10 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    ref.read(b2bQuotationCartProvider.notifier).addSku(
-                          sku: p.product.id,
-                          name: p.product.title,
-                          quantity: tierQty,
-                          unitPrice: unitPrice,
-                          seller: selectedSeller?.id,
-                        );
+                    ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
+                        p,
+                        quantity: tierQty,
+                        variant: selectedVariant);
                     ScaffoldMessenger.of(context)
                       ..hideCurrentSnackBar()
                       ..showSnackBar(SnackBar(
@@ -272,7 +348,109 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
               ),
             ],
           ),
+          const SizedBox(height: AgencySpacing.sm),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _shareToProcurement(
+                  p, selectedVariant, selectedSeller, tierQty),
+              icon: const Icon(Icons.forum_outlined, size: 18),
+              label: const Text('Discuss'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                side: BorderSide(color: colors.borderDefault),
+                foregroundColor: colors.actionPrimary,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// One sellable SKU inside a grouped product on the trade PDP.
+///
+/// Selecting a row is what lets a buyer inspect and buy a specific source SKU
+/// while the catalogue keeps showing one card per product.
+class _VariantRow extends StatelessWidget {
+  const _VariantRow({
+    required this.variant,
+    required this.selected,
+    this.onTap,
+  });
+
+  final ProductVariant variant;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _c(context);
+    final detail = <String>[
+      if (variant.sku != null) 'SKU ${variant.sku}',
+      if (variant.sellerName != null) variant.sellerName!,
+      if (!variant.inStock) 'Out of stock',
+    ].join(' · ');
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AgencySpacing.xs),
+        padding: const EdgeInsets.all(AgencySpacing.sm),
+        decoration: BoxDecoration(
+          color: selected ? colors.surfaceInteractive : colors.surfaceRaised,
+          borderRadius: BorderRadius.circular(AgencyRadius.md),
+          border: Border.all(
+              color: selected ? colors.actionPrimary : colors.borderDefault),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 18,
+              color: selected ? colors.actionPrimary : colors.contentSecondary,
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    variant.label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary),
+                  ),
+                  if (detail.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 11, color: colors.contentSecondary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Text(
+              variant.price?.formatted ?? 'On request',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color:
+                      selected ? colors.actionPrimary : colors.contentPrimary),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -508,7 +686,7 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
     final cart = ref.read(b2bQuotationCartProvider);
     final existing = cart.lines.map((l) => l.sku).toSet();
     final candidates = ref
-        .read(tradeCatalogueProvider)
+        .read(tradeCatalogueViewProvider)
         .where((p) => !existing.contains(p.product.id))
         .toList();
     if (candidates.isEmpty) {
@@ -721,7 +899,7 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
     if (q.isEmpty) return const <TradeProduct>[];
     final inBasket = cart.lines.map((l) => l.sku).toSet();
     return ref
-        .read(tradeCatalogueProvider)
+        .read(tradeCatalogueViewProvider)
         .where((p) =>
             !inBasket.contains(p.product.id) &&
             (p.product.title.toLowerCase().contains(q) ||
@@ -1202,7 +1380,10 @@ class B2BQuotationCartScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quotation Cart'),
-        actions: _b2bHomeActions(context),
+        actions: <Widget>[
+          const ConversationBellButton(audience: ConversationAudience.business),
+          ..._b2bHomeActions(context),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -1371,6 +1552,18 @@ class B2BQuotationCartScreen extends ConsumerWidget {
   Widget _cartLine(BuildContext context, WidgetRef ref, B2BQuotationLine line) {
     final colors = _c(context);
     final notifier = ref.read(b2bQuotationCartProvider.notifier);
+    TradeProduct? catalogueProduct;
+    ProductVariant? selectedVariant;
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
+      final variant = product.product.variants
+          .where((item) => item.sku == line.sku || item.id == line.sku)
+          .firstOrNull;
+      if (variant != null || product.product.id == line.sku) {
+        catalogueProduct = product;
+        selectedVariant = variant;
+        break;
+      }
+    }
     return Container(
       margin: const EdgeInsets.only(bottom: AgencySpacing.sm),
       padding: const EdgeInsets.all(AgencySpacing.sm),
@@ -1407,6 +1600,30 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                     '${line.total.formatted} · ${line.unitPrice.formatted}/unit',
                     style: TextStyle(
                         fontSize: 11, color: colors.contentSecondary)),
+                if (catalogueProduct != null)
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.read(conversationDockProvider.notifier).discuss(
+                              ConversationAudience.business,
+                              ConversationProductCapture.fromProduct(
+                                catalogueProduct!.product,
+                                variant: selectedVariant,
+                                quantity: line.quantity,
+                                sellerName: line.seller,
+                                unitPrice: line.unitPrice,
+                                offerId: selectedVariant?.offerId ??
+                                    catalogueProduct.product.cartOfferId,
+                              ),
+                            ),
+                    icon: const Icon(Icons.forum_outlined, size: 15),
+                    label: const Text('Discuss'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(44, 44),
+                      padding: EdgeInsets.zero,
+                      textStyle: const TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -2032,7 +2249,7 @@ class _RelatedProductsRailState extends ConsumerState<_RelatedProductsRail> {
     final cart = ref.watch(b2bQuotationCartProvider);
     final inCart = cart.lines.map((line) => line.sku).toSet();
     final related = ref
-        .watch(tradeCatalogueProvider)
+        .watch(tradeCatalogueViewProvider)
         .where((p) => !inCart.contains(p.product.id))
         .take(6)
         .toList();

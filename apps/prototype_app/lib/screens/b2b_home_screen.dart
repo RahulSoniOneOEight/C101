@@ -5,9 +5,14 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/app_notification.dart';
 import '../domain/b2b_trade_models.dart';
+import '../domain/presentation.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
 import '../providers/notifications_providers.dart';
+import '../providers/workspace_providers.dart';
 import '../providers/trade_offers_providers.dart';
+import '../widgets/b2b_home_header.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// BuildKart B2B Trade Home — **V5**.
@@ -24,8 +29,9 @@ class B2BHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
-  /// The active quick-order list preset (name of a procurement list).
-  String _selectedList = '';
+  /// Id of the selected quick-order list. Selection is an id, not a title, so an
+  /// operator rename cannot leave the rail with no chip selected (CHG-062).
+  String? _selectedListId;
 
   /// Per-SKU quick-order quantities (defaults to the product MOQ).
   final Map<String, int> _quickQty = <String, int>{};
@@ -46,39 +52,84 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     final cart = ref.watch(b2bQuotationCartProvider);
-    final presets = ref.watch(quickOrderPresetsProvider);
-    if (_selectedList.isEmpty && presets.isNotEmpty) {
-      _selectedList = presets.first;
-    }
+    final b2bBanners =
+        ref.watch(b2bPresentationProvider).value?.bannersFor('home.hero') ??
+            const <StorefrontBanner>[];
+    // One list is always selected: the last choice when it still exists, else
+    // the first list. This runs on every build, so the default survives an
+    // async CMS load or an operator rename.
+    final selected = _selectedList();
+    if (selected != null) _selectedListId = selected.id;
 
     return Scaffold(
       body: SafeArea(
+        top: false,
         child: CustomScrollView(
           slivers: <Widget>[
             SliverToBoxAdapter(
-              child: B2BHeader(
-                onSearchTap: () => context.push('/b2b/catalogue'),
-                onNotificationsTap: () =>
-                    context.push('/notifications?audience=b2b'),
-                notificationCount: ref.watch(
-                    unreadNotificationsProvider(NotificationAudience.b2b)),
-                onCartTap: () => context.go('/b2b/cart'),
-                onAccountTap: () => context.go('/b2b/account'),
+              child: SizedBox(
+                height: B2bHomeHeader.heightFor(context,
+                        hasBanners: b2bBanners.isNotEmpty) -
+                    24,
+                child: OverflowBox(
+                  alignment: Alignment.topCenter,
+                  minHeight: 0,
+                  maxHeight: B2bHomeHeader.heightFor(context,
+                      hasBanners: b2bBanners.isNotEmpty),
+                  child: B2bHomeHeader(
+                    banners: b2bBanners,
+                    rotationMs:
+                        ref.watch(heroRotationMsProvider('b2b')).value ?? 0,
+                    onSearch: () => context.push('/b2b/catalogue'),
+                    onLocation: () => context.push('/b2b/account'),
+                    onNotifications: () =>
+                        context.push('/notifications?audience=b2b'),
+                    notificationCount: ref.watch(
+                        unreadNotificationsProvider(NotificationAudience.b2b)),
+                    conversationUnreadCount:
+                        ref.watch(workspaceUnreadCountProvider).value ?? 0,
+                    onConversations: () => ref
+                        .read(conversationDockProvider.notifier)
+                        .open(ConversationAudience.business),
+                    onCart: () => context.go('/b2b/cart'),
+                    onAccount: () => context.go('/b2b/account'),
+                    onBannerAction: (uri) => context.push(uri),
+                  ),
+                ),
               ),
             ),
-            // ---- Quick order unit ----
-            SliverToBoxAdapter(child: _quickOrderUnit(catalogue)),
-            // ---- Buy Again unit ----
-            SliverToBoxAdapter(child: _buyAgainUnit()),
-            // ---- Trade Offers & Deals unit ----
-            SliverToBoxAdapter(child: _offersUnit()),
-            // ---- Categories + Products unit ----
-            SliverToBoxAdapter(child: _categoriesUnit(catalogue)),
-            // ---- Cart summary ----
-            if (!cart.isEmpty) SliverToBoxAdapter(child: _cartSummary(cart)),
-            const SliverToBoxAdapter(child: SizedBox(height: AgencySpacing.lg)),
+            SliverToBoxAdapter(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: context.homePalette.surface,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1120),
+                    child: Column(
+                      children: <Widget>[
+                        // ---- Quick order unit ----
+                        _quickOrderUnit(catalogue),
+                        // ---- Buy Again unit ----
+                        _buyAgainUnit(),
+                        // ---- Trade Offers & Deals unit ----
+                        _offersUnit(),
+                        // ---- Categories + Products unit ----
+                        _categoriesUnit(catalogue),
+                        // ---- Cart summary ----
+                        if (!cart.isEmpty) _cartSummary(cart),
+                        const SizedBox(height: AgencySpacing.lg),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -89,7 +140,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _quickOrderUnit(List<TradeProduct> catalogue) {
     final colours = context.colors;
-    final presets = ref.watch(quickOrderPresetsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
+    final selected = _selectedList();
     final products = _listProducts(catalogue);
     return MerchandisingUnitCard(
       title: 'Quick order',
@@ -99,15 +151,26 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           ProcurementListFilterBar(
-            filters: presets,
-            selected: <String>{_selectedList},
-            onToggle: (f) => setState(() => _selectedList = f),
+            filters: <String>[for (final list in lists) list.title],
+            selected: <String>{if (selected != null) selected.title},
+            onToggle: (title) {
+              final match =
+                  lists.where((list) => list.title == title).firstOrNull;
+              if (match != null) setState(() => _selectedListId = match.id);
+            },
           ),
           const SizedBox(height: AgencySpacing.sm),
-          if (products.isEmpty)
+          if (products.isEmpty && catalogue.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AgencySpacing.md),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          else if (products.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
-              child: Text('No SKUs in this list yet.',
+              child: Text(
+                  'No saved-list SKUs match the live catalogue yet. '
+                  'Add SKUs from the catalogue to build this list.',
                   style:
                       TextStyle(fontSize: 13, color: colours.contentSecondary)),
             )
@@ -169,11 +232,20 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
     );
   }
 
+  /// The selected list, falling back to the first list so the rail is never
+  /// rendered in an unselected state.
+  ProcurementList? _selectedList() {
+    final lists = ref.watch(effectiveProcurementListsProvider);
+    if (lists.isEmpty) return null;
+    for (final list in lists) {
+      if (list.id == _selectedListId) return list;
+    }
+    return lists.first;
+  }
+
   /// Resolves the selected procurement list's SKUs to catalogue trade products.
   List<TradeProduct> _listProducts(List<TradeProduct> catalogue) {
-    final lists = ref.watch(procurementListsProvider);
-    final list = lists.where((l) => l.title == _selectedList).firstOrNull ??
-        (lists.isNotEmpty ? lists.first : null);
+    final list = _selectedList();
     if (list == null) return const <TradeProduct>[];
     final resolved = <TradeProduct>[];
     for (final item in list.items) {
@@ -197,7 +269,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   }
 
   void _addQuickOrder() {
-    final products = _listProducts(ref.read(tradeCatalogueProvider));
+    final products = _listProducts(ref.read(tradeCatalogueViewProvider));
     if (products.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This list has no orderable SKUs')),
@@ -215,6 +287,21 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _buyAgainUnit() {
     final products = ref.watch(frequentSavedProvider);
+    if (products.isEmpty) {
+      return MerchandisingUnitCard(
+        title: 'Buy Again',
+        onSeeAll: () => context.push('/b2b/orders'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AgencySpacing.md),
+          child: Text(
+            'No previous order lines match the live catalogue yet. '
+            'Your ordered SKUs will appear here.',
+            style:
+                TextStyle(fontSize: 13, color: context.colors.contentSecondary),
+          ),
+        ),
+      );
+    }
     return MerchandisingUnitCard(
       title: 'Buy Again',
       onSeeAll: () => context.push('/b2b/orders'),
@@ -246,6 +333,11 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   // ---- Trade Offers & Deals ----------------------------------------------
 
   Widget _offersUnit() {
+    // Deals are a merchandising claim, not a wrapper around the catalogue. With
+    // no collection resolving a live product there is nothing to advertise.
+    if (!ref.watch(tradeOffersHaveProductsProvider)) {
+      return const SizedBox.shrink();
+    }
     final featured = ref.watch(featuredTradeOffersProvider);
     return MerchandisingUnitCard(
       title: 'Trade Offers & Deals',
@@ -335,7 +427,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _categoriesUnit(List<TradeProduct> catalogue) {
     final colours = context.colors;
-    final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final tradeCategories = ref.watch(tradeCategoryOptionsProvider);
     final selectedLabel = _catId == null
         ? null
         : tradeCategories
@@ -355,7 +447,9 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           MerchandisingBanner(
-            imageUrl: b2bCategoryBannerImage(_catId),
+            imageUrl: ref.watch(b2bCategoryBannerImageByIdProvider(_catId)) ??
+                fallbackCategoryBannerImage,
+            imageAlt: ref.watch(b2bCategoryBannerAltByIdProvider(_catId)),
             title: selectedLabel == null
                 ? 'Trade catalogue'
                 : '$selectedLabel supplies',

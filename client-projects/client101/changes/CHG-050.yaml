@@ -1,0 +1,104 @@
+change_id: CHG-050
+revision: 2
+request: >-
+  Make the 233 grouped products and 500 imported SKUs browseable in the real B2C and B2B web
+  experiences, instead of the B2C 100-product truncation and the fixture-only B2B catalogue.
+type: staging-live-catalogue-ui-wiring
+extends:
+- CHG-049
+- CHG-048
+affected_capabilities:
+- marketplace-catalogue
+- marketplace-merchandising
+- seller-offers
+affected_domains:
+- commerce
+- content
+- marketplace
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.products
+already_present:
+- 233 published products with 500 variants and 500 offers, linked to both sales channels (CHG-049).
+- B2C storefront reads the Experience API and falls back to a local cache when it is unavailable.
+- B2B category rail reads CMS presentation (CHG-048).
+- B2C and B2B sales-channel ids and the B2B pricing region are configured in the Experience API.
+missing:
+- B2C requests a single page of 100 products, so 133 imported products never render.
+- B2B catalogue, PDP, quick order, price advantage and offers read a hardcoded 16-product fixture.
+- The Experience API does not expose product metadata, categories, per-variant prices or an import key.
+- Product cards show one variant only; there is no way to inspect the other 499 SKUs by SKU or variant.
+conflicts_requiring_a_decision:
+- C-050-01: >-
+    The staging catalogue also contains 52 pre-existing demonstration products. Showing "all" products
+    would mix governed source-catalogue SKUs with demonstration fixtures, so the imported set is
+    selected by its `catalogue_import` marker rather than by "whatever is published".
+- C-050-02: >-
+    B2B trade attributes (MOQ, quantity tiers, delivery location) have no upstream contract. They must
+    not be invented per product; only the values that exist (price, stock fixture, seller, variant) are
+    shown, and MOQ stays 1 until a governed trade-terms source exists.
+- C-050-03: >-
+    Staging stock of 50 is a fixture. It may be shown as availability, but not as a supplier stock
+    claim, and must remain labelled as staging data.
+decisions_approved:
+- D-050-01: Paginate the B2C catalogue until the reported count is reached instead of a fixed 100.
+- D-050-02: Serve the B2B trade catalogue from the Experience API and keep the local fixtures only as a
+    fallback when the backend is unreachable.
+- D-050-03: Select the imported catalogue by `catalogue_import=CHG-049`, and support a `channel` read
+    context that is honoured only for an authenticated business buyer.
+- D-050-04: Expose product metadata, categories and per-variant best prices from the Experience API so
+    the app never reconstructs traceability data.
+- D-050-05: Show the variant group on product cards and list every variant (label, SKU, price) on the
+    product detail, with search matching title, brand, variant label and SKU.
+- D-050-06: Keep MOQ at 1 where no governed trade-terms source exists; do not synthesise tiers.
+- D-050-07: An imported SKU never receives a derived MRP, review discount, merchandising tag or
+    competitor price comparison. Only the source price and sourced attributes are shown.
+- D-050-08: Public catalogue imagery on the operator host is served with a wildcard CORS origin,
+    because the Firebase-hosted storefront renders it cross-origin and CanvasKit rejects it otherwise.
+- D-050-09: An imported product filters by its sourced L1 category identity, not by title keywords.
+    Keyword matching is retained only for demonstration products that carry no category identity.
+- D-050-10: An empty merchandising module must say why it is empty, and the deals module is hidden
+    when no collection resolves a live product rather than advertising offers that do not exist.
+required_tests:
+- B2C loads 233 products (500 variants) via pagination, not 100.
+- B2B catalogue, PDP, quick order and offers resolve the same 233 products from the API.
+- An unreachable API still renders the local B2B fixture fallback without an error page.
+- Search matches a variant SKU and opens the product that owns it.
+- The product detail lists every variant with its own SKU and price.
+- Experience API returns per-variant best prices, `catalogue_import`, categories and metadata.
+constraints:
+- Staging only; production release remains unauthorized.
+- Grouped products stay at 233 cards; 500 SKUs are variants, never 500 separate cards.
+- No fabricated prices, MOQ, tiers or stock; the 50-unit staging fixture stays explicit.
+- Existing B2C/B2B independent merchandising and the category tree remain intact.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-050/live-catalogue-ui.md
+  verification:
+    experience_api_typecheck: pass
+    flutter_analyze: pass
+    flutter_tests: 179-pass
+    flutter_web_release_build: pass
+    experience_api_deployed: true
+    firebase_hosting_deployed: true
+    api_products: 233
+    api_variants_and_unique_skus: 500
+    b2c_browse_cards: 233
+    b2b_catalogue_cards: 233
+    b2b_agriculture_filter: 13
+    b2b_lighting_filter: 71
+    b2c_agriculture_filter: 13
+    b2c_lighting_filter: 71
+    sku_search: pass
+    empty_deals_module_hidden: true
+  deployment:
+    experience_api_commit: 15ee4f9
+    hosting_project: buildkart-staging
+    nginx_change: /static/ CORS headers on the operator host
+status: deployed-to-staging-awaiting-human-visual-review
+production_release_authorized: false

@@ -1,0 +1,46 @@
+change_id: CHG-065
+revision: 1
+request: >-
+  Match B2B home banner dimensions to B2C, surface more Lighting & Electrical, Bathroom & Plumbing
+  and Paints & Finishes products in the home modules, and refresh category banner creatives from the
+  supplied builder.
+type: home-merchandising-and-banner-creatives
+extends:
+- CHG-060
+- CHG-062
+- CHG-064
+affected_capabilities:
+- storefront-home
+affected_domains:
+- experience
+- content
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+decisions_approved:
+- D-065-01: >-
+    B2B home banners keep their previous dimensions (padded, 160px card). The B2C-matching change was
+    reverted after review because it made the trade banner too tall.
+- D-065-02: >-
+    Flash Deals, Best Sellers and Recommended lead with the three priority categories, then fill from
+    the rest of the catalogue; rails carry up to 12, 12 and 6 products.
+- D-065-03: >-
+    Category banner creatives for Lighting & Electrical, Bathroom & Plumbing and Paints & Finishes are
+    rebuilt at 4000x1200 from the supplied builder using live catalogue photos and product-accurate
+    labels.
+constraints:
+- No catalogue identity, price or stock changes.
+- Staging only; production release remains unauthorized.
+required_tests:
+- B2B banner card is edge-to-edge and the same height family as B2C.
+- Home rails list priority-category products first.
+- Generated banners are 4000x1200 JPEG.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: in-progress
+status: approved-in-progress
+production_release_authorized: false

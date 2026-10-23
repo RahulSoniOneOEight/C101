@@ -5,21 +5,39 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_dock.dart';
 
 /// Host scaffold for the B2B section: owns the persistent bottom navigation
 /// and delegates content to the active branch of the [StatefulNavigationShell].
 class B2BShell extends StatelessWidget {
-  const B2BShell({required this.navigationShell, super.key});
+  const B2BShell({
+    required this.navigationShell,
+    required this.currentPath,
+    super.key,
+  });
 
   final StatefulNavigationShell navigationShell;
+  final String currentPath;
+
+  bool get _conversationEnabled =>
+      currentPath == '/b2b' ||
+      currentPath == '/b2b/catalogue' ||
+      currentPath == '/b2b/cart' ||
+      currentPath.startsWith('/b2b/pdp/');
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: ConversationDockHost(
+        audience: ConversationAudience.business,
+        enabled: _conversationEnabled,
+        child: navigationShell,
+      ),
       bottomNavigationBar: AppBottomNavigation(
         items: const <BottomNavItem>[
           BottomNavItem(label: 'Trade', icon: Icons.storefront_outlined),
+          BottomNavItem(label: 'Browse', icon: Icons.grid_view_outlined),
           BottomNavItem(label: 'Credit', icon: Icons.credit_card_outlined),
           BottomNavItem(label: 'Cart', icon: Icons.shopping_cart_outlined),
           BottomNavItem(label: 'Account', icon: Icons.person_outline),

@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/account_models.dart';
+import 'package:prototype_app/domain/order_models.dart';
 import 'package:prototype_app/providers/account_providers.dart';
-import 'package:prototype_app/providers/orders_providers.dart';
 import 'package:prototype_app/screens/account_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,22 +22,22 @@ Future<ProviderContainer> _container() async {
 void main() {
   test('saved addresses seed, set default, add and remove', () async {
     final c = await _container();
-    expect(c.read(addressesProvider), hasLength(2));
+    expect(c.read(addressesProvider), hasLength(3));
     expect(c.read(defaultAddressProvider)!.label, 'Home');
 
     await c.read(addressesProvider.notifier).setDefault('addr_site');
     expect(c.read(defaultAddressProvider)!.id, 'addr_site');
 
     await c.read(addressesProvider.notifier).add(const SavedAddress(
-          id: 'addr_office',
-          label: 'Office',
+          id: 'addr_warehouse',
+          label: 'Warehouse',
           fullName: 'Rahul Sharma',
           phone: '+91 98765 43210',
           line1: 'Tower B',
           city: 'Gurugram',
           pincode: '122001',
         ));
-    expect(c.read(addressesProvider), hasLength(3));
+    expect(c.read(addressesProvider), hasLength(4));
 
     await c.read(addressesProvider.notifier).remove('addr_site');
     final list = c.read(addressesProvider);
@@ -58,18 +58,78 @@ void main() {
     expect(c.read(wishlistProvider).first, 'prod_paint');
   });
 
-  test('order cancel clears eligibility and appends a timeline event',
-      () async {
-    final c = await _container();
-    final order = c.read(ordersProvider).firstWhere((o) => o.cancelEligible);
-    final before = order.timeline.length;
+  test('order payload parses lines, shipments and return eligibility', () {
+    final order = CustomerOrder.fromApi(<String, dynamic>{
+      'order_id': 'ord_1',
+      'medusa_order_group_id': 'og_1',
+      'status': 'confirmed',
+      'created_at': '2026-10-20T10:00:00.000Z',
+      'lines': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'line_key': 'line_1',
+          'sku': 'SKU-1',
+          'title': '18V Drill Kit',
+          'quantity': 2,
+          'unit_price': 649900,
+        },
+      ],
+      'shipments': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'ship_1',
+          'status': 'delivered',
+          'tracking_number': 'SIM-123',
+          'provider': 'simulated',
+          'delivered_at': '2026-10-20T12:00:00.000Z',
+          'lines': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'line_key': 'line_1',
+              'sku': 'SKU-1',
+              'ordered_qty': 2,
+              'delivered_qty': 2,
+            },
+          ],
+          'events': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'shev_1',
+              'status': 'in_transit',
+              'event_type': 'shipment.in_transit',
+              'occurred_at': '2026-10-20T11:00:00.000Z',
+              'provider_event_id': 'evt_1',
+            },
+            <String, dynamic>{
+              'id': 'shev_2',
+              'status': 'delivered',
+              'event_type': 'shipment.delivered',
+              'occurred_at': '2026-10-20T12:00:00.000Z',
+              'provider_event_id': 'evt_2',
+            },
+          ],
+        },
+      ],
+      'return_eligibility': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'line_key': 'line_1',
+          'sku': 'SKU-1',
+          'ordered_qty': 2,
+          'delivered_qty': 2,
+          'returnable_qty': 2,
+          'deadline': '2026-10-27T12:00:00.000Z',
+          'allowed_reasons': <String>['damaged', 'wrong_item'],
+          'eligible': true,
+          'ineligible_reason': null,
+        },
+      ],
+      'returns': <Map<String, dynamic>>[],
+    });
 
-    c.read(ordersProvider.notifier).cancel(order.id);
-
-    final after = c.read(orderByIdProvider(order.id))!;
-    expect(after.cancelEligible, isFalse);
-    expect(after.stage.name, 'cancelled');
-    expect(after.timeline.length, before + 1);
+    expect(order.id, 'ord_1');
+    expect(order.stage, OrderStage.delivered);
+    expect(order.shipments.single.trackingNumber, 'SIM-123');
+    expect(order.shipments.single.events.length, 2);
+    expect(order.timeline.length, 3);
+    expect(order.lines.single.returnableQty, 2);
+    expect(order.returnEligible, isTrue);
+    expect(order.returnStatus, isNull);
   });
 
   test('payment methods expose supported methods and manage saved cards',
@@ -126,10 +186,13 @@ void main() {
   test('settings update language and notification prefs', () async {
     final c = await _container();
     final s = c.read(settingsProvider);
-    await c.read(settingsProvider.notifier).update(
-        s.copyWith(language: AppLanguage.hindi, notificationsEnabled: false));
+    await c.read(settingsProvider.notifier).update(s.copyWith(
+        language: AppLanguage.hindi,
+        notificationsEnabled: false,
+        whatsappOrderUpdates: true));
     expect(c.read(settingsProvider).language, AppLanguage.hindi);
     expect(c.read(settingsProvider).notificationsEnabled, isFalse);
+    expect(c.read(settingsProvider).whatsappOrderUpdates, isTrue);
   });
 
   test('profile saves name, email and mobile', () async {

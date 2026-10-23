@@ -28,7 +28,21 @@
     "test:storefront-layout": "bun run src/scripts/storefront-layout-test.ts",
     "test:cms-content": "bun run src/scripts/cms-content-test.ts",
     "test:cms-content-store": "bun run src/scripts/cms-content-store-test.ts",
-    "test:load": "bun run src/scripts/load-test.ts"
+    "test:presentation": "bun run src/scripts/presentation-test.ts",
+    "test:load": "bun run src/scripts/load-test.ts",
+    "test:collection-url": "bun run src/scripts/collection-url-test.ts",
+    "test:cart-totals": "bun run src/scripts/cart-totals-test.ts",
+    "test:cart-customer-context": "bun run src/scripts/cart-customer-context-test.ts",
+    "test:promotion-acceptance": "bun run src/scripts/promotion-acceptance.ts",
+    "test:image-quality-order": "bun run src/scripts/image-quality-order-test.ts",
+    "test:shipment-ordering": "bun run src/scripts/shipment-event-ordering-test.ts",
+    "test:shipment-restart": "bun run src/scripts/shipment-restart-test.ts",
+    "test:shipment-auth": "bun run src/scripts/shipment-auth-test.ts",
+    "test:seller-shipment-auth": "bun run src/scripts/seller-shipment-auth-test.ts",
+    "test:shipment-reconcile": "bun run src/scripts/shipment-exception-reconcile-test.ts",
+    "test:return-idempotency": "bun run src/scripts/return-idempotency-test.ts",
+    "test:return-eligibility": "bun run src/scripts/return-eligibility-test.ts",
+    "test:return-no-effects": "bun run src/scripts/return-no-effects-test.ts"
   },
   "dependencies": {
     "firebase-admin": "^14.5.0",

@@ -15,6 +15,9 @@ const SUBJECT_BY_EVENT: Record<string, string> = {
   "inventory.reservation_committed": "inventory.reservation.committed.v1",
   "inventory.reservation_released": "inventory.reservation.released.v1",
   "shipment.status_changed": "logistics.shipment.status-changed.v1",
+  "return.requested": "return.requested.v1",
+  "return.decision": "return.decision.v1",
+  "return.status-changed": "return.status-changed.v1",
 };
 
 export function eventSubject(eventType: string): string {
@@ -22,6 +25,14 @@ export function eventSubject(eventType: string): string {
 }
 
 const STREAM = "BUILDKART_EVENTS";
+const STREAM_SUBJECTS = [
+  "commerce.>",
+  "inventory.>",
+  "logistics.>",
+  "return.>",
+  "marketplace-allocation.>",
+  "buildkart.>",
+];
 const sc = StringCodec();
 
 export class NatsPublisher {
@@ -40,12 +51,14 @@ export class NatsPublisher {
     });
     const jsm = await this.nc.jetstreamManager();
     try {
-      await jsm.streams.add({
-        name: STREAM,
-        subjects: ["commerce.>", "inventory.>", "logistics.>", "buildkart.>"],
-      });
+      const info = await jsm.streams.info(STREAM);
+      const configured = info.config.subjects ?? [];
+      const merged = [...new Set([...configured, ...STREAM_SUBJECTS])];
+      if (merged.length !== configured.length) {
+        await jsm.streams.update(STREAM, { subjects: merged });
+      }
     } catch {
-      // stream already exists
+      await jsm.streams.add({ name: STREAM, subjects: STREAM_SUBJECTS });
     }
     this.js = this.nc.jetstream();
   }

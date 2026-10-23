@@ -1,7 +1,7 @@
 contract_id: DC-client101-001
 client_id: client101
 change_contract: CHG-017
-change_contract_revision: 5
+change_contract_revision: 7
 governance_status: decision-approvals-recorded-evidence-conditions-pending
 governed_amendments:
 - change_contract: CHG-018
@@ -16,6 +16,14 @@ governed_amendments:
   revision: 1
   status: bounded-staging-implementation-requested
   scope: merchandising-presets-promotions-campaigns-and-campaign-content
+- change_contract: CHG-070
+  revision: 1
+  status: bounded-staging-phase-1-approved
+  scope: b2b-collaborative-workspace-messaging-purchase-drafts-approvals-and-checkout-handoff
+- change_contract: CHG-035
+  revision: 1
+  status: contracts-drafted-runtime-pending
+  scope: delivery-capture-shipment-evidence-and-phase-1-returns
 entities:
   - name: order
     canonical_owner: commerce
@@ -76,6 +84,55 @@ entities:
     projections: [commerce-fulfilment-status, erp-shipment-projection, experience-tracking]
     notes:
     - One destination and shipment are permitted per checkout in this slice.
+    - CHG-035 requires one durable staging shipment per Mercur allocation, with delivered_at,
+      per-line delivered quantity and proof reference. Provider events remain evidence and never
+      become commerce state.
+    - Booking is driven by marketplace-allocation.created, not order.confirmed.
+  - name: shipment-event
+    canonical_owner: logistics-provider
+    consumers: [experience, operations]
+    projections: [experience-shipment-timeline, operator-shipment-exceptions]
+    notes:
+    - Append-only provider evidence deduplicated by (provider, provider_event_id).
+    - Stores duplicate and out-of-order events without regressing the derived status.
+    - Provider events never mutate Medusa order success or Tryton stock.
+  - name: delivery-evidence
+    canonical_owner: logistics-provider
+    consumers: [experience, commerce, operations]
+    projections: [experience-delivery-proof, return-eligibility-input]
+    notes:
+    - Records delivered_at, per-line delivered quantity and a proof reference.
+    - Phase 1 stores references and metadata only; no binaries in Postgres.
+  - name: return-case
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-status, operator-return-queue]
+    notes:
+    - CHG-035 Phase 1 workflow case with a frozen policy version and snapshot.
+    - Idempotent by (user_id, idempotency_key); replay returns the existing case.
+    - Has no Medusa money effect and no Tryton stock or movement effect.
+    - Phase 1 decisions stop at approved or rejected; pickup, restock and refund are out of scope.
+  - name: return-line
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-line]
+    notes:
+    - Captures ordered, delivered, requested and approved quantity plus its reason code.
+    - Eligibility is computed at request time and never re-evaluated against a newer policy.
+  - name: return-evidence
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [operator-return-evidence]
+    notes:
+    - Stores object references, content type, size, hash and scan status only.
+    - No attachment binary is stored in Postgres.
+  - name: return-event
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations]
+    projections: [experience-return-timeline, audited-return-decision]
+    notes:
+    - Append-only actor, role, event type, detail and timestamp.
+    - Records operator decisions and customer-visible state changes without financial or stock effect.
   - name: invoice
     canonical_owner: erp-accounting
     consumers: [commerce, experience, finance]
@@ -97,6 +154,7 @@ entities:
     - Editorial content is non-transactional and cannot determine eligibility or success.
     - CMS provider selection and DAM workflows remain outside the bounded staging order increment.
     - CHG-029 adds campaign banner, campaign-copy and trade-program elements; they remain editorial and cannot determine discount eligibility.
+    - CHG-035 composes published Strapi banner and category presentation with Medusa-owned category identity, hierarchy and product membership; CMS icon keys and labels never become commerce identifiers.
   - name: business-account
     canonical_owner: commerce
     consumers: [erp, analytics]
@@ -200,4 +258,115 @@ entities:
     - Records actor, server-owned roles and scope, route, correlation id and outcome for privileged staging mutations.
     - An unavailable audit store blocks the privileged mutation before execution.
     - Records are staging test data and do not authorize production actions.
+  - name: workspace
+    canonical_owner: workspace
+    consumers: [experience, operations]
+    projections: [experience-workspace-summary]
+    notes:
+    - CHG-070 approved Workspace as a bounded context; CHG-072 extends it to household scope.
+    - Scope is either a business account or a household project. Membership is a projection and cannot grant access independently.
+    - Household and business-account scopes never satisfy each other's authorization checks.
+    - Workspace must never duplicate carts, orders, payments, inventory, products, prices or notification inboxes.
+    - Purchase intent stays in Workspace; only an explicit, revalidated, idempotent handoff may add canonical cart lines.
+  - name: workspace-membership-projection
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-workspace-permissions]
+    notes:
+    - Projected from authoritative membership for the owning scope, either a business account or a household project.
+    - A household participant projection never carries owner address, phone, GST or payment data.
+    - Revocation, invitation expiry and owner removal must end REST and WebSocket access promptly.
+  - name: workspace-channel
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-channel-list]
+    notes:
+    - B2B pilot channels are Procurement and Approvals; a household project uses a project channel.
+    - Channel scope never crosses the owning workspace, business account or household.
+  - name: workspace-message
+    canonical_owner: workspace
+    consumers: [experience, operations]
+    projections: [experience-channel-message, audited-operator-read]
+    notes:
+    - Durable text messages with actor, body, type, timestamps and soft deletion.
+    - Messages are collaboration content, not commercial state.
+  - name: workspace-message-reference
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-message-product-card]
+    notes:
+    - Stores a reference and display snapshot only; current product values are hydrated through the Experience API.
+    - Never becomes a second product, price or stock store.
+  - name: workspace-invitation
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-invitation-status]
+    notes:
+    - Household only under CHG-072; created by the owner and bound to one invitee email and scope.
+    - Single-use, expiring and revocable; acceptance requires the invited identity to complete OTP.
+    - Never grants access before acceptance and never carries checkout data.
+  - name: workspace-read-cursor
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-unread-count]
+    notes:
+    - Tracks last event sequence per channel and user for unread state and reconnect.
+  - name: purchase-draft
+    canonical_owner: workspace
+    consumers: [experience, commerce]
+    projections: [experience-purchase-draft-summary]
+    notes:
+    - Draft is collaborative purchase intent, not a Medusa cart.
+    - Lifecycle: draft, review_requested, approved, changes_requested, ordered, cancelled; revisions may be superseded.
+  - name: draft-revision
+    canonical_owner: workspace
+    consumers: [experience, commerce]
+    projections: [experience-draft-revision]
+    notes:
+    - Immutable canonical payload plus server-computed commercial hash, version and creator.
+    - Approval evidence must always reconstruct the exact approved revision.
+  - name: draft-line-revision
+    canonical_owner: workspace
+    consumers: [experience, commerce]
+    projections: [experience-draft-line]
+    notes:
+    - Carries product, variant, seller, offer, fulfilment context, quantity, commercial snapshot and material instruction.
+    - Material instructions are part of the revision and commercial hash.
+  - name: proposal
+    canonical_owner: workspace
+    consumers: [experience]
+    projections: [experience-proposal-card]
+    notes:
+    - A proposal never mutates the draft until a buyer/owner accepts or edits it.
+    - Optimistic concurrency uses expected revision and an idempotency key.
+  - name: approval-request
+    canonical_owner: workspace
+    consumers: [experience, operations]
+    projections: [experience-approval-card, audited-approval-evidence]
+    notes:
+    - Bound to one draft revision and commercial hash.
+    - No self-approval where policy prohibits it; an approver cannot edit the approved revision.
+  - name: workspace-activity-event
+    canonical_owner: workspace
+    consumers: [experience, operations]
+    projections: [experience-activity-timeline, audited-workspace-activity]
+    notes:
+    - Append-only and tenant scoped; separate from chat.
+    - Records actor, entity reference, resulting version and a minimal summary.
+  - name: checkout-handoff
+    canonical_owner: workspace
+    consumers: [experience, commerce, operations]
+    projections: [experience-handoff-status, commerce-cart-reference]
+    notes:
+    - Records draft/revision/hash, idempotency key, validation reference, Medusa cart id, order-group id and correlation id.
+    - One approved revision may create at most one canonical order.
+    - Workspace never creates the order directly; Commerce completion remains authoritative.
+    - CHG-072 cart build records the revalidation result, acknowledged differences and the canonical cart reference; it never records an order.
+  - name: workspace-outbox
+    canonical_owner: workspace
+    consumers: [notification-integration, operations]
+    projections: [nats-workspace-events]
+    notes:
+    - Transactional outbox for workspace, proposal, approval and handoff events.
+    - Consumer inbox deduplication and failure isolation are mandatory.
 status: draft

@@ -1,0 +1,57 @@
+change_id: CHG-053
+revision: 1
+request: >-
+  Remove the pre-import demonstration products from the staging store so the catalogue is only the
+  updated 233-product / 500-SKU source import.
+type: staging-retire-demo-catalogue
+extends:
+- CHG-049
+- CHG-052
+affected_capabilities:
+- marketplace-catalogue
+affected_domains:
+- commerce
+- marketplace
+affected_surfaces:
+- medusa.store.products
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- 233 imported products / 500 SKUs marked catalogue_import=CHG-049.
+- 52 pre-import demonstration products still present in the store.
+missing:
+- The demonstration products are still published in Medusa, even though the storefront filters to the
+  imported catalogue.
+conflicts_requiring_a_decision:
+- C-053-01: >-
+    Deleting products can break cart/order references and cannot be undone. The user asked to remove
+    them "from store", which is satisfied by unpublishing.
+decisions_approved:
+- D-053-01: Archive, do not delete. Set the 52 non-imported demonstration products to draft so the
+    store no longer serves them; retain rows, offers and images for rollback.
+- D-053-02: Keep the 233 imported products and all 500 SKUs unchanged, including the 25
+    placeholder-priced source SKUs, because they are part of the approved 500-SKU selection.
+required_tests:
+- Store API returns only the imported catalogue after the change.
+- A previously visible demonstration product is no longer returned.
+- Imported product and SKU counts remain 233 / 500.
+- The change is reversible by restoring status=published.
+constraints:
+- Staging only; production release remains unauthorized.
+- No change to imported products, offers, prices, tags or images.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-053/retire-demo-catalogue.md
+  verification:
+    archived_demo_products: 52
+    published_imported_products: 233
+    store_total_after: 233
+    imported_skus: 500
+    demo_product_returned: false
+  rollback: restore status=published for the archived non-imported products
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

@@ -238,6 +238,28 @@ paths:
             application/json:
               schema: {$ref: '#/components/schemas/AppContentBundle'}
         '404': {$ref: '#/components/responses/Problem'}
+  /v1/content/curated-collections:
+    get:
+      summary: List operator-authored B2B quick-order lists and trade-offer collections
+      tags: [Content]
+      operationId: getCuratedCollections
+      parameters:
+      - $ref: '#/components/parameters/CorrelationId'
+      - name: locale
+        in: query
+        schema: {type: string, enum: [en-IN, hi-IN], default: en-IN}
+      - name: channel
+        in: query
+        schema: {type: string, enum: [b2c, b2b], default: b2b}
+      responses:
+        '200':
+          description: >-
+            Published editorial records. Membership is a category rule or explicit commerce product
+            ids; prices, stock and sellers are resolved by commerce, never carried here. An empty list
+            is a normal state and the storefront keeps its governed rule defaults.
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CuratedCollectionsResponse'}
   /v1/content/media/{fileName}:
     get:
       summary: Read an approved CMS media asset without exposing the private CMS origin
@@ -869,6 +891,44 @@ components:
     Channel:
       type: string
       enum: [b2c_app, b2b_app, b2c_web, b2b_web]
+    CuratedCollectionsResponse:
+      type: object
+      required: [locale, channel, items, source, freshness, generated_at, test_data]
+      properties:
+        locale: {type: string}
+        channel: {type: string, enum: [b2c, b2b]}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CuratedCollection'}
+        source: {type: string}
+        freshness: {$ref: '#/components/schemas/SourceFreshness'}
+        generated_at: {type: string, format: date-time}
+        test_data: {type: boolean}
+        correlation_id: {type: string}
+    CuratedCollection:
+      type: object
+      required: [collection_key, audience, placement, title, category_labels, product_ids]
+      properties:
+        collection_key: {type: string}
+        audience: {type: string, enum: [b2c, b2b, both]}
+        placement: {type: string}
+        title: {type: string}
+        description: {type: [string, 'null']}
+        category_labels:
+          type: array
+          description: L1 category labels the collection draws from.
+          items: {type: string}
+        product_ids:
+          type: array
+          description: Explicit commerce product ids; these win over the category rule.
+          items: {type: string}
+        limit: {type: [integer, 'null'], minimum: 1}
+        default_quantity: {type: [integer, 'null'], minimum: 1}
+        display_order: {type: [integer, 'null']}
+        icon_key: {type: [string, 'null']}
+        accent: {type: [string, 'null']}
+        deal_type: {type: [string, 'null']}
+        scheme_label: {type: [string, 'null']}
     Environment:
       type: string
       enum: [development, integration, staging, production]
@@ -1024,6 +1084,12 @@ components:
         variants: {type: array, items: {$ref: '#/components/schemas/ComposedVariant'}}
         best_price: {$ref: '#/components/schemas/EligibleOffer'}
         offer_count: {type: integer, minimum: 0}
+        image_quality_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: CHG-060 staging display-fitness fixture used by default relevance order.
+        image_quality_fixture: {type: [string, 'null'], const: CHG-060}
     ComposedProduct:
       type: object
       required: [id, title, variants, generated_at, freshness]
@@ -1031,6 +1097,12 @@ components:
         id: {type: string}
         title: {type: string}
         description: {type: [string, 'null']}
+        image_quality_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: CHG-060 staging display-fitness fixture; not a production DAM judgement.
+        image_quality_fixture: {type: [string, 'null'], const: CHG-060}
         variants:
           type: array
           items: {$ref: '#/components/schemas/ComposedVariant'}

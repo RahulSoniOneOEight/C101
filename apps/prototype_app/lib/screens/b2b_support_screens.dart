@@ -238,7 +238,8 @@ class B2BGstInvoicesScreen extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => PinToast.show(context, 'Downloading all invoices…'),
+              onPressed: () =>
+                  PinToast.show(context, 'Downloading all invoices…'),
               icon: const Icon(Icons.download_outlined),
               label: const Text('Download All'),
               style: OutlinedButton.styleFrom(
@@ -270,8 +271,8 @@ class _GstRow extends StatelessWidget {
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: colors.contentPrimary)),
-      subtitle: Text(invoice.meta,
-          style: TextStyle(fontSize: 11, color: color)),
+      subtitle:
+          Text(invoice.meta, style: TextStyle(fontSize: 11, color: color)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -375,7 +376,8 @@ class _InviteMemberDialog extends StatefulWidget {
 
 class _InviteMemberDialogState extends State<_InviteMemberDialog> {
   final TextEditingController _name = TextEditingController();
-  late String _role = widget.roles.length > 1 ? widget.roles[1] : widget.roles.first;
+  late String _role =
+      widget.roles.length > 1 ? widget.roles[1] : widget.roles.first;
 
   @override
   void dispose() {

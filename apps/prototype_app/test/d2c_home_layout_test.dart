@@ -39,7 +39,7 @@ void main() {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                HomeHeader(onSearch: () {}, onLocation: () {}),
+                HomeHeader(onLocation: () {}),
                 const SizedBox(height: AgencySpacing.md),
                 const SectionHeader(
                   title: 'Browse Categories',

@@ -101,7 +101,18 @@ export class EventWorkers {
           max_deliver: maxDeliver,
         });
       } catch {
-        // durable consumer already exists
+        // Reconcile mutable consumer configuration instead of silently retaining a stale broad
+        // filter. This is required when a formerly catch-all integration becomes normalized.
+        const existing = await this.jsm.consumers.info(STREAM, definition.name);
+        if (
+          existing.config.filter_subject !== definition.subject ||
+          existing.config.max_deliver !== maxDeliver
+        ) {
+          await this.jsm.consumers.update(STREAM, definition.name, {
+            filter_subject: definition.subject,
+            max_deliver: maxDeliver,
+          });
+        }
       }
       const runtime: WorkerRuntime = {
         definition,

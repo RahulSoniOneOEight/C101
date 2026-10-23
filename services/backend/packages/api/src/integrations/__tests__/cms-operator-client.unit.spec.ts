@@ -67,4 +67,78 @@ describe("CmsOperatorClient", () => {
       correlationId: "request_03",
     })).rejects.toThrow("CMS operator service returned HTTP 502.");
   });
+
+  it("surfaces the CMS safe correlation reference without exposing an internal error", async () => {
+    const fetchImpl = jest.fn(async () => new Response(JSON.stringify({
+      error: {
+        message: "CMS content operation failed. Retry once; if it fails again, provide reference request_04.",
+      },
+    }), {
+      status: 500,
+      headers: { "content-type": "application/json" },
+    })) as unknown as typeof fetch;
+    const client = new CmsOperatorClient("http://cms:1337", "operator-secret", fetchImpl);
+
+    await expect(client.mutate("banner", {
+      operation: "update-draft",
+      documentId: "banner-doc",
+      locale: "en-IN",
+      data: { title: "Reviewed title" },
+    }, {
+      actorId: "user_01",
+      correlationId: "request_04",
+    })).rejects.toThrow(
+      "CMS content operation failed. Retry once; if it fails again, provide reference request_04.",
+    );
+  });
+
+  it("maps a stale draft rejection to a conflict", async () => {
+    const fetchImpl = jest.fn(async () => new Response(JSON.stringify({
+      error: {
+        message: "This record changed after you opened it. Reload the latest draft before saving.",
+      },
+    }), {
+      status: 409,
+      headers: { "content-type": "application/json" },
+    })) as unknown as typeof fetch;
+    const client = new CmsOperatorClient("http://cms:1337", "operator-secret", fetchImpl);
+
+    await expect(client.mutate("banner", {
+      operation: "update-draft",
+      documentId: "banner-doc",
+      locale: "en-IN",
+      data: { title: "Reviewed title" },
+      expectedUpdatedAt: "2026-10-16T09:00:00.000Z",
+    }, {
+      actorId: "user_01",
+      correlationId: "request_05",
+    })).rejects.toThrow("This record changed after you opened it.");
+  });
+
+  it("sends the duplicate operation and concurrency token unchanged", async () => {
+    const fetchImpl = jest.fn(async () => new Response(JSON.stringify({
+      kind: "banner",
+      operation: "duplicate-draft",
+      document: null,
+    }), { status: 201 })) as unknown as typeof fetch;
+    const client = new CmsOperatorClient("http://cms:1337", "operator-secret", fetchImpl);
+
+    await client.mutate("banner", {
+      operation: "duplicate-draft",
+      documentId: "banner-doc",
+      locale: "hi-IN",
+      expectedUpdatedAt: "2026-10-16T09:00:00.000Z",
+    }, {
+      actorId: "user_01",
+      correlationId: "request_06",
+    });
+
+    const [, init] = (fetchImpl as unknown as jest.Mock).mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({
+      operation: "duplicate-draft",
+      documentId: "banner-doc",
+      locale: "hi-IN",
+      expectedUpdatedAt: "2026-10-16T09:00:00.000Z",
+    });
+  });
 });

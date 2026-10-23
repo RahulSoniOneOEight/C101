@@ -1,0 +1,86 @@
+change_id: CHG-037
+revision: 2
+request: >-
+  Remove the standalone Preset Review operator surface. Staging presets are bootstrap and test
+  configuration only; operators must manage the resulting promotions, campaigns, commerce
+  collections and editorial content through their respective authoritative Mercur/Medusa console
+  controls.
+type: native-console-configuration-consolidation
+extends:
+- CHG-035
+- CHG-036
+supersedes_decisions:
+- D-035-04
+affected_capabilities:
+- operator-administration
+- marketplace-merchandising
+- promotions
+- editorial-content
+affected_domains:
+- commerce
+- content
+- marketplace
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.promotions
+- mercur.admin.campaigns
+- mercur.admin.collections
+- mercur.admin.categories
+- mercur.admin.content
+- mercur.admin.merchandising-presets
+decisions:
+  D-037-01: no-standalone-preset-review-is-exposed-in-routine-admin-navigation
+  D-037-02: staging-fixtures-bootstrap-native-records-but-are-not-an-operator-control-surface
+  D-037-03: promotion-campaign-collection-and-editorial-properties-are-managed-in-their-respective-authoritative-editors
+  D-037-04: the-legacy-merchandising-presets-url-redirects-to-the-merchandising-workspace
+  D-037-05: read-only-preset-reconciliation-may-remain-an-internal-staging-diagnostic-and-test-contract
+required_tests:
+- Preset Review is absent from the Mercur sidebar and Merchandising overview.
+- The Merchandising overview does not query or display preset/live reconciliation counts.
+- Promotions link to the native Medusa Promotion editor.
+- Campaigns link to the native Medusa Campaign editor.
+- Commerce collections link to the native Medusa Collection editor.
+- Categories link to the native Medusa Category editor.
+- Editorial presentation links to the Mercur Editorial content editor.
+- The legacy `/merchandising-presets` route redirects safely to `/merchandising`.
+- Admin lint and production build pass.
+constraints:
+- Do not create duplicate promotion, campaign, collection or editorial write controls.
+- Keep bootstrap fixtures idempotent and restricted to bounded staging/test behavior.
+- Keep internal diagnostic APIs authenticated and unavailable from the customer host.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-15'
+  scope: remove-preset-review-and-consolidate-native-console-entry-points
+  human_visual_review_required: true
+production_release_authorized: false
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Preset Review navigation and overview action removed.
+  - Preset and offer reconciliation queries removed from the Merchandising overview.
+  - Legacy route redirects to the Merchandising overview.
+  - Mercur Admin ESLint passed with no warnings or errors.
+  - Mercur Admin production build passed.
+  - CHG-037 YAML and git diff whitespace validation passed.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T19:44:01Z'
+    release_commit: 9c07a35
+    release_worktree: /opt/buildkart-releases/9c07a35
+    previous_release: /opt/buildkart-releases/b317a08
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, Editorial content and legacy redirect routes return HTTP 200.
+    - Served bundle contains native Collections and Categories configuration links.
+    - Served bundle does not contain Preset Review, Review presets or preset-derived overview labels.
+    - Internal reconciliation API remains authenticated on the operator host and hidden on the customer host.
+implementation_evidence:
+- client-projects/client101/evidence/CHG-037/native-console-configuration.md
+- client-projects/client101/evidence/CHG-037/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/app_notification.dart';
+import '../domain/storefront_ux.dart';
 import '../screens/account_screen.dart';
 import '../screens/account_screens.dart';
 import '../screens/b2b_home_screen.dart';
@@ -16,12 +17,18 @@ import '../screens/b2b_support_screens.dart';
 import '../screens/b2c_flow_screens.dart';
 import '../screens/cart_screen.dart';
 import '../screens/checkout_screen.dart';
+import '../screens/collection_screen.dart';
 import '../screens/d2c_shell.dart';
+import '../screens/discovery_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../screens/product_list_screen.dart';
 import '../screens/quote_detail_screen.dart';
 import '../screens/quote_list_screen.dart';
+import '../screens/return_flow_screens.dart';
+import '../screens/workspace_screen.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_dock.dart';
 
 /// The app's route table, provided so it can be overridden in tests.
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -32,8 +39,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // D2C (consumer) shell — persistent 5-tab bottom navigation.
       // ---------------------------------------------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            D2CShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => D2CShell(
+          navigationShell: navigationShell,
+          currentPath: state.uri.path,
+        ),
         branches: <StatefulShellBranch>[
           // Home
           StatefulShellBranch(
@@ -49,11 +58,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: '/search',
-                builder: (context, state) => const SearchScreen(),
+                builder: (context, state) => SearchScreen(
+                  initialQuery: state.uri.queryParameters['q'],
+                  initialMode: state.uri.queryParameters['mode'] == 'ai'
+                      ? StorefrontSearchMode.aiDemo
+                      : StorefrontSearchMode.catalogue,
+                ),
+              ),
+              GoRoute(
+                path: '/discover',
+                builder: (context, state) => DiscoveryHubScreen(
+                  initialTab: state.uri.queryParameters['tab'] == 'brands'
+                      ? DiscoveryTab.brands
+                      : DiscoveryTab.categories,
+                ),
               ),
               GoRoute(
                 path: '/filter',
                 builder: (context, state) => const FilterScreen(),
+              ),
+              GoRoute(
+                path: '/collections/:key',
+                builder: (context, state) => CollectionScreen(
+                    collectionKey: state.pathParameters['key'] ?? ''),
               ),
             ],
           ),
@@ -65,6 +92,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => BrowseScreen(
                   initialTag: state.uri.queryParameters['tag'],
                   initialCategory: state.uri.queryParameters['category'],
+                  initialBrand: state.uri.queryParameters['brand'],
                 ),
               ),
             ],
@@ -106,6 +134,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/orders/:id',
         builder: (context, state) =>
             OrderDetailScreen(orderId: state.pathParameters['id'] ?? ''),
+        routes: <RouteBase>[
+          GoRoute(
+            path: 'return',
+            builder: (context, state) => ReturnRequestScreen(
+              orderId: state.pathParameters['id'] ?? '',
+            ),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/returns/:id',
+        builder: (context, state) => ReturnStatusScreen(
+          returnId: state.pathParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: '/track',
@@ -174,14 +216,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // B2B shell — 4-tab bottom navigation.
       // ---------------------------------------------------------------------
       StatefulShellRoute.indexedStack(
-        builder: (context, state, navigationShell) =>
-            B2BShell(navigationShell: navigationShell),
+        builder: (context, state, navigationShell) => B2BShell(
+          navigationShell: navigationShell,
+          currentPath: state.uri.path,
+        ),
         branches: <StatefulShellBranch>[
           StatefulShellBranch(
             routes: <RouteBase>[
               GoRoute(
                 path: '/b2b',
                 builder: (context, state) => const B2BHomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: <RouteBase>[
+              GoRoute(
+                path: '/b2b/catalogue',
+                builder: (context, state) => B2BCatalogueScreen(
+                  initialCategoryId: state.uri.queryParameters['category'],
+                  dealsOnly: state.uri.queryParameters['deals'] == 'true',
+                  seasonalOnly: state.uri.queryParameters['seasonal'] == 'true',
+                ),
               ),
             ],
           ),
@@ -259,16 +315,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ---- B2B catalogue, schemes & price advantage ----
       GoRoute(
         path: '/b2b/offers',
-        builder: (context, state) => TradeOffersPage(
-          initialCollectionId: state.uri.queryParameters['collection'],
-        ),
-      ),
-      GoRoute(
-        path: '/b2b/catalogue',
-        builder: (context, state) => B2BCatalogueScreen(
-          initialCategoryId: state.uri.queryParameters['category'],
-          dealsOnly: state.uri.queryParameters['deals'] == 'true',
-          seasonalOnly: state.uri.queryParameters['seasonal'] == 'true',
+        builder: (context, state) => ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: TradeOffersPage(
+            initialCollectionId: state.uri.queryParameters['collection'],
+          ),
         ),
       ),
       GoRoute(
@@ -277,13 +329,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/b2b/price-advantage',
-        builder: (context, state) => const B2BPriceAdvantageScreen(),
+        builder: (context, state) => const ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: B2BPriceAdvantageScreen(),
+        ),
       ),
       // ---- B2B quote-to-order journey ----
       GoRoute(
         path: '/b2b/pdp/:id',
-        builder: (context, state) =>
-            B2BTradePdpScreen(productId: state.pathParameters['id'] ?? ''),
+        builder: (context, state) => ConversationDockHost(
+          audience: ConversationAudience.business,
+          enabled: true,
+          child: B2BTradePdpScreen(
+            productId: state.pathParameters['id'] ?? '',
+          ),
+        ),
       ),
       GoRoute(
         path: '/b2b/rfq',
@@ -338,6 +399,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/b2b/site-selector',
         builder: (context, state) => const B2BSiteSelectorScreen(),
+      ),
+      // ---- B2B collaborative workspace (Phase 1) ----
+      GoRoute(
+        path: '/b2b/workspace',
+        builder: (context, state) => const WorkspaceScreen(),
       ),
       // ---- B2B support ----
       GoRoute(

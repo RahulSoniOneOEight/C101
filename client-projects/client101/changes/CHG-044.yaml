@@ -1,0 +1,252 @@
+change_id: CHG-044
+revision: 1
+request: >-
+  Deliver a Collections and Merchandising configuration experience: collections with product
+  assignment, removal and collection-scoped ordering; banners; and B2C/B2B storefront layouts whose
+  sections, product sources, display properties, banner associations and ordering are configured in
+  the admin and rendered by the storefronts.
+type: collections-and-storefront-layout-configuration
+extends:
+- CHG-043
+affected_capabilities:
+- marketplace-merchandising
+- operator-administration
+- editorial-content
+affected_domains:
+- commerce
+- content
+- experience
+affected_surfaces:
+- mercur.admin.products.collections
+- mercur.admin.merchandising
+- medusa.admin.buildkart.content-api
+- experience-api.content.presentation
+- app.prototype.b2c-home
+- app.prototype.b2b-home
+inspection: client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
+already_present:
+- Native Mercur/Medusa admin collections: list, create, edit, media, add products.
+- Native categories administration.
+- The banner studio with channel-bearing types, category banners, publication, server-enforced schedule, preview and concurrency control.
+- A storefront-layout CMS content type holding layoutKey, channel and a raw JSON modules array.
+- Storefront sections that already match the requested placements: Flash Deals, Best Sellers, Recommended (B2C); Buy Again and Trade Offers and Deals with Seasonal, Best Deals, Schemes (B2B).
+missing:
+- A section-based layout editor: no placement registry, product-source selection, drag ordering, enable/disable, banner association, per-section scheduling or preview.
+- Storefront consumption of the layout: section order and content were decided in the app; both the B2C and B2B homes now read the published layout (phase 3b/3c), with local defaults only as fallback.
+- Collection-scoped manual product ordering: no rank exists on the collection-product link.
+- Real Buy Again: currently a fixture; no customer-scoped source, and no reorder revalidation.
+- Real Schemes: currently a fixture with title, detail and badge only.
+conflicts_requiring_a_decision:
+- C-044-01: 'Merchandising currently exposes ten routes. Reducing it to exactly Banners and Storefront layouts would orphan Category details, which after CHG-043 is the only editor for category label, icon and text, and would reverse CHG-039 and CHG-040. The remaining editors need a defined home or a deliberate retirement.'
+- C-044-02: 'Medusa collections have no draft or published state, so the requested status filter, status column and save-as-draft have no backing field. Either the concept is dropped or a custom status is added and enforced in the public API.'
+- C-044-03: 'Media upload is unresolved under CHG-026, so desktop and mobile banner images cannot be uploaded yet; banners use an https creative reference.'
+- C-044-04: 'There is no recommendation engine and no campaign entity, so Recommended must be labelled curated and campaign association cannot be offered.'
+- C-044-05: 'Buy Again and Schemes are fixtures; making them real is commerce work (customer-scoped order history, and scheme qualification and benefit) that prior decisions list as an open gap.'
+decisions_proposed:
+  D-044-01: Reuse the native collections admin rather than building a parallel one; extend it only for collection-scoped manual ordering.
+  D-044-02: Keep banners as the single banner system and extend it rather than creating a second.
+  D-044-03: Store a per-collection rank so manual order survives computed sorts and is isolated per collection.
+  D-044-04: Model layout sections as an ordered, typed placement list per channel, replacing the raw JSON modules blob for routine editing.
+  D-044-05: Reuse the existing server-enforced start/end window for section scheduling rather than a browser timer.
+  D-044-06: The storefront resolves published layout configuration from the backend; nothing about section order or content stays hardcoded in the app.
+  D-044-07: Sections reference collections; products are never copied into a layout.
+  D-044-08: Buy Again resolves the authenticated customer's order history and falls back only to an explicit, separately labelled collection.
+proposed_phases:
+  phase_1_layout_model_and_delivery:
+  - Define the placement registry per channel and the ordered section model.
+  - Extend the layout content type and the app-shell contract to carry sections with sources, display properties, visibility and schedule.
+  - Keep the raw JSON view as a permissioned advanced fallback while the section editor is introduced.
+  phase_2_layout_editor:
+  - Section list with ordering, enable/disable, edit and preview.
+  - Section editor with general settings, product source, display properties, banner association and scheduling.
+  phase_3_storefront_consumption:
+  - B2C and B2B render section order, titles, badges, limits, See All targets, visibility and schedule from the layout.
+  - Trade Offers and Deals parent group with child categories in the storefront.
+  phase_4_collection_ordering:
+  - Collection-scoped manual product ordering with drag and drop, persisted and isolated per collection.
+  phase_5_real_sources:
+  - Customer-scoped Buy Again with reorder revalidation.
+  - Schemes from the existing offer and scheme services.
+phase_6_navigation:
+  - Reduce the Merchandising menu to Banners and Storefront layouts once the displaced editors have a defined home.
+required_tests:
+- A layout section references a collection and the storefront resolves the collection's current products, with no product duplication.
+- Section order persists across refresh and is independent of collection product order.
+- Manual collection order survives a switch to a computed sort and back, and does not affect other collections.
+- A disabled or out-of-window section is not rendered.
+- A section whose collection is missing, unpublished or deleted fails with an actionable message rather than a broken card.
+- Buy Again returns only the authenticated customer's purchased products.
+- Public endpoints expose no draft or inactive configuration.
+- Unauthorized users cannot edit layouts, banners or collection membership.
+constraints:
+- Reuse existing components, services, APIs and design conventions; do not rebuild the storefront.
+- Never fabricate a discount, a best-selling rank, a personalised recommendation or customer purchase history.
+- Keep collection, banner and layout responsibilities separate and connected by reference.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-17'
+  scope: collections-and-storefront-layouts
+  human_approval_required_before_code: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  approved_decisions:
+    approved_by: human-requester
+    approved_at_utc: '2026-10-17'
+    D-044-01: Merchandising shows Banners and Storefront layouts; Category details, Product editorial and Help and articles move to a separate Editorial group; Overview, Review queue, Delivery status and Content activity retire.
+    D-044-02: Native collections are used as they are; the draft/published status concept is dropped rather than invented.
+    D-044-03: Layout section model and backend delivery are built first.
+    D-044-04: Boundaries are held; fixtures are labelled honestly rather than exposed as working.
+  phase_1:
+    commit: cc5b2f6
+    delivered:
+    - 'A channel-scoped placement registry for layout sections: flash_deals, best_sellers, recommended (B2C); buy_again, trade_offers with seasonal, best_deals, schemes (B2B).'
+    - 'Delivery-side normalisation that preserves stored order and enforces channel isolation, a required source, known placements, visibility, schedule and banner acceptance, returning an issues list so a rejection is explained rather than silent.'
+    - 'storefront_layouts.sections (json) added; modules is no longer required and remains the raw recovery format.'
+    - 'GET /v1/content/app-shell always returns layout.sections as an array.'
+    - A new layout-sections test wired into the Experience API workflow.
+    verified:
+    - layout-sections-test PASS; presentation-test PASS; Experience API typecheck clean; CMS build clean; validate_cms_schemas.py passes.
+    - Live app-shell returns layout=b2c-home, sections as an empty array, modules length 4; the sections column exists.
+    open_decision:
+    - 'A section collection reference is unresolved: the brief means a Medusa collection (handle, product count, publication), while existing layout modules reference a CMS curated-collection. The phase-1 field is named neutrally and nothing is authored against it.'
+    not_done:
+    - Section editor (phase 2).
+    - Storefront consumption (phase 3).
+    - Collection-scoped manual ordering (phase 4).
+    - Real Buy Again and Schemes (phase 5).
+    - Merchandising navigation reduction (phase 6).
+    - The console mirror of the section registry and its divergence check, which arrive with the editor.
+  phase_2:
+    commit: f6e3f5d
+    collection_identity: 'Option A — a section references a Medusa collection id. The existing layout modules still reference the CMS curated-collection until phase 3 reconciles them.'
+    delivered:
+    - 'A section editor at /merchandising/storefront-layouts/{documentId}: ordered section cards, move up and down, add a section limited to the layout channel, and per-section display properties, source, collection, limit, See All, banner, schedule and visibility.'
+    - 'Trade Offers & Deals configures Seasonal, Best Deals and Schemes inside the group, in declared order.'
+    - 'Validation with the same rules delivery applies, blocking save and publish while there are errors and warning on non-blocking issues.'
+    - Optimistic concurrency via expectedUpdatedAt.
+    - The collection picker reuses the existing admin.collections route; no new endpoint.
+    - The console registry mirror plus tooling/validate_layout_sections.py, wired into Contract validation and proven to fail on a diverged copy.
+    verified:
+    - lint and production build clean; both registry checks pass.
+    - 'Write path proven end to end: four sections authored through the operator API, one deliberately invalid for the channel; delivery served three in stored order with labels, badges and limits intact, rejected the invalid one, and left modules untouched.'
+    - One Medusa collection was created on staging because none existed, so the picker had data.
+    not_done:
+    - Drag-and-drop ordering, which is currently move up and down.
+    - Client-side validation on the raw JSON property page.
+    - Storefront consumption of sections, which is phase 3; until then the editor configures something no customer sees.
+  phase_3a:
+    commit: 139f9b8
+    delivered:
+    - 'MedusaStoreClient.listProductsByCollection, the product-resolution counterpart to listProductsByCategory.'
+    - 'resolveSectionProducts: resolves a section collection reference into products at read time, recursively for group children, honouring the declared limit and defaulting to 12.'
+    - Products resolve to identity, handle and thumbnail only; price and stock stay where the storefront already reads them.
+    - A failing or empty collection explains itself and cannot fail the shell; empty collections are reported in layout.empty_collections.
+    - Non-collection sources (buy_again, schemes, best-selling) are labelled rather than silently empty.
+    verified:
+    - section-products-test, layout-sections-test and presentation-test all PASS; typecheck clean.
+    - 'End to end: before adding products the payload reported empty_collections; after adding a product to the collection via the admin API, all three B2C sections returned that product with badges and limits intact.'
+    not_done:
+    - Phase 3b, the storefront rendering half. The app has no layout consumption at all, so nothing here is customer-visible yet.
+  phase_3b:
+    commit: fc346de
+    delivered:
+    - The app now calls GET /v1/content/app-shell and reads layout sections; it previously had no layout consumption at all.
+    - 'Section order, titles, badges, limits and visibility are rendered from the layout for the B2C home.'
+    - 'GET /v1/products accepts collection_id, so a section resolves its products through the same composed path the catalogue rails use.'
+    - A section still resolving is skipped rather than rendered empty; a hidden section is not rendered.
+    - With no configured layout the previous local defaults are unchanged, so the home never goes blank.
+    verified:
+    - flutter analyze clean; 139 tests pass, including a new test asserting the layout decides order, titles, badges and visibility.
+    - App rebuilt and deployed to Firebase Hosting; the served bundle contains app-shell, flash_deals, collection_id, see_all_uri and sections; site returns 200.
+    deployed:
+      console: /opt/buildkart-releases/139f9b8
+      app: https://buildkart-staging.web.app
+    not_done:
+    - B2B is not wired; the provider requests the b2c channel and no B2B sections exist in the CMS.
+    - Per-section banner association is configured but not rendered, and the See All destination is carried but not wired to navigation.
+    - The campaign strip now renders after the layout sections rather than between the rails.
+    - No visual confirmation by a human.
+  closed_this_pass:
+    commit: 53796f4
+    items:
+    - A section banner_reference now resolves against the banner presentation and renders above the rail it introduces.
+    - MerchandisingModule carries the layout See All destination and label, and the home navigates to it instead of guessing from the title.
+    verified: flutter analyze clean; 140 tests pass, including a new banner and See All test; app rebuilt and redeployed to Firebase.
+  remaining:
+    b2b_wiring:
+      status: app-consumption-done
+      reason: The app now fetches channel=b2b and the trade-offer categories take their order, labels and visibility from the published layout; a B2B layout is authored and delivered on staging. The B2B Buy Again and Trade Offers screens still build content beyond the featured categories, and Buy Again remains a fixture.
+    collection_ordering:
+      status: not-done
+      reason: A Medusa collection-product link has no rank field, so phase 4 needs new persistence plus drag and drop. Nothing existing can be reused.
+    drag_and_drop:
+      status: not-done
+      reason: Implemented as accessible move up and down. No drag-and-drop library is among the app dependencies, so it is a dependency decision.
+    buy_again_and_schemes:
+      status: held
+      reason: Deliberately left as labelled fixtures by prior approval; making them real is commerce work listed as an open gap in the architecture mapping.
+    navigation_reduction:
+      status: done-and-released
+      reason: Merchandising now holds Banners and Storefront layouts only. The four displaced editors moved to a new Editorial group (URLs /editorial/*, cross-links updated) and the four nav-only pages retired. RouteConfig has no hidden flag, so removal required deciding where the editors live rather than muting them.
+    raw_json_validation:
+      status: done
+      reason: The advanced storefront-layout JSON view now runs validateStoredSections and refuses a save delivery would reject, matching the section editor.
+    campaign_strip_position:
+      status: known-consequence
+      reason: The strip renders after the layout sections because it is banner presentation, not a section. Adding a campaign_strip placement would let it be ordered.
+    bootstrap_seed:
+      status: unverified
+      reason: It now creates category banner records and needs a fresh database to prove.
+    human_review:
+      status: pending-human
+      reason: Nobody has opened the storefront and looked at it.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-17T07:35:00Z'
+    release_commit: 3446922
+    release_worktree: /opt/buildkart-releases/3446922
+    previous_release: /opt/buildkart-releases/139f9b8
+    services_released:
+      experience-api: /opt/buildkart-releases/3446922
+      medusa-api: /opt/buildkart-releases/2e14acd
+      cms: /opt/buildkart-releases/3446922
+    note: current points at 3446922. Recreating upstream containers leaves the proxy on stale IPs and the edge returns 502; restart buildkart-hosted-pilot-proxy-1 afterwards.
+  staging_outage:
+    symptom: SSH, HTTPS and ICMP all timed out while Firebase Hosting stayed up.
+    cause: The host rebooted (uptime 1 10 on return); containers recovered on their restart policies.
+    impact: The CMS correction and the experience-api release were blocked for about an hour; nothing was lost.
+  staging_content:
+    b2b_layout:
+      layout_key: b2b-home
+      channel: b2b
+      document_id: xn8k13b0j9p6vpwub5pnjg4f
+      sections: [buy_again, trade_offers]
+      children: [seasonal, best_deals, schemes]
+    collections_created:
+    - handle: seasonal-offers
+      id: pcol_01M53AN7GEGEX35SJRDE20F3BD
+    - handle: trade-best-deals
+      id: pcol_01M53AN7M1ZAF0AWVRYM8X7CMB
+  delivery_defect_fixed_and_released:
+    issue: The normaliser read label from the section title and never from the authored label, so an operator's label was discarded on delivery.
+    fix: label resolves from label, then title, then the registry label.
+    state: released in 0ce1a4f and verified on staging; the b2b seasonal section now delivers its authored label with the title intact.
+    app_deployment:
+      hosting: Firebase Hosting site buildkart-staging
+      url: https://buildkart-staging.web.app
+implementation_evidence:
+- client-projects/client101/evidence/CHG-044/collections-banners-layouts-inspection.md
+- client-projects/client101/evidence/CHG-044/phase-1-layout-sections.md
+- client-projects/client101/evidence/CHG-044/phase-2-section-editor.md
+- client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
+- client-projects/client101/evidence/CHG-044/phase-3b-storefront-consumption.md
+- client-projects/client101/evidence/CHG-044/phase-3c-b2b-consumption.md
+- client-projects/client101/evidence/CHG-044/phase-6-navigation-and-closeout.md
+- client-projects/client101/evidence/CHG-044/seed-claims.md
+- client-projects/client101/evidence/CHG-044/banner-and-collection-defects.md
+- client-projects/client101/evidence/CHG-044/visual-review-follow-up.md
+- client-projects/client101/evidence/CHG-044/pending-items.md
+status: visual-follow-up-recovery-released-awaiting-human-confirmation
+production_release_authorized: false

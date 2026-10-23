@@ -79,10 +79,18 @@ services:
       # Native Content workspace facade. The browser only calls Medusa; this private origin and
       # CMS_OPERATOR_SECRET from medusa.env are never emitted into the dashboard bundle.
       CMS_OPERATOR_BASE_URL: http://cms:1337
+      # Private draft preview projection. EXPERIENCE_OPERATOR_SECRET from medusa.env is distinct from
+      # the CMS operator secret so no secret is reused across trust boundaries.
+      EXPERIENCE_OPERATOR_BASE_URL: http://experience-api:9020
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
       cms: {condition: service_healthy}
     networks: [private]
+    volumes:
+      # Catalogue images are uploaded through the local file provider. Without a persistent volume they
+      # live in the container layer and vanish on the next recreate, which is exactly what happens on
+      # every release. Same volume on the worker so both see the same files.
+      - medusa_uploads:/app/packages/api/static
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:9010/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -97,14 +105,21 @@ services:
       args:
         MERCUR_BACKEND_URL: ${MERCUR_BACKEND_URL:?set MERCUR_BACKEND_URL}
     restart: unless-stopped
-    env_file: /etc/buildkart/secrets/medusa.env
+    env_file:
+      - /etc/buildkart/secrets/medusa.env
+      - /etc/buildkart/secrets/nats.env
     environment:
       MEDUSA_WORKER_MODE: worker
       DISABLE_MEDUSA_ADMIN: "true"
       PORT: "9011"
+      NATS_URL: nats://nats:4222
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
+      nats: {condition: service_healthy}
+      experience-api: {condition: service_healthy}
     networks: [private]
+    volumes:
+      - medusa_uploads:/app/packages/api/static
 
   tryton:
     build: ../tryton
@@ -116,6 +131,27 @@ services:
       postgres: {condition: service_healthy}
     networks: [private]
 
+  # B2B collaboration kernel. Phase 1 owns workspaces, channels, messages and
+  # activity in its own database. It is private: clients reach it only through
+  # the Experience API's signed actor-context proxy.
+  workspace:
+    image: buildkart-hosted-pilot-workspace
+    build: ../workspace
+    restart: unless-stopped
+    env_file: /etc/buildkart/secrets/workspace.env
+    environment:
+      PORT: "9040"
+      BUILDKART_ENVIRONMENT: staging
+    depends_on:
+      postgres: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:9040/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
   experience-api:
     image: buildkart-hosted-pilot-experience-api
     build: ../experience-api
@@ -124,11 +160,13 @@ services:
     environment:
       PORT: "9020"
       CMS_BASE_URL: http://cms:1337
+      WORKSPACE_SERVICE_URL: http://workspace:9040
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
       nats: {condition: service_healthy}
       medusa-api: {condition: service_healthy}
+      workspace: {condition: service_healthy}
     networks: [private]
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:9020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -221,6 +259,7 @@ volumes:
   postgres_data:
   redis_data:
   nats_data:
+  medusa_uploads:
 
 networks:
   # Backend services only; no route to the public internet or the host.

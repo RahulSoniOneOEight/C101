@@ -1,0 +1,239 @@
+change_id: CHG-070
+revision: 2
+request: >-
+  Implement the B2B collaborative workspace pilot described in the BuildKart Collaborative
+  Workspace Implementation Note: shared channels, product sharing, immutable purchase-draft
+  revisions, proposals, revision-bound approval, revalidation, and an idempotent handoff to the
+  existing staging checkout. Chat and collaboration must never become the source of truth for
+  commerce.
+type: b2b-collaborative-workspace-pilot
+source_note: C:\Users\LENOVO\Desktop\BuildKart-Collaborative-Workspace-Implementation-Note.md
+extends:
+- CHG-019
+- CHG-067
+- CHG-068
+- CHG-069
+affected_capabilities:
+- b2b-procurement-collaboration
+- purchase-draft-and-approval
+- commerce-revalidation
+- checkout-handoff
+- workspace-notifications
+affected_domains:
+- workspace
+- experience
+- commerce
+- marketplace
+- erp
+- identity
+- notifications
+- operations
+affected_surfaces:
+- workspace.service
+- experience-api.workspace
+- app.prototype.b2b-trade
+- app.prototype.b2c-storefront
+- operations-console
+already_present:
+- B2B buyer, account-admin, approver and seller RBAC role assignments for the 20-user pilot.
+- Experience API authentication, server-owned roles, correlation and notification inbox.
+- Canonical cart, shipping, simulated payment and order completion.
+- B2B quotation cart, approval fixture, procurement lists and buyer/seller chat UI patterns.
+- NATS and transactional event consumers for existing domain events.
+missing:
+- A Workspace bounded context and database.
+- Durable channels, messages, mentions, read cursors and product-share references.
+- Immutable purchase-draft revisions and a server-computed commercial hash.
+- Proposal, accept/edit/reject, approval and activity workflows.
+- Revalidation preview with structured differences.
+- Idempotent revision-to-Medusa-cart handoff.
+- Workspace UI for mobile and large screens.
+- Workspace event schemas and notification projection.
+decisions_proposed:
+- D-070-01: >-
+    Add Workspace as a bounded context owning workspaces, membership projections, channels,
+    messages, product-share references, purchase drafts and immutable revisions, proposals,
+    approvals, activity events, checkout handoff records and its transactional outbox. It does not
+    own carts, orders, payments, inventory, products, prices, sellers, business membership or
+    notification inboxes.
+- D-070-02: >-
+    Use PostgreSQL for durable state, REST for writes and history, and a cursor-based WebSocket feed
+    for live updates behind a ConversationTransport interface. Do not operate Matrix/Synapse for
+    Pilot 1; reassess only when attachments, seller participation or advanced messaging justify it.
+- D-070-03: >-
+    Bind every approval to one immutable draft revision and its server-computed commercial hash.
+    Material price, tax, shipping, quantity, seller, offer, destination or instruction changes create
+    a new revision and invalidate approval. Ordinary comments never invalidate approval.
+- D-070-04: >-
+    Expose all workspace operations through the Experience API. Workspace never calls Medusa, Mercur
+    or Tryton directly. Revalidation and cart materialisation run through the existing commerce
+    orchestration boundary with an idempotency key derived from draft, revision and hash.
+- D-070-05: >-
+    Derive tenant, business account, seller and roles only from signed server context. Enforce
+    account scope on every row and query and add PostgreSQL row-level security as a deny-by-default
+    second layer. Client-supplied role, account or tenant identifiers are ignored.
+- D-070-06: >-
+    Pilot 1 is B2B only. B2C household/project collaboration, seller participation, attachments,
+    natural-language commands, voice/video, presence, typing indicators, multi-level approval and
+    automated seller substitution are deferred.
+- D-070-07: >-
+    Emit workspace events through a transactional outbox to NATS. The existing Experience API
+    notification projection owns inbox records, device tokens and FCM delivery evidence; the
+    Workspace Service does not create a second notification system.
+- D-070-08: >-
+    Approvers cannot edit the revision they approve. No self-approval where policy prohibits it.
+    Checkout is allowed only for an approved revision that still passes fresh revalidation.
+open_decisions:
+- OD-070-01: >-
+    Approve message and approval-evidence retention, legal hold and deletion rules. Proposed staging
+    baseline: retain pilot workspace data for the pilot period; production retention requires
+    Legal/Privacy approval.
+- OD-070-02: >-
+    Approve the Pilot 1 approver policy: one approver, self-approval prohibited, and whether the
+    requester may also be the buyer. Proposed: one approver from the same business account, distinct
+    from the requester and from the buyer who edited the revision.
+- OD-070-03: >-
+    Approve the production realtime topology after the REST/WebSocket pilot is measured. Matrix
+    remains deferred.
+- OD-070-04: >-
+    Approve the exact audited read-only operator troubleshooting scope and the redaction rules for
+    message bodies and commercial data.
+- OD-070-05: >-
+    Approve whether the Workspace Service receives its own PostgreSQL database in staging or a
+    dedicated schema in the existing cluster. The default architecture is a separate database.
+required_approvals:
+- product
+- architecture
+- security
+- marketplace
+- finance
+- operations
+- integration-owners
+- legal-privacy
+- release-authority
+constraints:
+- No silent commercial change; chat and collaborator actions never create an order directly.
+- Medusa, Mercur, Tryton and Commerce business-account membership remain authoritative.
+- Workspace must not duplicate carts, orders, notifications, device tokens, products, prices or stock.
+- Every transactional command requires authentication, idempotency key, expected version/If-Match,
+  correlation id and a stable problem response.
+- Activity events are append-only and tenant scoped.
+- Staging uses synthetic data and simulated payment only.
+- No production release, real payment, real OTP, real logistics or production notifications.
+required_tests:
+- Tenant isolation across workspaces, channels, drafts, revisions, proposals and activity.
+- Exact revision reconstruction from immutable line revisions and canonical payload.
+- Material change invalidates approval; ordinary discussion does not.
+- No unauthorised self-approval and no approver edit of the approved revision.
+- Exactly one same-version proposal succeeds; stale clients receive current version and a diff.
+- Price, stock, MOQ, tax, seller, offer, destination and serviceability revalidation.
+- No automatic seller/offer substitution and no silent quantity reduction.
+- One approved revision creates at most one canonical order.
+- Membership revocation ends REST and WebSocket access promptly.
+- NATS/FCM/WebSocket failure cannot alter commercial state.
+- Reconnect produces no missing or duplicate events.
+- Correct business-account pricing context for every participant.
+- Mobile conversation opens without losing shop or cart state.
+- WCAG 2.2 AA keyboard, focus, screen reader, target size and contrast checks.
+- Push, logs and events contain no unnecessary PII.
+approval_required: true
+decision_approval:
+  status: phase-2-approved
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  approved_decisions: [D-070-01, D-070-02, D-070-03, D-070-04, D-070-05, D-070-06, D-070-07, D-070-08]
+  approved_open_decisions:
+    OD-070-01: staging-pilot-retention-production-policy-deferred
+    OD-070-02: one-approver-distinct-from-requester-and-buyer-self-approval-prohibited
+    OD-070-03: defer-production-realtime-topology-no-matrix-in-pilot-1
+    OD-070-04: designated-support-read-redacted-and-audited
+    OD-070-05: separate-workspace-database-in-existing-postgres-cluster
+  runtime_scope: phase-2-purchase-drafts-proposals-and-approvals
+  phase_2_approved_at_utc: '2026-10-20'
+  phase_2_scope: >-
+    Product shares, immutable purchase-draft revisions, proposals, accept/reject/cancel,
+    revision-bound approval requests and approver decisions. Checkout revalidation and cart handoff
+    remain Phase 3 and are not authorized by this approval.
+  production_release_authorized: false
+implementation:
+  phase: 2-purchase-drafts-proposals-approvals
+  status: phase-2-complete-staging-verified
+  service_code_started: true
+  evidence: client-projects/client101/evidence/CHG-070/phase-2-purchase-drafts.md
+  phase_1_evidence: client-projects/client101/evidence/CHG-070/phase-1-workspace-kernel.md
+  artefacts:
+  - client-projects/client101/solution/decisions/ADR-client101-011.yaml
+  - client-projects/client101/contracts/data-contract.yaml
+  - client-projects/client101/contracts/openapi/buildkart-workspace-v1.yaml
+  - docs/architecture/shared-backend-api-matrix.md
+  - docs/architecture/collaborative-workspace-threat-model.md
+  - services/workspace
+  - services/experience-api/src/index.ts
+  - apps/prototype_app/lib/screens/workspace_screen.dart
+  phase_2_artefacts:
+  - services/workspace/src/schema.sql
+  - services/workspace/src/index.ts
+  - services/workspace/src/scripts/smoke.ts
+  - services/experience-api/src/index.ts
+  - apps/prototype_app/lib/domain/workspace_models.dart
+  - apps/prototype_app/lib/data/experience_api.dart
+  - apps/prototype_app/lib/screens/workspace_screen.dart
+  - apps/prototype_app/lib/screens/b2b_quote_screens.dart
+  - apps/prototype_app/test/workspace_screen_test.dart
+  phase_2_limitations:
+  - >-
+    Draft line prices are immutable client-supplied staging snapshots. They are not yet
+    independently revalidated against Mercur/Medusa; Phase 3 must revalidate before checkout.
+  - >-
+    Buyer quantity changes are expressed as proposals and explicitly accepted. A direct
+    buyer-edit endpoint is deferred so every commercial mutation remains auditable.
+  - >-
+    Product shares create a reference message only. Add-to-draft from a share remains a
+    Phase 3 interaction.
+  - >-
+    Checkout preview, difference acknowledgement, cart handoff, order creation and workspace
+    notification projection remain unauthorized and unimplemented.
+  verification:
+    typescript_typecheck: pass
+    flutter_analyze: pass
+    flutter_tests: 241-pass
+    workspace_smoke: pass
+    tenant_isolation: pass
+    arjun_ui: pass
+    shakti_ui: pass
+    console_errors: pass-no-api-errors
+    websocket_feed: pass
+    outbox_publisher: pass
+    outbox_pending_rows: 0
+    outbox_phase2_events:
+      - proposal.created
+      - proposal.accepted
+      - approval.requested
+      - approval.approved
+      - draft.revision.created
+    unread_badge: implemented
+    responsive_widths: [390x844, 360x800]
+    proposal_creates_one_revision: pass
+    approval_bound_to_revision_hash: pass
+    self_approval_blocked: pass
+    approver_cannot_propose: pass
+    one_pending_approval_per_draft: pass
+    product_share_reference: pass
+    share_idempotency_replay: pass
+    cross_tenant_draft_read: 404
+    cross_tenant_share: 404
+    approver_ui_decision: pass-approved
+    browser_console_api_errors: none
+    pre_existing_catalogue_image_404s: >-
+      Twelve catalogue image URLs under ops-staging.pinakaplay.cloud/static/ return 404.
+      This is a pre-existing catalogue asset gap, not a workspace API failure; it remains open.
+  deployment:
+    app_build: e04e300
+    app_build_id: phase2-purchase-drafts-2
+    workspace_code: 5f3fad9
+    workspace_image: buildkart-hosted-pilot-workspace
+    workspace_database: buildkart_workspace
+    experience_api_proxy: enabled-phase-2-routes
+    websocket_proxy: enabled
+status: phase-2-deployed-awaiting-human-review
+production_release_authorized: false

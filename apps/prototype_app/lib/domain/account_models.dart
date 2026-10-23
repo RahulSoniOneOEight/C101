@@ -45,6 +45,31 @@ class SavedAddress {
         pincode,
       ].join(', ');
 
+  /// Maps the saved record onto the canonical checkout address.
+  ///
+  /// The UI asks for one full name; Medusa needs first/last, so the split happens
+  /// once here. Phone, second line and state are carried rather than dropped.
+  Address toCheckoutAddress() {
+    final parts = fullName
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    final first = parts.isEmpty ? fullName.trim() : parts.first;
+    final last = parts.length > 1 ? parts.sublist(1).join(' ') : '.';
+    return Address(
+      firstName: first,
+      lastName: last,
+      address1: line1,
+      address2: line2,
+      city: city,
+      province: state,
+      postalCode: pincode,
+      countryCode: 'IN',
+      phone: phone,
+    );
+  }
+
   SavedAddress copyWith({
     String? label,
     String? fullName,
@@ -142,8 +167,7 @@ class PaymentMethod {
 
   factory PaymentMethod.fromJson(Map<String, dynamic> j) => PaymentMethod(
         id: j['id'] as String? ?? '',
-        kind: PaymentMethodKind.values.firstWhere(
-            (k) => k.name == j['kind'],
+        kind: PaymentMethodKind.values.firstWhere((k) => k.name == j['kind'],
             orElse: () => PaymentMethodKind.upi),
         label: j['label'] as String? ?? '',
         detail: j['detail'] as String? ?? '',
@@ -233,8 +257,8 @@ class Invoice {
         orderRef: j['order_ref'] as String? ?? '',
         dateLabel: j['date_label'] as String? ?? '',
         amountMinor: (j['amount_minor'] as num?)?.toInt() ?? 0,
-        status: InvoiceStatus.values
-            .firstWhere((s) => s.name == j['status'], orElse: () => InvoiceStatus.paid),
+        status: InvoiceStatus.values.firstWhere((s) => s.name == j['status'],
+            orElse: () => InvoiceStatus.paid),
         gstin: j['gstin'] as String? ?? '',
       );
 }
@@ -347,34 +371,39 @@ class AppSettings {
     this.language = AppLanguage.english,
     this.notificationsEnabled = true,
     this.promotionalOptIn = true,
+    this.whatsappOrderUpdates = false,
   });
 
   final AppLanguage language;
   final bool notificationsEnabled;
   final bool promotionalOptIn;
+  final bool whatsappOrderUpdates;
 
   AppSettings copyWith({
     AppLanguage? language,
     bool? notificationsEnabled,
     bool? promotionalOptIn,
+    bool? whatsappOrderUpdates,
   }) =>
       AppSettings(
         language: language ?? this.language,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         promotionalOptIn: promotionalOptIn ?? this.promotionalOptIn,
+        whatsappOrderUpdates: whatsappOrderUpdates ?? this.whatsappOrderUpdates,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'language': language.code,
         'notifications': notificationsEnabled,
         'promotional': promotionalOptIn,
+        'whatsapp_order_updates': whatsappOrderUpdates,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> j) => AppSettings(
-        language: AppLanguage.values.firstWhere(
-            (l) => l.code == j['language'],
+        language: AppLanguage.values.firstWhere((l) => l.code == j['language'],
             orElse: () => AppLanguage.english),
         notificationsEnabled: j['notifications'] as bool? ?? true,
         promotionalOptIn: j['promotional'] as bool? ?? true,
+        whatsappOrderUpdates: j['whatsapp_order_updates'] as bool? ?? false,
       );
 }

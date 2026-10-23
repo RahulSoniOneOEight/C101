@@ -1,0 +1,89 @@
+change_id: CHG-054
+revision: 2
+request: >-
+  Implement the P0+P1 gaps from the Smooth Checkout note: address-first checkout with the saved
+  address book, contact prefill, real shipping totals, promo continuity, rehydration and explicit
+  errors.
+type: staging-smooth-checkout-p0-p1
+extends:
+- CHG-051
+- CHG-052
+source_note: C:\Users\LENOVO\BUILDKART-Checkout-Smooth-Note.md
+affected_capabilities:
+- commerce-cart
+- commerce-checkout
+- account-address-book
+affected_domains:
+- commerce
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+- experience-api.carts
+already_present:
+- SavedAddress model, persistence, CRUD, default resolver and Account address screen.
+- Canonical cart, shipping selection, simulated payment and order-group validation.
+- Promo apply/remove and discount breakdown (CHG-051).
+missing:
+- Checkout ignored the address book and initialised every field to empty.
+- Shipping options were fetched before an address existed.
+- No address picker, add or edit inside checkout.
+- Address dropped phone, second line and state.
+- Cart printed a hardcoded "Free" shipping value.
+- No promo field in checkout.
+- No last-used address, no rehydration and no inline failure block.
+conflicts_requiring_a_decision:
+- C-054-01: The address book is device-local until the server-backed book (P2). Accepted for this
+    increment.
+- C-054-02: The note's P2-P5 (serviceability, server address book, B2B sites, web, B2B Medusa orders)
+    are materially larger and are not part of P0+P1.
+decisions_approved:
+- D-054-01: Address first; delivery options load only after an address is selected and reload when it
+    changes.
+- D-054-02: Open checkout with the last used address, then the default, then the first saved one.
+- D-054-03: Add, edit, switch and set-default from checkout, sharing the Account address book.
+- D-054-04: Extend the canonical Address with phone, address2 and province; split full name once.
+- D-054-05: Use only cart payload values for subtotal, discount, shipping and total.
+- D-054-06: Show the promo panel in checkout; keep the code on the cart, not widget state.
+- D-054-07: Rehydrate the cart through GET /v1/carts/:id and show failures inline above the button.
+- D-054-08: Add the Office seed address once for legacy two-address installs.
+- D-054-09: Contact is read-only at checkout, taken from the signed-in pilot (name, email, phone).
+    The buyer is never asked to retype identity details. Untouched demo addresses are renamed to the
+    signed-in profile once.
+required_tests:
+- First checkout opens with the default address selected and no typing required.
+- Switching address reloads delivery options.
+- Adding/editing an address persists to Account.
+- Phone, second line and state reach the cart address payload.
+- Promo code applies and survives an address change.
+- Cart shipping is not hardcoded.
+- Double submit places one order.
+constraints:
+- Staging only; production release remains unauthorized.
+- No server address book or B2B site conversion in this increment.
+- The address book remains device-local and seeded only on first run.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-054/smooth-checkout.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 191-pass
+    experience_api_typecheck: pass
+    address_prefill: pass
+    address_switch_reloads_shipping: pass
+    promo_in_checkout: pass
+    order_confirmed: pass
+    order_address_phone_province_address2: pass
+  deployment:
+    experience_api_commits: 05997a3, 5df3c07
+    hosting_project: buildkart-staging
+  out_of_scope:
+  - Server address book and pincode serviceability (note P2).
+  - B2B site picker and Medusa order conversion (note P3/P5).
+  - Web checkout transformation (note P4).
+  - Cart-expired 404 line rebuild; rehydration is implemented.
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

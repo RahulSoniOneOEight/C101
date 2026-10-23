@@ -1,9 +1,11 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import type { ServerWebSocket } from "bun";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
   SIMULATED_PAYMENT_PROVIDER_ID,
   type StoreOffer,
+  type StoreCart,
   type StoreAddress,
   type StorePaymentCollection,
   type StorePaymentSession,
@@ -15,14 +17,22 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
+import { InventoryRequestStore } from "./store/inventory-request-store.js";
 import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
-import { CmsContentAdapter } from "./content/cms-adapter.js";
+import { CmsContentAdapter, buildBannerPreview } from "./content/cms-adapter.js";
+import {
+  composeStorefrontCategories,
+  resolveSeedBanners,
+  type ComposedCategory,
+} from "./content/presentation.js";
+import { resolveSectionProducts } from "./content/section-products.js";
+import type { StorefrontChannel } from "./content/storefront-layout.js";
 import { verifyCmsWebhook } from "./content/cms-webhook.js";
 import { CmsContentStore } from "./store/cms-content-store.js";
-import { CollectionResolver } from "./collections/resolver.js";
+import { CollectionNotFoundError, CollectionResolver } from "./collections/resolver.js";
 import { collections as collectionRegistry } from "./collections/registry.js";
 import {
   loadPilotUsers,
@@ -36,7 +46,20 @@ import {
   type PilotAuthorization,
   type PilotRole,
 } from "./auth/pilot-authorization.js";
-import { checkServiceability, bookShipment, getShipment, advanceShipment } from "./logistics/simulated-logistics.js";
+import { checkServiceability } from "./logistics/simulated-logistics.js";
+import { ShipmentStore } from "./logistics/shipment-store.js";
+import { SimulatedLogisticsProvider } from "./logistics/provider.js";
+import { ReturnStore } from "./store/return-store.js";
+import {
+  RETURN_POLICY,
+  computeReturnEligibility,
+  orderLineSnapshots,
+} from "./returns/eligibility.js";
+import { itemSubtotalMinor } from "./commerce/cart-totals.js";
+import {
+  imageQualityScore,
+  orderByImageQuality,
+} from "./catalogue/image-quality-order.js";
 
 const config = loadConfig(process.env);
 const payment = new SimulatedPaymentAdapter();
@@ -48,7 +71,11 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+const inventoryRequests = new InventoryRequestStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
+const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
+const logistics = new SimulatedLogisticsProvider(shipmentStore);
+const returns = new ReturnStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
 const cmsContentStore = new CmsContentStore(config.experienceDatabaseUrl);
 const cmsContent = new CmsContentAdapter(
@@ -161,8 +188,12 @@ const json = (body: unknown, status = 200) =>
     },
   });
 
-const problem = (status: number, title: string, detail?: string) =>
-  json({ type: "about:blank", title, status, detail }, status);
+const problem = (
+  status: number,
+  title: string,
+  detail?: string,
+  extensions?: Record<string, unknown>,
+) => json({ type: "about:blank", title, status, detail, ...(extensions ?? {}) }, status);
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
@@ -200,7 +231,41 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
   }
 }
 
+/**
+ * Staging-only service identity for the Mercur admin console proxy. The shared secret is never
+ * accepted unless configured, and the resulting actor is always an operator, never a customer.
+ */
+function serviceOperatorAuthentication(req: Request): AuthenticationResult | null {
+  const expected = config.adminServiceSecret;
+  if (!expected) return null;
+  const supplied = req.headers.get("x-buildkart-admin-service-secret") ?? "";
+  if (
+    supplied.length !== expected.length ||
+    !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+  ) {
+    return null;
+  }
+  const userId = req.headers.get("x-operator-user-id")?.trim() || "admin_console";
+  const authorization: PilotAuthorization = {
+    userId,
+    roles: ["marketplace_operator", "support_operator"],
+  };
+  return {
+    user: {
+      id: userId,
+      email: "admin-console@buildkart.invalid",
+      name: "Admin console operator",
+    },
+    token: "admin-console-service",
+    authorization,
+  };
+}
+
 async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promise<AuthenticationResult> {
+  const service = serviceOperatorAuthentication(req);
+  if (service && !("response" in service) && hasAnyRole(service.authorization, roles)) {
+    return service;
+  }
   const authenticated = await authenticate(req);
   if ("response" in authenticated) return authenticated;
   if (!hasAnyRole(authenticated.authorization, roles)) {
@@ -213,6 +278,191 @@ async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promis
  * Resolve an optional session without failing the request. Used by read endpoints so a B2B caller
  * can be priced against the B2B region while anonymous/B2C callers get the default region.
  */
+type WorkspaceStreamData = {
+  workspaceId: string;
+  ticket: string;
+  signature: string;
+  cursor: number;
+};
+// Bun exposes the client WebSocket at runtime; the shared DOM type does not
+// describe its event properties in this TypeScript configuration.
+const workspaceStreams = new Map<ServerWebSocket<unknown>, any>();
+
+function signWorkspaceTicket(
+  user: PilotUser,
+  authorization: PilotAuthorization,
+  cid: string,
+  workspaceId: string,
+): { ticket: string; signature: string; expires_in_seconds: number } {
+  const payload = {
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    roles: authorization.roles,
+    businessAccountId: authorization.businessAccountId,
+    sellerId: authorization.sellerId,
+    iat: Math.floor(Date.now() / 1000),
+    correlationId: cid,
+    purpose: "workspace-stream",
+    workspaceId,
+  };
+  const ticket = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", config.workspaceServiceSecret as string)
+    .update(ticket)
+    .digest("hex");
+  return { ticket, signature, expires_in_seconds: 120 };
+}
+
+function verifyWorkspaceTicket(
+  ticket: string,
+  signature: string,
+  workspaceId: string,
+  cid: string,
+): { userId: string; businessAccountId?: string } | Response {
+  let payload: {
+    userId?: string;
+    roles?: string[];
+    businessAccountId?: string;
+    iat?: number;
+    purpose?: string;
+    workspaceId?: string;
+  };
+  try {
+    payload = JSON.parse(Buffer.from(ticket, "base64url").toString("utf8"));
+  } catch {
+    return problem(401, "invalid-workspace-ticket", "Workspace stream ticket is invalid.");
+  }
+  if (config.workspaceServiceSecret) {
+    const expected = createHmac("sha256", config.workspaceServiceSecret)
+      .update(ticket)
+      .digest();
+    const provided = Buffer.from(signature, "hex");
+    if (
+      expected.length !== provided.length ||
+      !timingSafeEqual(expected, provided)
+    ) {
+      return problem(401, "invalid-workspace-ticket-signature", "Workspace stream ticket signature is invalid.");
+    }
+  } else {
+    return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+  }
+  const hasWorkspaceRole = payload.roles?.some((role) =>
+    ["b2b_buyer", "b2b_account_admin", "b2b_approver", "super_admin", "customer"].includes(role),
+  );
+  if (
+    payload.purpose !== "workspace-stream" ||
+    payload.workspaceId !== workspaceId ||
+    !payload.userId ||
+    (!payload.businessAccountId && !payload.roles?.includes("customer")) ||
+    !hasWorkspaceRole ||
+    !Number.isInteger(payload.iat) ||
+    Math.abs(Date.now() / 1000 - (payload.iat as number)) > 120
+  ) {
+    return problem(401, "expired-workspace-ticket", "Workspace stream ticket is invalid or expired.");
+  }
+  return {
+    userId: payload.userId,
+    businessAccountId: payload.businessAccountId,
+  };
+}
+
+async function handleWorkspaceStream(
+  req: Request,
+  server: Bun.Server,
+  workspaceId: string,
+  url: URL,
+  cid: string,
+): Promise<Response | undefined> {
+  const ticket = url.searchParams.get("ticket");
+  const signature = url.searchParams.get("signature");
+  if (!ticket || !signature) {
+    return problem(401, "workspace-ticket-required", "A workspace stream ticket is required.");
+  }
+  const verified = verifyWorkspaceTicket(ticket, signature, workspaceId, cid);
+  if (verified instanceof Response) return verified;
+  const cursor = Number.parseInt(url.searchParams.get("cursor") ?? "0", 10);
+  if (!Number.isInteger(cursor) || cursor < 0) {
+    return problem(400, "invalid-cursor", "Cursor must be a non-negative integer.");
+  }
+  const upgraded = server.upgrade(req, {
+    data: { workspaceId, ticket, signature, cursor },
+  });
+  if (!upgraded) {
+    return problem(400, "websocket-upgrade-failed", "WebSocket upgrade failed.");
+  }
+  return undefined;
+}
+
+/**
+ * Signed proxy to the internal Workspace Service. The browser never sees the service origin or
+ * secret. The workspace service independently verifies the actor context and membership.
+ */
+async function proxyWorkspace(
+  req: Request,
+  user: PilotUser,
+  authorization: PilotAuthorization,
+  cid: string,
+): Promise<Response> {
+  if (!config.workspaceServiceUrl || !config.workspaceServiceSecret) {
+    return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+  }
+  // B2B members and B2C consumers share the workspace proxy. The workspace service performs the
+  // scope and membership check; this layer only rejects identities with no collaboration role.
+  if (
+    !hasAnyRole(authorization, [
+      "b2b_buyer",
+      "b2b_account_admin",
+      "b2b_approver",
+      "super_admin",
+      "customer",
+    ])
+  ) {
+    return problem(404, "not-found");
+  }
+  const url = new URL(req.url);
+  const body = req.method === "GET" || req.method === "HEAD" ? undefined : await req.text();
+  const actor = {
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    roles: authorization.roles,
+    businessAccountId: authorization.businessAccountId,
+    sellerId: authorization.sellerId,
+    iat: Math.floor(Date.now() / 1000),
+    correlationId: cid,
+  };
+  const encoded = Buffer.from(JSON.stringify(actor)).toString("base64url");
+  const signature = createHmac("sha256", config.workspaceServiceSecret)
+    .update(encoded)
+    .digest("hex");
+  try {
+    const upstream = await fetch(`${config.workspaceServiceUrl}${url.pathname}${url.search}`, {
+      method: req.method,
+      headers: {
+        "x-workspace-actor": encoded,
+        "x-workspace-signature": signature,
+        "x-correlation-id": cid,
+        ...(body ? { "content-type": req.headers.get("content-type") ?? "application/json" } : {}),
+        ...(req.headers.get("idempotency-key")
+          ? { "idempotency-key": req.headers.get("idempotency-key")! }
+          : {}),
+      },
+      body,
+    });
+    const text = await upstream.text();
+    return new Response(text, {
+      status: upstream.status,
+      headers: {
+        "content-type": upstream.headers.get("content-type") ?? "application/json",
+        "access-control-allow-origin": "*",
+      },
+    });
+  } catch (error) {
+    console.warn("[experience-api] workspace proxy failed:", (error as Error).message);
+    return problem(503, "workspace-unavailable", "The workspace service is temporarily unavailable.");
+  }
+}
+
 async function optionalAuthorization(req: Request): Promise<PilotAuthorization | undefined> {
   const token = bearerToken(req);
   if (!token) return undefined;
@@ -243,6 +493,32 @@ function regionFor(authorization?: PilotAuthorization): string {
     : config.medusaRegionId;
 }
 
+/**
+ * Effective read channel.
+ *
+ * An explicit `channel=b2b` is honoured only for an authenticated business buyer. A consumer token (or
+ * no token) can never widen its catalogue view by adding a query parameter, so the B2B sales channel is
+ * a consequence of identity rather than a client assertion.
+ */
+function requestedChannel(
+  requested: string | null,
+  authorization?: PilotAuthorization,
+): "b2b" | "b2c" {
+  const business = isBusinessBuyer(authorization);
+  if (!business) return "b2c";
+  return requested?.trim().toLowerCase() === "b2c" ? "b2c" : "b2b";
+}
+
+function salesChannelIdFor(channel: "b2b" | "b2c"): string | undefined {
+  return channel === "b2b"
+    ? config.medusaB2bSalesChannelId ?? config.medusaB2cSalesChannelId
+    : config.medusaB2cSalesChannelId;
+}
+
+/** Scan ceiling for the metadata-selected staged catalogue. Bounded so a bad marker cannot page forever. */
+const CATALOGUE_SCAN_PAGE_SIZE = 250;
+const MAX_CATALOGUE_SCAN = 2000;
+
 function privilegedRoles(pathname: string): readonly PilotRole[] | null {
   if (/^\/v1\/admin\/(tryton|inventory)(?:\/|$)/.test(pathname)) {
     return ["erp_operator", "super_admin"];
@@ -252,6 +528,13 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
   }
   if (/^\/v1\/admin\/notifications(?:\/|$)/.test(pathname)) {
     return ["marketplace_operator", "super_admin"];
+  }
+  if (
+    /^\/v1\/admin\/(shipments|shipment-exceptions|returns|order-statuses|order-groups|seller-activity)(?:\/|$)/.test(
+      pathname,
+    )
+  ) {
+    return ["marketplace_operator", "support_operator", "super_admin"];
   }
   if (/^\/v1\/admin\/(events|orders)(?:\/|$)/.test(pathname)) {
     return ["support_operator", "marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
@@ -288,6 +571,146 @@ async function authorizeCheckoutOwner(req: Request, checkoutRef: string): Promis
   return authenticated;
 }
 
+async function shipmentsWithEvents(orderGroupId: string) {
+  const shipments = await logistics.listByOrderGroup(orderGroupId);
+  return Promise.all(
+    shipments.map(async (shipment) => ({
+      ...shipment,
+      events: await logistics.listEvents(shipment.id),
+    })),
+  );
+}
+
+async function sellerScopedReturns(sellerId: string, limit = 100) {
+  const cases = await returns.listAll(limit);
+  const scoped = [];
+  for (const record of cases) {
+    if (!record.orderGroupId) continue;
+    const shipments = await logistics.listByOrderGroup(record.orderGroupId);
+    const lineKeys = new Set(
+      shipments
+        .filter((shipment) => shipment.sellerId === sellerId)
+        .flatMap((shipment) => shipment.lines.map((line) => line.lineKey)),
+    );
+    if (lineKeys.size === 0) continue;
+    const lines = record.lines.filter((line) => lineKeys.has(line.lineKey));
+    if (lines.length === 0) continue;
+    scoped.push({ ...record, lines, seller_scope: sellerId });
+  }
+  return scoped;
+}
+
+async function orderEligibility(
+  orderId: string,
+  userId: string,
+  ref: {
+    medusa_order_group_id?: string | null;
+    medusa_order_group?: Record<string, unknown> | null;
+  },
+) {
+  const orderLines = orderLineSnapshots(ref);
+  const shipments = ref.medusa_order_group_id
+    ? await logistics.listByOrderGroup(ref.medusa_order_group_id)
+    : [];
+  const alreadyRequested = await returns.requestedQuantitiesForOrder(userId, orderId);
+  return computeReturnEligibility({
+    orderLines,
+    shipments,
+    alreadyRequested,
+  });
+}
+
+function returnPolicySnapshot(lines: Array<{ line_key: string; delivered_qty: number; returnable_qty: number }>) {
+  return {
+    policy_version: RETURN_POLICY.version,
+    window_days: RETURN_POLICY.windowDays,
+    requires_delivery: RETURN_POLICY.requiresDelivery,
+    resolution_options: [...RETURN_POLICY.resolutions],
+    allowed_reasons: [...RETURN_POLICY.reasons],
+    evaluated_at: new Date().toISOString(),
+    line_inputs: lines,
+    money_effect: "none",
+    stock_effect: "none",
+  };
+}
+
+async function authorizeShipmentOwner(req: Request, shipmentId: string) {
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  const shipment = await logistics.get(shipmentId);
+  if (!shipment) {
+    return { response: problem(404, "shipment-not-found", "Shipment not found.") };
+  }
+  const ref = await correlation.getByOrderGroup(shipment.orderGroupId);
+  if (!ref || ref.owner_user_id !== authenticated.user.id) {
+    return { response: problem(404, "shipment-not-found", "Shipment not found.") };
+  }
+  return { ...authenticated, shipment, ref };
+}
+
+async function requireOperator(req: Request): Promise<AuthenticationResult> {
+  const service = serviceOperatorAuthentication(req);
+  if (service && !("response" in service)) return service;
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (!hasAnyRole(authenticated.authorization, ["marketplace_operator", "support_operator", "super_admin"])) {
+    return { response: problem(403, "operator-required", "An operator role is required.") };
+  }
+  return authenticated;
+}
+
+/**
+ * Seller identity for the vendor portal proxy. The trusted Mercur backend supplies the seller id
+ * after authenticating the vendor session; the shared service secret prevents public spoofing.
+ */
+function serviceSellerAuthentication(req: Request): AuthenticationResult | null {
+  const expected = config.adminServiceSecret;
+  if (!expected) return null;
+  const supplied = req.headers.get("x-buildkart-admin-service-secret") ?? "";
+  if (
+    supplied.length !== expected.length ||
+    !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+  ) {
+    return null;
+  }
+  const sellerId = req.headers.get("x-buildkart-seller-id")?.trim();
+  if (!sellerId) return null;
+  const authorization: PilotAuthorization = {
+    userId: req.headers.get("x-operator-user-id")?.trim() || `seller:${sellerId}`,
+    roles: ["seller_admin", "seller_order_manager"],
+    sellerId,
+  };
+  return {
+    user: {
+      id: authorization.userId,
+      email: "seller-portal@buildkart.invalid",
+      name: "Seller portal",
+    },
+    token: "seller-portal-service",
+    authorization,
+  };
+}
+
+async function requireSeller(req: Request): Promise<AuthenticationResult> {
+  const service = serviceSellerAuthentication(req);
+  if (service && !("response" in service)) return service;
+  const authenticated = await authenticate(req);
+  if ("response" in authenticated) return authenticated;
+  if (
+    !hasAnyRole(authenticated.authorization, ["seller_admin", "seller_order_manager"]) ||
+    !authenticated.authorization.sellerId
+  ) {
+    return {
+      response: problem(403, "seller-required", "A seller role with a seller scope is required."),
+    };
+  }
+  return authenticated;
+}
+
+function sellerIdOf(authentication: Exclude<AuthenticationResult, { response: Response }>): string | null {
+  return authentication.authorization.sellerId ?? null;
+}
+
 function findValidSimulatedSession(
   paymentCollection: StorePaymentCollection,
 ): StorePaymentSession | undefined {
@@ -297,6 +720,61 @@ function findValidSimulatedSession(
     session.data?.test_data === true &&
     session.amount === paymentCollection.amount,
   );
+}
+
+/**
+ * Stable cart view for the storefront.
+ *
+ * Medusa exposes the arithmetic but nests line adjustments under each item. The UI needs one
+ * predictable shape: applied codes, a discount total and a flat adjustment list, so it can show
+ * "you save X" without recomputing money from item internals.
+ */
+function composeCartView(cart: StoreCart) {
+  const itemSubtotal = itemSubtotalMinor(cart);
+  const items = (cart.items ?? []).map((item) => ({
+    ...item,
+    adjustments: (item.adjustments ?? []).map((adjustment) => ({
+      code: adjustment.code ?? null,
+      amount: Math.abs(adjustment.amount ?? 0),
+      label: adjustment.description ?? adjustment.code ?? "Discount",
+    })),
+  }));
+  return {
+    ...cart,
+    items,
+    // Stable storefront semantics: "subtotal" is products only. Preserve the
+    // engine's shipping-inclusive subtotal separately for audit/debugging.
+    subtotal: itemSubtotal,
+    item_subtotal: itemSubtotal,
+    engine_subtotal: cart.subtotal,
+    promotions: (cart.promotions ?? []).map((promotion) => ({
+      code: promotion.code,
+      is_automatic: Boolean(promotion.is_automatic),
+    })),
+    discount_total: cart.discount_total ?? 0,
+    item_discount_total: cart.item_discount_total ?? 0,
+    shipping_discount_total: cart.shipping_discount_total ?? 0,
+    adjustments: items.flatMap((item) =>
+      item.adjustments.map((adjustment) => ({
+        ...adjustment,
+        target: "item" as const,
+        line_item_id: item.id,
+      })),
+    ),
+  };
+}
+
+/** Maps an engine rejection onto a reason the customer UI can explain. */
+function promotionRejectionReason(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("not found") || m.includes("does not exist") || m.includes("invalid")) {
+    return "not_found";
+  }
+  if (m.includes("expired") || m.includes("not started") || m.includes("has not started")) {
+    return "expired";
+  }
+  if (m.includes("limit") || m.includes("usage")) return "usage_limit";
+  return "not_eligible";
 }
 
 /** Minimal read-only operator console (staging) served as a static HTML page. */
@@ -365,6 +843,34 @@ setInterval(load, 5000);
 </html>`;
 }
 
+/**
+ * Per-variant best price.
+ *
+ * The grouped product stays one card; each variant is a distinct sellable SKU, so the storefront needs
+ * its own offer id, price and availability to add the right line to a cart.
+ */
+function composeVariantPrices(
+  variants: { id: string; title?: string; sku?: string | null; metadata?: Record<string, unknown> | null }[],
+  offers: StoreOffer[],
+) {
+  const offersByVariant = new Map<string, StoreOffer[]>();
+  for (const offer of offers) {
+    const list = offersByVariant.get(offer.variant_id) ?? [];
+    list.push(offer);
+    offersByVariant.set(offer.variant_id, list);
+  }
+  return variants.map((variant) => {
+    const variantOffers = offersByVariant.get(variant.id) ?? [];
+    const { selected } = composeOffers(variantOffers);
+    return {
+      ...variant,
+      best_price: selected,
+      offer_count: variantOffers.length,
+      in_stock: variantOffers.some((offer) => offer.in_stock !== false),
+    };
+  });
+}
+
 /** Maps Mercur offers to composed offer views and picks the lowest eligible in-stock offer. */
 function composeOffers(offers: StoreOffer[]) {
   const offerViews = offers.map((o) => {
@@ -375,7 +881,12 @@ function composeOffers(offers: StoreOffer[]) {
         ? "low_stock"
         : "in_stock";
     const selling = o.calculated_price?.calculated_amount ?? null;
-    const list = o.calculated_price?.original_amount ?? selling;
+    // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
+    // discounted selling price. Without this the storefront would show selling == list and no saving.
+    const fixtureList = Number(o.metadata?.list_price_minor);
+    const list = Number.isFinite(fixtureList) && fixtureList > 0
+      ? fixtureList
+      : o.calculated_price?.original_amount ?? selling;
     const discountMinor =
       list !== null && selling !== null && list > selling ? list - selling : 0;
     return {
@@ -454,6 +965,44 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       console.warn("[experience-api] CMS webhook persistence failed:", (error as Error).message);
       return problem(503, "cms-webhook-store-unavailable");
     }
+  }
+
+  // Private-network-only draft preview projection. Server-to-server only: Medusa authenticates with
+  // a dedicated bearer secret. nginx blocks /v1/internal at both public hostnames, and no CMS or
+  // Experience API credential is ever returned to a browser.
+  if (url.pathname === "/v1/internal/content/preview" && req.method === "POST") {
+    if (!config.experienceOperatorSecret) return problem(404, "not-found");
+    const authorization = req.headers.get("authorization") ?? "";
+    const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
+    const suppliedBuffer = Buffer.from(supplied);
+    const expectedBuffer = Buffer.from(config.experienceOperatorSecret);
+    const authorized = suppliedBuffer.length === expectedBuffer.length
+      && timingSafeEqual(suppliedBuffer, expectedBuffer);
+    if (!authorized) return problem(401, "unauthorized");
+
+    const rawBody = await req.text();
+    if (rawBody.length > 65536) return problem(413, "payload-too-large");
+    let parsed: { kind?: unknown; locale?: unknown; data?: unknown };
+    try {
+      parsed = JSON.parse(rawBody) as typeof parsed;
+    } catch {
+      return problem(400, "invalid-json");
+    }
+    if (parsed.kind !== "banner") return problem(400, "unsupported-content-kind");
+    const locale = parsed.locale === "hi-IN" ? "hi-IN" : "en-IN";
+    const now = new Date();
+    const preview = buildBannerPreview(parsed.data, now);
+    return json({
+      kind: "banner",
+      locale,
+      presentation: preview.presentation ?? null,
+      eligibility: preview.eligibility,
+      complete: Boolean(preview.presentation),
+      illustrative: true,
+      generated_at: now.toISOString(),
+      correlation_id: cid,
+      test_data: true,
+    });
   }
 
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
@@ -631,51 +1180,841 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json({ ...result, environment: config.environment, test_data: true, correlation_id: cid });
   }
 
-  // POST /v1/checkouts/{checkoutId}/shipment — book a simulated shipment (Step 3)
-  const bookShipmentMatch = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/shipment$/);
-  if (bookShipmentMatch && req.method === "POST") {
-    const checkoutId = bookShipmentMatch[1];
-    const authenticated = await authorizeCheckoutOwner(req, checkoutId);
+  // Customer shipment timeline for one order.
+  const orderShipments = url.pathname.match(/^\/v1\/orders\/([^/]+)\/shipments$/);
+  if (orderShipments && req.method === "GET") {
+    const orderId = orderShipments[1];
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
     if ("response" in authenticated) return authenticated.response;
-    const shipment = bookShipment(checkoutId);
-    await events.append({
-      event_type: "shipment.status_changed",
-      aggregate_type: "order_group",
-      aggregate_id: checkoutId,
+    const ref = await correlation.get(orderId);
+    if (!ref) return problem(404, "order-not-found", "No correlated order for this reference.");
+    const shipments = ref.medusa_order_group_id
+      ? await shipmentsWithEvents(ref.medusa_order_group_id)
+      : [];
+    return json({
+      order_id: orderId,
+      shipments,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
       correlation_id: cid,
-      payload: { shipment_id: shipment.id, status: shipment.status, tracking_number: shipment.tracking_number },
     });
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid }, 201);
   }
 
-  // GET /v1/shipments/{shipmentId} — simulated tracking (Step 3)
+  // Owner-scoped shipment detail and timeline.
   const shipmentMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)$/);
   if (shipmentMatch && req.method === "GET") {
-    const shipment = getShipment(shipmentMatch[1]);
-    if (!shipment) return problem(404, "unknown-shipment");
-    const authenticated = await authorizeCheckoutOwner(req, shipment.order_group_id);
-    if ("response" in authenticated) return authenticated.response;
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+    const authorized = await authorizeShipmentOwner(req, shipmentMatch[1]);
+    if ("response" in authorized) return authorized.response;
+    return json({
+      shipment: authorized.shipment,
+      events: await logistics.listEvents(authorized.shipment.id),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
   }
 
-  // POST /v1/shipments/{shipmentId}/advance — demo-only status progression (Step 3)
-  const advanceMatch = url.pathname.match(/^\/v1\/shipments\/([^/]+)\/advance$/);
-  if (advanceMatch && req.method === "POST") {
-    const shipment = advanceShipment(advanceMatch[1]);
-    if (!shipment) return problem(404, "unknown-shipment");
-    await events.append({
-      event_type: "shipment.status_changed",
-      aggregate_type: "order_group",
-      aggregate_id: shipment.order_group_id,
+  // Seller-scoped shipment queue. Sellers only see and update their own shipments.
+  if (url.pathname === "/v1/seller/shipments" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const all = await logistics.list(500);
+    return json({
+      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: sellerId,
       correlation_id: cid,
-      payload: {
-        shipment_id: shipment.id,
-        status: shipment.status,
-        tracking_number: shipment.tracking_number,
-        cart_id: shipment.order_group_id,
-      },
     });
-    return json({ ...shipment, environment: config.environment, test_data: true, correlation_id: cid });
+  }
+
+  if (url.pathname === "/v1/seller/shipment-exceptions" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const all = await logistics.listExceptions(500);
+    return json({
+      items: all.filter((shipment) => shipment.sellerId === sellerId),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerShipment = url.pathname.match(/^\/v1\/seller\/shipments\/([^/]+)$/);
+  if (sellerShipment && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const shipment = await logistics.get(sellerShipment[1]);
+    if (!shipment || shipment.sellerId !== seller.authorization.sellerId) {
+      return problem(404, "shipment-not-found");
+    }
+    return json({
+      shipment,
+      events: await logistics.listEvents(shipment.id),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      seller_id: seller.authorization.sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerShipmentStatus = url.pathname.match(
+    /^\/v1\/seller\/shipments\/([^/]+)\/status$/,
+  );
+  if (sellerShipmentStatus && req.method === "POST") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const shipment = await logistics.get(sellerShipmentStatus[1]);
+    if (!shipment || shipment.sellerId !== seller.authorization.sellerId) {
+      return problem(404, "shipment-not-found");
+    }
+    let body: {
+      status?: string;
+      occurred_at?: string;
+      proof_ref?: string;
+      note?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const allowed = [
+      "picked_up",
+      "in_transit",
+      "out_for_delivery",
+      "delivery_failed",
+      "delivered",
+      "rto_in_transit",
+    ];
+    if (!body.status || !allowed.includes(body.status)) {
+      return problem(400, "invalid-seller-status", `Status must be one of ${allowed.join(", ")}.`);
+    }
+    const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+      lineKey: String(line.line_key ?? ""),
+      deliveredQty: Number(line.delivered_qty ?? 0),
+    }));
+    if (
+      body.status === "delivered" &&
+      (!body.proof_ref?.trim() ||
+        deliveredLines.length === 0 ||
+        deliveredLines.some((line) => !line.lineKey || line.deliveredQty <= 0))
+    ) {
+      return problem(
+        400,
+        "delivery-evidence-required",
+        "Delivered status requires proof_ref and positive per-line delivered quantities.",
+      );
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: seller.user.id,
+      actorRoles: seller.authorization.roles,
+      sellerId: seller.authorization.sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const idempotencyKey = req.headers.get("idempotency-key")?.trim() ||
+        `seller:${randomUUID()}`;
+      const result = await logistics.appendEvent({
+        shipmentId: shipment.id,
+        providerEventId: idempotencyKey,
+        eventType: `seller.shipment.${body.status}`,
+        status: body.status as import("./logistics/shipment-store.js").ShipmentStatus,
+        occurredAt: body.occurred_at ?? new Date().toISOString(),
+        payload: {
+          source: "seller_portal",
+          seller_id: seller.authorization.sellerId,
+          note: body.note ?? null,
+        },
+        deliveredLines: body.status === "delivered" ? deliveredLines : undefined,
+        proofRef: body.status === "delivered" ? body.proof_ref?.trim() : null,
+      });
+      if (!result.duplicate && result.statusChanged) {
+        await events.append({
+          event_type: "shipment.status_changed",
+          aggregate_type: "order_group",
+          aggregate_id: shipment.orderGroupId,
+          correlation_id: cid,
+          payload: {
+            shipment_id: shipment.id,
+            status: result.event.status,
+            seller_id: seller.authorization.sellerId,
+            source: "seller_portal",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        seller_id: seller.authorization.sellerId,
+        correlation_id: cid,
+      }, result.duplicate ? 200 : 201);
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  if (url.pathname === "/v1/seller/returns" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    return json({
+      items: await sellerScopedReturns(sellerId, 200),
+      environment: config.environment,
+      test_data: true,
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  const sellerReturn = url.pathname.match(/^\/v1\/seller\/returns\/([^/]+)$/);
+  if (sellerReturn && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const record = (await sellerScopedReturns(sellerId, 500))
+      .find((candidate) => candidate.id === sellerReturn[1]);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      seller_id: sellerId,
+      correlation_id: cid,
+    });
+  }
+
+  // Combined order-level delivery and return status for the admin console.
+  if (url.pathname === "/v1/admin/order-statuses" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const correlations = await correlation.list(200);
+    const allReturns = await returns.listAll(500);
+    const items = await Promise.all(
+      correlations.map(async (ref) => {
+        const shipments = ref.medusa_order_group_id
+          ? await logistics.listByOrderGroup(ref.medusa_order_group_id)
+          : [];
+        const orderReturns = allReturns.filter(
+          (record) => record.orderId === ref.checkout_ref,
+        );
+        return {
+          order_id: ref.checkout_ref,
+          medusa_order_group_id: ref.medusa_order_group_id,
+          owner_user_id: ref.owner_user_id,
+          created_at: ref.created_at,
+          shipment_statuses: [...new Set(shipments.map((shipment) => shipment.status))],
+          shipment_count: shipments.length,
+          latest_shipment_update: shipments
+            .map((shipment) => shipment.updatedAt)
+            .sort()
+            .at(-1) ?? null,
+          return_statuses: [...new Set(orderReturns.map((record) => record.status))],
+          return_count: orderReturns.length,
+          latest_return_update: orderReturns
+            .map((record) => record.decidedAt ?? record.requestedAt)
+            .sort()
+            .at(-1) ?? null,
+        };
+      }),
+    );
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  // Native Mercur order-detail widgets resolve the seller order to an order group first, then
+  // request the complete delivery/return projection here. The dashboard remains a read-through
+  // surface; shipment and return ownership stays in the Experience API stores.
+  const adminOrderGroupLifecycle = url.pathname.match(
+    /^\/v1\/admin\/order-groups\/([^/]+)\/delivery-returns$/,
+  );
+  if (adminOrderGroupLifecycle && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const orderGroupId = decodeURIComponent(adminOrderGroupLifecycle[1]);
+    const ref = await correlation.getByOrderGroup(orderGroupId);
+    if (!ref) return problem(404, "order-group-correlation-not-found");
+    const groupShipments = await logistics.listByOrderGroup(orderGroupId);
+    const groupReturns = (await returns.listAll(500)).filter(
+      (record) =>
+        record.orderGroupId === orderGroupId || record.orderId === ref.checkout_ref,
+    );
+    const shipments = await Promise.all(
+      groupShipments.map(async (shipment) => ({
+        ...shipment,
+        events: await logistics.listEvents(shipment.id),
+      })),
+    );
+    const latestUpdates = [
+      ...shipments.map((shipment) => shipment.updatedAt),
+      ...groupReturns.map((record) => record.decidedAt ?? record.requestedAt),
+    ].sort();
+    return json({
+      order_group_id: orderGroupId,
+      order_id: ref.checkout_ref,
+      owner_user_id: ref.owner_user_id,
+      shipments,
+      returns: groupReturns,
+      latest_update: latestUpdates.at(-1) ?? ref.updated_at,
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  // Operator shipment queue.
+  if (url.pathname === "/v1/admin/shipments" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await logistics.list(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  const adminShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)$/);
+  if (adminShipment && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const shipment = await logistics.get(adminShipment[1]);
+    if (!shipment) return problem(404, "shipment-not-found");
+    return json({
+      shipment,
+      events: await logistics.listEvents(shipment.id),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const deliveryEvidence = url.pathname.match(
+    /^\/v1\/admin\/shipments\/([^/]+)\/delivery-evidence$/,
+  );
+  if (deliveryEvidence && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      proof_ref?: string;
+      delivered_at?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.proof_ref?.trim()) {
+      return problem(400, "proof-ref-required", "A proof reference is required.");
+    }
+    const shipment = await logistics.get(deliveryEvidence[1]);
+    if (!shipment) return problem(404, "shipment-not-found");
+    const deliveredLines = (body.delivered_lines ?? []).map((line) => ({
+      lineKey: String(line.line_key ?? ""),
+      deliveredQty: Number(line.delivered_qty ?? 0),
+    }));
+    if (
+      deliveredLines.length === 0 ||
+      deliveredLines.some((line) => !line.lineKey || line.deliveredQty <= 0)
+    ) {
+      return problem(
+        400,
+        "delivery-lines-required",
+        "At least one positive delivered quantity is required.",
+      );
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const result = await logistics.deliver({
+        shipmentId: shipment.id,
+        proofRef: body.proof_ref.trim(),
+        deliveredAt: body.delivered_at,
+        deliveredLines,
+      });
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: {
+          shipment_id: shipment.id,
+          status: "delivered",
+          proof_ref: body.proof_ref.trim(),
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  const simulateShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)\/simulate-event$/);
+  if (simulateShipment && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      scenario?: string;
+      proof_ref?: string;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const scenarios = ["failed_attempt", "delay", "damaged", "lost", "rto", "duplicate", "out_of_order"] as const;
+    if (!body.scenario || !scenarios.includes(body.scenario as (typeof scenarios)[number])) {
+      return problem(400, "invalid-scenario", `Scenario must be one of ${scenarios.join(", ")}.`);
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const shipment = await logistics.get(simulateShipment[1]);
+      if (!shipment) {
+        await privilegedAudit.complete(auditId, 404);
+        return problem(404, "shipment-not-found");
+      }
+      const result = await logistics.simulate({
+        shipmentId: shipment.id,
+        scenario: body.scenario as (typeof scenarios)[number],
+        proofRef: body.proof_ref,
+        deliveredLines: (body.delivered_lines ?? []).map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          deliveredQty: Number(line.delivered_qty ?? 0),
+        })),
+      });
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: {
+          shipment_id: shipment.id,
+          status: result.event.status,
+          simulated: true,
+          scenario: body.scenario,
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        shipment: await logistics.get(shipment.id),
+        event: result.event,
+        duplicate: result.duplicate,
+        status_changed: result.statusChanged,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 500);
+      throw error;
+    }
+  }
+
+  const reconcileShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)\/reconcile$/);
+  if (reconcileShipment && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    const result = await logistics.reconcile(reconcileShipment[1]);
+    if (!result) {
+      await privilegedAudit.complete(auditId, 404);
+      return problem(404, "shipment-not-found");
+    }
+    await privilegedAudit.complete(auditId, 200);
+    return json({
+      reconciliation: result,
+      shipment: await logistics.get(reconcileShipment[1]),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/admin/shipment-exceptions" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await logistics.listExceptions(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      logistics_mode: "simulated",
+      correlation_id: cid,
+    });
+  }
+
+  const logisticsWebhook = url.pathname.match(/^\/v1\/integrations\/logistics\/webhooks\/([^/]+)$/);
+  if (logisticsWebhook && req.method === "POST") {
+    if (!config.logisticsWebhookSecret) {
+      return problem(503, "webhook-not-configured", "Logistics webhook is not configured.");
+    }
+    const supplied = req.headers.get("x-logistics-webhook-secret") ?? "";
+    const expected = config.logisticsWebhookSecret;
+    if (
+      supplied.length !== expected.length ||
+      !timingSafeEqual(Buffer.from(supplied), Buffer.from(expected))
+    ) {
+      return problem(401, "invalid-webhook-secret", "Invalid logistics webhook secret.");
+    }
+    let body: {
+      shipment_id?: string;
+      provider_event_id?: string;
+      event_type?: string;
+      status?: string;
+      occurred_at?: string;
+      payload?: Record<string, unknown>;
+      delivered_lines?: Array<{ line_key?: string; delivered_qty?: number }>;
+      proof_ref?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.shipment_id || !body.provider_event_id || !body.status) {
+      return problem(400, "missing-fields", "shipment_id, provider_event_id and status are required.");
+    }
+    const shipment = await logistics.get(body.shipment_id);
+    if (!shipment) return problem(404, "shipment-not-found");
+    const status = body.status as import("./logistics/shipment-store.js").ShipmentStatus;
+    if (!["booked", "picked_up", "in_transit", "delivery_failed", "out_for_delivery", "damaged", "lost", "delivered", "rto_in_transit", "rto_delivered", "cancelled"].includes(status)) {
+      return problem(400, "invalid-shipment-status");
+    }
+    const result = await logistics.appendEvent({
+      shipmentId: shipment.id,
+      providerEventId: body.provider_event_id,
+      eventType: body.event_type ?? "shipment.status_changed",
+      status,
+      occurredAt: body.occurred_at ?? new Date().toISOString(),
+      payload: body.payload ?? {},
+      proofRef: body.proof_ref,
+      deliveredLines: (body.delivered_lines ?? []).map((line) => ({
+        lineKey: String(line.line_key ?? ""),
+        deliveredQty: Number(line.delivered_qty ?? 0),
+      })),
+    });
+    if (!result.duplicate && result.statusChanged) {
+      await events.append({
+        event_type: "shipment.status_changed",
+        aggregate_type: "order_group",
+        aggregate_id: shipment.orderGroupId,
+        correlation_id: cid,
+        payload: { shipment_id: shipment.id, status: result.event.status, provider: logisticsWebhook[1] },
+      });
+    }
+    return json({
+      accepted: true,
+      duplicate: result.duplicate,
+      status_changed: result.statusChanged,
+      event: result.event,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, result.duplicate ? 200 : 201);
+  }
+
+  // Customer creates a Phase 1 return request. Eligibility is server-computed.
+  const createReturn = url.pathname.match(/^\/v1\/orders\/([^/]+)\/returns$/);
+  if (createReturn && req.method === "POST") {
+    const orderId = createReturn[1];
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
+    if ("response" in authenticated) return authenticated.response;
+    const idempotencyKey = req.headers.get("idempotency-key")?.trim();
+    if (!idempotencyKey || idempotencyKey.length < 8) {
+      return problem(400, "idempotency-key-required", "An Idempotency-Key header is required.");
+    }
+    let body: {
+      resolution?: string;
+      reason_code?: string;
+      customer_comment?: string;
+      lines?: Array<{ line_key?: string; requested_qty?: number; reason_code?: string }>;
+      evidence?: Array<{
+        line_key?: string;
+        object_key?: string;
+        content_type?: string;
+        size_bytes?: number;
+        sha256?: string;
+      }>;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const resolution = body.resolution === "replacement" ? "replacement" : "refund";
+    const requestedLines = (body.lines ?? []).filter(
+      (line) => line.line_key && Number(line.requested_qty ?? 0) > 0,
+    );
+    if (requestedLines.length === 0) {
+      return problem(400, "return-lines-required", "At least one return line is required.");
+    }
+    const ref = await correlation.get(orderId);
+    if (!ref) return problem(404, "order-not-found", "No correlated order for this reference.");
+    const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
+    const eligibilityByLine = new Map(eligibility.map((line) => [line.line_key, line]));
+    const lines = [];
+    for (const requested of requestedLines) {
+      const line = eligibilityByLine.get(String(requested.line_key));
+      if (!line || !line.eligible) {
+        return problem(409, "return-line-ineligible", "A requested line is not eligible for return.", {
+          correlation_id: cid,
+          line_key: requested.line_key,
+          reason: line?.ineligible_reason ?? "line_not_found",
+        });
+      }
+      const reason = requested.reason_code ?? body.reason_code ?? RETURN_POLICY.reasons[0];
+      if (!RETURN_POLICY.reasons.includes(reason as (typeof RETURN_POLICY.reasons)[number])) {
+        return problem(400, "invalid-return-reason", "The return reason is not allowed.");
+      }
+      const quantity = Number(requested.requested_qty);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > line.returnable_qty) {
+        return problem(409, "return-quantity-invalid", "The requested quantity exceeds the returnable quantity.", {
+          correlation_id: cid,
+          line_key: requested.line_key,
+          returnable_qty: line.returnable_qty,
+        });
+      }
+      lines.push({
+        lineKey: line.line_key,
+        sku: line.sku,
+        orderedQty: line.ordered_qty,
+        deliveredQty: line.delivered_qty,
+        requestedQty: quantity,
+        reasonCode: reason,
+      });
+    }
+    const evidence = (body.evidence ?? [])
+      .filter((item) => item.object_key && item.content_type)
+      .map((item) => ({
+        lineKey: item.line_key ?? null,
+        objectKey: String(item.object_key),
+        contentType: String(item.content_type),
+        sizeBytes: Number(item.size_bytes ?? 0),
+        sha256: item.sha256 ?? null,
+      }));
+    try {
+      const result = await returns.request({
+        orderId,
+        orderGroupId: ref.medusa_order_group_id ?? null,
+        userId: authenticated.user.id,
+        idempotencyKey,
+        policyVersion: RETURN_POLICY.version,
+        policySnapshot: returnPolicySnapshot(eligibility),
+        resolution,
+        reasonCode: body.reason_code ?? lines[0].reasonCode,
+        customerComment: body.customer_comment ?? null,
+        lines,
+        evidence,
+      });
+      if (!result.replayed) {
+        await events.append({
+          event_type: "return.requested",
+          aggregate_type: "return",
+          aggregate_id: result.returnCase.id,
+          correlation_id: cid,
+          payload: {
+            return_id: result.returnCase.id,
+            order_id: orderId,
+            checkout_ref: orderId,
+            status: result.returnCase.status,
+            resolution: result.returnCase.resolution,
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        });
+      }
+      return json({
+        return: result.returnCase,
+        replayed: result.replayed,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, result.replayed ? 200 : 201);
+    } catch (error) {
+      if ((error as { code?: string }).code === "idempotency-key-reuse") {
+        return problem(409, "idempotency-key-reuse", "This idempotency key was used with a different payload.");
+      }
+      throw error;
+    }
+  }
+
+  if (url.pathname === "/v1/me/returns" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (!hasAnyRole(authenticated.authorization, ["customer", "b2b_buyer", "b2b_account_admin"])) {
+      return problem(403, "customer-role-required");
+    }
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    return json({
+      items: await returns.listForUser(authenticated.user.id, Number.isFinite(limit) ? limit : 50),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const customerReturn = url.pathname.match(/^\/v1\/returns\/([^/]+)$/);
+  if (customerReturn && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const record = await returns.getForUser(customerReturn[1], authenticated.user.id);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/admin/returns" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await returns.listAll(Number.isFinite(limit) ? limit : 100),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const adminReturnDetail = url.pathname.match(/^\/v1\/admin\/returns\/([^/]+)$/);
+  if (adminReturnDetail && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const record = await returns.get(adminReturnDetail[1]);
+    if (!record) return problem(404, "return-not-found");
+    return json({
+      return: record,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const adminReturn = url.pathname.match(/^\/v1\/admin\/returns\/([^/]+)\/(approve|reject)$/);
+  if (adminReturn && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      comment?: string;
+      approved_lines?: Array<{ line_key?: string; approved_qty?: number }>;
+    } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body when supplied.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const record = await returns.decide({
+        id: adminReturn[1],
+        decision: adminReturn[2] === "approve" ? "approved" : "rejected",
+        actorId: operator.user.id,
+        actorRole: operator.authorization.roles.includes("support_operator")
+          ? "support_operator"
+          : "marketplace_operator",
+        comment: body.comment ?? null,
+        approvedLines: (body.approved_lines ?? []).map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          approvedQty: Number(line.approved_qty ?? 0),
+        })),
+      });
+      await privilegedAudit.complete(auditId, 200);
+      await events.append({
+        event_type: "return.decision",
+        aggregate_type: "return",
+        aggregate_id: record.id,
+        correlation_id: cid,
+        payload: {
+          return_id: record.id,
+          order_id: record.orderId,
+          checkout_ref: record.orderId,
+          status: record.status,
+          resolution: record.resolution,
+          money_effect: "none",
+          stock_effect: "none",
+        },
+      });
+      return json({
+        return: record,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      await privilegedAudit.complete(auditId, code === "return-not-found" ? 404 : 409);
+      if (code === "return-not-found") return problem(404, "return-not-found");
+      if (code === "return-not-decidable") return problem(409, "return-not-decidable");
+      throw error;
+    }
   }
 
   // GET /v1/me/notifications — durable per-user inbox. Legacy path remains a bounded alias.
@@ -753,6 +2092,23 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       ? `${layoutResolution.source}+governed-editorial-seed`
       : "governed-editorial-seed";
 
+    // Resolve section product references at read time. A collection that fails or is empty must not
+    // fail the whole shell: the section renders with an explanation instead.
+    let sections: unknown[] = layout?.sections ?? [];
+    let emptyCollections: string[] = [];
+    if (layout?.sections?.length) {
+      try {
+        const resolved = await resolveSectionProducts(layout.sections, medusa);
+        sections = resolved.sections;
+        emptyCollections = resolved.empty_collections;
+      } catch (error) {
+        console.warn(
+          "[experience-api] section product resolution failed:",
+          (error as Error).message,
+        );
+      }
+    }
+
     return json({
       locale,
       ...(channel ? { channel } : {}),
@@ -762,6 +2118,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         ? {
             layout: {
               ...layout,
+              // Always present so a consumer can rely on it being an array, empty when an operator has
+              // not configured sections for this channel yet.
+              sections,
+              ...(emptyCollections.length ? { empty_collections: emptyCollections } : {}),
               generated_at: generatedAt,
               source: layoutResolution.source,
             },
@@ -775,6 +2135,118 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         stale: layoutResolution?.stale ?? false,
       },
     });
+  }
+
+  if (url.pathname === "/v1/content/presentation" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const channelParam = url.searchParams.get("channel");
+    const channel: StorefrontChannel = channelParam === "b2b" ? "b2b" : "b2c";
+
+    const bannerResolution = await cmsContent.resolveBanners(channel, locale);
+    const banners = bannerResolution.items.length
+      ? bannerResolution.items
+      : resolveSeedBanners(channel, locale);
+    const bannerSource = bannerResolution.items.length
+      ? bannerResolution.source
+      : "governed-editorial-seed";
+
+    let categories: ComposedCategory[] = [];
+    let categorySource = "unavailable";
+    let categoryObservedAt = bannerResolution.observedAt;
+    let categoryStale = bannerResolution.stale;
+    try {
+      const [editorialResolution, medusaCategories, categoryBanners] = await Promise.all([
+        cmsContent.resolveCategoryEditorials(channel, locale),
+        medusa.listProductCategories(),
+        cmsContent.resolveCategoryBanners(channel, locale),
+      ]);
+      const roots = medusaCategories
+        .filter(
+          (category) =>
+            !category.parent_category_id &&
+            category.is_active !== false &&
+            category.is_internal !== true,
+        )
+        .sort((left, right) => (left.rank ?? 0) - (right.rank ?? 0))
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          handle: category.handle ?? null,
+        }));
+      categories = composeStorefrontCategories(
+        roots,
+        editorialResolution.items,
+        categoryBanners.items,
+      );
+      categorySource = editorialResolution.source;
+      categoryObservedAt = editorialResolution.observedAt;
+      categoryStale = editorialResolution.stale;
+    } catch (error) {
+      console.warn("[experience-api] category presentation failed:", (error as Error).message);
+      categorySource = "unavailable";
+      categoryStale = true;
+    }
+
+    const generatedAt = new Date().toISOString();
+    return json({
+      locale,
+      channel,
+      banners,
+      categories,
+      generated_at: generatedAt,
+      source: `${bannerSource}+category:${categorySource}`,
+      freshness: {
+        banners: {
+          source: bannerSource,
+          observed_at: bannerResolution.observedAt,
+          stale: bannerResolution.stale,
+        },
+        categories: {
+          source: categorySource,
+          observed_at: categoryObservedAt,
+          stale: categoryStale,
+        },
+      },
+      test_data: true,
+      correlation_id: correlationId(req),
+    });
+  }
+
+  if (url.pathname === "/v1/content/curated-collections" && req.method === "GET") {
+    const locale = (url.searchParams.get("locale") ?? "en-IN") as AppLocale;
+    const channelParam = url.searchParams.get("channel");
+    const channel: StorefrontChannel = channelParam === "b2b" ? "b2b" : "b2c";
+    try {
+      const resolution = await cmsContent.resolveCuratedCollections(channel, locale);
+      return json({
+        locale,
+        channel,
+        items: resolution.items,
+        source: resolution.source,
+        freshness: {
+          source: resolution.source,
+          observed_at: resolution.observedAt,
+          stale: resolution.stale,
+        },
+        generated_at: new Date().toISOString(),
+        test_data: true,
+        correlation_id: correlationId(req),
+      });
+    } catch (error) {
+      // An operator may not have authored these yet. The app keeps its governed
+      // rule defaults, so this is an empty list, not a storefront failure.
+      console.warn("[experience-api] curated collections failed:", (error as Error).message);
+      return json({
+        locale,
+        channel,
+        items: [],
+        source: "unavailable",
+        freshness: { source: "unavailable", observed_at: new Date().toISOString(), stale: true },
+        generated_at: new Date().toISOString(),
+        test_data: true,
+        correlation_id: correlationId(req),
+      });
+    }
   }
 
   const cmsMediaMatch = url.pathname.match(/^\/v1\/content\/media\/(.+)$/);
@@ -794,6 +2266,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const result = await collections.resolve(key);
       return json({
         collection_key: result.collection.collection_key,
+        // A commerce collection carries its display title; a registry key has none, and the app
+        // humanises the key instead of inventing a name here.
+        title: (result.collection.parameters.title as string | undefined) ?? null,
+        // Present only for a commerce collection: the storefront uses it to fetch composed products
+        // (best-price offer) for the same membership, rather than re-deriving it from raw items.
+        collection_id: (result.collection.parameters.collection_id as string | undefined) ?? null,
         source: result.collection.source,
         status: result.collection.status,
         fallback: result.fallback,
@@ -803,6 +2281,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         correlation_id: cid,
       });
     } catch (error) {
+      if (error instanceof CollectionNotFoundError) {
+        return problem(
+          404,
+          error.reason === "empty" ? "collection-empty" : "collection-not-found",
+          error.reason === "empty"
+            ? "This collection has no products available right now."
+            : "No collection exists at this address.",
+        );
+      }
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
@@ -868,6 +2355,103 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json(state);
   }
 
+  // GET /v1/carts/{cartId} — canonical cart with the promotion breakdown.
+  const cartState = url.pathname.match(/^\/v1\/carts\/([^/]+)$/);
+  if (cartState && req.method === "GET") {
+    const cartId = cartState[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    try {
+      const cart = await medusa.getCart(cartId);
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST/DELETE /v1/carts/{cartId}/promotions — apply or remove promotion codes.
+  //
+  // The engine decides eligibility. The BFF only translates its answer into a stable shape, so the
+  // storefront never has to invent a reason or claim a discount the engine did not grant.
+  const cartPromotions = url.pathname.match(/^\/v1\/carts\/([^/]+)\/promotions$/);
+  if (cartPromotions && (req.method === "POST" || req.method === "DELETE")) {
+    const cartId = cartPromotions[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    let body: { code?: string; codes?: string[] } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as { code?: string; codes?: string[] };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const codes = [
+      ...new Set(
+        [
+          ...(Array.isArray(body.codes) ? body.codes : []),
+          ...(typeof body.code === "string" ? [body.code] : []),
+        ]
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (!codes.length) {
+      return problem(400, "invalid-promotion-code", "A promotion code is required.");
+    }
+    const applied: string[] = [];
+    const rejected: { code: string; reason: string }[] = [];
+    let cart: StoreCart | null = null;
+    for (const code of codes) {
+      try {
+        cart = req.method === "POST"
+          ? await medusa.addPromotion(cartId, code)
+          : await medusa.removePromotion(cartId, code);
+        if (req.method === "POST") {
+          // Medusa can accept a code and still grant nothing (for example when no line matches the
+          // promotion's target). Only a code present on the returned cart is a real application;
+          // otherwise the UI would advertise a discount the engine never applied.
+          const attached = (cart.promotions ?? []).some(
+            (promotion) => promotion.code.toLowerCase() === code.toLowerCase(),
+          );
+          if (!attached) {
+            rejected.push({ code, reason: "not_eligible" });
+            continue;
+          }
+        }
+        applied.push(code);
+      } catch (error) {
+        rejected.push({
+          code,
+          reason: promotionRejectionReason((error as Error).message),
+        });
+      }
+    }
+    if (!cart || applied.length === 0) {
+      return json({
+        type: "promotion-rejected",
+        title: "promotion-rejected",
+        status: 422,
+        rejected_codes: rejected,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      }, 422);
+    }
+    return json({
+      ...composeCartView(cart),
+      applied_codes: applied,
+      rejected_codes: rejected,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
   if (url.pathname === "/v1/carts" && req.method === "POST") {
     const authenticated = await requireAnyRole(req, ["customer", "b2b_buyer", "b2b_account_admin", "b2b_approver"]);
@@ -898,8 +2482,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const channel = wantsB2B ? "b2b" : "b2c";
     try {
       const cart = await medusa.createCart(
-        body.region_id ?? regionFor(authenticated.authorization),
+        // A Medusa country belongs to one operational region. The separate B2B region is a
+        // read-side pricing context and has no countries, so it cannot accept an Indian address.
+        // Canonical carts default to the India delivery region for both channels.
+        body.region_id ?? config.medusaRegionId,
         body.currency_code ?? "inr",
+        { customerEmail: authenticated.user.email },
       );
       // Medusa's store API allows only a single sales channel per publishable key, so B2B vs B2C is
       // carried as cart metadata. Cart metadata propagates to the canonical order, so the
@@ -911,8 +2499,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       await medusa.updateCartMetadata(cart.id, metadata);
       await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
       return json({
-        ...cart,
-        metadata,
+        ...composeCartView({ ...cart, metadata }),
         channel,
         business_account_id: authenticated.authorization.businessAccountId ?? null,
         environment: config.environment,
@@ -962,12 +2549,24 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           first_name: address.first_name.trim(),
           last_name: address.last_name.trim(),
           address_1: address.address_1.trim(),
+          ...(address.address_2?.trim()
+            ? { address_2: address.address_2.trim() }
+            : {}),
           city: address.city.trim(),
+          ...(address.province?.trim()
+            ? { province: address.province.trim() }
+            : {}),
           postal_code: address.postal_code!,
           country_code: "in",
+          ...(address.phone?.trim() ? { phone: address.phone.trim() } : {}),
         },
       });
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1016,7 +2615,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         return problem(409, "ineligible-shipping-option", "The selected shipping option is not eligible for this cart.");
       }
       const cart = await medusa.addShippingMethod(cartId, body.option_id);
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1039,7 +2643,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     try {
       const cart = await medusa.addLineItem(cartId, body.offer_id, body.quantity as number);
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1071,7 +2680,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           ? await medusa.removeLineItem(cartId, lineId)
           : await medusa.updateLineItem(cartId, lineId, body.quantity as number);
       }
-      return json({ ...cart, environment: config.environment, test_data: true, correlation_id: cid });
+      return json({
+        ...composeCartView(cart),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
@@ -1139,9 +2753,43 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             payment_mode: "simulated" as const,
             test_data: true as const,
           };
+          const productIds = [
+            ...new Set(
+              (cart.items ?? [])
+                .map((item) => item.product_id)
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ];
+          const completionOffers = await medusa.listOffersByProducts(
+            productIds,
+            regionFor(authenticated.authorization),
+          );
+          const offerById = new Map(
+            completionOffers.map((offer) => [offer.id, offer]),
+          );
+          const orderGroupPayload = {
+            ...(result.order_group ?? {}),
+            destination_postcode:
+              (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+            lines: (cart.items ?? []).map((item) => {
+              const offer = item.metadata?.offer_id
+                ? offerById.get(item.metadata.offer_id)
+                : undefined;
+              return {
+                line_key: item.id,
+                sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
+                title: item.product_title ?? item.title,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+                product_id: item.product_id ?? null,
+                variant_id: item.variant_id ?? null,
+                seller_id: item.seller_id ?? offer?.seller_id ?? null,
+              };
+            }),
+          };
           await correlation.link(cartId, {
             orderGroup: result.order_group?.id,
-            orderGroupPayload: result.order_group,
+            orderGroupPayload,
             paymentEvidence,
           });
           await events.appendOrderConfirmed({
@@ -1152,6 +2800,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             payload: {
               cart_id: cartId,
               order_group: result.order_group,
+              lines: orderGroupPayload.lines,
               payment: paymentEvidence,
             },
           });
@@ -1186,23 +2835,55 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
-  // GET /v1/products — composed product list with best-price offer per product
+  // GET /v1/products — composed product list with best-price offer per product.
+  //
+  // `catalogue_import` selects the governed staged catalogue by its product metadata marker, so the
+  // storefront does not mix the source catalogue with pre-existing demonstration products. When it is
+  // present the imported subset is scanned once and then paginated in memory, because Medusa's store
+  // API has no portable metadata equality filter.
   if (url.pathname === "/v1/products" && req.method === "GET") {
-    const limit = Number(url.searchParams.get("limit") ?? 50);
-    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50), 1), 250);
+    const offset = Math.max(Number(url.searchParams.get("offset") ?? 0), 0);
+    // A storefront layout section resolves its products from a commerce collection. The section stores
+    // the reference; this resolves it here so the storefront keeps one composed-product path, with the
+    // same price and offer composition it already uses.
+    const collectionId = (url.searchParams.get("collection_id") ?? "").trim();
+    const catalogueImport = (url.searchParams.get("catalogue_import") ?? "").trim();
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
-    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
+    const channel = requestedChannel(url.searchParams.get("channel"), authorization);
     try {
       const t0 = performance.now();
-      const products = await medusa.listProducts(limit, offset);
+      let products: Awaited<ReturnType<typeof medusa.listProducts>>;
+      let totalCount: number | null = null;
+      if (catalogueImport) {
+        const scanned: Awaited<ReturnType<typeof medusa.listProducts>> = [];
+        for (let start = 0; start < MAX_CATALOGUE_SCAN; start += CATALOGUE_SCAN_PAGE_SIZE) {
+          const page = await medusa.listProducts(
+            CATALOGUE_SCAN_PAGE_SIZE,
+            start,
+            salesChannelIdFor(channel),
+          );
+          scanned.push(...page);
+          if (page.length < CATALOGUE_SCAN_PAGE_SIZE) break;
+        }
+        const matched = orderByImageQuality(scanned.filter(
+          (p) => String(p.metadata?.catalogue_import ?? "") === catalogueImport,
+        ));
+        totalCount = matched.length;
+        products = matched.slice(offset, offset + limit);
+      } else if (collectionId) {
+        products = await medusa.listProductsByCollection(collectionId, limit);
+      } else {
+        products = await medusa.listProducts(limit, offset, salesChannelIdFor(channel));
+      }
       const productsMs = performance.now() - t0;
 
       const productIds = products.map((p) => p.id);
       const t1 = performance.now();
       const { offers: allOffers, cacheHit } = await getOffersCached(
         productIds,
-        `${config.medusaCountryCode}:inr`,
+        `${config.medusaCountryCode}:inr:${channel}`,
         regionId,
       );
       const offersMs = performance.now() - t1;
@@ -1215,22 +2896,34 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         offersByProduct.set(o.product_id, list);
       }
       const composed = products.map((p) => {
-        const base = {
+        const offers = offersByProduct.get(p.id) ?? [];
+        const { selected } = composeOffers(offers);
+        return {
           id: p.id,
           title: p.title,
           thumbnail: p.thumbnail,
           description: p.description,
           handle: p.handle,
-          variants: p.variants,
+          metadata: p.metadata ?? null,
+          categories: p.categories ?? [],
+          // Merchandising tags are the storefront's tile badges (Best Deal / Seasonal / Flash Deal).
+          badges: (p.tags ?? []).map((tag) => tag.value),
+          // Every variant carries its own sellable offer. A grouped product is one card; its SKUs
+          // are the variants inside it, never extra cards.
+          variants: composeVariantPrices(p.variants, offers),
+          best_price: selected,
+          offer_count: offers.length,
+          image_quality_score: imageQualityScore(p.id),
+          image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
         };
-        const offers = offersByProduct.get(p.id) ?? [];
-        const { selected } = composeOffers(offers);
-        return { ...base, best_price: selected, offer_count: offers.length };
       });
       const composeMs = performance.now() - t2;
 
       return json({
         products: composed,
+        count: totalCount,
+        limit,
+        offset,
         channel,
         cache_hit: cacheHit,
         timing_ms: {
@@ -1253,12 +2946,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const productId = product[1];
     const authorization = await optionalAuthorization(req);
     const regionId = regionFor(authorization);
-    const channel = isBusinessBuyer(authorization) ? "b2b" : "b2c";
+    const channel = requestedChannel(url.searchParams.get("channel"), authorization);
     try {
-      const context = `${config.medusaCountryCode}:inr`;
+      const context = `${config.medusaCountryCode}:inr:${channel}`;
 
       const t0 = performance.now();
-      const p = await medusa.getProduct(productId);
+      const p = await medusa.getProduct(productId, salesChannelIdFor(channel));
       const productMs = performance.now() - t0;
 
       const t1 = performance.now();
@@ -1274,7 +2967,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         title: p.title,
         thumbnail: p.thumbnail,
         description: p.description,
-        variants: p.variants,
+        handle: p.handle,
+        metadata: p.metadata ?? null,
+        categories: p.categories ?? [],
+        badges: (p.tags ?? []).map((tag) => tag.value),
+        image_quality_score: imageQualityScore(p.id),
+        image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
+        variants: composeVariantPrices(p.variants, offers),
         offers: offerViews,
         channel,
         cache_hit: cacheHit,
@@ -1558,6 +3257,264 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   }
 
   // GET /v1/admin/events — durable domain-event log (WP4)
+  // Internal append point for canonical seller actions performed in the Medusa
+  // admin/vendor facades. nginx blocks /v1/internal on the public hosts; the
+  // service credential is the same one used by the admin console proxy.
+  if (url.pathname === "/v1/internal/inventory/summary" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: { skus?: string[] };
+    try {
+      body = (await req.json()) as { skus?: string[] };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const skus = Array.from(
+      new Set(
+        (body.skus ?? [])
+          .map((sku) => String(sku ?? "").trim())
+          .filter(Boolean),
+      ),
+    ).slice(0, 200);
+    const items = await Promise.all(
+      skus.map(async (sku) => {
+        let tryton:
+          | Awaited<ReturnType<typeof erp.stockSummary>>
+          | { found: false; error: string };
+        try {
+          tryton = await erp.stockSummary(sku);
+        } catch (error) {
+          tryton = { found: false, error: (error as Error).message };
+        }
+        const ledger = await reservations.getLedger(sku);
+        return {
+          sku,
+          tryton,
+          platform: ledger
+            ? {
+                available: ledger.available,
+                reserved: ledger.reserved,
+                atp: Math.max(0, ledger.available - ledger.reserved),
+                source: "reservation_ledger_fixture",
+              }
+            : null,
+        };
+      }),
+    );
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      tryton_authoritative: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/internal/inventory/request" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      sku?: string;
+      quantity_delta?: number;
+      reason?: string;
+      seller_id?: string | null;
+      offer_id?: string | null;
+      product_id?: string | null;
+      actor_role?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const sku = String(body.sku ?? "").trim();
+    const delta = Number(body.quantity_delta);
+    const reason = String(body.reason ?? "").trim();
+    if (!sku || !Number.isInteger(delta) || delta === 0 || !reason) {
+      return problem(
+        422,
+        "invalid-inventory-request",
+        "sku, non-zero integer quantity_delta and reason are required.",
+      );
+    }
+    const request = await inventoryRequests.create({
+      sku,
+      offer_id: body.offer_id ?? null,
+      product_id: body.product_id ?? null,
+      seller_id: body.seller_id ?? null,
+      quantity_delta: delta,
+      reason,
+      requested_by: operator.user.id,
+    });
+    await events.append({
+      event_type: "inventory.adjustment_requested",
+      aggregate_type: "inventory",
+      aggregate_id: sku,
+      correlation_id: cid,
+      payload: {
+        request_id: request.id,
+        sku,
+        quantity_delta: delta,
+        reason,
+        seller_id: body.seller_id ?? null,
+        offer_id: body.offer_id ?? null,
+        product_id: body.product_id ?? null,
+        actor_user_id: operator.user.id,
+        actor_role: body.actor_role ?? "admin",
+        source: body.seller_id ? "seller_portal" : "admin_console",
+        stock_effect: "none",
+      },
+    });
+    return json({
+      request_id: request.id,
+      sku,
+      quantity_delta: delta,
+      reason,
+      status: request.status,
+      stock_effect: "none",
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/internal/inventory/requests" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const status = url.searchParams.get("status")?.trim() || undefined;
+    const sellerId = url.searchParams.get("seller_id")?.trim() || null;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await inventoryRequests.list({
+        status,
+        sellerId,
+        limit: Number.isFinite(limit) ? limit : 100,
+      }),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const inventoryDecision = url.pathname.match(
+    /^\/v1\/internal\/inventory\/requests\/([^/]+)\/(approve|reject)$/,
+  );
+  if (inventoryDecision && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: { note?: string } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as { note?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const existing = await inventoryRequests.get(inventoryDecision[1]);
+    if (!existing) return problem(404, "inventory-request-not-found");
+    const status = inventoryDecision[2] === "approve" ? "approved" : "rejected";
+    const request = await inventoryRequests.decide(
+      existing.id,
+      status,
+      operator.user.id,
+      body.note?.trim() || null,
+    );
+    if (!request) {
+      return problem(409, "inventory-request-already-decided");
+    }
+    await events.append({
+      event_type: `inventory.adjustment_${status}`,
+      aggregate_type: "inventory",
+      aggregate_id: request.sku,
+      correlation_id: cid,
+      payload: {
+        request_id: request.id,
+        sku: request.sku,
+        quantity_delta: request.quantity_delta,
+        status,
+        note: request.decision_note,
+        actor_user_id: operator.user.id,
+        stock_effect: "none",
+      },
+    });
+    return json({
+      request,
+      stock_effect: "none",
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/internal/seller-activity" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      event_type?: string;
+      seller_id?: string;
+      offer_id?: string;
+      product_id?: string | null;
+      actor_user_id?: string;
+      actor_role?: string;
+      source?: string;
+      reason?: string | null;
+      before?: unknown;
+      after?: unknown;
+      correlation_id?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!body.event_type || !body.seller_id || !body.offer_id) {
+      return problem(422, "invalid-seller-activity", "event_type, seller_id and offer_id are required.");
+    }
+    const event = await events.append({
+      event_type: body.event_type,
+      aggregate_type: "offer",
+      aggregate_id: body.offer_id,
+      correlation_id: body.correlation_id ?? cid,
+      payload: {
+        seller_id: body.seller_id,
+        offer_id: body.offer_id,
+        product_id: body.product_id ?? null,
+        actor_user_id: body.actor_user_id ?? operator.user.id,
+        actor_role: body.actor_role ?? "admin",
+        source: body.source ?? "admin_console",
+        reason: body.reason ?? null,
+        before: body.before ?? null,
+        after: body.after ?? null,
+        environment: config.environment,
+        test_data: true,
+      },
+    });
+    return json({
+      event,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    }, 201);
+  }
+
+  if (url.pathname === "/v1/admin/seller-activity" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const requestedType = url.searchParams.get("event_type")?.trim() || "seller.";
+    const limit = Math.min(
+      200,
+      Math.max(1, Number.parseInt(url.searchParams.get("limit") ?? "100", 10) || 100),
+    );
+    const items = (await events.list("offer", undefined, 500))
+      .filter((event) => event.event_type.startsWith(requestedType))
+      .slice(0, limit);
+    return json({
+      items,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   if (url.pathname === "/v1/admin/events" && req.method === "GET") {
     const aggregateType = url.searchParams.get("aggregate_type") ?? undefined;
     const aggregateId = url.searchParams.get("aggregate_id") ?? undefined;
@@ -1698,6 +3655,34 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  // GET /v1/me/orders — API-backed customer order history.
+  if (url.pathname === "/v1/me/orders" && req.method === "GET") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (!hasAnyRole(authenticated.authorization, ["customer", "b2b_buyer", "b2b_account_admin"])) {
+      return problem(403, "customer-role-required");
+    }
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
+    const records = await correlation.listForUser(
+      authenticated.user.id,
+      Number.isFinite(limit) ? limit : 50,
+    );
+    return json({
+      items: records.map((ref) => ({
+        order_id: ref.checkout_ref,
+        medusa_order_group_id: ref.medusa_order_group_id,
+        status: ref.medusa_order_group_id ? "confirmed" : "not_started",
+        created_at: ref.created_at,
+        lines: orderLineSnapshots(ref),
+        payment_mode: config.paymentAdapterMode,
+        test_data: true,
+      })),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
   // GET /v1/orders/{orderId} — customer order read (correlated staging references)
   const customerOrder = url.pathname.match(/^\/v1\/orders\/([^/]+)$/);
   if (customerOrder && req.method === "GET") {
@@ -1710,6 +3695,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     const trytonMove = ref.tryton_move_id ?? null;
     const orderGroup = ref.medusa_order_group_id ?? null;
+    const shipments = orderGroup ? await shipmentsWithEvents(orderGroup) : [];
+    const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
+    const relatedReturns = (await returns.listForUser(authenticated.user.id, 50))
+      .filter((item) => item.orderId === orderId);
     return json({
       order_id: orderId,
       medusa_order_group_id: orderGroup,
@@ -1720,6 +3709,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       reservation_id: trytonMove ? `tryton_move_${trytonMove}` : null,
       reservation_status: trytonMove ? "committed" : "not_started",
       reconciled: Boolean(orderGroup && trytonMove),
+      lines: orderLineSnapshots(ref),
+      shipments,
+      return_eligibility: eligibility,
+      returns: relatedReturns,
+      logistics_mode: "simulated",
       correlation_id: cid,
     });
   }
@@ -1746,14 +3740,73 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  // Short-lived browser ticket for the workspace WebSocket. The session bearer is never placed in
+  // the WebSocket URL.
+  const streamTicketMatch = url.pathname.match(
+    /^\/v1\/workspaces\/([^/]+)\/stream-ticket$/,
+  );
+  if (streamTicketMatch && req.method === "POST") {
+    if (!config.workspaceServiceUrl || !config.workspaceServiceSecret) {
+      return problem(503, "workspace-not-configured", "The workspace service is not configured.");
+    }
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    if (
+      !hasAnyRole(authenticated.authorization, [
+        "b2b_buyer",
+        "b2b_account_admin",
+        "b2b_approver",
+        "super_admin",
+        "customer",
+      ])
+    ) {
+      return problem(404, "not-found");
+    }
+    return json(
+      signWorkspaceTicket(
+        authenticated.user,
+        authenticated.authorization,
+        cid,
+        streamTicketMatch[1],
+      ),
+    );
+  }
+
+  // Workspace collaboration (B2B and household) is always proxied to the internal service.
+  if (
+    url.pathname === "/v1/workspaces" ||
+    url.pathname.startsWith("/v1/workspaces/") ||
+    url.pathname === "/v1/household-projects" ||
+    url.pathname === "/v1/workspace-invitations/accept" ||
+    url.pathname.startsWith("/v1/channels/") ||
+    url.pathname.startsWith("/v1/purchase-drafts/") ||
+    url.pathname.startsWith("/v1/proposals/") ||
+    url.pathname.startsWith("/v1/approval-requests/")
+  ) {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    return proxyWorkspace(
+      req,
+      authenticated.user,
+      authenticated.authorization,
+      cid,
+    );
+  }
+
   return problem(404, "not-found");
 }
 
 const server = Bun.serve({
   port: config.port,
-  fetch: async (req) => {
+  fetch: async (req, bunServer) => {
     const url = new URL(req.url);
     const cid = correlationId(req);
+    const streamMatch = url.pathname.match(
+      /^\/v1\/workspaces\/([^/]+)\/stream$/,
+    );
+    if (streamMatch && req.method === "GET") {
+      return handleWorkspaceStream(req, bunServer, streamMatch[1], url, cid);
+    }
     const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
     const isMutation = req.method !== "GET" && req.method !== "OPTIONS";
     if (!requiredRoles || !isMutation) return handle(req, url, cid);
@@ -1795,6 +3848,70 @@ const server = Bun.serve({
       console.warn("[experience-api] privileged audit completion failed:", (error as Error).message);
     });
     return response;
+  },
+  websocket: {
+    open(ws) {
+      const data = ws.data as WorkspaceStreamData;
+      if (!config.workspaceServiceUrl) {
+        ws.close(1011, "workspace-not-configured");
+        return;
+      }
+      const wsBase = config.workspaceServiceUrl.replace(/^http/, "ws");
+      const upstreamUrl = new URL(
+        `${wsBase}/v1/workspaces/${data.workspaceId}/stream`,
+      );
+      upstreamUrl.searchParams.set("ticket", data.ticket);
+      upstreamUrl.searchParams.set("signature", data.signature);
+      upstreamUrl.searchParams.set("cursor", String(data.cursor));
+      let upstream: any;
+      try {
+        upstream = new WebSocket(upstreamUrl.toString());
+      } catch {
+        ws.close(1011, "workspace-unavailable");
+        return;
+      }
+      workspaceStreams.set(ws, upstream);
+      upstream.onmessage = (event: { data: unknown }) => {
+        try {
+          ws.send(typeof event.data === "string" ? event.data : String(event.data));
+        } catch {
+          upstream.close();
+        }
+      };
+      upstream.onclose = () => {
+        workspaceStreams.delete(ws);
+        try {
+          ws.close();
+        } catch {
+          // already closed
+        }
+      };
+      upstream.onerror = () => {
+        workspaceStreams.delete(ws);
+        try {
+          ws.close(1011, "workspace-unavailable");
+        } catch {
+          // already closed
+        }
+      };
+    },
+    message(ws, message) {
+      const upstream = workspaceStreams.get(ws);
+      if (upstream && upstream.readyState === 1) {
+        upstream.send(message);
+      }
+    },
+    close(ws) {
+      const upstream = workspaceStreams.get(ws);
+      if (upstream) {
+        workspaceStreams.delete(ws);
+        try {
+          upstream.close();
+        } catch {
+          // already closed
+        }
+      }
+    },
   },
 });
 

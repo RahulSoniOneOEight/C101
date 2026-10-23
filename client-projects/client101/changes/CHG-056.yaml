@@ -1,0 +1,50 @@
+change_id: CHG-056
+revision: 1
+request: >-
+  Review the reported instability of the staging app link and harden the client against transient
+  gateway failures, while making the loaded build visible.
+type: staging-app-stability-hardening
+extends:
+- CHG-054
+- CHG-055
+affected_capabilities:
+- app-runtime
+affected_domains:
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- Firebase Hosting with no-store headers for index and main.dart.js.
+- Flutter service worker is not registered in this build.
+missing:
+- A transient 502 during a container restart surfaces as a permanent error page.
+- QC cannot tell a stale tab from a failed load.
+decisions_approved:
+- D-056-01: Retry transient GETs (network error, 502, 503, 504) up to three attempts with a short
+    backoff for catalogue, presentation, cart and shipping reads.
+- D-056-02: Show the short commit build id in the staging strip.
+required_tests:
+- Repeated clean loads render the catalogue without console or request failures.
+- The staging strip shows STAGING plus the build id.
+constraints:
+- Staging only; production release remains unauthorized.
+- No change to business rules, prices or promotions.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-056/app-stability.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 191-pass
+    build_id_visible: true
+    repeated_loads: 3-of-3-clean
+    service_worker: not-registered
+  deployment:
+    build_id: 56fae07
+    hosting_project: buildkart-staging
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

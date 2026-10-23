@@ -1,9 +1,27 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/app_config.dart';
 import '../data/experience_api.dart';
 import '../data/local_store.dart';
 import '../domain/models.dart';
 import 'catalog_providers.dart';
+
+/// Raised when the canonical cart cannot be reached or created.
+///
+/// The UI must show a retryable error instead of claiming the item was added.
+class CartUnavailable implements Exception {
+  const CartUnavailable([this.message = 'Cart is temporarily unavailable']);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+const String _localCartId = 'local_cart';
+
+bool _isServerCart(Cart? cart) => cart != null && cart.id.startsWith('cart_');
 
 /// Cart state controller.
 ///
@@ -19,6 +37,12 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
   @override
   AsyncValue<Cart?> build() {
     final restored = ref.read(localStoreProvider).readCart();
+    if (restored != null && !_isServerCart(restored)) {
+      // A fake cart from an older offline fallback is not addressable by the
+      // API. Discard it rather than letting every later operation 404.
+      Future<void>.microtask(() => _store.writeCart(null));
+      return const AsyncValue.data(null);
+    }
     return AsyncValue.data(restored);
   }
 
@@ -33,23 +57,54 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
 
   Future<void> replaceFromServer(Cart cart) => _setCart(cart);
 
-  /// Returns the existing cart or creates one on first use.
+  /// Refreshes from the canonical cart. Best-effort: an offline checkout keeps
+  /// the cached cart and surfaces the failure at submit.
+  Future<void> rehydrate() async {
+    final cart = state.value;
+    if (cart == null) return;
+    try {
+      await _setCart(await _client.getCart(cart.id));
+    } catch (_) {
+      // Keep the local projection; submit is the authoritative check.
+    }
+  }
+
+  /// Returns the existing canonical cart or creates one on first use.
+  ///
+  /// A restored `local_cart` is deliberately treated as absent: it cannot be
+  /// addressed by the API and would fail every subsequent operation.
   Future<Cart> _requireCart() async {
     final existing = state.value;
-    if (existing != null) return existing;
+    if (_isServerCart(existing)) return existing!;
     final cart = await _client.createCart();
     await _setCart(cart);
     return cart;
   }
+
+  static bool _isMissingCartError(Object error) =>
+      error is DioException && error.response?.statusCode == 404;
 
   // ---- offline (local) cart helpers ---------------------------------------
 
   Product? _productFor(String variantId) {
     final products = ref.read(productsProvider).value ?? const <Product>[];
     for (final p in products) {
-      if ((p.variantId ?? p.id) == variantId) return p;
+      if (p.cartVariantId == variantId || p.id == variantId) return p;
+      for (final variant in p.variants) {
+        if (variant.id == variantId) return p;
+      }
     }
     return null;
+  }
+
+  /// Price of the specific SKU being added, so a grouped product never uses one
+  /// variant's price for another variant's line.
+  Money? _variantPrice(Product? product, String variantId) {
+    if (product == null) return null;
+    for (final variant in product.variants) {
+      if (variant.id == variantId) return variant.price;
+    }
+    return product.price;
   }
 
   CartLineItem _line(String id, String title, int qty, Money? unit) {
@@ -91,7 +146,7 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
           unitPrice ?? line.unitPrice);
     } else {
       items.add(_line(variantId, product?.title ?? variantId, quantity,
-          unitPrice ?? product?.price));
+          unitPrice ?? _variantPrice(product, variantId)));
     }
     return _withItems(cart, items);
   }
@@ -102,14 +157,63 @@ class CartNotifier extends Notifier<AsyncValue<Cart?>> {
       required int quantity,
       Money? unitPrice}) async {
     try {
-      final cart = await _requireCart();
-      final updated = await _client.addLineItem(cart.id, offerId, quantity);
-      await _setCart(updated);
+      var cart = await _requireCart();
+      try {
+        final updated = await _client.addLineItem(cart.id, offerId, quantity);
+        await _setCart(updated);
+        return;
+      } catch (error) {
+        // A cached server cart can expire or be deleted server-side. Recover
+        // once with a fresh cart; never retry a validation failure.
+        if (!_isMissingCartError(error)) rethrow;
+        cart = await _client.createCart();
+        await _setCart(cart);
+        final retried = await _client.addLineItem(cart.id, offerId, quantity);
+        await _setCart(retried);
+        return;
+      }
     } catch (_) {
-      // Offline / demo: keep a working local cart rather than an error state.
-      final base = state.value ?? const Cart(id: 'local_cart');
-      await _setCart(
-          _localAdd(base, variantId, quantity, unitPrice: unitPrice));
+      // The offline cart is an explicit development-only mode. In staging and
+      // production a failure is surfaced so the UI cannot claim success.
+      if (AppConfig.allowOfflineCart) {
+        final base = _isServerCart(state.value)
+            ? state.value!
+            : const Cart(id: _localCartId);
+        await _setCart(
+            _localAdd(base, variantId, quantity, unitPrice: unitPrice));
+        return;
+      }
+      throw const CartUnavailable();
+    }
+  }
+
+  /// Applies a code against the canonical cart. The engine decides; this only
+  /// propagates its answer and never assumes a discount.
+  Future<void> applyPromotion(String code) async {
+    final cart = state.value;
+    if (cart == null) {
+      throw PromotionRejected(code: code, reason: 'no_cart');
+    }
+    try {
+      final updated = await _client.addPromotion(cart.id, code);
+      await _setCart(updated);
+    } on PromotionRejected {
+      rethrow;
+    } catch (_) {
+      throw PromotionRejected(code: code, reason: 'unavailable');
+    }
+  }
+
+  Future<void> removePromotion(String code) async {
+    final cart = state.value;
+    if (cart == null) return;
+    try {
+      final updated = await _client.removePromotion(cart.id, code);
+      await _setCart(updated);
+    } on PromotionRejected {
+      rethrow;
+    } catch (_) {
+      throw PromotionRejected(code: code, reason: 'unavailable');
     }
   }
 

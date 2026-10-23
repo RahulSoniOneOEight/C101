@@ -25,6 +25,8 @@
     "configure:staging-finance": "medusa exec ./src/scripts/configure-staging-finance.ts",
     "test:staging-finance": "bun run ./src/scripts/staging-finance-test.ts",
     "configure:staging-merchandising": "medusa exec ./src/scripts/configure-staging-merchandising.ts",
+    "ensure:buildkart-direct-shipping": "medusa exec ./src/scripts/ensure-buildkart-direct-shipping.ts",
+    "repair:marketplace-allocations": "medusa exec ./src/scripts/repair-marketplace-allocations.ts",
     "test:staging-merchandising": "bun run ./src/scripts/staging-merchandising-test.ts",
     "test:merchandising-engine": "medusa exec ./src/scripts/merchandising-promotion-engine-test.ts",
     "test:merchandising-offers": "medusa exec ./src/scripts/merchandising-offer-patterns-test.ts",
@@ -48,6 +50,7 @@
     "@medusajs/draft-order": "2.20.1",
     "@mercurjs/core": "2.3.4",
     "@mercurjs/types": "2.3.4",
+    "nats": "^2.29.3",
     "http-proxy-middleware": "3.0.7",
     "@mercurjs/cli": "2.3.4"
   },

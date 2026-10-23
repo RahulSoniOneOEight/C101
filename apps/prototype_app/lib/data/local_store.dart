@@ -7,6 +7,7 @@ import '../domain/account_models.dart';
 import '../domain/b2b_support_models.dart';
 import '../domain/b2b_trade_models.dart';
 import '../domain/models.dart';
+import '../domain/storefront_ux.dart';
 
 /// App-wide [SharedPreferences].
 ///
@@ -31,6 +32,16 @@ class LocalStore {
   static const String _cartKey = 'cart_v1';
   static const String _catalogKey = 'catalog_v1';
   static const String _recentlyViewedKey = 'recently_viewed_v1';
+  static const String _fulfilmentPreferenceKey = 'fulfilment_preference_v1';
+  static const String _cartBuildsKey = 'cart_builds_v1';
+
+  Set<String> readCartBuilds() =>
+      (_prefs.getStringList(_cartBuildsKey) ?? const <String>[]).toSet();
+
+  Future<void> markCartBuild(String buildKey) async {
+    final keys = readCartBuilds()..add(buildKey);
+    await _prefs.setStringList(_cartBuildsKey, keys.toList());
+  }
 
   List<String> readRecentlyViewed() {
     return _prefs.getStringList(_recentlyViewedKey) ?? const <String>[];
@@ -38,6 +49,23 @@ class LocalStore {
 
   Future<void> writeRecentlyViewed(List<String> ids) async {
     await _prefs.setStringList(_recentlyViewedKey, ids);
+  }
+
+  FulfilmentPreference readFulfilmentPreference() {
+    final raw = _prefs.getString(_fulfilmentPreferenceKey);
+    if (raw == null) return const FulfilmentPreference();
+    try {
+      return FulfilmentPreference.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      return const FulfilmentPreference();
+    }
+  }
+
+  Future<void> writeFulfilmentPreference(
+      FulfilmentPreference preference) async {
+    await _prefs.setString(
+        _fulfilmentPreferenceKey, jsonEncode(preference.toJson()));
   }
 
   Cart? readCart() {
@@ -85,6 +113,7 @@ class LocalStore {
 
   static const String _profileKey = 'account_profile_v1';
   static const String _addressesKey = 'account_addresses_v1';
+  static const String _lastCheckoutAddressKey = 'checkout_last_address_v1';
   static const String _wishlistKey = 'wishlist_v1';
   static const String _paymentsKey = 'account_payments_v1';
   static const String _gstKey = 'account_gst_v1';
@@ -110,6 +139,18 @@ class LocalStore {
 
   Future<void> writeAddresses(List<SavedAddress> addresses) =>
       _writeList(_addressesKey, addresses.map((a) => a.toJson()).toList());
+
+  /// Last address chosen at checkout, preferred over the default next time.
+  String? readLastCheckoutAddressId() =>
+      _prefs.getString(_lastCheckoutAddressKey);
+
+  Future<void> writeLastCheckoutAddressId(String? id) async {
+    if (id == null || id.isEmpty) {
+      await _prefs.remove(_lastCheckoutAddressKey);
+    } else {
+      await _prefs.setString(_lastCheckoutAddressKey, id);
+    }
+  }
 
   List<String> readWishlist() =>
       _prefs.getStringList(_wishlistKey) ?? const <String>[];
@@ -167,7 +208,7 @@ class LocalStore {
   bool hasPaymentMethods() => _prefs.containsKey(_paymentsKey);
   bool hasTickets() => _prefs.containsKey(_ticketsKey);
 
-  // ---- Procurement lists (Quick Order → list journey) ----------------------
+  // ---- Procurement lists (Quick Order â†’ list journey) ----------------------
   static const String _procurementListsKey = 'procurement_lists_v1';
   bool hasProcurementLists() => _prefs.containsKey(_procurementListsKey);
 

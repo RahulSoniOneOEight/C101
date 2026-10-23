@@ -6,6 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { normaliseLayoutSections } from "../content/layout-sections.js";
 import { resolveLayout, storefrontLayouts } from "../content/storefront-layout.js";
 
 // --- resolution ------------------------------------------------------------------------------
@@ -80,6 +81,25 @@ assert.deepEqual(
   fixtureBody,
   "layout seed drifted from the reviewed storefront-layout fixture",
 );
+
+// --- section normalisation ---------------------------------------------------------------------
+// A label an operator changed in the editor must survive to delivery. It used to fall back to the
+// title, which meant the storefront showed a heading the operator had replaced.
+const labelled = normaliseLayoutSections(
+  [{ placement: "flash_deals", label: "Editor's pick", title: "Title wins for display", collectionKey: "pcol_x", enabled: true }],
+  "b2c",
+  new Date("2026-10-17T00:00:00Z"),
+);
+assert.equal(labelled.sections[0]?.label, "Editor's pick", "the authored label must survive to delivery");
+
+// A section with no authored label still falls back to its registry label, so the storefront is never
+// left without a heading.
+const unlabelled = normaliseLayoutSections(
+  [{ placement: "flash_deals", collectionKey: "pcol_x", enabled: true }],
+  "b2c",
+  new Date("2026-10-17T00:00:00Z"),
+);
+assert.equal(unlabelled.sections[0]?.label, "Flash Deals", "an unauthored label falls back to the registry label");
 
 console.log(
   "storefront-layout-test: PASS (b2c layout resolves, b2b withholds, labels and badge preserved, membership referenced, fixture parity)",

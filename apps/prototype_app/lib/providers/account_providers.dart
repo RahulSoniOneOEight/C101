@@ -49,7 +49,10 @@ class AddressesNotifier extends Notifier<List<SavedAddress>> {
       store.writeAddresses(seed); // fire-and-forget first-run seed
       return seed;
     }
-    return store.readAddresses();
+    final persisted = store.readAddresses();
+    final migrated = _migrateSeedAddresses(persisted);
+    if (migrated.$2) store.writeAddresses(migrated.$1);
+    return migrated.$1;
   }
 
   Future<void> _persist(List<SavedAddress> next) async {
@@ -85,7 +88,8 @@ class AddressesNotifier extends Notifier<List<SavedAddress>> {
 
   Future<void> setDefault(String id) async => _persist(_withDefault(state, id));
 
-  List<SavedAddress> _withDefault(List<SavedAddress> list, String id) => <SavedAddress>[
+  List<SavedAddress> _withDefault(List<SavedAddress> list, String id) =>
+      <SavedAddress>[
         for (final a in list) a.copyWith(isDefault: a.id == id),
       ];
 }
@@ -100,6 +104,32 @@ final defaultAddressProvider = Provider<SavedAddress?>((ref) {
     if (a.isDefault) return a;
   }
   return list.isEmpty ? null : list.first;
+});
+
+/// Last address used at checkout, persisted across restarts.
+class LastCheckoutAddressNotifier extends Notifier<String?> {
+  @override
+  String? build() => ref.read(localStoreProvider).readLastCheckoutAddressId();
+
+  Future<void> set(String id) async {
+    state = id;
+    await ref.read(localStoreProvider).writeLastCheckoutAddressId(id);
+  }
+}
+
+final lastCheckoutAddressProvider =
+    NotifierProvider<LastCheckoutAddressNotifier, String?>(
+        LastCheckoutAddressNotifier.new);
+
+/// Address to open checkout with: the last used one when it still exists,
+/// otherwise the default, otherwise the first saved address.
+final checkoutStartAddressProvider = Provider<SavedAddress?>((ref) {
+  final addresses = ref.watch(addressesProvider);
+  final lastId = ref.watch(lastCheckoutAddressProvider);
+  for (final address in addresses) {
+    if (address.id == lastId) return address;
+  }
+  return ref.watch(defaultAddressProvider);
 });
 
 // ---------------------------------------------------------------------------
@@ -141,8 +171,7 @@ class WishlistNotifier extends Notifier<List<String>> {
     } catch (_) {/* in-memory only */}
   }
 
-  Future<void> toggle(String id) =>
-      state.contains(id) ? remove(id) : add(id);
+  Future<void> toggle(String id) => state.contains(id) ? remove(id) : add(id);
 }
 
 final wishlistProvider =
@@ -178,8 +207,7 @@ class PaymentMethodsNotifier extends Notifier<List<PaymentMethod>> {
     if (method.isDefault) {
       next = <PaymentMethod>[
         for (final m in next)
-          m.copyWith(
-              isDefault: m.removable ? m.id == method.id : false),
+          m.copyWith(isDefault: m.removable ? m.id == method.id : false),
       ];
     }
     await _persistSaved(next);
@@ -286,8 +314,7 @@ class TicketsNotifier extends Notifier<List<SupportTicket>> {
 }
 
 final ticketsProvider =
-    NotifierProvider<TicketsNotifier, List<SupportTicket>>(
-        TicketsNotifier.new);
+    NotifierProvider<TicketsNotifier, List<SupportTicket>>(TicketsNotifier.new);
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -333,7 +360,33 @@ List<SavedAddress> _addressSeed() => <SavedAddress>[
         state: 'Rajasthan',
         pincode: '301019',
       ),
+      _officeAddress(),
     ];
+
+/// Third demo address so switching away from the default is visible.
+SavedAddress _officeAddress() => const SavedAddress(
+      id: 'addr_office',
+      label: 'Office',
+      fullName: 'Rahul Sharma',
+      phone: '+91 98765 43210',
+      line1: '3rd Floor, Sunrise Tower',
+      line2: 'MG Road',
+      city: 'Jaipur',
+      state: 'Rajasthan',
+      pincode: '302001',
+    );
+
+/// Adds the office address to the untouched two-address seed. Buyer-created or
+/// edited lists are never rewritten.
+(List<SavedAddress>, bool) _migrateSeedAddresses(List<SavedAddress> persisted) {
+  final ids = persisted.map((address) => address.id).toSet();
+  if (persisted.length == 2 &&
+      ids.containsAll(<String>{'addr_home', 'addr_site'}) &&
+      !ids.contains('addr_office')) {
+    return (<SavedAddress>[...persisted, _officeAddress()], true);
+  }
+  return (persisted, false);
+}
 
 List<PaymentMethod> _supportedMethods() => const <PaymentMethod>[
       PaymentMethod(
@@ -376,8 +429,18 @@ PaymentMethod _savedCardSeed() => const PaymentMethod(
 
 String _todayLabel() {
   const months = <String>[
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final now = DateTime.now();
   return '${now.day.toString().padLeft(2, '0')} ${months[now.month - 1]} ${now.year}';

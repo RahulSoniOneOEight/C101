@@ -32,20 +32,28 @@ Widget tradeProductTile(
             priceLabel: t.unitPrice.formatted,
           ))
       .toList();
+  final brand = p.product.brand?.trim();
   return TradeProductCardCompact(
     title: p.product.title,
-    brand: p.product.brand,
+    // The grouped SKU count matters more than the variant list on a card: it
+    // tells the buyer there are more SKUs inside this one product.
+    brand: brand == null || brand.isEmpty
+        ? p.product.variantLabel
+        : '$brand · ${p.product.variantLabel}',
     moqLabel: 'MOQ ${p.moq}',
+    badgeLabel: p.product.badges.firstOrNull,
     imageUrl: p.product.thumbnail,
     savingsLabel: p.savingsPercent == null ? null : '${p.savingsPercent}% off',
     tiers: tiers,
     selectedTierIndex: selectedTierIndex,
     onTierSelected: onTierSelected,
     unitPriceLabel: '${p.unitPriceFor(quantity).formatted}/pc',
-    mrpLabel: p.mrp.formatted,
+    // Only a real list price may be struck through. Falling back to the selling
+    // price would print "₹4750 ₹4750" and imply a discount that does not exist.
+    mrpLabel: p.product.mrp == null ? null : p.mrp.formatted,
     quantity: quantity,
     onQuantityChanged: onQuantityChanged,
-    state: p.stockQty <= 0
+    state: p.stockKnown && p.stockQty <= 0
         ? CommerceFixture.outOfStock
         : CommerceFixture.defaultState,
     onAdd: () {

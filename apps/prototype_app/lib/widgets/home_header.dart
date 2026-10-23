@@ -1,184 +1,237 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 
-/// The B2C home header stack: location → search → trust row → hero carousel.
+import '../domain/presentation.dart';
+import 'home_banner_carousel.dart';
+
+/// The B2C home header stack: location → trust row → banner carousel, over a navy gradient.
 ///
-/// The category rail is deliberately *not* part of the header: category
-/// selection now lives below the second promotional banner, directly above the
-/// Recommended-for-You composition, so choosing a category filters that grid.
+/// The gradient fades into the page surface at the bottom, so the products section that follows reads
+/// as the same sheet rather than a separate card. Everything drawn here is presentation: the banner
+/// copy comes from published CMS banners, with the governed [homeFallbackBanners] config as the only
+/// fallback. The title row and search field live in the pinned bar that overlays this header.
 class HomeHeader extends StatelessWidget {
   const HomeHeader({
     this.locationLabel = 'Bhiwadi, Rajasthan 301019',
-    this.onSearch,
+    this.banners = const <StorefrontBanner>[],
     this.onLocation,
-    this.onHeroTap,
+    this.onBannerAction,
+    this.topInset = 0,
+    this.bottomInset = 0,
+    this.rotationMs = 0,
     super.key,
   });
 
+  /// Fixed header height for a phone. Wider viewports get more room so the banner can grow.
+  static const double height = 432;
+
+  /// Header height by viewport width. The screen and the header must agree, so both call this.
+  static double heightForWidth(double width) {
+    if (width >= 1200) return 560;
+    if (width >= 900) return 520;
+    if (width >= 600) return 480;
+    return height;
+  }
+
+  /// The header's content is centred and capped on desktop instead of stretching edge to edge.
+  static const double maxContentWidth = 1120;
+
+  static bool isWide(double width) => width >= 600;
+
+  /// Space reserved for the pinned bar so header content never sits underneath it.
+  final double topInset;
+
+  /// Space reserved for the products sheet that rides up over the gradient, so the carousel dots
+  /// are not hidden under it.
+  final double bottomInset;
+
+  /// Hero auto-advance interval from the layout settings. 0 keeps the carousel still.
+  final int rotationMs;
+
   final String locationLabel;
-  final VoidCallback? onSearch;
+
+  /// Published hero banners for this surface, already priority-ordered by the backend.
+  final List<StorefrontBanner> banners;
+
   final VoidCallback? onLocation;
 
-  /// Invoked with a collection tag when a hero banner is tapped.
-  final void Function(String tag)? onHeroTap;
+  /// Follows a banner's backend action target.
+  final ValueChanged<String>? onBannerAction;
+
+  List<HomeBannerContent> get _contents => bannerContentsFrom(banners);
+
+  void _handleCta(BuildContext context, HomeBannerContent content) {
+    final uri = content.actionUri;
+    if (uri == null || uri.isEmpty) return;
+    onBannerAction?.call(uri);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors =
-        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        // Location
-        InkWell(
-          onTap: onLocation,
-          borderRadius: BorderRadius.circular(AgencyRadius.sm),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.location_on_outlined,
-                  size: 18, color: colors.actionPrimary),
-              const SizedBox(width: AgencySpacing.xs),
-              Expanded(
-                child: Text('Deliver to · $locationLabel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: colors.contentPrimary)),
-              ),
-              const Icon(Icons.expand_more, size: 18),
-            ],
-          ),
-        ),
-        const SizedBox(height: AgencySpacing.sm),
-        // Search bar
-        InkWell(
-          onTap: onSearch,
-          borderRadius: BorderRadius.circular(AgencyRadius.md),
-          child: Container(
-            height: 44,
-            padding:
-                const EdgeInsets.symmetric(horizontal: AgencySpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.surfacePage,
-              borderRadius: BorderRadius.circular(AgencyRadius.md),
-              border: Border.all(color: colors.borderDefault),
-            ),
-            child: Row(
-              children: <Widget>[
-                Icon(Icons.search, size: 18, color: colors.contentSecondary),
-                const SizedBox(width: AgencySpacing.sm),
-                Expanded(
-                  child: Text('Search products, brands, sellers',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 13, color: colors.contentSecondary)),
+    final palette = context.homePalette;
+    final contents = _contents;
+    final chipInk = Colors.white.withValues(alpha: 0.85);
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final wide = isWide(viewportWidth);
+    final sidePad = wide ? AgencySpacing.lg : AgencySpacing.md;
+
+    return SizedBox(
+      height: heightForWidth(viewportWidth),
+      width: double.infinity,
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: ExcludeSemantics(
+                child: CustomPaint(
+                  painter: HomeHeaderBackdropPainter(palette: palette),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-        // Trust row
-        const TrustBuilderRow(
-          items: <TrustBuilderItem>[
-            TrustBuilderItem(label: 'GST invoices', icon: Icons.receipt_long_outlined),
-            TrustBuilderItem(
-                label: 'Verified sellers', icon: Icons.verified_outlined),
-            TrustBuilderItem(
-                label: 'Easy returns', icon: Icons.assignment_return_outlined),
-          ],
-        ),
-        // Hero carousel
-        PinCarousel(
-          height: 128,
-          children: <Widget>[
-            _HeroBanner(
-              title: 'Monsoon Ready',
-              subtitle: 'Up to 40% off waterproofing',
-              color: colors.actionPrimary,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Flash Deals'),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: maxContentWidth),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: topInset + AgencySpacing.sm,
+                  bottom: bottomInset + AgencySpacing.sm,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sidePad),
+                      child: HomeLocationRow(
+                        label: locationLabel,
+                        onTap: onLocation,
+                        ink: Colors.white,
+                        minHeight: 48,
+                      ),
+                    ),
+                    const SizedBox(height: AgencySpacing.sm),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: sidePad),
+                      // The chips read as one group; on desktop they would otherwise spread across
+                      // the full 1120pt content width with large gaps.
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: wide ? 620 : double.infinity,
+                        ),
+                        child: TrustBuilderRow(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: chipInk,
+                          items: const <TrustBuilderItem>[
+                            TrustBuilderItem(
+                              label: 'GST invoices',
+                              icon: Icons.receipt_long_outlined,
+                            ),
+                            TrustBuilderItem(
+                              label: 'Verified sellers',
+                              icon: Icons.verified_outlined,
+                            ),
+                            TrustBuilderItem(
+                              label: 'Easy returns',
+                              icon: Icons.assignment_return_outlined,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AgencySpacing.sm),
+                    // The banner is deliberately edge-to-edge on phones: the card carries its own
+                    // corner radius, and side padding here only shrank the creative. It also takes
+                    // every remaining pixel of height, so there is no dead band above it. On wider
+                    // viewports the carousel adds its own inset and width cap.
+                    Expanded(
+                      child: HomeBannerCarousel(
+                        banners: contents,
+                        autoAdvance: rotationMs > 0
+                            ? Duration(milliseconds: rotationMs)
+                            : null,
+                        onBannerCta: (content) => _handleCta(context, content),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _HeroBanner(
-              title: 'Bulk Savings',
-              subtitle: 'Dealer pricing on 10,000+ SKUs',
-              color: colors.trust,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Best Sellers'),
-            ),
-            _HeroBanner(
-              title: 'Free Delivery',
-              subtitle: 'On orders above ₹2,000',
-              color: colors.promotion,
-              onTap: onHeroTap == null
-                  ? null
-                  : () => onHeroTap!('Clearance Sale'),
-            ),
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _HeroBanner extends StatelessWidget {
-  const _HeroBanner({
-    required this.title,
-    required this.subtitle,
-    required this.color,
+/// Maps published CMS banners to carousel content.
+///
+/// [includeFallback] is true for B2C, whose governed seed keeps the header from ever being empty.
+/// B2B passes false: a B2C seed must never stand in for a trade banner that nobody authored.
+List<HomeBannerContent> bannerContentsFrom(
+  List<StorefrontBanner> banners, {
+  bool includeFallback = true,
+}) {
+  final published = banners.where((banner) => banner.title.trim().isNotEmpty);
+  if (published.isEmpty) {
+    return includeFallback ? homeFallbackBanners : const <HomeBannerContent>[];
+  }
+
+  return <HomeBannerContent>[
+    for (final banner in published)
+      HomeBannerContent(
+        contentKey: banner.contentKey,
+        headline: banner.title,
+        subline: banner.body,
+        ctaLabel: banner.actionLabel,
+        actionUri: banner.actionUri,
+        imageUrl: banner.imageUrl,
+        imageAlt: banner.imageAlt,
+        // No eyebrow: the CMS banner has no eyebrow field, and inventing a label here would be
+        // customer copy the operator never authored.
+      ),
+  ];
+}
+
+/// "Deliver to" row. A full 48dp tap target, white on the navy gradient.
+class HomeLocationRow extends StatelessWidget {
+  const HomeLocationRow({
+    required this.label,
+    required this.ink,
     this.onTap,
+    this.minHeight = 48,
+    super.key,
   });
-  final String title;
-  final String subtitle;
-  final Color color;
+
+  final String label;
+  final Color ink;
   final VoidCallback? onTap;
+  final double minHeight;
 
   @override
   Widget build(BuildContext context) {
-    final colors =
-        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    return Material(
-      color: color,
-      clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(AgencyRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AgencySpacing.md),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentInverse)),
-                    const SizedBox(height: AgencySpacing.xs),
-                    Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: colors.contentInverse
-                                .withValues(alpha: 0.9))),
-                  ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AgencyRadius.sm),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.location_on_outlined, size: 18, color: ink),
+            const SizedBox(width: AgencySpacing.xs),
+            Expanded(
+              child: Text(
+                'Deliver to · $label',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: ink,
                 ),
               ),
-              Icon(Icons.arrow_forward_ios,
-                  size: 14, color: colors.contentInverse),
-            ],
-          ),
+            ),
+            Icon(Icons.expand_more, size: 18, color: ink),
+          ],
         ),
       ),
     );
@@ -206,7 +259,7 @@ class HomeCategoryFilterBar extends StatelessWidget {
   final String? selected;
 
   /// Called with the new label, or null when "All" is chosen.
-  final ValueChanged<String?> onSelected;
+  final ValueChanged<String?>? onSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -221,14 +274,14 @@ class HomeCategoryFilterBar extends StatelessWidget {
             return TradeFilterChip(
               label: 'All',
               selected: selected == null,
-              onTap: () => onSelected(null),
+              onTap: () => onSelected?.call(null),
             );
           }
           final label = categories[index - 1];
           return TradeFilterChip(
             label: label,
             selected: selected == label,
-            onTap: () => onSelected(label),
+            onTap: () => onSelected?.call(label),
           );
         },
       ),

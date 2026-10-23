@@ -14,6 +14,9 @@ All engineering and AI agents working in this repository must:
    `client-projects/client101/experience/design/ui-implementation-registry.yaml`.
 9. Never commit secrets, signing material, customer production data, or local environment files.
 10. Never self-authorize a production release; human production authorization is mandatory.
+11. Classify every request through `docs/implementation/change-delivery-sop.md` before coding,
+    choose the fastest safe lane, batch related edits into one preview loop, and deploy once per
+    change bundle. Do not use a full image build as a per-edit development loop.
 
 The Flutter runtime is a prototype until required journeys, integrations, QA evidence, staging, and
 human approvals are complete.

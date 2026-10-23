@@ -1,0 +1,217 @@
+change_id: CHG-072
+revision: 3
+request: >-
+  Make conversation a first-class layer over the existing storefront and trade pages in both
+  channels: capture any catalogue product into a chat from the page the user is already on, discuss
+  it with the right participants, grow a shared list with quantities, and build the canonical cart
+  from that list on an explicit action. B2C adds a household project (owner plus up to three
+  participants who sign in with their own OTP); B2B reuses the existing procurement workspace and
+  its approval rules.
+type: cross-channel-conversation-and-cart-handoff
+extends:
+- CHG-070
+- CHG-050
+- CHG-019
+affected_capabilities:
+- consumer-collaboration
+- shared-purchase-intent
+- workspace-membership
+- workspace-notifications
+affected_domains:
+- workspace
+- experience
+- identity
+- commerce
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.workspace
+- experience-api.carts
+- workspace.service
+- medusa.cart
+already_present:
+- >-
+  Workspace kernel with scope, membership, channels, messages, cursor replay, live WebSocket, product
+  shares, immutable purchase drafts and revisions, proposals, revision-bound approvals and an outbox.
+- >-
+  The Workspace proxy authenticates the pilot actor and signs a short-lived service actor context.
+- >-
+  The data contract already anticipates "a future household" as a possible Workspace scope.
+- >-
+  Twenty staged pilot identities, including B2C consumer identities, with fixed staging OTP 123456.
+missing:
+- >-
+  workspace.scope_type permits only 'business_account', and the actor guard requires a
+  businessAccountId plus a b2b_* role, so a consumer actor is rejected before any collaboration read.
+- >-
+  Membership roles, channel kinds and the Flutter workspace surface all carry B2B procurement
+  semantics; there is no project channel or owner/member model for a household.
+- >-
+  There is no invitation, acceptance, expiry or revocation path for a participant who is not already
+  a member of the scope.
+- >-
+  No rule separates owner-only checkout and delivery/payment visibility from participant
+  collaboration.
+- >-
+  Product capture is page-bound: B2B has a PDP share action and B2C has none, and there is no way to
+  start or continue a conversation from a product card, browse grid, cart line or search result.
+- >-
+  There is no cart-build step from a shared list. Workspace intent and the canonical Medusa cart are
+  deliberately disconnected, so moving a list into the cart is Phase 3 handoff work.
+- >-
+  The conversation lives on its own route and replaces the page. Users lose the catalogue context
+  they were shopping in, which conflicts with the requested "over the existing app pages" flow.
+decisions_approved:
+- D-072-01: >-
+    Add 'household' as a Workspace scope type. A household project has exactly one owner and at most
+    three active participants (four people total).
+- D-072-02: >-
+    Participants may chat, share catalogue products and propose quantity changes to the shared list.
+    They may not place an order, change the owner's identity, or invite further participants.
+- D-072-03: >-
+    Only the owner sees saved addresses, phone, GST details and payment methods, and only the owner
+    can check out. Participant responses never include those fields.
+- D-072-04: >-
+    Participants join by an owner-issued email invitation and must complete their own OTP sign-in.
+    Invitations expire, are single-use and can be revoked by the owner.
+- D-072-05: >-
+    Participant quantity edits create proposals. The owner accepts, edits-and-accepts or rejects
+    them, so only the owner mutates an accepted revision.
+- D-072-06: >-
+    Workspace membership remains a projection; scope, role and participant identity are derived from
+    the signed session, never from client input. A project read outside membership returns 404.
+- D-072-07: >-
+    Chat never creates a cart or an order automatically. Adding to the cart is always an explicit,
+    separately authorized action; Phase 3 remains unauthorized until human approval is recorded.
+- D-072-08: >-
+    Reuse existing B2C pilot identities for participants. Do not raise the hosted 20-identity
+    allowlist cap under this change.
+- D-072-09: >-
+    Conversation is a slide-over dock available on the existing Home, Browse, Search, PDP and Cart
+    pages in both channels. Opening it keeps the current page and scroll position; the existing
+    workspace deep link remains as a full-page fallback.
+- D-072-10: >-
+    Every product card, search result, PDP and cart line gains one capture action ("Discuss").
+    It attaches a product reference with a display snapshot to the active conversation, or starts a
+    conversation when none is active. It never adds to the cart by itself.
+- D-072-11: >-
+    The shared list is purchase intent, not commerce state. Building the cart is a separate explicit
+    action that re-resolves price, stock, MOQ, seller and tax from Commerce, shows any difference,
+    and only then adds the confirmed lines to the canonical Medusa cart.
+- D-072-12: >-
+    B2C cart build is owner-only. B2B cart build requires a buyer or account admin acting on a
+    revision whose approval is current; an approver cannot build the cart.
+- D-072-13: >-
+    Chat never completes an order and never creates an order. The cart build stops at the canonical
+    cart; checkout remains the existing address-first journey with an explicit user confirmation.
+- D-072-14: >-
+    Cart build is idempotent per accepted revision, so a retry or double tap cannot duplicate lines.
+- D-072-15: >-
+    Phase E is authorized by the human requester on 2026-10-21 as a staging-only implementation.
+    The handoff revalidates the current offer, shows differences, requires acknowledgement, and
+    writes only the canonical cart for B2C or the existing quotation draft for B2B. It never creates
+    an order and never grants the assistant a commerce write path.
+- D-072-16: >-
+    A published Home section whose collection resolves empty must keep its operator title, order
+    and placement; the governed deterministic catalogue fills that rail instead of silently
+    dropping Best Sellers, Flash Deals or another configured module.
+conflicts_requiring_a_decision:
+- C-072-01: >-
+    ADR-011 and the collaborative-workspace threat model declare B2C household collaboration out of
+    scope; both must be amended before implementation.
+- C-072-02: >-
+    Household membership needs a privacy model for people who share a purchase but not an address or
+    payment method; the existing B2B threat model has no such actor.
+- C-072-03: >-
+    Building the cart from a shared list is Workspace Phase 3 handoff. It requires explicit human
+    authorization, and it is the only part of this change that may write commerce state.
+- C-072-04: >-
+    The slide-over dock changes shared navigation chrome in both channels; it needs a governed UI
+    decision so the B2B header defect is not carried into the B2C surface.
+constraints:
+- Staging only; production release remains unauthorized.
+- Preserve exactly 233 grouped products and 500 source SKUs.
+- Do not create a second commerce or customer register; Medusa remains the commerce owner.
+- Do not expose saved addresses, phone, GST or payment data to participants.
+- Do not let a participant check out, invite others, or mutate an accepted revision directly.
+- Phase E revalidation and cart handoff are authorized for staging only. Keep the handoff explicit,
+  acknowledged, idempotent per accepted revision, and bound to the existing owner/buyer rules.
+- Never create an order, payment, address or owner-only projection as part of the handoff.
+- Do not carry the existing B2B header hit-testing defect into the new conversation dock.
+- Do not raise the pilot identity cap or add real external users.
+- Do not send WhatsApp or FCM messages to participants under this change.
+required_tests:
+- A consumer owner creates a household project and invites three participants by email.
+- An invited participant completes OTP sign-in and joins only that project.
+- A participant outside the project receives 404 for channel, message, draft and proposal reads.
+- A participant can post a message and see the owner's message in the same channel.
+- A participant can share a catalogue product into the project.
+- A participant quantity change creates a proposal; the accepted revision changes only after the
+  owner accepts it.
+- A participant cannot check out, cannot invite, and never receives address or payment fields.
+- A fourth invitation is rejected once three participants are active.
+- An expired or revoked invitation cannot be accepted.
+- Owner-only checkout fields stay absent from every participant projection.
+- From Home, Browse, Search, PDP and Cart, "Discuss" attaches the same product to the active
+  conversation and does not change the cart.
+- Opening and closing the dock preserves the underlying page, filter state and scroll position.
+- A product captured twice is de-duplicated per conversation.
+- Cart build shows revalidated price, stock, MOQ and seller; a changed line requires acknowledgement.
+- Cart build adds the confirmed lines once, and a retry does not duplicate them.
+- B2B cart build is refused for an approver and for a revision whose approval is stale.
+- Chat and cart build never complete an order.
+- B2B workspace behaviour and its tenant isolation remain unchanged.
+- Chrome 390x844 and 360x800 pass with no horizontal overflow and no console errors.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  approval_scope: phases-a-to-f
+  status: approved-in-progress
+  phase_e_authorized_at_utc: '2026-10-21'
+  phase_e_authorized_by: human-requester
+  phase_e_status: complete-staging-verified
+  phase_e_scope: staging-only-explicit-cart-handoff
+  phase_e_release: 0d7d884
+  phase_e_chrome_acceptance: pass-b2c-and-b2b-targeted
+  phase_a_completed_at_utc: '2026-10-20'
+  phase_b_completed_at_utc: '2026-10-20'
+  phase_c_completed_at_utc: '2026-10-20'
+  phase_c_release: e7e84ba
+  phase_d_completed_at_utc: '2026-10-20'
+  phase_d_release: 68ee397
+  phase_d_status: complete-awaiting-human-review
+  phase_d_chrome_acceptance: 'pass-89-of-89-390x844-360x800'
+  phase_d_cart_write: none
+  adr: client-projects/client101/solution/decisions/ADR-client101-012.yaml
+  evidence: client-projects/client101/evidence/CHG-072/conversation-and-cart.md
+  proposed_phases:
+  - phase-a: >-
+      [complete] Amend ADR-011 with ADR-012, extend the threat model for household scope, update the
+      data contract and create the CHG-072 evidence record.
+  - phase-b: >-
+      [complete] Schema migration for 'household' scope, project channel kind and owner/member roles;
+      invitation table with expiry, revocation and a database-enforced three-participant cap.
+  - phase-c: >-
+      [complete] Experience API consumer actor path, household project and invitation endpoints,
+      owner-only field redaction and participant proposal rules; deployed as e7e84ba.
+  - phase-d: >-
+      [complete-awaiting-human-review] Conversation dock over the existing pages in both channels,
+      with one "Discuss" capture action on product cards, search results, PDP and cart lines; B2C
+      project creation and invitations; shared list with participant proposals; owner-only checkout
+      entry. Deployed as 68ee397; automated tests and 89/89 Chrome checks at 390x844 and 360x800
+      pass. No commerce write or cart handoff exists.
+  - phase-e: >-
+      [complete-staging-verified] Authorized staging cart handoff: revalidate current price, stock,
+      MOQ and seller, show a difference preview, require acknowledgement, then add confirmed lines
+      idempotently per revision. B2C writes the canonical Medusa cart; B2B writes the existing
+      quotation draft under the current approval. No order completion.
+  - phase-f: >-
+      [complete-staging-verified] Staging verification, tenant isolation, negative tests and Chrome
+      acceptance at both sizes, including the Home module regression and the optional assistant
+      read-only path.
+status: approved-in-progress
+production_release_authorized: false
+

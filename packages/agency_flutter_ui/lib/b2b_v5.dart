@@ -358,6 +358,7 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
     this.minQuantity = 1,
     this.onQuantityChanged,
     this.onAdd,
+    this.onDiscuss,
     this.onTap,
     super.key,
   });
@@ -370,6 +371,7 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
   final int minQuantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
+  final VoidCallback? onDiscuss;
   final VoidCallback? onTap;
 
   @override
@@ -388,45 +390,53 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
           InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(AgencyRadius.sm),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: <Widget>[
-                _Thumb(imageUrl: imageUrl, size: 48),
-                const SizedBox(width: AgencySpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: colors.contentPrimary,
-                        ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _Thumb(imageUrl: imageUrl, size: 48),
+                    const SizedBox(width: AgencySpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: colors.contentPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            sku,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11, color: colors.contentSecondary),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            priceLabel,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: colors.actionPrimary,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        sku,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 11, color: colors.contentSecondary),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        priceLabel,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: colors.actionPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+                // Overlay capture keeps the card's text width and height
+                // unchanged; the 44dp hit target sits entirely on the 48dp
+                // thumbnail rather than reflowing the price row.
               ],
             ),
           ),
@@ -468,12 +478,14 @@ class TradeProductCardCompact extends StatelessWidget {
     this.imageUrl,
     this.stockLabel,
     this.savingsLabel,
+    this.badgeLabel,
     this.tiers = const <TradeTierOption>[],
     this.selectedTierIndex = 0,
     this.onTierSelected,
     this.quantity = 1,
     this.onQuantityChanged,
     this.onAdd,
+    this.onDiscuss,
     this.onTap,
     this.state = CommerceFixture.defaultState,
     super.key,
@@ -487,12 +499,17 @@ class TradeProductCardCompact extends StatelessWidget {
   final String? imageUrl;
   final String? stockLabel;
   final String? savingsLabel;
+
+  /// Merchandising tag (Best Deal / Seasonal / Flash Deal) shown as a second pill.
+  final String? badgeLabel;
+
   final List<TradeTierOption> tiers;
   final int selectedTierIndex;
   final ValueChanged<int>? onTierSelected;
   final int quantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
+  final VoidCallback? onDiscuss;
 
   final VoidCallback? onTap;
   final CommerceFixture state;
@@ -525,10 +542,12 @@ class TradeProductCardCompact extends StatelessWidget {
                       top: AgencySpacing.sm,
                       left: AgencySpacing.sm,
                       right: AgencySpacing.sm,
-                      child: Row(
+                      child: Wrap(
+                        spacing: AgencySpacing.xs,
+                        runSpacing: 2,
                         children: <Widget>[
-                          // V5: a single trust badge only — the discount. Stock is
-                          // shown via the out-of-stock state, not a second pill.
+                          // V5: the discount stays the single trust pill; the
+                          // merchandising tag is additive and never replaces it.
                           if (outOfStock)
                             _Pill(
                               label: 'Out of stock',
@@ -540,6 +559,12 @@ class TradeProductCardCompact extends StatelessWidget {
                               label: savingsLabel!,
                               background: colors.promotion,
                               foreground: colors.promotionInverse,
+                            ),
+                          if (badgeLabel != null)
+                            _Pill(
+                              label: badgeLabel!,
+                              background: colors.trust,
+                              foreground: colors.contentInverse,
                             ),
                         ],
                       ),

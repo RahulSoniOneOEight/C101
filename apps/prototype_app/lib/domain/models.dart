@@ -5,6 +5,7 @@
 /// than throwing during deserialization.
 library;
 
+import 'image_quality_scores.generated.dart';
 import 'review_catalogue.dart';
 
 /// A monetary amount expressed in a currency's minor unit (e.g. paise for INR,
@@ -41,6 +42,68 @@ class Money {
       };
 }
 
+/// One sellable SKU inside a grouped product.
+///
+/// A catalogue product can own several source SKUs. The storefront shows **one card per product**, and
+/// this list is how the remaining SKUs are inspected and bought without inventing extra products.
+class ProductVariant {
+  const ProductVariant({
+    required this.id,
+    required this.label,
+    this.sku,
+    this.price,
+    this.mrp,
+    this.offerId,
+    this.sellerName,
+    this.inStock = true,
+    this.offerCount = 0,
+    this.stockQty,
+  });
+
+  final String id;
+  final String label;
+  final String? sku;
+  final Money? price;
+  final Money? mrp;
+  final String? offerId;
+  final String? sellerName;
+  final bool inStock;
+  final int offerCount;
+
+  /// Stock reported by the winning offer. In staging this is the explicit
+  /// 50-unit fixture, never a supplier stock claim.
+  final int? stockQty;
+
+  /// True when this SKU can be added to a cart (it has a composed seller offer and a price).
+  bool get isPurchasable =>
+      offerId != null && offerId!.isNotEmpty && price != null;
+
+  factory ProductVariant.fromComposedJson(Map<String, dynamic> json) {
+    final best = json['best_price'] as Map<String, dynamic>?;
+    final currency = best?['currency_code'] as String? ?? 'INR';
+    final unit = (best?['unit_amount_minor'] as num?)?.toInt();
+    final list = (best?['list_amount_minor'] as num?)?.toInt();
+    return ProductVariant(
+      id: json['id'] as String? ?? '',
+      label: (json['title'] as String?)?.trim().isNotEmpty == true
+          ? json['title'] as String
+          : 'Default',
+      sku: (json['sku'] as String?)?.trim().isNotEmpty == true
+          ? json['sku'] as String
+          : null,
+      price: unit == null ? null : Money(amount: unit, currencyCode: currency),
+      mrp: list != null && unit != null && list > unit
+          ? Money(amount: list, currencyCode: currency)
+          : null,
+      offerId: best?['id'] as String?,
+      sellerName: best?['seller_name'] as String?,
+      inStock: json['in_stock'] as bool? ?? true,
+      offerCount: (json['offer_count'] as num?)?.toInt() ?? 0,
+      stockQty: (best?['inventory_quantity'] as num?)?.toInt(),
+    );
+  }
+}
+
 /// A sellable product, flattened to a single default variant for the
 /// browse → add-to-cart flow.
 class Product {
@@ -58,6 +121,11 @@ class Product {
     this.reviewCount,
     this.badges = const <String>[],
     this.deliveryNote,
+    this.variants = const <ProductVariant>[],
+    this.categoryId,
+    this.categoryLabel,
+    this.catalogueImport,
+    this.imageQualityScore,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -148,26 +216,45 @@ class Product {
     final commercial = json['commercial'] as Map<String, dynamic>?;
     // The list endpoint returns `best_price`; the detail endpoint nests the same
     // best-price offer under `commercial.selected_seller`. Accept both.
-    final best = (json['best_price'] ??
-        commercial?['selected_seller']) as Map<String, dynamic>?;
+    final best = (json['best_price'] ?? commercial?['selected_seller'])
+        as Map<String, dynamic>?;
     final num? bestAmount = best?['unit_amount_minor'] as num?;
     final num? listAmount = best?['list_amount_minor'] as num?;
     final currency = best?['currency_code'] as String? ?? 'INR';
-    final hasDiscount =
-        bestAmount != null && listAmount != null && listAmount.toInt() > bestAmount.toInt();
+    final hasDiscount = bestAmount != null &&
+        listAmount != null &&
+        listAmount.toInt() > bestAmount.toInt();
     final id = json['id'] as String? ?? '';
     final jsonBadges =
         (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
             const <String>[];
 
-    // Review-only enrichment: derive a stable list price and tags when the
-    // catalogue seed provides neither (see `domain/review_catalogue.dart`).
+    // Grouped variants. Every SKU carries its own best price so the detail page can switch SKU without
+    // a second round trip, and a card never has to pretend the first variant is the whole product.
+    final productVariants = variants
+        .map(ProductVariant.fromComposedJson)
+        .where((variant) => variant.id.isNotEmpty)
+        .toList();
+
+    final metadata = json['metadata'] as Map<String, dynamic>?;
+    final categories =
+        (json['categories'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .toList();
+    final leafCategory = categories.isEmpty ? null : categories.first;
+
+    // Review-only enrichment derives a list price and tags for the demonstration
+    // catalogue. It must never touch an imported source SKU: the source price is
+    // the truth, and manufacturing a higher "MRP" would invent a discount.
+    final imported =
+        (metadata?['catalogue_import'] as String?)?.trim().isNotEmpty ?? false;
     final Money? mrp;
     if (hasDiscount) {
       mrp = Money(amount: listAmount.toInt(), currencyCode: currency);
-    } else if (bestAmount != null) {
-      final marked = (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
-          .round();
+    } else if (bestAmount != null && !imported) {
+      final marked =
+          (bestAmount.toInt() * (100 + reviewDiscountPercent(id)) / 100)
+              .round();
       mrp = Money(amount: marked, currencyCode: currency);
     } else {
       mrp = null;
@@ -185,18 +272,29 @@ class Product {
           ? null
           : Money(amount: bestAmount.toInt(), currencyCode: currency),
       mrp: mrp,
-      badges: jsonBadges.isNotEmpty ? jsonBadges : reviewTags(id),
+      brand: metadata?['brand'] as String?,
+      badges: jsonBadges.isNotEmpty
+          ? jsonBadges
+          : (imported ? const <String>[] : reviewTags(id)),
+      variants: productVariants,
+      categoryId: leafCategory?['id'] as String?,
+      categoryLabel: metadata?['category_l1'] as String? ??
+          leafCategory?['name'] as String?,
+      catalogueImport: metadata?['catalogue_import'] as String?,
+      imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
     );
   }
 
   /// Copies this product with selective overrides (used to attach the
-  /// merchandising trust badge for a given home module).
+  /// merchandising trust badge for a given home module, or to switch the
+  /// selected SKU on a grouped product).
   Product copyWith({
     String? variantId,
     String? offerId,
     Money? price,
     Money? mrp,
     List<String>? badges,
+    List<ProductVariant>? variants,
   }) =>
       Product(
         id: id,
@@ -212,6 +310,11 @@ class Product {
         reviewCount: reviewCount,
         badges: badges ?? this.badges,
         deliveryNote: deliveryNote,
+        variants: variants ?? this.variants,
+        categoryId: categoryId,
+        categoryLabel: categoryLabel,
+        catalogueImport: catalogueImport,
+        imageQualityScore: imageQualityScore,
       );
 
   /// Original / compare-at price (struck through on the card).
@@ -222,6 +325,84 @@ class Product {
   final int? reviewCount;
   final List<String> badges;
   final String? deliveryNote;
+
+  /// Every SKU this grouped product owns. Empty for a product the backend
+  /// composed without variant detail.
+  final List<ProductVariant> variants;
+
+  /// Commerce category id of the product's assigned (leaf) category.
+  final String? categoryId;
+
+  /// Human L1 category label supplied by the catalogue import metadata.
+  final String? categoryLabel;
+
+  /// Staging import marker (`CHG-049` for the 500-SKU source catalogue).
+  final String? catalogueImport;
+
+  /// Display-fitness score supplied by the Experience API (CHG-060), when the
+  /// deployed API is new enough to compose it.
+  final int? imageQualityScore;
+
+  /// Score used for default listing order.
+  ///
+  /// The API value wins. The shared CHG-060 fixture is the fallback for
+  /// responses composed before the API carried the field, so the order does not
+  /// silently regress while an API release is pending. Unknown products score 0
+  /// and keep their source order.
+  int get displayImageScore =>
+      imageQualityScore ?? chg049ImageQualityScores[id] ?? 0;
+
+  /// Number of SKUs represented by this one product card (never below 1).
+  int get variantCount => variants.isEmpty ? 1 : variants.length;
+
+  /// Compact SKU count for a card's brand line, e.g. "3 SKUs".
+  String get variantLabel =>
+      '$variantCount ${variantCount == 1 ? 'SKU' : 'SKUs'}';
+
+  /// Brand line for a card: brand plus the grouped SKU count.
+  String? get brandLine {
+    final value = brand?.trim();
+    if (value == null || value.isEmpty) {
+      return variants.isEmpty ? null : variantLabel;
+    }
+    return '$value · $variantLabel';
+  }
+
+  /// The SKU to add when the buyer acts on the card without opening the
+  /// product: the first variant that actually has a sellable offer.
+  ///
+  /// Null when the payload lists variants without per-variant offers (an older
+  /// Experience API), so callers fall back to the product-level best offer
+  /// instead of picking a variant that cannot be sold.
+  ProductVariant? get defaultVariant {
+    for (final variant in variants) {
+      if (variant.isPurchasable) return variant;
+    }
+    return null;
+  }
+
+  /// SKU identity used by add-to-cart: the default variant's id, then the
+  /// composed best-price variant, then the product id.
+  String get cartVariantId => defaultVariant?.id ?? variantId ?? id;
+
+  /// Offer identity used by add-to-cart, aligned with [cartVariantId].
+  String get cartOfferId => defaultVariant?.offerId ?? offerId ?? '';
+
+  /// True when [query] matches the product, its brand, or any variant label/SKU.
+  ///
+  /// SKU search is what makes all 500 imported SKUs discoverable from 233 cards.
+  bool matchesQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    if (title.toLowerCase().contains(q)) return true;
+    if ((brand ?? '').toLowerCase().contains(q)) return true;
+    if (id.toLowerCase().contains(q)) return true;
+    for (final variant in variants) {
+      if (variant.label.toLowerCase().contains(q)) return true;
+      if ((variant.sku ?? '').toLowerCase().contains(q)) return true;
+    }
+    return false;
+  }
 
   /// Discount percentage derived from [mrp] vs [price], or null when there is
   /// no meaningful discount.
@@ -251,6 +432,26 @@ class Product {
         'review_count': reviewCount,
         'badges': badges,
         'delivery_note': deliveryNote,
+        'category_id': categoryId,
+        'category_label': categoryLabel,
+        'catalogue_import': catalogueImport,
+        'image_quality_score': imageQualityScore,
+        'variants': <Map<String, dynamic>>[
+          for (final variant in variants)
+            <String, dynamic>{
+              'id': variant.id,
+              'label': variant.label,
+              'sku': variant.sku,
+              'price': variant.price?.amount,
+              'currency': variant.price?.currencyCode,
+              'mrp': variant.mrp?.amount,
+              'offer_id': variant.offerId,
+              'seller_name': variant.sellerName,
+              'in_stock': variant.inStock,
+              'offer_count': variant.offerCount,
+              'stock_qty': variant.stockQty,
+            },
+        ],
       };
 
   static Product fromCacheJson(Map<String, dynamic> json) => Product(
@@ -279,6 +480,35 @@ class Product {
             (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
                 const <String>[],
         deliveryNote: json['delivery_note'] as String?,
+        categoryId: json['category_id'] as String?,
+        categoryLabel: json['category_label'] as String?,
+        catalogueImport: json['catalogue_import'] as String?,
+        imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
+        variants: (json['variants'] as List<dynamic>? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map((v) {
+              final amount = (v['price'] as num?)?.toInt();
+              final currency = v['currency'] as String? ?? 'INR';
+              final mrpAmount = (v['mrp'] as num?)?.toInt();
+              return ProductVariant(
+                id: v['id'] as String? ?? '',
+                label: v['label'] as String? ?? 'Default',
+                sku: v['sku'] as String?,
+                price: amount == null
+                    ? null
+                    : Money(amount: amount, currencyCode: currency),
+                mrp: mrpAmount == null
+                    ? null
+                    : Money(amount: mrpAmount, currencyCode: currency),
+                offerId: v['offer_id'] as String?,
+                sellerName: v['seller_name'] as String?,
+                inStock: v['in_stock'] as bool? ?? true,
+                offerCount: (v['offer_count'] as num?)?.toInt() ?? 0,
+                stockQty: (v['stock_qty'] as num?)?.toInt(),
+              );
+            })
+            .where((variant) => variant.id.isNotEmpty)
+            .toList(),
       );
 }
 
@@ -324,6 +554,10 @@ class CartLineItem {
     required this.quantity,
     this.unitPrice,
     this.total,
+    this.productId,
+    this.variantId,
+    this.productTitle,
+    this.thumbnail,
   });
 
   factory CartLineItem.fromJson(Map<String, dynamic> json) {
@@ -337,6 +571,10 @@ class CartLineItem {
       unitPrice: fromMinor(
           json['unit_price'] as num?, json['currency_code'] as String?),
       total: fromMinor(json['total'] as num?, json['currency_code'] as String?),
+      productId: json['product_id'] as String?,
+      variantId: json['variant_id'] as String?,
+      productTitle: json['product_title'] as String?,
+      thumbnail: json['thumbnail'] as String?,
     );
   }
 
@@ -345,6 +583,10 @@ class CartLineItem {
   final int quantity;
   final Money? unitPrice;
   final Money? total;
+  final String? productId;
+  final String? variantId;
+  final String? productTitle;
+  final String? thumbnail;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -353,6 +595,99 @@ class CartLineItem {
         'unit_price': unitPrice?.amount,
         'total': total?.amount,
         'currency_code': unitPrice?.currencyCode ?? total?.currencyCode,
+        'product_id': productId,
+        'variant_id': variantId,
+        'product_title': productTitle,
+        'thumbnail': thumbnail,
+      };
+}
+
+/// Finds the catalogue product represented by a canonical cart line.
+///
+/// Product/variant ids win. Title matching is a compatibility fallback for
+/// older carts that did not expose those ids.
+Product? catalogueProductForCartLine(
+  CartLineItem line,
+  List<Product> catalogue,
+) {
+  final productId = line.productId?.trim();
+  if (productId != null && productId.isNotEmpty) {
+    for (final product in catalogue) {
+      if (product.id == productId) return product;
+    }
+  }
+
+  final variantId = line.variantId?.trim();
+  if (variantId != null && variantId.isNotEmpty) {
+    for (final product in catalogue) {
+      if (product.variantId == variantId ||
+          product.variants.any((variant) => variant.id == variantId)) {
+        return product;
+      }
+    }
+  }
+
+  final title = (line.productTitle ?? line.title).trim().toLowerCase();
+  if (title.isEmpty) return null;
+  for (final product in catalogue) {
+    if (product.title.trim().toLowerCase() == title) return product;
+  }
+  return null;
+}
+
+/// Cart payload image first, then the catalogue thumbnail for legacy payloads.
+String? cartLineImageUrl(CartLineItem line, List<Product> catalogue) {
+  final canonical = line.thumbnail?.trim();
+  if (canonical != null && canonical.isNotEmpty) return canonical;
+  return catalogueProductForCartLine(line, catalogue)?.thumbnail;
+}
+
+/// A promotion code applied to a cart by the engine.
+class AppliedPromotion {
+  const AppliedPromotion({required this.code, this.isAutomatic = false});
+
+  final String code;
+  final bool isAutomatic;
+
+  factory AppliedPromotion.fromJson(Map<String, dynamic> json) =>
+      AppliedPromotion(
+        code: json['code'] as String? ?? '',
+        isAutomatic: json['is_automatic'] as bool? ?? false,
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'code': code,
+        'is_automatic': isAutomatic,
+      };
+}
+
+/// One engine-granted discount line, already resolved to money.
+class CartAdjustment {
+  const CartAdjustment({
+    this.code,
+    required this.label,
+    required this.amount,
+    this.target = 'item',
+  });
+
+  final String? code;
+  final String label;
+  final int amount;
+  final String target;
+
+  factory CartAdjustment.fromJson(Map<String, dynamic> json) => CartAdjustment(
+        code: json['code'] as String?,
+        label:
+            json['label'] as String? ?? json['code'] as String? ?? 'Discount',
+        amount: (json['amount'] as num?)?.toInt() ?? 0,
+        target: json['target'] as String? ?? 'item',
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'code': code,
+        'label': label,
+        'amount': amount,
+        'target': target,
       };
 }
 
@@ -363,7 +698,11 @@ class Cart {
       this.items = const <CartLineItem>[],
       this.subtotal,
       this.total,
-      this.shippingTotal});
+      this.shippingTotal,
+      this.discountTotal,
+      this.shippingDiscountTotal,
+      this.promotions = const <AppliedPromotion>[],
+      this.adjustments = const <CartAdjustment>[]});
 
   factory Cart.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? const <dynamic>[])
@@ -373,19 +712,28 @@ class Cart {
     final total = json['total'] as num?;
     final subtotal = json['subtotal'] as num?;
     final shippingTotal = json['shipping_total'] as num?;
+    final discountTotal = json['discount_total'] as num?;
+    final shippingDiscount = json['shipping_discount_total'] as num?;
     final currency = json['currency_code'] as String? ?? 'INR';
+    Money? money(num? amount) => amount == null
+        ? null
+        : Money(amount: amount.toInt(), currencyCode: currency);
     return Cart(
       id: json['id'] as String? ?? '',
       items: items,
-      subtotal: subtotal == null
-          ? null
-          : Money(amount: subtotal.toInt(), currencyCode: currency),
-      total: total == null
-          ? null
-          : Money(amount: total.toInt(), currencyCode: currency),
-      shippingTotal: shippingTotal == null
-          ? null
-          : Money(amount: shippingTotal.toInt(), currencyCode: currency),
+      subtotal: money(subtotal),
+      total: money(total),
+      shippingTotal: money(shippingTotal),
+      discountTotal: money(discountTotal),
+      shippingDiscountTotal: money(shippingDiscount),
+      promotions: (json['promotions'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(AppliedPromotion.fromJson)
+          .toList(),
+      adjustments: (json['adjustments'] as List<dynamic>? ?? const <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(CartAdjustment.fromJson)
+          .toList(),
     );
   }
 
@@ -395,7 +743,21 @@ class Cart {
   final Money? total;
   final Money? shippingTotal;
 
+  /// Engine-granted discount total. Null when the response carried none.
+  final Money? discountTotal;
+
+  /// Engine-granted shipping discount (free-shipping offers).
+  final Money? shippingDiscountTotal;
+
+  /// Codes the engine accepted on this cart.
+  final List<AppliedPromotion> promotions;
+
+  /// Flat discount lines for display and checkout summaries.
+  final List<CartAdjustment> adjustments;
+
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+
+  bool get hasDiscount => (discountTotal?.amount ?? 0) > 0;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -403,6 +765,10 @@ class Cart {
         'subtotal': subtotal?.amount,
         'total': total?.amount,
         'shipping_total': shippingTotal?.amount,
+        'discount_total': discountTotal?.amount,
+        'shipping_discount_total': shippingDiscountTotal?.amount,
+        'promotions': promotions.map((e) => e.toJson()).toList(),
+        'adjustments': adjustments.map((e) => e.toJson()).toList(),
         'currency_code': total?.currencyCode,
       };
 }
@@ -446,6 +812,9 @@ class Address {
     required this.city,
     required this.postalCode,
     required this.countryCode,
+    this.phone,
+    this.address2,
+    this.province,
   });
 
   final String firstName;
@@ -455,12 +824,26 @@ class Address {
   final String postalCode;
   final String countryCode;
 
+  /// Contact phone for the delivery. Optional on older callers.
+  final String? phone;
+
+  /// Second address line (apartment, floor, landmark).
+  final String? address2;
+
+  /// State / province. Required for GST invoices.
+  final String? province;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'first_name': firstName,
         'last_name': lastName,
         'address_1': address1,
+        if (address2 != null && address2!.trim().isNotEmpty)
+          'address_2': address2,
         'city': city,
+        if (province != null && province!.trim().isNotEmpty)
+          'province': province,
         'postal_code': postalCode,
         'country_code': countryCode,
+        if (phone != null && phone!.trim().isNotEmpty) 'phone': phone,
       };
 }

@@ -21,6 +21,34 @@ moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
 `docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
 the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
 
+### Recreating services and the edge
+
+Run hosted Compose commands from the governed active release under
+`/opt/buildkart-releases/current/services/hosted`, not the operator's mutable `/opt/buildkart`
+checkout. A stale compose file can silently omit persistent mounts even when the image and database
+are correct.
+
+Recreating `medusa-api` or `experience-api` gives the containers new IPs, and the `proxy` nginx keeps the
+addresses it resolved at start-up. The result is **502 from the edge while every container reports
+healthy**. Restart the proxy after such a release:
+
+```sh
+docker restart buildkart-hosted-pilot-proxy-1
+```
+
+Health checks alone will not catch this: check `/health` through the public hostname, not inside the
+network.
+
+After recreating `medusa-api`, verify both the named upload mount and every governed catalogue image:
+
+```sh
+python3 scripts/verify-catalogue-assets.py
+```
+
+The check fails unless the live container mounts `medusa_uploads`, the catalogue remains exactly
+233 products / 500 SKUs, and all 233 thumbnail URLs return HTTP 200. Use `--skip-mount` only when
+running the public-URL portion from a workstation without access to the Docker daemon.
+
 ## Operator / admin console
 
 The operator hostname also serves the Mercur **admin** and **vendor** dashboards and the Medusa
@@ -29,7 +57,10 @@ admin/auth APIs, routed by nginx to `medusa-api`:
 | Path | Surface |
 |---|---|
 | `/dashboard/` | Mercur admin dashboard (Medusa/Mercur operators) |
-| `/dashboard/content` | Native Content workspace backed by private Strapi |
+| `/dashboard/merchandising` | Merchandising — storefront composition: Banners and Storefront layouts (redirects here from the group root) |
+| `/dashboard/editorial` | Editorial — the individual content types: Category presentation, Product editorial, Collection presentation, Help and articles |
+| `/dashboard/content` | Native Editorial content workspace backed by private Strapi |
+| `/dashboard/merchandising-presets` | Governed preset baseline compared with live Medusa records |
 | `/seller/` | Mercur vendor (seller) dashboard |
 | `/admin/*`, `/auth/*`, `/vendor/*`, `/static/*` | Medusa admin/auth/vendor APIs and uploads |
 
@@ -50,13 +81,28 @@ docker compose -f docker-compose.hosted.yml exec -T medusa-api \
 Until Cloudflare Access is in place, the admin console is protected only by its own login over TLS.
 Treat this as a pilot-only exposure.
 
-The admin sidebar's **Content** workspace provides one routine operator experience for commerce and
-editorial work. It groups storefront layouts, banners, curated collections, category editorial,
-product editorial, and help/articles. Operators explicitly save a draft, then publish or unpublish
-it as a separate action. The dashboard browser never calls Strapi and never receives a Strapi token:
-the authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
+The admin sidebar's **Merchandising** workspace provides one routine operator experience for commerce
+and editorial work. Its overview links to native Medusa promotion, campaign and collection editors,
+while nested **Editorial content** groups storefront layouts, banners, curated collections, category
+editorial, product editorial, and help/articles. Operators explicitly save a draft in a Medusa drawer,
+then publish or unpublish it through a separate confirmed action. **Preset review** compares the
+governed staging baseline with live Medusa promotion and campaign IDs without creating a duplicate
+write path. The dashboard browser never calls Strapi and never receives a Strapi token: the
+authenticated Medusa admin route `/admin/buildkart/content` forwards allowlisted requests to the
 private `cms` service. Strapi remains the editorial system of record; commerce remains authoritative
 for products, price, inventory, sellers, orders, payments, credit, commissions, and payouts.
+
+The customer app no longer hardcodes its hero/campaign banners or root category labels and icons.
+`GET /v1/content/presentation?locale=<l>&channel=<b2c|b2b>` composes Medusa-owned root categories
+with published Strapi `banner` and `category-editorial` records: labels, supporting text, an
+allowlisted `iconKey`, banner imagery and a colour theme. Commerce category id, hierarchy and product
+membership are never editorial. When CMS presentation is absent or unavailable the Experience API
+returns the governed fallback seed, so the storefront keeps working. The current banners and root
+categories are seeded into the CMS on bootstrap so an operator can edit them without a code change;
+media upload remains deferred, so creative is referenced by an HTTPS URL (`externalImageUrl`) until an
+approved DAM workflow exists. A banner's type is its placement and carries the channel
+(`b2c.home.hero`, `b2c.category.banner`, `b2b.category.banner`); there is no separate audience field.
+Category banners are banner records, not category attributes.
 
 ## ERP web client (Tryton / SAO)
 
@@ -244,6 +290,12 @@ Two helper scripts run against the deployed API and are safe to re-run:
 # usage: bun seed-orders.ts <count> <customerEmail> <sellerName>
 bun services/hosted/scripts/seed-orders.ts 20 rsoni001@gmail.com "BuildMaster Supplies"
 
+# Create six operational examples through the real APIs: booked, in-transit,
+# delivery-failed, return-requested, return-approved and return-rejected.
+# The script refuses hosts whose names do not contain "staging".
+bun services/hosted/scripts/seed-delivery-return-lifecycles.ts \
+  rsoni001@gmail.com "BuildMaster Supplies"
+
 # Sync offer SKUs to Tryton and create ERP reservations for the seeded carts
 bun services/hosted/scripts/populate-tryton.ts carts.json
 ```
@@ -251,6 +303,30 @@ bun services/hosted/scripts/populate-tryton.ts carts.json
 `seed-orders.ts` authenticates as a pilot customer (OTP `123456`), so orders are canonical and
 allocated to the chosen seller. To vary history, the operator can backdate `order.created_at` and
 `order_summary.created_at` (staging dummy data only).
+
+`seed-delivery-return-lifecycles.ts` additionally waits for allocation-driven shipment booking,
+uses seller-scoped status updates, records delivery proof and quantities, initiates returns as the
+customer, and records requested/approved/rejected admin states. Approval remains workflow evidence
+only: no refund, Medusa money mutation or Tryton stock movement occurs.
+
+### Allocation event producer
+
+Mercur publishes `marketplace-allocation.created` from its worker. The subscriber reads the
+documented `order_group.created` event, resolves the completed cart and seller orders, and emits one
+deterministic allocation per seller order to the `marketplace-allocation.created.v1` JetStream
+subject. `order.confirmed` is not a booking trigger.
+
+The worker needs `NATS_URL` and the NATS credentials (compose loads `nats.env` into `medusa-worker`).
+If publication failed during a rollout, repair specific order groups through the same idempotent
+producer:
+
+```sh
+docker compose -f docker-compose.hosted.yml exec -T \
+  -e REPAIR_ORDER_GROUP_IDS=og_...,og_... \
+  medusa-worker npm run repair:marketplace-allocations
+```
+
+The repair script refuses to run outside `BUILDKART_ENVIRONMENT=staging`.
 
 ## Marketplace merchandising (CHG-029 / CHG-030)
 

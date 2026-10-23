@@ -57,6 +57,24 @@
 | Projects/sites | CRUD projects/sites/members/budgets/material lists | Commerce business account/procurement | Fixture/partial | Tenant/RBAC/serviceability/version tests |
 | PO/order metadata | Checkout PO/project/cost-centre fields; duplicate PO validation | Commerce; Tryton projection | Hardcoded/fixture | Account policy and override audit |
 
+## 3.1 Collaborative workspace API matrix (CHG-070, proposed)
+
+All operations are client-facing through the Experience API. The Workspace Service owns collaboration
+state and immutable purchase intent; it does not own carts, orders, payments, inventory, products,
+prices or notifications.
+
+| Capability | Proposed API operations | Canonical owner / composer | Current state | Critical rules / evidence |
+|---|---|---|---|---|
+| Workspace + channels | `GET/POST /v1/workspaces`; `GET /v1/workspaces/{id}`; `GET /channels`; `GET /activity`; `WS /stream` | Workspace service; Experience API composition | Phase 1 implemented | Tenant scope, membership projection, cursor reconnect, revocation, RLS |
+| Messages | `GET/POST /v1/channels/{id}/messages`; `POST /read-cursor` | Workspace service | Phase 1 implemented | Idempotency, mention authorisation, retention, no PII leakage |
+| Product sharing | `POST /channels/{id}/shares/preview`; `POST /shares` | Workspace reference + Experience hydration | Phase 2 implemented | Shared-time snapshot vs current value; no product/price duplication; idempotent replay |
+| Purchase drafts | `GET/POST /workspaces/{id}/purchase-drafts`; `GET /purchase-drafts/{id}`; `GET /revisions/{version}` | Workspace service | Phase 2 implemented | Immutable revision, exact reconstruction, server-computed commercial hash; staging prices are snapshots pending Phase 3 revalidation |
+| Proposals | `POST /purchase-drafts/{id}/proposals`; `POST /proposals/{id}/accept`, `/edit-and-accept`, `/reject`, `/cancel` | Workspace service | Phase 2 implemented | One same-version success; stale diff; proposal never mutates draft until accepted |
+| Approvals | `POST /purchase-drafts/{id}/approval-requests`; `POST /approval-requests/{id}/approve`, `/reject`, `/request-changes` | Workspace service | Phase 2 implemented | Bound to revision/hash; one pending per draft; no self-approval; approver cannot edit; material change invalidates |
+| Checkout preview | `POST /purchase-drafts/{id}/checkout-preview`; `POST /acknowledge-differences` | Experience API + Commerce orchestration | Missing | Price/stock/MOQ/tax/seller/delivery revalidation; structured diff; no substitution |
+| Checkout handoff | `POST /purchase-drafts/{id}/checkout-handoff`; `GET /checkout-handoffs/{id}` | Experience API + Commerce | Missing | Approved + fresh validation; revision-derived idempotency; at most one order |
+| Workspace notifications | Workspace outbox → NATS → Experience notification projection | Workspace + Experience API | Missing | Inbox/FCM owned by Experience; failure cannot change commercial state |
+
 ## 4. Seller portal API matrix
 
 | Journey | Proposed operations | Owner | Required UX states | Release evidence |
@@ -98,6 +116,7 @@ Minimum event families:
 - `cart.*`, `checkout.*`, `payment.*`, `order.*`, `allocation.*`
 - `shipment.*`, `return.*`, `refund.*`
 - `procurement-list.*`, `rfq.*`, `quotation.*`, `approval.*`, `credit.*`
+- `workspace.*`, `purchase-draft.*`, `proposal.*`, `workspace-approval.*`, `checkout-handoff.*`
 - `seller.*`, `commission.*`, `settlement.*`, `payout.*`
 - `content.*`, `search-index.*`, `notification.*`, `support.*`
 

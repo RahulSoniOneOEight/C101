@@ -1,0 +1,8 @@
+﻿{
+  "arjun_workspace": "ws_arjun_procurement",
+  "arjun_channels": ["procurement", "approvals"],
+  "post_status": 201,
+  "shakti_workspace": "ws_shakti_procurement",
+  "cross_tenant_status": 404,
+  "result": "WORKSPACE_SMOKE_PASS"
+}

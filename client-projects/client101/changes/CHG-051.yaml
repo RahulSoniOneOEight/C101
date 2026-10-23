@@ -1,0 +1,108 @@
+change_id: CHG-051
+revision: 1
+request: >-
+  Fill B2B quantity tiers with a 5% discount step, rotate both channel heroes every 5 seconds, and
+  implement the P0 customer path for the configured promotions so a shopper can enter a code, see the
+  discount and understand a rejection.
+type: staging-trade-tiers-banner-and-promotion-p0
+extends:
+- CHG-050
+- CHG-029
+- CHG-030
+source_note: C:\Users\LENOVO\Desktop\BuildKart-Offers-UI-Admin-Note.md
+affected_capabilities:
+- marketplace-merchandising
+- marketplace-pricing
+- commerce-cart
+affected_domains:
+- commerce
+- content
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.products
+- experience-api.carts
+- medusa.promotions
+already_present:
+- Medusa promotion engine and the idempotent staging preset script (CHG-029/CHG-030).
+- Ten promotion presets, including TOOLS10, PLY-BULK, FREESHIP and SAFETY-B2B, bounded to staging.
+- B2B trade products and a tier-capable product model.
+- Per-channel hero rotation read from the resolved storefront layout.
+missing:
+- The staging database currently has zero promotions applied, so no code can succeed.
+- No Experience API route applies or removes a promotion code, and carts expose no discount breakdown.
+- No B2C cart code entry, applied-discount rows or rejection reasons.
+- Live B2B trade products carry no quantity tiers.
+- Neither channel's hero rotates; the b2c seed has no interval and b2b has no layout.
+conflicts_requiring_a_decision:
+- C-051-01: >-
+    '5% on each level' can mean a flat 5% at every level or a 5-point step per level. A ladder above
+    two steps exceeds the governed 10% promotion ceiling.
+- C-051-02: >-
+    Quantity slabs are not expressible as Medusa promotions. Trade tiers therefore remain quotation /
+    trade-price terms and must not be presented as an engine promotion.
+- C-051-03: >-
+    The note's P1-P3 scope (admin create/edit, approvals, reporting, price lists, discovery feed) is
+    materially larger than P0 and requires operator credentials and further change contracts.
+decisions_approved:
+- D-051-01: Use a three-level ladder - 1+ list, 10+ 5% off, 25+ 10% off. Each step adds five points and
+    the deepest step stops at the governed 10% ceiling. Applies to B2B trade pricing only.
+- D-051-02: Set the hero rotation to 5000 ms for both channels in the governed layout seed.
+- D-051-03: Implement P0 only - apply/remove a promotion code on a cart, return a stable discount
+    breakdown, and explain a rejection. Seed the existing governed presets so a code can succeed.
+- D-051-04: Promotion codes apply to the canonical Medusa cart (B2C). The B2B RFQ cart is a quotation,
+    not a Medusa cart, so codes are not applied to it.
+- D-051-05: Marketplace-funded only. No seller-funded promotion link is created.
+- D-051-06: The hero interval stays operator-editable per layout in the console. The CMS layouts are
+    aligned to 5000 ms so the authored value and the live intent agree. A layout with no modules or
+    sections is ignored by the layout reader, so the B2B CMS layout must gain at least one section
+    before its rotation value can drive the trade home.
+required_tests:
+- A valid code reduces the cart total and appears in the discount breakdown.
+- An invalid or ineligible code is rejected with a machine-readable reason.
+- Removing a code restores the total.
+- The tier ladder returns list, 5% and 10% prices at 1, 10 and 25 units.
+- Both channels resolve a 5000 ms hero interval.
+- The promotion preset script reports staging only and remains idempotent.
+constraints:
+- Staging only; production release remains unauthorized.
+- Discount ceiling remains 10%; no stacking beyond the seeded de-overlap invariant.
+- Offers on placeholder-priced SKUs must not be advertised.
+- No new admin create/edit surface in this increment.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  completed_at_utc: '2026-10-19'
+  status: deployed-staging
+  evidence: client-projects/client101/evidence/CHG-051/tiers-banners-promotions.md
+  verification:
+    experience_api_typecheck: pass
+    flutter_analyze: pass
+    flutter_tests: 187-pass
+    flutter_web_release_build: pass
+    b2c_hero_rotation_ms: 5000
+    b2b_hero_rotation_ms: 5000
+    tier_ladder: '1/10/25 = 0/5/10 percent'
+    promotions_seeded: 10
+    promotion_apply: pass
+    promotion_remove: pass
+    promotion_cart_read: pass
+    promotion_rejection_not_found: pass
+    promotion_rejection_not_eligible: pass
+    cms_adapter: configured
+    b2c_layout_source: cms-strapi
+    admin_rotation_field: per-layout Rotation (ms), min 0, step 100
+    measured_rotation_seconds: approximately 5
+  deployment:
+    experience_api_commit: e9de1d9
+    hosting_project: buildkart-staging
+    promotion_presets: configure:staging-merchandising
+  out_of_scope:
+  - Note P1 discovery (home strip, PLP badges, PDP offer block, B2B offers feed).
+  - Note P2 admin create/edit, approvals, reporting, kill switch, audit.
+  - Note P3 price lists and quantity-slab pricing.
+  - Plywood min-quantity gate and the dummy-price guard (25 of 500 SKUs).
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

@@ -1,11 +1,13 @@
 asyncapi: 3.1.0
 info:
   title: BuildKart Domain Events
-  version: 0.2.0-draft
+  version: 0.3.0-draft
   description: >-
-    Revision 5 review draft for CHG-017. Delivery is at least once; consumers must deduplicate by
-    event_id and reject unsupported schema versions. Simulated payment events are test data and do
-    not establish provider evidence. No broker or environment is selected by this document.
+    Revision 7 review draft for CHG-017 and CHG-035. Delivery is at least once; consumers must
+    deduplicate by event_id and reject unsupported schema versions. Simulated payment and logistics
+    events are test data and do not establish provider evidence. Return events are workflow events
+    with no Medusa money effect or Tryton stock effect. No broker or environment is selected by
+    this document.
 defaultContentType: application/json
 channels:
   identityAuthenticated:
@@ -84,6 +86,18 @@ channels:
     address: shipment.status-changed.v1
     messages:
       shipmentStatusChanged: {$ref: '#/components/messages/ShipmentStatusChanged'}
+  returnRequested:
+    address: return.requested.v1
+    messages:
+      returnRequested: {$ref: '#/components/messages/ReturnRequested'}
+  returnDecision:
+    address: return.decision.v1
+    messages:
+      returnDecision: {$ref: '#/components/messages/ReturnDecision'}
+  returnStatusChanged:
+    address: return.status-changed.v1
+    messages:
+      returnStatusChanged: {$ref: '#/components/messages/ReturnStatusChanged'}
   integrationDeliveryFailed:
     address: integration.delivery-failed.v1
     messages:
@@ -154,6 +168,15 @@ operations:
   receiveShipmentStatusChanged:
     action: receive
     channel: {$ref: '#/channels/shipmentStatusChanged'}
+  receiveReturnRequested:
+    action: receive
+    channel: {$ref: '#/channels/returnRequested'}
+  receiveReturnDecision:
+    action: receive
+    channel: {$ref: '#/channels/returnDecision'}
+  receiveReturnStatusChanged:
+    action: receive
+    channel: {$ref: '#/channels/returnStatusChanged'}
   receiveIntegrationDeliveryFailed:
     action: receive
     channel: {$ref: '#/channels/integrationDeliveryFailed'}
@@ -222,6 +245,15 @@ components:
     ShipmentStatusChanged:
       name: shipment.status-changed
       payload: {$ref: '#/components/schemas/ShipmentEvent'}
+    ReturnRequested:
+      name: return.requested
+      payload: {$ref: '#/components/schemas/ReturnRequestedEvent'}
+    ReturnDecision:
+      name: return.decision
+      payload: {$ref: '#/components/schemas/ReturnDecisionEvent'}
+    ReturnStatusChanged:
+      name: return.status-changed
+      payload: {$ref: '#/components/schemas/ReturnStatusChangedEvent'}
     IntegrationDeliveryFailed:
       name: integration.delivery-failed
       payload: {$ref: '#/components/schemas/IntegrationDeliveryFailedEvent'}
@@ -394,6 +426,46 @@ components:
         status: {type: string, enum: [pending, created, picked_up, in_transit, delivered, exception, cancelled]}
         occurred_at: {type: string, format: date-time}
         exception_code: {type: [string, 'null']}
+    ReturnLineData:
+      type: object
+      required: [line_key, sku, ordered_qty, delivered_qty, requested_qty, reason_code]
+      properties:
+        line_key: {type: string}
+        sku: {type: string}
+        ordered_qty: {type: integer, minimum: 1}
+        delivered_qty: {type: integer, minimum: 0}
+        requested_qty: {type: integer, minimum: 1}
+        reason_code: {type: string}
+    ReturnData:
+      type: object
+      required: [return_id, order_id, status, resolution, policy_version, lines]
+      properties:
+        return_id: {type: string}
+        order_id: {type: string}
+        order_group_id: {type: [string, 'null']}
+        status: {type: string, enum: [requested, approved, rejected, cancelled, pickup_scheduled, received, closed]}
+        resolution: {type: string, enum: [refund, replacement]}
+        policy_version: {type: string}
+        lines:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ReturnLineData'}
+    ReturnDecisionData:
+      type: object
+      required: [return_id, decision, decided_at]
+      properties:
+        return_id: {type: string}
+        decision: {type: string, enum: [approved, rejected]}
+        decided_by: {type: string}
+        decided_at: {type: string, format: date-time}
+        comment: {type: [string, 'null']}
+    ReturnStatusData:
+      type: object
+      required: [return_id, status]
+      properties:
+        return_id: {type: string}
+        status: {type: string, enum: [requested, approved, rejected, cancelled, pickup_scheduled, received, closed]}
+        occurred_at: {type: string, format: date-time}
     IntegrationDeliveryFailedData:
       type: object
       required: [delivery_id, dependency, error_code, failure_class, attempt_count]
@@ -488,6 +560,24 @@ components:
       - type: object
         required: [data]
         properties: {data: {$ref: '#/components/schemas/ShipmentData'}}
+    ReturnRequestedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ReturnData'}}
+    ReturnDecisionEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ReturnDecisionData'}}
+    ReturnStatusChangedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ReturnStatusData'}}
     IntegrationDeliveryFailedEvent:
       allOf:
       - $ref: '#/components/schemas/EventMetadata'

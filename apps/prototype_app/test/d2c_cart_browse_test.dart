@@ -34,7 +34,7 @@ Future<Widget> _host(Widget child) async {
 }
 
 void main() {
-  test('cart degrades to a local cart when the backend is unreachable',
+  test('cart reports unavailability instead of creating a fake local cart',
       () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
@@ -47,14 +47,14 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    await container
-        .read(cartProvider.notifier)
-        .addItem(offerId: '', variantId: 'prod_plywood', quantity: 1);
+    await expectLater(
+      container
+          .read(cartProvider.notifier)
+          .addItem(offerId: '', variantId: 'prod_plywood', quantity: 1),
+      throwsA(isA<CartUnavailable>()),
+    );
 
-    final cart = container.read(cartProvider).value;
-    expect(cart, isNotNull);
-    expect(cart!.items, hasLength(1));
-    expect(cart.items.single.quantity, 1);
+    expect(container.read(cartProvider).value?.id, isNot('local_cart'));
   });
 
   testWidgets('Cart page is available and shows related merchandising',
@@ -78,8 +78,10 @@ void main() {
 
     expect(find.byType(CategoryIconRail), findsOneWidget);
     expect(find.byType(CategoryIconItem), findsWidgets);
-    expect(find.text('Sort: Relevance'), findsOneWidget);
-    expect(find.text('Filter'), findsOneWidget);
+    expect(find.text('Relevance'), findsOneWidget);
+    expect(find.text('Price ↑'), findsOneWidget);
+    expect(find.text('Filters'), findsOneWidget);
+    expect(find.text('Flash Deal'), findsOneWidget);
     // The B2C header exposes the notification centre.
     expect(find.byType(NotificationBell), findsOneWidget);
   });

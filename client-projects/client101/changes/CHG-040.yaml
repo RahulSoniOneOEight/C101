@@ -1,0 +1,112 @@
+change_id: CHG-040
+revision: 2
+request: >-
+  Replace the generic Editorial content creation experience with property-first navigation and
+  pages. Expose Banners, Storefront layouts, Category presentation, Product editorial, Collection
+  presentation and Help and articles directly under the Merchandising left-sidebar group. Give
+  each property a dedicated list page, contextual create action and page-local status tabs.
+type: property-first-editorial-navigation
+extends:
+- CHG-039
+affected_capabilities:
+- operator-administration
+- editorial-content
+- marketplace-merchandising
+affected_domains:
+- experience
+- content
+- commerce
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.content
+decisions:
+  D-040-01: editorial-properties-are-direct-children-of-the-merchandising-sidebar-group
+  D-040-02: the-generic-content-type-selector-and-create-draft-control-are-removed
+  D-040-03: each-property-page-has-a-contextual-new-property-action
+  D-040-04: new-records-remain-drafts-by-default-but-draft-is-not-repeated-in-the-primary-action-label
+  D-040-05: each-property-page-uses-all-needs-review-draft-only-and-published-tabs
+  D-040-06: the-existing-content-root-becomes-a-safe-legacy-redirect
+  D-040-07: route-based-editors-return-to-the-corresponding-property-page
+  D-040-08: publication-controls-remain-explicit-and-separated-from-editing
+  D-040-09: commerce-owned-properties-remain-editable-only-in-native-medusa-controls
+implementation_scope:
+- add-dedicated-property-pages-for-all-six-governed-content-kinds
+- add-property-specific-sidebar-items-under-merchandising
+- add-contextual-new-banner-layout-category-product-collection-and-article-actions
+- add-property-level-search-locale-status-and-pagination-controls
+- add-property-level-publish-and-unpublish-actions
+- replace-the-generic-content-root-with-a-legacy-redirect
+- route-editor-back-navigation-to-the-corresponding-property-page
+- update-overview-and-review-links-for-the-property-first-model
+deferred_scope:
+- commerce-entity-picker-for-category-product-and-collection-association
+- storefront-preview
+- live-versus-draft-diff
+- reviewer-assignment
+- schedule-mutation-workflows
+- media-upload-or-dam
+- actor-level-audit-api
+required_tests:
+- All six editorial properties appear directly beneath Merchandising in the left sidebar.
+- The generic New content type selector and Create draft action are absent.
+- Each property page exposes a contextual New action with the property name.
+- New actions open the correct route-based editor and do not publish automatically.
+- Status tabs, locale, search and pagination persist in the URL.
+- Existing editor routes return to the corresponding property page.
+- Publish and unpublish remain explicit confirmed actions.
+- The legacy content root redirects safely to the Banners property page.
+- No preset terminology, controls or derived counts return.
+- Admin lint and production build pass.
+constraints:
+- Use only Mercur shared primitives, Medusa UI components and Medusa design tokens.
+- Keep the browser on authenticated typed Medusa operator APIs.
+- Preserve one authoritative editor for every property.
+- Do not imply that Collection presentation edits commerce collection membership.
+- Do not invent preview, review, delivery, audit or commerce data.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-15'
+  scope: property-first-editorial-pages
+  human_visual_review_required: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Banners, Storefront layouts, Category presentation, Product editorial, Collection presentation and Help and articles are direct Merchandising sidebar children.
+  - The generic content-type selector and Create draft control are removed.
+  - Each property page has a contextual New action and shared status-tab resource-table pattern.
+  - Property pages preserve locale, status, search and pagination in URL parameters.
+  - Existing editors return to their corresponding property page.
+  - Property pages preserve explicit confirmed Publish and Unpublish actions.
+  - The legacy content root redirects to the appropriate property page.
+  - Mercur Admin ESLint and production build passed.
+  - CHG-040 YAML and git diff whitespace validation passed.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-15T07:05:45Z'
+    release_commit: f57ba86
+    release_worktree: /opt/buildkart-releases/f57ba86
+    previous_release: /opt/buildkart-releases/e8c9240
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - All six property pages, operational pages, legacy content root and draft-editor route return HTTP 200.
+    - Served bundle contains all six direct property labels and property-level status labels.
+    - Served bundle does not contain the generic New content type or Create draft controls.
+    - Served bundle does not contain Preset Review or preset-derived labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - verify-all-six-properties-appear-directly-under-merchandising
+    - verify-each-property-page-has-the-correct-contextual-new-action
+    - verify-status-tabs-search-locale-and-pagination-at-wide-and-1024px
+    - verify-editor-back-navigation-returns-to-the-property-page
+    - verify-publish-and-unpublish-remain-explicit-confirmed-actions
+    - verify-legacy-content-root-redirects-to-banners
+implementation_evidence:
+- client-projects/client101/evidence/CHG-040/property-pages-local-verification.md
+- client-projects/client101/evidence/CHG-040/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
+production_release_authorized: false

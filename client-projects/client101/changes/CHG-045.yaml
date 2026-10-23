@@ -1,0 +1,85 @@
+change_id: CHG-045
+revision: 1
+status: proposed-awaiting-approval
+production_release_authorized: false
+request: >-
+  Let an operator set and persist a manual product order inside a single collection, so a
+  collection-backed rail or collection page presents products in a deliberate sequence rather than
+  insertion order, without affecting any other collection or any computed sort.
+type: collection-product-ordering
+extends:
+- CHG-044
+affected_capabilities:
+- marketplace-merchandising
+- operator-administration
+affected_domains:
+- commerce
+- experience
+affected_surfaces:
+- mercur.admin.products.collections
+- medusa.admin.collections
+- medusa.admin.buildkart.collection-order
+- experience-api.commerce.products
+- app.prototype.collection
+inspection: client-projects/client101/evidence/CHG-044/phase-3a-section-products.md
+already_present:
+- Native Mercur/Medusa collection create, edit, media and add/remove products.
+- Collections referenced from layout sections by id, with product membership resolved at delivery (CHG-044 phase 3a).
+- A blank-slate ordering assumption: a collection currently returns its products in Medusa's default association order.
+missing:
+- Any persisted rank on the collection-product association. Medusa v2 exposes no rank, weight or position on that link.
+- An operator surface to set that order, and any indication that a manual order exists.
+- Delivery honouring a manual order, so the storefront and the operator preview agree.
+conflicts_requiring_a_decision:
+- C-045-01: 'RESOLVED 2026-10-17. The ordering surface is a drawer opened from the collections admin: no dashboard widget and no per-collection console route, as the requester specified. Ordering is an action on the collection, not a place.'
+- C-045-02: 'Ordering across a large collection needs paging or bulk reorder semantics. A whole-list save is simplest and verifiable but becomes unwieldy past a few hundred products; a rank-between-neighbours model is more scalable but introduces fractional-rank maintenance.'
+- C-045-03: 'A product may be removed from commerce while a rank row still references it. The contract must say whether write-time validation, read-time skipping, or both is authoritative.'
+decisions_proposed:
+- D-045-01: 'Persist rank in a dedicated commerce-owned table keyed by (collection_id, product_id), not in collection metadata. Metadata is a shared free-form bag with no referential integrity, no isolation guarantees and no queryable order; a purpose-built table makes "isolated per collection" structural rather than conventional.'
+- D-045-02: 'Absent rank means "unranked" and must never remove a product from delivery. Ranked products come first in rank order; unranked products follow in the existing default order. A partial ranking therefore degrades to a stable, explainable list instead of hiding products.'
+- D-045-03: 'Ordering is per collection and never global: a product may sit at different positions in two collections, and reordering one collection must not touch another.'
+- D-045-04: 'The write path is a full ordered list for the collection, validated against current membership, with optimistic concurrency on the collection updated timestamp. Rejected: silent last-write-wins, which loses an operator edit without a trace.'
+- D-045-05: 'Delivery reads rank but does not own it: the Experience API orders resolved products by rank and leaves commerce as the membership authority.'
+- D-045-06: 'Manual order is opt-in per collection. A collection with no rank rows keeps exactly the current order, so enabling this changes nothing until an operator sets an order.'
+proposed_phases:
+  phase_1_rank_store:
+  - Add a commerce module and migration for the per-collection rank table, with a unique constraint on (collection_id, product_id) and an index on (collection_id, rank).
+  - Service operations to read an ordered id list, replace a collection's order, and delete ranks for removed products.
+  - Unit tests for isolation, partial ranking, idempotent replacement and concurrency.
+  phase_2_operator_api:
+  - Authenticated admin endpoints to read and replace a collection's order, rejecting products that are not members.
+  - Permission wiring so only actors allowed to edit collections can reorder.
+  - Contract tests for rejection paths: unknown product, product from another collection, stale expected timestamp, unauthenticated caller.
+  phase_3_operator_surface:
+  - An ordering surface reached from the collections admin, showing current order, move up/down and a clear "manual order set" state.
+  - Explicit save with an unsaved-changes guard, no drag dependency unless one is approved.
+  phase_4_delivery:
+  - The Experience API orders collection-resolved products by rank, keeping unranked products after ranked ones.
+  - The storefront reads that order without its own sorting.
+  phase_5_release:
+  - Migration and release to staging, rollback point recorded, evidence with before/after product order for one collection.
+required_tests:
+- A manual order persists across refresh and is returned identically by the operator API and by delivery.
+- Reordering one collection leaves a second collection's order and the global catalogue order unchanged.
+- A collection with no rank rows returns exactly the pre-change order.
+- Partial ranking returns ranked products first in rank order, then unranked products, with none missing.
+- Switching to and from a computed sort does not destroy the stored manual order.
+- Writing an order that references a product outside the collection is rejected with an actionable message.
+- A stale expected timestamp is rejected as a conflict rather than overwriting another operator's change.
+- A product deleted from commerce stops appearing and does not break the remaining order.
+- An unauthenticated or under-privileged caller cannot write an order.
+- Public delivery exposes no draft or incomplete ordering state.
+constraints:
+- Never change a core Medusa table or vendor migration; the rank lives in our own module.
+- Reuse the native collections admin rather than building a parallel collections product.
+- Ordering must be additive and reversible; turning it off must restore current behaviour exactly.
+- Writes stay idempotent and auditable, with actor and correlation id recorded.
+- Staging only; production release remains unauthorized and requires human authorization.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-17'
+  scope: collection-scoped-manual-product-ordering
+  human_approval_required_before_code: true
+blockers:
+- Staging host 89.116.20.164 became unreachable during CHG-044 closeout (SSH and HTTPS time out). Phase 5 cannot be verified until it is restored, and phases 1 to 4 cannot be released.

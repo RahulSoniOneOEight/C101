@@ -10,6 +10,16 @@ import 'package:prototype_app/screens/product_detail_screen.dart';
 import 'package:prototype_app/widgets/merchandising_sections.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Seeds a fixed viewing history without touching the local store.
+class _Viewed extends RecentlyViewedNotifier {
+  _Viewed(this.ids);
+
+  final List<String> ids;
+
+  @override
+  List<String> build() => ids;
+}
+
 void main() {
   test('detail contract reads the best offer from commercial.selected_seller',
       () {
@@ -95,8 +105,8 @@ void main() {
     expect(buyButton.onPressed, isNotNull);
   });
 
-  test('home modules expose Flash Deals / Best Sellers with a split slot',
-      () async {
+  test('home modules expose Flash Deals / Best Sellers, and only real history '
+      'fills the split slot', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final prefs = await SharedPreferences.getInstance();
     final container = ProviderContainer(overrides: [
@@ -117,8 +127,31 @@ void main() {
 
     final composition = modules.firstWhere(
         (m) => m.type == MerchandisingModuleType.productComposition);
+    expect(
+      composition.splitSlot,
+      isNull,
+      reason: 'no history means no tile, rather than catalogue items labelled as recent',
+    );
+  });
+
+  test('the split slot appears once the customer has viewed a product', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final viewed = demoProducts.first;
+    final container = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      productsProvider.overrideWith((ref) async => demoProducts),
+      recentlyViewedProvider.overrideWith(() => _Viewed(<String>[viewed.id])),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(productsProvider.future);
+
+    final composition = container
+        .read(homeModulesProvider)
+        .firstWhere((m) => m.type == MerchandisingModuleType.productComposition);
     expect(composition.splitSlot, isNotNull);
     expect(composition.splitSlot!.label, 'Recently viewed');
+    expect(composition.splitSlot!.products.single.id, viewed.id);
   });
 
   testWidgets('module "See All" invokes its collection callback',
@@ -157,7 +190,7 @@ void main() {
       banner: MerchandisingBannerData(
         imageUrl: 'https://example.com/banner.jpg',
         title: 'Clearance Sale',
-        subtitle: 'Up to 70% off select items',
+        subtitle: 'Selected lines only',
         ctaLabel: 'Shop Now',
       ),
     );

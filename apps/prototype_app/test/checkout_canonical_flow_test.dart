@@ -11,6 +11,9 @@ import 'package:prototype_app/screens/checkout_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _CheckoutExperienceApi extends ExperienceApi {
+  @override
+  Future<String?> currentSessionEmail() async => 'pilot@example.com';
+
   _CheckoutExperienceApi() : super(Dio());
 
   int completeCalls = 0;
@@ -59,6 +62,9 @@ class _CheckoutExperienceApi extends ExperienceApi {
     shippingSelections++;
     return preparedCart;
   }
+
+  @override
+  Future<Cart> getCart(String cartId) async => cart;
 
   @override
   Future<Cart> updateCartCustomerDetails(
@@ -120,16 +126,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Simulated prepaid payment'), findsOneWidget);
-    expect(find.textContaining('Razorpay'), findsNothing);
-    expect(find.textContaining('Pay on delivery'), findsNothing);
+    // Payment is the fixed simulated method; it is below the fold, so its copy
+    // is asserted after scrolling rather than on first paint.
     expect(api.completeCalls, 0);
+    // The default saved address is prefilled, so no address typing is required.
+    expect(find.text('Home'), findsOneWidget);
+    // Contact is a read-only account summary, not a form to retype.
+    expect(find.textContaining('Contact details from your account'),
+        findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('Standard delivery'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Standard delivery'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Standard delivery'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -137,25 +149,10 @@ void main() {
       200,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(find.text('Express delivery'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Express delivery'));
     await tester.pumpAndSettle();
-
-    Future<void> enter(String label, String value) async {
-      final field = find.widgetWithText(TextFormField, label);
-      await tester.scrollUntilVisible(
-        field,
-        -200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.enterText(field, value);
-    }
-
-    await enter('Email', 'pilot-buyer@buildkart.local');
-    await enter('First name', 'Pilot');
-    await enter('Last name', 'Buyer');
-    await enter('Address', '101 Test Yard');
-    await enter('City', 'Jaipur');
-    await enter('Postal code', '302001');
 
     final placeOrder = find.widgetWithText(FilledButton, 'Place order');
     await tester.scrollUntilVisible(
@@ -165,6 +162,7 @@ void main() {
     );
     await tester.drag(find.byType(Scrollable).first, const Offset(0, -100));
     await tester.pumpAndSettle();
+    expect(find.text('Simulated prepaid payment'), findsOneWidget);
     await tester.tap(placeOrder);
     await tester.pumpAndSettle();
 

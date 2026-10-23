@@ -1,0 +1,72 @@
+change_id: CHG-064
+revision: 2
+request: >-
+  Replace the Sort dropdown and Filter button on the storefront listing with always-visible sort
+  chips, a filter button plus quick-filter chips, a sticky control block, Clear all and a live-count
+  filter sheet.
+type: storefront-listing-controls
+extends:
+- CHG-060
+affected_capabilities:
+- storefront-browse
+affected_domains:
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+already_present:
+- Browse sort enum and client-side filter logic (brand, price band, key items).
+- Listing grid, search, category rail and recommended strip.
+missing:
+- Sort and filter were hidden behind a dropdown and a button.
+- No persistent result count, Clear all, quick filters or live sheet count.
+decisions_approved:
+- D-064-01: >-
+    Sort is a single-select chip row (Relevance, Price up, Price down, Rating) with Relevance
+    selected by default; one tap applies.
+- D-064-02: >-
+    Filter is one row with a Filters button (sliders icon, active count) opening the full sheet, plus
+    inline multi-select quick chips for Flash Deal, Clearance and In stock.
+- D-064-03: >-
+    Both rows are horizontally scrollable and pinned under the app bar via a persistent header.
+- D-064-04: >-
+    sortAccent and filterAccent live in one token file and resolve to existing palette tokens:
+    feedbackSuccess (5.1:1 with white) and actionDestructive (5.3:1 with white). No hex in the UI.
+- D-064-05: >-
+    Selected state is carried by fill, a check icon and the semantics selected flag, never by colour
+    alone. Every control has a 44px minimum target.
+- D-064-06: >-
+    Clear all resets filters only (not sort) and is visible only when a filter is active. The sheet
+    footer shows Reset and a live "Show N results".
+constraints:
+- Change listing controls only; hero, category row, product cards and search are untouched.
+- Existing filter semantics are preserved; In stock and rating 4+ are additive.
+- Staging only; production release remains unauthorized.
+required_tests:
+- Sort chips are always visible, Relevance default, and tapping reorders.
+- Quick chips apply instantly; Clear all appears and resets filters only.
+- The sheet shows a live count and Reset restores it.
+- The control sliver is pinned.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  status: deployed-staging
+  completed_at_utc: '2026-10-20'
+  evidence: client-projects/client101/evidence/CHG-064/browse-controls.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 219-pass
+    sort_default: relevance
+    sort_accent_contrast: 5.1
+    filter_accent_contrast: 5.3
+    sticky: pass
+    clear_all: pass
+    sheet_live_count: pass
+    flash_deal_results: 16
+    console_errors: none
+  deployment:
+    build_id: 5a9e291
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

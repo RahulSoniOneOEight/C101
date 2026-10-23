@@ -114,7 +114,7 @@ def main() -> None:
     assert openapi["info"]["version"].endswith("-draft")
     assert asyncapi["info"]["version"].endswith("-draft")
     assert data_contract["change_contract"] == "CHG-017"
-    assert data_contract["change_contract_revision"] == 5
+    assert data_contract["change_contract_revision"] == 7
     assert data_contract["status"] == "draft"
     assert_local_refs_resolve(openapi)
     assert_local_refs_resolve(asyncapi)

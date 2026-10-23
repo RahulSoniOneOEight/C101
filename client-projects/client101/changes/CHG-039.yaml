@@ -1,0 +1,115 @@
+change_id: CHG-039
+revision: 2
+request: >-
+  Make the left-hand Mercur sidebar the primary navigation for the Merchandising workspace. Add
+  one horizontal-tab level inside each selected page and incorporate the useful operational
+  structure from the reviewed Merchandising Admin Console HTML without restoring presets or
+  presenting unsupported preview, delivery or audit claims as complete capabilities.
+type: merchandising-navigation-and-operational-views
+extends:
+- CHG-038
+affected_capabilities:
+- operator-administration
+- editorial-content
+- marketplace-merchandising
+- content-delivery-resilience
+affected_domains:
+- experience
+- content
+- commerce
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.content
+- mercur.admin.content-review
+- mercur.admin.content-delivery
+- mercur.admin.content-activity
+decisions:
+  D-039-01: the-left-sidebar-is-the-primary-workspace-navigation
+  D-039-02: horizontal-tabs-are-limited-to-one-page-local-level
+  D-039-03: merchandising-has-overview-editorial-content-review-queue-delivery-status-and-content-activity-children
+  D-039-04: the-overview-uses-needs-attention-scheduled-and-recently-changed-tabs
+  D-039-05: delivery-status-reports-only-verifiable-editor-and-cms-state-until-projection-diagnostics-exist
+  D-039-06: content-activity-is-not-labelled-audit-history-until-actor-event-apis-exist
+  D-039-07: review-queue-uses-real-modified-and-draft-records-and-does-not-claim-diff-validation
+  D-039-08: preset-review-and-preset-derived-commerce-state-remain-excluded
+implementation_scope:
+- convert-merchandising-parent-route-to-a-sidebar-group-and-safe-overview-redirect
+- add-merchandising-overview-child-route
+- retain-editorial-content-as-a-sidebar-child
+- add-review-queue-child-route-with-status-tabs
+- add-delivery-status-child-route-with-verifiable-cms-state
+- add-content-activity-child-route-with-recently-updated-and-recently-published-tabs
+- add-overview-needs-attention-scheduled-and-recently-changed-tabs
+- share-content-library-query-and-row-model-across-operational-pages
+- preserve-direct-native-links-to-promotions-campaigns-collections-and-categories
+deferred_scope:
+- live-versus-draft-diff
+- reviewer-assignment
+- storefront-preview
+- schedule-mutation-workflows
+- projection-refresh-control
+- webhook-and-storefront-delivery-receipts
+- actor-level-audit-event-api-and-audit-history
+- live-promotion-and-campaign-summary-api
+required_tests:
+- Merchandising appears as the primary left-navigation group.
+- Overview, Editorial content, Review queue, Delivery status and Content activity appear beneath it.
+- The merchandising parent route redirects safely to the merchandising overview.
+- Overview local tabs use real document state and keep the selected tab in the URL.
+- Editorial content retains horizontal content-type tabs and route-based editors.
+- Review queue distinguishes modified drafts from draft-only records.
+- Delivery status does not claim storefront delivery confirmation.
+- Content activity clearly states that it is not a complete actor-level audit trail.
+- No preset terminology, controls or derived counts return.
+- Admin lint and production build pass.
+constraints:
+- Use only Mercur shared primitives, Medusa UI components and Medusa design tokens.
+- Keep the browser on authenticated typed Medusa operator APIs.
+- Preserve one authoritative editor for each property.
+- Do not invent health, audit, scheduling or commerce data.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-15'
+  scope: vertical-navigation-with-page-local-tabs
+  human_visual_review_required: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Merchandising is registered as the primary left-sidebar group.
+  - Overview, Editorial content, Review queue, Delivery status and Content activity are sidebar children.
+  - The merchandising parent route redirects to the overview child.
+  - Overview, review, delivery and activity pages use one horizontal-tab level with URL-persisted tabs.
+  - All operational pages read real CMS document state; no preset terminology or controls return.
+  - Delivery status describes editor availability and declared coverage only.
+  - Content activity states that it is not an actor-level audit trail.
+  - Mercur Admin ESLint and production build passed.
+  - CHG-039 YAML and git diff whitespace validation passed.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T21:02:22Z'
+    release_commit: e8c9240
+    release_worktree: /opt/buildkart-releases/e8c9240
+    previous_release: /opt/buildkart-releases/fc5178d
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, overview, review-queue, delivery-status, content-activity and content routes return HTTP 200.
+    - Served bundle contains the new navigation and operational view labels.
+    - Served bundle does not contain Preset Review or preset-derived labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - verify-left-sidebar-group-and-child-navigation
+    - verify-page-local-horizontal-tabs-persist-in-url
+    - verify-overview-needs-attention-scheduled-recently-changed-tabs
+    - verify-review-queue-lists-real-draft-and-modified-records
+    - verify-delivery-status-claims-no-storefront-receipt
+    - verify-content-activity-is-labelled-as-non-audit
+implementation_evidence:
+- client-projects/client101/evidence/CHG-039/navigation-local-verification.md
+- client-projects/client101/evidence/CHG-039/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
+production_release_authorized: false

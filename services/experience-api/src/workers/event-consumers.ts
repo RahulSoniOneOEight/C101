@@ -1,11 +1,16 @@
 import { createServer, type Server } from "node:http";
 import { loadConfig } from "../config.js";
-import { EventWorkers, type WorkerDefinition } from "../events/event-workers.js";
+import {
+  EventWorkers,
+  type WorkerDefinition,
+} from "../events/event-workers.js";
 import { loadPilotUsers } from "../auth/pilot-users.js";
 import { CorrelationStore } from "../store/correlation-store.js";
 import { NotificationStore } from "../store/notification-store.js";
 import { FcmGateway } from "../notifications/fcm-gateway.js";
 import { NotificationProcessor } from "../notifications/processor.js";
+import { ShipmentStore } from "../logistics/shipment-store.js";
+import { SimulatedLogisticsProvider } from "../logistics/provider.js";
 
 /**
  * Continuously deployed cross-system event workers (bounded staging pilot).
@@ -21,12 +26,23 @@ import { NotificationProcessor } from "../notifications/processor.js";
  */
 
 const config = loadConfig(process.env);
-const metricsPort = Number.parseInt(process.env.WORKERS_METRICS_PORT ?? "9030", 10);
+const metricsPort = Number.parseInt(
+  process.env.WORKERS_METRICS_PORT ?? "9030",
+  10,
+);
 const maxDeliver = Number.parseInt(process.env.WORKER_MAX_DELIVER ?? "5", 10);
-const pilotUsers = loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount);
+const pilotUsers = loadPilotUsers(
+  config.pilotUsersJson,
+  config.pilotExpectedUserCount,
+);
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
+const shipments = new SimulatedLogisticsProvider(
+  new ShipmentStore(config.experienceDatabaseUrl),
+);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
-const fcm = config.fcmDeliveryEnabled ? new FcmGateway(config.firebaseProjectId) : null;
+const fcm = config.fcmDeliveryEnabled
+  ? new FcmGateway(config.firebaseProjectId)
+  : null;
 const notificationProcessor = new NotificationProcessor(
   notifications,
   correlation,
@@ -39,14 +55,80 @@ const definitions: WorkerDefinition[] = [
     name: "pilot-notification-dispatch",
     subject: ">",
     handle: async (event) => notificationProcessor.process(event),
-    onDeadLetter: async (event, error) => notificationProcessor.deadLetter(event, error),
+    onDeadLetter: async (event, error) =>
+      notificationProcessor.deadLetter(event, error),
   },
   {
-    name: "mercur-allocation",
-    subject: "commerce.>",
+    name: "marketplace-allocation-shipment-booking",
+    subject: "marketplace-allocation.>",
     handle: async (event, subject) => {
+      const eventType = String(event.event_type ?? event.type ?? "");
+      if (eventType !== "marketplace-allocation.created") return;
+      const payload =
+        event.payload && typeof event.payload === "object"
+          ? (event.payload as Record<string, unknown>)
+          : event.data && typeof event.data === "object"
+            ? (event.data as Record<string, unknown>)
+            : event;
+      const allocationId = String(
+        payload.allocation_id ??
+          payload.allocationId ??
+          event.aggregate_id ??
+          "",
+      );
+      const orderGroupId = String(
+        payload.order_group_id ??
+          payload.orderGroupId ??
+          (payload.order_group as Record<string, unknown> | undefined)?.id ??
+          "",
+      );
+      const sellerId = String(payload.seller_id ?? payload.sellerId ?? "");
+      if (!allocationId || !orderGroupId || !sellerId) {
+        console.warn(
+          `[shipment-booking] ${subject} missing allocation/order/seller keys`,
+        );
+        return;
+      }
+      const ref = await correlation.getByOrderGroup(orderGroupId);
+      const payloadLines = Array.isArray(payload.lines)
+        ? (payload.lines as Array<Record<string, unknown>>)
+        : [];
+      const correlationLines = Array.isArray(ref?.medusa_order_group?.lines)
+        ? (ref!.medusa_order_group!.lines as Array<Record<string, unknown>>)
+        : [];
+      const sourceLines = payloadLines.length ? payloadLines : correlationLines;
+      const sellerLines = sourceLines.filter((line) => {
+        const lineSeller = line.seller_id ? String(line.seller_id) : "";
+        return !lineSeller || lineSeller === sellerId;
+      });
+      const lines = sellerLines
+        .map((line) => ({
+          lineKey: String(line.line_key ?? line.id ?? line.variant_id ?? ""),
+          sku: String(line.sku ?? line.variant_id ?? line.line_key ?? ""),
+          orderedQty: Number(line.quantity ?? line.ordered_qty ?? 1),
+        }))
+        .filter((line) => line.lineKey && line.orderedQty > 0);
+      if (lines.length === 0) {
+        console.warn(
+          `[shipment-booking] ${allocationId} has no line evidence; shipment not booked`,
+        );
+        return;
+      }
+      const destinationPostcode =
+        typeof payload.destination_postcode === "string"
+          ? payload.destination_postcode
+          : typeof ref?.medusa_order_group?.destination_postcode === "string"
+            ? ref.medusa_order_group.destination_postcode
+            : null;
+      const result = await shipments.book({
+        orderGroupId,
+        allocationId,
+        sellerId,
+        lines,
+        destinationPostcode,
+      });
       console.log(
-        `[mercur-allocation] ${subject} order=${event.aggregate_id ?? "?"} -> allocate selected seller`,
+        `[shipment-booking] ${subject} ${result.created ? "booked" : "already-booked"} ${result.shipment.id}`,
       );
     },
   },

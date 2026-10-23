@@ -1,0 +1,179 @@
+change_id: CHG-073
+revision: 3
+request: >-
+  Refine the Phase D conversation layer: make Discuss a compact icon on catalogue tiles, move the
+  conversation entry beside the notification bell instead of a bottom floating button, add an
+  in-chat product picker so a participant can add a product without leaving the conversation, and
+  introduce a cart assistant as a distinct chat participant that can be mentioned or messaged
+  separately from the human conversation.
+type: conversation-ux-and-cart-assistant
+extends:
+- CHG-072
+- CHG-070
+affected_capabilities:
+- consumer-collaboration
+- shared-purchase-intent
+- workspace-membership
+- workspace-notifications
+- cart-handoff
+affected_domains:
+- workspace
+- experience
+- identity
+- commerce
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.workspace
+- workspace.service
+- medusa.cart
+already_present:
+- >-
+  Phase D conversation dock, product capture, household projects, invitations, shared list,
+  participant proposals and owner decisions are deployed as 68ee397.
+- >-
+  Unread counts and read cursors are already projected for workspace channels.
+- >-
+  The shared-list line key and channel-scoped product dedupe already prevent duplicate captures.
+missing:
+- >-
+  Discuss is a text pill on catalogue cards, not a compact icon; it competes with the product
+  imagery and is inconsistent with the wishlist control.
+- >-
+  The conversation launcher is a bottom floating button, not a header control beside notifications.
+- >-
+  There is no product search or picker inside Chat; a user must return to a catalogue surface to add
+  another product.
+- >-
+  There is no assistant actor, mention, direct-message channel or assistant-specific permission
+  model.
+- >-
+  There is no governed decision on whether the assistant is automated, human, or both, or on what
+  data it may read.
+- >-
+  Card-level Discuss controls compete with the product image and the purchase action. The in-chat
+  picker has no recent-product shortcut.
+proposed_decisions:
+- D-073-01: >-
+    On catalogue product tiles and compact search results, Discuss becomes a compact icon-only
+    action with a 44dp hit target and a visual size aligned with the wishlist control. It keeps an
+    accessible "Discuss" label and a long-press hint. PDP and cart-line actions remain labelled
+    "Discuss" for discoverability.
+- D-073-02: >-
+    The conversation entry moves beside the notification bell in the shared header, with an unread
+    badge. The bottom floating launcher is removed. Pages without that header receive the same
+    compact action in their app bar. The B2B header hit-testing defect must be fixed before the
+    control is added there.
+- D-073-03: >-
+    Chat gains an "Add product" action that opens a catalogue search picker. Selecting a product
+    uses the existing capture path: a product-share message plus an accepted line for an owner,
+    buyer or admin, or an add-line proposal for a participant. It never writes commerce state.
+- D-073-04: >-
+    The cart assistant is a distinct, clearly labelled participant, not a human member. It is
+    mentionable and can be messaged in a separate assistant thread. It can summarise the shared
+    list, flag missing quantities/MOQ and prepare suggestions. It cannot decide proposals, approve,
+    invite, check out, see owner-only address/payment/GST data, or write a cart or order. The first
+    release is an automated assistant with a governed human-escalation path.
+- D-073-05: >-
+    Any future assistant cart preparation remains read-only until Phase E is explicitly authorized.
+    A cart is built only by an explicit owner/buyer action after revalidation, difference review and
+    acknowledgement, using the same idempotent handoff as the non-assistant flow.
+- D-073-06: >-
+    Phase C is authorized by the human requester on 2026-10-21. The first implementation is a
+    deterministic, on-platform assistant with no external model provider: it reads only the accepted
+    shared-list projection, replies from governed rules, and writes only its own assistant message.
+    This resolves the external-provider privacy question by not sending conversation content to a
+    provider. Any future model-backed assistant remains a separate privacy and retention review.
+- D-073-07: >-
+    Remove the card-level Discuss control from catalogue tiles and search result rows; the labelled
+    Discuss action remains on PDPs and cart lines. The in-chat Add product picker gains a horizontal
+    Recently viewed swimlane. Selecting a recent product uses the existing capture path and never
+    writes the cart.
+conflicts_requiring_a_decision:
+- C-073-01: >-
+    The assistant introduces a new actor type and may send conversation content to an external model
+    provider. Resolved for Phase C by shipping a deterministic on-platform assistant with no provider
+    call; a model-backed assistant would require a new privacy, retention and prompt-injection review.
+- C-073-02: >-
+    "Cart assistant" may mean an automated assistant or a human operations specialist. The actor,
+    identity, availability and escalation model differ.
+- C-073-03: >-
+    Moving the entry into the B2B header touches the known non-tappable header controls. That defect
+    must be repaired and regression-tested rather than inherited.
+- C-073-04: >-
+    Phase E is authorized separately under CHG-072 for the explicit human handoff. Assistant
+    suggestions may reference that control, but the assistant itself still has no cart, checkout or
+    order write path under CHG-073.
+constraints:
+- Staging only; production release remains unauthorized.
+- No cart, checkout or order write in CHG-073 phases A-C.
+- Preserve the existing 233 grouped products and 500 traceable SKUs.
+- A participant's product addition remains a proposal until the owner accepts it.
+- An approver cannot add to or change the shared list and cannot build a cart.
+- The assistant never receives participant-hidden owner data.
+- The assistant is visibly identified as an assistant, not a human participant.
+- Assistant tool calls and messages are auditable.
+- Do not expose third-party conversation content to a model provider without an approved privacy
+  decision.
+- Do not reintroduce the B2B header hit-testing defect.
+proposed_phases:
+- phase-a: >-
+    [complete] UX polish only: header entry beside the bell with unread badge, in-chat catalogue
+    picker and recent-product swimlane. Revision 3 removes the card-level Discuss control; PDP and
+    cart-line Discuss remain. No assistant and no commerce write. Deployed and Chrome-accepted.
+- phase-b: >-
+    [complete-design-only] Assistant design and governance: automated assistant with human
+    escalation, actor identity, permissions, data flow, retention, prompt-injection controls and
+    audit. See ADR-client101-013. No assistant code.
+- phase-c: >-
+    [complete-staging-verified] Read-only assistant participant with a separate channel, @assistant
+    mentions in the human thread, deterministic summaries and explicit limits. No proposal
+    decisions, approvals, checkout or commerce writes.
+- phase-d: >-
+    [not-implemented] Optional assistant cart preparation. The human cart handoff is delivered under
+    CHG-072 Phase E; the assistant has no write path of its own.
+required_tests:
+- Discuss icon has a 44dp target, an accessible label and no card reflow at 390x844 and 360x800.
+- The header conversation entry sits beside the notification bell, shows unread state and opens the
+  dock without losing the page.
+- The B2B header conversation entry is tappable and does not regress cart, notifications or account.
+- The in-chat picker finds a product by title or SKU; an owner addition creates an accepted line and
+  a participant addition creates a pending proposal.
+- Adding the same variant twice from the picker does not duplicate a line or proposal.
+- Adding from chat never changes the cart or creates an order.
+- An assistant mention or direct message is isolated from the human chat and is visibly labelled.
+- An assistant cannot accept a proposal, approve a revision, invite, check out, read owner-only
+  fields or write commerce state.
+- Assistant messages and tool calls appear in the audit/activity record.
+- Phase A passes Chrome 390x844 and 360x800 with no console errors.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  approval_scope: phase-a-to-phase-c
+  status: phase-a-complete-phase-b-design-complete-phase-c-implemented
+  phase_c_authorized_at_utc: '2026-10-21'
+  phase_c_authorized_by: human-requester
+  phase_c_status: complete-staging-verified
+  phase_c_mode: deterministic-on-platform-read-only
+  phase_c_provider: none
+  phase_c_release: 0d7d884
+  phase_c_frontend_commit: 0d7d884
+  phase_c_chrome_acceptance: pass-b2c-and-b2b-targeted
+  phase_a_completed_at_utc: '2026-10-21'
+  phase_a_release: fe3e947
+  phase_a_frontend_commit: fe3e947
+  backend_release: 68ee397
+  phase_a_chrome_acceptance: pass-95-of-95-390x844-360x800
+  revision_3_status: card-discuss-removed-recent-swimlane-staging-verified
+  revision_3_authorized_at_utc: '2026-10-21'
+  revision_3_authorized_by: human-requester
+  revision_3_ui_commit: cb787c6
+  revision_3_chrome_acceptance: pass-390x844-and-360x800-widget
+  phase_b_design: client-projects/client101/solution/decisions/ADR-client101-013.yaml
+  evidence: client-projects/client101/evidence/CHG-073/conversation-refinements.md
+status: approved-in-progress
+production_release_authorized: false
+

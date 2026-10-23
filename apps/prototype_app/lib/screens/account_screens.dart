@@ -1326,6 +1326,18 @@ class SettingsScreen extends ConsumerWidget {
             subtitle: const Text('Offers from BuildKart and sellers',
                 style: TextStyle(fontSize: 11)),
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: settings.whatsappOrderUpdates,
+            onChanged: (v) => ref
+                .read(settingsProvider.notifier)
+                .update(settings.copyWith(whatsappOrderUpdates: v)),
+            title: const Text('WhatsApp order updates',
+                style: TextStyle(fontSize: 13)),
+            subtitle: const Text(
+                'Staging preference only · messaging is not connected',
+                style: TextStyle(fontSize: 11)),
+          ),
           const Divider(),
           Text('Privacy',
               style: TextStyle(

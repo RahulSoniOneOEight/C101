@@ -11,19 +11,27 @@ enum MerchandisingModuleType {
   productComposition,
 }
 
-/// Image-led banner content (secondary / contextual banners).
+/// Image-led banner content (secondary / contextual banners). All fields are
+/// backend-managed presentation; `actionUri` is the backend action target.
 class MerchandisingBannerData {
   const MerchandisingBannerData({
     required this.imageUrl,
     required this.title,
+    this.imageAlt,
     this.subtitle,
     this.ctaLabel,
+    this.actionUri,
   });
 
   final String imageUrl;
   final String title;
+
+  /// CMS alternative text for [imageUrl]. Passed to the image's semantic label so a screen reader
+  /// announces the creative instead of skipping it.
+  final String? imageAlt;
   final String? subtitle;
   final String? ctaLabel;
+  final String? actionUri;
 }
 
 /// The special (sixth) slot in a product-composition module — a merchandising
@@ -45,6 +53,8 @@ class MerchandisingModule {
     this.products = const <Product>[],
     this.banner,
     this.splitSlot,
+    this.seeAllLabel,
+    this.seeAllUri,
   });
 
   final MerchandisingModuleType type;
@@ -53,4 +63,8 @@ class MerchandisingModule {
   final List<Product> products;
   final MerchandisingBannerData? banner;
   final SplitSlot? splitSlot;
+
+  /// Where "See All" goes, when the layout configured a destination. Null means the screen decides.
+  final String? seeAllLabel;
+  final String? seeAllUri;
 }

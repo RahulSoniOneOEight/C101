@@ -36,6 +36,8 @@ jobs:
       # against a live deployment, not in CI.
       - run: bun run typecheck
       - run: bun run test:cms-content
+      - run: bun run src/scripts/layout-sections-test.ts
+      - run: bun run src/scripts/section-products-test.ts
 
   payment-guard:
     name: Medusa payment production guard

@@ -1,0 +1,22 @@
+{
+  "name": "buildkart-workspace",
+  "version": "0.1.0-phase1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "bunx tsc --noEmit",
+    "test:smoke": "bun run src/scripts/smoke.ts",
+    "test:household": "bun run src/scripts/household-smoke.ts"
+  },
+  "dependencies": {
+    "nats": "^2.29.3",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/bun": "1.2.9",
+    "@types/pg": "^8.23.1",
+    "typescript": "5.9.3"
+  }
+}

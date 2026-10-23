@@ -89,8 +89,7 @@ class AccountScreen extends ConsumerWidget {
             ListTile(
               leading: Icon(item.$1, color: colors.actionPrimary),
               title: Text(item.$2,
-                  style: TextStyle(
-                      fontSize: 13, color: colors.contentPrimary)),
+                  style: TextStyle(fontSize: 13, color: colors.contentPrimary)),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[

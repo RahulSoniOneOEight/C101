@@ -1,0 +1,60 @@
+change_id: CHG-061
+revision: 1
+request: >-
+  Restore the product image on cart lines so a cart shows the same catalogue thumbnail the shopper
+  saw on Home, Browse and the product page.
+type: cart-line-thumbnail-resolution
+extends:
+- CHG-050
+- CHG-055
+- CHG-059
+affected_capabilities:
+- cart
+affected_domains:
+- commerce
+- experience
+affected_surfaces:
+- app.prototype.b2c-storefront
+already_present:
+- Medusa cart line items carry product and variant identity.
+- All 233 CHG-049 products have a persistent thumbnail that returns HTTP 200.
+missing:
+- The composed cart view and the app model carried no line thumbnail, so the cart rendered a
+  generic placeholder.
+decisions_approved:
+- D-061-01: >-
+    Extend the StoreCart line contract with optional product_id, variant_id and thumbnail, and
+    expose them through the composed cart view without changing any money field.
+- D-061-02: >-
+    Resolve the cart image as: canonical line thumbnail first, then the catalogue thumbnail matched
+    by product id, then variant id, then exact title as a legacy-cart fallback.
+constraints:
+- No price, discount, shipping or tax amount may be derived or altered by this change.
+- Missing catalogue data must still render the existing placeholder, never a broken image.
+- Staging only; production release remains unauthorized.
+required_tests:
+- A canonical line thumbnail is used unchanged.
+- A product id resolves the catalogue thumbnail.
+- A variant id resolves the catalogue thumbnail.
+- A legacy line without ids resolves by exact title.
+- A line with no match stays null so the UI keeps its placeholder.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-19'
+  status: implemented-locally-verified
+  evidence: client-projects/client101/evidence/CHG-061/cart-line-thumbnail.md
+  verification:
+    flutter_analyze: pass
+    flutter_tests: 209-pass
+  deployment:
+    app_build: 711e5e3
+    experience_api_commit: 608ae93
+    experience_api_container: recreated-2026-10-19
+    verified:
+      cart_line_thumbnail: https://ops-staging.pinakaplay.cloud/static/jaquar-frosted-glass-wall-lamp.png
+      cart_line_product_id_present: true
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

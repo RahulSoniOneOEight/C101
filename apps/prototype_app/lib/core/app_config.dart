@@ -46,6 +46,44 @@ class AppConfig {
   /// never silently serve demo data to production users.
   static const bool useMockData = kDebugMode;
 
+  /// Explicit opt-in for the prototype's offline cart.
+  ///
+  /// The offline cart is disabled by default. A failed API call must never
+  /// persist a fake `local_cart` id, because every later add/checkout against
+  /// that id returns 404 and the order silently never reaches the backend.
+  static const bool allowOfflineCart = bool.fromEnvironment(
+    'ALLOW_OFFLINE_CART',
+    defaultValue: false,
+  );
+
+  /// Metadata marker of the governed source catalogue to show in staging.
+  ///
+  /// The Experience API selects products by this marker (`catalogue_import`) so the storefront renders
+  /// the imported 500-SKU catalogue rather than every demonstration product that happens to be
+  /// published. Override with `--dart-define=CATALOGUE_IMPORT=` to show the whole catalogue.
+  static const String catalogueImport = String.fromEnvironment(
+    'CATALOGUE_IMPORT',
+    defaultValue: 'CHG-049',
+  );
+
+  /// Short build identifier shown in the staging strip. Pass the commit SHA at
+  /// build time so a stale tab or an older cached bundle is immediately obvious.
+  static const String buildId = String.fromEnvironment(
+    'BUILD_ID',
+    defaultValue: 'dev',
+  );
+
+  /// Whether this process bootstrapped remote catalogue reads.
+  ///
+  /// Set by [main] before the app is mounted. Widget tests mount the app without
+  /// running [main], so they render the deterministic local fallback instead of
+  /// starting an HTTP request that would outlive the test binding.
+  static bool _liveCatalogueEnabled = false;
+
+  static bool get liveCatalogueEnabled => _liveCatalogueEnabled;
+
+  static void enableLiveCatalogue() => _liveCatalogueEnabled = true;
+
   static void validateForRelease() {
     if (!kReleaseMode) return;
     if (environment != 'staging') {

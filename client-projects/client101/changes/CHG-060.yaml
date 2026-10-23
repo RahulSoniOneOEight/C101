@@ -1,0 +1,77 @@
+change_id: CHG-060
+revision: 1
+request: >-
+  Put Lighting & Electrical, Bathroom & Plumbing and Paints & Finishes first in category rails, and
+  rank products with better display-ready images first in catalogue relevance order.
+type: category-and-image-quality-merchandising
+extends:
+- CHG-049
+- CHG-053
+affected_capabilities:
+- marketplace-merchandising
+affected_domains:
+- commerce
+- content
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+already_present:
+- Exactly 233 grouped imported products and 500 source SKUs remain the governed staging catalogue.
+- All 233 thumbnails are persistent staging assets and return HTTP 200.
+- B2C and B2B consume the same commerce category identity and composed product endpoint.
+missing:
+- The requested three categories appear first in both channel category rails.
+- Relevance order favors thumbnails that are more suitable for product-card display.
+decisions_approved:
+- D-060-01: >-
+    Apply the priority Lighting & Electrical, Bathroom & Plumbing, Paints & Finishes, then preserve
+    every remaining category's current relative order.
+- D-060-02: >-
+    Score all 233 CHG-049 thumbnails with a reproducible staging display-fitness heuristic using
+    minimum dimension, pixel area, square-card aspect fit, non-white subject coverage, tonal range,
+    edge sharpness and source-URL provenance.
+- D-060-03: >-
+    Use the score only as the default/relevance tie-break and ordering signal. Explicit shopper sorts
+    such as price remain authoritative.
+- D-060-04: >-
+    Keep the score as an explicit CHG-049 staging fixture; do not claim it is a production DAM or an
+    AI judgement of product quality.
+required_tests:
+- B2C and B2B category lists begin with the three approved labels in the approved order.
+- Product pagination is globally sorted by descending image score before slicing.
+- Product count remains 233 and SKU count remains 500.
+- Search and category filtering preserve quality order when no explicit price sort is selected.
+- Higher-resolution display-fit products precede the 173×135 socket-set image on default listings.
+constraints:
+- Do not create, delete or split catalogue products/SKUs.
+- Commerce remains owner of product/category identity; this change only governs presentation order.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-19'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-19'
+  status: implemented-locally-verified
+  evidence: client-projects/client101/evidence/CHG-060/category-and-image-priority.md
+  verification:
+    scored_products: 233
+    image_download_errors: 0
+    experience_api_typecheck: pass
+    image_quality_order_test: pass
+    presentation_test: pass
+    flutter_analyze: pass
+    flutter_tests: 209-pass
+    live_products_covered: 233-of-233
+  deployment:
+    app_build: 711e5e3
+    experience_api_commit: 608ae93
+    experience_api_container: recreated-2026-10-19
+    proxy_restarted: true
+    verified:
+      api_image_quality_score: live
+      api_order_top_score: 97
+      b2c_category_order: Lighting & Electrical, Bathroom & Plumbing, Paints & Finishes
+      b2b_category_order: Lighting & Electrical, Bathroom & Plumbing, Paints & Finishes
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

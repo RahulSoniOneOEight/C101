@@ -75,7 +75,7 @@ class _ProcurementListsManagerScreenState
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
-    final lists = ref.watch(procurementListsProvider);
+    final lists = ref.watch(effectiveProcurementListsProvider);
     final filtered = _filtered(lists);
 
     return Scaffold(
@@ -281,7 +281,7 @@ class _ProcurementListEditorScreenState
   }
 
   void _load() {
-    final lists = ref.read(procurementListsProvider);
+    final lists = ref.read(effectiveProcurementListsProvider);
     ProcurementList? list;
     for (final l in lists) {
       if (l.id == widget.listId) {
@@ -430,9 +430,9 @@ class _ProcurementListEditorScreenState
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
-    final catalogue = ref.watch(tradeCatalogueProvider);
+    final catalogue = ref.watch(tradeCatalogueViewProvider);
     final addable = _addable(catalogue);
-    final tradeCategories = ref.watch(tradeDashboardProvider).categories;
+    final tradeCategories = ref.watch(tradeCategoryOptionsProvider);
     final selectedCatLabel = _catId == null
         ? null
         : tradeCategories
@@ -693,7 +693,7 @@ class _ProcurementListEditorScreenState
   }
 
   TradeProduct? _catalogueProduct(String sku) {
-    for (final p in ref.read(tradeCatalogueProvider)) {
+    for (final p in ref.read(tradeCatalogueViewProvider)) {
       if (p.product.id == sku) return p;
     }
     return null;

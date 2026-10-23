@@ -4,8 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
+import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../widgets/cart_feedback.dart';
+import '../widgets/conversation_bell.dart';
+import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
 
 /// The active cart with quantity controls, a checkout summary, and a
@@ -22,6 +28,8 @@ class CartScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Cart'),
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           IconButton(
             tooltip: 'My Orders',
             onPressed: () => context.push('/orders'),
@@ -39,8 +47,7 @@ class CartScreen extends ConsumerWidget {
           };
           final related = products
               .where((p) =>
-                  !inCart.contains(p.id) &&
-                  !inCart.contains(p.variantId ?? p.id))
+                  !inCart.contains(p.id) && !inCart.contains(p.cartVariantId))
               .take(8)
               .toList();
 
@@ -53,10 +60,18 @@ class CartScreen extends ConsumerWidget {
                 for (final item in items)
                   _CartLineWithDeals(item: item, catalogue: products),
                 const SizedBox(height: AgencySpacing.md),
+                PromotionPanel(cart: cart!),
+                if (cart.hasDiscount) _discountRow(context, cart),
                 CheckoutSummary(
-                  subtotal: cart?.total?.formatted ?? '—',
-                  shipping: 'Free',
-                  total: cart?.total?.formatted ?? '—',
+                  subtotal: cart.subtotal?.formatted ?? '—',
+                  // One source of truth: the cart payload, never a hardcoded
+                  // "Free" while checkout may charge a delivery fee.
+                  shipping: (cart.shippingTotal?.amount ?? 0) > 0
+                      ? (cart.shippingDiscountTotal?.amount ?? 0) > 0
+                          ? '${cart.shippingTotal!.formatted} · offer applied'
+                          : cart.shippingTotal!.formatted
+                      : 'Calculated at checkout',
+                  total: cart.total?.formatted ?? '—',
                   onContinue: () => context.push('/checkout'),
                 ),
               ],
@@ -67,6 +82,60 @@ class CartScreen extends ConsumerWidget {
             ],
           );
         },
+      ),
+    );
+  }
+
+  /// Engine-granted discount rows. Never computed from a code that was only
+  /// typed: the amount comes from the cart response.
+  Widget _discountRow(BuildContext context, Cart cart) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.sm),
+      child: Column(
+        children: <Widget>[
+          if ((cart.discountTotal?.amount ?? 0) > 0)
+            Row(
+              children: <Widget>[
+                Icon(Icons.local_offer_outlined,
+                    size: 15, color: colors.feedbackSuccess),
+                const SizedBox(width: AgencySpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Discount · ${cart.promotions.map((p) => p.code).join(', ')}',
+                    style:
+                        TextStyle(fontSize: 13, color: colors.contentSecondary),
+                  ),
+                ),
+                Text(
+                  '-${cart.discountTotal!.formatted}',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: colors.feedbackSuccess),
+                ),
+              ],
+            ),
+          if ((cart.shippingDiscountTotal?.amount ?? 0) > 0)
+            Row(
+              children: <Widget>[
+                const SizedBox(width: 19),
+                Expanded(
+                  child: Text('Shipping offer',
+                      style: TextStyle(
+                          fontSize: 12, color: colors.contentSecondary)),
+                ),
+                Text(
+                  '-${cart.shippingDiscountTotal!.formatted}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: colors.feedbackSuccess),
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }
@@ -127,16 +196,22 @@ class CartScreen extends ConsumerWidget {
                 variant: ProductCardVariant.compact,
                 onPressed: () => context.push('/product/${p.id}'),
                 onAddToCart: () async {
-                  await ref.read(cartProvider.notifier).addItem(
-                      offerId: p.offerId ?? '',
-                      variantId: p.variantId ?? p.id,
-                      quantity: 1);
+                  final added = await addToCartSafely(
+                    ref,
+                    offerId: p.cartOfferId,
+                    variantId: p.cartVariantId,
+                  );
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Added to cart')),
-                    );
+                    added
+                        ? showCartAddedToast(context)
+                        : showCartErrorToast(context);
                   }
                 },
+                onDiscuss: () =>
+                    ref.read(conversationDockProvider.notifier).discuss(
+                          ConversationAudience.household,
+                          ConversationProductCapture.fromProduct(p),
+                        ),
               ),
             );
           },
@@ -155,8 +230,7 @@ class _CartLineWithDeals extends ConsumerStatefulWidget {
   final List<Product> catalogue;
 
   @override
-  ConsumerState<_CartLineWithDeals> createState() =>
-      _CartLineWithDealsState();
+  ConsumerState<_CartLineWithDeals> createState() => _CartLineWithDealsState();
 }
 
 class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
@@ -165,7 +239,7 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
   List<Product> get _related {
     final line = widget.item;
     final candidates = widget.catalogue
-        .where((p) => p.id != line.id && (p.variantId ?? p.id) != line.id)
+        .where((p) => p.id != line.id && p.cartVariantId != line.id)
         .toList();
     // Same-brand products first, then the rest.
     final brand = line.title.split(' ').first.toLowerCase();
@@ -181,12 +255,17 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
   Widget build(BuildContext context) {
     final item = widget.item;
     final related = _related;
+    final product = catalogueProductForCartLine(item, widget.catalogue);
+    final variant = product?.variants
+        .where((candidate) => candidate.id == item.variantId)
+        .firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         PinCartLine(
           title: item.title,
           subtitle: item.unitPrice?.formatted,
+          imageUrl: cartLineImageUrl(item, widget.catalogue),
           quantity: item.quantity,
           onIncrement: () => ref
               .read(cartProvider.notifier)
@@ -195,13 +274,27 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
               .read(cartProvider.notifier)
               .updateQuantity(item.id, item.quantity - 1),
           onRemove: () => ref.read(cartProvider.notifier).removeItem(item.id),
+          onDiscuss: product == null
+              ? null
+              : () => ref.read(conversationDockProvider.notifier).discuss(
+                    ConversationAudience.household,
+                    ConversationProductCapture.fromProduct(
+                      product,
+                      variant: variant,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      variantId: item.variantId,
+                      offerId: variant?.offerId ?? product.cartOfferId,
+                    ),
+                  ),
         ),
         if (related.isNotEmpty)
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: () => setState(() => _open = !_open),
-              icon: Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
+              icon:
+                  Icon(_open ? Icons.expand_less : Icons.expand_more, size: 18),
               label: Text(_open ? 'Hide related deals' : 'Related deals'),
             ),
           ),
@@ -225,21 +318,27 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                         ? null
                         : '${p.discountPercent}% off',
                     imageUrl: p.thumbnail,
-                    brand: p.brand,
+                    brand: p.brandLine,
                     badges: p.badges,
                     variant: ProductCardVariant.compact,
                     onPressed: () => context.push('/product/${p.id}'),
                     onAddToCart: () async {
-                      await ref.read(cartProvider.notifier).addItem(
-                          offerId: p.offerId ?? '',
-                          variantId: p.variantId ?? p.id,
-                          quantity: 1);
+                      final added = await addToCartSafely(
+                        ref,
+                        offerId: p.cartOfferId,
+                        variantId: p.cartVariantId,
+                      );
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Added to cart')),
-                        );
+                        added
+                            ? showCartAddedToast(context)
+                            : showCartErrorToast(context);
                       }
                     },
+                    onDiscuss: () =>
+                        ref.read(conversationDockProvider.notifier).discuss(
+                              ConversationAudience.household,
+                              ConversationProductCapture.fromProduct(p),
+                            ),
                   ),
                 );
               },

@@ -29,11 +29,17 @@ final gstInvoicesProvider = Provider<List<GstInvoice>>((ref) {
 /// device-local store so approver decisions and credit-limit requests persist.
 const List<ApprovalItem> _seedApprovals = <ApprovalItem>[
   ApprovalItem(
-      ref: 'Order #B-2231', amountLabel: '₹48,900', state: ApprovalState.pending),
+      ref: 'Order #B-2231',
+      amountLabel: '₹48,900',
+      state: ApprovalState.pending),
   ApprovalItem(
-      ref: 'Order #B-2228', amountLabel: '₹12,450', state: ApprovalState.approved),
+      ref: 'Order #B-2228',
+      amountLabel: '₹12,450',
+      state: ApprovalState.approved),
   ApprovalItem(
-      ref: 'Order #B-2210', amountLabel: '₹96,300', state: ApprovalState.rejected),
+      ref: 'Order #B-2210',
+      amountLabel: '₹96,300',
+      state: ApprovalState.rejected),
 ];
 
 class ApprovalsNotifier extends Notifier<List<ApprovalItem>> {
@@ -42,7 +48,8 @@ class ApprovalsNotifier extends Notifier<List<ApprovalItem>> {
     try {
       final store = ref.read(localStoreProvider);
       if (!store.hasApprovals()) {
-        store.writeApprovals(_seedApprovals); // first-run seed (fire-and-forget)
+        store
+            .writeApprovals(_seedApprovals); // first-run seed (fire-and-forget)
         return _seedApprovals;
       }
       return store.readApprovals();
@@ -61,7 +68,8 @@ class ApprovalsNotifier extends Notifier<List<ApprovalItem>> {
   }
 
   /// Record an approver decision on a pending item.
-  Future<void> decide(String ref, ApprovalState decision) => _commit(<ApprovalItem>[
+  Future<void> decide(String ref, ApprovalState decision) =>
+      _commit(<ApprovalItem>[
         for (final item in state)
           item.ref == ref && item.state == ApprovalState.pending
               ? item.copyWith(state: decision)
@@ -69,10 +77,12 @@ class ApprovalsNotifier extends Notifier<List<ApprovalItem>> {
       ]);
 
   /// Raise a new pending item (e.g. a credit-limit increase request).
-  Future<void> addPending({required String ref, required String amountLabel}) async {
+  Future<void> addPending(
+      {required String ref, required String amountLabel}) async {
     if (state.any((i) => i.ref == ref)) return;
     await _commit(<ApprovalItem>[
-      ApprovalItem(ref: ref, amountLabel: amountLabel, state: ApprovalState.pending),
+      ApprovalItem(
+          ref: ref, amountLabel: amountLabel, state: ApprovalState.pending),
       ...state,
     ]);
   }
@@ -121,7 +131,8 @@ class TeamMembersNotifier extends Notifier<List<TeamMember>> {
     if (state.any((m) => m.name.toLowerCase() == trimmed.toLowerCase())) {
       return false;
     }
-    await _commit(<TeamMember>[...state, TeamMember(name: trimmed, role: role)]);
+    await _commit(
+        <TeamMember>[...state, TeamMember(name: trimmed, role: role)]);
     return true;
   }
 

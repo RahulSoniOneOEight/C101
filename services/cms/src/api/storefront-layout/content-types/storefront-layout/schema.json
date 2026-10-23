@@ -31,8 +31,17 @@
         "layout.offer-collection",
         "layout.rich-editorial",
         "layout.trust-row"
-      ],
-      "required": true
+      ]
+    },
+    "sections": {
+      "type": "json",
+      "description": "Ordered merchandising sections (placement, title, badge, collection reference, limit, see-all target, banner reference, visibility, schedule). Validated against the layout section registry on delivery. Modules remain the raw recovery format."
+    },
+    "heroRotationMs": {
+      "type": "integer",
+      "default": 0,
+      "min": 0,
+      "description": "Auto-advance interval for the home hero carousel, in milliseconds. 0 disables rotation."
     },
     "startsAt": { "type": "datetime" },
     "endsAt": { "type": "datetime" },

@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# golden failure artifacts (regenerated on every mismatch)
+test/failures/

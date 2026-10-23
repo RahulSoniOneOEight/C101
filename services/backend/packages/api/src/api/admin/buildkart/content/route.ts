@@ -36,8 +36,9 @@ export async function POST(
       documentId: body.documentId,
       locale: body.locale,
       data: body.data,
+      expectedUpdatedAt: body.expectedUpdatedAt,
     },
     identity(req),
   );
-  res.status(body.operation === "create-draft" ? 201 : 200).json(result);
+  res.status(body.operation === "create-draft" || body.operation === "duplicate-draft" ? 201 : 200).json(result);
 }

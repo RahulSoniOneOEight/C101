@@ -23,5 +23,18 @@ export default defineConfig(({ mode }) => {
         ...(backendUrl ? { backendUrl } : {}),
       }),
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          // The dashboard SDK ships the whole administration surface. Split
+          // stable vendor code so repeat visits reuse it instead of fetching
+          // the entry chunk again.
+          manualChunks: {
+            react: ['react', 'react-dom', 'react-router-dom'],
+            query: ['@tanstack/react-query'],
+          },
+        },
+      },
+    },
   }
 })

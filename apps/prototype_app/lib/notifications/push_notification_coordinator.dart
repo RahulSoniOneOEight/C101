@@ -31,8 +31,8 @@ class PushNotificationCoordinator {
   Future<void> activate() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     final messaging = FirebaseMessaging.instance;
-    final settings =
-        await messaging.requestPermission(alert: true, badge: true, sound: true);
+    final settings = await messaging.requestPermission(
+        alert: true, badge: true, sound: true);
     if (settings.authorizationStatus == AuthorizationStatus.denied) return;
     final token = await messaging.getToken();
     if (token != null && token.isNotEmpty) await _register(token);

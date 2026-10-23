@@ -1,0 +1,125 @@
+change_id: CHG-071
+revision: 2
+request: >-
+  Review the deployed staging implementation and resolve known regressions that can be repaired
+  without entering Workspace Phase 3, changing commercial terms, or authorizing production.
+type: staging-regression-repair-and-revalidation
+extends:
+- CHG-049
+- CHG-055
+- CHG-060
+- CHG-061
+- CHG-062
+- CHG-063
+- CHG-070
+affected_capabilities:
+- catalogue-asset-delivery
+- commerce-cart-identity
+- staging-promotion-eligibility
+- deployment-assurance
+affected_domains:
+- commerce
+- identity
+- experience
+- operations
+affected_surfaces:
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- experience-api.carts
+- medusa.store-carts
+- hosted.staging
+findings:
+- >-
+  The live catalogue still contains exactly 233 grouped products and 500 traceable SKUs, but all
+  233 product thumbnail URLs currently return HTTP 404.
+- >-
+  The retained Docker volume buildkart-hosted-pilot_medusa_uploads contains 1,065 files. The live
+  medusa-api container has no mounts because it was recreated from the stale /opt/buildkart compose
+  checkout instead of the governed active release, whose compose file declares the upload volume.
+- >-
+  Experience API cart creation authenticates the pilot user but does not pass the server-owned user
+  email to Medusa. Medusa therefore creates an unassociated cart with no customer_id, so the
+  B2B Trade Customers group cannot make TRADE7 or TRADEVIP eligible.
+- >-
+  Cart thumbnail fallback, B2B quick-order/trade-deal content, and the CHG-063 operator-console fixes
+  are already implemented; they require revalidation rather than a second implementation.
+- >-
+  The configured BuildKart B2B region is a countryless pricing context. Medusa assigns each country
+  to exactly one operational region, and India is correctly assigned to the existing India region.
+  A B2B cart created in the pricing-only region therefore rejects an Indian delivery address before
+  shipping can be selected. Its 52 price-list entries resolve only to archived draft variants and to
+  zero CHG-049 governed SKUs, so the current 233-product / 500-SKU catalogue does not depend on that
+  region for a different cart price.
+decisions_approved:
+- D-071-01: >-
+    Restore the existing governed catalogue files by attaching the retained medusa_uploads volume
+    to medusa-api. Do not recreate products, variants, offers, prices, sellers, or image identities.
+- D-071-02: >-
+    On canonical cart creation, pass the authenticated pilot user's normalized email from server
+    context to Medusa. Never accept customer identity from the cart request body. Medusa remains the
+    owner of customer and cart records and resolves the existing customer/group association.
+- D-071-03: >-
+    Add a credential-free staging verification script that fails when the medusa-api upload mount is
+    absent, the governed catalogue count differs from 233, or any governed thumbnail is not HTTP 200.
+- D-071-04: >-
+    Revalidate the existing cart-thumbnail, B2B merchandising, operator-console and promotion paths.
+    Correct defects only where the prior approved contracts already define the intended behaviour.
+- D-071-05: >-
+    Default canonical B2C and B2B carts to the operational India region so an Indian address,
+    shipping options and checkout remain valid. Keep the countryless B2B region available as the
+    existing read-side pricing context and do not modify any price list, price amount or region-country
+    ownership under this repair.
+constraints:
+- Preserve exactly 233 grouped products and 500 source SKUs; do not create replacement product cards.
+- Do not change product, variant, seller, offer, list-price, discount, campaign or promotion ownership.
+- Do not move India between regions or modify the B2B Trade Pricing price list.
+- Cart customer identity is derived only from the signed server session.
+- Do not expose credentials, tokens, host environment values, or staging customer data in evidence.
+- Do not implement Workspace Phase 3 revalidation or checkout handoff.
+- Do not implement operator audited-read access or notification projection under this change.
+- Do not change DNS, enable Cloudflare Access, or claim the open edge-hardening gap is resolved.
+- Staging only; production release remains unauthorized.
+required_tests:
+- The medusa-api container has the governed medusa_uploads mount at /app/packages/api/static.
+- Exactly 233 governed catalogue thumbnails return HTTP 200.
+- A signed-in B2B trade buyer's newly created cart is associated with the matching Medusa customer.
+- TRADE7 applies only to an eligible trade customer and matching Basin Mixers & Taps line.
+- TRADEVIP applies only to an eligible trade customer after a shipping method exists.
+- A non-trade customer remains ineligible for both trade promotions.
+- A B2B cart accepts an Indian address and resolves at least one seller shipping option.
+- The selected governed offer has the same unit price in the B2B product view and canonical cart.
+- Existing TOOLS200 and automatic PLY5 behaviour is unchanged.
+- Cart thumbnail fallback and B2B quick-order/trade-deal modules still pass their existing checks.
+- Experience API typecheck and relevant Flutter tests pass.
+approval_required: true
+implementation:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-20'
+  approved_by: human-requester
+  approved_at_utc: '2026-10-20'
+  completed_at_utc: '2026-10-20T09:01:44Z'
+  status: deployed-staging-awaiting-human-review
+  evidence: client-projects/client101/evidence/CHG-071/staging-regression-repair.md
+  verification:
+    experience_api_typecheck: pass
+    flutter_analyze: clean
+    flutter_non_golden_tests: 241-pass
+    admin_lint: pass
+    admin_build: pass-with-existing-entry-chunk-warning
+    governed_catalogue: 233-products-500-skus
+    governed_thumbnails: 233-of-233-http-200
+    cart_customer_association: pass
+    b2b_address_and_shipping: pass
+    trade7_eligible_trade_customer: pass
+    tradevip_eligible_trade_customer: pass
+    trade_codes_non_trade_customer: rejected
+    tools200: pass
+    ply5_automatic_existing_behavior: pass
+    order_completed_by_acceptance: false
+  deployment:
+    commits: 8e88423, 0101a60
+    active_release: /opt/buildkart-releases/release-0101a60
+    public_api_health: 200
+    operator_dashboard: 200
+status: deployed-to-staging-awaiting-human-review
+production_release_authorized: false

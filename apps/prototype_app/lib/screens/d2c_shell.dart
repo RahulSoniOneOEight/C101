@@ -4,23 +4,50 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
 import '../providers/account_providers.dart';
+import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
+import '../widgets/cart_feedback.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../theme/storefront_control_tokens.dart';
+import '../widgets/conversation_bell.dart';
+import '../widgets/conversation_dock.dart';
+import '../widgets/home_pinned_bar.dart';
+import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
+import '../widgets/quick_add_sheet.dart';
 
 /// Host scaffold for the D2C (consumer) section: persistent 4-tab bottom
 /// navigation (Home / Browse / Cart / Account). Orders is reached from Account
 /// rather than occupying its own tab.
 class D2CShell extends StatelessWidget {
-  const D2CShell({required this.navigationShell, super.key});
+  const D2CShell({
+    required this.navigationShell,
+    required this.currentPath,
+    super.key,
+  });
 
   final StatefulNavigationShell navigationShell;
+  final String currentPath;
+
+  bool get _conversationEnabled =>
+      currentPath == '/' ||
+      currentPath == '/browse' ||
+      currentPath == '/search' ||
+      currentPath == '/cart' ||
+      currentPath.startsWith('/collections/') ||
+      currentPath.startsWith('/product/');
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: ConversationDockHost(
+        audience: ConversationAudience.household,
+        enabled: _conversationEnabled,
+        child: navigationShell,
+      ),
       bottomNavigationBar: AppBottomNavigation(
         items: const <BottomNavItem>[
           BottomNavItem(label: 'Home', icon: Icons.home_outlined),
@@ -44,16 +71,52 @@ enum BrowseSort { relevance, priceLowHigh, priceHighLow, rating }
 extension on BrowseSort {
   String get label => switch (this) {
         BrowseSort.relevance => 'Relevance',
-        BrowseSort.priceLowHigh => 'Price: Low to High',
-        BrowseSort.priceHighLow => 'Price: High to Low',
+        BrowseSort.priceLowHigh => 'Price ↑',
+        BrowseSort.priceHighLow => 'Price ↓',
         BrowseSort.rating => 'Rating',
       };
+}
+
+/// Pins the Browse search field below the app bar, matching the Home bar's
+/// staying power without changing the Browse control rail.
+class _BrowseSearchHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _BrowseSearchHeaderDelegate({
+    required this.height,
+    required this.backgroundColor,
+    required this.child,
+  });
+
+  final double height;
+  final Color backgroundColor;
+  final Widget child;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(color: backgroundColor, child: child);
+  }
+
+  @override
+  bool shouldRebuild(_BrowseSearchHeaderDelegate oldDelegate) =>
+      oldDelegate.height != height ||
+      oldDelegate.backgroundColor != backgroundColor ||
+      oldDelegate.child != child;
 }
 
 /// Marketplace **Browse** tab: search + category filters + sort/filter
 /// (brand, price, key items) over a long-scrolling product grid.
 class BrowseScreen extends ConsumerStatefulWidget {
-  const BrowseScreen({this.initialTag, this.initialCategory, super.key});
+  const BrowseScreen(
+      {this.initialTag, this.initialCategory, this.initialBrand, super.key});
 
   /// Optional collection tag carried from a home module's "See All" or a
   /// banner tap (e.g. "Flash Deals", "Best Sellers", "Clearance Sale").
@@ -61,6 +124,9 @@ class BrowseScreen extends ConsumerStatefulWidget {
 
   /// Optional category label to pre-select.
   final String? initialCategory;
+
+  /// Optional brand from the discovery hub.
+  final String? initialBrand;
 
   @override
   ConsumerState<BrowseScreen> createState() => _BrowseScreenState();
@@ -78,10 +144,19 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     'Bestseller',
     'Flash Deal',
     'Clearance',
+    'In stock',
     'New',
     'Premium',
     'Highly rated',
     'Free delivery',
+  ];
+
+  /// Quick filters that stay visible on the listing. The bottom sheet keeps the
+  /// full set; these are the three used most.
+  static const List<String> _quickKeys = <String>[
+    'Flash Deal',
+    'Clearance',
+    'In stock',
   ];
 
   final TextEditingController _search = TextEditingController();
@@ -91,14 +166,21 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   final Set<String> _brands = <String>{};
   final Set<String> _prices = <String>{};
   final Set<String> _keys = <String>{};
+  double? _minRating;
   int _visible = _pageSize;
 
-  int get _activeFilterCount => _brands.length + _prices.length + _keys.length;
+  int get _activeFilterCount =>
+      _brands.length +
+      _prices.length +
+      _keys.length +
+      (_minRating == null ? 0 : 1);
 
   @override
   void initState() {
     super.initState();
     _category = widget.initialCategory;
+    final brand = widget.initialBrand?.trim();
+    if (brand != null && brand.isNotEmpty) _brands.add(brand);
     final tag = widget.initialTag;
     if (tag != null) _keys.addAll(_keysForTag(tag));
   }
@@ -126,59 +208,97 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     super.dispose();
   }
 
-  List<Product> _apply(List<Product> products) {
+  /// Filter pass shared by the grid and the sheet's live result count.
+  ///
+  /// Selection sets are passed in so the sheet can preview its own state
+  /// without mutating the page until the operator confirms.
+  List<Product> _applyFilters(
+    List<Product> products, {
+    required Set<String> brands,
+    required Set<String> prices,
+    required Set<String> keys,
+    required double? minRating,
+  }) {
     var list = filterProductsByHomeCategory(products, _category);
     final q = _query.trim().toLowerCase();
     if (q.isNotEmpty) {
+      // Includes every variant label and SKU, so all 500 imported SKUs are
+      // discoverable from the 233 grouped cards.
+      list = list.where((p) => p.matchesQuery(q)).toList();
+    }
+    if (brands.isNotEmpty) {
+      final normalised = brands.map((brand) => brand.toLowerCase()).toSet();
       list = list
-          .where((p) =>
-              p.title.toLowerCase().contains(q) ||
-              (p.brand?.toLowerCase().contains(q) ?? false))
+          .where((p) => normalised.contains((p.brand ?? '').toLowerCase()))
           .toList();
     }
-    if (_brands.isNotEmpty) {
-      list =
-          list.where((p) => _brands.contains(p.brand?.toUpperCase())).toList();
-    }
-    if (_prices.isNotEmpty) {
+    if (prices.isNotEmpty) {
       list = list.where((p) {
         final amount = (p.price?.amount ?? 0) / 100;
-        return _prices.any((r) {
-          if (r == 'Under ₹500') return amount < 500;
-          if (r == '₹500 – ₹5,000') return amount >= 500 && amount <= 5000;
+        return prices.any((r) {
+          if (r == 'Under ?500') return amount < 500;
+          if (r == '?500 ? ?5,000') return amount >= 500 && amount <= 5000;
           return amount > 5000;
         });
       }).toList();
     }
-    if (_keys.isNotEmpty) {
-      list = list.where((p) => _keys.every((k) => _matchesKey(p, k))).toList();
+    if (keys.isNotEmpty) {
+      list = list.where((p) => keys.every((k) => _matchesKey(p, k))).toList();
     }
+    if (minRating != null) {
+      list = list.where((p) => (p.rating ?? 0) >= minRating).toList();
+    }
+    return list;
+  }
+
+  List<Product> _apply(List<Product> products) {
+    final list = _applyFilters(
+      products,
+      brands: _brands,
+      prices: _prices,
+      keys: _keys,
+      minRating: _minRating,
+    );
     switch (_sort) {
       case BrowseSort.priceLowHigh:
-        list = List<Product>.of(list)
+        return List<Product>.of(list)
           ..sort(
               (a, b) => (a.price?.amount ?? 0).compareTo(b.price?.amount ?? 0));
       case BrowseSort.priceHighLow:
-        list = List<Product>.of(list)
+        return List<Product>.of(list)
           ..sort(
               (a, b) => (b.price?.amount ?? 0).compareTo(a.price?.amount ?? 0));
       case BrowseSort.rating:
-        list = List<Product>.of(list)
+        return List<Product>.of(list)
           ..sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
       case BrowseSort.relevance:
-        break;
+        return list;
     }
-    return list;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _brands.clear();
+      _prices.clear();
+      _keys.clear();
+      _minRating = null;
+      _resetPaging();
+    });
   }
 
   bool _matchesKey(Product p, String key) => switch (key) {
         'On discount' => p.discountPercent != null,
         'Bestseller' =>
           p.badges.any((b) => b.toLowerCase().contains('bestseller')),
-        'Flash Deal' =>
-          p.badges.any((b) => b.toLowerCase().contains('limited deal')),
+        'Flash Deal' => p.badges.any((b) {
+            final value = b.toLowerCase();
+            return value.contains('limited deal') ||
+                value.contains('flash deal');
+          }),
         'Clearance' =>
           p.badges.any((b) => b.toLowerCase().contains('clearance')),
+        'In stock' =>
+          p.variants.isEmpty || p.variants.any((variant) => variant.inStock),
         'New' => p.badges.any((b) => b.toLowerCase() == 'new'),
         'Premium' => p.badges.any((b) => b.toLowerCase().contains('premium')),
         'Highly rated' => (p.rating ?? 0) >= 4.5,
@@ -194,11 +314,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final productsState = ref.watch(productsProvider);
     final categories = ref.watch(categoriesProvider);
     final itemCount = ref.watch(cartProvider).value?.itemCount ?? 0;
+    final colors = _colors(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Browse'),
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           const NotificationBell(),
           IconButton(
             tooltip: 'Cart',
@@ -228,12 +351,42 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             },
             child: CustomScrollView(
               slivers: <Widget>[
-                SliverToBoxAdapter(child: _searchBar()),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _BrowseSearchHeaderDelegate(
+                    height: HomePinnedBar.searchFieldHeight + AgencySpacing.md,
+                    backgroundColor: colors.surfacePage,
+                    child: _searchBar(),
+                  ),
+                ),
                 SliverToBoxAdapter(child: _browseBanner()),
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
-                SliverToBoxAdapter(child: _sortFilterRow()),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: StorefrontControlHeaderDelegate(
+                    sortOptions: <String>[
+                      for (final option in BrowseSort.values) option.label,
+                    ],
+                    selectedSort: _sort.label,
+                    onSort: (label) => setState(() {
+                      _sort = BrowseSort.values
+                          .firstWhere((option) => option.label == label);
+                      _resetPaging();
+                    }),
+                    quickFilters: _quickKeys,
+                    selectedQuickFilters: _keys,
+                    onToggleQuickFilter: (key) => setState(() {
+                      if (!_keys.remove(key)) _keys.add(key);
+                      _resetPaging();
+                    }),
+                    filterCount: _activeFilterCount,
+                    onOpenFilters: _openFilters,
+                    resultCount: results.length,
+                    onClearFilters: _clearFilters,
+                  ),
+                ),
                 if (results.isNotEmpty)
-                  SliverToBoxAdapter(child: _recommendedStrip()),
+                  SliverToBoxAdapter(child: _recommendedStrip(results)),
                 if (results.isEmpty)
                   SliverToBoxAdapter(child: _noResults(products))
                 else
@@ -288,26 +441,45 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
 
   Widget _searchBar() {
     final colors = _colors(context);
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(HomePinnedBar.searchRadius),
+      borderSide: BorderSide(color: context.homePalette.barBorder),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
-      child: TextField(
-        controller: _search,
-        decoration: InputDecoration(
-          hintText: 'Search products, brands, sellers',
-          prefixIcon: const Icon(Icons.search),
-          isDense: true,
-          filled: true,
-          fillColor: colors.surfacePage,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AgencyRadius.md),
-            borderSide: BorderSide(color: colors.borderDefault),
+        AgencySpacing.md,
+        AgencySpacing.sm,
+        AgencySpacing.md,
+        AgencySpacing.sm,
+      ),
+      child: SizedBox(
+        height: HomePinnedBar.searchFieldHeight,
+        child: TextField(
+          controller: _search,
+          textInputAction: TextInputAction.search,
+          style: TextStyle(fontSize: 13, color: colors.contentPrimary),
+          decoration: InputDecoration(
+            hintText: 'Search products, brands or SKU',
+            hintStyle: TextStyle(fontSize: 13, color: colors.contentSecondary),
+            prefixIcon: Icon(
+              Icons.search,
+              size: 18,
+              color: colors.contentSecondary,
+            ),
+            isDense: true,
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            border: border,
+            enabledBorder: border,
+            focusedBorder: border,
+            disabledBorder: border,
           ),
+          onChanged: (v) => setState(() {
+            _query = v;
+            _resetPaging();
+          }),
         ),
-        onChanged: (v) => setState(() {
-          _query = v;
-          _resetPaging();
-        }),
       ),
     );
   }
@@ -331,78 +503,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  Widget _sortFilterRow() {
-    final colors = _colors(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AgencySpacing.md, 0, AgencySpacing.md, AgencySpacing.sm),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: PopupMenuButton<BrowseSort>(
-              initialValue: _sort,
-              onSelected: (s) => setState(() => _sort = s),
-              itemBuilder: (context) => <PopupMenuEntry<BrowseSort>>[
-                for (final s in BrowseSort.values)
-                  PopupMenuItem<BrowseSort>(
-                    value: s,
-                    child: Text(s.label),
-                  ),
-              ],
-              child: _outlined(
-                colors,
-                icon: Icons.swap_vert,
-                label: 'Sort: ${_sort.label}',
-              ),
-            ),
-          ),
-          const SizedBox(width: AgencySpacing.sm),
-          Expanded(
-            child: GestureDetector(
-              onTap: _openFilters,
-              child: _outlined(
-                colors,
-                icon: Icons.tune,
-                label: _activeFilterCount == 0
-                    ? 'Filter'
-                    : 'Filter ($_activeFilterCount)',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _outlined(AgencyColors colors,
-      {required IconData icon, required String label}) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-      decoration: BoxDecoration(
-        color: colors.surfaceRaised,
-        borderRadius: BorderRadius.circular(AgencyRadius.md),
-        border: Border.all(color: colors.borderDefault),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 16, color: colors.contentSecondary),
-          const SizedBox(width: AgencySpacing.xs),
-          Expanded(
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: colors.contentPrimary)),
-          ),
-          Icon(Icons.expand_more, size: 16, color: colors.contentSecondary),
-        ],
-      ),
-    );
-  }
-
   Widget _card(Product product) {
     final wishlisted = ref.watch(wishlistProvider).contains(product.id);
     return ProductCard(
@@ -413,25 +513,40 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           ? null
           : '${product.discountPercent}% off',
       imageUrl: product.thumbnail,
-      brand: product.brand,
+      brand: product.brandLine,
       badges: product.badges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
-      onAddToCart: () async {
-        final messenger = ScaffoldMessenger.of(context);
-        await ref.read(cartProvider.notifier).addItem(
-            offerId: product.offerId ?? '',
-            variantId: product.variantId ?? product.id,
-            quantity: 1);
-        if (!mounted) return;
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Added to cart')),
-        );
-      },
+      onAddToCart: () => _quickAdd(product),
+      onDiscuss: () => _discuss(product),
       wishlisted: wishlisted,
-      onWishlist: () =>
-          ref.read(wishlistProvider.notifier).toggle(product.id),
+      onWishlist: () => ref.read(wishlistProvider.notifier).toggle(product.id),
     );
+  }
+
+  void _discuss(Product product) =>
+      ref.read(conversationDockProvider.notifier).discuss(
+            ConversationAudience.household,
+            ConversationProductCapture.fromProduct(product),
+          );
+
+  Future<void> _quickAdd(Product product) async {
+    final variants = purchasableQuickAddVariants(product);
+    ProductVariant? selected;
+    if (requiresVariantSelection(product)) {
+      selected = await showVariantQuickAddSheet(context, product);
+      if (selected == null || !mounted) return;
+    } else if (variants.length == 1) {
+      selected = variants.single;
+    }
+    final added = await addToCartSafely(
+      ref,
+      offerId: selected?.offerId ?? product.cartOfferId,
+      variantId: selected?.id ?? product.cartVariantId,
+      unitPrice: selected?.price ?? product.price,
+    );
+    if (!mounted) return;
+    added ? showCartAddedToast(context) : showCartErrorToast(context);
   }
 
   /// Shown when the filters/search yield nothing: suggested filters + a few
@@ -495,7 +610,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       padding: const EdgeInsets.fromLTRB(
           AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
       child: MerchandisingBanner(
-        imageUrl: categoryBannerImage(_category),
+        imageUrl: ref.watch(categoryBannerImageProvider(_category)),
         title: _category ?? 'Browse the catalogue',
         subtitle: 'Top picks in this aisle',
         ctaLabel: 'Best sellers',
@@ -509,13 +624,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  /// "Recommended for you" horizontal rail inside the Browse scroll. The rail
-  /// follows the selected category (falls back to the full catalogue).
-  Widget _recommendedStrip() {
-    final products = ref.watch(productsProvider).value ?? const <Product>[];
-    final byCategory = filterProductsByHomeCategory(products, _category);
-    final items =
-        (byCategory.isNotEmpty ? byCategory : products).take(8).toList();
+  /// "Recommended for you" horizontal rail inside the Browse scroll. It uses
+  /// the same active category, brand and quick filters as the results grid.
+  Widget _recommendedStrip(List<Product> results) {
+    final items = results.take(8).toList();
     if (items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -525,7 +637,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               AgencySpacing.md, AgencySpacing.sm),
           child: SectionHeader(
             title: 'Recommended for you',
-            tag: _category,
+            tag: _brands.length == 1 ? _brands.first : _category,
           ),
         ),
         SizedBox(
@@ -548,21 +660,12 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                       ? null
                       : '${p.discountPercent}% off',
                   imageUrl: p.thumbnail,
-                  brand: p.brand,
+                  brand: p.brandLine,
                   badges: p.badges,
                   variant: ProductCardVariant.compact,
                   onPressed: () => context.push('/product/${p.id}'),
-                  onAddToCart: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: p.offerId ?? '',
-                        variantId: p.variantId ?? p.id,
-                        quantity: 1);
-                    if (!mounted) return;
-                    messenger.showSnackBar(
-                      const SnackBar(content: Text('Added to cart')),
-                    );
-                  },
+                  onAddToCart: () => _quickAdd(p),
+                  onDiscuss: () => _discuss(p),
                 ),
               );
             },
@@ -578,6 +681,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final brandsSel = <String>{..._brands};
     final pricesSel = <String>{..._prices};
     final keysSel = <String>{..._keys};
+    final ratingSel = <String>{if (_minRating != null) '4★ & up'};
+
+    double? ratingValue() => ratingSel.isEmpty ? null : 4.0;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -587,86 +693,142 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         final colors = Theme.of(sheetContext).extension<AgencyColors>() ??
             AgencyColors.light;
         return StatefulBuilder(
-          builder: (sheetContext, setSheet) => Padding(
-            padding: EdgeInsets.only(
-              left: AgencySpacing.md,
-              right: AgencySpacing.md,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom +
-                  AgencySpacing.md,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Text('Filters',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentPrimary)),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => setSheet(() {
-                        brandsSel.clear();
-                        pricesSel.clear();
-                        keysSel.clear();
-                      }),
-                      child: const Text('Clear'),
-                    ),
-                  ],
+          builder: (sheetContext, setSheet) {
+            final previewCount = _applyFilters(
+              products,
+              brands: brandsSel,
+              prices: pricesSel,
+              keys: keysSel,
+              minRating: ratingValue(),
+            ).length;
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: AgencySpacing.md,
+                  right: AgencySpacing.md,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
                 ),
-                const SizedBox(height: AgencySpacing.xs),
-                _filterGroup(
-                  sheetContext,
-                  'Brand',
-                  brands,
-                  brandsSel,
-                  setSheet,
-                ),
-                _filterGroup(
-                  sheetContext,
-                  'Price',
-                  _priceRanges,
-                  pricesSel,
-                  setSheet,
-                ),
-                _filterGroup(
-                  sheetContext,
-                  'Key items',
-                  _keyItems,
-                  keysSel,
-                  setSheet,
-                ),
-                const SizedBox(height: AgencySpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      setState(() {
-                        _brands
-                          ..clear()
-                          ..addAll(brandsSel);
-                        _prices
-                          ..clear()
-                          ..addAll(pricesSel);
-                        _keys
-                          ..clear()
-                          ..addAll(keysSel);
-                        _resetPaging();
-                      });
-                      Navigator.of(sheetContext).pop();
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.actionPrimary,
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                    child: const Text('Apply Filters'),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.82,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Padding(
+                        padding:
+                            const EdgeInsets.only(bottom: AgencySpacing.xs),
+                        child: Row(
+                          children: <Widget>[
+                            Text('Filters',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.contentPrimary)),
+                            const Spacer(),
+                            Text('$previewCount results',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: colors.contentSecondary)),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(top: AgencySpacing.xs),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              _filterGroup(
+                                sheetContext,
+                                'Brand',
+                                brands,
+                                brandsSel,
+                                setSheet,
+                              ),
+                              _filterGroup(
+                                sheetContext,
+                                'Price',
+                                _priceRanges,
+                                pricesSel,
+                                setSheet,
+                              ),
+                              _filterGroup(
+                                sheetContext,
+                                'Rating',
+                                const <String>['4★ & up'],
+                                ratingSel,
+                                setSheet,
+                              ),
+                              _filterGroup(
+                                sheetContext,
+                                'Key items',
+                                _keyItems,
+                                keysSel,
+                                setSheet,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: AgencySpacing.sm),
+                        child: Row(
+                          children: <Widget>[
+                            TextButton(
+                              onPressed: () => setSheet(() {
+                                brandsSel.clear();
+                                pricesSel.clear();
+                                keysSel.clear();
+                                ratingSel.clear();
+                              }),
+                              style: TextButton.styleFrom(
+                                minimumSize: const Size(44, 48),
+                                foregroundColor: colors.contentSecondary,
+                              ),
+                              child: const Text('Reset'),
+                            ),
+                            const SizedBox(width: AgencySpacing.sm),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _brands
+                                      ..clear()
+                                      ..addAll(brandsSel);
+                                    _prices
+                                      ..clear()
+                                      ..addAll(pricesSel);
+                                    _keys
+                                      ..clear()
+                                      ..addAll(keysSel);
+                                    _minRating = ratingValue();
+                                    _resetPaging();
+                                  });
+                                  Navigator.of(sheetContext).pop();
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor:
+                                      StorefrontControlTokens.filterInk(
+                                          sheetContext),
+                                  foregroundColor: colors.contentInverse,
+                                  minimumSize: const Size.fromHeight(48),
+                                ),
+                                child: Text('Show $previewCount results'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -695,9 +857,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             runSpacing: AgencySpacing.xs,
             children: <Widget>[
               for (final o in options)
-                TradeFilterChip(
+                StorefrontControlChip(
                   label: o,
                   selected: selected.contains(o),
+                  fill: StorefrontControlTokens.filterFill(context),
+                  ink: StorefrontControlTokens.filterInk(context),
                   onTap: () => setSheet(() {
                     if (!selected.remove(o)) selected.add(o);
                   }),

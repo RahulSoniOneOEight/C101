@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+  <title>Refresh BuildKart staging</title>
+</head>
+<body>
+  <main>
+    <h1>Refreshing BuildKart</h1>
+    <p id="status">Removing an older staging release…</p>
+    <noscript>
+      JavaScript is required. Open
+      <a href="https://buildkart-staging.firebaseapp.com/">BuildKart staging</a> instead.
+    </noscript>
+  </main>
+  <script>
+    (async function recoverCurrentRelease() {
+      if ('serviceWorker' in navigator) {
+        var registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(function (registration) {
+          return registration.unregister();
+        }));
+      }
+
+      if ('caches' in window) {
+        var cacheNames = await caches.keys();
+        await Promise.all(cacheNames
+          .filter(function (name) { return name.indexOf('flutter-') === 0; })
+          .map(function (name) { return caches.delete(name); }));
+      }
+
+      // This path never existed in an older Flutter cache. Firebase serves the current index for it,
+      // which normalises the path back to `/` before Flutter starts. Staying on web.app preserves the
+      // operator's local staging state; the alternate origin below remains the failure escape hatch.
+      window.location.replace('/current-release-20261018-1');
+    })().catch(function () {
+      document.getElementById('status').innerHTML =
+        'Automatic refresh failed. <a href="https://buildkart-staging.firebaseapp.com/">Open the current release</a>.';
+    });
+  </script>
+</body>
+</html>

@@ -65,10 +65,12 @@ class AppNotification {
       };
 
   /// A sensible destination when the payload carries no explicit deep link.
-  String get destination => deepLink ??
+  String get destination =>
+      deepLink ??
       switch (kind) {
         NotificationKind.order => '/orders',
-        NotificationKind.deal || NotificationKind.offer =>
+        NotificationKind.deal ||
+        NotificationKind.offer =>
           '/browse?tag=Flash%20Deals',
         NotificationKind.launch => '/browse?tag=New%20Arrivals',
         NotificationKind.credit => '/account',

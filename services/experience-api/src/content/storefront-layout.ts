@@ -10,6 +10,7 @@
  */
 
 import type { AppLocale } from "./app-content.js";
+import type { StorefrontLayoutSection } from "./layout-sections.js";
 
 export type StorefrontChannel = "b2c" | "b2b";
 
@@ -56,6 +57,16 @@ export interface StorefrontLayout {
   channel: StorefrontChannel;
   locale: AppLocale;
   modules: StorefrontLayoutModule[];
+  /**
+   * Ordered merchandising sections. These are the authorable surface; `modules` remains as the raw
+   * recovery format during the transition.
+   */
+  sections?: StorefrontLayoutSection[];
+  /**
+   * Auto-advance interval for the home hero carousel, in milliseconds. Absent or 0 means the carousel
+   * stays where the customer left it. Authored per channel in the console.
+   */
+  hero_rotation_ms?: number;
   starts_at?: string;
   ends_at?: string;
   fallback_layout_key: string | null;
@@ -71,6 +82,8 @@ export const storefrontLayouts: StorefrontLayout[] = [
     test_data: true,
     starts_at: "2026-10-01T00:00:00Z",
     ends_at: "2026-12-31T23:59:59Z",
+    // CHG-051: both storefronts advance the hero every five seconds.
+    hero_rotation_ms: 5000,
     modules: [
       {
         type: "hero-banner",
@@ -126,6 +139,20 @@ export const storefrontLayouts: StorefrontLayout[] = [
         priority: 10,
       },
     ],
+  },
+  {
+    // The trade home previously had no layout at all, so its hero could never rotate and its
+    // layout sections were always empty. An empty-section layout is sufficient: the governed B2B
+    // defaults still drive the modules, while the rotation is now authored per channel.
+    layout_key: "b2b-home",
+    channel: "b2b",
+    locale: "en-IN",
+    fallback_layout_key: null,
+    test_data: true,
+    starts_at: "2026-10-01T00:00:00Z",
+    ends_at: "2026-12-31T23:59:59Z",
+    hero_rotation_ms: 5000,
+    modules: [],
   },
 ];
 

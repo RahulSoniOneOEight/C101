@@ -1272,7 +1272,14 @@ class TradeProductCard extends StatelessWidget {
                         : ClipRRect(
                             borderRadius:
                                 BorderRadius.circular(AgencyRadius.sm),
-                            child: Image.network(imageUrl!, fit: BoxFit.cover),
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.image_outlined,
+                                color: colors.contentSecondary,
+                              ),
+                            ),
                           ),
                   ),
                   if (tag != null)
@@ -1507,16 +1514,30 @@ class TrustBuilderItem {
 /// optional colour per item (e.g. promotion/red for deal items), matching the
 /// consumer home's colour scheme.
 class TrustBuilderRow extends StatelessWidget {
-  const TrustBuilderRow({required this.items, super.key});
+  const TrustBuilderRow({
+    required this.items,
+    this.foregroundColor,
+    this.padding = const EdgeInsets.symmetric(
+      horizontal: AgencySpacing.md,
+      vertical: AgencySpacing.sm,
+    ),
+    super.key,
+  });
 
   final List<TrustBuilderItem> items;
+
+  /// Overrides the label and icon colour together. Used on the navy home header, where the whole row
+  /// sits on a dark gradient; leaving it null keeps the light-surface trust styling elsewhere.
+  final Color? foregroundColor;
+
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     final colors = _colors(context);
+    final foreground = foregroundColor;
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: AgencySpacing.md, vertical: AgencySpacing.sm),
+      padding: padding,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
@@ -1527,14 +1548,16 @@ class TrustBuilderRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   Icon(items[i].icon,
-                      size: 16, color: items[i].color ?? colors.trust),
+                      size: 16,
+                      color: foreground ?? items[i].color ?? colors.trust),
                   const SizedBox(width: AgencySpacing.xs),
                   Flexible(
                     child: Text(items[i].label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                            fontSize: 11, color: colors.contentSecondary)),
+                            fontSize: 11,
+                            color: foreground ?? colors.contentSecondary)),
                   ),
                 ],
               ),
@@ -1739,7 +1762,14 @@ class BuyAgainCard extends StatelessWidget {
                         : ClipRRect(
                             borderRadius:
                                 BorderRadius.circular(AgencyRadius.sm),
-                            child: Image.network(imageUrl!, fit: BoxFit.cover),
+                            child: Image.network(
+                              imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.image_outlined,
+                                color: colors.contentSecondary,
+                              ),
+                            ),
                           ),
                   ),
                 ),

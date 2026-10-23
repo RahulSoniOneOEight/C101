@@ -154,6 +154,7 @@ class TradeProduct {
     this.scheme,
     this.tag,
     this.sellers = const <TradeSupplier>[],
+    this.stockKnown = true,
   });
 
   final Product product;
@@ -161,6 +162,10 @@ class TradeProduct {
   final int moq;
   final int stockQty;
   final String deliveryLocation;
+
+  /// False when the composed payload carried no stock figure. The UI then says
+  /// availability is unconfirmed rather than claiming "out of stock".
+  final bool stockKnown;
 
   /// Trade category id this product belongs to (matches [TradeCategory.id]).
   final String categoryId;
@@ -200,6 +205,7 @@ class TradeProduct {
         scheme: scheme,
         tag: tag,
         sellers: sellers ?? this.sellers,
+        stockKnown: stockKnown,
       );
 
   /// Savings vs MRP at the base trade price, or null when no discount.
@@ -225,7 +231,10 @@ class TradeProduct {
         amount: unit.amount * quantity, currencyCode: unit.currencyCode);
   }
 
-  String stockLabel() => stockQty > 0 ? 'In Stock ($stockQty)' : 'Out of Stock';
+  String stockLabel() {
+    if (!stockKnown) return 'Availability on request';
+    return stockQty > 0 ? 'In Stock ($stockQty)' : 'Out of Stock';
+  }
 }
 
 /// The four B2B primary destinations shown in the bottom navigation.
@@ -305,6 +314,9 @@ class ProcurementList {
     this.campaignRef,
     this.personalizationReason,
     this.action = ProcurementListAction.view,
+    this.categoryLabels = const <String>[],
+    this.limit,
+    this.defaultQuantity = 1,
   });
 
   final String id;
@@ -316,7 +328,22 @@ class ProcurementList {
   final String? personalizationReason;
   final ProcurementListAction action;
 
+  /// L1 category labels this list draws from (CHG-062).
+  ///
+  /// When non-empty the list is resolved from the live catalogue by rule instead
+  /// of storing product ids, so a catalogue import cannot leave the list
+  /// pointing at archived products.
+  final List<String> categoryLabels;
+
+  /// Maximum number of catalogue products the rule may add.
+  final int? limit;
+
+  /// Suggested order quantity for rule-derived items.
+  final int defaultQuantity;
+
   int get itemCount => items.length;
+
+  bool get isRuleBased => categoryLabels.isNotEmpty;
 
   ProcurementList copyWith({
     String? title,
@@ -333,6 +360,9 @@ class ProcurementList {
         campaignRef: campaignRef,
         personalizationReason: personalizationReason,
         action: action ?? this.action,
+        categoryLabels: categoryLabels,
+        limit: limit,
+        defaultQuantity: defaultQuantity,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -344,6 +374,9 @@ class ProcurementList {
         'campaign_ref': campaignRef,
         'personalization_reason': personalizationReason,
         'action': action.name,
+        if (categoryLabels.isNotEmpty) 'category_labels': categoryLabels,
+        if (limit != null) 'limit': limit,
+        'default_quantity': defaultQuantity,
       };
 
   factory ProcurementList.fromJson(Map<String, dynamic> j) => ProcurementList(
@@ -362,6 +395,12 @@ class ProcurementList {
         action: ProcurementListAction.values.firstWhere(
             (a) => a.name == j['action'],
             orElse: () => ProcurementListAction.view),
+        categoryLabels:
+            (j['category_labels'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<String>()
+                .toList(),
+        limit: (j['limit'] as num?)?.toInt(),
+        defaultQuantity: (j['default_quantity'] as num?)?.toInt() ?? 1,
       );
 }
 

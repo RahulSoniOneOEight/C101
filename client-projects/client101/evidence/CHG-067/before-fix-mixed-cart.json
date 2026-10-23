@@ -1,0 +1,145 @@
+{
+  "runAt": "2026-10-19T23:21:25.613Z",
+  "cartId": "cart_01M5B7GFDX4SRVPH8CAZMVPDJC",
+  "log": [
+    {
+      "step": "create cart",
+      "status": 201,
+      "body": {
+        "id": "cart_01M5B7GFDX4SRVPH8CAZMVPDJC",
+        "currency_code": "inr",
+        "email": null,
+        "locale": null,
+        "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+        "created_at": "2026-10-19T23:21:23.134Z",
+        "updated_at": "2026-10-19T23:21:23.134Z",
+        "completed_at": null,
+        "total": 0,
+        "subtotal": 0,
+        "tax_total": 0,
+        "discount_total": 0,
+        "discount_subtotal": 0,
+        "discount_tax_total": 0,
+        "original_total": 0,
+        "original_tax_total": 0,
+        "item_total": 0,
+        "item_subtotal": 0,
+        "item_tax_total": 0,
+        "item_discount_total": 0,
+        "original_item_total": 0,
+        "original_item_subtotal": 0,
+        "original_item_tax_total": 0,
+        "shipping_total": 0,
+        "shipping_subtotal": 0,
+        "shipping_tax_total": 0,
+        "shipping_discount_total": 0,
+        "original_shipping_tax_total": 0,
+        "original_shipping_subtotal": 0,
+        "original_shipping_total": 0,
+        "credit_line_subtotal": 0,
+        "credit_line_tax_total": 0,
+        "credit_line_total": 0,
+        "metadata": {
+          "channel": "b2c"
+        },
+        "sales_channel_id": "sc_01M4EC8S2EBB6ZEAMGPGX7MP13",
+        "shipping_address_id": "caaddr_01M5B7GFDXSBWGYQ568ZXFMEEH",
+        "customer_id": null,
+        "items": [],
+        "shipping_methods": [],
+        "shipping_address": {
+          "id": "caaddr_01M5B7GFDXSBWGYQ568ZXFMEEH",
+          "first_name": null,
+          "last_name": null,
+          "company": null,
+          "address_1": null,
+          "address_2": null,
+          "city": null,
+          "postal_code": null,
+          "country_code": "in",
+          "province": null,
+          "phone": null
+        },
+        "billing_address": null,
+        "credit_lines": [],
+        "region": {
+          "id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+          "name": "India",
+          "currency_code": "inr",
+          "automatic_taxes": true,
+          "countries": [
+            {
+              "iso_2": "in",
+              "iso_3": "ind",
+              "num_code": "356",
+              "name": "INDIA",
+              "display_name": "India",
+              "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+              "metadata": null,
+              "created_at": "2026-10-08T18:25:23.106Z",
+              "updated_at": "2026-10-08T18:26:54.060Z",
+              "deleted_at": null
+            }
+          ]
+        },
+        "promotions": [],
+        "engine_subtotal": 0,
+        "adjustments": [],
+        "channel": "b2c",
+        "business_account_id": null,
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "2697d7ab0ed3bd7d482e4488e88092c2"
+      }
+    },
+    {
+      "step": "add UrbanBuild Supply",
+      "status": 200,
+      "itemCount": 1,
+      "total": 41505.5
+    },
+    {
+      "step": "add BuildKart Direct",
+      "status": 200,
+      "itemCount": 2,
+      "total": 135411.5
+    },
+    {
+      "step": "customer details",
+      "status": 200
+    },
+    {
+      "step": "shipping options",
+      "status": 200,
+      "options": [
+        {
+          "id": "so_01M4EC9DQ6F4D9C5ADA1AHP0F0",
+          "name": "Standard Shipping",
+          "seller": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+          "amount": 9900
+        },
+        {
+          "id": "so_01M4EC9DQ62WR39H2TT3A0EZ2W",
+          "name": "Express Shipping",
+          "seller": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+          "amount": 19900
+        }
+      ]
+    },
+    {
+      "step": "select shipping sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+      "status": 200,
+      "shippingTotal": 9900
+    },
+    {
+      "step": "complete",
+      "status": 502,
+      "body": {
+        "type": "about:blank",
+        "title": "upstream-error",
+        "status": 502,
+        "detail": "Medusa store request failed (400): http://medusa-api:9010/store/carts/cart_01M5B7GFDX4SRVPH8CAZMVPDJC/complete — {\"type\":\"invalid_data\",\"message\":\"No shipping method selected but the cart contains seller items that require shipping.\"}"
+      }
+    }
+  ]
+}

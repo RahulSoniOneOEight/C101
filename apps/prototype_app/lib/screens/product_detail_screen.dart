@@ -4,9 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/conversation_models.dart';
+import '../widgets/cart_feedback.dart';
+import '../widgets/market_comparison.dart';
+import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
-import '../providers/cart_providers.dart';
+import '../providers/cart_actions.dart';
 import '../providers/catalog_providers.dart';
+import '../providers/conversation_dock_provider.dart';
+import '../widgets/conversation_bell.dart';
 import '../widgets/status_views.dart';
 
 /// Product detail with an add-to-cart action against the default variant.
@@ -24,9 +30,22 @@ class ProductDetailScreen extends ConsumerWidget {
         ref.read(recentlyViewedProvider.notifier).add(value.id);
       }
     });
+    // A direct PDP load can already have the product resolved before this
+    // screen subscribes. Record it once after the first frame so the in-chat
+    // Recently viewed swimlane is populated in that path too.
+    if (product.value != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final value = ref.read(productProvider(productId)).value;
+        if (value != null) {
+          ref.read(recentlyViewedProvider.notifier).add(value.id);
+        }
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
+          const ConversationBellButton(
+              audience: ConversationAudience.household),
           Consumer(builder: (context, ref, _) {
             final saved = ref.watch(wishlistProvider).contains(productId);
             return IconButton(
@@ -35,9 +54,7 @@ class ProductDetailScreen extends ConsumerWidget {
                   ref.read(wishlistProvider.notifier).toggle(productId),
               icon: Icon(saved ? Icons.favorite : Icons.favorite_border,
                   color: saved
-                      ? Theme.of(context)
-                          .extension<AgencyColors>()
-                          ?.promotion
+                      ? Theme.of(context).extension<AgencyColors>()?.promotion
                       : null),
             );
           }),
@@ -68,6 +85,10 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   /// Selected seller offer id. Defaults to the best-price offer.
   String? _selectedSellerId;
 
+  /// Selected SKU of a grouped product. Defaults to the product's first
+  /// sellable variant.
+  String? _selectedVariantId;
+
   Product get product => widget.product;
 
   @override
@@ -95,6 +116,23 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
       if (s.id == _selectedSellerId) selected = s;
     }
 
+    // A grouped product owns several SKUs. The selected variant drives price,
+    // offer and add-to-cart identity so no SKU inherits another SKU's price.
+    final variants = product.variants;
+    final selectedVariant = variants.isEmpty
+        ? null
+        : variants.firstWhere(
+            (v) => v.id == _selectedVariantId,
+            orElse: () => product.defaultVariant ?? variants.first,
+          );
+    final effectivePrice =
+        selectedVariant?.price ?? selected?.price ?? product.price;
+    final effectiveMrp = selectedVariant?.mrp ?? selected?.mrp ?? product.mrp;
+    final effectiveOfferId =
+        selectedVariant?.offerId ?? selected?.id ?? product.offerId ?? '';
+    final effectiveVariantId =
+        selectedVariant?.id ?? product.variantId ?? product.id;
+
     return ListView(
       padding: const EdgeInsets.all(AgencySpacing.md),
       children: <Widget>[
@@ -113,18 +151,49 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: colors.contentPrimary)),
+        if (selectedVariant?.sku != null) ...<Widget>[
+          const SizedBox(height: 2),
+          Text('SKU ${selectedVariant!.sku}',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+        ],
         const SizedBox(height: AgencySpacing.sm),
-        _priceRow(context, selected),
+        _priceRow(context, selectedVariant, selected),
+        if ((selectedVariant?.price ?? selected?.price ?? product.price) !=
+            null)
+          Padding(
+            padding: const EdgeInsets.only(top: AgencySpacing.sm),
+            child: MarketComparison(
+              sellingPrice:
+                  (selectedVariant?.price ?? selected?.price ?? product.price)!,
+            ),
+          ),
         const SizedBox(height: AgencySpacing.md),
-        _actions(context, ref, canAdd, selected),
+        if (variants.isNotEmpty) ...<Widget>[
+          _variantSection(context, variants, selectedVariant),
+          const SizedBox(height: AgencySpacing.md),
+        ],
+        const FulfilmentPromiseCard(),
         const SizedBox(height: AgencySpacing.lg),
-        _benchmark(context),
+        _actions(context, ref, canAdd, selected,
+            variant: selectedVariant,
+            offerId: effectiveOfferId,
+            variantId: effectiveVariantId,
+            unitPrice: effectivePrice,
+            priceAvailable: effectivePrice != null),
+        // A competitor comparison needs a sourced competitor price. Imported
+        // SKUs have none, so the block is omitted rather than derived.
+        if (product.catalogueImport == null) ...<Widget>[
+          const SizedBox(height: AgencySpacing.lg),
+          _benchmark(context, effectivePrice, effectiveMrp),
+        ],
         const SizedBox(height: AgencySpacing.lg),
-        if (sellers.isNotEmpty) ...<Widget>[
+        // A grouped product's seller is shown per SKU above; repeating the list
+        // would print the same seller once per variant as if they competed.
+        if (sellers.isNotEmpty && variants.isEmpty) ...<Widget>[
           _sellerSection(context, sellers, selected),
           const SizedBox(height: AgencySpacing.lg),
         ],
-        _specs(context),
+        _specs(context, selectedVariant),
         if (relatedProducts.isNotEmpty) ...<Widget>[
           const SizedBox(height: AgencySpacing.lg),
           _related(context, relatedProducts),
@@ -157,12 +226,18 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _priceRow(BuildContext context, ProductSeller? seller) {
+  Widget _priceRow(
+      BuildContext context, ProductVariant? variant, ProductSeller? seller) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final price = seller?.price ?? product.price;
-    final mrp = seller?.mrp ?? product.mrp;
-    final discount = seller?.discountPercent ?? product.discountPercent;
+    final price = variant?.price ?? seller?.price ?? product.price;
+    final mrp = variant?.mrp ?? seller?.mrp ?? product.mrp;
+    final int? discount;
+    if (price != null && mrp != null && mrp.amount > price.amount) {
+      discount = (((mrp.amount - price.amount) / mrp.amount) * 100).round();
+    } else {
+      discount = seller?.discountPercent ?? product.discountPercent;
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: <Widget>[
@@ -199,32 +274,96 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   }
 
   Widget _actions(
-      BuildContext context, WidgetRef ref, bool canAdd, ProductSeller? seller) {
+    BuildContext context,
+    WidgetRef ref,
+    bool canAdd,
+    ProductSeller? seller, {
+    required ProductVariant? variant,
+    required String offerId,
+    required String variantId,
+    required Money? unitPrice,
+    required bool priceAvailable,
+  }) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final unitPrice = seller?.price;
-    return Row(
+    return Column(
       children: <Widget>[
-        Expanded(
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: priceAvailable && canAdd
+                    ? () async {
+                        final added = await addToCartSafely(
+                          ref,
+                          offerId: offerId,
+                          variantId: variantId,
+                          unitPrice: unitPrice,
+                        );
+                        if (!context.mounted) return;
+                        added
+                            ? showCartAddedToast(context)
+                            : showCartErrorToast(context);
+                      }
+                    : null,
+                icon: const Icon(Icons.add_shopping_cart, size: 18),
+                label: const Text('Add to Cart'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  side: BorderSide(color: colors.borderDefault),
+                  foregroundColor: colors.actionPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: AgencySpacing.sm),
+            Expanded(
+              child: FilledButton(
+                onPressed: priceAvailable && canAdd
+                    ? () async {
+                        final added = await addToCartSafely(
+                          ref,
+                          offerId: offerId,
+                          variantId: variantId,
+                          unitPrice: unitPrice,
+                        );
+                        if (!context.mounted) return;
+                        if (added) {
+                          context.push('/checkout');
+                        } else {
+                          showCartErrorToast(
+                            context,
+                            'Could not start checkout. Please retry.',
+                          );
+                        }
+                      }
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: colors.actionPrimary,
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: const Text('Buy Now'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AgencySpacing.sm),
+        SizedBox(
+          width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: canAdd
-                ? () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: seller?.id ?? '',
-                        variantId: product.variantId ?? product.id,
-                        quantity: 1,
-                        unitPrice: unitPrice);
-                    if (context.mounted) {
-                      messenger.showSnackBar(SnackBar(
-                          content: Text(seller == null
-                              ? 'Added to cart'
-                              : 'Added to cart · ${seller.name}')));
-                    }
-                  }
-                : null,
-            icon: const Icon(Icons.add_shopping_cart, size: 18),
-            label: const Text('Add to Cart'),
+            onPressed: () =>
+                ref.read(conversationDockProvider.notifier).discuss(
+                      ConversationAudience.household,
+                      ConversationProductCapture.fromProduct(
+                        product,
+                        variant: variant,
+                        sellerName: seller?.name,
+                        unitPrice: unitPrice,
+                        variantId: variantId,
+                        offerId: offerId,
+                      ),
+                    ),
+            icon: const Icon(Icons.forum_outlined, size: 18),
+            label: const Text('Discuss'),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size.fromHeight(48),
               side: BorderSide(color: colors.borderDefault),
@@ -232,35 +371,14 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
             ),
           ),
         ),
-        const SizedBox(width: AgencySpacing.sm),
-        Expanded(
-          child: FilledButton(
-            onPressed: canAdd
-                ? () async {
-                    await ref.read(cartProvider.notifier).addItem(
-                        offerId: seller?.id ?? '',
-                        variantId: product.variantId ?? product.id,
-                        quantity: 1,
-                        unitPrice: unitPrice);
-                    if (context.mounted) context.push('/checkout');
-                  }
-                : null,
-            style: FilledButton.styleFrom(
-              backgroundColor: colors.actionPrimary,
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: const Text('Buy Now'),
-          ),
-        ),
       ],
     );
   }
 
-  Widget _benchmark(BuildContext context) {
+  Widget _benchmark(BuildContext context, Money? price, Money? mrp) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
-    final price = product.price;
-    final mrp = product.mrp ?? price;
+    mrp ??= price;
     if (price == null || mrp == null) return const SizedBox.shrink();
     final save = Money(
         amount: mrp.amount - price.amount, currencyCode: price.currencyCode);
@@ -331,6 +449,66 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                   fontWeight: highlight ? FontWeight.w700 : FontWeight.w500)),
         ],
       ),
+    );
+  }
+
+  /// Every SKU of a grouped product, each with its own price and SKU code.
+  Widget _variantSection(BuildContext context, List<ProductVariant> variants,
+      ProductVariant? selected) {
+    final colors =
+        Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('Variants (${variants.length})',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: colors.contentPrimary)),
+        const SizedBox(height: AgencySpacing.xs),
+        Wrap(
+          spacing: AgencySpacing.xs,
+          runSpacing: AgencySpacing.xs,
+          children: <Widget>[
+            for (final variant in variants)
+              ChoiceChip(
+                // The SKU is printed on the chip, not only in a tooltip: on a
+                // phone there is no hover, and the SKU is how a buyer identifies
+                // one of the 500 source items inside a grouped card.
+                label: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      variant.price == null
+                          ? variant.label
+                          : '${variant.label} · ${variant.price!.formatted}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (variant.sku != null)
+                      Text(
+                        variant.sku!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 9, color: colors.contentSecondary),
+                      ),
+                  ],
+                ),
+                selected: variant.id == selected?.id,
+                onSelected: (_) =>
+                    setState(() => _selectedVariantId = variant.id),
+              ),
+          ],
+        ),
+        if (selected?.sku != null) ...<Widget>[
+          const SizedBox(height: AgencySpacing.xs),
+          Text(
+              'Selected SKU: ${selected!.sku}'
+              '${selected.sellerName == null ? '' : ' · ${selected.sellerName}'}',
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
+        ],
+      ],
     );
   }
 
@@ -463,9 +641,24 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
-  Widget _specs(BuildContext context) {
+  Widget _specs(BuildContext context, ProductVariant? selectedVariant) {
     final colors =
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
+    // Imported SKUs show only sourced facts. The demonstration catalogue keeps
+    // its illustrative model/warranty/delivery rows.
+    final specs = <(String, String)>[
+      if (product.brand != null) ('Brand', product.brand!),
+      if (product.categoryLabel != null) ('Category', product.categoryLabel!),
+      if (selectedVariant?.sku != null) ('SKU', selectedVariant!.sku!),
+      if (selectedVariant?.sellerName != null)
+        ('Seller', selectedVariant!.sellerName!),
+      if (product.catalogueImport == null) ...<(String, String)>[
+        ('Model', 'BDK-18V'),
+        ('Warranty', '1 year'),
+        ('Delivery', 'Free · Mon'),
+      ],
+    ];
+    if (specs.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -475,12 +668,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 fontWeight: FontWeight.w600,
                 color: colors.contentPrimary)),
         const SizedBox(height: AgencySpacing.sm),
-        for (final spec in const <(String, String)>[
-          ('Brand', 'BuildPro'),
-          ('Model', 'BDK-18V'),
-          ('Warranty', '1 year'),
-          ('Delivery', 'Free · Mon'),
-        ])
+        for (final spec in specs)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
@@ -535,6 +723,12 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 brand: products[i].brand,
                 badges: products[i].badges,
                 variant: ProductCardVariant.compact,
+                onPressed: () => context.push('/product/${products[i].id}'),
+                onDiscuss: () =>
+                    ref.read(conversationDockProvider.notifier).discuss(
+                          ConversationAudience.household,
+                          ConversationProductCapture.fromProduct(products[i]),
+                        ),
               ),
             ),
           ),

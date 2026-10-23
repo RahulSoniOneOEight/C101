@@ -27,6 +27,14 @@ class OrderLine {
     required this.unitPriceMinor,
     this.brand,
     this.productId,
+    this.lineKey = '',
+    this.sku = '',
+    this.deliveredQty = 0,
+    this.returnableQty = 0,
+    this.returnEligible = false,
+    this.ineligibleReason,
+    this.deadline,
+    this.allowedReasons = const <String>[],
   });
 
   final String title;
@@ -34,9 +42,16 @@ class OrderLine {
   final String? productId;
   final int quantity;
   final int unitPriceMinor;
+  final String lineKey;
+  final String sku;
+  final int deliveredQty;
+  final int returnableQty;
+  final bool returnEligible;
+  final String? ineligibleReason;
+  final DateTime? deadline;
+  final List<String> allowedReasons;
 
-  Money get unitPrice =>
-      Money(amount: unitPriceMinor, currencyCode: 'INR');
+  Money get unitPrice => Money(amount: unitPriceMinor, currencyCode: 'INR');
 
   Money get lineTotal =>
       Money(amount: unitPriceMinor * quantity, currencyCode: 'INR');
@@ -44,12 +59,146 @@ class OrderLine {
 
 /// A tracking event in the order timeline.
 class OrderEvent {
-  const OrderEvent({required this.label, required this.timeLabel, this.done = false, this.active = false});
+  const OrderEvent(
+      {required this.label,
+      required this.timeLabel,
+      this.done = false,
+      this.active = false});
 
   final String label;
   final String timeLabel;
   final bool done;
   final bool active;
+}
+
+class ShipmentLine {
+  const ShipmentLine({
+    required this.lineKey,
+    required this.sku,
+    required this.orderedQty,
+    required this.deliveredQty,
+  });
+
+  final String lineKey;
+  final String sku;
+  final int orderedQty;
+  final int deliveredQty;
+
+  factory ShipmentLine.fromJson(Map<String, dynamic> json) => ShipmentLine(
+        lineKey: (json['lineKey'] ?? json['line_key']) as String? ?? '',
+        sku: json['sku'] as String? ?? '',
+        orderedQty:
+            ((json['orderedQty'] ?? json['ordered_qty']) as num?)?.toInt() ?? 0,
+        deliveredQty:
+            ((json['deliveredQty'] ?? json['delivered_qty']) as num?)?.toInt() ??
+                0,
+      );
+}
+
+class ShipmentEvent {
+  const ShipmentEvent({
+    required this.id,
+    required this.status,
+    required this.eventType,
+    required this.occurredAt,
+    this.providerEventId = '',
+  });
+
+  final String id;
+  final String status;
+  final String eventType;
+  final DateTime? occurredAt;
+  final String providerEventId;
+
+  factory ShipmentEvent.fromJson(Map<String, dynamic> json) => ShipmentEvent(
+        id: json['id'] as String? ?? '',
+        status: json['status'] as String? ?? 'booked',
+        eventType: (json['eventType'] ?? json['event_type']) as String? ??
+            'shipment.status_changed',
+        occurredAt: DateTime.tryParse(
+          (json['occurredAt'] ?? json['occurred_at']) as String? ?? '',
+        ),
+        providerEventId: (json['providerEventId'] ??
+                json['provider_event_id']) as String? ??
+            '',
+      );
+}
+
+class Shipment {
+  const Shipment({
+    required this.id,
+    required this.status,
+    required this.trackingNumber,
+    required this.provider,
+    required this.lines,
+    this.deliveredAt,
+    this.proofRef,
+    this.events = const <ShipmentEvent>[],
+  });
+
+  final String id;
+  final String status;
+  final String trackingNumber;
+  final String provider;
+  final DateTime? deliveredAt;
+  final String? proofRef;
+  final List<ShipmentLine> lines;
+  final List<ShipmentEvent> events;
+
+  factory Shipment.fromJson(Map<String, dynamic> json) => Shipment(
+        id: json['id'] as String? ?? '',
+        status: json['status'] as String? ?? 'booked',
+        trackingNumber:
+            (json['trackingNumber'] ?? json['tracking_number']) as String? ?? '',
+        provider: json['provider'] as String? ?? 'simulated',
+        deliveredAt: DateTime.tryParse(
+          (json['deliveredAt'] ?? json['delivered_at']) as String? ?? '',
+        ),
+        proofRef: (json['proofRef'] ?? json['proof_ref']) as String?,
+        lines: (json['lines'] as List? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map(ShipmentLine.fromJson)
+            .toList(),
+        events: (json['events'] as List? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map(ShipmentEvent.fromJson)
+            .toList(),
+      );
+}
+
+class ReturnSummary {
+  const ReturnSummary({
+    required this.id,
+    required this.status,
+    required this.resolution,
+    required this.lines,
+  });
+
+  final String id;
+  final String status;
+  final String resolution;
+  final List<OrderLine> lines;
+
+  factory ReturnSummary.fromJson(Map<String, dynamic> json) => ReturnSummary(
+        id: json['id'] as String? ?? '',
+        status: json['status'] as String? ?? 'requested',
+        resolution: json['resolution'] as String? ?? 'refund',
+        lines: (json['lines'] as List? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()
+            .map((line) => OrderLine(
+                  title: line['sku'] as String? ?? 'Returned item',
+                  quantity: ((line['approvedQty'] ??
+                              line['approved_qty'] ??
+                              line['requestedQty'] ??
+                              line['requested_qty']) as num?)
+                          ?.toInt() ??
+                      0,
+                  unitPriceMinor: 0,
+                  lineKey: (line['lineKey'] ?? line['line_key']) as String? ?? '',
+                  sku: line['sku'] as String? ?? '',
+                ))
+            .toList(),
+      );
 }
 
 /// A consumer order.
@@ -64,6 +213,10 @@ class CustomerOrder {
     required this.timeline,
     this.cancelEligible = false,
     this.returnEligible = false,
+    this.shipments = const <Shipment>[],
+    this.returns = const <ReturnSummary>[],
+    this.returnStatus,
+    this.medusaOrderGroupId,
   });
 
   final String id;
@@ -77,6 +230,10 @@ class CustomerOrder {
   /// Business-rule flags surfaced by the backend (not UI guesses).
   final bool cancelEligible;
   final bool returnEligible;
+  final List<Shipment> shipments;
+  final List<ReturnSummary> returns;
+  final String? returnStatus;
+  final String? medusaOrderGroupId;
 
   int get itemCount => lines.fold(0, (sum, l) => sum + l.quantity);
 
@@ -84,6 +241,128 @@ class CustomerOrder {
         amount: lines.fold(0, (sum, l) => sum + l.lineTotal.amount),
         currencyCode: 'INR',
       );
+
+  factory CustomerOrder.fromApi(Map<String, dynamic> json) {
+    final eligibility = <String, Map<String, dynamic>>{};
+    for (final item in (json['return_eligibility'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()) {
+      eligibility[item['line_key'] as String? ?? ''] = item;
+    }
+    final rawLines = (json['lines'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final lines = rawLines.map((line) {
+      final lineKey = line['line_key'] as String? ?? '';
+      final eligible = eligibility[lineKey];
+      return OrderLine(
+        title: line['title'] as String? ?? 'Ordered item',
+        quantity: (line['quantity'] as num?)?.toInt() ?? 0,
+        unitPriceMinor: (line['unit_price'] as num?)?.toInt() ?? 0,
+        productId: line['product_id'] as String?,
+        lineKey: lineKey,
+        sku: line['sku'] as String? ?? '',
+        deliveredQty: (eligible?['delivered_qty'] as num?)?.toInt() ?? 0,
+        returnableQty: (eligible?['returnable_qty'] as num?)?.toInt() ?? 0,
+        returnEligible: eligible?['eligible'] as bool? ?? false,
+        ineligibleReason: eligible?['ineligible_reason'] as String?,
+        deadline: DateTime.tryParse(eligible?['deadline'] as String? ?? ''),
+        allowedReasons: (eligible?['allowed_reasons'] as List? ?? const <dynamic>[])
+            .whereType<String>()
+            .toList(),
+      );
+    }).toList();
+    final shipments = (json['shipments'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(Shipment.fromJson)
+        .toList();
+    final returns = (json['returns'] as List? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map(ReturnSummary.fromJson)
+        .toList();
+    final created = DateTime.tryParse(json['created_at'] as String? ?? '');
+    final anyDelivered = shipments.any((shipment) => shipment.status == 'delivered');
+    final anyShipped = shipments.any((shipment) =>
+        ['in_transit', 'out_for_delivery', 'picked_up'].contains(shipment.status));
+    final status = json['status'] as String? ?? 'confirmed';
+    final stage = status != 'confirmed'
+        ? OrderStage.processing
+        : anyDelivered
+            ? OrderStage.delivered
+            : anyShipped
+                ? OrderStage.shipped
+                : OrderStage.processing;
+    final shipmentEvents = shipments
+        .expand((shipment) => shipment.events)
+        .where((event) => event.occurredAt != null)
+        .toList()
+      ..sort((left, right) => left.occurredAt!.compareTo(right.occurredAt!));
+    final timeline = <OrderEvent>[
+      OrderEvent(
+        label: 'Order placed',
+        timeLabel: created == null ? '' : _dateLabel(created),
+        done: true,
+      ),
+      if (shipmentEvents.isEmpty)
+        for (final shipment in shipments)
+          OrderEvent(
+            label: shipment.status.replaceAll('_', ' '),
+            timeLabel: shipment.deliveredAt == null
+                ? 'Simulated delivery'
+                : _dateLabel(shipment.deliveredAt!),
+            done: shipment.status == 'delivered',
+          )
+      else
+        for (final event in shipmentEvents)
+          OrderEvent(
+            label: _statusLabel(event.status),
+            timeLabel: _dateTimeLabel(event.occurredAt!),
+            done: event != shipmentEvents.last ||
+                const <String>[
+                  'delivered',
+                  'rto_delivered',
+                  'cancelled',
+                ].contains(event.status),
+            active: event == shipmentEvents.last &&
+                !const <String>['delivered', 'rto_delivered', 'cancelled']
+                    .contains(event.status),
+          ),
+    ];
+    return CustomerOrder(
+      id: json['order_id'] as String? ?? '',
+      number: 'Order #BK-${json['order_id'] ?? ''}',
+      dateLabel: created == null ? 'Staging order' : 'Placed ${_dateLabel(created)}',
+      stage: stage,
+      lines: lines,
+      addressLabel: 'Delivery address captured at checkout',
+      timeline: timeline,
+      returnEligible: lines.any((line) => line.returnEligible),
+      shipments: shipments,
+      returns: returns,
+      returnStatus: returns.isEmpty ? null : returns.first.status,
+      medusaOrderGroupId: json['medusa_order_group_id'] as String?,
+    );
+  }
+
+  static String _dateLabel(DateTime value) =>
+      '${value.day} ${_month(value.month)} ${value.year}';
+
+  static String _dateTimeLabel(DateTime value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '${value.day} ${_month(value.month)}, $hour:$minute';
+  }
+
+  static String _statusLabel(String value) {
+    final words = value.replaceAll('_', ' ');
+    return words.isEmpty
+        ? 'Shipment update'
+        : words[0].toUpperCase() + words.substring(1);
+  }
+
+  static String _month(int month) => const <String>[
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ][month - 1];
 
   CustomerOrder copyWith({
     OrderStage? stage,
@@ -101,5 +380,9 @@ class CustomerOrder {
         timeline: timeline ?? this.timeline,
         cancelEligible: cancelEligible ?? this.cancelEligible,
         returnEligible: returnEligible ?? this.returnEligible,
+        shipments: shipments,
+        returns: returns,
+        returnStatus: returnStatus,
+        medusaOrderGroupId: medusaOrderGroupId,
       );
 }

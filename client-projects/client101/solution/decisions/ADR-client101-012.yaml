@@ -1,0 +1,78 @@
+decision_id: ADR-client101-012
+client_id: client101
+title: Extend Workspace to household scope and a cross-channel conversation layer
+status: accepted
+supersedes: []
+extends:
+- ADR-client101-011
+context: >-
+  ADR-011 introduced Workspace for B2B procurement and deferred household collaboration. Product
+  direction now requires the same collaborative loop in both channels: shoppers must be able to
+  capture a product into a conversation from the page they are already on, discuss it with the
+  right people, grow a shared list, and then deliberately turn that list into a cart. A B2C home
+  renovation commonly involves an owner plus two or three participants, each of whom must sign in
+  with their own identity.
+decision: >-
+  Keep Workspace as the single collaboration bounded context and add a 'household' scope alongside
+  'business_account'. Workspace continues to own membership projections, channels, messages,
+  product-share references, purchase drafts, immutable revisions, proposals, approval evidence and
+  the outbox. Commerce remains authoritative for carts, orders, payments, inventory, products and
+  prices. Conversation is exposed as a slide-over dock over existing storefront and trade pages;
+  product capture stores only a reference and a display snapshot. Building a cart from a shared
+  list is an explicit, revalidated, idempotent handoff that writes only canonical cart lines and
+  never completes an order.
+household_model:
+- One owner per project.
+- At most three active participants (four people total).
+- Participants join only through an owner-issued, expiring, single-use, revocable email invitation
+  followed by their own OTP sign-in.
+- Participants may chat, share products and propose quantity changes.
+- Only the owner sees addresses, phone, GST and payment methods, and only the owner checks out.
+- Participant quantity changes become proposals; only the owner accepts them.
+conversation_layer:
+- One capture action on product cards, search results, PDP and cart lines.
+- The dock preserves the underlying page, filters and scroll position.
+- The existing full-page workspace route remains as a fallback and deep link.
+cart_handoff:
+- Intent and commerce stay separate until an explicit user action.
+- Handoff revalidates price, stock, MOQ, seller and tax before writing.
+- A changed line requires acknowledgement; no automatic substitution.
+- Handoff is idempotent per accepted revision.
+- B2C handoff is owner-only; B2B handoff is buyer or account admin with a current approval.
+- Chat never creates an order and never completes checkout.
+alternatives:
+- Reuse the B2B workspace unchanged for B2C (rejected: business-account scope and roles exclude consumers).
+- Build a separate B2C chat service (rejected: duplicates membership, messaging and outbox).
+- Treat the chat list as the cart (rejected: chat would become commerce truth).
+- Auto-add discussed products to the cart (rejected: uncontrolled purchase intent).
+- Keep conversation on a dedicated page only (rejected: loses shopping context and adds friction).
+consequences:
+- workspace.scope_type, roles and channel kinds need a migration; existing B2B rows stay unchanged.
+- The actor guard needs a consumer path scoped by household membership, without granting commerce
+  authority.
+- Participant projections must redact owner-only checkout data on the server, not in the client.
+- The dock becomes shared navigation chrome in both channels and must not inherit the current B2B
+  header hit-testing defect.
+- Cart handoff becomes the first Workspace write into Commerce and therefore needs explicit human
+  authorization, revalidation evidence and idempotency tests.
+- Notification projection and operator audited reads remain out of scope.
+affected_capabilities:
+- consumer-collaboration
+- b2b-procurement-collaboration
+- shared-purchase-intent
+- checkout-handoff
+affected_domains:
+- workspace
+- experience
+- identity
+- commerce
+evidence_refs:
+- client-projects/client101/changes/CHG-072.yaml
+- client-projects/client101/solution/decisions/ADR-client101-011.yaml
+- client-projects/client101/contracts/data-contract.yaml
+- docs/architecture/collaborative-workspace-threat-model.md
+approved_by: human-requester
+approved_at: '2026-10-20'
+notes:
+- Staging only. Production release remains separately human-authorized.
+- Phase 3 cart handoff is authorized for implementation only when recorded against CHG-072.

@@ -1,0 +1,112 @@
+change_id: CHG-038
+revision: 2
+request: >-
+  Refine the Mercur Merchandising console into an efficient operator-first workspace. Implement
+  Phase 1 only: a responsive action-oriented overview, a unified editorial content library and a
+  route-based full-page draft editor. Preserve native Medusa ownership for commerce configuration
+  and keep preview, review queues, scheduling, delivery diagnostics and audit history behind later
+  human checkpoints.
+type: merchandising-console-efficiency-phase-1
+extends:
+- CHG-036
+- CHG-037
+affected_capabilities:
+- operator-administration
+- editorial-content
+- marketplace-merchandising
+affected_domains:
+- experience
+- content
+- commerce
+affected_surfaces:
+- mercur.admin.merchandising
+- mercur.admin.content
+decisions:
+  D-038-01: editorial-discovery-uses-one-responsive-library-with-url-persisted-filters
+  D-038-02: complex-editorial-drafts-use-linkable-full-page-editors-instead-of-a-transient-drawer
+  D-038-03: save-draft-and-publication-remain-explicitly-separate-operations
+  D-038-04: commerce-properties-remain-editable-only-in-native-medusa-controls
+  D-038-05: curated-collection-is-labelled-collection-presentation-to-avoid-membership-ownership-confusion
+  D-038-06: unsupported-phase-2-navigation-is-not-exposed-before-its-capabilities-exist
+  D-038-07: no-preset-review-or-preset-derived-status-returns-to-the-console
+phase_1_scope:
+- responsive merchandising overview refinements
+- unified editorial library across governed content types
+- content-type counts and filters
+- locale, status and search query persistence
+- responsive table with deliberate horizontal overflow behavior
+- route-based create and edit draft pages
+- explicit saved and unsaved state
+- keyboard save shortcut and navigation protection
+- routine-versus-advanced field grouping
+deferred_scope:
+- storefront-faithful draft preview
+- review queue and reviewer assignment
+- live-versus-draft comparison
+- publication validation workflow
+- scheduling and rescheduling
+- media upload or DAM
+- delivery health diagnostics
+- audit history UI
+- saved views, configurable columns and bulk actions
+required_tests:
+- Merchandising overview contains no preset terminology, controls or metrics.
+- Editorial content opens as one library with content-type, locale, status and text filters.
+- Filters and pagination remain represented in the URL.
+- Tables remain usable at 1024px without clipping inaccessible row actions.
+- A new draft opens in a dedicated route and saves without publishing.
+- An existing document opens in a dedicated route and updates the correct draft.
+- Unsaved changes are protected during in-app navigation and browser close or refresh.
+- Ctrl/Cmd plus S saves a valid draft without publishing.
+- Collection presentation copy does not imply ownership of commerce collection membership.
+- Admin lint and production build pass.
+constraints:
+- Use only Mercur shared primitives, Medusa UI components and Medusa design tokens.
+- Browser traffic must continue through authenticated typed Medusa operator APIs.
+- Do not expose Strapi credentials or require a second CMS login.
+- Do not change canonical entity ownership.
+- Do not implement or imply approval of deferred Phase 2 capabilities.
+- Staging only; production release remains unauthorized.
+approval_required: true
+implementation_request:
+  requested_by: human-requester
+  requested_at_utc: '2026-10-15'
+  scope: phase-1-efficient-merchandising-console
+  human_visual_review_required: true
+implementation:
+  branch: feat/medusa-native-merchandising-admin
+  local_verification:
+  - Merchandising overview uses actionable editorial states and authoritative editor links.
+  - Editorial content is consolidated into one library across all governed content kinds.
+  - Content type, locale, publication status, search and pagination are URL-persisted.
+  - The content table has deliberate horizontal overflow and a sticky action column.
+  - Create and edit use route-based full-page draft editors.
+  - Required field checks, keyboard save and unsaved-navigation protection are present.
+  - Commerce collection product membership is not exposed in the editorial editor.
+  - Mercur Admin ESLint and production build passed.
+  - CHG-038 YAML and git diff whitespace validation passed.
+  hosted_deployment:
+    environment: staging
+    deployed_at_utc: '2026-10-14T20:34:43Z'
+    release_commit: fc5178d
+    release_worktree: /opt/buildkart-releases/fc5178d
+    previous_release: /opt/buildkart-releases/9c07a35
+    recreated_services:
+    - medusa-api
+    fcm_overlay_preserved: true
+    verification:
+    - Medusa API and Experience API containers are healthy with zero restarts.
+    - Merchandising, Editorial content and full-page draft-create routes return HTTP 200.
+    - Served bundle contains the unified library and full-page editor labels.
+    - Served bundle does not contain Preset Review or preset-derived overview labels.
+    - Operator content API remains authenticated on the operator host and hidden on the customer host.
+    pending_human_checks:
+    - create-and-save-a-bounded-test-draft-without-publishing
+    - edit-and-save-an-existing-draft-without-publishing
+    - verify-keyboard-save-and-unsaved-navigation-protection
+    - verify-library-and-editor-layout-at-1024px-and-wide-desktop
+implementation_evidence:
+- client-projects/client101/evidence/CHG-038/phase-1-local-verification.md
+- client-projects/client101/evidence/CHG-038/hosted-staging-deployment.md
+status: deployed-to-staging-awaiting-human-visual-review
+production_release_authorized: false

@@ -127,6 +127,30 @@ void main() {
     expect(added, isTrue);
   });
 
+  testWidgets('CompactQuickOrderSkuCard keeps Add as the only card action',
+      (WidgetTester tester) async {
+    final semantics = tester.ensureSemantics();
+    var discussed = 0;
+    var added = 0;
+    await tester.pumpWidget(_host(SizedBox(
+      width: 164,
+      child: CompactQuickOrderSkuCard(
+        title: 'Bib Cock 15mm',
+        sku: 'SKU JQ-4415',
+        priceLabel: '₹432',
+        quantity: 5,
+        onDiscuss: () => discussed++,
+        onAdd: () => added++,
+      ),
+    )));
+    expect(find.bySemanticsLabel('Discuss'), findsNothing);
+    await tester.tap(find.byType(CartPlusIconButton));
+    await tester.pump();
+    expect(added, 1);
+    expect(discussed, 0);
+    semantics.dispose();
+  });
+
   testWidgets('TradeProductCardCompact renders tiers and price',
       (WidgetTester tester) async {
     await tester.pumpWidget(_host(TradeProductCardCompact(

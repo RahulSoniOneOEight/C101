@@ -80,6 +80,7 @@ class PinCartLine extends StatelessWidget {
     this.onIncrement,
     this.onDecrement,
     this.onRemove,
+    this.onDiscuss,
     super.key,
   });
 
@@ -91,6 +92,7 @@ class PinCartLine extends StatelessWidget {
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
   final VoidCallback? onRemove;
+  final VoidCallback? onDiscuss;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +147,21 @@ class PinCartLine extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: colors.contentPrimary)),
                 ],
+                if (onDiscuss != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: onDiscuss,
+                      icon: const Icon(Icons.forum_outlined, size: 15),
+                      label: const Text('Discuss'),
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(44, 44),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        textStyle: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -426,8 +443,8 @@ class PinCreditLimit extends StatelessWidget {
           Row(
             children: <Widget>[
               Text('Available credit',
-                  style: TextStyle(
-                      fontSize: 11, color: colors.contentSecondary)),
+                  style:
+                      TextStyle(fontSize: 11, color: colors.contentSecondary)),
               const Spacer(),
               _StatusPill(
                   label: switch (health) {
@@ -446,8 +463,7 @@ class PinCreditLimit extends StatelessWidget {
                   color: colors.contentPrimary)),
           const SizedBox(height: 2),
           Text(limitLabel,
-              style:
-                  TextStyle(fontSize: 11, color: colors.contentSecondary)),
+              style: TextStyle(fontSize: 11, color: colors.contentSecondary)),
           const SizedBox(height: AgencySpacing.sm),
           ClipRRect(
             borderRadius: BorderRadius.circular(AgencyRadius.sm),
@@ -754,8 +770,7 @@ class _PinChartPainter extends CustomPainter {
     if (kind == PinChartKind.donut) {
       final total = values.fold<double>(0, (s, v) => s + v);
       final rect = Rect.fromCircle(
-          center: size.center(Offset.zero),
-          radius: size.shortestSide / 2 - 4);
+          center: size.center(Offset.zero), radius: size.shortestSide / 2 - 4);
       var start = -math.pi / 2;
       for (var i = 0; i < values.length; i++) {
         final sweep = total <= 0 ? 0.0 : (values[i] / total) * 2 * math.pi;
@@ -1013,9 +1028,15 @@ abstract final class PinToast {
   }) {
     final colors = _colors(context);
     final (Color bg, IconData icon) = switch (tone) {
-      PinToastTone.success => (colors.feedbackSuccess, Icons.check_circle_outline),
+      PinToastTone.success => (
+          colors.feedbackSuccess,
+          Icons.check_circle_outline
+        ),
       PinToastTone.error => (colors.feedbackError, Icons.error_outline),
-      PinToastTone.warning => (colors.feedbackWarning, Icons.warning_amber_outlined),
+      PinToastTone.warning => (
+          colors.feedbackWarning,
+          Icons.warning_amber_outlined
+        ),
       PinToastTone.info => (colors.feedbackInfo, Icons.info_outline),
     };
     ScaffoldMessenger.of(context)
@@ -1185,7 +1206,9 @@ class PinDateTimeField extends StatelessWidget {
           prefixIcon: const Icon(Icons.event, size: 18),
         ),
         child: Text(
-          value == null ? 'Select date' : '${value!.day}/${value!.month}/${value!.year}',
+          value == null
+              ? 'Select date'
+              : '${value!.day}/${value!.month}/${value!.year}',
           style: TextStyle(
               color: value == null
                   ? colors.contentSecondary
