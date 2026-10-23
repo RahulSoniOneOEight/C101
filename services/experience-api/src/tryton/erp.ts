@@ -378,6 +378,7 @@ export class TrytonErp {
       company,
       currency,
       unit_price: 0,
+      cost_price: 0,
     });
     await this.client.write("stock.move", [moveId], { state: "done" });
     const rows = await this.client.read("stock.move", [moveId], [
