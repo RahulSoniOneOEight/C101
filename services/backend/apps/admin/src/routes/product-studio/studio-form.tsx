@@ -349,6 +349,7 @@ function OfferPricingEditor({
   const [b2bReason, setB2bReason] = useState("");
   const [b2bSaving, setB2bSaving] = useState(false);
   const [b2bNotice, setB2bNotice] = useState<string | null>(null);
+  const [b2bPriceListId, setB2bPriceListId] = useState<string | null>(null);
 
   useEffect(() => {
     const inrPrices = offer.prices.filter(
@@ -370,6 +371,8 @@ function OfferPricingEditor({
         : `/vendor/buildkart/offers/${offer.id}/b2b-pricing`;
     void request<{
       pricing: {
+        configured: boolean;
+        price_list_id: string | null;
         amount: number | null;
         list_price_minor: number | null;
         moq: number | null;
@@ -381,6 +384,7 @@ function OfferPricingEditor({
     }>(b2bEndpoint)
       .then((result) => {
         setB2bAmount(result.pricing.amount ? rupees(result.pricing.amount) : "");
+        setB2bPriceListId(result.pricing.price_list_id ?? null);
         setB2bList(
           result.pricing.list_price_minor
             ? rupees(result.pricing.list_price_minor)
@@ -559,8 +563,8 @@ function OfferPricingEditor({
 
   return (
     <div className="rounded-lg border border-ui-border-base p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-ui-fg-base">
             {variantLabel || offer.sku}
           </p>
@@ -568,267 +572,360 @@ function OfferPricingEditor({
             {offer.sku || "No SKU"} · {offer.seller_name}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-ui-fg-base">
-            {base ? inr(Math.round(Number(base) * 100)) : "No base price"}
-          </p>
-          <p className="text-xs text-ui-fg-subtle">
-            B2C selling price · {gstInclusive ? "GST-inclusive" : "GST-exclusive"}
-          </p>
-          <p className="text-xs text-ui-fg-subtle">
-            List: {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "—"}
-          </p>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge color={base ? "green" : "orange"}>
+            B2C {base ? "configured" : "not configured"}
+          </StatusBadge>
+          <StatusBadge color={b2bAmount ? "green" : "grey"}>
+            B2B {b2bAmount ? "configured" : "not configured"}
+          </StatusBadge>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-ui-fg-subtle">
-            List price (INR) *
-          </span>
-          <Input
-            inputMode="decimal"
-            value={listPrice}
-            onChange={(event) => setListPrice(event.target.value)}
-            placeholder="MRP / list price"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-ui-fg-subtle">
-            Base selling price (INR) *
-          </span>
-          <Input
-            inputMode="decimal"
-            value={base}
-            onChange={(event) => setBase(event.target.value)}
-            placeholder="e.g. 436.90"
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ui-fg-base">
-          <input
-            type="checkbox"
-            checked={gstInclusive}
-            onChange={(event) => setGstInclusive(event.target.checked)}
-          />
-          B2C price is GST-inclusive
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-ui-fg-subtle">
-            Reason (optional; required above 20% change)
-          </span>
-          <Input
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Why is this price changing?"
-          />
-        </label>
-      </div>
-      <p className="mt-2 text-xs text-ui-fg-subtle">
-        {Number(listPrice) > 0 && Number(base) > 0
-          ? `${Math.max(
-              0,
-              Math.round(
-                ((Number(listPrice) - Number(base)) / Number(listPrice)) * 100,
-              ),
-            )}% below list · ${
-              gstInclusive ? "GST-inclusive" : "GST-exclusive"
-            }`
-          : "Enter list and selling prices to calculate the discount."}
-      </p>
-
-      <div className="mt-4 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-ui-fg-base">
-              Quantity tiers
-            </p>
-            <p className="text-xs text-ui-fg-subtle">
-              Higher quantities should not cost more per unit.
-            </p>
-          </div>
-          <Button
-            size="small"
-            type="button"
-            variant="secondary"
-            onClick={() =>
-              setTiers((current) => [
-                ...current,
-                {
-                  min: current.length
-                    ? String(Number(current[current.length - 1].max || 1) + 1)
-                    : "10",
-                  max: "",
-                  amount: base,
-                },
-              ])
-            }
-          >
-            Add tier
-          </Button>
-        </div>
-        {tiers.length === 0 ? (
-          <Text size="small" className="text-ui-fg-subtle">
-            No quantity tiers. The base price applies to every quantity.
+      <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-ui-bg-subtle p-3 md:grid-cols-4">
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            B2C selling
           </Text>
-        ) : (
-          tiers.map((tier, index) => (
-            <div
-              key={index}
-              className="flex flex-col gap-2 rounded-md border border-ui-border-base p-2 sm:flex-row sm:items-center"
-            >
-              <Input
-                inputMode="numeric"
-                value={tier.min}
-                onChange={(event) =>
-                  setTiers((current) =>
-                    current.map((row, position) =>
-                      position === index
-                        ? { ...row, min: event.target.value }
-                        : row,
-                    ),
-                  )
-                }
-                placeholder="Min qty"
-                className="sm:w-28"
-              />
-              <Input
-                inputMode="numeric"
-                value={tier.max}
-                onChange={(event) =>
-                  setTiers((current) =>
-                    current.map((row, position) =>
-                      position === index
-                        ? { ...row, max: event.target.value }
-                        : row,
-                    ),
-                  )
-                }
-                placeholder="Max qty"
-                className="sm:w-28"
-              />
+          <Text size="small" weight="plus">
+            {base ? inr(Math.round(Number(base) * 100)) : "—"}
+          </Text>
+        </div>
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            B2C list
+          </Text>
+          <Text size="small" weight="plus">
+            {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "—"}
+          </Text>
+        </div>
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            B2B selling
+          </Text>
+          <Text size="small" weight="plus">
+            {b2bAmount ? inr(Math.round(Number(b2bAmount) * 100)) : "—"}
+          </Text>
+        </div>
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            B2B MOQ
+          </Text>
+          <Text size="small" weight="plus">
+            {b2bMoq || "—"}
+          </Text>
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section
+          aria-labelledby={`b2c-pricing-${offer.id}`}
+          className="rounded-lg border border-ui-border-base p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <Heading id={`b2c-pricing-${offer.id}`} level="h3">
+                B2C pricing
+              </Heading>
+              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                Offer price ladder · INR
+              </Text>
+            </div>
+            <StatusBadge color={gstInclusive ? "blue" : "grey"}>
+              {gstInclusive ? "GST-inclusive" : "GST-exclusive"}
+            </StatusBadge>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                List price (INR) *
+              </span>
               <Input
                 inputMode="decimal"
-                value={tier.amount}
-                onChange={(event) =>
-                  setTiers((current) =>
-                    current.map((row, position) =>
-                      position === index
-                        ? { ...row, amount: event.target.value }
-                        : row,
-                    ),
-                  )
-                }
-                placeholder="Unit price (INR)"
-                className="sm:flex-1"
+                value={listPrice}
+                onChange={(event) => setListPrice(event.target.value)}
+                placeholder="MRP / list price"
               />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                Base selling price (INR) *
+              </span>
+              <Input
+                inputMode="decimal"
+                value={base}
+                onChange={(event) => setBase(event.target.value)}
+                placeholder="e.g. 436.90"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ui-fg-base md:col-span-2">
+              <input
+                type="checkbox"
+                checked={gstInclusive}
+                onChange={(event) => setGstInclusive(event.target.checked)}
+              />
+              B2C price is GST-inclusive
+            </label>
+            <label className="flex flex-col gap-1 md:col-span-2">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                Reason (optional; required above 20% change)
+              </span>
+              <Input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Why is this price changing?"
+              />
+            </label>
+          </div>
+
+          <p className="mt-2 text-xs text-ui-fg-subtle">
+            {Number(listPrice) > 0 && Number(base) > 0
+              ? `${Math.max(
+                  0,
+                  Math.round(
+                    ((Number(listPrice) - Number(base)) /
+                      Number(listPrice)) *
+                      100,
+                  ),
+                )}% below list · ${
+                  gstInclusive ? "GST-inclusive" : "GST-exclusive"
+                }`
+              : "Enter list and selling prices to calculate the discount."}
+          </p>
+
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ui-fg-base">
+                  Quantity tiers
+                </p>
+                <p className="text-xs text-ui-fg-subtle">
+                  Higher quantities should not cost more per unit.
+                </p>
+              </div>
               <Button
                 size="small"
                 type="button"
-                variant="transparent"
-                className="shrink-0"
+                variant="secondary"
                 onClick={() =>
-                  setTiers((current) =>
-                    current.filter((_, position) => position !== index),
-                  )
+                  setTiers((current) => [
+                    ...current,
+                    {
+                      min: current.length
+                        ? String(Number(current[current.length - 1].max || 1) + 1)
+                        : "10",
+                      max: "",
+                      amount: base,
+                    },
+                  ])
                 }
               >
-                Remove
+                Add tier
               </Button>
             </div>
-          ))
-        )}
-      </div>
+            {tiers.length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">
+                No quantity tiers. The base price applies to every quantity.
+              </Text>
+            ) : (
+              tiers.map((tier, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col gap-2 rounded-md border border-ui-border-base p-2 sm:flex-row sm:items-center"
+                >
+                  <Input
+                    inputMode="numeric"
+                    value={tier.min}
+                    onChange={(event) =>
+                      setTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, min: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Min qty"
+                    className="sm:w-20"
+                  />
+                  <Input
+                    inputMode="numeric"
+                    value={tier.max}
+                    onChange={(event) =>
+                      setTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, max: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Max qty"
+                    className="sm:w-20"
+                  />
+                  <Input
+                    inputMode="decimal"
+                    value={tier.amount}
+                    onChange={(event) =>
+                      setTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, amount: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Unit price (INR)"
+                    className="sm:flex-1"
+                  />
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="transparent"
+                    className="shrink-0"
+                    onClick={() =>
+                      setTiers((current) =>
+                        current.filter((_, position) => position !== index),
+                      )
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
 
-      {errors.length > 0 ? (
-        <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error px-3 py-2 text-xs text-ui-fg-error">
-          {errors.map((error) => (
-            <p key={error}>{error}</p>
-          ))}
-        </div>
-      ) : null}
+          {errors.length > 0 ? (
+            <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error px-3 py-2 text-xs text-ui-fg-error">
+              {errors.map((error) => (
+                <p key={error}>{error}</p>
+              ))}
+            </div>
+          ) : null}
 
-      <div className="mt-3 flex justify-end">
-        <Button size="small" type="button" isLoading={saving} onClick={save}>
-          Save pricing
-        </Button>
-      </div>
+          <div className="mt-3 flex justify-end">
+            <Button size="small" type="button" isLoading={saving} onClick={save}>
+              Save B2C price
+            </Button>
+          </div>
+        </section>
 
-      <div className="mt-4 border-t border-ui-border-base pt-3">
-        <p className="text-sm font-medium text-ui-fg-base">
-          B2B customer-group pricing
-        </p>
-        <p className="mt-1 text-xs text-ui-fg-subtle">
-          Stored in a dedicated price list scoped to the B2B Trade Customers
-          group. It cannot change the B2C price or the shared B2B list.
-        </p>
-        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
-          <Input
-            inputMode="decimal"
-            value={b2bAmount}
-            onChange={(event) => setB2bAmount(event.target.value)}
-            placeholder="B2B selling price (INR)"
-          />
-          <Input
-            inputMode="decimal"
-            value={b2bList}
-            onChange={(event) => setB2bList(event.target.value)}
-            placeholder="B2B list price (INR)"
-          />
-          <Input
-            inputMode="numeric"
-            value={b2bMoq}
-            onChange={(event) => setB2bMoq(event.target.value)}
-            placeholder="MOQ"
-          />
-          <Input
-            type="datetime-local"
-            value={b2bFrom}
-            onChange={(event) => setB2bFrom(event.target.value)}
-          />
-          <Input
-            type="datetime-local"
-            value={b2bTo}
-            onChange={(event) => setB2bTo(event.target.value)}
-          />
-          <label className="flex items-center gap-2 text-sm text-ui-fg-base">
-            <input
-              type="checkbox"
-              checked={b2bGst}
-              onChange={(event) => setB2bGst(event.target.checked)}
+        <section
+          aria-labelledby={`b2b-pricing-${offer.id}`}
+          className="rounded-lg border border-ui-border-base p-4"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <Heading id={`b2b-pricing-${offer.id}`} level="h3">
+                B2B pricing
+              </Heading>
+              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                Dedicated price list · B2B Trade Customers
+              </Text>
+            </div>
+            <StatusBadge color={b2bAmount ? "green" : "grey"}>
+              {b2bAmount ? "Configured" : "Not configured"}
+            </StatusBadge>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+            <Input
+              inputMode="decimal"
+              value={b2bAmount}
+              onChange={(event) => setB2bAmount(event.target.value)}
+              placeholder="B2B selling price (INR)"
             />
-            B2B price is GST-inclusive
+            <Input
+              inputMode="decimal"
+              value={b2bList}
+              onChange={(event) => setB2bList(event.target.value)}
+              placeholder="B2B list price (INR)"
+            />
+            <Input
+              inputMode="numeric"
+              value={b2bMoq}
+              onChange={(event) => setB2bMoq(event.target.value)}
+              placeholder="MOQ"
+            />
+            <label className="flex items-center gap-2 text-sm text-ui-fg-base">
+              <input
+                type="checkbox"
+                checked={b2bGst}
+                onChange={(event) => setB2bGst(event.target.checked)}
+              />
+              B2B price is GST-inclusive
+            </label>
+            <Input
+              type="datetime-local"
+              value={b2bFrom}
+              onChange={(event) => setB2bFrom(event.target.value)}
+              aria-label="B2B effective from"
+            />
+            <Input
+              type="datetime-local"
+              value={b2bTo}
+              onChange={(event) => setB2bTo(event.target.value)}
+              aria-label="B2B effective to"
+            />
+          </div>
+
+          <label className="mt-2 flex flex-col gap-1">
+            <span className="text-xs font-medium text-ui-fg-subtle">
+              Quantity tiers (min:max:price per line)
+            </span>
+            <Textarea
+              value={b2bTiers}
+              onChange={(event) => setB2bTiers(event.target.value)}
+              placeholder={"10:19:85.00\n20::80.00"}
+            />
           </label>
-        </div>
-        <Textarea
-          className="mt-2"
-          value={b2bTiers}
-          onChange={(event) => setB2bTiers(event.target.value)}
-          placeholder={"Quantity tiers, one per line: min:max:price\n10:19:85.00\n20::80.00"}
-        />
-        <div className="mt-2 flex gap-2">
-          <Input
-            value={b2bReason}
-            onChange={(event) => setB2bReason(event.target.value)}
-            placeholder="B2B price-change reason"
-            className="flex-1"
-          />
-          <Button
-            size="small"
-            type="button"
-            variant="secondary"
-            isLoading={b2bSaving}
-            onClick={saveB2b}
-          >
-            Save B2B price
-          </Button>
-        </div>
-        {b2bNotice ? (
-          <p className="mt-2 text-xs text-ui-fg-subtle">{b2bNotice}</p>
-        ) : null}
+
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <Input
+              value={b2bReason}
+              onChange={(event) => setB2bReason(event.target.value)}
+              placeholder="B2B price-change reason"
+              className="flex-1"
+            />
+            <Button
+              size="small"
+              type="button"
+              variant="secondary"
+              isLoading={b2bSaving}
+              onClick={saveB2b}
+            >
+              Save B2B price
+            </Button>
+          </div>
+
+          {b2bNotice ? (
+            <p className="mt-2 text-xs text-ui-fg-subtle">{b2bNotice}</p>
+          ) : null}
+
+          {mode === "admin" ? (
+            <div className="mt-3">
+              {b2bPriceListId ? (
+                <Link
+                  to={`/price-lists/${b2bPriceListId}`}
+                  className="text-xs font-medium text-ui-fg-interactive hover:underline"
+                >
+                  View underlying B2B price list
+                </Link>
+              ) : (
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  The per-offer B2B price list is created on first save.
+                </Text>
+              )}
+            </div>
+          ) : null}
+        </section>
       </div>
     </div>
   );
 }
+
 
 function InventoryRequestForm({
   offer,
@@ -2572,7 +2669,7 @@ export function ProductStudioForm({
             <Section
               number={5}
               title="Pricing"
-              description="Offer-scoped B2C selling prices and quantity tiers. Pricing is audited through the existing seller price-change facade."
+              description="Offer-scoped B2C and B2B pricing. Each channel has its own validation, save and audit trail."
               complete={sectionFiveDone}
             >
               {variants.length === 0 ? (
@@ -2692,10 +2789,12 @@ export function ProductStudioForm({
               )}
               <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                 <Text size="small" className="text-ui-fg-subtle">
-                  B2C selling price is stored on the offer, not on the product.
-                  B2B pricing, MOQ, list-vs-selling guardrails and effective
-                  dates remain pending the CHG-074 pricing extensions. Seller
-                  price changes require the seller-administration role.
+                  B2C pricing is stored on the offer. B2B pricing is stored in a
+                  dedicated per-offer price list scoped to the B2B Trade
+                  Customers group. Each channel saves separately and never
+                  changes the other. Seller price changes require the
+                  seller-administration role; B2B changes require the
+                  b2b-price.update permission.
                 </Text>
               </div>
             </Section>
