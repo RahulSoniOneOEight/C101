@@ -12,6 +12,30 @@ type InventoryRequest = {
   reason?: string;
 };
 
+export async function GET(
+  req: AuthenticatedMedusaRequest,
+  res: MedusaResponse,
+): Promise<void> {
+  const sellerId = vendorSellerId(req);
+  if (!sellerId) {
+    res.status(401).json({ message: "Seller authentication required." } as never);
+    return;
+  }
+  const actorId =
+    (req.auth_context as { actor_id?: string } | undefined)?.actor_id ?? sellerId;
+  const query = new URLSearchParams({ seller_id: sellerId });
+  if (typeof req.query.status === "string" && req.query.status) {
+    query.set("status", req.query.status);
+  }
+  const result = await experienceAdminFetch("/v1/internal/inventory/requests", {
+    method: "GET",
+    actorId,
+    sellerId,
+    query: query.toString(),
+  });
+  res.status(result.status).json(result.body as never);
+}
+
 function canManageInventory(req: AuthenticatedMedusaRequest): boolean {
   const role = (
     req as AuthenticatedMedusaRequest & {

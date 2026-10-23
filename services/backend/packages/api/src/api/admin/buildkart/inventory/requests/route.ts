@@ -11,6 +11,28 @@ type InventoryRequest = {
   reason?: string;
 };
 
+export async function GET(
+  req: AuthenticatedMedusaRequest,
+  res: MedusaResponse,
+): Promise<void> {
+  const actorId =
+    (req.auth_context as { actor_id?: string } | undefined)?.actor_id ??
+    "admin_console";
+  const query = new URLSearchParams();
+  if (typeof req.query.status === "string" && req.query.status) {
+    query.set("status", req.query.status);
+  }
+  if (typeof req.query.limit === "string" && req.query.limit) {
+    query.set("limit", req.query.limit);
+  }
+  const result = await experienceAdminFetch("/v1/internal/inventory/requests", {
+    method: "GET",
+    actorId,
+    query: query.toString(),
+  });
+  res.status(result.status).json(result.body as never);
+}
+
 export async function POST(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse,

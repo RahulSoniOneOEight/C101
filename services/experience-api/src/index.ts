@@ -17,6 +17,7 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
+import { InventoryRequestStore } from "./store/inventory-request-store.js";
 import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
@@ -70,6 +71,7 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+const inventoryRequests = new InventoryRequestStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
 const logistics = new SimulatedLogisticsProvider(shipmentStore);
@@ -3335,12 +3337,22 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         "sku, non-zero integer quantity_delta and reason are required.",
       );
     }
-    const event = await events.append({
+    const request = await inventoryRequests.create({
+      sku,
+      offer_id: body.offer_id ?? null,
+      product_id: body.product_id ?? null,
+      seller_id: body.seller_id ?? null,
+      quantity_delta: delta,
+      reason,
+      requested_by: operator.user.id,
+    });
+    await events.append({
       event_type: "inventory.adjustment_requested",
       aggregate_type: "inventory",
       aggregate_id: sku,
       correlation_id: cid,
       payload: {
+        request_id: request.id,
         sku,
         quantity_delta: delta,
         reason,
@@ -3354,11 +3366,78 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       },
     });
     return json({
-      request_id: event.id,
+      request_id: request.id,
       sku,
       quantity_delta: delta,
       reason,
-      status: "requested",
+      status: request.status,
+      stock_effect: "none",
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  if (url.pathname === "/v1/internal/inventory/requests" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const status = url.searchParams.get("status")?.trim() || undefined;
+    const sellerId = url.searchParams.get("seller_id")?.trim() || null;
+    const limit = Number.parseInt(url.searchParams.get("limit") ?? "100", 10);
+    return json({
+      items: await inventoryRequests.list({
+        status,
+        sellerId,
+        limit: Number.isFinite(limit) ? limit : 100,
+      }),
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  const inventoryDecision = url.pathname.match(
+    /^\/v1\/internal\/inventory\/requests\/([^/]+)\/(approve|reject)$/,
+  );
+  if (inventoryDecision && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: { note?: string } = {};
+    try {
+      const text = await req.text();
+      if (text.trim()) body = JSON.parse(text) as { note?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const existing = await inventoryRequests.get(inventoryDecision[1]);
+    if (!existing) return problem(404, "inventory-request-not-found");
+    const status = inventoryDecision[2] === "approve" ? "approved" : "rejected";
+    const request = await inventoryRequests.decide(
+      existing.id,
+      status,
+      operator.user.id,
+      body.note?.trim() || null,
+    );
+    if (!request) {
+      return problem(409, "inventory-request-already-decided");
+    }
+    await events.append({
+      event_type: `inventory.adjustment_${status}`,
+      aggregate_type: "inventory",
+      aggregate_id: request.sku,
+      correlation_id: cid,
+      payload: {
+        request_id: request.id,
+        sku: request.sku,
+        quantity_delta: request.quantity_delta,
+        status,
+        note: request.decision_note,
+        actor_user_id: operator.user.id,
+        stock_effect: "none",
+      },
+    });
+    return json({
+      request,
       stock_effect: "none",
       environment: config.environment,
       test_data: true,

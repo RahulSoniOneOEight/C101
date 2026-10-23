@@ -683,6 +683,46 @@ function InventoryRequestForm({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<
+    Array<{
+      id: string;
+      quantity_delta: number;
+      status: string;
+      reason: string;
+      requested_at: string;
+    }>
+  >([]);
+
+  const loadHistory = async () => {
+    try {
+      const endpoint =
+        mode === "admin"
+          ? "/admin/buildkart/inventory/requests?limit=100"
+          : "/vendor/buildkart/inventory/requests?limit=100";
+      const result = await request<{
+        items?: Array<{
+          id: string;
+          offer_id: string | null;
+          quantity_delta: number;
+          status: string;
+          reason: string;
+          requested_at: string;
+        }>;
+      }>(endpoint);
+      setHistory(
+        (result.items ?? [])
+          .filter((item) => item.offer_id === offer.id)
+          .slice(0, 3),
+      );
+    } catch {
+      setHistory([]);
+    }
+  };
+
+  useEffect(() => {
+    void loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offer.id, mode]);
 
   const submit = async () => {
     const parsed = Number(delta);
@@ -719,6 +759,7 @@ function InventoryRequestForm({
       );
       setDelta("");
       setReason("");
+      void loadHistory();
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -761,8 +802,21 @@ function InventoryRequestForm({
       {error ? (
         <p className="mt-2 text-xs text-ui-fg-error">{error}</p>
       ) : null}
+      {history.length > 0 ? (
+        <div className="mt-2 space-y-1">
+          {history.map((item) => (
+            <p key={item.id} className="text-xs text-ui-fg-subtle">
+              {item.status} · {item.quantity_delta > 0 ? "+" : ""}
+              {item.quantity_delta} · {item.reason} ·{" "}
+              {new Date(item.requested_at).toLocaleDateString("en-IN")}
+            </p>
+          ))}
+        </div>
+      ) : null}
       <p className="mt-2 text-xs text-ui-fg-subtle">
         This records an audit request only. It does not change Tryton stock.
+        Approval is recorded on the Inventory requests page; ERP posting remains
+        a separate operator action.
       </p>
     </div>
   );
