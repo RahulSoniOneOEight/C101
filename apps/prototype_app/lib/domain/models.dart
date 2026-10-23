@@ -16,12 +16,13 @@ class Money {
   final int amount;
   final String currencyCode;
 
-  /// Formats the amount as a human-readable string, e.g. "₹1,999" or "$20.50".
+  /// Formats the amount as a whole currency unit, rounding up.
+  ///
+  /// Prices are presented as integers across the app; fractional minor units
+  /// are never shown to the buyer. For example, ₹1,000.01 becomes ₹1,001.
   String get formatted {
     final major = amount / 100;
-    final text = major == major.roundToDouble()
-        ? major.toStringAsFixed(0)
-        : major.toStringAsFixed(2);
+    final text = major.ceil().toString();
     switch (currencyCode.toUpperCase()) {
       case 'INR':
         return '₹$text';

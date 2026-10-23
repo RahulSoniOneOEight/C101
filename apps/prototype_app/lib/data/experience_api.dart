@@ -593,6 +593,10 @@ class ExperienceApi {
     await _dio.post<void>('/v1/me/notifications/read-all');
   }
 
+  Future<void> clearNotifications() async {
+    await _dio.delete<void>('/v1/me/notifications');
+  }
+
   Future<String> registerDevice(String token) async {
     final res = await _dio.post<Map<String, dynamic>>(
       '/v1/me/devices',

@@ -44,6 +44,20 @@ class NotificationsNotifier extends Notifier<List<AppNotification>> {
       rethrow;
     }
   }
+
+  Future<void> clearAll(NotificationAudience audience) async {
+    final before = state;
+    state = <AppNotification>[
+      for (final notification in state)
+        if (notification.audience != audience) notification,
+    ];
+    try {
+      await ref.read(experienceApiProvider).clearNotifications();
+    } catch (_) {
+      state = before;
+      rethrow;
+    }
+  }
 }
 
 final notificationsProvider =

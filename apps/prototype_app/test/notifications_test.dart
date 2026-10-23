@@ -54,6 +54,14 @@ void main() {
     expect(find.textContaining('Credit limit'), findsOneWidget);
     // Consumer-only notification is not shown in the B2B feed.
     expect(find.text('Price drop on your wishlist'), findsNothing);
+
+    await tester.tap(find.byTooltip('Clear notifications'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clear notifications?'), findsOneWidget);
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quotation received'), findsNothing);
+    expect(find.text('No notifications yet'), findsOneWidget);
   });
 
   testWidgets('Onboarding shows the welcome content and benefits',
@@ -116,6 +124,14 @@ class TestNotificationsNotifier extends NotificationsNotifier {
     state = [
       for (final item in state)
         item.audience == audience ? item.copyWith(read: true) : item,
+    ];
+  }
+
+  @override
+  Future<void> clearAll(NotificationAudience audience) async {
+    state = [
+      for (final item in state)
+        if (item.audience != audience) item,
     ];
   }
 }

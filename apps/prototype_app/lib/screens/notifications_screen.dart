@@ -73,6 +73,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
               },
               child: const Text('Mark all read'),
             ),
+          if (items.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear notifications',
+              onPressed: _confirmClear,
+              icon: const Icon(Icons.delete_sweep_outlined),
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -215,10 +221,42 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         NotificationKind.system => colors.actionPrimary,
       };
 
+  Future<void> _confirmClear() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear notifications?'),
+        content: const Text(
+          'This removes all notifications from this inbox.',
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await ref.read(notificationsProvider.notifier).clearAll(widget.audience);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notifications cleared')),
+      );
+    } catch (_) {
+      if (mounted) _showFailure(context);
+    }
+  }
+
   void _showFailure(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          content: Text('Could not update notification. Try again.')),
+          content: Text('Could not update notifications. Try again.')),
     );
   }
 }

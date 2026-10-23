@@ -2601,6 +2601,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+  if ((url.pathname === "/v1/me/notifications" || url.pathname === "/v1/notifications") && req.method === "DELETE") {
+    const authenticated = await authenticate(req);
+    if ("response" in authenticated) return authenticated.response;
+    const cleared = await notifications.clearAll(authenticated.user.id);
+    return json({ cleared, test_data: true, correlation_id: cid });
+  }
+
   const markNotificationRead = url.pathname.match(/^\/v1\/me\/notifications\/([^/]+)\/read$/);
   if (markNotificationRead && req.method === "POST") {
     const authenticated = await authenticate(req);

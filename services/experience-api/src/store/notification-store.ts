@@ -167,6 +167,15 @@ export class NotificationStore {
     return result.rowCount ?? 0;
   }
 
+  async clearAll(userId: string): Promise<number> {
+    await this.ready;
+    const result = await this.pool.query(
+      `DELETE FROM pilot_notification WHERE user_id = $1`,
+      [userId],
+    );
+    return result.rowCount ?? 0;
+  }
+
   async registerDevice(userId: string, token: string): Promise<{ id: string }> {
     await this.ready;
     const id = `device_${randomUUID()}`;

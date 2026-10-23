@@ -36,6 +36,9 @@ try {
   const notification = ownerInbox.find((item) => item.source_event_id === sourceEventId)!;
   assert.equal(await notifications.markRead(otherId, notification.id), false, "cross-user read update succeeded");
   assert.equal(await notifications.markRead(ownerId, notification.id), true);
+  assert.equal(await notifications.clearAll(otherId), 0, "cross-user clear removed notifications");
+  assert.ok(await notifications.clearAll(ownerId) >= 1, "owner clear removed no notifications");
+  assert.equal((await notifications.listForUser(ownerId)).length, 0, "owner inbox was not cleared");
 
   const token = `test-fcm-token-${randomUUID()}-${randomUUID()}`;
   const device = await notifications.registerDevice(ownerId, token);
