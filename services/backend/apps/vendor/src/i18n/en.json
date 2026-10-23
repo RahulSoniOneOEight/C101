@@ -1,4 +1,7 @@
 {
+  "offers": {
+    "domain": "Seller products"
+  },
   "customFields": {
     "title": "Custom Fields",
     "description": "Manage your custom fields and configurations",
