@@ -260,7 +260,11 @@ active_changes:
   product_studio_pricing_ui_scope: b2c-b2b-side-by-side-layout-catalogue-nav-price-list-demotion
   product_studio_pricing_ui_evidence: docs/implementation/session-note-2026-10-23-product-studio-pricing-ui.md
   product_studio_pricing_ui_b2b_policy_alignment: pending-dec-074-03
-  latest_staging_release: 950f454
+  catalogue_navigation_status: staging-verified
+  catalogue_navigation_release: 9cceaae
+  catalogue_navigation_scope: product-studio-under-catalogue-seller-products-label
+  catalogue_navigation_evidence: docs/implementation/session-note-2026-10-23-catalogue-navigation.md
+  latest_staging_release: 9cceaae
   product_studio_inventory_approval_status: staging-verified
   product_studio_inventory_approval_release: 13d6ede
   product_studio_inventory_approval_scope: request-list-approve-reject-no-stock-write

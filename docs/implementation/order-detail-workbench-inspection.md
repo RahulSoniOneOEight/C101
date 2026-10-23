@@ -2,7 +2,7 @@
 
 Date: 2026-10-23  
 Branch: `feat/order-detail-workbench`  
-Status: staging deployed and verified; latest runtime `release-950f454`; production release not authorized
+Status: staging deployed and verified; latest runtime `release-9cceaae`; production release not authorized
 
 ## Delivered order-page UI
 
@@ -129,7 +129,7 @@ Screenshots:
 
 ## Staging release
 
-- Release: `/opt/buildkart-releases/release-950f454`
+- Release: `/opt/buildkart-releases/release-9cceaae`
 - Current symlink: `/opt/buildkart-releases/current`
 - Admin: `https://ops-staging.pinakaplay.cloud/dashboard/`
 - Seller: `https://ops-staging.pinakaplay.cloud/seller/`
