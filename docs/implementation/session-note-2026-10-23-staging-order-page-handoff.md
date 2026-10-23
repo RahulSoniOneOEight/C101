@@ -12,9 +12,9 @@ Local-only credentials: `C:\Users\LENOVO\.buildkart\staging-access.txt` or
 
 | Item | Value |
 |---|---|
-| Runtime release | `/opt/buildkart-releases/release-52b8aaa` |
-| Runtime commit | `52b8aaa` |
-| Branch HEAD | `52b8aaa` + docs-only record commit |
+| Runtime release | `/opt/buildkart-releases/release-377e946` |
+| Runtime commit | `377e946` |
+| Branch HEAD | `377e946` + docs-only record commit |
 | Remote branch | `origin/feat/order-detail-workbench` |
 | Staging host | `root@89.116.20.164` |
 | SSH key | `~/.ssh/buildkart_deploy` |

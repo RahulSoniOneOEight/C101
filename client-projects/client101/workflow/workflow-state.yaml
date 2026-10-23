@@ -268,7 +268,16 @@ active_changes:
   seller_activity_readability_release: 52b8aaa
   seller_activity_readability_scope: human-readable-names-b2c-b2b-summary-archived-record-resolution
   seller_activity_readability_evidence: docs/implementation/session-note-2026-10-24-seller-activity-readability.md
-  latest_staging_release: 52b8aaa
+  app_price_rounding_status: staging-verified
+  app_price_rounding_release: 377e946
+  app_price_rounding_scope: customer-app-whole-unit-prices-rounded-up
+  app_price_rounding_evidence: docs/implementation/session-note-2026-10-24-app-price-rounding-and-clear-notifications.md
+  notification_clear_status: staging-verified
+  notification_clear_release: 377e946
+  notification_clear_scope: authenticated-inbox-clear-with-confirmation
+  notification_clear_evidence: docs/implementation/session-note-2026-10-24-app-price-rounding-and-clear-notifications.md
+  latest_customer_web_release: 377e946
+  latest_staging_release: 377e946
   product_studio_inventory_approval_status: staging-verified
   product_studio_inventory_approval_release: 13d6ede
   product_studio_inventory_approval_scope: request-list-approve-reject-no-stock-write
