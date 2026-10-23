@@ -22,6 +22,7 @@ export async function GET(
     );
     res.json(result);
   } catch (error) {
+    console.error("[product-studio] load failed", error);
     const { status, body } = studioErrorResponse(error);
     res.status(status).json(body as never);
   }
