@@ -8,11 +8,12 @@ Audience: OpenCode tabs working on the BuildKart staging release.
 This note gives the project and staging context without putting credentials in Git. The matching
 local-only credential file is:
 
-`C:\Users\LENOVO\.buildkart\staging-access.txt`
+- `C:\Users\LENOVO\.buildkart\staging-access.txt`
+- `C:\Users\LENOVO\Desktop\BuildKart_Staging_Access.txt`
 
-That file is outside the repository, is not committed, and contains the current staging admin
-credential, service environment values and the requester-provided passkey. Do not copy it into the
-repo or paste its contents into chat.
+Those files are outside the repository, are not committed, and contain the current staging admin
+credential, service environment values and the requester-provided passkey. Do not copy them into the
+repo or paste their contents into chat.
 
 ## Repository
 
