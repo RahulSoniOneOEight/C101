@@ -339,6 +339,16 @@ function OfferPricingEditor({
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [b2bAmount, setB2bAmount] = useState("");
+  const [b2bList, setB2bList] = useState("");
+  const [b2bMoq, setB2bMoq] = useState("1");
+  const [b2bFrom, setB2bFrom] = useState("");
+  const [b2bTo, setB2bTo] = useState("");
+  const [b2bGst, setB2bGst] = useState(true);
+  const [b2bTiers, setB2bTiers] = useState("");
+  const [b2bReason, setB2bReason] = useState("");
+  const [b2bSaving, setB2bSaving] = useState(false);
+  const [b2bNotice, setB2bNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const inrPrices = offer.prices.filter(
@@ -354,6 +364,39 @@ function OfferPricingEditor({
     );
     setGstInclusive(offer.gst_inclusive !== false);
     setBaseId(basePrice?.id);
+    const b2bEndpoint =
+      mode === "admin"
+        ? `/admin/buildkart/offers/${offer.id}/b2b-pricing`
+        : `/vendor/buildkart/offers/${offer.id}/b2b-pricing`;
+    void request<{
+      pricing: {
+        amount: number | null;
+        list_price_minor: number | null;
+        moq: number | null;
+        starts_at: string | null;
+        ends_at: string | null;
+        gst_inclusive: boolean;
+        tiers: Array<{ min_quantity: number; max_quantity: number | null; amount: number }>;
+      };
+    }>(b2bEndpoint)
+      .then((result) => {
+        setB2bAmount(result.pricing.amount ? rupees(result.pricing.amount) : "");
+        setB2bList(
+          result.pricing.list_price_minor
+            ? rupees(result.pricing.list_price_minor)
+            : "",
+        );
+        setB2bMoq(String(result.pricing.moq ?? 1));
+        setB2bFrom(result.pricing.starts_at?.slice(0, 16) ?? "");
+        setB2bTo(result.pricing.ends_at?.slice(0, 16) ?? "");
+        setB2bGst(result.pricing.gst_inclusive !== false);
+        setB2bTiers(
+          result.pricing.tiers
+            .map((tier) => `${tier.min_quantity}:${tier.max_quantity ?? ""}:${rupees(tier.amount)}`)
+            .join("\n"),
+        );
+      })
+      .catch(() => undefined);
     setTiers(
       inrPrices
         .filter(
@@ -470,6 +513,47 @@ function OfferPricingEditor({
       setErrors([(error as Error).message]);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveB2b = async () => {
+    setB2bSaving(true);
+    setB2bNotice(null);
+    try {
+      const tiers = b2bTiers
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [min, max, amount] = line.split(":");
+          return {
+            min_quantity: Number(min),
+            max_quantity: max ? Number(max) : null,
+            amount: Math.round(Number(amount) * 100),
+          };
+        });
+      const endpoint =
+        mode === "admin"
+          ? `/admin/buildkart/offers/${offer.id}/b2b-pricing`
+          : `/vendor/buildkart/offers/${offer.id}/b2b-pricing`;
+      await request(endpoint, {
+        method: "POST",
+        body: JSON.stringify({
+          amount: Math.round(Number(b2bAmount) * 100),
+          list_price_minor: Math.round(Number(b2bList) * 100),
+          moq: Number(b2bMoq),
+          tiers,
+          starts_at: b2bFrom ? new Date(b2bFrom).toISOString() : null,
+          ends_at: b2bTo ? new Date(b2bTo).toISOString() : null,
+          gst_inclusive: b2bGst,
+          reason: b2bReason || null,
+        }),
+      });
+      setB2bNotice("B2B price saved in the dedicated customer-group price list.");
+    } catch (error) {
+      setB2bNotice((error as Error).message);
+    } finally {
+      setB2bSaving(false);
     }
   };
 
@@ -667,6 +751,80 @@ function OfferPricingEditor({
         <Button size="small" type="button" isLoading={saving} onClick={save}>
           Save pricing
         </Button>
+      </div>
+
+      <div className="mt-4 border-t border-ui-border-base pt-3">
+        <p className="text-sm font-medium text-ui-fg-base">
+          B2B customer-group pricing
+        </p>
+        <p className="mt-1 text-xs text-ui-fg-subtle">
+          Stored in a dedicated price list scoped to the B2B Trade Customers
+          group. It cannot change the B2C price or the shared B2B list.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+          <Input
+            inputMode="decimal"
+            value={b2bAmount}
+            onChange={(event) => setB2bAmount(event.target.value)}
+            placeholder="B2B selling price (INR)"
+          />
+          <Input
+            inputMode="decimal"
+            value={b2bList}
+            onChange={(event) => setB2bList(event.target.value)}
+            placeholder="B2B list price (INR)"
+          />
+          <Input
+            inputMode="numeric"
+            value={b2bMoq}
+            onChange={(event) => setB2bMoq(event.target.value)}
+            placeholder="MOQ"
+          />
+          <Input
+            type="datetime-local"
+            value={b2bFrom}
+            onChange={(event) => setB2bFrom(event.target.value)}
+          />
+          <Input
+            type="datetime-local"
+            value={b2bTo}
+            onChange={(event) => setB2bTo(event.target.value)}
+          />
+          <label className="flex items-center gap-2 text-sm text-ui-fg-base">
+            <input
+              type="checkbox"
+              checked={b2bGst}
+              onChange={(event) => setB2bGst(event.target.checked)}
+            />
+            B2B price is GST-inclusive
+          </label>
+        </div>
+        <Textarea
+          className="mt-2"
+          value={b2bTiers}
+          onChange={(event) => setB2bTiers(event.target.value)}
+          placeholder={"Quantity tiers, one per line: min:max:price\n10:19:85.00\n20::80.00"}
+        />
+        <div className="mt-2 flex gap-2">
+          <Input
+            value={b2bReason}
+            onChange={(event) => setB2bReason(event.target.value)}
+            placeholder="B2B price-change reason"
+            className="flex-1"
+          />
+          <Button
+            size="small"
+            type="button"
+            variant="secondary"
+            isLoading={b2bSaving}
+            onClick={saveB2b}
+          >
+            Save B2B price
+          </Button>
+        </div>
+        {b2bNotice ? (
+          <p className="mt-2 text-xs text-ui-fg-subtle">{b2bNotice}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -869,12 +1027,23 @@ export function ProductStudioForm({
   const [status, setStatus] = useState("draft");
   const [lifecycleState, setLifecycleState] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(true);
+  const [actingSellerId, setActingSellerId] = useState("");
+  const [actingReason, setActingReason] = useState("");
+  const [actingReference, setActingReference] = useState("");
 
   const meta = useQuery({
     queryKey: ["buildkart", "product-studio", mode, "meta", appliedSearch],
     queryFn: () =>
       request<MetaResponse>(
         `${apiBase}?q=${encodeURIComponent(appliedSearch)}`,
+      ),
+  });
+  const sellers = useQuery({
+    queryKey: ["buildkart", "sellers", mode],
+    enabled: mode === "admin",
+    queryFn: () =>
+      request<{ sellers: Array<{ id: string; name: string }> }>(
+        "/admin/buildkart/sellers",
       ),
   });
 
@@ -1519,7 +1688,13 @@ export function ProductStudioForm({
         body: JSON.stringify({
           action,
           message: reviewMessage || undefined,
-          reason: reviewMessage || undefined,
+          reason: actingReason || reviewMessage || undefined,
+          ...(mode === "admin" && actingSellerId
+            ? {
+                acting_for_seller_id: actingSellerId,
+                reference: actingReference || undefined,
+              }
+            : {}),
         }),
       });
       setStatus(result.product.status);
@@ -2719,6 +2894,49 @@ export function ProductStudioForm({
                           : "Draft"}
                   </StatusBadge>
                 </div>
+
+                {mode === "admin" ? (
+                  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                    <p className="text-sm font-medium text-ui-fg-base">
+                      Acting for seller
+                    </p>
+                    <p className="mt-1 text-xs text-ui-fg-subtle">
+                      Leave empty to act as BuildKart. Selecting a seller
+                      requires a reason and records both identities in the audit
+                      trail.
+                    </p>
+                    <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                      <select
+                        className="h-10 rounded-md border border-ui-border-base bg-ui-bg-base px-3 text-sm"
+                        value={actingSellerId}
+                        onChange={(event) => setActingSellerId(event.target.value)}
+                      >
+                        <option value="">Act as BuildKart</option>
+                        {(sellers.data?.sellers ?? []).map((seller) => (
+                          <option key={seller.id} value={seller.id}>
+                            {seller.name} · {seller.id}
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        placeholder="Reason (required when acting)"
+                        value={actingReason}
+                        onChange={(event) => setActingReason(event.target.value)}
+                      />
+                      <Input
+                        placeholder="Reference / ticket (optional)"
+                        value={actingReference}
+                        onChange={(event) => setActingReference(event.target.value)}
+                      />
+                    </div>
+                    {actingSellerId ? (
+                      <p className="mt-2 text-xs text-ui-fg-error">
+                        Acting for {actingSellerId}. Every review action will be
+                        audited with both actor and seller.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="rounded-lg border border-ui-border-base">
                   {reviewChecks.map((check) => (
