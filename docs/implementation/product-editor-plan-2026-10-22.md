@@ -1,7 +1,7 @@
 # Product editor assessment and implementation plan
 
 Date: 2026-10-22  
-Status: Slices 1–4 implemented in staging; Slice 5 next  
+Status: Slices 1–5 implemented in staging; production readiness pending  
 Scope: Admin and Seller product creation/edit  
 Related: CHG-074 approved operating defaults
 
@@ -232,6 +232,58 @@ Deliberate Slice 4 boundaries:
 - New studio variants still need offer/inventory provisioning before inventory
   can be shown.
 
+## Slice 5 delivery (2026-10-23)
+
+Slice 5 completes the studio workflow through review and publication.
+
+Implemented:
+
+- Review status panel for Draft, Review required, Active and Rejected.
+- Server and client readiness checks:
+  - title
+  - category
+  - at least one variant
+  - every variant has a SKU
+  - every variant has an INR base offer price
+- Seller submission from draft to proposed:
+  - requires `role_seller_administration`
+  - writes a confirmed STATUS_CHANGE audit
+- Seller withdrawal from proposed back to draft.
+- Admin actions:
+  - submit for review
+  - approve and publish through Mercur `confirmProductsWorkflow`
+  - reject through `rejectProductWorkflow`
+  - request changes through `requestProductChangeWorkflow`
+  - reopen a rejected product as draft
+- Admin approval requires proposed status and re-checks readiness.
+- Publish and rejection append canonical ProductChange and product status
+  events.
+- The customer preview rail remains available before submission.
+
+Verification on staging:
+
+- A ready draft catalogue product moved `draft → proposed → rejected → draft`
+  through the admin review routes.
+- The same product moved `draft → proposed → published`, then was restored to
+  draft through the admin product update route for staging hygiene.
+- Audit rows recorded STATUS_CHANGE actions.
+- Admin review UI rendered all readiness checks and the submit action.
+- No catalogue products, pricing, stock or schema were added by the review
+  test.
+
+Deliberate Slice 5 boundaries:
+
+- New studio variants still cannot be submitted until offer and pricing
+  provisioning exists.
+- Published-product edit review is not part of this slice; post-publish edits
+  continue through the native product/offer pages.
+- Pause, archive and unpublish actions are not implemented in the studio.
+- `request changes` records the request but leaves the product proposed; a
+  dedicated seller resubmission state is not introduced.
+- There is no admin acting-for override in this slice.
+- Inventory remains read-only and does not gate publication beyond the offer
+  pricing readiness check.
+
 ## Current product flow
 
 ### Admin
@@ -353,5 +405,6 @@ The editor must not create a second product, attribute, price or inventory model
 - Product editor Slice 2: live on staging.
 - Product editor Slice 3 (pricing): live on staging.
 - Product editor Slice 4 (inventory read/request): live on staging.
-- Product editor Slice 5 (review and publish): next.
+- Product editor Slice 5 (review and publish): live on staging.
+- Product editor Slice 5 is the final editor slice.
 - Production remains unauthorized.

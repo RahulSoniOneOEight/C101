@@ -236,7 +236,12 @@ active_changes:
   product_studio_slice_4_release: 1f9c711
   product_studio_slice_4_scope: tryton-stock-read-and-adjustment-requests
   product_studio_slice_4_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice4.md
-  product_studio_next_slice: review-and-publish
+  product_studio_slice_5_status: staging-verified
+  product_studio_slice_5_release: b5243db
+  product_studio_slice_5_scope: review-submit-approve-reject-reopen
+  product_studio_slice_5_evidence: docs/implementation/session-note-2026-10-23-product-studio-slice5.md
+  product_studio_status: slices-1-to-5-staging-verified
+  product_studio_next_slice: offer-provisioning-and-production-readiness
   remaining_items:
   - full-rbac-role-templates
   - list-vs-selling-price
