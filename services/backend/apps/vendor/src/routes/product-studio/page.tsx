@@ -7,7 +7,7 @@ export const config: RouteConfig = {
   label: "Product Studio",
   icon: DocumentText,
   rank: 20,
-  nested: "products",
+  nested: "/products",
 };
 
 export default function VendorProductStudioPage() {
