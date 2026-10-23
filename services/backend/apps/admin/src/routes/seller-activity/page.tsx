@@ -222,14 +222,20 @@ export default function SellerActivityPage() {
           </Text>
         ) : (
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="w-full table-fixed">
               <Table.Header>
                 <Table.Row>
-                  <Table.HeaderCell className="w-[170px]">When</Table.HeaderCell>
-                  <Table.HeaderCell>Seller</Table.HeaderCell>
-                  <Table.HeaderCell>Product / offer</Table.HeaderCell>
-                  <Table.HeaderCell>Price change</Table.HeaderCell>
-                  <Table.HeaderCell>Actor / source</Table.HeaderCell>
+                  <Table.HeaderCell className="w-[150px]">When</Table.HeaderCell>
+                  <Table.HeaderCell className="w-[180px]">Seller</Table.HeaderCell>
+                  <Table.HeaderCell className="w-[260px]">
+                    Product / offer
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="w-[190px]">
+                    Price change
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="w-[180px]">
+                    Actor / source
+                  </Table.HeaderCell>
                   <Table.HeaderCell>Reason</Table.HeaderCell>
                 </Table.Row>
               </Table.Header>
@@ -261,12 +267,22 @@ export default function SellerActivityPage() {
                   const sellerQuery = sellerId
                     ? `?seller_id=${encodeURIComponent(sellerId)}`
                     : "";
+                  const actorId = event.payload.actor_user_id ?? null;
+                  const actorKind =
+                    event.actor?.kind ??
+                    (actorId?.startsWith("user_")
+                      ? "admin"
+                      : actorId?.startsWith("mem_")
+                        ? "seller"
+                        : "unknown");
                   const actorName =
                     event.actor?.name ??
                     event.actor?.email ??
-                    event.payload.actor_user_id ??
-                    "Unknown actor";
-                  const actorId = event.payload.actor_user_id ?? null;
+                    (actorKind === "admin"
+                      ? "Unknown admin"
+                      : actorKind === "seller"
+                        ? "Unknown seller"
+                        : "Unknown actor");
                   const actorSecondary = [
                     roleLabel(event.payload.actor_role),
                     sourceLabel(event.payload.source),
