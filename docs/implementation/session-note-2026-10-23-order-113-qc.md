@@ -1,7 +1,7 @@
 # Order page QC — order #113
 
-Date: 2026-10-23  
-Environment: staging, release `5628fca`  
+Date: 2026-10-23
+Environment: staging, release `5628fca`
 Result: delivery, payment and partial return flow pass; one UX inconsistency recorded.
 
 ## Test order
