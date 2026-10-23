@@ -148,6 +148,12 @@ implementation:
     scope: product-studio-under-catalogue-seller-products-label
     evidence: docs/implementation/session-note-2026-10-23-catalogue-navigation.md
     screenshots: client-projects/client101/evidence/CHG-074/
+  seller_activity_readability_slice:
+    status: staging-deployed-verified
+    release: 52b8aaa
+    scope: human-readable-names-b2c-b2b-summary-archived-record-resolution
+    evidence: docs/implementation/session-note-2026-10-24-seller-activity-readability.md
+    screenshots: client-projects/client101/evidence/CHG-074/
   remaining:
   - full RBAC role templates
   - list-vs-selling price fields

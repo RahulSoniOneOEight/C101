@@ -264,7 +264,11 @@ active_changes:
   catalogue_navigation_release: 9cceaae
   catalogue_navigation_scope: product-studio-under-catalogue-seller-products-label
   catalogue_navigation_evidence: docs/implementation/session-note-2026-10-23-catalogue-navigation.md
-  latest_staging_release: 9cceaae
+  seller_activity_readability_status: staging-verified
+  seller_activity_readability_release: 52b8aaa
+  seller_activity_readability_scope: human-readable-names-b2c-b2b-summary-archived-record-resolution
+  seller_activity_readability_evidence: docs/implementation/session-note-2026-10-24-seller-activity-readability.md
+  latest_staging_release: 52b8aaa
   product_studio_inventory_approval_status: staging-verified
   product_studio_inventory_approval_release: 13d6ede
   product_studio_inventory_approval_scope: request-list-approve-reject-no-stock-write
