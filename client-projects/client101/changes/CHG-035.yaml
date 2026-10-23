@@ -339,7 +339,7 @@ implementation:
     requested_by: human-requester
     requested_at_utc: '2026-10-23'
     approved_scope: local-admin-and-seller-order-workbench-manual-shipment-return-operations
-    status: local-runtime-verified-pending-staging-deployment
+    status: staging-deployed-verified
     carrier_automation: disabled
     admin_return_decision_authority: retained
     seller_operational_updates: own-allocation-only
@@ -376,12 +376,36 @@ implementation:
       seller_cancellation_restriction: implemented
       seller_read_transition_filtering: implemented
       delivered_evidence_guard: implemented
+    staging_evidence:
+      release: /opt/buildkart-releases/release-4387658
+      commit: '4387658'
+      current_symlink: /opt/buildkart-releases/current
+      public_health_api: pass-200
+      public_health_ops: pass-200
+      dashboard_asset_base: /dashboard/assets/
+      seller_asset_base: /seller/assets/
+      hosted_acceptance: pass-11-of-11
+      migration_forward: pass
+      migration_rollback: pass
+      migration_reapply: pass
+      migration_rehearsal_database: buildkart_experience_rehearsal
+      pre_deploy_backup: /opt/buildkart-releases/backups/buildkart_experience-pre-4387658.dump
+      hosted_shipment_order: order_01M5KZ7AXK08HZR3AVK3CCSJ82
+      hosted_shipment_tracking: SIM-0B631FF25F64
+      hosted_shipment_final: delivered-v5-5-of-5-units
+      hosted_return_order: order_01M5EWVP2CE3JBHFGBZZCAZXCW
+      hosted_return_final: received-v4
+      hosted_console_errors: 0
+      hosted_axe_admin: 0-violations-0-incomplete-22-passes
+      hosted_axe_seller: 0-violations-0-incomplete-21-passes
+      hosted_keyboard: pass
+      hosted_accessibility_tree: pass
+      screenshots: client-projects/client101/evidence/CHG-035/order-workbench-screenshots/
     not_yet_verified:
-    - staging deployment and hosted runtime cycle
-    - migration and rollback rehearsal for version columns and operation keys
-    - physical assistive-technology testing
-    - real carrier integration
-    staging_deployment_authorized: false
+    - physical assistive-technology session on dedicated hardware
+    - real carrier integration (separate governed change; carrier automation disabled by D-035-15)
+    staging_deployment_authorized: true
+    staging_deployment_completed: true
     production_release_authorized: false
   verification:
     experience_api_typecheck: pass
@@ -404,6 +428,13 @@ implementation:
     admin_widget_visual_review: pass
     admin_order_ux_visual_qc: pass
     order_96_delivery_return_cycle: pass
+    hosted_acceptance: pass-11-of-11
+    hosted_order_workbench_shipment: pass
+    hosted_order_workbench_return: pass
+    hosted_axe: pass
+    hosted_keyboard: pass
+    migration_rollback_rehearsal: pass
+    release_4387658_staging: pass
   open_decisions_implemented_as_staging_defaults: true
   open_decisions_production_approved: false
   planned_commits:

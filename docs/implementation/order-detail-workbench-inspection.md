@@ -2,7 +2,7 @@
 
 Date: 2026-10-23  
 Branch: `feat/order-detail-workbench`  
-Status: local implementation complete; staging deployment and production release not authorized
+Status: deployed to staging and verified; production release not authorized
 
 ## Delivered UI
 
@@ -104,8 +104,10 @@ money APIs or Tryton.
   `rejected` is the decline state and `closed` is the completion state.
 - Controlled correction of an already-`delivered` shipment is not exposed;
   correction requires a governed reversal contract.
-- Staging deployment and production release remain unauthorized. Local runtime
-  verification is complete.
+- Staging deployment and hosted runtime verification are complete for
+  `release-4387658`. Production release remains unauthorized.
+- Real carrier integration remains a separate governed change; D-035-15 disables
+  carrier automation for this increment.
 
 ## Verification performed locally
 
@@ -128,8 +130,23 @@ money APIs or Tryton.
   horizontal overflow.
 - Screenshots recorded under
   `client-projects/client101/evidence/CHG-035/order-workbench-screenshots/`.
+- Hosted staging release `4387658`: public health, dashboard/seller asset bases,
+  11/11 hosted acceptance checks, migration forward/rollback/re-apply rehearsal,
+  hosted Admin/Seller shipment and return flow, 0 console errors.
+- Hosted axe WCAG A/AA: 0 violations on Admin and Seller.
+- Hosted keyboard traversal and accessibility-tree review completed.
 
 The workbench uses container-adaptive state tiles and a single-column activity
 trail because Mercur renders the widget inside a ~740px main column; it does not
 depend on viewport-wide Tailwind breakpoints that the dashboard stylesheet may
 not generate.
+
+## Staging release
+
+- Release: `/opt/buildkart-releases/release-4387658`
+- Current symlink: `/opt/buildkart-releases/current`
+- Hosted Admin: `https://ops-staging.pinakaplay.cloud/dashboard/`
+- Hosted Seller: `https://ops-staging.pinakaplay.cloud/seller/`
+- Pre-deploy Experience backup:
+  `/opt/buildkart-releases/backups/buildkart_experience-pre-4387658.dump`
+- Production release: not authorized.
