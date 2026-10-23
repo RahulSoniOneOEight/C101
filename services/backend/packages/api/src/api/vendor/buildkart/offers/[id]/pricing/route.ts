@@ -10,6 +10,7 @@ import {
 import { vendorSellerId } from "../../../../../../lib/vendor-seller";
 import { recordSellerPriceActivity } from "../../../../../../lib/seller-activity";
 import type { MedusaContainer } from "@medusajs/framework";
+import { hasPermission } from "../../../../../../lib/rbac";
 
 type PricingBody = {
   prices?: OfferPriceInput[];
@@ -32,12 +33,7 @@ async function loadForSeller(
 }
 
 function canManagePricing(req: AuthenticatedMedusaRequest): boolean {
-  const role = (
-    req as AuthenticatedMedusaRequest & {
-      seller_context?: { seller_member?: { role_id?: string | null } };
-    }
-  ).seller_context?.seller_member?.role_id;
-  return role === "role_seller_administration";
+  return hasPermission(req, "price.update");
 }
 
 export async function GET(

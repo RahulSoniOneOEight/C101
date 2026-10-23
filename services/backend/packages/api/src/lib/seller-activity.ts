@@ -8,9 +8,11 @@ export interface SellerPriceActivityInput {
   actorRole: "admin" | "seller";
   source: "admin_console" | "seller_portal";
   reason?: string | null;
+  actingForSellerId?: string | null;
+  reference?: string | null;
+  correlationId?: string | null;
   before: unknown;
   after: unknown;
-  correlationId?: string | null;
 }
 
 export async function recordSellerPriceActivity(
@@ -30,6 +32,8 @@ export async function recordSellerPriceActivity(
         actor_role: input.actorRole,
         source: input.source,
         reason: input.reason ?? null,
+        acting_for_seller_id: input.actingForSellerId ?? null,
+        reference: input.reference ?? null,
         before: input.before,
         after: input.after,
         correlation_id: input.correlationId ?? null,

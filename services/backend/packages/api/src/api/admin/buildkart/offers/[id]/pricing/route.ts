@@ -8,6 +8,11 @@ import {
   type OfferPriceInput,
 } from "../../../../../../lib/offer-pricing";
 import { recordSellerPriceActivity } from "../../../../../../lib/seller-activity";
+import {
+  assertExpectedVersion,
+  resolveActingFor,
+} from "../../../../../../lib/acting-for";
+import { hasPermission } from "../../../../../../lib/rbac";
 
 type PricingBody = {
   prices?: OfferPriceInput[];
@@ -15,6 +20,10 @@ type PricingBody = {
   list_price_minor?: number | null;
   gst_inclusive?: boolean;
   enforce_policy?: boolean;
+  acting_for_seller_id?: string | null;
+  reference?: string | null;
+  correlation_id?: string | null;
+  expected_version?: string | null;
 };
 
 export async function GET(
@@ -36,6 +45,10 @@ export async function POST(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse,
 ): Promise<void> {
+  if (!hasPermission(req, "price.update")) {
+    res.status(403).json({ message: "Missing permission: price.update." } as never);
+    return;
+  }
   const body = (req.body ?? {}) as PricingBody;
   if (!Array.isArray(body.prices)) {
     res.status(422).json({ message: "prices must be an array." } as never);
@@ -43,6 +56,17 @@ export async function POST(
   }
   try {
     const current = await loadOfferPricing(req.scope, req.params.id);
+    const acting = await resolveActingFor(req.scope, req, body);
+    if (acting && acting.sellerId !== current.seller_id) {
+      res.status(403).json({
+        message: "The acting-for seller does not own this offer.",
+      } as never);
+      return;
+    }
+    assertExpectedVersion(
+      JSON.stringify(current.prices),
+      body.expected_version,
+    );
     const pricing = await updateOfferPricing(
       req.scope,
       req.params.id,
@@ -58,10 +82,13 @@ export async function POST(
       sellerId: pricing.seller_id,
       offerId: pricing.offer_id,
       productId: pricing.product_id,
-      actorUserId: req.auth_context?.actor_id ?? "admin_console",
+      actorUserId: acting?.actorUserId ?? req.auth_context?.actor_id ?? "admin_console",
       actorRole: "admin",
       source: "admin_console",
-      reason: body.reason ?? null,
+      reason: acting ? acting.reason : body.reason ?? null,
+      actingForSellerId: acting?.sellerId ?? null,
+      reference: acting?.reference ?? null,
+      correlationId: acting?.correlationId ?? null,
       before: {
         prices: current.prices,
         list_price_minor: current.list_price_minor,

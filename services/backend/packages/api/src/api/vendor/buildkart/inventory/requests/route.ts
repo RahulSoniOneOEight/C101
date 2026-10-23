@@ -5,6 +5,7 @@ import type {
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
 import { experienceAdminFetch } from "../../../../../lib/experience-admin";
 import { vendorSellerId } from "../../../../../lib/vendor-seller";
+import { hasPermission } from "../../../../../lib/rbac";
 
 type InventoryRequest = {
   offer_id?: string;
@@ -37,12 +38,7 @@ export async function GET(
 }
 
 function canManageInventory(req: AuthenticatedMedusaRequest): boolean {
-  const role = (
-    req as AuthenticatedMedusaRequest & {
-      seller_context?: { seller_member?: { role_id?: string | null } };
-    }
-  ).seller_context?.seller_member?.role_id;
-  return role === "role_seller_administration";
+  return hasPermission(req, "inventory-adjustment.submit");
 }
 
 export async function POST(

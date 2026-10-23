@@ -12,21 +12,13 @@ import {
   studioErrorResponse,
 } from "../../../../../../lib/product-studio";
 import { vendorSellerId } from "../../../../../../lib/vendor-seller";
+import { hasPermission } from "../../../../../../lib/rbac";
 
 type ReviewBody = {
   action?: "submit" | "withdraw";
   reason?: string;
   internal_note?: string;
 };
-
-function canManageListing(req: AuthenticatedMedusaRequest): boolean {
-  const role = (
-    req as AuthenticatedMedusaRequest & {
-      seller_context?: { seller_member?: { role_id?: string | null } };
-    }
-  ).seller_context?.seller_member?.role_id;
-  return role === "role_seller_administration";
-}
 
 async function setStatus(
   scope: AuthenticatedMedusaRequest["scope"],
@@ -70,16 +62,14 @@ export async function POST(
     if (!sellerId) {
       throw new StudioError(401, "Seller authentication required.");
     }
-    if (!canManageListing(req)) {
-      throw new StudioError(
-        403,
-        "Only a seller administrator can submit or withdraw a listing.",
-      );
-    }
     const body = (req.body ?? {}) as ReviewBody;
     const action = body.action;
     if (action !== "submit" && action !== "withdraw") {
       throw new StudioError(422, "Action must be submit or withdraw.");
+    }
+    const permission = action === "submit" ? "listing.submit" : "listing.update";
+    if (!hasPermission(req, permission)) {
+      throw new StudioError(403, `Missing permission: ${permission}.`);
     }
 
     const { product } = await loadStudioProduct(

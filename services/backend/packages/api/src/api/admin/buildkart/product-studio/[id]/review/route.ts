@@ -16,6 +16,8 @@ import {
   loadStudioProduct,
   studioErrorResponse,
 } from "../../../../../../lib/product-studio";
+import { resolveActingFor } from "../../../../../../lib/acting-for";
+import { hasPermission, type BuildkartPermission } from "../../../../../../lib/rbac";
 
 type ReviewBody = {
   action?:
@@ -31,6 +33,10 @@ type ReviewBody = {
   message?: string;
   reason?: string;
   internal_note?: string;
+  acting_for_seller_id?: string | null;
+  reference?: string | null;
+  correlation_id?: string | null;
+  expected_version?: string | null;
 };
 
 async function setStatus(
@@ -89,6 +95,26 @@ export async function POST(
       throw new StudioError(422, "A review action is required.");
     }
 
+    const permissionByAction: Record<string, BuildkartPermission> = {
+      submit: "listing.submit",
+      approve: "listing.approve",
+      reject: "listing.reject",
+      "request-changes": "listing.approve",
+      reopen: "listing.restore",
+      unpublish: "listing.pause",
+      pause: "listing.pause",
+      archive: "listing.pause",
+      restore: "listing.restore",
+    };
+    const permission = permissionByAction[action];
+    if (!permission || !hasPermission(req, permission)) {
+      throw new StudioError(
+        403,
+        `Missing permission: ${permission ?? "unknown action"}.`,
+      );
+    }
+
+    const acting = await resolveActingFor(req.scope, req, body);
     const { product } = await loadStudioProduct(
       req.scope,
       "admin",
@@ -96,6 +122,22 @@ export async function POST(
       req.params.id,
     );
     const status = String(product.status);
+    if (
+      acting &&
+      !(product.offers ?? []).some(
+        (offer: { seller_id?: string }) => offer.seller_id === acting.sellerId,
+      )
+    ) {
+      throw new StudioError(
+        403,
+        "The acting-for seller does not own an offer on this product.",
+      );
+    }
+    const actingNote = acting
+      ? ` [acting_for=${acting.sellerId} reason=${acting.reason} reference=${
+          acting.reference ?? "-"
+        } correlation=${acting.correlationId}]`
+      : "";
 
     if (action === "submit") {
       if (status !== "draft" && status !== "rejected") {
@@ -115,7 +157,7 @@ export async function POST(
         actorId,
         req.params.id,
         ProductStatus.PROPOSED,
-        body.internal_note ?? "Product submitted for review",
+        (body.internal_note ?? "Product submitted for review") + actingNote,
       );
     } else if (action === "approve") {
       if (status !== "proposed") {
@@ -132,9 +174,9 @@ export async function POST(
           product_ids: [req.params.id],
           actor_id: actorId,
           internal_note:
-            body.internal_note ??
-            body.reason ??
-            "Approved from Product Studio",
+            (body.internal_note ??
+              body.reason ??
+              "Approved from Product Studio") + actingNote,
         },
       });
     } else if (action === "reject") {
@@ -201,9 +243,9 @@ export async function POST(
             ? "paused"
             : "archived";
       const note =
-        body.reason ??
-        body.internal_note ??
-        `Product ${lifecycleState} from Product Studio`;
+        (body.reason ??
+          body.internal_note ??
+          `Product ${lifecycleState} from Product Studio`) + actingNote;
       await setStatus(
         req.scope,
         actorId,
@@ -225,7 +267,9 @@ export async function POST(
           "Only a paused, archived, unpublished or changes-requested product can be restored.",
         );
       }
-      const note = body.reason ?? "Product restored as a draft from Product Studio";
+      const note =
+        (body.reason ?? "Product restored as a draft from Product Studio") +
+        actingNote;
       await setStatus(
         req.scope,
         actorId,
@@ -248,7 +292,7 @@ export async function POST(
         actorId,
         req.params.id,
         ProductStatus.DRAFT,
-        body.reason ?? "Reopened from Product Studio",
+        (body.reason ?? "Reopened from Product Studio") + actingNote,
       );
     } else {
       throw new StudioError(422, `Unknown review action "${action}".`);
