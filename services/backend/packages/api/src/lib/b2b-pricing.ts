@@ -236,7 +236,7 @@ export async function saveB2bPricing(
     list_price_minor: listPrice,
     moq,
     gst_inclusive: input.gst_inclusive !== false,
-    environment: process.env.NODE_ENV ?? "development",
+    environment: process.env.BUILDKART_ENVIRONMENT ?? "staging",
     test_data: true,
   };
   const existing = await findList(scope, offerId);
