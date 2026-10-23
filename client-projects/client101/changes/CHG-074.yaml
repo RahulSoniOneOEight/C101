@@ -135,6 +135,13 @@ implementation:
     - DEC-074-03-partial
     - DEC-074-04-partial
     - DEC-074-13-partial
+  pricing_ui_slice:
+    status: staging-deployed-verified
+    release: 950f454
+    scope: b2c-b2b-side-by-side-layout-catalogue-nav-price-list-demotion
+    evidence: docs/implementation/session-note-2026-10-23-product-studio-pricing-ui.md
+    screenshots: client-projects/client101/evidence/CHG-074/
+    b2b_policy_alignment: pending-dec-074-03
   remaining:
   - full RBAC role templates
   - list-vs-selling price fields

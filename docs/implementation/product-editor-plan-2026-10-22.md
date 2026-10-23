@@ -435,6 +435,7 @@ The editor must not create a second product, attribute, price or inventory model
 - Product editor Slice 1: live on staging.
 - Product editor Slice 2: live on staging.
 - Product editor Slice 3 (pricing): live on staging.
+- Pricing UI split: B2C and B2B side by side with separate saves; live at `950f454`.
 - Product editor Slice 4 (inventory read/request): live on staging.
 - Product editor Slice 5 (review and publish): live on staging.
 - Product editor Slice 5 is the final editor slice.
