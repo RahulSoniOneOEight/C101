@@ -379,6 +379,8 @@ export class TrytonErp {
       currency,
       unit_price: 0,
       cost_price: 0,
+      effective_date: new Date().toISOString().slice(0, 10),
+      planned_date: new Date().toISOString().slice(0, 10),
     });
     await this.client.write("stock.move", [moveId], { state: "done" });
     const rows = await this.client.read("stock.move", [moveId], [
