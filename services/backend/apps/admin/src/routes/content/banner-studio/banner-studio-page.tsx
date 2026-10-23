@@ -23,6 +23,7 @@ import {
   type ContentDocument,
   type ContentLocale,
 } from "../content-model";
+import { validateStoredSections } from "../layout-section-model";
 import {
   CATEGORY_DETAILS_ROUTE,
   LIFECYCLE_META,
@@ -78,11 +79,18 @@ function RotationControl({
   const initial = Number(document.heroRotationMs ?? 0) || 0;
   const [value, setValue] = useState(String(initial));
   const status = String(document.publicationStatus ?? "draft");
+  const layoutValidation = validateStoredSections(
+    document.sections,
+    channel === "B2C" ? "b2c" : "b2b",
+  );
 
   const save = useMutation({
     mutationFn: async () => {
       if (status !== "published") {
         throw new Error("Publish the pending layout in Storefront layouts first.");
+      }
+      if (layoutValidation.errors.length > 0) {
+        throw new Error("Fix the layout validation errors in Storefront layouts first.");
       }
       if (!Array.isArray(document.sections)) {
         throw new Error("Layout sections are unavailable. Repair this layout in Storefront layouts.");
@@ -116,7 +124,7 @@ function RotationControl({
   });
 
   const unchanged = (Number.parseInt(value, 10) || 0) === initial;
-  const disabled = status !== "published" || save.isPending || unchanged;
+  const disabled = status !== "published" || save.isPending || unchanged || layoutValidation.errors.length > 0;
 
   return (
     <div className="min-w-52">
@@ -145,6 +153,9 @@ function RotationControl({
       <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
         0 keeps the carousel static.
         {status !== "published" ? " Publish the pending layout first." : ""}
+        {layoutValidation.errors.length > 0
+          ? " Fix the layout validation errors in Storefront layouts first."
+          : ""}
       </Text>
     </div>
   );
