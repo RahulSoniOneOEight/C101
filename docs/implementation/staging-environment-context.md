@@ -1,6 +1,6 @@
 # Staging environment context — BuildKart / C101
 
-Date: 2026-10-23  
+Date: 2026-10-23
 Audience: OpenCode tabs working on the BuildKart staging release.
 
 ## Purpose
@@ -144,7 +144,7 @@ The Admin/Seller order page contains only:
 - Activity
 - collapsed System references
 
-Delivery statuses: **Dispatched, In Transit, Out For Delivery, Delivered**.  
+Delivery statuses: **Dispatched, In Transit, Out For Delivery, Delivered**.
 Return statuses: **Schedule Return, Waiting For Pickup, Return Completed**.
 
 Removed: Operational status tiles, staging banner, Technical details, terminal delivery update
