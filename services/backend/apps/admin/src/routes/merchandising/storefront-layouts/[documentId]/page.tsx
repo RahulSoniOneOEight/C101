@@ -14,7 +14,7 @@ import {
   usePrompt,
 } from "@medusajs/ui";
 import { SingleColumnPage } from "@mercurjs/dashboard-shared";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useBlocker, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { client } from "../../../../lib/client";
@@ -306,7 +306,7 @@ function LayoutEditor({
   );
 
   const [sections, setSections] = useState<StoredLayoutSection[]>(initialSections);
-  const [heroRotationMs, setHeroRotationMs] = useState(initialHeroRotationMs);
+  const [heroRotationMs] = useState(initialHeroRotationMs);
   const [baseline, setBaseline] = useState(() =>
     JSON.stringify({ sections: initialSections, heroRotationMs: initialHeroRotationMs }));
   const [open, setOpen] = useState<string | null>(null);
@@ -316,6 +316,55 @@ function LayoutEditor({
     [sections, channel],
   );
   const dirty = JSON.stringify({ sections, heroRotationMs }) !== baseline;
+
+  const collectionIds = useMemo(() => {
+    const ids = new Set<string>();
+    const collect = (section: StoredLayoutSection) => {
+      if (section.collectionKey) ids.add(section.collectionKey);
+      section.children?.forEach(collect);
+    };
+    sections.forEach(collect);
+    return Array.from(ids);
+  }, [sections]);
+
+  const countQueries = useQueries({
+    queries: collectionIds.map((collectionId) => ({
+      queryKey: ["buildkart", "collection-storefront-count", channel, collectionId],
+      queryFn: async () => {
+        const params = new URLSearchParams({
+          collection_id: collectionId,
+          limit: "250",
+          channel,
+        });
+        const response = await fetch(`/v1/products?${params.toString()}`, {
+          credentials: "include",
+        });
+        if (!response.ok) throw new Error("Section products could not be resolved.");
+        const body = (await response.json()) as { products?: unknown[] };
+        return Array.isArray(body.products) ? body.products.length : 0;
+      },
+      staleTime: 60_000,
+    })),
+  });
+
+  const collectionCounts = new Map<string, number | null>();
+  collectionIds.forEach((collectionId, index) => {
+    const count = countQueries[index]?.data;
+    collectionCounts.set(collectionId, typeof count === "number" ? count : null);
+  });
+
+  const emptyCollectionWarnings: string[] = [];
+  const collectEmptyWarnings = (section: StoredLayoutSection) => {
+    if (section.enabled !== false && section.collectionKey) {
+      if (collectionCounts.get(section.collectionKey) === 0) {
+        emptyCollectionWarnings.push(
+          `${sectionTypeFor(section.placement)?.label ?? section.placement} resolves 0 products. Add products to its collection or hide the section.`,
+        );
+      }
+    }
+    section.children?.forEach(collectEmptyWarnings);
+  };
+  sections.forEach(collectEmptyWarnings);
 
   const blocker = useBlocker(dirty);
   useEffect(() => {
@@ -451,7 +500,7 @@ function LayoutEditor({
                 variant="secondary"
                 size="small"
                 isLoading={saveMutation.isPending}
-                disabled={!dirty || validation.errors.length > 0}
+                disabled={!dirty || saveMutation.isPending}
                 onClick={() => saveMutation.mutate(false)}
               >
                 Save draft
@@ -476,26 +525,87 @@ function LayoutEditor({
         </Container>
 
         <Container className="px-6 py-4">
-          <Heading level="h2">Hero carousel</Heading>
-          <Text size="small" className="mt-1 text-ui-fg-subtle">
-            How long each hero banner stays before advancing. 0 keeps the carousel still. The
-            interval applies to this layout's channel only.
-          </Text>
-          <div className="mt-3 max-w-48">
-            <Label htmlFor="hero-rotation" size="small">Rotation (ms)</Label>
-            <Input
-              id="hero-rotation"
-              type="number"
-              min={0}
-              step={100}
-              value={String(heroRotationMs)}
-              onChange={(event) => {
-                const next = Number.parseInt(event.target.value, 10);
-                setHeroRotationMs(Number.isFinite(next) && next > 0 ? next : 0);
-              }}
-            />
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <Heading level="h2">Hero banners</Heading>
+              <Text size="small" className="mt-1 text-ui-fg-subtle">
+                Hero content and carousel rotation are managed in Banner studio. This page controls
+                the product sections below.
+              </Text>
+              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                Current rotation: {heroRotationMs > 0 ? `${heroRotationMs} ms` : "static"}.
+              </Text>
+            </div>
+            <Button asChild size="small" variant="secondary">
+              <Link to="/merchandising/banners">Open Banner studio</Link>
+            </Button>
           </div>
         </Container>
+
+        <Container className="px-6 py-4">
+          <Heading level="h2">Storefront composition</Heading>
+          <Text size="small" className="mt-1 text-ui-fg-subtle">
+            Draft order, top to bottom. Save and publish to make it live.
+          </Text>
+          <div className="mt-3 grid gap-2">
+            {sections.map((section, index) => {
+              const type = sectionTypeFor(section.placement);
+              const count = section.collectionKey
+                ? collectionCounts.get(section.collectionKey)
+                : null;
+              return (
+                <div
+                  key={section.placement}
+                  className="rounded-lg border border-ui-border-base px-4 py-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Text size="small" weight="plus">
+                      {index + 1}. {section.title || type?.label || section.placement}
+                    </Text>
+                    <StatusBadge color={section.enabled === false ? "grey" : "green"}>
+                      {section.enabled === false ? "Hidden" : "Shown"}
+                    </StatusBadge>
+                  </div>
+                  <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                    {type?.label ?? section.placement}
+                    {section.badge ? ` · ${section.badge}` : ""}
+                    {section.collectionKey
+                      ? ` · ${count === null ? "products unavailable" : `${count} products`}`
+                      : ""}
+                    {section.startsAt || section.endsAt ? " · scheduled" : ""}
+                  </Text>
+                  {section.children?.length ? (
+                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                      Tabs: {section.children
+                        .map((child) => child.title || sectionTypeFor(child.placement)?.label || child.placement)
+                        .join(" · ")}
+                    </Text>
+                  ) : null}
+                </div>
+              );
+            })}
+            {sections.length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">No sections configured.</Text>
+            ) : null}
+          </div>
+        </Container>
+
+        {emptyCollectionWarnings.length > 0 ? (
+          <Container className="px-6 py-4">
+            <Heading level="h2">Sections with no products</Heading>
+            <Text size="small" className="mt-1 text-ui-fg-subtle">
+              These sections are visible but resolve zero products. The storefront may render an
+              empty rail until the collection is populated or the section is hidden.
+            </Text>
+            <ul className="mt-2 list-disc pl-4">
+              {emptyCollectionWarnings.map((warning) => (
+                <li key={warning}>
+                  <Text size="small" className="text-ui-fg-error">{warning}</Text>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        ) : null}
 
         {validation.errors.length > 0 ? (
           <Container className="border-ui-border-error px-6 py-4">
@@ -523,6 +633,9 @@ function LayoutEditor({
           {sections.map((section, index) => {
                 const type = sectionTypeFor(section.placement);
                 const isOpen = open === section.placement;
+                const sectionCount = section.collectionKey
+                  ? collectionCounts.get(section.collectionKey)
+                  : null;
                 return (
                   <Container key={section.placement} className="overflow-hidden p-0">
                     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -555,6 +668,14 @@ function LayoutEditor({
                               ? `Collection: ${collections.find((c) => c.id === section.collectionKey)?.title ?? section.collectionKey}`
                               : SOURCE_LABELS[type?.source ?? "collection"]}
                           </Text>
+                          {section.collectionKey ? (
+                            <Text
+                              size="xsmall"
+                              className={sectionCount === 0 ? "text-ui-fg-error" : "text-ui-fg-subtle"}
+                            >
+                              {sectionCount === null ? "Products unavailable" : `${sectionCount} products`}
+                            </Text>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -618,10 +739,21 @@ function LayoutEditor({
                                     </Text>
                                   );
                                 }
+                                const childCount = configured.collectionKey
+                                  ? collectionCounts.get(configured.collectionKey)
+                                  : null;
                                 return (
                                   <div key={child.placement} className="rounded-lg border border-ui-border-base bg-ui-bg-base">
-                                    <div className="border-b border-ui-border-base px-4 py-2">
+                                    <div className="flex items-center justify-between gap-2 border-b border-ui-border-base px-4 py-2">
                                       <Text size="small" weight="plus">{child.label}</Text>
+                                      {configured.collectionKey ? (
+                                        <Text
+                                          size="xsmall"
+                                          className={childCount === 0 ? "text-ui-fg-error" : "text-ui-fg-subtle"}
+                                        >
+                                          {childCount === null ? "Products unavailable" : `${childCount} products`}
+                                        </Text>
+                                      ) : null}
                                     </div>
                                     <SectionFields
                                       section={configured}

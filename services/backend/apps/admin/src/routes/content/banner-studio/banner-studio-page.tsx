@@ -65,6 +65,142 @@ function BannerThumb({ document }: { document: ContentDocument }) {
   );
 }
 
+function RotationControl({
+  channel,
+  document,
+  locale,
+}: {
+  channel: "B2C" | "B2B";
+  document: ContentDocument;
+  locale: ContentLocale;
+}) {
+  const queryClient = useQueryClient();
+  const initial = Number(document.heroRotationMs ?? 0) || 0;
+  const [value, setValue] = useState(String(initial));
+  const status = String(document.publicationStatus ?? "draft");
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (status !== "published") {
+        throw new Error("Publish the pending layout in Storefront layouts first.");
+      }
+      if (!Array.isArray(document.sections)) {
+        throw new Error("Layout sections are unavailable. Repair this layout in Storefront layouts.");
+      }
+      const next = Math.max(0, Number.parseInt(value, 10) || 0);
+      await client.admin.buildkart.content.mutate({
+        kind: "storefront-layout",
+        locale,
+        operation: "update-draft",
+        documentId: String(document.documentId),
+        data: { sections: document.sections, heroRotationMs: next },
+        expectedUpdatedAt: String(document.updatedAt ?? ""),
+      });
+      await client.admin.buildkart.content.mutate({
+        kind: "storefront-layout",
+        locale,
+        operation: "publish",
+        documentId: String(document.documentId),
+      });
+      return next;
+    },
+    onSuccess: async () => {
+      toast.success(`${channel} hero rotation saved`);
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "cms-content", "storefront-layout", locale],
+      });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Hero rotation could not be saved.");
+    },
+  });
+
+  const unchanged = (Number.parseInt(value, 10) || 0) === initial;
+  const disabled = status !== "published" || save.isPending || unchanged;
+
+  return (
+    <div className="min-w-52">
+      <Label htmlFor={`${channel}-hero-rotation`} size="small">
+        {channel} rotation (ms)
+      </Label>
+      <div className="mt-1 flex items-center gap-2">
+        <Input
+          id={`${channel}-hero-rotation`}
+          type="number"
+          min={0}
+          step={100}
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+        <Button
+          size="small"
+          variant="secondary"
+          isLoading={save.isPending}
+          disabled={disabled}
+          onClick={() => save.mutate()}
+        >
+          Save
+        </Button>
+      </div>
+      <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+        0 keeps the carousel static.
+        {status !== "published" ? " Publish the pending layout first." : ""}
+      </Text>
+    </div>
+  );
+}
+
+function HeroRotationCard({ locale }: { locale: ContentLocale }) {
+  const layouts = useQuery({
+    queryKey: ["buildkart", "cms-content", "storefront-layout", locale],
+    queryFn: () => client.admin.buildkart.content.query({ kind: "storefront-layout", locale }),
+  });
+  if (layouts.isPending) return null;
+  const documents = layouts.data?.documents ?? [];
+  const b2c = documents.find((document) => document.channel === "b2c");
+  const b2b = documents.find((document) => document.channel === "b2b");
+  if (!b2c && !b2b) return null;
+
+  return (
+    <Container className="px-6 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Heading level="h2">Hero carousel</Heading>
+          <Text size="small" className="mt-1 text-ui-fg-subtle">
+            How long each hero banner stays before advancing. 0 keeps it static. Hero content is
+            managed above; rotation is written to the storefront layout for the channel.
+          </Text>
+        </div>
+        <Text size="xsmall" className="text-ui-fg-subtle">
+          {localeLabel(locale)} · layout setting
+        </Text>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-8">
+        {b2c ? (
+          <RotationControl
+            key={`b2c-${String(b2c.updatedAt)}`}
+            channel="B2C"
+            document={b2c}
+            locale={locale}
+          />
+        ) : (
+          <Text size="small" className="text-ui-fg-subtle">No B2C layout.</Text>
+        )}
+        {b2b ? (
+          <RotationControl
+            key={`b2b-${String(b2b.updatedAt)}`}
+            channel="B2B"
+            document={b2b}
+            locale={locale}
+          />
+        ) : (
+          <Text size="small" className="text-ui-fg-subtle">No B2B layout.</Text>
+        )}
+      </div>
+    </Container>
+  );
+}
+
 export function BannerStudioPage() {
   const queryClient = useQueryClient();
   const prompt = usePrompt();
@@ -508,6 +644,8 @@ export function BannerStudioPage() {
             </>
           )}
         </Container>
+
+        <HeroRotationCard locale={locale} />
 
         <Container className="px-6 py-3">
           <Text size="xsmall" className="text-ui-fg-subtle">
