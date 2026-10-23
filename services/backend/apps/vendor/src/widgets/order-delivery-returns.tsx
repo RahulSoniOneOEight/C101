@@ -444,7 +444,10 @@ const SellerOrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) =>
                         <Link to={`/shipments/${shipment.id}`}>View timeline</Link>
                       </Button>
                     </div>
-                    {capabilities.can_update_delivery ? (
+                    {capabilities.can_update_delivery &&
+                    DELIVERY_OPTIONS.some((option) =>
+                      shipment.allowedTransitions.includes(option.value),
+                    ) ? (
                       <details className="mt-3 rounded-md bg-ui-bg-subtle px-3 py-2">
                         <summary className="cursor-pointer text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive">
                           Update delivery status
