@@ -177,6 +177,6 @@ implementation:
   docker_image_build: pass
   staging_health: pass
   qc_initial: rework
-  qc_after_corrections: approve-with-changes-staging
+  qc_after_corrections: approve-staging
   production_release_authorized: false
 
