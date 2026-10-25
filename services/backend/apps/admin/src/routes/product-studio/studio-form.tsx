@@ -318,10 +318,14 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
 
   const scrollToSection = (id: string) => {
     setActive(id);
-    document.getElementById(id)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const element = document.getElementById(id);
+    if (element) {
+      const top = Math.max(
+        0,
+        element.getBoundingClientRect().top + window.scrollY - 132,
+      );
+      window.scrollTo({ top, behavior: "smooth" });
+    }
     const url = new URL(window.location.href);
     url.searchParams.set("section", id.replace("studio-", ""));
     window.history.replaceState({}, "", url);
@@ -337,10 +341,14 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
     const id = `studio-${requested}`;
     if (!WORKSPACE_TABS.some((tab) => tab.id === id)) return;
     const handle = window.setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({
-        behavior: "auto",
-        block: "start",
-      });
+      const element = document.getElementById(id);
+      if (element) {
+        const top = Math.max(
+          0,
+          element.getBoundingClientRect().top + window.scrollY - 132,
+        );
+        window.scrollTo({ top, behavior: "auto" });
+      }
       setActive(id);
     }, 150);
     return () => window.clearTimeout(handle);
