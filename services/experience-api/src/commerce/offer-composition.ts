@@ -122,8 +122,12 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
   const eligible = offerViews.filter(
     (o) => o.in_stock !== false && o.unit_amount_minor != null,
   );
-  const selected = eligible.length
-    ? eligible.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), eligible[0])
+  // A B2B buyer must see an offer whose seller has published B2B terms. When at least one
+  // configured offer exists, compare only those; otherwise fall back to the normal offer price.
+  const configured = eligible.filter((o) => o.b2b_configured);
+  const candidates = channel === "b2b" && configured.length ? configured : eligible;
+  const selected = candidates.length
+    ? candidates.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), candidates[0])
     : null;
   return { offerViews, selected };
 }

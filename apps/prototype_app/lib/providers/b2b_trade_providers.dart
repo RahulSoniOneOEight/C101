@@ -869,7 +869,18 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
   ProductVariant? selected;
   for (final variant in product.variants) {
     if (!variant.isPurchasable || variant.price == null) continue;
-    if (selected == null || variant.price!.amount < selected.price!.amount) {
+    if (selected == null) {
+      selected = variant;
+      continue;
+    }
+    // A seller's published B2B terms beat a B2C-only SKU, even when the B2C
+    // price happens to be lower. The buyer must see the trade offer the seller
+    // actually authorised.
+    if (variant.b2bConfigured != selected.b2bConfigured) {
+      if (variant.b2bConfigured) selected = variant;
+      continue;
+    }
+    if (variant.price!.amount < selected.price!.amount) {
       selected = variant;
     }
   }

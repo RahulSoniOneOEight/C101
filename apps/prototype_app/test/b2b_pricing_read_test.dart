@@ -57,6 +57,7 @@ void main() {
     expect(trade.tiers.map((tier) => tier.unitPrice.amount).toList(),
         <int>[389000, 379000]);
     expect(trade.sellers.single.moq, 5);
+    expect(product.variants.single.b2bConfigured, true);
     expect(product.variants.single.mrp?.amount, 475000);
   });
 
@@ -71,10 +72,74 @@ void main() {
     expect(trade.sellers.single.moq, 1);
   });
 
+  test('B2B surfaces prefer a configured trade SKU over a cheaper B2C SKU', () {
+    final b2cOnly = <String, dynamic>{
+      'id': 'offer_b2c_only',
+      'seller_name': 'B2C Supplier',
+      'currency_code': 'INR',
+      'unit_amount_minor': 380000,
+      'list_amount_minor': 475000,
+      'inventory_quantity': 50,
+      'b2b_configured': false,
+      'b2b_moq': null,
+      'b2b_tiers': <Map<String, dynamic>>[],
+    };
+    final configured = <String, dynamic>{
+      'id': 'offer_b2b',
+      'seller_name': 'B2B Supplier',
+      'currency_code': 'INR',
+      'unit_amount_minor': 399000,
+      'list_amount_minor': 475000,
+      'inventory_quantity': 50,
+      'b2b_configured': true,
+      'b2b_moq': 5,
+      'b2b_tiers': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'min_quantity': 5,
+          'max_quantity': 9,
+          'amount': 389000,
+        },
+      ],
+    };
+    final product = Product.fromComposedJson(<String, dynamic>{
+      'id': 'prod_mixed',
+      'title': 'Mixed Terms Product',
+      'variants': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'id': 'var_b2c',
+          'title': 'B2C SKU',
+          'sku': 'SKU-B2C',
+          'in_stock': true,
+          'offer_count': 1,
+          'best_price': b2cOnly,
+        },
+        <String, dynamic>{
+          'id': 'var_b2b',
+          'title': 'B2B SKU',
+          'sku': 'SKU-B2B',
+          'in_stock': true,
+          'offer_count': 1,
+          'best_price': configured,
+        },
+      ],
+      'best_price': b2cOnly,
+      'metadata': <String, dynamic>{'catalogue_import': 'CHG-049'},
+      'categories': <dynamic>[],
+    });
+    final trade = tradeProductFromCatalogue(product);
+
+    expect(trade.tradePrice.amount, 399000);
+    expect(trade.moq, 5);
+    expect(trade.tiers.single.quantity, 5);
+    expect(product.variants.first.b2bConfigured, false);
+    expect(product.variants.last.b2bConfigured, true);
+  });
+
   test('cached catalogue round-trip preserves B2B MOQ and tiers', () {
     final product = Product.fromComposedJson(_composed(configured: true));
     final restored = Product.fromCacheJson(product.toCacheJson());
 
+    expect(restored.variants.single.b2bConfigured, true);
     expect(restored.variants.single.b2bMoq, 5);
     expect(restored.variants.single.b2bTiers.length, 2);
     expect(restored.variants.single.b2bTiers.first.unitPrice.amount, 389000);

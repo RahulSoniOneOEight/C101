@@ -90,6 +90,7 @@ class ProductVariant {
     this.inStock = true,
     this.offerCount = 0,
     this.stockQty,
+    this.b2bConfigured = false,
     this.b2bMoq,
     this.b2bTiers = const <B2bPriceTier>[],
   });
@@ -108,7 +109,10 @@ class ProductVariant {
   /// 50-unit fixture, never a supplier stock claim.
   final int? stockQty;
 
-  /// B2B MOQ and configured quantity tiers from the per-offer B2B price list.
+  /// B2B terms from the per-offer B2B price list. A configured variant is the
+  /// seller's published trade offer, so B2B surfaces prefer it over a B2C-only
+  /// variant with no trade terms.
+  final bool b2bConfigured;
   final int? b2bMoq;
   final List<B2bPriceTier> b2bTiers;
 
@@ -138,6 +142,7 @@ class ProductVariant {
       inStock: json['in_stock'] as bool? ?? true,
       offerCount: (json['offer_count'] as num?)?.toInt() ?? 0,
       stockQty: (best?['inventory_quantity'] as num?)?.toInt(),
+      b2bConfigured: best?['b2b_configured'] == true,
       b2bMoq: (best?['b2b_moq'] as num?)?.toInt(),
       b2bTiers: b2bTiersFromJson(best?['b2b_tiers'], currency),
     );
@@ -490,6 +495,7 @@ class Product {
               'in_stock': variant.inStock,
               'offer_count': variant.offerCount,
               'stock_qty': variant.stockQty,
+              'b2b_configured': variant.b2bConfigured,
               'b2b_moq': variant.b2bMoq,
               'b2b_tiers': <Map<String, dynamic>>[
                 for (final tier in variant.b2bTiers)
@@ -554,6 +560,7 @@ class Product {
                 inStock: v['in_stock'] as bool? ?? true,
                 offerCount: (v['offer_count'] as num?)?.toInt() ?? 0,
                 stockQty: (v['stock_qty'] as num?)?.toInt(),
+                b2bConfigured: v['b2b_configured'] == true,
                 b2bMoq: (v['b2b_moq'] as num?)?.toInt(),
                 b2bTiers: b2bTiersFromJson(v['b2b_tiers'], currency),
               );

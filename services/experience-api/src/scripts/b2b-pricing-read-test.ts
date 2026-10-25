@@ -110,6 +110,50 @@ assert.equal(b2bWinner.selected?.unit_amount_minor, 150000);
 const b2cWinner = composeOffers(offers, { channel: "b2c" });
 assert.equal(b2cWinner.selected?.id, "offer_a", "B2C selection must still compare B2C prices");
 
+// A cheaper B2C-only offer must not win over an offer with published B2B terms.
+const mixed = composeOffers(
+  [
+    offer({
+      id: "offer_b2c_only",
+      calculated_price: {
+        calculated_amount: 50000,
+        original_amount: 60000,
+        currency_code: "inr",
+        calculated_amount_with_tax: 50000,
+        calculated_amount_without_tax: 50000,
+      },
+    }),
+    offer({
+      id: "offer_b2b_terms",
+      calculated_price: {
+        calculated_amount: 90000,
+        original_amount: 100000,
+        currency_code: "inr",
+        calculated_amount_with_tax: 90000,
+        calculated_amount_without_tax: 90000,
+      },
+    }),
+  ],
+  {
+    channel: "b2b",
+    b2bPricing: {
+      offer_b2b_terms: {
+        configured: true,
+        amount: 90000,
+        list_price_minor: 100000,
+        moq: 5,
+        tiers: [],
+      },
+    },
+  },
+);
+assert.equal(
+  mixed.selected?.id,
+  "offer_b2b_terms",
+  "B2B selection must prefer an offer with published B2B terms over a cheaper B2C-only offer",
+);
+assert.equal(mixed.selected?.b2b_moq, 5);
+
 // --- An unconfigured B2B offer falls back rather than inventing a price ------------------------
 const unconfigured = composeOffers([offer({ id: "offer_plain" })], {
   channel: "b2b",
