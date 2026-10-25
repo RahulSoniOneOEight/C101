@@ -284,16 +284,17 @@ export default function SellerActivityPage() {
                     event.actor?.kind ??
                     (actorId?.startsWith("user_")
                       ? "admin"
-                      : actorId?.startsWith("mem_")
+                      : actorId?.startsWith("mem_") ||
+                          event.payload.actor_role === "seller"
                         ? "seller"
                         : "unknown");
                   const actorName =
                     event.actor?.name ??
                     event.actor?.email ??
-                    (actorKind === "admin"
-                      ? "Unknown admin"
-                      : actorKind === "seller"
-                        ? "Unknown seller"
+                    (actorKind === "seller"
+                      ? sellerName
+                      : actorKind === "admin"
+                        ? "Unknown admin"
                         : "Unknown actor");
                   const actorSecondary = [
                     roleLabel(event.payload.actor_role),
