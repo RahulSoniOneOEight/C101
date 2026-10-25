@@ -420,7 +420,7 @@ function Section({
     <section
       id={id}
       tabIndex={-1}
-      className="scroll-mt-24 border-t border-ui-border-base px-6 py-6 first:border-t-0"
+      className="scroll-mt-36 border-t border-ui-border-base px-6 py-6 first:border-t-0"
     >
       <div className="mb-5 flex items-start gap-3">
         <span
@@ -926,6 +926,11 @@ function OfferPricingEditor({
               {b2bAmount ? "Configured" : "Not configured"}
             </StatusBadge>
           </div>
+          {!b2bAmount ? (
+            <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+              MOQ and GST defaults below apply only after B2B pricing is saved.
+            </Text>
+          ) : null}
 
           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <label className="flex flex-col gap-1">
@@ -3466,7 +3471,9 @@ export function ProductStudioForm({
                   ? "You have unsaved changes."
                   : lastSaved
                     ? `Last saved at ${lastSaved}.`
-                    : "Draft not saved yet."}
+                    : productId
+                      ? "No unsaved changes."
+                      : "Start with the product details, then save the draft."}
               </Text>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
