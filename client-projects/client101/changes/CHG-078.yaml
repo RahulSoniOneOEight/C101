@@ -1,0 +1,72 @@
+change_id: CHG-078
+revision: 1
+status: approved-in-progress
+request: >-
+  Make the B2B storefront consume the B2B price list saved in Product Studio, so
+  B2B catalogue, product detail and RFQ surfaces use the B2B selling price, B2B
+  list price, MOQ and quantity tiers instead of the B2C price plus a hardcoded
+  5%/10% ladder.
+type: b2b-storefront-price-consumption
+extends:
+- CHG-076
+approved_by: human-requester
+approved_at_utc: '2026-10-25'
+approval_scope: b2b-storefront-price-read-path-staging-only
+production_release_authorized: false
+affected_capabilities:
+- b2b-pricing
+- b2b-catalogue
+- b2b-product-detail
+- b2b-rfq
+affected_domains:
+- commerce
+- experience
+affected_surfaces:
+- experience-api
+- app.prototype.b2b-trade
+decisions:
+- id: DEC-078-01
+  area: Read model source
+  approved_default: >-
+    Product Studio mirrors each saved B2B price list snapshot onto the product
+    metadata under buildkart_b2b_pricing, keyed by offer id. The Experience API
+    composes the B2B storefront from this snapshot because the storefront does
+    not carry a Medusa customer-group pricing context.
+- id: DEC-078-02
+  area: Channel isolation
+  approved_default: >-
+    B2C composition never reads the B2B snapshot. B2B composition uses the
+    snapshot only for the authenticated business-buyer channel and only while
+    the effective-date window is open.
+- id: DEC-078-03
+  area: Price selection
+  approved_default: >-
+    B2B offer selection compares B2B selling prices. An offer without a
+    configured B2B snapshot falls back to its existing offer price rather than
+    inventing a B2B price.
+- id: DEC-078-04
+  area: MOQ and tiers
+  approved_default: >-
+    The selected B2B offer supplies MOQ and structured quantity tiers. If no B2B
+    snapshot is configured, the existing storefront ladder remains the fallback.
+implementation:
+  status: code-complete-staging-deployment-pending
+  release: pending
+  evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
+  files:
+  - services/backend/packages/api/src/lib/b2b-pricing.ts
+  - services/experience-api/src/commerce/offer-composition.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/scripts/b2b-pricing-read-test.ts
+  - apps/prototype_app/lib/domain/models.dart
+  - apps/prototype_app/lib/providers/b2b_trade_providers.dart
+  verification:
+    api_typecheck: pass
+    experience_api_typecheck: pass
+    b2b_read_path_test: pass
+    flutter_analyze: pass
+    staging_b2b_catalogue_qc: pending
+    staging_b2b_pdp_qc: pending
+    staging_b2b_rfq_qc: pending
+  production_blocked_by:
+  - human-production-authorization

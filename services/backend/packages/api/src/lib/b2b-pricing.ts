@@ -4,6 +4,7 @@ import {
   batchPriceListPricesWorkflow,
   createPriceListsWorkflow,
   updatePriceListsWorkflow,
+  updateProductsWorkflow,
 } from "@medusajs/core-flows";
 
 const B2B_GROUP_NAME = "B2B Trade Customers";
@@ -340,6 +341,53 @@ export async function saveB2bPricing(
         },
       } as never,
     });
+  }
+
+  // Mirror the B2B snapshot into the product read model. The B2B app reads the
+  // composed product payload without a Medusa customer-group pricing context,
+  // so this read model is how the saved price list reaches the storefront.
+  if (offer.product_id) {
+    const productQuery = scope.resolve(ContainerRegistrationKeys.QUERY);
+    const { data: productRows } = await productQuery.graph({
+      entity: "product",
+      fields: ["id", "metadata"],
+      filters: { id: offer.product_id },
+    });
+    const product = (productRows ?? [])[0] as
+      | { id?: string; metadata?: Record<string, unknown> | null }
+      | undefined;
+    if (product?.id) {
+      const currentMetadata = (product.metadata ?? {}) as Record<string, unknown>;
+      const currentB2b = (
+        currentMetadata.buildkart_b2b_pricing ?? {}
+      ) as Record<string, unknown>;
+      await updateProductsWorkflow(scope as never).run({
+        input: {
+          selector: { id: product.id },
+          update: {
+            metadata: {
+              ...currentMetadata,
+              buildkart_b2b_pricing: {
+                ...currentB2b,
+                [offerId]: {
+                  configured: true,
+                  offer_id: offerId,
+                  price_list_id: priceListId,
+                  amount,
+                  list_price_minor: listPrice,
+                  moq,
+                  gst_inclusive: input.gst_inclusive !== false,
+                  starts_at: starts,
+                  ends_at: ends,
+                  tiers: input.tiers ?? [],
+                  updated_at: new Date().toISOString(),
+                },
+              },
+            },
+          } as never,
+        },
+      });
+    }
   }
 
   return loadB2bPricing(scope, offerId);

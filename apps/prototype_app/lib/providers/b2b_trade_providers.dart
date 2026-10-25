@@ -9,6 +9,7 @@ import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
 import '../domain/presentation.dart';
 import 'catalog_providers.dart';
+import 'search_telemetry_provider.dart';
 
 /// Trade category descriptors (icon + label) for the trade rail + catalogue.
 class TradeCategory {
@@ -877,26 +878,35 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
   final price = selected?.price ??
       product.price ??
       const Money(amount: 0, currencyCode: 'INR');
+  final configuredTiers = selected?.b2bTiers ?? const <B2bPriceTier>[];
   return TradeProduct(
     product: product,
     tradePrice: price,
-    moq: 1,
+    moq: selected?.b2bMoq ?? 1,
     stockQty: selected?.stockQty ?? 0,
     // An older composed payload lists variants without stock. Say "unconfirmed"
     // rather than turning every product into "Out of Stock".
     stockKnown: selected != null,
     deliveryLocation: 'Marketplace Shipping',
     categoryId: categoryId ?? product.categoryId ?? 'all',
-    tiers: price.amount <= 0
-        ? const <TradeTier>[]
-        : <TradeTier>[
-            for (final tier in _tradeTierLadder)
+    tiers: configuredTiers.isNotEmpty
+        ? <TradeTier>[
+            for (final tier in configuredTiers)
               TradeTier(
-                quantity: tier.$1,
-                unitPrice:
-                    tier.$2 == 0 ? price : _discountedMoney(price, tier.$2),
+                quantity: tier.minQuantity,
+                unitPrice: tier.unitPrice,
               ),
-          ],
+          ]
+        : price.amount <= 0
+            ? const <TradeTier>[]
+            : <TradeTier>[
+                for (final tier in _tradeTierLadder)
+                  TradeTier(
+                    quantity: tier.$1,
+                    unitPrice:
+                        tier.$2 == 0 ? price : _discountedMoney(price, tier.$2),
+                  ),
+              ],
     sellers: <TradeSupplier>[
       for (final variant in product.variants)
         if (variant.isPurchasable)
@@ -1313,6 +1323,11 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
       ));
     }
     _commit(state.copyWith(lines: next, status: RfqStatus.draft));
+    ref.read(searchTelemetryProvider).recordCartAdd(
+          channel: 'b2b',
+          productId: match?.product.id ?? sku,
+          productTitle: match?.product.title ?? name,
+        );
   }
 
   void addProcurementItems(

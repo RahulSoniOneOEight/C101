@@ -24,6 +24,12 @@ import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CmsContentAdapter, buildBannerPreview } from "./content/cms-adapter.js";
 import {
+  composeOffers,
+  composeVariantPrices,
+  type B2bPricingSnapshot,
+  type ComposeOptions,
+} from "./commerce/offer-composition.js";
+import {
   composeStorefrontCategories,
   resolveSeedBanners,
   type ComposedCategory,
@@ -991,79 +997,6 @@ setInterval(load, 5000);
 </script>
 </body>
 </html>`;
-}
-
-/**
- * Per-variant best price.
- *
- * The grouped product stays one card; each variant is a distinct sellable SKU, so the storefront needs
- * its own offer id, price and availability to add the right line to a cart.
- */
-function composeVariantPrices(
-  variants: { id: string; title?: string; sku?: string | null; metadata?: Record<string, unknown> | null }[],
-  offers: StoreOffer[],
-) {
-  const offersByVariant = new Map<string, StoreOffer[]>();
-  for (const offer of offers) {
-    const list = offersByVariant.get(offer.variant_id) ?? [];
-    list.push(offer);
-    offersByVariant.set(offer.variant_id, list);
-  }
-  return variants.map((variant) => {
-    const variantOffers = offersByVariant.get(variant.id) ?? [];
-    const { selected } = composeOffers(variantOffers);
-    return {
-      ...variant,
-      best_price: selected,
-      offer_count: variantOffers.length,
-      in_stock: variantOffers.some((offer) => offer.in_stock !== false),
-    };
-  });
-}
-
-/** Maps Mercur offers to composed offer views and picks the lowest eligible in-stock offer. */
-function composeOffers(offers: StoreOffer[]) {
-  const offerViews = offers.map((o) => {
-    const qty = o.inventory_quantity ?? null;
-    const stockBadge = !o.in_stock
-      ? "out_of_stock"
-      : qty !== null && qty <= 5
-        ? "low_stock"
-        : "in_stock";
-    const selling = o.calculated_price?.calculated_amount ?? null;
-    // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
-    // discounted selling price. Without this the storefront would show selling == list and no saving.
-    const fixtureList = Number(o.metadata?.list_price_minor);
-    const list = Number.isFinite(fixtureList) && fixtureList > 0
-      ? fixtureList
-      : o.calculated_price?.original_amount ?? selling;
-    const discountMinor =
-      list !== null && selling !== null && list > selling ? list - selling : 0;
-    return {
-      id: o.id,
-      seller_id: o.seller_id,
-      seller_name: o.seller?.name ?? null,
-      variant_id: o.variant_id,
-      sku: o.sku,
-      currency_code: o.calculated_price?.currency_code ?? "INR",
-      unit_amount_minor: selling,
-      list_amount_minor: list,
-      selling_amount_minor: selling,
-      discount_minor: discountMinor,
-      discount_percent: discountMinor > 0 && list ? Math.round((discountMinor / list) * 100) : 0,
-      price_source: discountMinor > 0 ? "price_list" : "list",
-      inventory_quantity: qty,
-      in_stock: o.in_stock ?? null,
-      stock_badge: stockBadge,
-    };
-  });
-  const eligible = offerViews.filter(
-    (o) => o.in_stock !== false && o.unit_amount_minor != null,
-  );
-  const selected = eligible.length
-    ? eligible.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), eligible[0])
-    : null;
-  return { offerViews, selected };
 }
 
 async function handle(req: Request, url: URL, cid: string): Promise<Response> {
@@ -3473,7 +3406,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       }
       const composed = products.map((p) => {
         const offers = offersByProduct.get(p.id) ?? [];
-        const { selected } = composeOffers(offers);
+        const b2bPricing =
+          channel === "b2b"
+            ? ((p.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+                string,
+                B2bPricingSnapshot
+              >)
+            : null;
+        const composeOptions: ComposeOptions = { channel, b2bPricing };
+        const { selected } = composeOffers(offers, composeOptions);
         return {
           id: p.id,
           title: p.title,
@@ -3486,7 +3427,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           badges: (p.tags ?? []).map((tag) => tag.value),
           // Every variant carries its own sellable offer. A grouped product is one card; its SKUs
           // are the variants inside it, never extra cards.
-          variants: composeVariantPrices(p.variants, offers),
+          variants: composeVariantPrices(p.variants, offers, composeOptions),
           best_price: selected,
           offer_count: offers.length,
           image_quality_score: imageQualityScore(p.id),
@@ -3535,7 +3476,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const offersMs = performance.now() - t1;
 
       const t2 = performance.now();
-      const { offerViews, selected } = composeOffers(offers);
+      const b2bPricing =
+        channel === "b2b"
+          ? ((p.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+              string,
+              B2bPricingSnapshot
+            >)
+          : null;
+      const composeOptions: ComposeOptions = { channel, b2bPricing };
+      const { offerViews, selected } = composeOffers(offers, composeOptions);
       const composeMs = performance.now() - t2;
 
       return json({
@@ -3549,7 +3498,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         badges: (p.tags ?? []).map((tag) => tag.value),
         image_quality_score: imageQualityScore(p.id),
         image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
-        variants: composeVariantPrices(p.variants, offers),
+        variants: composeVariantPrices(p.variants, offers, composeOptions),
         offers: offerViews,
         channel,
         cache_hit: cacheHit,
@@ -3561,8 +3510,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         commercial: {
           selected_seller: selected,
           payment_eligibility: [config.paymentAdapterMode],
-          moq: null,
-          quantity_tiers: null,
+          moq: selected?.b2b_moq ?? null,
+          quantity_tiers: selected?.b2b_tiers ?? null,
         },
         environment: config.environment,
         test_data: true,

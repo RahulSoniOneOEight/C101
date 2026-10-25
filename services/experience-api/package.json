@@ -24,6 +24,7 @@
     "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
     "test:acceptance": "bun run src/scripts/hosted-acceptance.ts",
     "test:notifications": "bun run src/scripts/notification-test.ts",
+    "test:b2b-pricing-read": "bun run src/scripts/b2b-pricing-read-test.ts",
     "test:merchandising-content": "bun run src/scripts/merchandising-content-test.ts",
     "test:storefront-layout": "bun run src/scripts/storefront-layout-test.ts",
     "test:cms-content": "bun run src/scripts/cms-content-test.ts",

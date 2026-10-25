@@ -43,6 +43,37 @@ class Money {
       };
 }
 
+class B2bPriceTier {
+  const B2bPriceTier({
+    required this.minQuantity,
+    this.maxQuantity,
+    required this.unitPrice,
+  });
+
+  final int minQuantity;
+  final int? maxQuantity;
+  final Money unitPrice;
+}
+
+List<B2bPriceTier> b2bTiersFromJson(dynamic value, String currency) {
+  if (value is! List) return const <B2bPriceTier>[];
+  return value
+      .whereType<Map<String, dynamic>>()
+      .map((tier) {
+        final min = (tier['min_quantity'] as num?)?.toInt();
+        final max = (tier['max_quantity'] as num?)?.toInt();
+        final amount = (tier['amount'] as num?)?.toInt();
+        if (min == null || amount == null) return null;
+        return B2bPriceTier(
+          minQuantity: min,
+          maxQuantity: max,
+          unitPrice: Money(amount: amount, currencyCode: currency),
+        );
+      })
+      .whereType<B2bPriceTier>()
+      .toList();
+}
+
 /// One sellable SKU inside a grouped product.
 ///
 /// A catalogue product can own several source SKUs. The storefront shows **one card per product**, and
@@ -59,6 +90,8 @@ class ProductVariant {
     this.inStock = true,
     this.offerCount = 0,
     this.stockQty,
+    this.b2bMoq,
+    this.b2bTiers = const <B2bPriceTier>[],
   });
 
   final String id;
@@ -74,6 +107,10 @@ class ProductVariant {
   /// Stock reported by the winning offer. In staging this is the explicit
   /// 50-unit fixture, never a supplier stock claim.
   final int? stockQty;
+
+  /// B2B MOQ and configured quantity tiers from the per-offer B2B price list.
+  final int? b2bMoq;
+  final List<B2bPriceTier> b2bTiers;
 
   /// True when this SKU can be added to a cart (it has a composed seller offer and a price).
   bool get isPurchasable =>
@@ -101,6 +138,8 @@ class ProductVariant {
       inStock: json['in_stock'] as bool? ?? true,
       offerCount: (json['offer_count'] as num?)?.toInt() ?? 0,
       stockQty: (best?['inventory_quantity'] as num?)?.toInt(),
+      b2bMoq: (best?['b2b_moq'] as num?)?.toInt(),
+      b2bTiers: b2bTiersFromJson(best?['b2b_tiers'], currency),
     );
   }
 }
@@ -451,6 +490,15 @@ class Product {
               'in_stock': variant.inStock,
               'offer_count': variant.offerCount,
               'stock_qty': variant.stockQty,
+              'b2b_moq': variant.b2bMoq,
+              'b2b_tiers': <Map<String, dynamic>>[
+                for (final tier in variant.b2bTiers)
+                  <String, dynamic>{
+                    'min_quantity': tier.minQuantity,
+                    'max_quantity': tier.maxQuantity,
+                    'amount': tier.unitPrice.amount,
+                  },
+              ],
             },
         ],
       };
@@ -506,6 +554,8 @@ class Product {
                 inStock: v['in_stock'] as bool? ?? true,
                 offerCount: (v['offer_count'] as num?)?.toInt() ?? 0,
                 stockQty: (v['stock_qty'] as num?)?.toInt(),
+                b2bMoq: (v['b2b_moq'] as num?)?.toInt(),
+                b2bTiers: b2bTiersFromJson(v['b2b_tiers'], currency),
               );
             })
             .where((variant) => variant.id.isNotEmpty)
