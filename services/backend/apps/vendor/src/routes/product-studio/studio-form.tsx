@@ -677,7 +677,7 @@ function OfferPricingEditor({
             {variantLabel || offer.sku}
           </p>
           <p className="text-xs text-ui-fg-subtle">
-            {offer.sku || "No SKU"} · {offer.seller_name}
+            {offer.sku || "No SKU"} Â· {offer.seller_name}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -696,7 +696,7 @@ function OfferPricingEditor({
             B2C selling
           </Text>
           <Text size="small" weight="plus">
-            {base ? inr(Math.round(Number(base) * 100)) : "—"}
+            {base ? inr(Math.round(Number(base) * 100)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -704,7 +704,7 @@ function OfferPricingEditor({
             B2C list
           </Text>
           <Text size="small" weight="plus">
-            {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "—"}
+            {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -712,7 +712,7 @@ function OfferPricingEditor({
             B2B selling
           </Text>
           <Text size="small" weight="plus">
-            {b2bAmount ? inr(Math.round(Number(b2bAmount) * 100)) : "—"}
+            {b2bAmount ? inr(Math.round(Number(b2bAmount) * 100)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -720,7 +720,7 @@ function OfferPricingEditor({
             B2B MOQ
           </Text>
           <Text size="small" weight="plus">
-            {b2bMoq || "—"}
+            {b2bAmount ? b2bMoq || "-" : "-"}
           </Text>
         </div>
       </div>
@@ -786,7 +786,7 @@ function OfferPricingEditor({
                       Number(listPrice)) *
                       100,
                   ),
-                )}% below list · ${
+                )}% below list Â· ${
                   gstInclusive ? "GST-inclusive" : "GST-exclusive"
                 }`
               : "Enter list and selling prices to calculate the discount."}
@@ -816,7 +816,7 @@ function OfferPricingEditor({
                 B2B pricing
               </Heading>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Dedicated price list · B2B Trade Customers
+                Dedicated price list Â· B2B Trade Customers
               </Text>
             </div>
             <StatusBadge color={b2bAmount ? "green" : "grey"}>
@@ -1172,8 +1172,8 @@ function InventoryRequestForm({
         <div className="mt-2 space-y-1">
           {history.map((item) => (
             <p key={item.id} className="text-xs text-ui-fg-subtle">
-              {item.status} · {item.quantity_delta > 0 ? "+" : ""}
-              {item.quantity_delta} · {item.reason} ·{" "}
+              {item.status} Â· {item.quantity_delta > 0 ? "+" : ""}
+              {item.quantity_delta} Â· {item.reason} Â·{" "}
               {new Date(item.requested_at).toLocaleDateString("en-IN")}
             </p>
           ))}
@@ -2105,12 +2105,12 @@ export function ProductStudioForm({
             <span className="font-medium text-ui-fg-base">
               {readySections}/5 available sections ready
             </span>
-            <span>·</span>
+            <span>Â·</span>
             <span>
               {dirty ? "Unsaved changes" : "No unsaved changes"}
-              {lastSaved ? ` · saved ${lastSaved}` : ""}
+              {lastSaved ? ` Â· saved ${lastSaved}` : ""}
             </span>
-            <span>·</span>
+            <span>Â·</span>
             <span>Local autosave keeps a recovery copy in this browser.</span>
           </div>
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ui-bg-subtle">
@@ -2139,7 +2139,7 @@ export function ProductStudioForm({
       {loading ? (
         <Container>
           <Text size="small" className="text-ui-fg-subtle">
-            Loading product record…
+            Loading product recordâ€¦
           </Text>
         </Container>
       ) : !canEdit ? (
@@ -2182,7 +2182,7 @@ export function ProductStudioForm({
                 {(meta.data?.catalogue ?? []).length === 0 ? (
                   <Text size="small" className="py-2 text-ui-fg-subtle">
                     {meta.isPending
-                      ? "Searching…"
+                      ? "Searchingâ€¦"
                       : appliedSearch
                         ? "No matching products."
                         : "No recent products to show."}
@@ -2209,7 +2209,7 @@ export function ProductStudioForm({
                             {item.title}
                           </p>
                           <p className="text-xs text-ui-fg-subtle">
-                            {item.categories?.[0]?.name ?? "Uncategorised"} ·{" "}
+                            {item.categories?.[0]?.name ?? "Uncategorised"} Â·{" "}
                             {item.status}
                           </p>
                         </div>
@@ -2361,7 +2361,7 @@ export function ProductStudioForm({
                       onChange={(event) =>
                         update("thumbnail", event.target.value)
                       }
-                      placeholder="https://…"
+                      placeholder="https://â€¦"
                     />
                   </Field>
                 </div>
@@ -2387,7 +2387,7 @@ export function ProductStudioForm({
                       className="text-ui-fg-muted hover:text-ui-fg-base"
                       onClick={() => removeTag(tag)}
                     >
-                      ×
+                      Ã—
                     </button>
                   </span>
                 ))}
@@ -2486,7 +2486,7 @@ export function ProductStudioForm({
                       aria-label="Remove specification"
                       className="shrink-0"
                     >
-                      ×
+                      Ã—
                     </Button>
                   </div>
                 ))}
@@ -2505,7 +2505,7 @@ export function ProductStudioForm({
                     Add specification
                   </Button>
                   <Text size="small" className="text-ui-fg-subtle">
-                    {validSpecs.length} complete ·{" "}
+                    {validSpecs.length} complete Â·{" "}
                     {partialSpecRows.length} incomplete
                   </Text>
                 </div>
@@ -2568,7 +2568,7 @@ export function ProductStudioForm({
                   <Heading level="h2">Variants</Heading>
                   <Text size="small" className="mt-1 text-ui-fg-subtle">
                     {variants.length} variant
-                    {variants.length === 1 ? "" : "s"} · non-empty SKUs must be
+                    {variants.length === 1 ? "" : "s"} Â· non-empty SKUs must be
                     unique.
                   </Text>
                 </div>
@@ -2632,10 +2632,10 @@ export function ProductStudioForm({
                           .map(
                             (option) =>
                               `${option.name}: ${
-                                variant.options[option.name] ?? "—"
+                                variant.options[option.name] ?? "â€”"
                               }`,
                           )
-                          .join(" · ")
+                          .join(" Â· ")
                       : variant.title.trim() || `Variant ${index + 1}`;
                   return (
                     <div
@@ -2702,7 +2702,7 @@ export function ProductStudioForm({
                         </label>
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
-                            SKU * {skuDuplicate ? "· duplicate" : ""}
+                            SKU * {skuDuplicate ? "Â· duplicate" : ""}
                           </span>
                           <Input
                             value={variant.sku}
@@ -2892,7 +2892,7 @@ export function ProductStudioForm({
                 <div className="flex flex-col gap-3">
                   {inventoryLoading ? (
                     <Text size="small" className="text-ui-fg-subtle">
-                      Loading inventory from Tryton…
+                      Loading inventory from Trytonâ€¦
                     </Text>
                   ) : inventoryError ? (
                     <Text size="small" className="text-ui-fg-error">
@@ -2925,7 +2925,7 @@ export function ProductStudioForm({
                                 {variant?.title || offer.sku}
                               </p>
                               <p className="text-xs text-ui-fg-subtle">
-                                {offer.sku} · {offer.seller_name}
+                                {offer.sku} Â· {offer.seller_name}
                               </p>
                             </div>
                             <StatusBadge
@@ -3076,7 +3076,7 @@ export function ProductStudioForm({
                         <option value="">Act as BuildKart</option>
                         {(sellers.data?.sellers ?? []).map((seller) => (
                           <option key={seller.id} value={seller.id}>
-                            {seller.name} · {seller.id}
+                            {seller.name} Â· {seller.id}
                           </option>
                         ))}
                       </select>
@@ -3352,7 +3352,7 @@ export function ProductStudioForm({
                   </div>
                 )}
                 <p className="text-xs uppercase tracking-wide text-ui-fg-subtle">
-                  {form.brand.trim() || "Brand"} · {previewCategory}
+                  {form.brand.trim() || "Brand"} Â· {previewCategory}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ui-fg-base">
                   {previewTitle}
@@ -3381,15 +3381,15 @@ export function ProductStudioForm({
                   <p className="mt-2 text-xs text-ui-fg-subtle">
                     {variants.length} variant{variants.length === 1 ? "" : "s"}
                     {variants[0]?.sku
-                      ? ` · first SKU ${variants[0].sku}`
-                      : " · no SKU yet"}
+                      ? ` Â· first SKU ${variants[0].sku}`
+                      : " Â· no SKU yet"}
                   </p>
                   <p className="mt-1 text-xs text-ui-fg-subtle">
                     {offers.length === 0
                       ? "No seller offer pricing yet."
                       : `${offers.length} offer${
                           offers.length === 1 ? "" : "s"
-                        } · ${inr(
+                        } Â· ${inr(
                           offers[0].prices.find(
                             (price) =>
                               price.currency_code === "inr" &&
