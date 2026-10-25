@@ -823,7 +823,7 @@ function OfferPricingEditor({
             B2B MOQ
           </Text>
           <Text size="small" weight="plus">
-            {b2bMoq || "—"}
+            {b2bAmount ? b2bMoq || "—" : "—"}
           </Text>
         </div>
       </div>
