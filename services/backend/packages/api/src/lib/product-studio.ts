@@ -1219,6 +1219,7 @@ export async function saveStudioProduct(
           .map((variant) => [variant.id as string, variant]),
       );
       if (
+        currentById.size !== variants.length ||
         currentById.size !== desiredById.size ||
         [...currentById.keys()].some((id) => !desiredById.has(id))
       ) {
