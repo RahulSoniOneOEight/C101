@@ -1636,113 +1636,6 @@ export function ProductStudioForm({
     setDirty(true);
   };
 
-  const updateOption = (index: number, patch: Partial<Option>) => {
-    setOptions((current) =>
-      current.map((option, position) =>
-        position === index ? { ...option, ...patch } : option,
-      ),
-    );
-    setDirty(true);
-    setNotice(null);
-  };
-
-  const setOptionValues = (index: number, raw: string) => {
-    const values: string[] = [];
-    const seen = new Set<string>();
-    for (const candidate of raw.split(",")) {
-      const value = candidate.trim();
-      if (!value || seen.has(value.toLowerCase())) continue;
-      seen.add(value.toLowerCase());
-      values.push(value);
-    }
-    updateOption(index, { values });
-  };
-
-  const addOption = () => {
-    if (options.length >= 3) {
-      setNotice({
-        kind: "error",
-        text: "A product can have at most three options in this slice.",
-      });
-      return;
-    }
-    setOptions((current) => [...current, { name: "", values: [] }]);
-    setDirty(true);
-  };
-
-  const removeOption = (index: number) => {
-    setOptions((current) =>
-      current.filter((_, position) => position !== index),
-    );
-    setDirty(true);
-  };
-
-  const generateVariants = () => {
-    const usable = options.filter(
-      (option) => option.name.trim() && option.values.length > 0,
-    );
-    if (usable.length !== options.length) {
-      setNotice({
-        kind: "error",
-        text: "Give every option a name and at least one value before generating combinations.",
-      });
-      return;
-    }
-
-    if (usable.length === 0) {
-      setNotice({
-        kind: "info",
-        text: "Direct variant mode: use Add variant to create each variant.",
-      });
-      return;
-    }
-
-    const total = usable.reduce(
-      (count, option) => count * option.values.length,
-      1,
-    );
-    if (total > 100) {
-      setNotice({
-        kind: "error",
-        text: "The selected values generate more than 100 combinations. Reduce the option values.",
-      });
-      return;
-    }
-
-    const existing = new Map(
-      variants.map((variant) => [
-        combinationKey(usable, variant.options),
-        variant,
-      ]),
-    );
-    const combinations: Record<string, string>[] = [{}];
-    for (const option of usable) {
-      const next: Record<string, string>[] = [];
-      for (const combination of combinations) {
-        for (const value of option.values) {
-          next.push({ ...combination, [option.name]: value });
-        }
-      }
-      combinations.splice(0, combinations.length, ...next);
-    }
-
-    setVariants(
-      combinations.map((values) => {
-        const key = combinationKey(usable, values);
-        const previous = existing.get(key);
-        return {
-          ...(previous ?? emptyVariant()),
-          title:
-            previous?.title ||
-            usable.map((option) => values[option.name]).join(" / "),
-          options: values,
-        };
-      }),
-    );
-    setDirty(true);
-    setNotice(null);
-  };
-
   const updateVariant = (index: number, patch: Partial<Variant>) => {
     setVariants((current) =>
       current.map((variant, position) =>
@@ -2053,7 +1946,7 @@ export function ProductStudioForm({
     if (optionsEditable && !optionsMatchVariants) {
       setNotice({
         kind: "error",
-        text: "Option values changed. Generate combinations before saving.",
+        text: "Option values are read-only. Save the product or contact support.",
       });
       return;
     }
@@ -2617,7 +2510,7 @@ export function ProductStudioForm({
             <Section
               number={4}
               title="Variants and SKUs"
-              description="Each variant has a customer-facing name, details and an optional image. Options are custom-only and SKUs stay unique."
+              description="Each variant has a customer-facing name, details and an optional image. Variants are created directly; SKUs stay unique."
               complete={sectionFourDone}
             >
               {structuralLocked ? (
@@ -2629,96 +2522,40 @@ export function ProductStudioForm({
                   </Text>
                 </div>
               ) : null}
-              {!optionsEditable ? (
-                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                  <Text size="small" className="text-ui-fg-subtle">
-                    Option axes for this imported catalogue product are
-                    read-only in this slice. Variant names, details, images and
-                    SKUs remain editable.
+              {options.length > 0 ? (
+                <div>
+                  <Heading level="h2">Legacy options (read-only)</Heading>
+                  <Text size="small" className="mt-1 text-ui-fg-subtle">
+                    This product was created with option axes. They are retained
+                    for compatibility and cannot be changed here. Manage direct
+                    variants below.
                   </Text>
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Heading level="h2">Options</Heading>
-                    <Button
-                      size="small"
-                      type="button"
-                      variant="secondary"
-                      onClick={addOption}
-                      disabled={options.length >= 3 || structuralLocked}
-                    >
-                      Add option
-                    </Button>
-                  </div>
                   <div className="mt-3 flex flex-col gap-2">
-                    {options.length === 0 ? (
-                      <Text size="small" className="text-ui-fg-subtle">
-                        No options. Create one or more direct variants below.
-                      </Text>
-                    ) : null}
                     {options.map((option, index) => (
                       <div
-                        key={index}
-                        className="flex flex-col gap-2 rounded-lg border border-ui-border-base p-3 sm:flex-row sm:items-center"
+                        key={`${option.name}-${index}`}
+                        className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3"
                       >
-                        <Input
-                          value={option.name}
-                          onChange={(event) =>
-                            updateOption(index, { name: event.target.value })
-                          }
-                          placeholder="Option name (e.g. Size)"
-                          className="sm:w-44"
-                          disabled={structuralLocked}
-                        />
-                        <Input
-                          value={option.values.join(", ")}
-                          onChange={(event) =>
-                            setOptionValues(index, event.target.value)
-                          }
-                          placeholder="Values separated by commas"
-                          className="sm:flex-1"
-                          disabled={structuralLocked}
-                        />
-                        <Button
-                          type="button"
-                          size="small"
-                          variant="transparent"
-                          onClick={() => removeOption(index)}
-                          aria-label="Remove option"
-                          className="shrink-0"
-                          disabled={structuralLocked}
-                        >
-                          ×
-                        </Button>
+                        <Text size="small" weight="plus">
+                          {option.name || `Option ${index + 1}`}
+                        </Text>
+                        <Text size="small" className="text-ui-fg-subtle">
+                          {option.values.join(", ")}
+                        </Text>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {options.length > 0 ? (
-                      <Button
-                        size="small"
-                        type="button"
-                        variant="secondary"
-                        onClick={generateVariants}
-                        disabled={structuralLocked}
-                      >
-                        Generate combinations
-                      </Button>
-                    ) : null}
-                    <Text size="small" className="text-ui-fg-subtle">
-                      {options.length === 0
-                        ? "Direct variants"
-                        : `${options.reduce(
-                            (count, option) =>
-                              count * Math.max(1, option.values.length),
-                            1,
-                          )} combinations from ${options.length} option${
-                            options.length === 1 ? "" : "s"
-                          }`}
-                    </Text>
-                  </div>
-                </>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    Direct variant mode. No option axes are required; add or
+                    edit variants below.
+                    {!optionsEditable
+                      ? " Imported catalogue variants are structural read-only; names, details and images remain editable."
+                      : ""}
+                  </Text>
+                </div>
               )}
 
               <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ui-border-base pt-5">
@@ -2768,7 +2605,7 @@ export function ProductStudioForm({
 
               {!optionsMatchVariants ? (
                 <div className="mt-3 rounded-lg border border-ui-border-error bg-ui-bg-error px-4 py-3 text-sm text-ui-fg-error">
-                  Option values changed. Generate combinations before saving.
+                  Option values are read-only. Save the product or contact support.
                 </div>
               ) : null}
 
