@@ -182,6 +182,7 @@ Screenshots:
   corrective rather than pre-approval.
 - Seller products route may still be reachable by direct URL while hidden from
   navigation.
-- B2B price-list consumption by the B2B storefront remains the one open
-  cross-service pricing gap.
+- B2B price-list consumption by the B2B storefront is implemented and verified
+  under CHG-078. See
+  `session-note-2026-10-25-b2b-storefront-price-consumption.md`.
 - Production remains unauthorized.
