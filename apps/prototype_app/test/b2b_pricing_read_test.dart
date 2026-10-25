@@ -1,6 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prototype_app/data/local_store.dart';
+import 'package:prototype_app/domain/b2b_trade_models.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/b2b_trade_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Map<String, dynamic> _composed({required bool configured}) {
   final bestPrice = <String, dynamic>{
@@ -143,5 +147,31 @@ void main() {
     expect(restored.variants.single.b2bMoq, 5);
     expect(restored.variants.single.b2bTiers.length, 2);
     expect(restored.variants.single.b2bTiers.first.unitPrice.amount, 389000);
+  });
+
+  test('RFQ reprices a B2B SKU at the selected tier quantity', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final product = Product.fromComposedJson(_composed(configured: true));
+    final trade = tradeProductFromCatalogue(product);
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        tradeCatalogueViewProvider.overrideWithValue(<TradeProduct>[trade]),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final notifier = container.read(b2bQuotationCartProvider.notifier);
+    notifier.addTradeProduct(trade,
+        quantity: 5, variant: product.variants.single);
+
+    var cart = container.read(b2bQuotationCartProvider);
+    expect(cart.lines.single.quantity, 5);
+    expect(cart.lines.single.unitPrice.amount, 389000);
+
+    notifier.updateQuantity('SKU-TEST', 10);
+    cart = container.read(b2bQuotationCartProvider);
+    expect(cart.lines.single.unitPrice.amount, 379000);
   });
 }

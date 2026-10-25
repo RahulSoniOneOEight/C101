@@ -1261,6 +1261,29 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     }
   }
 
+  /// Resolve the sellable variant behind an RFQ line, which stores the SKU
+  /// rather than the product id.
+  ProductVariant? _variantForSku(String sku) {
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
+      for (final variant in product.product.variants) {
+        if (variant.sku == sku) return variant;
+      }
+    }
+    return null;
+  }
+
+  /// Unit price from the seller's saved B2B tiers at [quantity]. Null means the
+  /// variant has no configured B2B terms, so the caller keeps its own price.
+  Money? _b2bUnitPriceFor(ProductVariant? variant, int quantity) {
+    if (variant == null || variant.b2bTiers.isEmpty) return null;
+    B2bPriceTier? match;
+    for (final tier in variant.b2bTiers) {
+      if (quantity < tier.minQuantity) continue;
+      if (match == null || tier.minQuantity > match.minQuantity) match = tier;
+    }
+    return match?.unitPrice;
+  }
+
   /// Adds one SKU of a grouped product.
   ///
   /// [variant] is the SKU the buyer selected on the product page. Without one,
@@ -1276,7 +1299,9 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
           ? product.product.title
           : '${product.product.title} · ${selected.label}',
       quantity: qty,
-      unitPrice: selected?.price ?? product.unitPriceFor(qty),
+      unitPrice: _b2bUnitPriceFor(selected, qty) ??
+          selected?.price ??
+          product.unitPriceFor(qty),
       seller: selected?.sellerName,
     );
   }
@@ -1298,10 +1323,12 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         break;
       }
     }
-    // Quantity tiers only apply to the local fixture. A real SKU's price comes
-    // from its own offer; there is no trade-terms source to reprice it from.
+    final variant = _variantForSku(sku);
+    // A configured B2B tier is the seller's trade price at this quantity. Only
+    // fall back to the local fixture ladder when the catalogue has no variants.
     final tierPriced = match != null && match.product.variants.isEmpty;
     final resolvedPrice = unitPrice ??
+        _b2bUnitPriceFor(variant, quantity) ??
         (tierPriced ? match.unitPriceFor(quantity) : null) ??
         match?.tradePrice ??
         _inr(100);
@@ -1317,9 +1344,10 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         sku: existing.sku,
         name: existing.name,
         quantity: combinedQuantity,
-        unitPrice: tierPriced
-            ? match.unitPriceFor(combinedQuantity)
-            : existing.unitPrice,
+        unitPrice: _b2bUnitPriceFor(variant, combinedQuantity) ??
+            (tierPriced
+                ? match.unitPriceFor(combinedQuantity)
+                : existing.unitPrice),
         targetUnitPrice: existing.targetUnitPrice,
         seller: existing.seller ?? seller,
       );
@@ -1384,6 +1412,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     }
     final tierPriced =
         catalogueMatch != null && catalogueMatch.product.variants.isEmpty;
+    final variant = _variantForSku(sku);
     _commit(state.copyWith(
       lines: <B2BQuotationLine>[
         for (final line in state.lines)
@@ -1392,9 +1421,10 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
                   sku: line.sku,
                   name: line.name,
                   quantity: quantity,
-                  unitPrice: tierPriced
-                      ? catalogueMatch.unitPriceFor(quantity)
-                      : line.unitPrice,
+                  unitPrice: _b2bUnitPriceFor(variant, quantity) ??
+                      (tierPriced
+                          ? catalogueMatch.unitPriceFor(quantity)
+                          : line.unitPrice),
                   targetUnitPrice: line.targetUnitPrice,
                   seller: line.seller,
                 )
