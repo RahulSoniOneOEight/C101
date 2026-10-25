@@ -916,7 +916,7 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
                 product.brand ??
                 'BuildKart Verified Seller',
             unitPrice: variant.price!,
-            moq: 1,
+            moq: variant.b2bMoq ?? 1,
             stockQty: variant.stockQty,
             bestPrice: variant.id == product.variantId,
           ),
