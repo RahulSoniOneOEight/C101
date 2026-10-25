@@ -362,6 +362,9 @@ active_changes:
   product_studio_multi_variant_qc: pass
   product_studio_multi_variant_test_product: prod_01M5SJHTE1B0NJVV4DCXZE0062
   product_studio_stale_draft_evidence: client-projects/client101/evidence/CHG-076/product-studio-stale-draft-and-multi-variant-2026-10-25.md
+  product_management_workspace_spec: docs/implementation/product-management-workspace-spec-2026-10-25.md
+  product_management_workspace_spec_status: revised-design-pending-human-decisions
+  product_management_workspace_spec_qc_model: openai/gpt-5.6-sol
   mobile_overflow: none
   console_errors: 0
   production_blocked_by:
