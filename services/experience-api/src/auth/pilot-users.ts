@@ -20,6 +20,12 @@ export const syntheticPilotUsers: PilotUser[] = [
   { id: "pilot_03", email: "pilot3@buildkart.test", phone: "+919000000003", name: "Pilot User Three" },
 ];
 
+/**
+ * Approved staging pilot cap. Raised from 20 to 21 for the approved tester addition on 2026-10-25.
+ * Keep this in sync with PILOT_EXPECTED_USER_COUNT in the staging secret.
+ */
+export const MAX_PILOT_USERS = 21;
+
 function requiredString(value: unknown, field: string, index: number): string {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`PILOT_USERS_JSON entry ${index} requires non-empty ${field}.`);
@@ -29,7 +35,7 @@ function requiredString(value: unknown, field: string, index: number): string {
 
 /**
  * Parse the deployment-supplied pilot allowlist. The synthetic three-user list remains the local
- * default; hosted staging sets PILOT_USERS_JSON and PILOT_EXPECTED_USER_COUNT=20 without committing
+ * default; hosted staging sets PILOT_USERS_JSON and PILOT_EXPECTED_USER_COUNT=21 without committing
  * tester identities to Git.
  */
 export function loadPilotUsers(raw: string | undefined, expectedCount?: number): PilotUser[] {
@@ -67,8 +73,8 @@ export function loadPilotUsers(raw: string | undefined, expectedCount?: number):
     });
   }
 
-  if (users.length < 1 || users.length > 20) {
-    throw new Error(`Pilot allowlist must contain between 1 and 20 users; received ${users.length}.`);
+  if (users.length < 1 || users.length > MAX_PILOT_USERS) {
+    throw new Error(`Pilot allowlist must contain between 1 and ${MAX_PILOT_USERS} users; received ${users.length}.`);
   }
   if (expectedCount !== undefined && users.length !== expectedCount) {
     throw new Error(`Pilot allowlist must contain exactly ${expectedCount} users; received ${users.length}.`);

@@ -16,7 +16,7 @@ marketplace, ERP and reconciliation are real.
 ## Pilot identities and simulated OTP
 
 Hosted staging reads the allowlist from `PILOT_USERS_JSON` and verifies its expected size through
-`PILOT_EXPECTED_USER_COUNT=20`. Put the JSON directly in the authorised secret/configuration store;
+`PILOT_EXPECTED_USER_COUNT=21`. Put the JSON directly in the authorised secret/configuration store;
 do not commit the real tester list. Each entry has this shape:
 
 ```json
@@ -28,7 +28,7 @@ stored in Redis using `REDIS_URL`; they survive API restarts and work across rep
 hosted configuration:
 
 ```text
-PILOT_EXPECTED_USER_COUNT=20
+PILOT_EXPECTED_USER_COUNT=21
 PILOT_OTP_CODE=123456
 PILOT_CHALLENGE_TTL_SECONDS=300
 PILOT_SESSION_TTL_SECONDS=3600
@@ -84,5 +84,5 @@ When `PILOT_USERS_JSON` is absent, local development retains these three synthet
   `buildkart_experience` Postgres DB.
 - Flutter consumes the Experience API via `lib/data/experience_api.dart`; full screen rewiring is in
   progress.
-- Hosted deployment must set `PILOT_USERS_JSON` and `PILOT_EXPECTED_USER_COUNT=20`; the synthetic
+- Hosted deployment must set `PILOT_USERS_JSON` and `PILOT_EXPECTED_USER_COUNT=21`; the synthetic
   fallback is for local development only.

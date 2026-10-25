@@ -6,6 +6,8 @@
  * manufacture payment acceptance.
  */
 
+import { MAX_PILOT_USERS } from "./auth/pilot-users.js";
+
 export type Environment = "development" | "integration" | "staging" | "production";
 export type PaymentAdapterMode = "simulated" | "provider";
 
@@ -146,8 +148,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
     ? positiveInteger(env.PILOT_EXPECTED_USER_COUNT, 20, "PILOT_EXPECTED_USER_COUNT")
     : undefined;
-  if (expectedPilotUsers !== undefined && expectedPilotUsers > 20) {
-    throw new Error("PILOT_EXPECTED_USER_COUNT cannot exceed the governed maximum of 20.");
+  if (expectedPilotUsers !== undefined && expectedPilotUsers > MAX_PILOT_USERS) {
+    throw new Error(`PILOT_EXPECTED_USER_COUNT cannot exceed the approved maximum of ${MAX_PILOT_USERS}.`);
   }
   if (expectedPilotUsers !== undefined && !env.PILOT_ROLE_ASSIGNMENTS_JSON?.trim()) {
     throw new Error("PILOT_ROLE_ASSIGNMENTS_JSON is required when PILOT_EXPECTED_USER_COUNT is set.");
