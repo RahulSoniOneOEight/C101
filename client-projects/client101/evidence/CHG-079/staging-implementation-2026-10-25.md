@@ -2,9 +2,9 @@
 
 - Date: 2026-10-25
 - Branch: `feat/staging-updates-02-04`
-- Final code commit: `6c8560b`
-- Staging release: `/opt/buildkart-releases/release-6c8560b`
-- Current symlink: `/opt/buildkart-releases/current -> /opt/buildkart-releases/release-6c8560b`
+- Final code commit: `a017e65`
+- Staging release: `/opt/buildkart-releases/release-a017e65`
+- Current symlink: `/opt/buildkart-releases/current -> /opt/buildkart-releases/release-a017e65`
 - Environment: staging only
 - Production: unauthorized
 

@@ -419,8 +419,8 @@ active_changes:
   proposal: client-projects/client101/changes/CHG-079.yaml
   scope: direct-variants-bought-together-tile-stepper-delivery-tier
   production_release_authorized: false
-  staging_release: 6c8560b
-  current_release_path: /opt/buildkart-releases/release-6c8560b
+  staging_release: a017e65
+  current_release_path: /opt/buildkart-releases/release-a017e65
   requirements:
     R1_direct_variants: pass
     R2_bought_together: pass
