@@ -162,6 +162,109 @@ const emptyVariant = (): Variant => ({
   options: {},
 });
 
+function draftString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeDraftForm(value: unknown): FormState {
+  const source =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  return {
+    title: draftString(source.title),
+    subtitle: draftString(source.subtitle),
+    description: draftString(source.description),
+    category_id: draftString(source.category_id),
+    brand: draftString(source.brand),
+    manufacturer: draftString(source.manufacturer),
+    model_number: draftString(source.model_number),
+    product_type: draftString(source.product_type),
+    hsn_code: draftString(source.hsn_code),
+    unit_of_measure: draftString(source.unit_of_measure),
+    thumbnail: draftString(source.thumbnail),
+  };
+}
+
+function normalizeDraftSpecs(value: unknown): Spec[] {
+  if (!Array.isArray(value)) return [{ ...EMPTY_SPEC }];
+  const specs = value
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object" && !Array.isArray(item),
+    )
+    .map((item) => ({
+      name: draftString(item.name),
+      value: draftString(item.value),
+      unit: draftString(item.unit),
+    }));
+  return specs.length > 0 ? specs : [{ ...EMPTY_SPEC }];
+}
+
+function normalizeDraftTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((tag) => draftString(tag).trim()).filter(Boolean);
+}
+
+function normalizeDraftOptions(value: unknown): Option[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object" && !Array.isArray(item),
+    )
+    .map((item) => {
+      const name = draftString(item.name).trim();
+      const rawValues = item.values;
+      const values = Array.isArray(rawValues)
+        ? rawValues.map((entry) => draftString(entry).trim()).filter(Boolean)
+        : draftString(rawValues)
+            .split(",")
+            .map((entry) => entry.trim())
+            .filter(Boolean);
+      const id = draftString(item.id);
+      if (!name) return null;
+      return { ...(id ? { id } : {}), name, values };
+    })
+    .filter((option): option is Option => option !== null);
+}
+
+function normalizeDraftVariants(value: unknown): Variant[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === "object" && !Array.isArray(item),
+    )
+    .map((item) => {
+      const rawOptions = item.options;
+      const options: Record<string, string> = {};
+      if (
+        rawOptions &&
+        typeof rawOptions === "object" &&
+        !Array.isArray(rawOptions)
+      ) {
+        for (const [key, optionValue] of Object.entries(
+          rawOptions as Record<string, unknown>,
+        )) {
+          const cleanKey = key.trim();
+          const cleanValue = draftString(optionValue).trim();
+          if (cleanKey && cleanValue) options[cleanKey] = cleanValue;
+        }
+      }
+      const id = draftString(item.id);
+      return {
+        ...emptyVariant(),
+        ...(id ? { id } : {}),
+        title: draftString(item.title, "Default").trim() || "Default",
+        details: draftString(item.details),
+        image_url: draftString(item.image_url),
+        sku: draftString(item.sku),
+        ean: draftString(item.ean),
+        upc: draftString(item.upc),
+        barcode: draftString(item.barcode),
+        options,
+      };
+    });
+}
+
 function combinationKey(options: Option[], values: Record<string, string>): string {
   return options
     .map((option) => `${option.name.trim().toLowerCase()}:${(values[option.name] ?? "").toLowerCase()}`)
@@ -1179,18 +1282,26 @@ export function ProductStudioForm({
       const raw = localStorage.getItem(draftKey);
       if (raw) {
         try {
-          const saved = JSON.parse(raw) as {
-            form?: FormState;
-            specs?: Spec[];
-            tags?: string[];
-            options?: Option[];
-            variants?: Variant[];
-          };
-          if (saved.form) setForm({ ...EMPTY_FORM, ...saved.form });
-          if (saved.specs?.length) setSpecs(saved.specs);
-          if (saved.tags?.length) setTags(saved.tags);
-          if (saved.options?.length) setOptions(saved.options);
-          if (saved.variants?.length) setVariants(saved.variants);
+          const parsed = JSON.parse(raw) as unknown;
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("Invalid local draft.");
+          }
+          const saved = parsed as Record<string, unknown>;
+          const restoredOptions = normalizeDraftOptions(saved.options);
+          const restoredVariants = normalizeDraftVariants(saved.variants);
+          // Older drafts could contain more than one variant without option
+          // axes. Keep the first one and let the operator regenerate variants.
+          const safeVariants =
+            restoredOptions.length === 0 && restoredVariants.length > 1
+              ? restoredVariants.slice(0, 1)
+              : restoredVariants;
+          setForm(normalizeDraftForm(saved.form));
+          setSpecs(normalizeDraftSpecs(saved.specs));
+          setTags(normalizeDraftTags(saved.tags));
+          setOptions(restoredOptions);
+          setVariants(
+            safeVariants.length > 0 ? safeVariants : [emptyVariant()],
+          );
           setNotice({
             kind: "info",
             text: "Restored the unsaved local draft from this browser.",
