@@ -1,19 +1,6 @@
-import { DocumentText } from "@medusajs/icons";
-import type { RouteConfig } from "@mercurjs/dashboard-sdk";
-import { SingleColumnPage } from "@mercurjs/dashboard-shared";
-import { ProductStudioForm } from "./studio-form";
+import { Navigate } from "react-router-dom";
 
-export const config: RouteConfig = {
-  label: "Product Studio",
-  icon: DocumentText,
-  rank: 20,
-  nested: "/products",
-};
-
-export default function VendorProductStudioPage() {
-  return (
-    <SingleColumnPage>
-      <ProductStudioForm mode="vendor" />
-    </SingleColumnPage>
-  );
+/** The canonical product-create route is /products/new. */
+export default function ProductStudioRedirect() {
+  return <Navigate to="/products/new" replace />;
 }
