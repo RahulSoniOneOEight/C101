@@ -61,9 +61,20 @@ decisions:
   approved_default: >-
     Review is a compact status check with required blockers and optional
     warnings. The primary action is publish or submit for review.
+- id: DEC-076-07
+  area: Seller published edits
+  approved_default: >-
+    Seller may edit its own published products directly with an audit event and
+    Seller activity visibility. Admin reviews updates after the fact and may
+    take corrective action through Product Studio.
+- id: DEC-076-08
+  area: Pricing save action
+  approved_default: >-
+    Each offer exposes one Save pricing action that saves B2C and configured B2B
+    pricing in sequence.
 implementation:
   status: staging-deployed-verified
-  release: 3b43733
+  release: 17109f8
   evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
   verification:
     admin_build: pass
@@ -72,10 +83,10 @@ implementation:
     targeted_lint: pre-existing-react-hooks-set-state-in-effect-only
     staging_admin_qc: pass
     staging_seller_qc: pass
+    seller_direct_edit_qc: pass
+    seller_activity_product_update_qc: pass
     staging_console_errors: 0
     staging_mobile_overflow: none
   production_blocked_by:
-  - seller-published-edit-review-model
-  - pricing-save-orchestration
   - b2b-storefront-price-consumption
   - human-production-authorization

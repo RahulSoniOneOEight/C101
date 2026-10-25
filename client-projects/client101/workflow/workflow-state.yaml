@@ -345,16 +345,17 @@ active_changes:
   pricing: b2c-list-selling-gst-b2b-list-selling-moq-tiers-dates-no-reason
   review: compact-status-check-and-publish
   production_release_authorized: false
-  staging_release: 3b43733
+  staging_release: 17109f8
   admin_qc: pass
   seller_qc: pass
+  seller_direct_edit_qc: pass
+  seller_activity_product_update_qc: pass
+  single_pricing_save: true
   mobile_overflow: none
   console_errors: 0
   production_blocked_by:
-  - seller-published-edit-review-model
-  - pricing-save-orchestration
   - b2b-storefront-price-consumption
   - human-production-authorization
   evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
-  latest_staging_release: 3b43733
+  latest_staging_release: 17109f8
 

@@ -3,7 +3,7 @@
 Date: 2026-10-25
 Change: CHG-076
 Lane: C — shared Admin/Seller product editor, metadata and pricing UI
-Release: `3b43733`
+Release: `17109f8`
 Environment: staging only
 Production: not authorized
 
@@ -71,6 +71,21 @@ The agreed details block is retained:
   whole operation with a clear message when the proposed list price is below an
   existing base selling price.
 
+### Seller direct edit and audit
+
+- Seller can open its own published products in Product Studio.
+- Saving a seller edit updates the listing directly.
+- Each seller product update records `seller.product.updated` in the Experience event store.
+- Admin Seller activity shows the update with seller name, product name, `Direct seller edit`, and a link into Product Studio.
+- Admin can open the same Product Studio record and take corrective action.
+
+### One pricing save action
+
+- Each offer now has one `Save pricing` action instead of separate B2C and B2B save buttons.
+- It saves B2C pricing and configured B2B pricing in sequence.
+- B2C remains list price, selling price and GST.
+- B2B remains list price, selling price, MOQ, tiers and effective dates.
+
 ### Review and publish
 
 - Review is a compact status check.
@@ -113,9 +128,9 @@ The agreed details block is retained:
 
 ## Staging deployment
 
-Release: `3b43733`
+Release: `17109f8`
 
-- `/opt/buildkart-releases/current` points to `/opt/buildkart-releases/release-3b43733`.
+- `/opt/buildkart-releases/current` points to `/opt/buildkart-releases/release-17109f8`.
 - `medusa-api` healthy; `medusa-worker` running.
 - Proxy restarted.
 - Admin, Seller, ERP and API health endpoints return `200`.
@@ -133,6 +148,8 @@ Admin, `https://ops-staging.pinakaplay.cloud/dashboard/`:
 - B2B has list price, selling price, MOQ, effective dates and structured tier rows.
 - No reason-for-change text box is present in B2C, B2B or bulk reference pricing.
 - Review shows a compact status check and blockers.
+- Pricing exposes one `Save pricing` action per offer.
+- Seller activity shows a direct seller product update with the seller name and a Product Studio link.
 - Console errors: 0.
 
 Seller, `https://ops-staging.pinakaplay.cloud/seller/`:
@@ -161,10 +178,10 @@ Screenshots:
 
 ## Residual limitations
 
-- Seller published-product editing remains governed by the existing review model;
-  this bundle permits seller operation of own drafts.
+- Seller published-product edits are direct and audited; Admin review is
+  corrective rather than pre-approval.
 - Seller products route may still be reachable by direct URL while hidden from
   navigation.
-- B2B price-list consumption by the B2B storefront remains a separate pricing
-  read-path issue.
+- B2B price-list consumption by the B2B storefront remains the one open
+  cross-service pricing gap.
 - Production remains unauthorized.
