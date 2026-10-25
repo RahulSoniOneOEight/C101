@@ -435,7 +435,7 @@ function OfferPricingEditor({
     setErrors([]);
   }, [offer]);
 
-  const save = async () => {
+  const saveB2c = async (): Promise<boolean> => {
     const nextErrors = validatePriceLadder(base, tiers);
     const listMinor = Math.round(Number(listPrice) * 100);
     const baseMinor = Math.round(Number(base) * 100);
@@ -446,7 +446,7 @@ function OfferPricingEditor({
       nextErrors.push("Selling price cannot exceed the list price.");
     }
     setErrors([...new Set(nextErrors)]);
-    if (nextErrors.length > 0) return;
+    if (nextErrors.length > 0) return false;
     setSaving(true);
     try {
       const payload = [
@@ -507,14 +507,16 @@ function OfferPricingEditor({
       };
       onSaved(updated);
       setErrors([]);
+      return true;
     } catch (error) {
       setErrors([(error as Error).message]);
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const saveB2b = async () => {
+  const saveB2b = async (): Promise<boolean> => {
     setB2bSaving(true);
     setB2bNotice(null);
     try {
@@ -541,10 +543,26 @@ function OfferPricingEditor({
         }),
       });
       setB2bNotice("B2B price saved in the dedicated customer-group price list.");
+      return true;
     } catch (error) {
       setB2bNotice((error as Error).message);
+      return false;
     } finally {
       setB2bSaving(false);
+    }
+  };
+
+  const saveAllPricing = async () => {
+    const b2cSaved = await saveB2c();
+    if (!b2cSaved) return;
+    const hasB2bValues = Boolean(
+      b2bAmount.trim() ||
+        b2bList.trim() ||
+        b2bTiers.length ||
+        b2bPriceListId,
+    );
+    if (hasB2bValues) {
+      await saveB2b();
     }
   };
 
@@ -683,11 +701,6 @@ function OfferPricingEditor({
             </div>
           ) : null}
 
-          <div className="mt-3 flex justify-end">
-            <Button size="small" type="button" isLoading={saving} onClick={save}>
-              Save B2C price
-            </Button>
-          </div>
         </section>
 
         <section
@@ -875,18 +888,6 @@ function OfferPricingEditor({
             )}
           </div>
 
-          <div className="mt-3 flex justify-end">
-            <Button
-              size="small"
-              type="button"
-              variant="secondary"
-              isLoading={b2bSaving}
-              onClick={saveB2b}
-            >
-              Save B2B price
-            </Button>
-          </div>
-
           {b2bNotice ? (
             <p className="mt-2 text-xs text-ui-fg-subtle">{b2bNotice}</p>
           ) : null}
@@ -908,6 +909,20 @@ function OfferPricingEditor({
             </div>
           ) : null}
         </section>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-ui-border-base pt-3">
+        <Text size="xsmall" className="text-ui-fg-subtle">
+          Saves B2C and configured B2B pricing for this offer.
+        </Text>
+        <Button
+          size="small"
+          type="button"
+          isLoading={saving || b2bSaving}
+          onClick={saveAllPricing}
+        >
+          Save pricing
+        </Button>
       </div>
     </div>
   );
@@ -2166,7 +2181,9 @@ export function ProductStudioForm({
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        {mode === "admin" || item.status === "draft" ? (
+                        {mode === "admin" ||
+                        mode === "vendor" ||
+                        item.status === "draft" ? (
                           <Link
                             to={`/product-studio/${item.id}`}
                             className="text-xs font-medium text-ui-fg-interactive hover:underline"

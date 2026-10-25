@@ -142,6 +142,15 @@ function changeSummary(event: ActivityEvent): {
   after: string;
 } {
   const channel = eventChannel(event);
+  if (event.event_type === "seller.product.updated") {
+    const before = event.payload.before as { title?: string | null } | null;
+    const after = event.payload.after as { title?: string | null } | null;
+    return {
+      channel,
+      before: before?.title ?? "Product record",
+      after: after?.title ?? "Updated",
+    };
+  }
   if (channel === "b2b") {
     return {
       channel,
@@ -194,13 +203,13 @@ export default function SellerActivityPage() {
         <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Heading level="h1">Seller activity</Heading>
+              <Heading level="h1">Seller listing activity</Heading>
               <StatusBadge color="orange">Staging data</StatusBadge>
             </div>
             <Text size="small" className="mt-1 text-ui-fg-subtle">
-              Seller price changes, newest first. Seller, product and actor names
-              are resolved from the current read model; raw IDs remain available
-              on hover.
+              Seller listing and price changes, newest first. Seller, product
+              and actor names are resolved from the current read model; raw IDs
+              remain available on hover.
             </Text>
           </div>
           <StatusBadge color="grey">
@@ -234,7 +243,7 @@ export default function SellerActivityPage() {
                     Product / offer
                   </Table.HeaderCell>
                   <Table.HeaderCell className="w-[190px]">
-                    Price change
+                    Change
                   </Table.HeaderCell>
                   <Table.HeaderCell className="w-[180px]">
                     Actor / source
@@ -291,7 +300,11 @@ export default function SellerActivityPage() {
                     sourceLabel(event.payload.source),
                   ].join(" · ");
                   const change = changeSummary(event);
-                  const reason = event.payload.reason?.trim();
+                  const productUpdate =
+                    event.event_type === "seller.product.updated";
+                  const reason =
+                    event.payload.reason?.trim() ||
+                    (productUpdate ? "Direct seller edit" : null);
 
                   return (
                     <Table.Row key={event.id}>
@@ -323,7 +336,11 @@ export default function SellerActivityPage() {
                         {productId ? (
                           <Link
                             className="block max-w-[300px] truncate text-sm text-ui-fg-interactive underline"
-                            to={`/offers/${productId}${sellerQuery}`}
+                            to={
+                              productUpdate
+                                ? `/product-studio/${productId}`
+                                : `/offers/${productId}${sellerQuery}`
+                            }
                             title={offerLabel}
                           >
                             {offerLabel}

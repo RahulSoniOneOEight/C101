@@ -19,6 +19,7 @@ import {
   recordProductAuditChangeWorkflow,
 } from "@mercurjs/core/workflows";
 import { AttributeType, ProductChangeActionType } from "@mercurjs/types";
+import { recordSellerProductActivity } from "./seller-activity";
 
 export type StudioMode = "admin" | "vendor";
 
@@ -883,8 +884,9 @@ export async function loadStudioProduct(
     .sort((left: any, right: any) => left.studio_order - right.studio_order);
 
   const metadata = product.metadata ?? {};
-  const canEdit =
-    mode === "admin" || (owned && String(product.status) === "draft");
+  // Admin can edit every product. Seller direct edits are audited and surfaced
+  // in Seller activity so Admin can review and correct them.
+  const canEdit = mode === "admin" || owned;
   const studioManaged = metadata.buildkart_product_studio === true;
 
   const valueRank = new Map<string, Map<string, number>>(
@@ -1071,7 +1073,7 @@ export async function saveStudioProduct(
     mode === "admin" ? clean(input.seller_id) ?? null : sellerId;
 
   if (!productId) {
-    const { result } = await createProductsWorkflow(scope).run({
+    const { result: createdResult } = await createProductsWorkflow(scope).run({
       input: {
         products: [
           {
@@ -1100,7 +1102,7 @@ export async function saveStudioProduct(
       },
     });
 
-    const created = result?.[0];
+    const created = createdResult?.[0];
     if (!created?.id) {
       throw new StudioError(500, "Product draft was created without an id.");
     }
@@ -1117,13 +1119,38 @@ export async function saveStudioProduct(
         actorId,
       );
     }
-    return loadStudioProduct(scope, mode, sellerId, created.id);
+    const saved = await loadStudioProduct(scope, mode, sellerId, created.id);
+    if (requestedSellerId) {
+      const offer = saved.product.offers?.find(
+        (row: { seller_id?: string }) => row.seller_id === requestedSellerId,
+      );
+      if (offer?.id) {
+        await recordSellerProductActivity({
+          sellerId: requestedSellerId,
+          offerId: offer.id,
+          productId: created.id,
+          actorUserId: actorId,
+          actorRole: mode === "admin" ? "admin" : "seller",
+          source: mode === "admin" ? "admin_console" : "seller_portal",
+          before: null,
+          after: {
+            title: saved.product.title,
+            status: saved.product.status,
+            thumbnail: saved.product.thumbnail,
+            metadata: saved.product.metadata,
+            variant_count: saved.product.variants?.length ?? 0,
+            offer_count: saved.product.offers?.length ?? 0,
+          },
+        });
+      }
+    }
+    return saved;
   }
 
   const q = query(scope);
   const { data: products } = await q.graph({
     entity: "product",
-    fields: ["id", "title", "status", "metadata"],
+    fields: ["id", "title", "status", "thumbnail", "metadata"],
     filters: { id: productId },
   });
   const current = products?.[0];
@@ -1138,12 +1165,6 @@ export async function saveStudioProduct(
     const owned = (await sellerOwnedProductIds(scope, sellerId)).includes(productId);
     if (!owned) {
       throw new StudioError(404, "Product not found.");
-    }
-    if (String(current.status) !== "draft") {
-      throw new StudioError(
-        409,
-        "Only draft listings can be edited here. Published product changes go through review.",
-      );
     }
   }
 
@@ -1293,7 +1314,37 @@ export async function saveStudioProduct(
     },
   });
 
-  return loadStudioProduct(scope, mode, sellerId, productId);
+  const result = await loadStudioProduct(scope, mode, sellerId, productId);
+  if (requestedSellerId) {
+    const offer = result.product.offers?.find(
+      (row: { seller_id?: string }) => row.seller_id === requestedSellerId,
+    );
+    if (offer?.id) {
+      await recordSellerProductActivity({
+        sellerId: requestedSellerId,
+        offerId: offer.id,
+        productId,
+        actorUserId: actorId,
+        actorRole: mode === "admin" ? "admin" : "seller",
+        source: mode === "admin" ? "admin_console" : "seller_portal",
+        before: {
+          title: current.title,
+          status: current.status,
+          thumbnail: current.thumbnail ?? null,
+          metadata: current.metadata ?? null,
+        },
+        after: {
+          title: result.product.title,
+          status: result.product.status,
+          thumbnail: result.product.thumbnail,
+          metadata: result.product.metadata,
+          variant_count: result.product.variants?.length ?? 0,
+          offer_count: result.product.offers?.length ?? 0,
+        },
+      });
+    }
+  }
+  return result;
 }
 
 export function studioErrorResponse(error: unknown): {
