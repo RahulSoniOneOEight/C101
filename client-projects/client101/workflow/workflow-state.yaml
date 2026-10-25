@@ -365,6 +365,12 @@ active_changes:
   product_management_workspace_spec: docs/implementation/product-management-workspace-spec-2026-10-25.md
   product_management_workspace_spec_status: revised-design-pending-human-decisions
   product_management_workspace_spec_qc_model: openai/gpt-5.6-sol
+  admin_products_workspace_status: staging-deployed-verified
+  admin_products_workspace_release: f59a5f9
+  admin_products_workspace_scope: products-nav-tabbed-workspace-bridge-ui-only
+  admin_products_workspace_qc_model: openai/gpt-5.6-sol
+  admin_products_workspace_qc_verdict: approve
+  admin_products_workspace_evidence: client-projects/client101/evidence/CHG-076/admin-products-workspace-2026-10-25.md
   mobile_overflow: none
   console_errors: 0
   production_blocked_by:

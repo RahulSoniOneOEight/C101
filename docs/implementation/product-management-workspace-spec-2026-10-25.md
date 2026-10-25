@@ -3,7 +3,8 @@
 Date: 2026-10-25
 Scope: Admin and Seller product management, staging-first
 QC model: `openai/gpt-5.6-sol` (high reasoning)
-Status: revised design for review; no implementation yet
+Status: revised design for review. The safe Admin UI slice is deployed to staging
+at `f59a5f9`; the full corrected flow still waits for human decisions.
 Production: not authorized
 
 ## 1. What changed after QC
