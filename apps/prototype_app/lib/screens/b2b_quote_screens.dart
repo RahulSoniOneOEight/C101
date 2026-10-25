@@ -75,7 +75,9 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
             variant: variant,
             quantity: quantity,
             sellerName: variant?.sellerName ?? seller?.name,
-            unitPrice: variant?.price ?? p.unitPriceFor(quantity),
+            unitPrice: b2bUnitPriceFor(variant, quantity) ??
+                variant?.price ??
+                p.unitPriceFor(quantity),
             variantId: variant?.id ?? p.product.cartVariantId,
             offerId: offerId,
           ),
@@ -106,11 +108,19 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
     }
     final p = match;
     final variants = p.product.variants;
+    // Open on the seller's published B2B SKU when one exists. The product-level
+    // best offer may be a B2C-only sibling, but its terms do not apply to this SKU.
+    final defaultVariant = variants.isEmpty
+        ? null
+        : variants.firstWhere(
+            (v) => v.b2bConfigured,
+            orElse: () => p.product.defaultVariant ?? variants.first,
+          );
     final selectedVariant = variants.isEmpty
         ? null
         : variants.firstWhere(
             (v) => v.id == _selectedVariantId,
-            orElse: () => p.product.defaultVariant ?? variants.first,
+            orElse: () => defaultVariant!,
           );
     final sellers = p.sellers;
     final bestSeller = p.bestSeller;
@@ -121,11 +131,22 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
             orElse: () => bestSeller ?? sellers.first,
           );
 
-    final tiers = p.tiers;
+    final variantTiers = selectedVariant?.b2bTiers ?? const <B2bPriceTier>[];
+    final tiers = variantTiers.isNotEmpty
+        ? <TradeTier>[
+            for (final tier in variantTiers)
+              TradeTier(quantity: tier.minQuantity, unitPrice: tier.unitPrice),
+          ]
+        : selectedVariant?.b2bConfigured == true
+            ? const <TradeTier>[]
+            : p.tiers;
+    final moq = selectedVariant?.b2bMoq ??
+        (selectedVariant?.b2bConfigured == true ? 1 : p.moq);
     final tierIndex =
         tiers.isEmpty ? 0 : _selectedTier.clamp(0, tiers.length - 1);
-    final tierQty = tiers.isEmpty ? p.moq : tiers[tierIndex].quantity;
-    final unitPrice = selectedVariant?.price ??
+    final tierQty = tiers.isEmpty ? moq : tiers[tierIndex].quantity;
+    final unitPrice = b2bUnitPriceFor(selectedVariant, tierQty) ??
+        selectedVariant?.price ??
         selectedSeller?.unitPrice ??
         p.unitPriceFor(tierQty);
     final mrp = selectedVariant?.mrp ?? p.mrp;
@@ -292,7 +313,7 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                 Icon(Icons.info_outline, size: 16, color: colors.actionPrimary),
                 const SizedBox(width: AgencySpacing.sm),
                 Expanded(
-                  child: Text('GST 18% · MOQ ${p.moq} · ${p.deliveryLocation}',
+                  child: Text('GST 18% · MOQ $moq · ${p.deliveryLocation}',
                       style: TextStyle(
                           fontSize: 11, color: colors.contentPrimary)),
                 ),
@@ -390,8 +411,12 @@ class _VariantRow extends StatelessWidget {
     final detail = <String>[
       if (variant.sku != null) 'SKU ${variant.sku}',
       if (variant.sellerName != null) variant.sellerName!,
+      if (variant.b2bConfigured && variant.b2bMoq != null)
+        'MOQ ${variant.b2bMoq}',
       if (!variant.inStock) 'Out of stock',
     ].join(' · ');
+    final price =
+        b2bUnitPriceFor(variant, variant.b2bMoq ?? 1) ?? variant.price;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AgencyRadius.md),
@@ -442,7 +467,7 @@ class _VariantRow extends StatelessWidget {
             ),
             const SizedBox(width: AgencySpacing.sm),
             Text(
-              variant.price?.formatted ?? 'On request',
+              price?.formatted ?? 'On request',
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,

@@ -862,6 +862,18 @@ Money _discountedMoney(Money price, int percent) => Money(
       currencyCode: price.currencyCode,
     );
 
+/// Unit price from a variant's saved B2B tiers at [quantity]. Null means the
+/// variant has no configured B2B terms, so the caller keeps its own price.
+Money? b2bUnitPriceFor(ProductVariant? variant, int quantity) {
+  if (variant == null || variant.b2bTiers.isEmpty) return null;
+  B2bPriceTier? match;
+  for (final tier in variant.b2bTiers) {
+    if (quantity < tier.minQuantity) continue;
+    if (match == null || tier.minQuantity > match.minQuantity) match = tier;
+  }
+  return match?.unitPrice;
+}
+
 TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
   // Show the cheapest sellable SKU on the card, matching the B2C best price.
   // `defaultVariant` is the first sellable SKU, which is not necessarily the
@@ -1272,18 +1284,6 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     return null;
   }
 
-  /// Unit price from the seller's saved B2B tiers at [quantity]. Null means the
-  /// variant has no configured B2B terms, so the caller keeps its own price.
-  Money? _b2bUnitPriceFor(ProductVariant? variant, int quantity) {
-    if (variant == null || variant.b2bTiers.isEmpty) return null;
-    B2bPriceTier? match;
-    for (final tier in variant.b2bTiers) {
-      if (quantity < tier.minQuantity) continue;
-      if (match == null || tier.minQuantity > match.minQuantity) match = tier;
-    }
-    return match?.unitPrice;
-  }
-
   /// Adds one SKU of a grouped product.
   ///
   /// [variant] is the SKU the buyer selected on the product page. Without one,
@@ -1299,7 +1299,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
           ? product.product.title
           : '${product.product.title} · ${selected.label}',
       quantity: qty,
-      unitPrice: _b2bUnitPriceFor(selected, qty) ??
+      unitPrice: b2bUnitPriceFor(selected, qty) ??
           selected?.price ??
           product.unitPriceFor(qty),
       seller: selected?.sellerName,
@@ -1328,7 +1328,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
     // fall back to the local fixture ladder when the catalogue has no variants.
     final tierPriced = match != null && match.product.variants.isEmpty;
     final resolvedPrice = unitPrice ??
-        _b2bUnitPriceFor(variant, quantity) ??
+        b2bUnitPriceFor(variant, quantity) ??
         (tierPriced ? match.unitPriceFor(quantity) : null) ??
         match?.tradePrice ??
         _inr(100);
@@ -1344,7 +1344,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         sku: existing.sku,
         name: existing.name,
         quantity: combinedQuantity,
-        unitPrice: _b2bUnitPriceFor(variant, combinedQuantity) ??
+        unitPrice: b2bUnitPriceFor(variant, combinedQuantity) ??
             (tierPriced
                 ? match.unitPriceFor(combinedQuantity)
                 : existing.unitPrice),
@@ -1421,7 +1421,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
                   sku: line.sku,
                   name: line.name,
                   quantity: quantity,
-                  unitPrice: _b2bUnitPriceFor(variant, quantity) ??
+                  unitPrice: b2bUnitPriceFor(variant, quantity) ??
                       (tierPriced
                           ? catalogueMatch.unitPriceFor(quantity)
                           : line.unitPrice),
