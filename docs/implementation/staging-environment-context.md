@@ -20,8 +20,10 @@ repo or paste their contents into chat.
 - Repo: `C:\Users\LENOVO\C101-commission-statements`
 - Branch: `feat/order-detail-workbench`
 - Remote: `origin/feat/order-detail-workbench`
-- Runtime release: `/opt/buildkart-releases/release-1030b72`
-- Runtime commit: `1030b72`
+- Runtime release: `/opt/buildkart-releases/release-eaf47a0`
+- Runtime commit: `eaf47a0`
+- Medusa/Admin/Seller release: `eaf47a0` (Product Studio stale-draft recovery)
+- Experience API release: `1030b72` (B2B price/MOQ/tier read path)
 - Web app build: `15c31e4` (B2B price/MOQ/tier read path)
 - Docs-only HEAD: branch HEAD after this record (not part of the runtime release)
 - Production release: not authorized

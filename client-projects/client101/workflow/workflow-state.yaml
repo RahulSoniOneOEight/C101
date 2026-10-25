@@ -357,6 +357,11 @@ active_changes:
   single_pricing_save: true
   product_studio_smoke_2026_10_25: pass-with-legacy-variant-details-gap
   product_studio_smoke_evidence: client-projects/client101/evidence/CHG-076/product-studio-smoke-2026-10-25.md
+  product_studio_stale_draft_recovery: staging-verified
+  product_studio_stale_draft_release: eaf47a0
+  product_studio_multi_variant_qc: pass
+  product_studio_multi_variant_test_product: prod_01M5SJHTE1B0NJVV4DCXZE0062
+  product_studio_stale_draft_evidence: client-projects/client101/evidence/CHG-076/product-studio-stale-draft-and-multi-variant-2026-10-25.md
   mobile_overflow: none
   console_errors: 0
   production_blocked_by:
