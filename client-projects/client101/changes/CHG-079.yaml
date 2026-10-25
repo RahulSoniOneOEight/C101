@@ -1,6 +1,6 @@
 change_id: CHG-079
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified-pending-qc-rerun
 request: >-
   Implement the four pending staging updates: direct variant creation, Bought
   Together merchandising, product-tile plus-to-quantity-stepper, and a single
@@ -41,21 +41,21 @@ requirements:
     Admin and Seller Product Studio can create and save 1..N direct variants
     without option axes, with add, duplicate, remove, SKU/details/image and
     structural locks for published or offered products.
-  status: planned
+  status: pass
 - id: R2
   name: Bought Together merchandising
   outcome: >-
     Admin Merchandising can pair two products reciprocally; B2C and B2B product
     pages show the paired product above Related products (B2B after primary
     actions), with channel-aware pricing, out-of-stock state and audit.
-  status: planned
+  status: pass
 - id: R3
   name: Product tile plus-to-stepper
   outcome: >-
     B2C and B2B product tiles replace the add-to-cart icon with a plus that
     becomes a quantity stepper, bound to the canonical cart or RFQ state, with
     MOQ/tier behavior on B2B.
-  status: planned
+  status: pass-code-with-widget-tests
 - id: R4
   name: Cart-level delivery choice
   outcome: >-
@@ -63,13 +63,13 @@ requirements:
     all-or-nothing availability, one delivery total and one arrival promise.
     B2B records a non-priced Standard/Priority request where no canonical
     shipping pricing exists.
-  status: planned
+  status: pass
 - id: R5
   name: Final QC
   outcome: >-
     Run GPT-5.6 Sol QC after implementation and staging verification; no open
     blockers before closeout.
-  status: planned
+  status: pending-qc-rerun
 decisions:
 - id: DEC-079-01
   area: Direct variant model
@@ -153,3 +153,30 @@ deployment:
   mechanism: image-rebuild-migration-static-bundles
   production: forbidden
   rollback_baseline: f59a5f9
+implementation:
+  status: staging-deployed-verified-pending-qc-rerun
+  release: 1c6d4a3
+  runtime_path: /opt/buildkart-releases/release-1c6d4a3
+  staging_test_product: prod_01M5T3CJBYS738XQ6PXQQQNFFS
+  staging_test_pair: btp_caba4b93855046d1981b88524343095f
+  staging_test_cart: cart_01M5T3ATCHQT10GKXR0F7D3A4C
+  direct_variant_offers: 6
+  direct_variant_status: published
+  structural_lock: pass
+  bought_together_reciprocal: pass
+  bought_together_pause_resume: pass
+  bought_together_duplicate_conflict: pass
+  bought_together_readiness_validation: pass
+  bought_together_metadata_redaction: pass
+  delivery_tier_standard: 9900
+  delivery_tier_express: 19900
+  flutter_tests: pass-280
+  flutter_analyze: pass
+  experience_api_typecheck: pass
+  flutter_web_release_build: pass
+  docker_image_build: pass
+  staging_health: pass
+  qc_initial: rework
+  qc_after_corrections: pending-rerun
+  production_release_authorized: false
+
