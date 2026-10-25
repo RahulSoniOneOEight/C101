@@ -9,7 +9,6 @@ import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
 import '../domain/presentation.dart';
 import 'catalog_providers.dart';
-import 'search_telemetry_provider.dart';
 
 /// Trade category descriptors (icon + label) for the trade rail + catalogue.
 class TradeCategory {
@@ -1323,11 +1322,6 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
       ));
     }
     _commit(state.copyWith(lines: next, status: RfqStatus.draft));
-    ref.read(searchTelemetryProvider).recordCartAdd(
-          channel: 'b2b',
-          productId: match?.product.id ?? sku,
-          productTitle: match?.product.title ?? name,
-        );
   }
 
   void addProcurementItems(
