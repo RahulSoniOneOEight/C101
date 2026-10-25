@@ -3,7 +3,7 @@
 Date: 2026-10-25
 Change: CHG-076
 Lane: C — shared Admin/Seller product editor, metadata and pricing UI
-Release: pending staging verification
+Release: code complete; staging deployment blocked by SSH authentication
 Environment: staging only
 Production: not authorized
 
@@ -112,6 +112,11 @@ The agreed details block is retained:
   `react-hooks/set-state-in-effect` findings; no new lint error was introduced.
 
 ## Staging verification pending
+
+Deployment attempt on 2026-10-25 was blocked: SSH to `89.116.20.164` rejects the
+`~/.ssh/buildkart_deploy` key (`Permission denied (publickey,password)`), even
+though the key loads with its recorded passphrase. Password authentication also
+failed. Staging remains on the previous release.
 
 - Confirm Admin and Seller navigation no longer shows Seller products.
 - Open Product Studio from Products in both portals.
