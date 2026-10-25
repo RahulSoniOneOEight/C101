@@ -1197,21 +1197,26 @@ export async function saveStudioProduct(
   // variant changes must be deliberate. The UI mirrors this guard; the server
   // remains authoritative for direct API calls.
   if (studioManaged) {
-    const { data: lockedOfferRows } = await q.graph({
-      entity: "offer",
-      fields: ["id"],
+    const { data: lockedVariants } = await q.graph({
+      entity: "variant",
+      fields: ["id", "sku"],
       filters: { product_id: productId },
-      pagination: { take: 1, skip: 0 },
+      pagination: { take: 500, skip: 0 },
     });
+    const lockedVariantIds = (lockedVariants ?? [])
+      .map((variant: any) => variant.id)
+      .filter((id: unknown): id is string => Boolean(id));
+    const { data: lockedOfferRows } = lockedVariantIds.length
+      ? await q.graph({
+          entity: "offer",
+          fields: ["id", "variant_id"],
+          filters: { variant_id: lockedVariantIds },
+          pagination: { take: 1, skip: 0 },
+        })
+      : { data: [] as any[] };
     const structuralLocked =
       current.status === "published" || (lockedOfferRows ?? []).length > 0;
     if (structuralLocked) {
-      const { data: lockedVariants } = await q.graph({
-        entity: "variant",
-        fields: ["id", "sku"],
-        filters: { product_id: productId },
-        pagination: { take: 500, skip: 0 },
-      });
       const currentById = new Map<string, { id: string; sku?: string | null }>(
         (lockedVariants ?? []).map((variant: any) => [variant.id, variant]),
       );
