@@ -280,18 +280,15 @@ export default function SellerActivityPage() {
                     ? `?seller_id=${encodeURIComponent(sellerId)}`
                     : "";
                   const actorId = event.payload.actor_user_id ?? null;
-                  const actorKind =
-                    event.actor?.kind ??
-                    (actorId?.startsWith("user_")
-                      ? "admin"
-                      : actorId?.startsWith("mem_") ||
-                          event.payload.actor_role === "seller"
-                        ? "seller"
-                        : "unknown");
+                  const sellerActor = event.payload.actor_role === "seller";
+                  const actorKind = sellerActor
+                    ? "seller"
+                    : (event.actor?.kind ??
+                      (actorId?.startsWith("user_") ? "admin" : "unknown"));
                   const actorName =
                     event.actor?.name ??
                     event.actor?.email ??
-                    (actorKind === "seller"
+                    (sellerActor
                       ? sellerName
                       : actorKind === "admin"
                         ? "Unknown admin"
