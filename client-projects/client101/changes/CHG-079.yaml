@@ -1,6 +1,6 @@
 change_id: CHG-079
 revision: 1
-status: staging-deployed-verified-pending-qc-rerun
+status: staging-deployed-verified
 request: >-
   Implement the four pending staging updates: direct variant creation, Bought
   Together merchandising, product-tile plus-to-quantity-stepper, and a single
@@ -69,7 +69,7 @@ requirements:
   outcome: >-
     Run GPT-5.6 Sol QC after implementation and staging verification; no open
     blockers before closeout.
-  status: pending-qc-rerun
+  status: pass
 decisions:
 - id: DEC-079-01
   area: Direct variant model
@@ -154,7 +154,7 @@ deployment:
   production: forbidden
   rollback_baseline: f59a5f9
 implementation:
-  status: staging-deployed-verified-pending-qc-rerun
+  status: staging-deployed-verified
   release: 6c8560b
   runtime_path: /opt/buildkart-releases/release-6c8560b
   staging_test_product: prod_01M5T3CJBYS738XQ6PXQQQNFFS
@@ -177,6 +177,6 @@ implementation:
   docker_image_build: pass
   staging_health: pass
   qc_initial: rework
-  qc_after_corrections: pending-rerun
+  qc_after_corrections: approve-with-changes-staging
   production_release_authorized: false
 

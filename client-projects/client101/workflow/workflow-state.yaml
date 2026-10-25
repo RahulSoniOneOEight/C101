@@ -426,12 +426,12 @@ active_changes:
     R2_bought_together: pass
     R3_tile_stepper: pass-code-with-widget-tests
     R4_delivery_tier: pass
-    R5_qc: pending-rerun
+    R5_qc: pass
   staging_test_product: prod_01M5T3CJBYS738XQ6PXQQQNFFS
   staging_test_pair: btp_caba4b93855046d1981b88524343095f
   staging_test_cart: cart_01M5T3ATCHQT10GKXR0F7D3A4C
   evidence: client-projects/client101/evidence/CHG-079/staging-implementation-2026-10-25.md
   production_blocked_by:
   - human-production-authorization
-  - qc-rerun-after-corrections
+
 

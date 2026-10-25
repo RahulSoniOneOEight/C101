@@ -16,7 +16,7 @@
 | R2 | Bought Together reciprocal merchandising | **PASS** | Pair `btp_caba4b93855046d1981b88524343095f`; reciprocal B2C and B2B PDP reads; pause hides, resume restores; duplicate create 409; audit 4+ entries; invalid product create 404; candidate search finds products beyond page 1 |
 | R3 | Product tile plus → quantity stepper | **PASS-CODE** | Flutter analyze pass; full Flutter tests pass; B2B tier selection now sets initial quantity/price and updates an existing line; B2C single-variant cards bind to canonical cart |
 | R4 | Cart-level delivery choice | **PASS** | Cart `cart_01M5T3ATCHQT10GKXR0F7D3A4C`: options expose `tier`; standard returns shipping ₹99 and total ₹4,089; express returns shipping ₹199 and total ₹4,189; checkout test covers one cart-level selection |
-| R5 | GPT-5.6 Sol QC | **PENDING RERUN** | Initial QC: REWORK. Corrections deployed in `6c8560b`. Final QC rerun pending. |
+| R5 | GPT-5.6 Sol QC | **PASS** | Final QC: **APPROVE WITH CHANGES** for staging after three correction passes. Residuals registered as non-blocking follow-ups. |
 
 ## Verification performed
 
@@ -42,6 +42,9 @@
 | Bought Together metadata redaction | pass (`buildkart_b2b_pricing` not returned) |
 | Delivery tier standard | ₹99 shipping, applied=1 |
 | Delivery tier express | ₹199 shipping, applied=1 |
+| Shipping promise | Options expose `Ship in 2-3 days.` / `Ship in 24 hours.`; checkout renders the selected tier promise |
+| Explicit seller provisioning | No reason → 422; with reason → 200, 6 offers |
+| Active pair validation | Invalid product → 404; priced-offer readiness enforced through `composeOffers` |
 
 ## QC corrections applied
 
@@ -69,7 +72,12 @@
 - B2B related rail hides SKUs already in the cart, so those tiles show no stepper.
 - Admin pair health enrichment is still per-product at staging scale; no batch product API.
 - No Experience API store-level automated tests yet; runtime and typecheck only.
-- Admin page visual screenshot not captured; route/API smoke only.
+- No Undo after quantity removal.
+- Admin Bought Together page is not UI-permission-gated; API enforces `merchandising.read/update`.
+- B2B delivery tier is a device-local RFQ request field, not a priced shipping method.
+- Cart screen still shows “Calculated at checkout”.
+- No admin visual screenshot; route/API smoke only.
+- The delivery promise is a shipping-speed text, not a calculated calendar date.
 - Production remains unauthorized.
 
 ## Runtime identifiers

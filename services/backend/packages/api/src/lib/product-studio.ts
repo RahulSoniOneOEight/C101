@@ -1440,6 +1440,7 @@ export async function saveStudioProduct(
           metadata: result.product.metadata,
           variant_count: result.product.variants?.length ?? 0,
           offer_count: result.product.offers?.length ?? 0,
+          seller_provision_reason: clean(input.seller_provision_reason),
         },
       });
     }

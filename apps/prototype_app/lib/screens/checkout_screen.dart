@@ -64,7 +64,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final options = <String, ShippingOption>{};
     for (final option in _shippingOptions) {
       if (option.tier != tier) continue;
-      options.putIfAbsent(option.sellerId, () => option);
+      final existing = options[option.sellerId];
+      if (existing == null ||
+          option.price.amount < existing.price.amount ||
+          (option.price.amount == existing.price.amount &&
+              option.id.compareTo(existing.id) < 0)) {
+        options[option.sellerId] = option;
+      }
     }
     if (options.isEmpty) return null;
     final values = options.values.toList();
