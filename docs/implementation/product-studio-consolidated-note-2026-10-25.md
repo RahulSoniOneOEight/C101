@@ -1,7 +1,7 @@
 # Product Studio — consolidated page note
 
 Date: 2026-10-25
-Status: implemented — staging verification pending
+Status: staging deployed and verified — release `3b43733`
 Scope: Admin and Seller product create/edit flow
 Production: not authorized
 

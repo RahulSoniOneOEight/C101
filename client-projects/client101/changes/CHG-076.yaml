@@ -1,6 +1,6 @@
 change_id: CHG-076
 revision: 1
-status: implemented-code-complete-staging-verification-pending
+status: staging-deployed-verified
 request: >-
   Consolidate product create and update into one Product Studio flow in both
   Admin and Seller, with seller-scoped operation, simplified custom-only
@@ -62,15 +62,20 @@ decisions:
     Review is a compact status check with required blockers and optional
     warnings. The primary action is publish or submit for review.
 implementation:
-  status: code-complete-staging-verification-pending
-  release: pending
+  status: staging-deployed-verified
+  release: 3b43733
   evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
   verification:
     admin_build: pass
     vendor_build: pass
     api_typecheck: pass
     targeted_lint: pre-existing-react-hooks-set-state-in-effect-only
+    staging_admin_qc: pass
+    staging_seller_qc: pass
+    staging_console_errors: 0
+    staging_mobile_overflow: none
   production_blocked_by:
-  - staging-verification
   - seller-published-edit-review-model
+  - pricing-save-orchestration
+  - b2b-storefront-price-consumption
   - human-production-authorization

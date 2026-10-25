@@ -3,7 +3,7 @@
 Date: 2026-10-25
 Change: CHG-076
 Lane: C — shared Admin/Seller product editor, metadata and pricing UI
-Release: code complete; staging deployment blocked by SSH authentication
+Release: `3b43733`
 Environment: staging only
 Production: not authorized
 
@@ -111,23 +111,53 @@ The agreed details block is retained:
 - Product Studio lint still reports the pre-existing
   `react-hooks/set-state-in-effect` findings; no new lint error was introduced.
 
-## Staging verification pending
+## Staging deployment
 
-Deployment attempt on 2026-10-25 was blocked: SSH to `89.116.20.164` rejects the
-`~/.ssh/buildkart_deploy` key (`Permission denied (publickey,password)`), even
-though the key loads with its recorded passphrase. Password authentication also
-failed. Staging remains on the previous release.
+Release: `3b43733`
 
-- Confirm Admin and Seller navigation no longer shows Seller products.
-- Open Product Studio from Products in both portals.
-- Create a seller-owned draft and verify variant details/image persistence.
-- Verify EAN/UPC/barcode inputs are absent.
-- Verify B2C pricing has no quantity tiers and no reason field.
-- Verify B2B tiers are structured rows and save correctly.
-- Verify review status and publish/submit actions.
-- Verify Seller cannot open another seller's product.
-- Verify Admin can open and edit any product.
-- Verify console errors are zero.
+- `/opt/buildkart-releases/current` points to `/opt/buildkart-releases/release-3b43733`.
+- `medusa-api` healthy; `medusa-worker` running.
+- Proxy restarted.
+- Admin, Seller, ERP and API health endpoints return `200`.
+
+## Live QC
+
+Admin, `https://ops-staging.pinakaplay.cloud/dashboard/`:
+
+- Seller products is absent from the sidebar.
+- Catalogue remains visible with Collections, Categories and Product Studio.
+- Product Studio opens from Catalogue.
+- Variant name, details shown in app, optional image URL and SKU are visible.
+- EAN, UPC and barcode inputs are absent.
+- B2C has list price, selling price and GST only; no quantity tiers.
+- B2B has list price, selling price, MOQ, effective dates and structured tier rows.
+- No reason-for-change text box is present in B2C, B2B or bulk reference pricing.
+- Review shows a compact status check and blockers.
+- Console errors: 0.
+
+Seller, `https://ops-staging.pinakaplay.cloud/seller/`:
+
+- Seller products is absent from the sidebar.
+- Catalogue and Product Studio are visible.
+- Product Studio loads for the seller account.
+- Console errors: 0.
+
+Mobile, 390x844:
+
+- Admin Product Studio horizontal overflow: none.
+- Seller Product Studio horizontal overflow: none.
+
+Screenshots:
+
+- `client-projects/client101/evidence/CHG-076/admin-product-studio-list.png`
+- `client-projects/client101/evidence/CHG-076/admin-product-studio-detail.png`
+- `client-projects/client101/evidence/CHG-076/admin-variants.png`
+- `client-projects/client101/evidence/CHG-076/admin-b2c-pricing.png`
+- `client-projects/client101/evidence/CHG-076/admin-b2b-pricing.png`
+- `client-projects/client101/evidence/CHG-076/admin-review.png`
+- `client-projects/client101/evidence/CHG-076/seller-product-studio-list.png`
+- `client-projects/client101/evidence/CHG-076/admin-product-studio-mobile.png`
+- `client-projects/client101/evidence/CHG-076/seller-product-studio-mobile.png`
 
 ## Residual limitations
 

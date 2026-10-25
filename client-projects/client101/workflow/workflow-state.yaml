@@ -332,7 +332,7 @@ active_changes:
   evidence: docs/implementation/session-note-2026-10-24-storefront-search-insights.md
   latest_staging_release: pending
 - change_id: CHG-076
-  status: implemented-code-complete-staging-verification-pending
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: admin-and-seller-product-studio-staging-only
   approved_by: human-requester
@@ -345,10 +345,16 @@ active_changes:
   pricing: b2c-list-selling-gst-b2b-list-selling-moq-tiers-dates-no-reason
   review: compact-status-check-and-publish
   production_release_authorized: false
+  staging_release: 3b43733
+  admin_qc: pass
+  seller_qc: pass
+  mobile_overflow: none
+  console_errors: 0
   production_blocked_by:
-  - staging-verification
   - seller-published-edit-review-model
+  - pricing-save-orchestration
+  - b2b-storefront-price-consumption
   - human-production-authorization
   evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
-  latest_staging_release: pending
+  latest_staging_release: 3b43733
 
