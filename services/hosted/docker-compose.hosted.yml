@@ -161,6 +161,7 @@ services:
       PORT: "9020"
       CMS_BASE_URL: http://cms:1337
       WORKSPACE_SERVICE_URL: http://workspace:9040
+      BUILDKART_BOUGHT_TOGETHER_ENABLED: "true"
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}

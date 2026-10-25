@@ -7,6 +7,7 @@ import '../data/local_store.dart';
 import '../domain/merchandising.dart';
 import '../domain/image_quality_order.dart';
 import '../domain/models.dart';
+import '../domain/bought_together.dart';
 import '../domain/presentation.dart';
 import '../domain/review_catalogue.dart';
 
@@ -326,6 +327,19 @@ final productProvider =
       if (match != null) return match;
     }
     rethrow;
+  }
+});
+
+/// Reciprocal Bought Together read. A null result means the section is hidden;
+/// the product page must still render.
+final boughtTogetherProvider = FutureProvider.autoDispose
+    .family<BoughtTogether?, ({String id, String channel})>((ref, key) async {
+  try {
+    return await ref
+        .watch(experienceApiProvider)
+        .getBoughtTogether(key.id, channel: key.channel);
+  } catch (_) {
+    return null;
   }
 });
 

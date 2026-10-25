@@ -13,6 +13,7 @@ import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../widgets/cart_feedback.dart';
+import '../widgets/cart_product_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/home_pinned_bar.dart';
 import '../widgets/merchandising_sections.dart';
@@ -536,7 +537,8 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
   }
 
   Widget _card(Product product) {
-    return ProductCard(
+    return CartProductCard(
+      product: product,
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
       previousPriceLabel: product.mrp?.formatted,

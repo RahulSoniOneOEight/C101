@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../domain/models.dart';
 import '../domain/conversation_models.dart';
 import '../widgets/cart_feedback.dart';
+import '../widgets/cart_product_card.dart';
+import '../widgets/bought_together_section.dart';
 import '../widgets/market_comparison.dart';
 import '../widgets/fulfilment_promise_card.dart';
 import '../providers/account_providers.dart';
@@ -194,6 +196,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
           const SizedBox(height: AgencySpacing.lg),
         ],
         _specs(context, selectedVariant),
+        BoughtTogetherSection(current: product),
         if (relatedProducts.isNotEmpty) ...<Widget>[
           const SizedBox(height: AgencySpacing.lg),
           _related(context, relatedProducts),
@@ -712,7 +715,8 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                 const SizedBox(width: AgencySpacing.sm),
             itemBuilder: (context, i) => SizedBox(
               width: 150,
-              child: ProductCard(
+              child: CartProductCard(
+                product: products[i],
                 title: products[i].title,
                 priceLabel: products[i].price?.formatted ?? '',
                 previousPriceLabel: products[i].mrp?.formatted,

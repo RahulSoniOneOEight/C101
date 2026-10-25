@@ -523,6 +523,8 @@ class ProductCard extends StatelessWidget {
     this.onDiscuss,
     this.wishlisted = false,
     this.onWishlist,
+    this.quantity,
+    this.onQuantityChanged,
     this.state = CommerceFixture.defaultState,
     super.key,
   });
@@ -543,6 +545,8 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onDiscuss;
   final bool wishlisted;
   final VoidCallback? onWishlist;
+  final int? quantity;
+  final ValueChanged<int>? onQuantityChanged;
   final CommerceFixture state;
 
   @override
@@ -762,15 +766,24 @@ class ProductCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (onAddToCart != null) ...<Widget>[
+        if (onAddToCart != null || quantity != null) ...<Widget>[
           const SizedBox(width: AgencySpacing.xs),
-          CartPlusIconButton(
-            size: variant == ProductCardVariant.large ? 40 : 32,
-            state:
-                unavailable ? CartPlusState.unavailable : CartPlusState.normal,
-            semanticLabel: 'Add $title to cart',
-            onPressed: unavailable ? null : onAddToCart,
-          ),
+          if (quantity != null && quantity! > 0 && onQuantityChanged != null)
+            QuantityStepper(
+              value: quantity!,
+              min: 0,
+              compact: true,
+              dense: variant == ProductCardVariant.compact,
+              onChanged: unavailable ? null : onQuantityChanged,
+            )
+          else
+            CartPlusIconButton(
+              size: variant == ProductCardVariant.large ? 40 : 32,
+              state:
+                  unavailable ? CartPlusState.unavailable : CartPlusState.normal,
+              semanticLabel: 'Add $title to cart',
+              onPressed: unavailable ? null : onAddToCart,
+            ),
         ],
       ],
     );

@@ -36,9 +36,8 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
   /// Per-SKU quick-order quantities (defaults to the product MOQ).
   final Map<String, int> _quickQty = <String, int>{};
 
-  /// Per-product selected tier index and quantity for the trade grid.
+  /// Per-product selected tier index for the trade grid.
   final Map<String, int> _selectedTier = <String, int>{};
-  final Map<String, int> _gridQty = <String, int>{};
 
   /// The active Trade Offers & Deals collection shown in the Home preview.
   String? _activeOfferId;
@@ -527,10 +526,6 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
 
   Widget _productCard(TradeProduct p) {
     final selected = _selectedTier[p.product.id] ?? 0;
-    final defaultQty = p.tiers.isEmpty
-        ? p.moq
-        : p.tiers[selected.clamp(0, p.tiers.length - 1)].quantity;
-    final qty = _gridQty[p.product.id] ?? defaultQty;
     return tradeProductTile(
       context,
       ref,
@@ -538,10 +533,7 @@ class _B2BHomeScreenState extends ConsumerState<B2BHomeScreen> {
       selectedTierIndex: selected,
       onTierSelected: (i) => setState(() {
         _selectedTier[p.product.id] = i;
-        _gridQty.remove(p.product.id);
       }),
-      quantity: qty,
-      onQuantityChanged: (v) => setState(() => _gridQty[p.product.id] = v),
     );
   }
 

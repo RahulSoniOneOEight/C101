@@ -49,7 +49,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   static const int _pageSize = 6;
 
   final Map<String, int> _selectedTier = <String, int>{};
-  final Map<String, int> _qty = <String, int>{};
   late String? _categoryId = widget.initialCategoryId;
   late bool _dealsOnly = widget.dealsOnly;
   late bool _seasonalOnly = widget.seasonalOnly;
@@ -510,11 +509,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                         (context, i) {
                           final p = visible[i];
                           final selected = _selectedTier[p.product.id] ?? 0;
-                          final defaultQty = p.tiers.isEmpty
-                              ? p.moq
-                              : p.tiers[selected.clamp(0, p.tiers.length - 1)]
-                                  .quantity;
-                          final qty = _qty[p.product.id] ?? defaultQty;
                           return tradeProductTile(
                             context,
                             ref,
@@ -522,11 +516,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                             selectedTierIndex: selected,
                             onTierSelected: (t) => setState(() {
                               _selectedTier[p.product.id] = t;
-                              _qty.remove(p.product.id);
                             }),
-                            quantity: qty,
-                            onQuantityChanged: (v) =>
-                                setState(() => _qty[p.product.id] = v),
                           );
                         },
                         childCount: visible.length,

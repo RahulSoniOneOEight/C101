@@ -249,7 +249,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(CartPlusIconButton), findsOneWidget);
+    expect(find.byType(QuantityStepper), findsOneWidget);
+    expect(find.byType(CartPlusIconButton), findsNothing);
     expect(find.byType(RFQPlusIconButton), findsNothing);
   });
 }

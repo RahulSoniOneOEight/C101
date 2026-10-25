@@ -12,6 +12,7 @@ components:
     - web-grid
     - web-horizontal
     - b2b-dense
+    - b2c-quick-add-stepper
   flutter:
     owned_component: ProductCard
     primitive: shadcn_flutter
@@ -27,6 +28,24 @@ components:
   qa:
     flutter: widgetbook+golden
     web: storybook+visual
+- semantic_id: commerce.bought-together
+  aliases:
+  - bought-together
+  penpot:
+    component: BoughtTogetherSection
+    variants:
+    - mobile-stacked
+    - web-two-column
+    - b2b-trade
+    - out-of-stock
+  flutter:
+    owned_component: BoughtTogetherSection
+    status: implemented
+    primitive: flutter
+    libraries:
+    - agency_flutter_ui
+  qa:
+    flutter: widget+golden
 - semantic_id: commerce.search
   aliases:
   - search-control

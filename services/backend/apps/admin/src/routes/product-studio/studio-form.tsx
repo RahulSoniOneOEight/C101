@@ -1392,18 +1392,12 @@ export function ProductStudioForm({
           const saved = parsed as Record<string, unknown>;
           const restoredOptions = normalizeDraftOptions(saved.options);
           const restoredVariants = normalizeDraftVariants(saved.variants);
-          // Older drafts could contain more than one variant without option
-          // axes. Keep the first one and let the operator regenerate variants.
-          const safeVariants =
-            restoredOptions.length === 0 && restoredVariants.length > 1
-              ? restoredVariants.slice(0, 1)
-              : restoredVariants;
           setForm(normalizeDraftForm(saved.form));
           setSpecs(normalizeDraftSpecs(saved.specs));
           setTags(normalizeDraftTags(saved.tags));
           setOptions(restoredOptions);
           setVariants(
-            safeVariants.length > 0 ? safeVariants : [emptyVariant()],
+            restoredVariants.length > 0 ? restoredVariants : [emptyVariant()],
           );
           setNotice({
             kind: "info",
@@ -1447,6 +1441,7 @@ export function ProductStudioForm({
           product.variants?.length ? product.variants : [emptyVariant()],
         );
         setOffers(product.offers ?? []);
+        setActingSellerId(product.offers?.[0]?.seller_id ?? "");
         setOptionsEditable(Boolean(product.options_editable));
         setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
@@ -1519,7 +1514,7 @@ export function ProductStudioForm({
 
   const optionsMatchVariants = useMemo(() => {
     if (!optionsEditable) return true;
-    if (options.length === 0) return variants.length === 1;
+    if (options.length === 0) return true;
     if (!optionRowsComplete) return false;
     return variants.every((variant) =>
       optionNames.every((name) => Boolean(variant.options[name]?.trim())),
@@ -1799,11 +1794,10 @@ export function ProductStudioForm({
     }
 
     if (usable.length === 0) {
-      setVariants((current) => {
-        const first = current[0] ?? emptyVariant();
-        return [{ ...first, title: first.title || "Default", options: {} }];
+      setNotice({
+        kind: "info",
+        text: "Direct variant mode: use Add variant to create each variant.",
       });
-      setDirty(true);
       return;
     }
 
@@ -1868,6 +1862,33 @@ export function ProductStudioForm({
       current.filter((_, position) => position !== index),
     );
     setDirty(true);
+  };
+
+  const addVariant = () => {
+    setVariants((current) => [
+      ...current,
+      { ...emptyVariant(), title: `Variant ${current.length + 1}` },
+    ]);
+    setDirty(true);
+    setNotice(null);
+  };
+
+  const duplicateVariant = (index: number) => {
+    setVariants((current) => {
+      const source = current[index];
+      if (!source) return current;
+      return [
+        ...current,
+        {
+          ...source,
+          id: undefined,
+          title: `${source.title.trim() || `Variant ${index + 1}`} copy`,
+          sku: "",
+        },
+      ];
+    });
+    setDirty(true);
+    setNotice(null);
   };
 
   const fillBlankSkus = () => {
@@ -2151,6 +2172,9 @@ export function ProductStudioForm({
     try {
       const payload = {
         ...form,
+        ...(mode === "admin" && actingSellerId
+          ? { seller_id: actingSellerId }
+          : {}),
         tags,
         specifications: validSpecs.map((spec) => ({
           name: spec.name,
@@ -2483,6 +2507,28 @@ export function ProductStudioForm({
                     ))}
                   </select>
                 </Field>
+                {mode === "admin" ? (
+                  <Field
+                    label="Seller"
+                    hint="Selecting a seller provisions an offer for every new SKU so the product can become publishable."
+                  >
+                    <select
+                      className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
+                      value={actingSellerId}
+                      onChange={(event) =>
+                        setActingSellerId(event.target.value)
+                      }
+                      disabled={Boolean(productId && offers.length > 0)}
+                    >
+                      <option value="">BuildKart-owned (no seller offer)</option>
+                      {(sellers.data?.sellers ?? []).map((seller) => (
+                        <option key={seller.id} value={seller.id}>
+                          {seller.name} — {seller.id}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                ) : null}
                 <Field label="Product type">
                   <Input
                     value={form.product_type}
@@ -2712,8 +2758,8 @@ export function ProductStudioForm({
                 <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
                     This product is published or has seller offers. Option axes,
-                    variant removal and SKU changes are locked. Variant names,
-                    details and images remain editable.
+                    adding, duplicating or removing variants and SKU changes are
+                    locked. Variant names, details and images remain editable.
                   </Text>
                 </div>
               ) : null}
@@ -2745,7 +2791,7 @@ export function ProductStudioForm({
                   <div className="mt-3 flex flex-col gap-2">
                     {options.length === 0 ? (
                       <Text size="small" className="text-ui-fg-subtle">
-                        No options. The product will keep one default variant.
+                        No options. Create one or more direct variants below.
                       </Text>
                     ) : null}
                     {options.map((option, index) => (
@@ -2786,18 +2832,20 @@ export function ProductStudioForm({
                     ))}
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <Button
-                      size="small"
-                      type="button"
-                      variant="secondary"
-                      onClick={generateVariants}
-                      disabled={structuralLocked}
-                    >
-                      Generate combinations
-                    </Button>
+                    {options.length > 0 ? (
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        onClick={generateVariants}
+                        disabled={structuralLocked}
+                      >
+                        Generate combinations
+                      </Button>
+                    ) : null}
                     <Text size="small" className="text-ui-fg-subtle">
                       {options.length === 0
-                        ? "One default variant"
+                        ? "Direct variants"
                         : `${options.reduce(
                             (count, option) =>
                               count * Math.max(1, option.values.length),
@@ -2820,6 +2868,17 @@ export function ProductStudioForm({
                   </Text>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
+                  {options.length === 0 && optionsEditable ? (
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      onClick={addVariant}
+                      disabled={structuralLocked}
+                    >
+                      Add variant
+                    </Button>
+                  ) : null}
                   <label className="flex flex-col gap-1">
                     <span className="text-xs font-medium text-ui-fg-subtle">
                       Bulk SKU prefix
@@ -2872,7 +2931,7 @@ export function ProductStudioForm({
                               }`,
                           )
                           .join(" · ")
-                      : "Default variant";
+                      : variant.title.trim() || `Variant ${index + 1}`;
                   return (
                     <div
                       key={variant.id ?? index}
@@ -2887,14 +2946,37 @@ export function ProductStudioForm({
                           {combinationLabel}
                         </span>
                         {optionsEditable && variants.length > 1 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {options.length === 0 ? (
+                              <Button
+                                size="small"
+                                type="button"
+                                variant="transparent"
+                                onClick={() => duplicateVariant(index)}
+                                disabled={structuralLocked}
+                              >
+                                Duplicate
+                              </Button>
+                            ) : null}
+                            <Button
+                              size="small"
+                              type="button"
+                              variant="transparent"
+                              onClick={() => removeVariant(index)}
+                              disabled={structuralLocked}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        ) : optionsEditable && options.length === 0 ? (
                           <Button
                             size="small"
                             type="button"
                             variant="transparent"
-                            onClick={() => removeVariant(index)}
+                            onClick={() => duplicateVariant(index)}
                             disabled={structuralLocked}
                           >
-                            Remove
+                            Duplicate
                           </Button>
                         ) : null}
                       </div>

@@ -9,6 +9,8 @@ import {
   type StoreAddress,
   type StorePaymentCollection,
   type StorePaymentSession,
+  type StoreProduct,
+  type StoreShippingOption,
 } from "./medusa/store-client.js";
 import { SimulatedPaymentAdapter } from "./payment/simulated-adapter.js";
 import type { Money, SimulatorOutcome } from "./payment/types.js";
@@ -68,6 +70,13 @@ import {
   type ReturnStatus,
 } from "./store/return-store.js";
 import {
+  BoughtTogetherStore,
+  BoughtTogetherError,
+  type BoughtTogetherChannel,
+  type BoughtTogetherPair,
+  type BoughtTogetherStatus,
+} from "./store/bought-together-store.js";
+import {
   RETURN_POLICY,
   computeReturnEligibility,
   orderLineSnapshots,
@@ -93,6 +102,7 @@ const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
 const logistics = new SimulatedLogisticsProvider(shipmentStore);
 const returns = new ReturnStore(config.experienceDatabaseUrl);
+const boughtTogether = new BoughtTogetherStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
 const cmsContentStore = new CmsContentStore(config.experienceDatabaseUrl);
 const cmsContent = new CmsContentAdapter(
@@ -201,7 +211,7 @@ const json = (body: unknown, status = 200) =>
       "content-type": "application/json",
       "access-control-allow-origin": "*",
       "access-control-allow-headers": "authorization, content-type, idempotency-key, x-correlation-id",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
     },
   });
 
@@ -211,6 +221,14 @@ const problem = (
   detail?: string,
   extensions?: Record<string, unknown>,
 ) => json({ type: "about:blank", title, status, detail, ...(extensions ?? {}) }, status);
+
+function boughtTogetherFailure(error: unknown): Response {
+  if (error instanceof BoughtTogetherError) {
+    return problem(error.status, error.code, error.message);
+  }
+  console.warn("[experience-api] bought-together store failed:", (error as Error).message);
+  return problem(500, "pair-store-error", "The pair store is unavailable.");
+}
 
 function correlationId(req: Request): string {
   return req.headers.get("x-correlation-id") ?? randomUUID();
@@ -532,6 +550,137 @@ function salesChannelIdFor(channel: "b2b" | "b2c"): string | undefined {
     : config.medusaB2cSalesChannelId;
 }
 
+function deliveryTierFor(option: StoreShippingOption): "standard" | "express" | null {
+  const code = option.type?.code?.trim().toLowerCase();
+  if (code === "express") return "express";
+  if (code === "standard") return "standard";
+  const name = option.name.trim().toLowerCase();
+  if (name.includes("express")) return "express";
+  if (name.includes("standard") || name.includes("normal")) return "standard";
+  return null;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("timeout")), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+type BoughtTogetherEnrichedPair = BoughtTogetherPair & {
+  products: Array<{
+    id: string;
+    title: string;
+    thumbnail: string | null;
+    sku_count: number;
+    status: "published" | "unavailable";
+    channel_ready: { b2c: boolean; b2b: boolean };
+  }>;
+  health: "ready" | "out_of_stock" | "unavailable";
+  health_by_channel: { b2c: "ready" | "out_of_stock" | "unavailable"; b2b: "ready" | "out_of_stock" | "unavailable" };
+};
+
+async function enrichBoughtTogetherPairs(
+  rows: BoughtTogetherPair[],
+): Promise<BoughtTogetherEnrichedPair[]> {  if (rows.length === 0) return [];
+  const ids = [...new Set(rows.flatMap((row) => [row.product_a_id, row.product_b_id]))];
+  const productsByChannel = new Map<string, Map<string, StoreProduct>>();
+  for (const channel of ["b2c", "b2b"] as const) {
+    const entries = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const product = await withTimeout(
+            medusa.getProduct(id, salesChannelIdFor(channel)),
+            4000,
+          );
+          return [id, product] as const;
+        } catch {
+          return [id, null] as const;
+        }
+      }),
+    );
+    productsByChannel.set(
+      channel,
+      new Map(entries.filter((entry): entry is readonly [string, StoreProduct] => Boolean(entry[1]))),
+    );
+  }
+
+  const offersByProduct = new Map<string, StoreOffer[]>();
+  try {
+    const offers = await withTimeout(
+      medusa.listOffersByProducts(ids, config.medusaRegionId),
+      4000,
+    );
+    for (const offer of offers) {
+      const list = offersByProduct.get(offer.product_id) ?? [];
+      list.push(offer);
+      offersByProduct.set(offer.product_id, list);
+    }
+  } catch {
+    // Health is best-effort; the admin list still renders.
+  }
+
+  const productFor = (id: string) =>
+    productsByChannel.get("b2c")?.get(id) ?? productsByChannel.get("b2b")?.get(id);
+  const channelHealth = (id: string, channel: "b2c" | "b2b") => {
+    if (!productsByChannel.get(channel)?.has(id)) return "unavailable" as const;
+    const offers = offersByProduct.get(id) ?? [];
+    if (offers.length === 0) return "unavailable" as const;
+    return offers.some((offer) => offer.in_stock !== false)
+      ? ("ready" as const)
+      : ("out_of_stock" as const);
+  };
+
+  return rows.map((row) => {
+    const selectedChannels: Array<"b2c" | "b2b"> =
+      row.channel === "both" ? ["b2c", "b2b"] : [row.channel];
+    const healthForChannel = (channel: "b2c" | "b2b") => {
+      const a = channelHealth(row.product_a_id, channel);
+      const b = channelHealth(row.product_b_id, channel);
+      if (a === "unavailable" || b === "unavailable") return "unavailable" as const;
+      if (a === "out_of_stock" || b === "out_of_stock") return "out_of_stock" as const;
+      return "ready" as const;
+    };
+    const healthByChannel = {
+      b2c: healthForChannel("b2c"),
+      b2b: healthForChannel("b2b"),
+    };
+    const health = selectedChannels.some((channel) => healthByChannel[channel] === "unavailable")
+      ? ("unavailable" as const)
+      : selectedChannels.some((channel) => healthByChannel[channel] === "out_of_stock")
+        ? ("out_of_stock" as const)
+        : ("ready" as const);
+    const summary = (id: string) => {
+      const product = productFor(id);
+      return {
+        id,
+        title: product?.title ?? "Product unavailable",
+        thumbnail: product?.thumbnail ?? null,
+        sku_count: product?.variants?.length ?? 0,
+        status: product ? ("published" as const) : ("unavailable" as const),
+        channel_ready: {
+          b2c: productsByChannel.get("b2c")?.has(id) ?? false,
+          b2b: productsByChannel.get("b2b")?.has(id) ?? false,
+        },
+      };
+    };
+    return {
+      ...row,
+      products: [summary(row.product_a_id), summary(row.product_b_id)],
+      health,
+      health_by_channel: healthByChannel,
+    };
+  });
+}
+
+
 /** Scan ceiling for the metadata-selected staged catalogue. Bounded so a bad marker cannot page forever. */
 const CATALOGUE_SCAN_PAGE_SIZE = 250;
 const MAX_CATALOGUE_SCAN = 2000;
@@ -541,6 +690,9 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
     return ["erp_operator", "super_admin"];
   }
   if (/^\/v1\/admin\/collections(?:\/|$)/.test(pathname)) {
+    return ["marketplace_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin\/merchandising\/bought-together(?:\/|$)/.test(pathname)) {
     return ["marketplace_operator", "super_admin"];
   }
   if (/^\/v1\/admin\/notifications(?:\/|$)/.test(pathname)) {
@@ -3092,8 +3244,104 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return json({
         shipping_options: options.map((option) => ({
           ...option,
+          tier: deliveryTierFor(option),
           currency_code: "INR",
         })),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/carts/{cartId}/delivery-tier - one cart-level Standard/Express choice.
+  // Applies the matching option to every seller group atomically. If any seller
+  // cannot serve the tier, the whole request is rejected rather than silently
+  // mixing delivery speeds.
+  const cartDeliveryTier = url.pathname.match(/^\/v1\/carts\/([^/]+)\/delivery-tier$/);
+  if (cartDeliveryTier && req.method === "POST") {
+    const cartId = cartDeliveryTier[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    let body: { tier?: string };
+    try {
+      body = (await req.json()) as { tier?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const tier = body.tier?.trim().toLowerCase();
+    if (tier !== "standard" && tier !== "express") {
+      return problem(400, "invalid-delivery-tier", "tier must be standard or express.");
+    }
+    try {
+      const result = await correlation.withCheckoutLock(cartId, async () => {
+        const options = await medusa.listShippingOptions(cartId);
+        const bySeller = new Map<string, StoreShippingOption[]>();
+        for (const option of options) {
+          const list = bySeller.get(option.seller_id) ?? [];
+          list.push(option);
+          bySeller.set(option.seller_id, list);
+        }
+        if (bySeller.size === 0) {
+          return { unavailable: [{ seller_id: null, reason: "no_sellers" }], cart: null };
+        }
+        const selected: Array<{ seller_id: string; option: StoreShippingOption }> = [];
+        const unavailable: Array<{ seller_id: string; reason: string }> = [];
+        for (const [sellerId, sellerOptions] of bySeller) {
+          const match = sellerOptions.find((option) => deliveryTierFor(option) === tier);
+          if (match) selected.push({ seller_id: sellerId, option: match });
+          else unavailable.push({ seller_id: sellerId, reason: "no_tier_option" });
+        }
+        if (unavailable.length > 0) return { unavailable, cart: null };
+
+        let cart: StoreCart | null = null;
+        try {
+          for (const item of selected) {
+            cart = await medusa.addShippingMethod(cartId, item.option.id);
+          }
+        } catch (error) {
+          // Best-effort rollback to Standard for every seller, so a partial
+          // Express/Standard mix is not left on the cart.
+          for (const [sellerId, sellerOptions] of bySeller) {
+            const fallback = sellerOptions.find(
+              (option) => deliveryTierFor(option) === "standard",
+            );
+            if (!fallback) continue;
+            try {
+              cart = await medusa.addShippingMethod(cartId, fallback.id);
+            } catch {
+              // Keep the original failure; the cart can be retried.
+            }
+          }
+          throw error;
+        }
+        return {
+          unavailable: [],
+          cart,
+          applied: selected.map((item) => ({
+            seller_id: item.seller_id,
+            option_id: item.option.id,
+            tier,
+          })),
+        };
+      });
+      if (result.unavailable.length > 0) {
+        return problem(
+          409,
+          "delivery-tier-unavailable",
+          "The selected delivery tier is not available for every seller.",
+          { unavailable: result.unavailable },
+        );
+      }
+      if (!result.cart) {
+        return problem(409, "delivery-tier-unavailable", "No delivery tier could be applied.");
+      }
+      return json({
+        ...composeCartView(result.cart),
+        delivery_tier: tier,
+        applied: "applied" in result ? result.applied : [],
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
@@ -3523,6 +3771,119 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // GET /v1/products/{productId}/bought-together - reciprocal merchandising pair.
+  const boughtTogetherProduct = url.pathname.match(
+    /^\/v1\/products\/([^/]+)\/bought-together$/,
+  );
+  if (boughtTogetherProduct && req.method === "GET") {
+    const productId = boughtTogetherProduct[1];
+    const authorization = await optionalAuthorization(req);
+    const channel = requestedChannel(url.searchParams.get("channel"), authorization);
+    if (!config.boughtTogetherEnabled) {
+      return json({ pair_id: null, channel, paired: null });
+    }
+    const regionId = regionFor(authorization);
+    try {
+      const active = await boughtTogether.getActiveForProduct(productId, channel);
+      if (!active) return json({ pair_id: null, channel, paired: null });
+      const [currentProduct, pairedProduct, offers] = await withTimeout(
+        Promise.all([
+          medusa.getProduct(productId, salesChannelIdFor(channel)),
+          medusa.getProduct(active.paired_product_id, salesChannelIdFor(channel)),
+          medusa.listOffersByProducts(
+            [productId, active.paired_product_id],
+            regionId,
+          ),
+        ]),
+        5000,
+      );
+      const currentOffers = offers.filter((offer) => offer.product_id === productId);
+      const pairedOffers = offers.filter(
+        (offer) => offer.product_id === active.paired_product_id,
+      );
+      const currentOptions: ComposeOptions = {
+        channel,
+        b2bPricing:
+          channel === "b2b"
+            ? ((currentProduct.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+                string,
+                B2bPricingSnapshot
+              >)
+            : null,
+      };
+      const pairedOptions: ComposeOptions = {
+        channel,
+        b2bPricing:
+          channel === "b2b"
+            ? ((pairedProduct.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+                string,
+                B2bPricingSnapshot
+              >)
+            : null,
+      };
+      const currentCompose = composeOffers(currentOffers, currentOptions);
+      const currentReady = currentCompose.offerViews.some(
+        (offer) => offer.unit_amount_minor != null,
+      );
+      const currentInStock = currentCompose.offerViews.some(
+        (offer) => offer.in_stock !== false && offer.unit_amount_minor != null,
+      );
+      if (!currentReady || !currentInStock) {
+        return json({ pair_id: null, channel, paired: null });
+      }
+
+      const pairedCompose = composeOffers(pairedOffers, pairedOptions);
+      const pairedReady = pairedCompose.offerViews.some(
+        (offer) => offer.unit_amount_minor != null,
+      );
+      if (!pairedReady) return json({ pair_id: null, channel, paired: null });
+      const pairedInStock = pairedCompose.selected != null;
+      const pairedBase = {
+        id: pairedProduct.id,
+        title: pairedProduct.title,
+        thumbnail: pairedProduct.thumbnail ?? null,
+        description: pairedProduct.description ?? "",
+        handle: pairedProduct.handle ?? "",
+        metadata: pairedProduct.metadata ?? null,
+        categories: pairedProduct.categories ?? [],
+        badges: (pairedProduct.tags ?? []).map((tag) => tag.value),
+        offer_count: pairedOffers.length,
+        image_quality_score: imageQualityScore(pairedProduct.id),
+        image_quality_fixture:
+          pairedProduct.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
+      };
+      return json({
+        pair_id: active.pair.id,
+        channel,
+        paired_availability: pairedInStock ? "in_stock" : "out_of_stock",
+        paired: pairedInStock
+          ? {
+              ...pairedBase,
+              variants: composeVariantPrices(
+                pairedProduct.variants,
+                pairedOffers,
+                pairedOptions,
+              ),
+              best_price: pairedCompose.selected,
+            }
+          : {
+              ...pairedBase,
+              variants: [],
+              best_price: null,
+            },
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      console.warn(
+        "[experience-api] bought-together read failed:",
+        (error as Error).message,
+      );
+      return json({ pair_id: null, channel, paired: null });
     }
   }
 
@@ -4336,6 +4697,145 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   }
 
   // GET /v1/admin/orders — operator order queue (list correlated checkouts)
+  // Bought Together merchandising: admin CRUD + product candidates.
+  // The Experience API owns the pair store; Medusa proxies these calls after
+  // enforcing the BuildKart merchandising permission.
+  if (url.pathname === "/v1/admin/merchandising/bought-together/candidates" && req.method === "GET") {
+    if (!config.boughtTogetherEnabled) return problem(404, "not-found");
+    const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
+    if ("response" in operator) return operator.response;
+    const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
+    const channel = url.searchParams.get("channel") === "b2b" ? "b2b" : "b2c";
+    try {
+      const products = await medusa.listProducts(50, 0, salesChannelIdFor(channel));
+      const items = products
+        .filter((product) => {
+          if (!query) return true;
+          if (product.title.toLowerCase().includes(query)) return true;
+          return (product.variants ?? []).some((variant) =>
+            (variant.sku ?? "").toLowerCase().includes(query),
+          );
+        })
+        .slice(0, 20)
+        .map((product) => ({
+          id: product.id,
+          title: product.title,
+          thumbnail: product.thumbnail ?? null,
+          sku_count: product.variants?.length ?? 0,
+          status: "published",
+          channel_ready: { b2c: channel === "b2c", b2b: channel === "b2b" },
+        }));
+      return json({ items, count: items.length, channel });
+    } catch (error) {
+      return problem(502, "catalogue-unavailable", (error as Error).message);
+    }
+  }
+
+  if (url.pathname === "/v1/admin/merchandising/bought-together" && req.method === "GET") {
+    if (!config.boughtTogetherEnabled) return problem(404, "not-found");
+    const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
+    if ("response" in operator) return operator.response;
+    const statusParam = url.searchParams.get("status");
+    const channelParam = url.searchParams.get("channel");
+    const status = ["draft", "active", "paused", "archived"].includes(statusParam ?? "")
+      ? (statusParam as BoughtTogetherStatus)
+      : undefined;
+    const channel = ["b2c", "b2b", "both"].includes(channelParam ?? "")
+      ? (channelParam as BoughtTogetherChannel)
+      : undefined;
+    try {
+      const result = await boughtTogether.list({
+        status,
+        channel,
+        limit: Number(url.searchParams.get("limit") ?? 50),
+        offset: Number(url.searchParams.get("offset") ?? 0),
+      });
+      const items = await enrichBoughtTogetherPairs(result.items);
+      return json({ items, count: result.count });
+    } catch (error) {
+      return boughtTogetherFailure(error);
+    }
+  }
+
+  if (url.pathname === "/v1/admin/merchandising/bought-together" && req.method === "POST") {
+    if (!config.boughtTogetherEnabled) return problem(404, "not-found");
+    const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
+    if ("response" in operator) return operator.response;
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    try {
+      const pair = await boughtTogether.create(
+        {
+          product_a_id: String(body.product_a_id ?? ""),
+          product_b_id: String(body.product_b_id ?? ""),
+          channel: body.channel as BoughtTogetherChannel,
+          status: (body.status as BoughtTogetherStatus) ?? "draft",
+        },
+        operator.authorization.userId,
+        correlationId(req),
+      );
+      const [enriched] = await enrichBoughtTogetherPairs([pair]);
+      return json({ pair: enriched }, 201);
+    } catch (error) {
+      return boughtTogetherFailure(error);
+    }
+  }
+
+  const boughtTogetherAuditMatch = url.pathname.match(
+    /^\/v1\/admin\/merchandising\/bought-together\/([^/]+)\/audit$/,
+  );
+  if (boughtTogetherAuditMatch && req.method === "GET") {
+    if (!config.boughtTogetherEnabled) return problem(404, "not-found");
+    const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
+    if ("response" in operator) return operator.response;
+    try {
+      return json({ items: await boughtTogether.audit(boughtTogetherAuditMatch[1]) });
+    } catch (error) {
+      return boughtTogetherFailure(error);
+    }
+  }
+
+  const boughtTogetherMatch = url.pathname.match(
+    /^\/v1\/admin\/merchandising\/bought-together\/([^/]+)$/,
+  );
+  if (boughtTogetherMatch && req.method === "PATCH") {
+    if (!config.boughtTogetherEnabled) return problem(404, "not-found");
+    const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
+    if ("response" in operator) return operator.response;
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const expectedVersion = Number(body.expected_version);
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+      return problem(400, "expected-version-required", "expected_version must be a positive integer.");
+    }
+    try {
+      const pair = await boughtTogether.update(
+        boughtTogetherMatch[1],
+        {
+          ...(body.product_a_id ? { product_a_id: String(body.product_a_id) } : {}),
+          ...(body.product_b_id ? { product_b_id: String(body.product_b_id) } : {}),
+          ...(body.channel ? { channel: body.channel as BoughtTogetherChannel } : {}),
+          ...(body.status ? { status: body.status as BoughtTogetherStatus } : {}),
+        },
+        expectedVersion,
+        operator.authorization.userId,
+        correlationId(req),
+      );
+      const [enriched] = await enrichBoughtTogetherPairs([pair]);
+      return json({ pair: enriched });
+    } catch (error) {
+      return boughtTogetherFailure(error);
+    }
+  }
+
   if (url.pathname === "/v1/admin/orders" && req.method === "GET") {
     const rows = await correlation.list();
     return json({

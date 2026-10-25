@@ -9,22 +9,15 @@ import '../providers/b2b_trade_providers.dart';
 /// The **single** shared B2B trade product tile, used by B2B Home, the
 /// Catalogue and Trade Offers & Deals so the card is identical everywhere.
 ///
-/// Content: discount badge · compact image · brand + MOQ · 2-line title ·
-/// quantity tiers · dealer price + MRP · quantity stepper · compact Cart-Plus ·
-/// optional compact RFQ. No delivery-location text and no large full-width
-/// Add-to-Cart button.
-///
-/// Interactions are independent so purchasing controls never trigger the
-/// product-detail navigation: image/title → PDP, tier chips → select tier,
-/// stepper → quantity, Cart-Plus → add, RFQ → RFQ journey.
+/// The card reads the canonical RFQ quantity for the exact SKU whose price and
+/// MOQ it displays. It shows a plus at zero and a stepper after the SKU is in
+/// the RFQ, so screen-local quantity maps cannot drift from the basket.
 Widget tradeProductTile(
   BuildContext context,
   WidgetRef ref,
   TradeProduct p, {
   required int selectedTierIndex,
   required ValueChanged<int> onTierSelected,
-  required int quantity,
-  required ValueChanged<int> onQuantityChanged,
 }) {
   final tiers = p.tiers
       .map((t) => TradeTierOption(
@@ -33,6 +26,19 @@ Widget tradeProductTile(
           ))
       .toList();
   final brand = p.product.brand?.trim();
+  final selectedVariant = p.selectedVariant ?? p.product.defaultVariant;
+  final sku = selectedVariant?.sku ?? p.product.id;
+  final cart = ref.watch(b2bQuotationCartProvider);
+  B2BQuotationLine? line;
+  for (final candidate in cart.lines) {
+    if (candidate.sku == sku) {
+      line = candidate;
+      break;
+    }
+  }
+  final quantity = line?.quantity ?? 0;
+  final priceQuantity = quantity > 0 ? quantity : p.moq;
+
   return TradeProductCardCompact(
     title: p.product.title,
     // The grouped SKU count matters more than the variant list on a card: it
@@ -47,21 +53,32 @@ Widget tradeProductTile(
     tiers: tiers,
     selectedTierIndex: selectedTierIndex,
     onTierSelected: onTierSelected,
-    unitPriceLabel: '${p.unitPriceFor(quantity).formatted}/pc',
+    unitPriceLabel: '${p.unitPriceFor(priceQuantity).formatted}/pc',
     // Only a real list price may be struck through. Falling back to the selling
     // price would print "₹4750 ₹4750" and imply a discount that does not exist.
     mrpLabel: p.product.mrp == null ? null : p.mrp.formatted,
     quantity: quantity,
-    onQuantityChanged: onQuantityChanged,
+    minQuantity: p.moq,
+    onQuantityChanged: (next) {
+      if (next < p.moq) {
+        ref.read(b2bQuotationCartProvider.notifier).remove(sku);
+      } else {
+        ref
+            .read(b2bQuotationCartProvider.notifier)
+            .updateQuantity(sku, next);
+      }
+    },
     state: p.stockKnown && p.stockQty <= 0
         ? CommerceFixture.outOfStock
         : CommerceFixture.defaultState,
     onAdd: () {
-      ref
-          .read(b2bQuotationCartProvider.notifier)
-          .addTradeProduct(p, quantity: quantity);
+      ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
+            p,
+            quantity: p.moq,
+            variant: selectedVariant,
+          );
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added $quantity pcs of ${p.product.title}')),
+        SnackBar(content: Text('Added ${p.moq} pcs of ${p.product.title}')),
       );
     },
     onTap: () => context.push('/b2b/pdp/${p.product.id}'),

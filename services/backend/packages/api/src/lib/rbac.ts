@@ -38,6 +38,8 @@ export const BUILDKART_PERMISSIONS = [
   "price.review",
   "price.override-hold",
   "acting-for-seller",
+  "merchandising.read",
+  "merchandising.update",
   "seller.read",
   "offer.read",
   "offer.update",
@@ -99,6 +101,8 @@ const catalogueAdmin: BuildkartPermission[] = [
   "price.review",
   "price.override-hold",
   "acting-for-seller",
+  "merchandising.read",
+  "merchandising.update",
 ];
 
 const marketplaceAdmin: BuildkartPermission[] = [
@@ -116,6 +120,7 @@ const marketplaceAdmin: BuildkartPermission[] = [
   "acting-for-seller",
   "activity.review",
   "activity.assign",
+  "merchandising.read",
 ];
 
 const finance: BuildkartPermission[] = [

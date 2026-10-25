@@ -482,7 +482,8 @@ class TradeProductCardCompact extends StatelessWidget {
     this.tiers = const <TradeTierOption>[],
     this.selectedTierIndex = 0,
     this.onTierSelected,
-    this.quantity = 1,
+    this.quantity = 0,
+    this.minQuantity = 1,
     this.onQuantityChanged,
     this.onAdd,
     this.onDiscuss,
@@ -507,6 +508,7 @@ class TradeProductCardCompact extends StatelessWidget {
   final int selectedTierIndex;
   final ValueChanged<int>? onTierSelected;
   final int quantity;
+  final int minQuantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
   final VoidCallback? onDiscuss;
@@ -698,19 +700,24 @@ class TradeProductCardCompact extends StatelessWidget {
                     height: 40,
                     child: Row(
                       children: <Widget>[
-                        QuantityStepper(
-                          value: quantity,
-                          compact: true,
-                          onChanged: onQuantityChanged,
-                        ),
-                        const Spacer(),
-                        CartPlusIconButton(
-                          size: 40,
-                          state: outOfStock
-                              ? CartPlusState.unavailable
-                              : CartPlusState.normal,
-                          onPressed: outOfStock ? null : onAdd,
-                        ),
+                        if (quantity > 0)
+                          QuantityStepper(
+                            value: quantity,
+                            min: 0,
+                            max: outOfStock ? quantity : null,
+                            compact: true,
+                            dense: true,
+                            onChanged:
+                                outOfStock ? null : onQuantityChanged,
+                          )
+                        else
+                          CartPlusIconButton(
+                            size: 40,
+                            state: outOfStock
+                                ? CartPlusState.unavailable
+                                : CartPlusState.normal,
+                            onPressed: outOfStock ? null : onAdd,
+                          ),
                       ],
                     ),
                   ),

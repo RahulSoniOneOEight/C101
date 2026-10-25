@@ -10,6 +10,7 @@ import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../widgets/cart_feedback.dart';
+import '../widgets/cart_product_card.dart';
 import '../widgets/conversation_bell.dart';
 import '../widgets/promotion_panel.dart';
 import '../widgets/status_views.dart';
@@ -183,7 +184,8 @@ class CartScreen extends ConsumerWidget {
             final p = products[i];
             return SizedBox(
               width: 160,
-              child: ProductCard(
+              child: CartProductCard(
+                product: p,
                 title: p.title,
                 priceLabel: p.price?.formatted ?? 'Price on request',
                 previousPriceLabel: p.mrp?.formatted,
@@ -310,7 +312,8 @@ class _CartLineWithDealsState extends ConsumerState<_CartLineWithDeals> {
                 final p = related[i];
                 return SizedBox(
                   width: 150,
-                  child: ProductCard(
+                  child: CartProductCard(
+                    product: p,
                     title: p.title,
                     priceLabel: p.price?.formatted ?? 'Price on request',
                     previousPriceLabel: p.mrp?.formatted,

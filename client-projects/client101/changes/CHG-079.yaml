@@ -1,0 +1,155 @@
+change_id: CHG-079
+revision: 1
+status: approved-in-progress
+request: >-
+  Implement the four pending staging updates: direct variant creation, Bought
+  Together merchandising, product-tile plus-to-quantity-stepper, and a single
+  cart-level delivery choice. Verify each in staging and run GPT-5.6 Sol QC.
+type: staging-product-and-checkout-updates
+extends:
+- CHG-076
+- CHG-078
+- CHG-054
+- CHG-067
+approved_by: human-requester
+approved_at_utc: '2026-10-25'
+approval_source: chat-request-staging-updates-02-04
+approval_scope: staging-updates-02-04-r1-r4
+production_release_authorized: false
+affected_capabilities:
+- product-management
+- product-merchandising
+- b2c-catalogue
+- b2b-catalogue
+- b2c-checkout
+- b2b-rfq
+affected_domains:
+- commerce
+- experience
+- admin
+affected_surfaces:
+- backend.api
+- backend.admin
+- backend.vendor
+- experience-api
+- app.prototype.b2c
+- app.prototype.b2b
+requirements:
+- id: R1
+  name: Direct variant creation
+  outcome: >-
+    Admin and Seller Product Studio can create and save 1..N direct variants
+    without option axes, with add, duplicate, remove, SKU/details/image and
+    structural locks for published or offered products.
+  status: planned
+- id: R2
+  name: Bought Together merchandising
+  outcome: >-
+    Admin Merchandising can pair two products reciprocally; B2C and B2B product
+    pages show the paired product above Related products (B2B after primary
+    actions), with channel-aware pricing, out-of-stock state and audit.
+  status: planned
+- id: R3
+  name: Product tile plus-to-stepper
+  outcome: >-
+    B2C and B2B product tiles replace the add-to-cart icon with a plus that
+    becomes a quantity stepper, bound to the canonical cart or RFQ state, with
+    MOQ/tier behavior on B2B.
+  status: planned
+- id: R4
+  name: Cart-level delivery choice
+  outcome: >-
+    Checkout presents one Standard/Express delivery control for the cart,
+    all-or-nothing availability, one delivery total and one arrival promise.
+    B2B records a non-priced Standard/Priority request where no canonical
+    shipping pricing exists.
+  status: planned
+- id: R5
+  name: Final QC
+  outcome: >-
+    Run GPT-5.6 Sol QC after implementation and staging verification; no open
+    blockers before closeout.
+  status: planned
+decisions:
+- id: DEC-079-01
+  area: Direct variant model
+  approved_default: >-
+    Spike zero-option variants first. If Medusa accepts multiple zero-option
+    variants end-to-end, use that model. Otherwise use a reserved hidden
+    technical option with unique values per variant. New products use direct
+    variants; existing optioned products keep their options read-only.
+- id: DEC-079-02
+  area: Admin direct variants
+  approved_default: >-
+    Include the minimal seller selection/acting-for-seller path needed for
+    Admin-created direct variants to provision seller offers and become
+    publishable. Do not broaden offer ownership beyond that path.
+- id: DEC-079-03
+  area: Bought Together ownership
+  approved_default: >-
+    Experience API owns the pair store and PDP read path. Medusa admin proxies
+    with merchant RBAC. Flutter app/web only; Next.js remains disabled in v1.
+- id: DEC-079-04
+  area: Tile quantity semantics
+  approved_default: >-
+    B2C plus adds one. B2B plus adds MOQ; stepper writes absolute quantity,
+    minimum MOQ, step one unless a pack size is configured. Decrement at the
+    minimum removes the line with Undo.
+- id: DEC-079-05
+  area: Delivery choice
+  approved_default: >-
+    Checkout-first v1. One cart-level Standard/Express segmented control,
+    all-or-nothing Express availability. B2B uses a persisted
+    Standard/Priority request field without shipping pricing.
+- id: DEC-079-06
+  area: Environment
+  approved_default: Staging only. Production remains disabled and unauthorized.
+scope_lock:
+  allowed_paths:
+  - services/backend/packages/api/src/lib/product-studio.ts
+  - services/backend/packages/api/src/lib/rbac.ts
+  - services/backend/packages/api/src/lib/experience-admin.ts
+  - services/backend/packages/api/src/api/admin/buildkart/product-studio
+  - services/backend/packages/api/src/api/vendor/buildkart/product-studio
+  - services/backend/packages/api/src/api/admin/buildkart/merchandising
+  - services/backend/packages/api/src/api/admin/buildkart/search-insights
+  - services/backend/apps/admin/src/routes/product-studio
+  - services/backend/apps/admin/src/routes/merchandising
+  - services/backend/apps/admin/src/routes/content
+  - services/backend/apps/admin/src/_navigation.ts
+  - services/backend/apps/vendor/src/routes/product-studio
+  - services/experience-api/src
+  - apps/prototype_app/lib
+  - apps/prototype_app/test
+  - packages/agency_flutter_ui/lib
+  - packages/agency_flutter_ui/test
+  - client-projects/client101/changes
+  - client-projects/client101/evidence
+  - client-projects/client101/experience/design
+  - client-projects/client101/contracts
+  - docs/implementation
+  - C:/Users/LENOVO/Desktop/BuildKart-Update-Notes.md
+  no_touch_paths:
+  - services/backend/packages/api/src/api/admin/buildkart/search-insights beyond typecheck compatibility
+  - apps/web
+  - production infrastructure
+  - secrets and environment files
+  - unrelated seller-activity, settlement, returns or shipment behavior
+  data_records:
+  - staging test products and variants created for direct-variant verification
+  - staging bought-together pair records
+  - staging test carts and delivery selections
+  - no production data
+verification:
+  backend: typecheck and targeted unit/contract tests
+  experience_api: typecheck and store/read-path tests
+  admin: build and browser smoke
+  seller: build and browser smoke
+  flutter: analyze and widget tests
+  staging: end-to-end B2C/B2B journeys with screenshots and console checks
+  qc: GPT-5.6 Sol after implementation
+deployment:
+  target: staging
+  mechanism: image-rebuild-migration-static-bundles
+  production: forbidden
+  rollback_baseline: f59a5f9

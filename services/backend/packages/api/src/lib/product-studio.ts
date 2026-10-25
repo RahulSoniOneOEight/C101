@@ -276,6 +276,13 @@ function normalizeVariants(
     );
   }
 
+  if (options.length === 0 && source.length > 100) {
+    throw new StudioError(
+      422,
+      "A product can have at most 100 direct variants in this slice.",
+    );
+  }
+
   if (options.length === 0 && source.length === 0) {
     return [
       {
@@ -287,19 +294,13 @@ function normalizeVariants(
         ean: null,
         upc: null,
         barcode: null,
-        options: { __default__: "__default__" },
+        options: {},
       },
     ];
   }
 
   if (options.length > 0 && source.length === 0) {
     throw new StudioError(422, "Generate at least one variant combination.");
-  }
-  if (options.length === 0 && source.length > 1) {
-    throw new StudioError(
-      422,
-      "A product without options can have only one default variant.",
-    );
   }
 
   const combinations = new Set<string>();
@@ -340,17 +341,16 @@ function normalizeVariants(
         clean(variant.title) ||
         (optionNames.length > 0
           ? optionNames.map((name) => normalizedOptions[name]).join(" / ")
-          : "Default"),
+          : source.length === 1
+            ? "Default"
+            : `Variant ${index + 1}`),
       details: clean(variant.details),
       imageUrl: clean(variant.image_url),
       sku,
       ean: clean(variant.ean),
       upc: clean(variant.upc),
       barcode: clean(variant.barcode),
-      options:
-        options.length > 0
-          ? normalizedOptions
-          : { __default__: "__default__" },
+      options: options.length > 0 ? normalizedOptions : {},
     };
   });
 }
@@ -479,7 +479,9 @@ async function replaceOptionsAndVariants(
           upc: variant.upc ?? undefined,
           barcode: variant.barcode ?? undefined,
           metadata: variantMetadata(variant.details, variant.imageUrl),
-          options: variant.options,
+          ...(Object.keys(variant.options).length > 0
+            ? { options: variant.options }
+            : {}),
           manage_inventory: false,
         })),
       },
@@ -550,7 +552,9 @@ async function syncVariants(
           upc: variant.upc ?? undefined,
           barcode: variant.barcode ?? undefined,
           metadata: variantMetadata(variant.details, variant.imageUrl),
-          options: variant.options,
+          ...(Object.keys(variant.options).length > 0
+            ? { options: variant.options }
+            : {}),
           manage_inventory: false,
         })),
       },
@@ -912,7 +916,12 @@ export async function loadStudioProduct(
       options: Object.fromEntries(
         (variant.options ?? [])
           .map((entry: any) => [entry?.option?.title, entry?.value])
-          .filter(([name, value]: [unknown, unknown]) => Boolean(name && value)),
+          .filter(
+            ([name, value]: [unknown, unknown]) =>
+              Boolean(name && value) &&
+              name !== "__default__" &&
+              value !== "__default__",
+          ),
       ),
     }))
     .sort((left: any, right: any) => {
@@ -1182,6 +1191,60 @@ export async function saveStudioProduct(
       409,
       "Removing all options from an existing draft is not supported in this slice. Create a new default-only draft instead.",
     );
+  }
+
+  // Published or offered products may change presentation fields, but structural
+  // variant changes must be deliberate. The UI mirrors this guard; the server
+  // remains authoritative for direct API calls.
+  if (studioManaged) {
+    const { data: lockedOfferRows } = await q.graph({
+      entity: "offer",
+      fields: ["id"],
+      filters: { product_id: productId },
+      pagination: { take: 1, skip: 0 },
+    });
+    const structuralLocked =
+      current.status === "published" || (lockedOfferRows ?? []).length > 0;
+    if (structuralLocked) {
+      const { data: lockedVariants } = await q.graph({
+        entity: "variant",
+        fields: ["id", "sku"],
+        filters: { product_id: productId },
+        pagination: { take: 500, skip: 0 },
+      });
+      const currentById = new Map<string, { id: string; sku?: string | null }>(
+        (lockedVariants ?? []).map((variant: any) => [variant.id, variant]),
+      );
+      const desiredById = new Map(
+        variants
+          .filter((variant) => Boolean(variant.id))
+          .map((variant) => [variant.id as string, variant]),
+      );
+      if (
+        currentById.size !== desiredById.size ||
+        [...currentById.keys()].some((id) => !desiredById.has(id))
+      ) {
+        throw new StudioError(
+          409,
+          "Adding or removing variants is locked because this product is published or has offers.",
+        );
+      }
+      for (const [id, variant] of desiredById) {
+        const previous = currentById.get(id);
+        if ((previous?.sku ?? null) !== (variant.sku ?? null)) {
+          throw new StudioError(
+            409,
+            "SKU changes are locked because this product is published or has offers.",
+          );
+        }
+      }
+      if (optionsChanged) {
+        throw new StudioError(
+          409,
+          "Option axes are locked because this product is published or has offers.",
+        );
+      }
+    }
   }
 
   if (!studioManaged) {

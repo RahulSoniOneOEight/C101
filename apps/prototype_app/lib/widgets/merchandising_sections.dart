@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../domain/merchandising.dart';
 import '../domain/models.dart';
+import 'cart_product_card.dart';
 
 /// Renders a single [MerchandisingModule] as its corresponding section widget.
 class MerchandisingModuleView extends StatelessWidget {
@@ -125,7 +126,8 @@ class MerchandisingModuleView extends StatelessWidget {
       ];
 
   Widget _card(Product p, ProductCardVariant variant) {
-    return ProductCard(
+    return CartProductCard(
+      product: p,
       title: p.title,
       priceLabel: p.price?.formatted ?? 'Price on request',
       previousPriceLabel: p.mrp?.formatted,

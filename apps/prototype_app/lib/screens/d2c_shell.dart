@@ -9,6 +9,7 @@ import '../providers/account_providers.dart';
 import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../widgets/cart_feedback.dart';
+import '../widgets/cart_product_card.dart';
 import '../providers/catalog_providers.dart';
 import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
@@ -505,7 +506,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
 
   Widget _card(Product product) {
     final wishlisted = ref.watch(wishlistProvider).contains(product.id);
-    return ProductCard(
+    return CartProductCard(
+      product: product,
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
       previousPriceLabel: product.mrp?.formatted,
@@ -652,7 +654,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               final p = items[i];
               return SizedBox(
                 width: 160,
-                child: ProductCard(
+                child: CartProductCard(
+                  product: p,
                   title: p.title,
                   priceLabel: p.price?.formatted ?? 'Price on request',
                   previousPriceLabel: p.mrp?.formatted,

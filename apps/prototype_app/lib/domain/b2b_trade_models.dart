@@ -155,6 +155,7 @@ class TradeProduct {
     this.tag,
     this.sellers = const <TradeSupplier>[],
     this.stockKnown = true,
+    this.selectedVariant,
   });
 
   final Product product;
@@ -162,6 +163,10 @@ class TradeProduct {
   final int moq;
   final int stockQty;
   final String deliveryLocation;
+
+  /// The exact SKU whose price, MOQ, tiers and stock this trade product is
+  /// showing. The card must add this SKU, not a different default variant.
+  final ProductVariant? selectedVariant;
 
   /// False when the composed payload carried no stock figure. The UI then says
   /// availability is unconfirmed rather than claiming "out of stock".
@@ -206,6 +211,7 @@ class TradeProduct {
         tag: tag,
         sellers: sellers ?? this.sellers,
         stockKnown: stockKnown,
+        selectedVariant: selectedVariant,
       );
 
   /// Savings vs MRP at the base trade price, or null when no discount.
@@ -494,6 +500,7 @@ class B2BQuotationCart {
     this.lines = const <B2BQuotationLine>[],
     this.status = RfqStatus.draft,
     this.deliveryLocation,
+    this.deliveryTier = 'standard',
     this.requiredBy,
     this.remarks,
     this.reference,
@@ -502,6 +509,10 @@ class B2BQuotationCart {
   final List<B2BQuotationLine> lines;
   final RfqStatus status;
   final String? deliveryLocation;
+
+  /// Requested freight priority. B2B has no canonical shipping price yet, so
+  /// this is recorded as a request attribute, not a priced shipping method.
+  final String deliveryTier;
   final DateTime? requiredBy;
   final String? remarks;
   final String? reference;
@@ -547,6 +558,7 @@ class B2BQuotationCart {
     List<B2BQuotationLine>? lines,
     RfqStatus? status,
     String? deliveryLocation,
+    String? deliveryTier,
     DateTime? requiredBy,
     String? remarks,
     String? reference,
@@ -555,6 +567,7 @@ class B2BQuotationCart {
         lines: lines ?? this.lines,
         status: status ?? this.status,
         deliveryLocation: deliveryLocation ?? this.deliveryLocation,
+        deliveryTier: deliveryTier ?? this.deliveryTier,
         requiredBy: requiredBy ?? this.requiredBy,
         remarks: remarks ?? this.remarks,
         reference: reference ?? this.reference,
@@ -564,6 +577,7 @@ class B2BQuotationCart {
         'lines': lines.map((line) => line.toJson()).toList(),
         'status': status.name,
         if (deliveryLocation != null) 'delivery_location': deliveryLocation,
+        'delivery_tier': deliveryTier,
         if (requiredBy != null) 'required_by': requiredBy!.toIso8601String(),
         if (remarks != null) 'remarks': remarks,
         if (reference != null) 'reference': reference,
@@ -581,6 +595,7 @@ class B2BQuotationCart {
         orElse: () => RfqStatus.draft,
       ),
       deliveryLocation: j['delivery_location'] as String?,
+      deliveryTier: j['delivery_tier'] as String? ?? 'standard',
       requiredBy: DateTime.tryParse(j['required_by'] as String? ?? ''),
       remarks: j['remarks'] as String?,
       reference: j['reference'] as String?,

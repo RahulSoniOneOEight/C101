@@ -906,6 +906,7 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
     tradePrice: price,
     moq: selected?.b2bMoq ?? 1,
     stockQty: selected?.stockQty ?? 0,
+    selectedVariant: selected,
     // An older composed payload lists variants without stock. Say "unconfirmed"
     // rather than turning every product into "Out of Stock".
     stockKnown: selected != null,
@@ -1456,6 +1457,17 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         lines: state.lines,
         status: state.status,
         deliveryLocation: location,
+        deliveryTier: state.deliveryTier,
+        requiredBy: state.requiredBy,
+        remarks: state.remarks,
+        reference: state.reference,
+      ));
+
+  void setDeliveryTier(String tier) => _commit(B2BQuotationCart(
+        lines: state.lines,
+        status: state.status,
+        deliveryLocation: state.deliveryLocation,
+        deliveryTier: tier,
         requiredBy: state.requiredBy,
         remarks: state.remarks,
         reference: state.reference,
@@ -1465,6 +1477,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         lines: state.lines,
         status: state.status,
         deliveryLocation: state.deliveryLocation,
+        deliveryTier: state.deliveryTier,
         requiredBy: date,
         remarks: state.remarks,
         reference: state.reference,
@@ -1474,6 +1487,7 @@ class B2BQuotationCartNotifier extends Notifier<B2BQuotationCart> {
         lines: state.lines,
         status: state.status,
         deliveryLocation: state.deliveryLocation,
+        deliveryTier: state.deliveryTier,
         requiredBy: state.requiredBy,
         remarks: remarks,
         reference: state.reference,

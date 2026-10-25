@@ -43,9 +43,10 @@ export function experienceAdminConfig(): { baseUrl: string; secret: string } {
 export async function experienceAdminFetch(
   path: string,
   options: {
-    method?: "GET" | "POST";
+    method?: "GET" | "POST" | "PATCH";
     actorId?: string | null;
     sellerId?: string | null;
+    correlationId?: string | null;
     query?: string;
     body?: unknown;
   } = {},
@@ -59,6 +60,9 @@ export async function experienceAdminFetch(
         "content-type": "application/json",
         "x-buildkart-admin-service-secret": secret,
         "x-operator-user-id": options.actorId ?? "admin_console",
+        ...(options.correlationId
+          ? { "x-correlation-id": options.correlationId }
+          : {}),
         ...(options.sellerId
           ? { "x-buildkart-seller-id": options.sellerId }
           : {}),

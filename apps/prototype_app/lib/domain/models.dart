@@ -839,6 +839,7 @@ class ShippingOption {
     required this.name,
     required this.price,
     required this.providerId,
+    this.tier,
   });
 
   factory ShippingOption.fromJson(Map<String, dynamic> json) {
@@ -851,6 +852,7 @@ class ShippingOption {
         currencyCode: json['currency_code'] as String? ?? 'INR',
       ),
       providerId: json['provider_id'] as String? ?? '',
+      tier: json['tier'] as String?,
     );
   }
 
@@ -859,6 +861,7 @@ class ShippingOption {
   final String name;
   final Money price;
   final String providerId;
+  final String? tier;
 }
 
 /// A shipping/billing address sent to Medusa.

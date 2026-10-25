@@ -82,6 +82,8 @@ export interface Config {
   logisticsWebhookSecret?: string;
   /** Staging-only service secret used by the Mercur admin console proxy. */
   adminServiceSecret?: string;
+  /** Staging-only Bought Together merchandising surface. */
+  boughtTogetherEnabled: boolean;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -120,6 +122,10 @@ function parseNats(raw: string | undefined): { url: string; user?: string; passw
 export function loadConfig(env: Record<string, string | undefined>): Config {
   const environment = readEnvironment(env.BUILDKART_ENVIRONMENT);
   const paymentAdapterMode = readAdapterMode(env.PAYMENT_ADAPTER_MODE);
+  const boughtTogetherEnabled = booleanFlag(env.BUILDKART_BOUGHT_TOGETHER_ENABLED);
+  if (boughtTogetherEnabled && environment === "production") {
+    throw new Error("Bought Together merchandising is staging-only.");
+  }
 
   // Fail closed: simulated payment must never run in production.
   if (environment === "production" && paymentAdapterMode === "simulated") {
@@ -266,5 +272,6 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     workspaceServiceSecret,
     logisticsWebhookSecret,
     adminServiceSecret,
+    boughtTogetherEnabled,
   };
 }

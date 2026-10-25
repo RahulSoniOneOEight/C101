@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../core/app_config.dart';
 import '../domain/models.dart';
+import '../domain/bought_together.dart';
 import '../domain/app_notification.dart';
 import '../domain/presentation.dart';
 import '../domain/storefront_collection.dart';
@@ -446,6 +447,19 @@ class ExperienceApi {
     return Product.fromComposedJson(res.data!);
   }
 
+  /// Reciprocal Bought Together pair for the product page.
+  Future<BoughtTogether?> getBoughtTogether(String productId,
+      {String channel = 'b2c'}) async {
+    final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
+          '/v1/products/$productId/bought-together',
+          queryParameters: <String, dynamic>{'channel': channel},
+        ));
+    final data = res.data;
+    if (data == null) return null;
+    final parsed = BoughtTogether.fromJson(data);
+    return parsed.hasPair ? parsed : null;
+  }
+
   /// Canonical cart read. Used by checkout to rehydrate totals, discounts and
   /// applied codes instead of trusting a stale local copy.
   Future<Cart> getCart(String cartId) async {
@@ -558,6 +572,14 @@ class ExperienceApi {
     final res = await _dio.post<Map<String, dynamic>>(
       '/v1/carts/$cartId/shipping-methods',
       data: {'option_id': optionId},
+    );
+    return Cart.fromJson(res.data!);
+  }
+
+  Future<Cart> selectDeliveryTier(String cartId, String tier) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts/$cartId/delivery-tier',
+      data: {'tier': tier},
     );
     return Cart.fromJson(res.data!);
   }

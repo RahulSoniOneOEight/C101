@@ -9,6 +9,7 @@ import '../domain/conversation_models.dart';
 import '../domain/models.dart';
 import '../widgets/market_comparison.dart';
 import '../widgets/conversation_bell.dart';
+import '../widgets/bought_together_section.dart';
 import '../providers/b2b_support_providers.dart';
 import '../providers/b2b_trade_providers.dart';
 import '../providers/conversation_dock_provider.dart';
@@ -383,6 +384,11 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
                 foregroundColor: colors.actionPrimary,
               ),
             ),
+          ),
+          BoughtTogetherSection(
+            current: p.product,
+            channel: 'b2b',
+            currentTrade: p,
           ),
         ],
       ),
@@ -843,6 +849,27 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
               prefixIcon: Icon(Icons.location_on_outlined, size: 18),
             ),
             onChanged: notifier.setDeliveryLocation,
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          _fieldLabel(colors, 'Delivery Speed'),
+          SegmentedButton<String>(
+            segments: const <ButtonSegment<String>>[
+              ButtonSegment<String>(
+                  value: 'standard', label: Text('Standard freight')),
+              ButtonSegment<String>(
+                  value: 'express', label: Text('Priority freight')),
+            ],
+            selected: <String>{cart.deliveryTier},
+            onSelectionChanged: (selection) {
+              if (selection.isNotEmpty) {
+                notifier.setDeliveryTier(selection.first);
+              }
+            },
+          ),
+          const SizedBox(height: AgencySpacing.xs),
+          Text(
+            'Priority freight is recorded as a request and confirmed with the seller.',
+            style: TextStyle(fontSize: 11, color: colors.contentSecondary),
           ),
           const SizedBox(height: AgencySpacing.md),
           PinDateTimeField(
@@ -1770,6 +1797,34 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
               padding: const EdgeInsets.all(AgencySpacing.md),
               children: <Widget>[
                 _deliverySitePicker(context, colors, cart.deliveryLocation),
+                const SizedBox(height: AgencySpacing.md),
+                Text('Delivery speed',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: colors.contentPrimary)),
+                const SizedBox(height: AgencySpacing.xs),
+                SegmentedButton<String>(
+                  segments: const <ButtonSegment<String>>[
+                    ButtonSegment<String>(
+                        value: 'standard', label: Text('Standard')),
+                    ButtonSegment<String>(
+                        value: 'express', label: Text('Priority')),
+                  ],
+                  selected: <String>{cart.deliveryTier},
+                  onSelectionChanged: (selection) {
+                    if (selection.isNotEmpty) {
+                      ref
+                          .read(b2bQuotationCartProvider.notifier)
+                          .setDeliveryTier(selection.first);
+                    }
+                  },
+                ),
+                Text(
+                  'Priority is requested and confirmed with the seller.',
+                  style: TextStyle(
+                      fontSize: 11, color: colors.contentSecondary),
+                ),
                 _field(context, 'PO number', 'PO-3392'),
                 _field(context, 'GST invoice', 'GSTIN 27ABCDE1234F1Z5'),
                 const SizedBox(height: AgencySpacing.sm),
@@ -2266,7 +2321,6 @@ class _RelatedProductsRail extends ConsumerStatefulWidget {
 }
 
 class _RelatedProductsRailState extends ConsumerState<_RelatedProductsRail> {
-  final Map<String, int> _qty = <String, int>{};
   final Map<String, int> _tier = <String, int>{};
 
   @override
@@ -2291,10 +2345,6 @@ class _RelatedProductsRailState extends ConsumerState<_RelatedProductsRail> {
           itemBuilder: (context, i) {
             final p = related[i];
             final selected = _tier[p.product.id] ?? 0;
-            final defaultQty = p.tiers.isEmpty
-                ? p.moq
-                : p.tiers[selected.clamp(0, p.tiers.length - 1)].quantity;
-            final qty = _qty[p.product.id] ?? defaultQty;
             return SizedBox(
               width: 175,
               child: tradeProductTile(
@@ -2304,11 +2354,7 @@ class _RelatedProductsRailState extends ConsumerState<_RelatedProductsRail> {
                 selectedTierIndex: selected,
                 onTierSelected: (t) => setState(() {
                   _tier[p.product.id] = t;
-                  _qty.remove(p.product.id);
                 }),
-                quantity: qty,
-                onQuantityChanged: (v) =>
-                    setState(() => _qty[p.product.id] = v),
               ),
             );
           },

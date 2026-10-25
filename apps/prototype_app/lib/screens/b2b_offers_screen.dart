@@ -31,7 +31,6 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
   String? _selectedId;
   _OfferSort _sort = _OfferSort.recommended;
   final Map<String, int> _selectedTier = <String, int>{};
-  final Map<String, int> _qty = <String, int>{};
 
   @override
   void dispose() {
@@ -158,7 +157,6 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
                   onTap: () => setState(() {
                     _selectedId = c.id;
                     _selectedTier.clear();
-                    _qty.clear();
                   }),
                 ),
             ],
@@ -276,15 +274,7 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
   }
 
   Widget _card(TradeProduct p) {
-    final tiers = p.tiers
-        .map((t) => TradeTierOption(
-              quantity: t.quantity,
-              priceLabel: t.unitPrice.formatted,
-            ))
-        .toList();
     final selected = _selectedTier[p.product.id] ?? 0;
-    final defaultQty = tiers.isEmpty ? p.moq : tiers[selected].quantity;
-    final qty = _qty[p.product.id] ?? defaultQty;
     return tradeProductTile(
       context,
       ref,
@@ -292,10 +282,7 @@ class _TradeOffersPageState extends ConsumerState<TradeOffersPage> {
       selectedTierIndex: selected,
       onTierSelected: (i) => setState(() {
         _selectedTier[p.product.id] = i;
-        _qty.remove(p.product.id);
       }),
-      quantity: qty,
-      onQuantityChanged: (v) => setState(() => _qty[p.product.id] = v),
     );
   }
 
