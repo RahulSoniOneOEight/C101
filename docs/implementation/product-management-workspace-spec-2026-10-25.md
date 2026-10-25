@@ -5,6 +5,10 @@ Scope: Admin and Seller product management, staging-first
 QC model: `openai/gpt-5.6-sol` (high reasoning)
 Status: revised design for review. The safe Admin UI slice is deployed to staging
 at `f59a5f9`; the full corrected flow still waits for human decisions.
+
+**Variant creation update:** variants are created **directly**, one row at a time.
+There are no option axes and no Generate combinations step. This is a design
+target that requires a backend change; see §10.5.
 Production: not authorized
 
 ## 1. What changed after QC
@@ -17,7 +21,7 @@ high findings in the screen model.
 | B1 — client/server readiness disagree | One server-owned readiness contract. The UI renders product, variant and offer checks from the server; it does not recompute publish readiness locally. |
 | B2 — publish can use stale saved data | Lifecycle actions are disabled while the form is dirty. Publishing/submitting uses **Save → reload server version → action**, or an explicit **Save and publish** action that does both. |
 | B3 — Admin-created products can have no offer | Creation requires an **Offer ownership** choice: BuildKart Direct, existing seller, or “no offer yet” (draft only). No-offer drafts show a pricing CTA and cannot publish. |
-| B4 — structural edits can delete variants/offers | Option axes, variant deletion and SKU identity changes are locked once a product is published or an offer exists. A governed variant-change request replaces direct deletion. |
+| B4 — structural edits can delete variants/offers | Variant add/remove and SKU identity changes are locked once a product is published or an offer exists. A governed variant-change request replaces direct deletion. |
 | B5 — no permission matrix | A server-enforced capability matrix controls view, create, edit, variants, pricing, review, lifecycle and inventory requests. |
 | H1/H2 — renaming does not create one flow | Products owns `/products` and `/products/:id`; `/product-studio/*` redirects. Native capabilities are inventoried before the native detail is replaced. |
 | H3 — published view/edit conflict | Published products open read-only. **Edit published product** unlocks a direct audited edit with **Save changes**. |
@@ -258,67 +262,145 @@ Product-level only. Variant fields stay in Variants.
 Tags and specifications are product-level and are warnings, not publish blockers,
 unless the business later decides otherwise.
 
-## 10. Variants tab
+## 10. Variants tab — direct variant creation
 
-### 10.1 Studio-managed product, draft
+### 10.1 Direct variant model
+
+No option axes. No combination generation.
+
+A product has **1..N variants**. The operator creates each variant directly.
+
+```mermaid
+flowchart LR
+    P[Product] --> V1[Variant 1]
+    P --> V2[Variant 2]
+    P --> VN[Variant N]
+    V1 --> O1[Offers and pricing]
+    V1 --> I1[Inventory]
+    V2 --> O2[Offers and pricing]
+    V2 --> I2[Inventory]
+    VN --> ON[Offers and pricing]
+    VN --> IN[Inventory]
+```
+
+Each variant is independent:
+
+- variant name
+- SKU
+- customer-facing details
+- optional image
+- its own offers and prices
+- its own inventory
+
+There is no “Finish × Size” matrix and no generated combinations.
+
+### 10.2 Direct variant screen — draft
 
 ```text
 +------------------------------------------------------------------------------------------------------+
 | Variants                                                                                             |
 +------------------------------------------------------------------------------------------------------+
-| Options                                                                                              |
-| [Finish: Black, Silver]   [Size: S, M, L]      [Generate combinations]     2 × 3 = 6 variants        |
-+------------------------------------------------------------------------------------------------------+
-| Bulk SKU prefix [WJ-]  [Fill blank SKUs]                                                             |
+| [+ Add variant]   [Duplicate selected]   Bulk SKU prefix [WJ-]   [Fill blank SKUs]                   |
 +------------------------------------------------------------------------------------------------------+
 | Variant       | SKU         | Details shown in app        | Image   | Readiness        | Actions      |
 +---------------+-------------+-----------------------------+---------+------------------+--------------+
 | Black / S     | WJ-BLK-S    | Water-resistant shell       | [img]   | Ready            | Edit Remove  |
 | Black / M     | WJ-BLK-M    | Water-resistant shell       | [img]   | Needs details    | Edit Remove  |
-| Black / L     | WJ-BLK-L    | Water-resistant shell       | [img]   | Ready            | Edit Remove  |
-| Silver / S    | WJ-SLV-S    | Water-resistant shell       | [img]   | Ready            | Edit Remove  |
 | Silver / M    | WJ-SLV-M    | Water-resistant shell       | [img]   | Ready            | Edit Remove  |
-| Silver / L    | WJ-SLV-L    | Water-resistant shell       | [img]   | Needs SKU        | Edit Remove  |
+| Silver / L    |             |                             |         | Needs name/SKU   | Edit Remove  |
 +---------------+-------------+-----------------------------+---------+------------------+--------------+
-| 6 variants · 6 SKUs · 0 duplicate SKUs                                                               |
+| 4 variants · 3 SKUs · 0 duplicate SKUs                                                               |
 +------------------------------------------------------------------------------------------------------+
 ```
 
-Readiness labels are derived in the UI: `Ready`, `Needs details`, `Needs SKU`.
-There is no separate stored variant status.
+Row editor:
 
-### 10.2 Published or offered product — structural lock
+```text
++------------------------------------------------------------------------------------------------------+
+| Variant 1                                                                                   [Remove] |
+| Variant name *  [Black / S                                                                       ]  |
+| SKU *           [WJ-BLK-S                                                                        ]  |
+| Details *       [Water-resistant shell                                                           ]  |
+| Image URL       [https://...                                                                     ]  |
++------------------------------------------------------------------------------------------------------+
+```
+
+Rules:
+
+- **Add variant** creates a blank variant row.
+- **Duplicate selected** copies the selected row as a starting point.
+- **Remove** is allowed only for drafts with no offers.
+- Variant name, SKU and customer-facing details are required for review.
+- Image is optional.
+- Bulk SKU prefix and **Fill blank SKUs** remain available.
+- The operator can type `Black / S` or `Small` as the variant name; no option
+  axes are required.
+- Save draft persists all variants together.
+
+Pricing and inventory follow the direct variant list:
+
+```text
+Variant Black / S
+  → Offers & pricing: one or more seller offers
+  → Inventory: one SKU row
+
+Variant Silver / M
+  → Offers & pricing: zero or more seller offers
+  → Inventory: one SKU row
+```
+
+### 10.3 Published or offered product — structural lock
 
 ```text
 +------------------------------------------------------------------------------------------------------+
 | This product is published / has offers.                                                              |
-| Option axes, variant deletion and SKU identity changes are locked.                                   |
-| To change the sellable structure, submit a variant change request.                                   |
+| Adding, duplicating or removing variants and changing SKU identity are locked.                       |
+| Variant names, details and images remain editable.                                                   |
 | [Request variant change]                                                                             |
 +------------------------------------------------------------------------------------------------------+
 ```
 
-- “Add option”, “Generate combinations” and “Remove” are disabled.
+- **Add variant**, **Duplicate selected**, **Remove** and SKU changes are disabled.
 - Variant name, details and image remain editable where permitted.
-- SKU changes are blocked if the SKU is referenced by an offer or order.
 - A variant change request must show affected offers, prices and inventory before
   approval.
 
-### 10.3 Legacy / imported product
+### 10.4 Legacy / imported product
 
 ```text
 +------------------------------------------------------------------------------------------------------+
 | Imported catalogue product                                                                           |
-| Option axes are read-only in this slice.                                                             |
-| Variant names, details, images and SKUs remain editable.                                             |
+| Existing variants are editable. Direct add/remove is blocked while native option axes are read-only. |
+| Variant names, details and images remain editable.                                                   |
 +------------------------------------------------------------------------------------------------------+
 ```
 
-Hide Generate/Remove/Add-axis controls. Allow only supported remediation needed
-for republishing.
+- Hide Add variant/Duplicate/Remove.
+- Existing variants remain editable.
+- This avoids breaking native Medusa option links on imported products.
 
-Adding a variant creates new rows in Offers & pricing and Inventory. Removing a
-draft variant removes those unsaved rows; removing an offered variant is blocked.
+### 10.5 Backend change required
+
+The current API does **not** support multiple variants without options:
+
+```text
+normalizeVariants()
+  if options.length === 0 && source.length > 1
+    throw "A product without options can have only one default variant."
+```
+
+To ship direct variant creation, the backend must allow multiple direct variants.
+Likely options:
+
+1. Allow optionless variants if Medusa accepts them.
+2. Keep a hidden technical option internally (for example one variant value per
+   row) while never exposing options in the UI.
+
+This is a Lane B change (API validation/workflow), with a schema/dependency check if
+Medusa requires an option record. It is not covered by the current UI-only slice.
+
+Until that backend change is implemented, the live staging UI still uses the
+existing options + Generate combinations behavior.
 
 ## 11. Offers and pricing tab
 
@@ -517,7 +599,7 @@ stateDiagram-v2
 | Create product | ✓ | ✓ | ✓ | ✓ | — | — |
 | Edit content | ✓ | ✓ | own | own | — | — |
 | Edit variants | ✓ | ✓ | own | own | — | — |
-| Change structure (options/delete/SKU) | ✓ | ✓ | own, if unpublished | own, if unpublished | — | — |
+| Change structure (add/remove variant/SKU) | ✓ | ✓ | own, if unpublished | own, if unpublished | — | — |
 | Price B2C | ✓ | ✓ | own | own | — | — |
 | Price B2B | ✓ | ✓ | own | own | — | — |
 | Submit / withdraw | ✓ | ✓ | own | own | — | — |
@@ -563,7 +645,9 @@ or disable controls.
 - Products menu, list, create with offer ownership.
 - Details with supported fields.
 - Tags and specifications.
-- Variants with studio-managed and legacy modes.
+- Direct variants (1..N), no option axes or combination generation.
+- Backend support for multiple optionless/direct variants.
+- Draft and legacy variant modes.
 - Structural lock for published/offered products.
 - Offers and pricing with variant/offer layout, channel-specific results and retry.
 - Inventory by SKU with adjustment requests.
@@ -587,7 +671,7 @@ or disable controls.
 | B1 | One server readiness response covers product, variant and offer checks; Admin and Seller render it unchanged. |
 | B2 | Lifecycle actions are disabled while dirty; publish/submit uses a saved server version. |
 | B3 | Creating a product requires offer ownership, or explicitly creates a no-offer draft with pricing disabled and publish blocked. |
-| B4 | Option axes, variant deletion and SKU identity changes are locked on published/offered products. |
+| B4 | Variant add/remove and SKU identity changes are locked on published/offered products. |
 | B5 | Every capability in the permission matrix is enforced server-side and reflected in the UI. |
 | H1 | `/product-studio/*` redirects; all internal links point to `/products/*`. |
 | H2 | Native product capabilities, including SEO, are inventoried before the native detail is replaced. |

@@ -365,6 +365,7 @@ active_changes:
   product_management_workspace_spec: docs/implementation/product-management-workspace-spec-2026-10-25.md
   product_management_workspace_spec_status: revised-design-pending-human-decisions
   product_management_workspace_spec_qc_model: openai/gpt-5.6-sol
+  product_management_workspace_variants: direct-variant-creation-design-backend-change-required
   admin_products_workspace_status: staging-deployed-verified
   admin_products_workspace_release: f59a5f9
   admin_products_workspace_scope: products-nav-tabbed-workspace-bridge-ui-only
