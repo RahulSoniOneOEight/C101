@@ -318,14 +318,10 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
 
   const scrollToSection = (id: string) => {
     setActive(id);
-    const element = document.getElementById(id);
-    if (element) {
-      const top = Math.max(
-        0,
-        element.getBoundingClientRect().top + window.scrollY - 132,
-      );
-      window.scrollTo({ top, behavior: "smooth" });
-    }
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
     const url = new URL(window.location.href);
     url.searchParams.set("section", id.replace("studio-", ""));
     window.history.replaceState({}, "", url);
@@ -341,14 +337,10 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
     const id = `studio-${requested}`;
     if (!WORKSPACE_TABS.some((tab) => tab.id === id)) return;
     const handle = window.setTimeout(() => {
-      const element = document.getElementById(id);
-      if (element) {
-        const top = Math.max(
-          0,
-          element.getBoundingClientRect().top + window.scrollY - 132,
-        );
-        window.scrollTo({ top, behavior: "auto" });
-      }
+      document.getElementById(id)?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
       setActive(id);
     }, 150);
     return () => window.clearTimeout(handle);
@@ -428,6 +420,7 @@ function Section({
     <section
       id={id}
       tabIndex={-1}
+      style={{ scrollMarginTop: "128px" }}
       className="scroll-mt-36 border-t border-ui-border-base px-6 py-6 first:border-t-0"
     >
       <div className="mb-5 flex items-start gap-3">
