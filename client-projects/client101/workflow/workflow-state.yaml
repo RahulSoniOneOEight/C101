@@ -50,6 +50,14 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-22'
   scope: admin-seller-business-defaults-rows-1-to-15
+- change_id: CHG-075
+  approved_by: human-requester
+  approved_at_utc: '2026-10-24'
+  scope: storefront-search-telemetry-and-admin-read-only-insights-staging-only
+- change_id: CHG-076
+  approved_by: human-requester
+  approved_at_utc: '2026-10-25'
+  scope: admin-and-seller-product-studio-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -303,4 +311,44 @@ active_changes:
   - delivery-correction-model
   - activity-assignment-and-notifications
   - promotion-engine-opt-out
+- change_id: CHG-075
+  status: approved-code-complete-staging-verification-pending
+  approval_required: true
+  approval_scope: storefront-search-telemetry-and-admin-read-only-insights-staging-only
+  approved_by: human-requester
+  approved_at_utc: '2026-10-24'
+  proposal: client-projects/client101/changes/CHG-075.yaml
+  scope: top-searches-zero-results-clicked-products-search-to-cart
+  attribution_window_minutes: 30
+  channels:
+  - b2c
+  - b2b
+  admin_surface: search-insights
+  production_release_authorized: false
+  production_blocked_by:
+  - retention-automation
+  - privacy-review
+  - human-production-authorization
+  evidence: docs/implementation/session-note-2026-10-24-storefront-search-insights.md
+  latest_staging_release: pending
+- change_id: CHG-076
+  status: implemented-code-complete-staging-verification-pending
+  approval_required: true
+  approval_scope: admin-and-seller-product-studio-staging-only
+  approved_by: human-requester
+  approved_at_utc: '2026-10-25'
+  proposal: client-projects/client101/changes/CHG-076.yaml
+  scope: product-studio-consolidation-admin-seller
+  product_studio_single_flow: true
+  seller_products_tab_removed: true
+  variants: custom-only-name-details-image-sku-no-barcode
+  pricing: b2c-list-selling-gst-b2b-list-selling-moq-tiers-dates-no-reason
+  review: compact-status-check-and-publish
+  production_release_authorized: false
+  production_blocked_by:
+  - staging-verification
+  - seller-published-edit-review-model
+  - human-production-authorization
+  evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
+  latest_staging_release: pending
 

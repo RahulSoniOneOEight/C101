@@ -35,6 +35,8 @@ type Option = { id?: string; name: string; values: string[] };
 type Variant = {
   id?: string;
   title: string;
+  details: string;
+  image_url: string;
   sku: string;
   ean: string;
   upc: string;
@@ -151,6 +153,8 @@ const EMPTY_SPEC: Spec = { name: "", value: "", unit: "" };
 
 const emptyVariant = (): Variant => ({
   title: "Default",
+  details: "",
+  image_url: "",
   sku: "",
   ean: "",
   upc: "",
@@ -336,7 +340,6 @@ function OfferPricingEditor({
   const [baseId, setBaseId] = useState<string | undefined>();
   const [tiers, setTiers] = useState<TierDraft[]>([]);
   const [otherPrices, setOtherPrices] = useState<OfferPrice[]>([]);
-  const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [b2bAmount, setB2bAmount] = useState("");
@@ -345,8 +348,7 @@ function OfferPricingEditor({
   const [b2bFrom, setB2bFrom] = useState("");
   const [b2bTo, setB2bTo] = useState("");
   const [b2bGst, setB2bGst] = useState(true);
-  const [b2bTiers, setB2bTiers] = useState("");
-  const [b2bReason, setB2bReason] = useState("");
+  const [b2bTiers, setB2bTiers] = useState<TierDraft[]>([]);
   const [b2bSaving, setB2bSaving] = useState(false);
   const [b2bNotice, setB2bNotice] = useState<string | null>(null);
   const [b2bPriceListId, setB2bPriceListId] = useState<string | null>(null);
@@ -395,9 +397,14 @@ function OfferPricingEditor({
         setB2bTo(result.pricing.ends_at?.slice(0, 16) ?? "");
         setB2bGst(result.pricing.gst_inclusive !== false);
         setB2bTiers(
-          result.pricing.tiers
-            .map((tier) => `${tier.min_quantity}:${tier.max_quantity ?? ""}:${rupees(tier.amount)}`)
-            .join("\n"),
+          result.pricing.tiers.map((tier) => ({
+            min: String(tier.min_quantity),
+            max:
+              tier.max_quantity === null || tier.max_quantity === undefined
+                ? ""
+                : String(tier.max_quantity),
+            amount: rupees(tier.amount),
+          })),
         );
       })
       .catch(() => undefined);
@@ -437,18 +444,6 @@ function OfferPricingEditor({
     }
     if (Number.isFinite(baseMinor) && baseMinor > listMinor) {
       nextErrors.push("Selling price cannot exceed the list price.");
-    }
-    const currentBase = offer.prices.find(
-      (price) =>
-        price.currency_code === "inr" &&
-        (price.min_quantity === null || price.min_quantity === undefined),
-    );
-    if (
-      currentBase &&
-      baseMinor > Math.ceil(currentBase.amount * 1.2) &&
-      !reason.trim()
-    ) {
-      nextErrors.push("A reason is required for an increase above 20%.");
     }
     setErrors([...new Set(nextErrors)]);
     if (nextErrors.length > 0) return;
@@ -497,7 +492,7 @@ function OfferPricingEditor({
         method: "POST",
         body: JSON.stringify({
           prices: payload,
-          reason: reason || null,
+          reason: null,
           list_price_minor: listMinor,
           gst_inclusive: gstInclusive,
           enforce_policy: true,
@@ -512,7 +507,6 @@ function OfferPricingEditor({
       };
       onSaved(updated);
       setErrors([]);
-      setReason("");
     } catch (error) {
       setErrors([(error as Error).message]);
     } finally {
@@ -524,18 +518,11 @@ function OfferPricingEditor({
     setB2bSaving(true);
     setB2bNotice(null);
     try {
-      const tiers = b2bTiers
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          const [min, max, amount] = line.split(":");
-          return {
-            min_quantity: Number(min),
-            max_quantity: max ? Number(max) : null,
-            amount: Math.round(Number(amount) * 100),
-          };
-        });
+      const tiers = b2bTiers.map((tier) => ({
+        min_quantity: Number(tier.min),
+        max_quantity: tier.max.trim() ? Number(tier.max) : null,
+        amount: Math.round(Number(tier.amount) * 100),
+      }));
       const endpoint =
         mode === "admin"
           ? `/admin/buildkart/offers/${offer.id}/b2b-pricing`
@@ -550,7 +537,7 @@ function OfferPricingEditor({
           starts_at: b2bFrom ? new Date(b2bFrom).toISOString() : null,
           ends_at: b2bTo ? new Date(b2bTo).toISOString() : null,
           gst_inclusive: b2bGst,
-          reason: b2bReason || null,
+          reason: null,
         }),
       });
       setB2bNotice("B2B price saved in the dedicated customer-group price list.");
@@ -628,7 +615,7 @@ function OfferPricingEditor({
                 B2C pricing
               </Heading>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Offer price ladder · INR
+                B2C list price, selling price and GST
               </Text>
             </div>
             <StatusBadge color={gstInclusive ? "blue" : "grey"}>
@@ -667,16 +654,6 @@ function OfferPricingEditor({
               />
               B2C price is GST-inclusive
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2">
-              <span className="text-xs font-medium text-ui-fg-subtle">
-                Reason (optional; required above 20% change)
-              </span>
-              <Input
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="Why is this price changing?"
-              />
-            </label>
           </div>
 
           <p className="mt-2 text-xs text-ui-fg-subtle">
@@ -694,108 +671,9 @@ function OfferPricingEditor({
               : "Enter list and selling prices to calculate the discount."}
           </p>
 
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-ui-fg-base">
-                  Quantity tiers
-                </p>
-                <p className="text-xs text-ui-fg-subtle">
-                  Higher quantities should not cost more per unit.
-                </p>
-              </div>
-              <Button
-                size="small"
-                type="button"
-                variant="secondary"
-                onClick={() =>
-                  setTiers((current) => [
-                    ...current,
-                    {
-                      min: current.length
-                        ? String(Number(current[current.length - 1].max || 1) + 1)
-                        : "10",
-                      max: "",
-                      amount: base,
-                    },
-                  ])
-                }
-              >
-                Add tier
-              </Button>
-            </div>
-            {tiers.length === 0 ? (
-              <Text size="small" className="text-ui-fg-subtle">
-                No quantity tiers. The base price applies to every quantity.
-              </Text>
-            ) : (
-              tiers.map((tier, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col gap-2 rounded-md border border-ui-border-base p-2 sm:flex-row sm:items-center"
-                >
-                  <Input
-                    inputMode="numeric"
-                    value={tier.min}
-                    onChange={(event) =>
-                      setTiers((current) =>
-                        current.map((row, position) =>
-                          position === index
-                            ? { ...row, min: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="Min qty"
-                    className="sm:w-20"
-                  />
-                  <Input
-                    inputMode="numeric"
-                    value={tier.max}
-                    onChange={(event) =>
-                      setTiers((current) =>
-                        current.map((row, position) =>
-                          position === index
-                            ? { ...row, max: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="Max qty"
-                    className="sm:w-20"
-                  />
-                  <Input
-                    inputMode="decimal"
-                    value={tier.amount}
-                    onChange={(event) =>
-                      setTiers((current) =>
-                        current.map((row, position) =>
-                          position === index
-                            ? { ...row, amount: event.target.value }
-                            : row,
-                        ),
-                      )
-                    }
-                    placeholder="Unit price (INR)"
-                    className="sm:flex-1"
-                  />
-                  <Button
-                    size="small"
-                    type="button"
-                    variant="transparent"
-                    className="shrink-0"
-                    onClick={() =>
-                      setTiers((current) =>
-                        current.filter((_, position) => position !== index),
-                      )
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
+          <p className="mt-3 text-xs text-ui-fg-subtle">
+            B2C quantity tiers are not used. Pricing applies to every quantity.
+          </p>
 
           {errors.length > 0 ? (
             <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error px-3 py-2 text-xs text-ui-fg-error">
@@ -831,24 +709,39 @@ function OfferPricingEditor({
           </div>
 
           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
-            <Input
-              inputMode="decimal"
-              value={b2bAmount}
-              onChange={(event) => setB2bAmount(event.target.value)}
-              placeholder="B2B selling price (INR)"
-            />
-            <Input
-              inputMode="decimal"
-              value={b2bList}
-              onChange={(event) => setB2bList(event.target.value)}
-              placeholder="B2B list price (INR)"
-            />
-            <Input
-              inputMode="numeric"
-              value={b2bMoq}
-              onChange={(event) => setB2bMoq(event.target.value)}
-              placeholder="MOQ"
-            />
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                B2B list price (INR)
+              </span>
+              <Input
+                inputMode="decimal"
+                value={b2bList}
+                onChange={(event) => setB2bList(event.target.value)}
+                placeholder="B2B list price"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                B2B selling price (INR)
+              </span>
+              <Input
+                inputMode="decimal"
+                value={b2bAmount}
+                onChange={(event) => setB2bAmount(event.target.value)}
+                placeholder="B2B selling price"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                MOQ
+              </span>
+              <Input
+                inputMode="numeric"
+                value={b2bMoq}
+                onChange={(event) => setB2bMoq(event.target.value)}
+                placeholder="MOQ"
+              />
+            </label>
             <label className="flex items-center gap-2 text-sm text-ui-fg-base">
               <input
                 type="checkbox"
@@ -857,38 +750,132 @@ function OfferPricingEditor({
               />
               B2B price is GST-inclusive
             </label>
-            <Input
-              type="datetime-local"
-              value={b2bFrom}
-              onChange={(event) => setB2bFrom(event.target.value)}
-              aria-label="B2B effective from"
-            />
-            <Input
-              type="datetime-local"
-              value={b2bTo}
-              onChange={(event) => setB2bTo(event.target.value)}
-              aria-label="B2B effective to"
-            />
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                Effective from
+              </span>
+              <Input
+                type="datetime-local"
+                value={b2bFrom}
+                onChange={(event) => setB2bFrom(event.target.value)}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-ui-fg-subtle">
+                Effective to
+              </span>
+              <Input
+                type="datetime-local"
+                value={b2bTo}
+                onChange={(event) => setB2bTo(event.target.value)}
+              />
+            </label>
           </div>
 
-          <label className="mt-2 flex flex-col gap-1">
-            <span className="text-xs font-medium text-ui-fg-subtle">
-              Quantity tiers (min:max:price per line)
-            </span>
-            <Textarea
-              value={b2bTiers}
-              onChange={(event) => setB2bTiers(event.target.value)}
-              placeholder={"10:19:85.00\n20::80.00"}
-            />
-          </label>
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-ui-fg-base">
+                  Quantity tiers
+                </p>
+                <p className="text-xs text-ui-fg-subtle">
+                  Higher quantities should not cost more per unit.
+                </p>
+              </div>
+              <Button
+                size="small"
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setB2bTiers((current) => [
+                    ...current,
+                    {
+                      min: current.length
+                        ? String(Number(current[current.length - 1].max || 1) + 1)
+                        : b2bMoq,
+                      max: "",
+                      amount: b2bAmount,
+                    },
+                  ])
+                }
+              >
+                Add tier
+              </Button>
+            </div>
+            {b2bTiers.length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">
+                No B2B quantity tiers.
+              </Text>
+            ) : (
+              b2bTiers.map((tier, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col gap-2 rounded-md border border-ui-border-base p-2 sm:flex-row sm:items-center"
+                >
+                  <Input
+                    inputMode="numeric"
+                    value={tier.min}
+                    onChange={(event) =>
+                      setB2bTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, min: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Min qty"
+                    className="sm:w-20"
+                  />
+                  <Input
+                    inputMode="numeric"
+                    value={tier.max}
+                    onChange={(event) =>
+                      setB2bTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, max: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Max qty"
+                    className="sm:w-20"
+                  />
+                  <Input
+                    inputMode="decimal"
+                    value={tier.amount}
+                    onChange={(event) =>
+                      setB2bTiers((current) =>
+                        current.map((row, position) =>
+                          position === index
+                            ? { ...row, amount: event.target.value }
+                            : row,
+                        ),
+                      )
+                    }
+                    placeholder="Unit price (INR)"
+                    className="sm:flex-1"
+                  />
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="transparent"
+                    className="shrink-0"
+                    onClick={() =>
+                      setB2bTiers((current) =>
+                        current.filter((_, position) => position !== index),
+                      )
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
 
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={b2bReason}
-              onChange={(event) => setB2bReason(event.target.value)}
-              placeholder="B2B price-change reason"
-              className="flex-1"
-            />
+          <div className="mt-3 flex justify-end">
             <Button
               size="small"
               type="button"
@@ -1106,7 +1093,6 @@ export function ProductStudioForm({
   const [reviewNotice, setReviewNotice] = useState<Notice | null>(null);
   const [bulkListPrice, setBulkListPrice] = useState("");
   const [bulkGstInclusive, setBulkGstInclusive] = useState(true);
-  const [bulkReason, setBulkReason] = useState("");
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkNotice, setBulkNotice] = useState<Notice | null>(null);
   const [optionsEditable, setOptionsEditable] = useState(true);
@@ -1341,6 +1327,12 @@ export function ProductStudioForm({
 
   const variantsReady =
     variants.length > 0 &&
+    variants.every(
+      (variant) =>
+        Boolean(variant.title.trim()) &&
+        Boolean(variant.details.trim()) &&
+        Boolean(variant.sku.trim()),
+    ) &&
     optionRowsComplete &&
     optionsMatchVariants &&
     duplicateSkus.size === 0 &&
@@ -1409,6 +1401,20 @@ export function ProductStudioForm({
       required: true,
     },
     {
+      label: "Every variant has a name",
+      ok:
+        variants.length > 0 &&
+        variants.every((variant) => Boolean(variant.title.trim())),
+      required: true,
+    },
+    {
+      label: "Every variant has details shown in the app",
+      ok:
+        variants.length > 0 &&
+        variants.every((variant) => Boolean(variant.details.trim())),
+      required: true,
+    },
+    {
       label: "Every variant has a SKU",
       ok:
         variants.length > 0 &&
@@ -1424,6 +1430,24 @@ export function ProductStudioForm({
   const reviewReady = reviewChecks.every(
     (check) => !check.required || check.ok,
   );
+  const reviewStatusLabel =
+    status === "published"
+      ? "Published"
+      : status === "proposed"
+        ? "In review"
+        : status === "rejected"
+          ? "Needs attention"
+          : reviewReady
+            ? "Ready to publish"
+            : "Needs attention";
+  const reviewStatusColor =
+    status === "published"
+      ? "green"
+      : status === "proposed"
+        ? "blue"
+        : status === "rejected" || !reviewReady
+          ? "red"
+          : "green";
   const readySections = [
     sectionOneDone,
     sectionTwoDone,
@@ -1681,6 +1705,25 @@ export function ProductStudioForm({
       });
       return;
     }
+    const blocked = eligible.flatMap((offer) => {
+      const selling = offer.prices.find(
+        (price) =>
+          price.currency_code === "inr" &&
+          (price.min_quantity === null || price.min_quantity === undefined),
+      );
+      return selling && selling.amount > listMinor
+        ? [`${offer.sku || offer.id} (${inr(selling.amount)})`]
+        : [];
+    });
+    if (blocked.length > 0) {
+      setBulkNotice({
+        kind: "error",
+        text: `No offers were updated. The list price ${inr(
+          listMinor,
+        )} is below the current selling price for: ${blocked.join(", ")}.`,
+      });
+      return;
+    }
     setBulkSaving(true);
     setBulkNotice(null);
     const failures: string[] = [];
@@ -1706,7 +1749,7 @@ export function ProductStudioForm({
                 ? { rules: price.rules }
                 : {}),
             })),
-            reason: bulkReason || null,
+            reason: null,
             list_price_minor: listMinor,
             gst_inclusive: bulkGstInclusive,
             enforce_policy: true,
@@ -1890,6 +1933,8 @@ export function ProductStudioForm({
         variants: variants.map((variant) => ({
           id: variant.id ?? null,
           title: variant.title,
+          details: variant.details,
+          image_url: variant.image_url,
           sku: variant.sku,
           ean: variant.ean,
           upc: variant.upc,
@@ -2419,15 +2464,15 @@ export function ProductStudioForm({
             <Section
               number={4}
               title="Variants and SKUs"
-              description="Option axes generate the variant combinations. Each variant carries its own SKU, EAN/UPC and barcode."
+              description="Each variant has a customer-facing name, details and an optional image. Options are custom-only and SKUs stay unique."
               complete={sectionFourDone}
             >
               {!optionsEditable ? (
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
                     Option axes for this imported catalogue product are
-                    read-only in this slice. Existing variant SKU, EAN/UPC and
-                    barcode fields remain editable.
+                    read-only in this slice. Variant names, details, images and
+                    SKUs remain editable.
                   </Text>
                 </div>
               ) : (
@@ -2596,7 +2641,7 @@ export function ProductStudioForm({
                       <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
-                            Variant title
+                            Variant name *
                           </span>
                           <Input
                             value={variant.title}
@@ -2605,12 +2650,12 @@ export function ProductStudioForm({
                                 title: event.target.value,
                               })
                             }
-                            placeholder="Variant title"
+                            placeholder="Variant name"
                           />
                         </label>
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
-                            SKU {skuDuplicate ? "· duplicate" : ""}
+                            SKU * {skuDuplicate ? "· duplicate" : ""}
                           </span>
                           <Input
                             value={variant.sku}
@@ -2622,44 +2667,41 @@ export function ProductStudioForm({
                             placeholder="Unique SKU"
                           />
                         </label>
-                        <label className="flex flex-col gap-1">
-                          <span className="text-xs text-ui-fg-subtle">EAN</span>
-                          <Input
-                            value={variant.ean}
+                        <label className="flex flex-col gap-1 md:col-span-2">
+                          <span className="text-xs text-ui-fg-subtle">
+                            Details shown in app *
+                          </span>
+                          <Textarea
+                            value={variant.details}
                             onChange={(event) =>
                               updateVariant(index, {
-                                ean: event.target.value,
+                                details: event.target.value,
                               })
                             }
-                            placeholder="EAN"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1">
-                          <span className="text-xs text-ui-fg-subtle">UPC</span>
-                          <Input
-                            value={variant.upc}
-                            onChange={(event) =>
-                              updateVariant(index, {
-                                upc: event.target.value,
-                              })
-                            }
-                            placeholder="UPC"
+                            placeholder="What the buyer should see for this variant"
                           />
                         </label>
                         <label className="flex flex-col gap-1 md:col-span-2">
                           <span className="text-xs text-ui-fg-subtle">
-                            Barcode
+                            Variant image URL
                           </span>
                           <Input
-                            value={variant.barcode}
+                            value={variant.image_url}
                             onChange={(event) =>
                               updateVariant(index, {
-                                barcode: event.target.value,
+                                image_url: event.target.value,
                               })
                             }
-                            placeholder="Barcode"
+                            placeholder="https://..."
                           />
                         </label>
+                        {variant.image_url.trim() ? (
+                          <img
+                            src={variant.image_url}
+                            alt=""
+                            className="h-16 w-16 rounded-md border border-ui-border-base object-cover"
+                          />
+                        ) : null}
                       </div>
                     </div>
                   );
@@ -2711,16 +2753,6 @@ export function ProductStudioForm({
                           }
                         />
                         GST-inclusive
-                      </label>
-                      <label className="flex flex-1 flex-col gap-1">
-                        <span className="text-xs text-ui-fg-subtle">
-                          Reason (optional)
-                        </span>
-                        <Input
-                          value={bulkReason}
-                          onChange={(event) => setBulkReason(event.target.value)}
-                          placeholder="Bulk list-price update reason"
-                        />
                       </label>
                       <Button
                         size="small"
@@ -2959,7 +2991,7 @@ export function ProductStudioForm({
             <Section
               number={7}
               title="Review and publish"
-              description="Readiness summary, seller submission, admin approval and the publish audit trail."
+              description="Status check and publish. Required items block publishing; optional items are warnings."
               complete={reviewReady}
             >
               <div className="flex flex-col gap-3">
@@ -2969,28 +3001,11 @@ export function ProductStudioForm({
                       Review status
                     </p>
                     <p className="text-xs text-ui-fg-subtle">
-                      Draft → Review required → Active. Rejected and reopened
-                      drafts remain in the audit trail.
+                      Fix required items, then publish or submit for review.
                     </p>
                   </div>
-                  <StatusBadge
-                    color={
-                      status === "published"
-                        ? "green"
-                        : status === "proposed"
-                          ? "blue"
-                          : status === "rejected"
-                            ? "red"
-                            : "grey"
-                    }
-                  >
-                    {status === "proposed"
-                      ? "Review required"
-                      : status === "published"
-                        ? "Active"
-                        : status === "rejected"
-                          ? "Rejected"
-                          : "Draft"}
+                  <StatusBadge color={reviewStatusColor}>
+                    {reviewStatusLabel}
                   </StatusBadge>
                 </div>
 
@@ -3230,11 +3245,6 @@ export function ProductStudioForm({
                   </div>
                 ) : null}
 
-                <Text size="small" className="text-ui-fg-subtle">
-                  The customer preview rail reflects the current draft. Admin
-                  approval uses Mercur's ProductChange publish workflow and
-                  records a STATUS_CHANGE audit.
-                </Text>
               </div>
             </Section>
 

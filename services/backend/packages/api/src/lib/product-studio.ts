@@ -36,6 +36,8 @@ export type StudioOptionInput = {
 export type StudioVariantInput = {
   id?: string | null;
   title?: string | null;
+  details?: string | null;
+  image_url?: string | null;
   sku?: string | null;
   ean?: string | null;
   upc?: string | null;
@@ -82,6 +84,8 @@ export class StudioError extends Error {
 }
 
 const STUDIO_ATTRIBUTE_FLAG = "buildkart_studio";
+const VARIANT_DETAILS_KEY = "buildkart_variant_details";
+const VARIANT_IMAGE_KEY = "buildkart_variant_image_url";
 
 const productFields = [
   "id",
@@ -199,12 +203,26 @@ type NormalizedOption = { name: string; values: string[] };
 type NormalizedVariant = {
   id: string | null;
   title: string;
+  details: string | null;
+  imageUrl: string | null;
   sku: string | null;
   ean: string | null;
   upc: string | null;
   barcode: string | null;
   options: Record<string, string>;
 };
+
+function variantMetadata(
+  details: string | null,
+  imageUrl: string | null,
+  previous?: Record<string, unknown> | null,
+): Record<string, unknown> {
+  return {
+    ...(previous ?? {}),
+    ...(details ? { [VARIANT_DETAILS_KEY]: details } : {}),
+    ...(imageUrl ? { [VARIANT_IMAGE_KEY]: imageUrl } : {}),
+  };
+}
 
 function normalizeOptions(input: StudioOptionInput[] | null | undefined): NormalizedOption[] {
   const seen = new Set<string>();
@@ -262,6 +280,8 @@ function normalizeVariants(
       {
         id: null,
         title: "Default",
+        details: null,
+        imageUrl: null,
         sku: null,
         ean: null,
         upc: null,
@@ -320,6 +340,8 @@ function normalizeVariants(
         (optionNames.length > 0
           ? optionNames.map((name) => normalizedOptions[name]).join(" / ")
           : "Default"),
+      details: clean(variant.details),
+      imageUrl: clean(variant.image_url),
       sku,
       ean: clean(variant.ean),
       upc: clean(variant.upc),
@@ -455,6 +477,7 @@ async function replaceOptionsAndVariants(
           ean: variant.ean ?? undefined,
           upc: variant.upc ?? undefined,
           barcode: variant.barcode ?? undefined,
+          metadata: variantMetadata(variant.details, variant.imageUrl),
           options: variant.options,
           manage_inventory: false,
         })),
@@ -471,7 +494,7 @@ async function syncVariants(
   const q = query(scope);
   const { data: currentVariants } = await q.graph({
     entity: "variant",
-    fields: ["id", "title", "sku", "ean", "upc", "barcode"],
+    fields: ["id", "title", "sku", "ean", "upc", "barcode", "metadata"],
     filters: { product_id: productId },
     pagination: { take: 500, skip: 0 },
   });
@@ -494,6 +517,17 @@ async function syncVariants(
         update[key] = variant[key];
       }
     }
+    const previousMetadata = (previous?.metadata ?? {}) as Record<string, unknown>;
+    if (
+      (previousMetadata[VARIANT_DETAILS_KEY] ?? null) !== variant.details ||
+      (previousMetadata[VARIANT_IMAGE_KEY] ?? null) !== variant.imageUrl
+    ) {
+      update.metadata = variantMetadata(
+        variant.details,
+        variant.imageUrl,
+        previousMetadata,
+      );
+    }
     if (Object.keys(update).length > 0) {
       await updateProductVariantsWorkflow(scope).run({
         input: {
@@ -514,6 +548,7 @@ async function syncVariants(
           ean: variant.ean ?? undefined,
           upc: variant.upc ?? undefined,
           barcode: variant.barcode ?? undefined,
+          metadata: variantMetadata(variant.details, variant.imageUrl),
           options: variant.options,
           manage_inventory: false,
         })),
@@ -826,6 +861,7 @@ export async function loadStudioProduct(
       "ean",
       "upc",
       "barcode",
+      "metadata",
       "manage_inventory",
       "allow_backorder",
       "options.value",
@@ -863,6 +899,8 @@ export async function loadStudioProduct(
     .map((variant: any) => ({
       id: variant.id,
       title: variant.title ?? "",
+      details: String(variant.metadata?.[VARIANT_DETAILS_KEY] ?? ""),
+      image_url: String(variant.metadata?.[VARIANT_IMAGE_KEY] ?? ""),
       sku: variant.sku ?? "",
       ean: variant.ean ?? "",
       upc: variant.upc ?? "",

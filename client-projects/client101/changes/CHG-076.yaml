@@ -1,0 +1,76 @@
+change_id: CHG-076
+revision: 1
+status: implemented-code-complete-staging-verification-pending
+request: >-
+  Consolidate product create and update into one Product Studio flow in both
+  Admin and Seller, with seller-scoped operation, simplified custom-only
+  variants, B2C/B2B pricing rules and a compact status-check review.
+type: product-studio-consolidation
+extends:
+- CHG-074
+approved_by: human-requester
+approved_at_utc: '2026-10-25'
+approval_scope: admin-and-seller-product-studio-staging-only
+production_release_authorized: false
+affected_capabilities:
+- product-listing
+- catalogue-navigation
+- seller-pricing
+- b2b-pricing
+- product-media
+- product-review
+affected_domains:
+- commerce
+- marketplace
+- experience
+affected_surfaces:
+- commerce-admin
+- commerce-vendor
+- experience-api
+decisions:
+- id: DEC-076-01
+  area: Single Product Studio
+  approved_default: >-
+    Product Studio is the single create/edit surface. Catalogue is the product
+    list; Categories and Collections remain catalogue organisation.
+- id: DEC-076-02
+  area: Seller products tab
+  approved_default: >-
+    Remove Seller products from Admin and Seller navigation. Seller offer data
+    remains available through the product/Product Studio context.
+- id: DEC-076-03
+  area: Seller scope
+  approved_default: >-
+    Admin can operate any product. Seller can operate its own draft listings
+    through the same Product Studio form.
+- id: DEC-076-04
+  area: Variants
+  approved_default: >-
+    Options are custom-only. No mandatory Color and no New/Old preset. Variant
+    name and customer-facing details are required. Variant image is optional and
+    may differ. SKU remains required. EAN/UPC/barcode fields are removed from the
+    Product Studio variant UI while existing stored values are preserved.
+- id: DEC-076-05
+  area: Pricing
+  approved_default: >-
+    B2C has list price, selling price and GST only, with no quantity tiers.
+    B2B has list price, selling price, MOQ, structured quantity tiers and
+    effective dates. No manual reason-for-change text box is shown.
+- id: DEC-076-06
+  area: Review and publish
+  approved_default: >-
+    Review is a compact status check with required blockers and optional
+    warnings. The primary action is publish or submit for review.
+implementation:
+  status: code-complete-staging-verification-pending
+  release: pending
+  evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
+  verification:
+    admin_build: pass
+    vendor_build: pass
+    api_typecheck: pass
+    targeted_lint: pre-existing-react-hooks-set-state-in-effect-only
+  production_blocked_by:
+  - staging-verification
+  - seller-published-edit-review-model
+  - human-production-authorization

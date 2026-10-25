@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Button,
   Container,
@@ -21,34 +21,19 @@ type WidgetProps = {
 };
 
 const asText = (value: unknown) => (typeof value === "string" ? value : "");
-const asTags = (value: unknown) =>
-  Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string").join(", ")
-    : asText(value);
 
 /**
- * Search, brand and SEO fields live on product.metadata.
- * The native collection/category/type/tags fields stay in Product organization.
+ * SEO remains on the native product detail. Brand and search tags are owned by
+ * Product Studio so there is one editing surface for the listing.
  */
 function SearchMetadataForm({ product }: { product: WidgetProduct }) {
-  const [brand, setBrand] = useState(() => asText(product.metadata?.brand));
-  const [seoTitle, setSeoTitle] = useState(() => asText(product.metadata?.seo_title));
-  const [seoDescription, setSeoDescription] = useState(() => asText(product.metadata?.seo_description));
-  const [searchTags, setSearchTags] = useState(() => asTags(product.metadata?.search_tags));
-  const [saving, setSaving] = useState(false);
-
-  const tags = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          searchTags
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        ),
-      ),
-    [searchTags],
+  const [seoTitle, setSeoTitle] = useState(() =>
+    asText(product.metadata?.seo_title),
   );
+  const [seoDescription, setSeoDescription] = useState(() =>
+    asText(product.metadata?.seo_description),
+  );
+  const [saving, setSaving] = useState(false);
 
   const save = async () => {
     if (!product.id) return;
@@ -58,15 +43,13 @@ function SearchMetadataForm({ product }: { product: WidgetProduct }) {
         $id: product.id,
         metadata: {
           ...(product.metadata ?? {}),
-          brand: brand.trim(),
           seo_title: seoTitle.trim(),
           seo_description: seoDescription.trim(),
-          search_tags: tags,
         },
       });
-      toast.success("Search and brand details saved");
+      toast.success("SEO details saved");
     } catch (error) {
-      toast.error("Could not save search metadata", {
+      toast.error("Could not save SEO details", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -77,42 +60,13 @@ function SearchMetadataForm({ product }: { product: WidgetProduct }) {
   return (
     <Container className="divide-y p-0" data-testid="product-search-metadata">
       <div className="px-6 py-4">
-        <Heading level="h2">Search &amp; brand</Heading>
+        <Heading level="h2">SEO</Heading>
         <Text size="small" className="mt-1 text-ui-fg-subtle">
-          Stored on product metadata. No schema change. Collection, category,
-          type and tags stay in Product organization.
+          Brand and search tags are edited in Product Studio.
         </Text>
       </div>
 
       <div className="flex flex-col gap-4 px-6 py-4">
-        <label className="flex flex-col gap-1">
-          <Text size="small" className="font-medium">
-            Brand
-          </Text>
-          <Input
-            value={brand}
-            onChange={(event) => setBrand(event.target.value)}
-            placeholder="WoodWise"
-            data-testid="product-brand"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <Text size="small" className="font-medium">
-            Search tags
-          </Text>
-          <Input
-            value={searchTags}
-            onChange={(event) => setSearchTags(event.target.value)}
-            placeholder="laminboard, wood sheet, 18mm board"
-            data-testid="product-search-tags"
-          />
-          <Text size="small" className="text-ui-fg-muted">
-            Comma-separated synonyms for admin search and SEO. Not used as
-            storefront facets.
-          </Text>
-        </label>
-
         <label className="flex flex-col gap-1">
           <Text size="small" className="font-medium">
             SEO title
@@ -125,7 +79,9 @@ function SearchMetadataForm({ product }: { product: WidgetProduct }) {
           />
           <Text
             size="small"
-            className={seoTitle.length > 60 ? "text-ui-fg-error" : "text-ui-fg-muted"}
+            className={
+              seoTitle.length > 60 ? "text-ui-fg-error" : "text-ui-fg-muted"
+            }
           >
             {seoTitle.length}/60
           </Text>
@@ -145,7 +101,9 @@ function SearchMetadataForm({ product }: { product: WidgetProduct }) {
           <Text
             size="small"
             className={
-              seoDescription.length > 155 ? "text-ui-fg-error" : "text-ui-fg-muted"
+              seoDescription.length > 155
+                ? "text-ui-fg-error"
+                : "text-ui-fg-muted"
             }
           >
             {seoDescription.length}/155
@@ -161,7 +119,7 @@ function SearchMetadataForm({ product }: { product: WidgetProduct }) {
             onClick={save}
             data-testid="save-product-search-metadata"
           >
-            Save search metadata
+            Save SEO details
           </Button>
         </div>
       </div>

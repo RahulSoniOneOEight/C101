@@ -242,22 +242,6 @@ export async function updateOfferPricing(
         "Selling price cannot exceed the list price.",
       );
     }
-    const currentBase = current.prices.find(
-      (price) =>
-        price.currency_code === "inr" &&
-        (price.min_quantity === null || price.min_quantity === undefined),
-    );
-    if (
-      base &&
-      currentBase &&
-      base.amount > Math.ceil(currentBase.amount * 1.2) &&
-      !policy.reason?.trim()
-    ) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "A reason is required for a price increase above 20%.",
-      );
-    }
   }
 
   const metadata: Record<string, unknown> = {
