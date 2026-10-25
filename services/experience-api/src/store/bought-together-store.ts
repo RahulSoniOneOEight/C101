@@ -101,7 +101,7 @@ function mapDatabaseError(error: unknown): BoughtTogetherError {
   }
   return new BoughtTogetherError(
     "pair_store_error",
-    pgError.message ?? "The pair store is unavailable.",
+    "The pair store is unavailable.",
     500,
   );
 }
@@ -279,7 +279,15 @@ export class BoughtTogetherStore {
       );
       const updated = pairFromRow(result.rows[0]);
       await this.replaceMembers(client, updated);
-      await this.writeAudit(client, id, "updated", actorId, correlationId, current, updated);
+      const action =
+        next.status === "active" && current.status !== "active"
+          ? "activated"
+          : next.status === "paused"
+            ? "paused"
+            : next.status === "archived"
+              ? "archived"
+              : "updated";
+      await this.writeAudit(client, id, action, actorId, correlationId, current, updated);
       await client.query("COMMIT");
       return updated;
     } catch (error) {

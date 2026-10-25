@@ -222,9 +222,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _selectedDeliveryTier = preferred;
         _loadingShipping = false;
       });
-      if (preferred != null) {
-        await _selectDeliveryTier(preferred, quiet: true);
-      }
     } catch (error) {
       if (!mounted) return;
       setState(() {

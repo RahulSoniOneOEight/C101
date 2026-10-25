@@ -1780,6 +1780,9 @@ export function ProductStudioForm({
           id: undefined,
           title: `${source.title.trim() || `Variant ${index + 1}`} copy`,
           sku: "",
+          ean: "",
+          upc: "",
+          barcode: "",
         },
       ];
     });

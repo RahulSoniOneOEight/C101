@@ -37,7 +37,11 @@ Widget tradeProductTile(
     }
   }
   final quantity = line?.quantity ?? 0;
-  final priceQuantity = quantity > 0 ? quantity : p.moq;
+  final tierIndex = p.tiers.isEmpty
+      ? 0
+      : selectedTierIndex.clamp(0, p.tiers.length - 1);
+  final tierQuantity = p.tiers.isEmpty ? p.moq : p.tiers[tierIndex].quantity;
+  final priceQuantity = quantity > 0 ? quantity : tierQuantity;
 
   return TradeProductCardCompact(
     title: p.product.title,
@@ -52,13 +56,22 @@ Widget tradeProductTile(
     savingsLabel: p.savingsPercent == null ? null : '${p.savingsPercent}% off',
     tiers: tiers,
     selectedTierIndex: selectedTierIndex,
-    onTierSelected: onTierSelected,
+    onTierSelected: (index) {
+      onTierSelected(index);
+      final nextTier = p.tiers.isEmpty
+          ? p.moq
+          : p.tiers[index.clamp(0, p.tiers.length - 1)].quantity;
+      if (quantity > 0) {
+        ref
+            .read(b2bQuotationCartProvider.notifier)
+            .updateQuantity(sku, nextTier);
+      }
+    },
     unitPriceLabel: '${p.unitPriceFor(priceQuantity).formatted}/pc',
     // Only a real list price may be struck through. Falling back to the selling
     // price would print "₹4750 ₹4750" and imply a discount that does not exist.
     mrpLabel: p.product.mrp == null ? null : p.mrp.formatted,
     quantity: quantity,
-    minQuantity: p.moq,
     onQuantityChanged: (next) {
       if (next < p.moq) {
         ref.read(b2bQuotationCartProvider.notifier).remove(sku);
@@ -72,13 +85,14 @@ Widget tradeProductTile(
         ? CommerceFixture.outOfStock
         : CommerceFixture.defaultState,
     onAdd: () {
+      final addQuantity = quantity > 0 ? quantity : tierQuantity;
       ref.read(b2bQuotationCartProvider.notifier).addTradeProduct(
             p,
-            quantity: p.moq,
+            quantity: addQuantity,
             variant: selectedVariant,
           );
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Added ${p.moq} pcs of ${p.product.title}')),
+        SnackBar(content: Text('Added $addQuantity pcs of ${p.product.title}')),
       );
     },
     onTap: () => context.push('/b2b/pdp/${p.product.id}'),

@@ -868,7 +868,7 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
           ),
           const SizedBox(height: AgencySpacing.xs),
           Text(
-            'Priority freight is recorded as a request and confirmed with the seller.',
+            'Priority freight is requested; lead time is confirmed by the seller.',
             style: TextStyle(fontSize: 11, color: colors.contentSecondary),
           ),
           const SizedBox(height: AgencySpacing.md),
@@ -1821,7 +1821,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                   },
                 ),
                 Text(
-                  'Priority is requested and confirmed with the seller.',
+                  'Priority is requested; lead time is confirmed by the seller.',
                   style: TextStyle(
                       fontSize: 11, color: colors.contentSecondary),
                 ),

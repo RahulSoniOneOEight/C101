@@ -550,14 +550,13 @@ function salesChannelIdFor(channel: "b2b" | "b2c"): string | undefined {
     : config.medusaB2cSalesChannelId;
 }
 
-function deliveryTierFor(option: StoreShippingOption): "standard" | "express" | null {
+function deliveryTierFor(option: StoreShippingOption): "standard" | "express" {
   const code = option.type?.code?.trim().toLowerCase();
   if (code === "express") return "express";
   if (code === "standard") return "standard";
   const name = option.name.trim().toLowerCase();
-  if (name.includes("express")) return "express";
-  if (name.includes("standard") || name.includes("normal")) return "standard";
-  return null;
+  if (name.includes("express") || name.includes("priority")) return "express";
+  return "standard";
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -571,6 +570,50 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     ]);
   } finally {
     if (timer) clearTimeout(timer);
+  }
+}
+
+async function validateBoughtTogetherInput(input: {
+  product_a_id: string;
+  product_b_id: string;
+  channel: BoughtTogetherChannel;
+}): Promise<void> {
+  const channels: Array<"b2c" | "b2b"> =
+    input.channel === "both" ? ["b2c", "b2b"] : [input.channel];
+  for (const channel of channels) {
+    for (const productId of [input.product_a_id, input.product_b_id]) {
+      try {
+        await withTimeout(
+          medusa.getProduct(productId, salesChannelIdFor(channel)),
+          4000,
+        );
+      } catch {
+        throw new BoughtTogetherError(
+          "product_not_found",
+          `Product ${productId} is not available in ${channel}.`,
+          404,
+        );
+      }
+    }
+    const regionId = channel === "b2b"
+      ? config.medusaB2bRegionId ?? config.medusaRegionId
+      : config.medusaRegionId;
+    const offers = await withTimeout(
+      medusa.listOffersByProducts(
+        [input.product_a_id, input.product_b_id],
+        regionId,
+      ),
+      4000,
+    );
+    for (const productId of [input.product_a_id, input.product_b_id]) {
+      if (!offers.some((offer) => offer.product_id === productId)) {
+        throw new BoughtTogetherError(
+          "pair_not_ready",
+          `Product ${productId} has no eligible offer in ${channel}.`,
+          409,
+        );
+      }
+    }
   }
 }
 
@@ -589,7 +632,8 @@ type BoughtTogetherEnrichedPair = BoughtTogetherPair & {
 
 async function enrichBoughtTogetherPairs(
   rows: BoughtTogetherPair[],
-): Promise<BoughtTogetherEnrichedPair[]> {  if (rows.length === 0) return [];
+): Promise<BoughtTogetherEnrichedPair[]> {
+  if (rows.length === 0) return [];
   const ids = [...new Set(rows.flatMap((row) => [row.product_a_id, row.product_b_id]))];
   const productsByChannel = new Map<string, Map<string, StoreProduct>>();
   for (const channel of ["b2c", "b2b"] as const) {
@@ -3847,7 +3891,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         thumbnail: pairedProduct.thumbnail ?? null,
         description: pairedProduct.description ?? "",
         handle: pairedProduct.handle ?? "",
-        metadata: pairedProduct.metadata ?? null,
+        metadata: {
+          brand: pairedProduct.metadata?.brand ?? null,
+          category_l1: pairedProduct.metadata?.category_l1 ?? null,
+          catalogue_import: pairedProduct.metadata?.catalogue_import ?? null,
+        },
         categories: pairedProduct.categories ?? [],
         badges: (pairedProduct.tags ?? []).map((tag) => tag.value),
         offer_count: pairedOffers.length,
@@ -4773,13 +4821,17 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(400, "invalid-request-body", "Expected a JSON body.");
     }
     try {
+      const input = {
+        product_a_id: String(body.product_a_id ?? ""),
+        product_b_id: String(body.product_b_id ?? ""),
+        channel: body.channel as BoughtTogetherChannel,
+        status: (body.status as BoughtTogetherStatus) ?? "draft",
+      };
+      if (input.status === "active") {
+        await validateBoughtTogetherInput(input);
+      }
       const pair = await boughtTogether.create(
-        {
-          product_a_id: String(body.product_a_id ?? ""),
-          product_b_id: String(body.product_b_id ?? ""),
-          channel: body.channel as BoughtTogetherChannel,
-          status: (body.status as BoughtTogetherStatus) ?? "draft",
-        },
+        input,
         operator.authorization.userId,
         correlationId(req),
       );
@@ -4822,13 +4874,34 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(400, "expected-version-required", "expected_version must be a positive integer.");
     }
     try {
+      const current = await boughtTogether.get(boughtTogetherMatch[1]);
+      if (!current) {
+        return problem(404, "pair_not_found", "Pair not found.");
+      }
+      const next = {
+        product_a_id: body.product_a_id
+          ? String(body.product_a_id)
+          : current.product_a_id,
+        product_b_id: body.product_b_id
+          ? String(body.product_b_id)
+          : current.product_b_id,
+        channel: body.channel
+          ? (body.channel as BoughtTogetherChannel)
+          : current.channel,
+        status: body.status
+          ? (body.status as BoughtTogetherStatus)
+          : current.status,
+      };
+      if (next.status === "active") {
+        await validateBoughtTogetherInput(next);
+      }
       const pair = await boughtTogether.update(
         boughtTogetherMatch[1],
         {
-          ...(body.product_a_id ? { product_a_id: String(body.product_a_id) } : {}),
-          ...(body.product_b_id ? { product_b_id: String(body.product_b_id) } : {}),
-          ...(body.channel ? { channel: body.channel as BoughtTogetherChannel } : {}),
-          ...(body.status ? { status: body.status as BoughtTogetherStatus } : {}),
+          product_a_id: next.product_a_id,
+          product_b_id: next.product_b_id,
+          channel: next.channel,
+          status: next.status,
         },
         expectedVersion,
         operator.authorization.userId,

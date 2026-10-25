@@ -595,7 +595,7 @@ class B2BQuotationCart {
         orElse: () => RfqStatus.draft,
       ),
       deliveryLocation: j['delivery_location'] as String?,
-      deliveryTier: j['delivery_tier'] as String? ?? 'standard',
+      deliveryTier: j['delivery_tier'] == 'express' ? 'express' : 'standard',
       requiredBy: DateTime.tryParse(j['required_by'] as String? ?? ''),
       remarks: j['remarks'] as String?,
       reference: j['reference'] as String?,

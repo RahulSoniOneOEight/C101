@@ -1332,6 +1332,7 @@ export function ProductStudioForm({
   const [lifecycleState, setLifecycleState] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState(true);
   const [actingSellerId, setActingSellerId] = useState("");
+  const [provisionSellerId, setProvisionSellerId] = useState("");
   const [actingReason, setActingReason] = useState("");
   const [actingReference, setActingReference] = useState("");
 
@@ -1441,7 +1442,7 @@ export function ProductStudioForm({
           product.variants?.length ? product.variants : [emptyVariant()],
         );
         setOffers(product.offers ?? []);
-        setActingSellerId(product.offers?.[0]?.seller_id ?? "");
+        setProvisionSellerId(product.offers?.[0]?.seller_id ?? "");
         setOptionsEditable(Boolean(product.options_editable));
         setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
@@ -1884,6 +1885,9 @@ export function ProductStudioForm({
           id: undefined,
           title: `${source.title.trim() || `Variant ${index + 1}`} copy`,
           sku: "",
+          ean: "",
+          upc: "",
+          barcode: "",
         },
       ];
     });
@@ -2172,8 +2176,8 @@ export function ProductStudioForm({
     try {
       const payload = {
         ...form,
-        ...(mode === "admin" && actingSellerId
-          ? { seller_id: actingSellerId }
+        ...(mode === "admin" && provisionSellerId
+          ? { seller_id: provisionSellerId }
           : {}),
         tags,
         specifications: validSpecs.map((spec) => ({
@@ -2514,9 +2518,9 @@ export function ProductStudioForm({
                   >
                     <select
                       className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
-                      value={actingSellerId}
+                      value={provisionSellerId}
                       onChange={(event) =>
-                        setActingSellerId(event.target.value)
+                        setProvisionSellerId(event.target.value)
                       }
                       disabled={Boolean(productId && offers.length > 0)}
                     >

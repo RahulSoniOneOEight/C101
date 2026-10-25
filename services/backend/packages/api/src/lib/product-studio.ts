@@ -1199,8 +1199,8 @@ export async function saveStudioProduct(
   if (studioManaged) {
     const loadedCurrent = await loadStudioProduct(
       scope,
-      mode,
-      sellerId,
+      mode === "vendor" ? "admin" : mode,
+      mode === "vendor" ? null : sellerId,
       productId,
     );
     const structuralLocked =
@@ -1230,7 +1230,9 @@ export async function saveStudioProduct(
       }
       for (const [id, variant] of desiredById) {
         const previous = currentById.get(id);
-        if ((previous?.sku ?? null) !== (variant.sku ?? null)) {
+        const previousSku = (previous?.sku ?? "").trim();
+        const nextSku = (variant.sku ?? "").trim();
+        if (previousSku && previousSku !== nextSku) {
           throw new StudioError(
             409,
             "SKU changes are locked because this product is published or has offers.",
@@ -1255,7 +1257,7 @@ export async function saveStudioProduct(
     }
     const { data: currentVariants } = await q.graph({
       entity: "variant",
-      fields: ["id"],
+      fields: ["id", "sku"],
       filters: { product_id: productId },
       pagination: { take: 500, skip: 0 },
     });
@@ -1275,6 +1277,27 @@ export async function saveStudioProduct(
         409,
         "Adding or removing variants for imported catalogue products is read-only in this slice.",
       );
+    }
+    const importedCurrent = await loadStudioProduct(scope, "admin", null, productId);
+    const importedLocked =
+      current.status === "published" ||
+      (importedCurrent.product.offers?.length ?? 0) > 0;
+    if (importedLocked) {
+      const currentById = new Map<string, { id: string; sku?: string | null }>(
+        (currentVariants ?? []).map((variant: any) => [variant.id, variant]),
+      );
+      for (const variant of variants) {
+        if (!variant.id) continue;
+        const previous = currentById.get(variant.id);
+        const previousSku = (previous?.sku ?? "").trim();
+        const nextSku = (variant.sku ?? "").trim();
+        if (previousSku && previousSku !== nextSku) {
+          throw new StudioError(
+            409,
+            "SKU changes are locked because this product is published or has offers.",
+          );
+        }
+      }
     }
   }
 
@@ -1337,8 +1360,9 @@ export async function saveStudioProduct(
     await syncVariants(scope, productId, variants);
   }
 
-  if (sellerId) {
-    await ensureSellerOffers(scope, sellerId, productId, actorId);
+  const offerSellerId = mode === "admin" ? requestedSellerId : sellerId;
+  if (offerSellerId) {
+    await ensureSellerOffers(scope, offerSellerId, productId, actorId);
   }
 
   await recordProductAuditChangeWorkflow(scope).run({

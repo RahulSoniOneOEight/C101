@@ -483,7 +483,6 @@ class TradeProductCardCompact extends StatelessWidget {
     this.selectedTierIndex = 0,
     this.onTierSelected,
     this.quantity = 0,
-    this.minQuantity = 1,
     this.onQuantityChanged,
     this.onAdd,
     this.onDiscuss,
@@ -508,7 +507,6 @@ class TradeProductCardCompact extends StatelessWidget {
   final int selectedTierIndex;
   final ValueChanged<int>? onTierSelected;
   final int quantity;
-  final int minQuantity;
   final ValueChanged<int>? onQuantityChanged;
   final VoidCallback? onAdd;
   final VoidCallback? onDiscuss;
