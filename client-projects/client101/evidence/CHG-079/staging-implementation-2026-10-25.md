@@ -25,7 +25,7 @@
 | Experience API typecheck | pass |
 | Flutter analyze | pass |
 | Flutter full test suite (including refreshed goldens) | 280 pass |
-| Flutter web release build | pass |
+| Flutter web release build | pass with documented staging dart-defines |\n| Staging web browser smoke | onboarding ? login ? OTP ? home; 0 console exceptions; product tile variant sheet opens |
 | Docker image build (Medusa + Experience API) | pass |
 | Staging health API/Admin/Seller/Web | 200 |
 | Admin proxy pair list/audit with admin session | 200 |
