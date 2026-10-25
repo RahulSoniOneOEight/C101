@@ -63,6 +63,7 @@ export type StudioSaveInput = {
   options?: StudioOptionInput[] | null;
   variants?: StudioVariantInput[] | null;
   seller_id?: string | null;
+  seller_provision_reason?: string | null;
 };
 
 type QueryLike = {
@@ -1080,6 +1081,12 @@ export async function saveStudioProduct(
   await validateSkuUniqueness(scope, productId ?? "", variants);
   const requestedSellerId =
     mode === "admin" ? clean(input.seller_id) ?? null : sellerId;
+  if (requestedSellerId && !clean(input.seller_provision_reason)) {
+    throw new StudioError(
+      422,
+      "A reason is required before provisioning seller offers.",
+    );
+  }
 
   if (!productId) {
     const { result: createdResult } = await createProductsWorkflow(scope).run({
@@ -1149,6 +1156,7 @@ export async function saveStudioProduct(
             metadata: saved.product.metadata,
             variant_count: saved.product.variants?.length ?? 0,
             offer_count: saved.product.offers?.length ?? 0,
+            seller_provision_reason: clean(input.seller_provision_reason),
           },
         });
       }
@@ -1391,6 +1399,12 @@ export async function saveStudioProduct(
                   option_count: options.length,
                   variant_count: variants.length,
                   options_changed: optionsChanged,
+                  seller_provision: requestedSellerId
+                    ? {
+                        seller_id: requestedSellerId,
+                        reason: clean(input.seller_provision_reason),
+                      }
+                    : null,
                 },
               },
             },

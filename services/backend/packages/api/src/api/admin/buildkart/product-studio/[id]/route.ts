@@ -8,6 +8,7 @@ import {
   studioErrorResponse,
   type StudioSaveInput,
 } from "../../../../../lib/product-studio";
+import { hasPermission } from "../../../../../lib/rbac";
 
 export async function GET(
   req: AuthenticatedMedusaRequest,
@@ -36,13 +37,18 @@ export async function POST(
     const actorId =
       (req.auth_context as { actor_id?: string } | undefined)?.actor_id ??
       "system";
+    const input = (req.body ?? {}) as StudioSaveInput;
+    if (input.seller_id && !hasPermission(req, "acting-for-seller")) {
+      res.status(403).json({ message: "Missing permission: acting-for-seller." } as never);
+      return;
+    }
     const result = await saveStudioProduct(
       req.scope,
       "admin",
       actorId,
       null,
       req.params.id,
-      (req.body ?? {}) as StudioSaveInput,
+      input,
     );
     res.json(result);
   } catch (error) {

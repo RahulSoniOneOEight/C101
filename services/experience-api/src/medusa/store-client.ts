@@ -448,7 +448,7 @@ export interface StoreShippingOption {
   amount: number;
   price_type: string;
   provider_id: string;
-  type?: { label?: string; code?: string } | null;
+  type?: { label?: string; description?: string; code?: string } | null;
 }
 
 export interface StorePaymentCollection {

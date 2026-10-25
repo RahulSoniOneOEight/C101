@@ -1333,6 +1333,7 @@ export function ProductStudioForm({
   const [canEdit, setCanEdit] = useState(true);
   const [actingSellerId, setActingSellerId] = useState("");
   const [provisionSellerId, setProvisionSellerId] = useState("");
+  const [sellerProvisionReason, setSellerProvisionReason] = useState("");
   const [actingReason, setActingReason] = useState("");
   const [actingReference, setActingReference] = useState("");
 
@@ -1442,7 +1443,8 @@ export function ProductStudioForm({
           product.variants?.length ? product.variants : [emptyVariant()],
         );
         setOffers(product.offers ?? []);
-        setProvisionSellerId(product.offers?.[0]?.seller_id ?? "");
+        setProvisionSellerId("");
+        setSellerProvisionReason("");
         setOptionsEditable(Boolean(product.options_editable));
         setStudioManaged(Boolean(product.studio_managed));
         setStatus(product.status);
@@ -2170,6 +2172,13 @@ export function ProductStudioForm({
       setNotice({ kind: "error", text: "Variant combinations must be unique." });
       return;
     }
+    if (mode === "admin" && provisionSellerId && !sellerProvisionReason.trim()) {
+      setNotice({
+        kind: "error",
+        text: "Enter a reason before provisioning seller offers.",
+      });
+      return;
+    }
 
     setSaving(true);
     setNotice(null);
@@ -2177,7 +2186,10 @@ export function ProductStudioForm({
       const payload = {
         ...form,
         ...(mode === "admin" && provisionSellerId
-          ? { seller_id: provisionSellerId }
+          ? {
+              seller_id: provisionSellerId,
+              seller_provision_reason: sellerProvisionReason,
+            }
           : {}),
         tags,
         specifications: validSpecs.map((spec) => ({
@@ -2513,8 +2525,8 @@ export function ProductStudioForm({
                 </Field>
                 {mode === "admin" ? (
                   <Field
-                    label="Seller"
-                    hint="Selecting a seller provisions an offer for every new SKU so the product can become publishable."
+                    label="Seller offer provisioning"
+                    hint="Optional. Selecting a seller explicitly provisions offers for every SKU that has no offer. Requires a reason and is audited."
                   >
                     <select
                       className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
@@ -2522,15 +2534,24 @@ export function ProductStudioForm({
                       onChange={(event) =>
                         setProvisionSellerId(event.target.value)
                       }
-                      disabled={Boolean(productId && offers.length > 0)}
                     >
-                      <option value="">BuildKart-owned (no seller offer)</option>
+                      <option value="">Do not provision seller offers</option>
                       {(sellers.data?.sellers ?? []).map((seller) => (
                         <option key={seller.id} value={seller.id}>
                           {seller.name} — {seller.id}
                         </option>
                       ))}
                     </select>
+                    {provisionSellerId ? (
+                      <Input
+                        className="mt-2"
+                        value={sellerProvisionReason}
+                        onChange={(event) =>
+                          setSellerProvisionReason(event.target.value)
+                        }
+                        placeholder="Reason for provisioning this seller (required)"
+                      />
+                    ) : null}
                   </Field>
                 ) : null}
                 <Field label="Product type">

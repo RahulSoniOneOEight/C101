@@ -61,14 +61,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Money? _tierTotal(String tier) {
-    final options = _shippingOptions
-        .where((option) => option.tier == tier)
-        .toList();
+    final options = <String, ShippingOption>{};
+    for (final option in _shippingOptions) {
+      if (option.tier != tier) continue;
+      options.putIfAbsent(option.sellerId, () => option);
+    }
     if (options.isEmpty) return null;
+    final values = options.values.toList();
     return Money(
-      amount: options.fold(0, (sum, option) => sum + option.price.amount),
-      currencyCode: options.first.price.currencyCode,
+      amount: values.fold(0, (sum, option) => sum + option.price.amount),
+      currencyCode: values.first.price.currencyCode,
     );
+  }
+
+  String? _tierPromise(String tier) {
+    for (final option in _shippingOptions) {
+      if (option.tier == tier && (option.description?.trim().isNotEmpty ?? false)) {
+        return option.description!.trim();
+      }
+    }
+    return null;
   }
 
   Money? get _selectedShippingTotal {
@@ -494,7 +506,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         value: tier,
                         title: Text(tier == 'express' ? 'Express' : 'Standard'),
                         subtitle: Text(
-                          '${_tierTotal(tier)?.formatted ?? '—'} · ${_tierAvailable(tier) ? 'Available for every seller' : 'Not available for every seller'}',
+                          <String>[
+                            _tierTotal(tier)?.formatted ?? '—',
+                            if (_tierPromise(tier) != null) _tierPromise(tier)!,
+                            _tierAvailable(tier)
+                                ? 'Available for every seller'
+                                : 'Not available for every seller',
+                          ].join(' · '),
                         ),
                       ),
                   ],

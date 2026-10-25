@@ -580,12 +580,17 @@ async function validateBoughtTogetherInput(input: {
 }): Promise<void> {
   const channels: Array<"b2c" | "b2b"> =
     input.channel === "both" ? ["b2c", "b2b"] : [input.channel];
+  const productIds = [input.product_a_id, input.product_b_id];
   for (const channel of channels) {
-    for (const productId of [input.product_a_id, input.product_b_id]) {
+    const products = new Map<string, StoreProduct>();
+    for (const productId of productIds) {
       try {
-        await withTimeout(
-          medusa.getProduct(productId, salesChannelIdFor(channel)),
-          4000,
+        products.set(
+          productId,
+          await withTimeout(
+            medusa.getProduct(productId, salesChannelIdFor(channel)),
+            4000,
+          ),
         );
       } catch {
         throw new BoughtTogetherError(
@@ -599,17 +604,30 @@ async function validateBoughtTogetherInput(input: {
       ? config.medusaB2bRegionId ?? config.medusaRegionId
       : config.medusaRegionId;
     const offers = await withTimeout(
-      medusa.listOffersByProducts(
-        [input.product_a_id, input.product_b_id],
-        regionId,
-      ),
+      medusa.listOffersByProducts(productIds, regionId),
       4000,
     );
-    for (const productId of [input.product_a_id, input.product_b_id]) {
-      if (!offers.some((offer) => offer.product_id === productId)) {
+    for (const productId of productIds) {
+      const product = products.get(productId);
+      const productOffers = offers.filter((offer) => offer.product_id === productId);
+      const options: ComposeOptions = {
+        channel,
+        b2bPricing:
+          channel === "b2b"
+            ? ((product?.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+                string,
+                B2bPricingSnapshot
+              >)
+            : null,
+      };
+      const composed = composeOffers(productOffers, options);
+      const priced = composed.offerViews.some(
+        (offer) => offer.unit_amount_minor != null && offer.unit_amount_minor > 0,
+      );
+      if (!priced) {
         throw new BoughtTogetherError(
           "pair_not_ready",
-          `Product ${productId} has no eligible offer in ${channel}.`,
+          `Product ${productId} has no priced offer in ${channel}.`,
           409,
         );
       }
@@ -3289,6 +3307,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         shipping_options: options.map((option) => ({
           ...option,
           tier: deliveryTierFor(option),
+          description: option.type?.description ?? null,
+          label: option.type?.label ?? null,
           currency_code: "INR",
         })),
         environment: config.environment,
@@ -3334,8 +3354,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         const selected: Array<{ seller_id: string; option: StoreShippingOption }> = [];
         const unavailable: Array<{ seller_id: string; reason: string }> = [];
         for (const [sellerId, sellerOptions] of bySeller) {
-          const match = sellerOptions.find((option) => deliveryTierFor(option) === tier);
-          if (match) selected.push({ seller_id: sellerId, option: match });
+          const matches = sellerOptions
+            .filter((option) => deliveryTierFor(option) === tier)
+            .sort((a, b) => a.amount - b.amount || a.id.localeCompare(b.id));
+          if (matches.length > 0) selected.push({ seller_id: sellerId, option: matches[0] });
           else unavailable.push({ seller_id: sellerId, reason: "no_tier_option" });
         }
         if (unavailable.length > 0) return { unavailable, cart: null };
