@@ -344,21 +344,25 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
   }, [loaded]);
 
   useEffect(() => {
-    if (!loaded || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (visible?.target.id) setActive(visible.target.id);
-      },
-      { rootMargin: "-160px 0px -55% 0px", threshold: [0.05, 0.25, 0.5] },
-    );
-    for (const tab of WORKSPACE_TABS) {
-      const element = document.getElementById(tab.id);
-      if (element) observer.observe(element);
-    }
-    return () => observer.disconnect();
+    if (!loaded || typeof window === "undefined") return;
+    const syncActiveSection = () => {
+      const marker = window.scrollY + 200;
+      let current: string = WORKSPACE_TABS[0].id;
+      for (const tab of WORKSPACE_TABS) {
+        const element = document.getElementById(tab.id);
+        if (!element) continue;
+        const top = element.getBoundingClientRect().top + window.scrollY;
+        if (top <= marker) current = tab.id;
+      }
+      setActive(current);
+    };
+    syncActiveSection();
+    window.addEventListener("scroll", syncActiveSection, { passive: true });
+    window.addEventListener("resize", syncActiveSection);
+    return () => {
+      window.removeEventListener("scroll", syncActiveSection);
+      window.removeEventListener("resize", syncActiveSection);
+    };
   }, [loaded]);
 
   return (
