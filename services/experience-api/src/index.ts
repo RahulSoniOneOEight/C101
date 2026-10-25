@@ -4707,8 +4707,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
     const channel = url.searchParams.get("channel") === "b2b" ? "b2b" : "b2c";
     try {
-      const products = await medusa.listProducts(50, 0, salesChannelIdFor(channel));
-      const items = products
+      const scanned: Awaited<ReturnType<typeof medusa.listProducts>> = [];
+      for (let offset = 0; offset < 1000; offset += 250) {
+        const page = await medusa.listProducts(250, offset, salesChannelIdFor(channel));
+        scanned.push(...page);
+        if (page.length < 250) break;
+      }
+      const items = scanned
         .filter((product) => {
           if (!query) return true;
           if (product.title.toLowerCase().includes(query)) return true;

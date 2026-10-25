@@ -137,6 +137,7 @@ export default function BoughtTogetherPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
+  const [pairQuery, setPairQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Pair | null>(null);
   const [productA, setProductA] = useState("");
@@ -239,6 +240,15 @@ export default function BoughtTogetherPage() {
     candidates.data?.find((candidate) => candidate.id === id)?.title ??
     pairs.data?.find((pair) => pair.products.some((product) => product.id === id))?.products.find((product) => product.id === id)?.title ??
     id;
+
+  const normalizedPairQuery = pairQuery.trim().toLowerCase();
+  const visiblePairs = (pairs.data ?? []).filter((pair) =>
+    normalizedPairQuery.length === 0
+      ? true
+      : pair.products.some((product) =>
+          product.title.toLowerCase().includes(normalizedPairQuery),
+        ),
+  );
 
   return (
     <SingleColumnPage>
@@ -375,6 +385,12 @@ export default function BoughtTogetherPage() {
 
       <Container className="p-0">
         <div className="flex flex-wrap items-center gap-2 px-6 py-3">
+          <Input
+            value={pairQuery}
+            onChange={(event) => setPairQuery(event.target.value)}
+            placeholder="Search product in pair"
+            className="w-56"
+          />
           <select
             className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm"
             value={statusFilter}
@@ -397,7 +413,7 @@ export default function BoughtTogetherPage() {
             <option value="both">Both</option>
           </select>
           <Text size="small" className="text-ui-fg-subtle">
-            {pairs.data?.length ?? 0} pair{(pairs.data?.length ?? 0) === 1 ? "" : "s"}
+            {visiblePairs.length} pair{visiblePairs.length === 1 ? "" : "s"}
           </Text>
         </div>
         <Table>
@@ -412,7 +428,7 @@ export default function BoughtTogetherPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {(pairs.data ?? []).map((pair) => (
+            {visiblePairs.map((pair) => (
               <Table.Row key={pair.id}>
                 <Table.Cell>
                   <div className="flex items-center gap-2">
@@ -466,7 +482,7 @@ export default function BoughtTogetherPage() {
             ))}
           </Table.Body>
         </Table>
-        {pairs.data?.length === 0 ? (
+        {visiblePairs.length === 0 ? (
           <div className="px-6 py-4">
             <Text size="small" className="text-ui-fg-subtle">
               No pairs yet. Pair two products to show them together on both product pages.
