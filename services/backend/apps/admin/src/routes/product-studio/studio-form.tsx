@@ -325,6 +325,9 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
     const url = new URL(window.location.href);
     url.searchParams.set("section", id.replace("studio-", ""));
     window.history.replaceState({}, "", url);
+    window.setTimeout(() => {
+      document.getElementById(id)?.focus({ preventScroll: true });
+    }, 350);
   };
 
   useEffect(() => {
@@ -366,28 +369,35 @@ function WorkspaceTabs({ loaded }: { loaded: boolean }) {
   }, [loaded]);
 
   return (
-    <div
+    <nav
+      aria-label="Product workspace sections"
       className="sticky top-0 z-10 border-y border-ui-border-base bg-ui-bg-base px-4 py-2"
       data-testid="product-workspace-tabs"
     >
       <div className="flex flex-wrap gap-1">
-        {WORKSPACE_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => scrollToSection(tab.id)}
-            aria-current={active === tab.id ? "true" : undefined}
-            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              active === tab.id
-                ? "bg-ui-bg-interactive text-ui-fg-on-color"
-                : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {WORKSPACE_TABS.map((tab) => {
+          const section = tab.id.replace("studio-", "");
+          return (
+            <a
+              key={tab.id}
+              href={`?section=${section}`}
+              onClick={(event) => {
+                event.preventDefault();
+                scrollToSection(tab.id);
+              }}
+              aria-current={active === tab.id ? "location" : undefined}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                active === tab.id
+                  ? "bg-ui-bg-interactive text-ui-fg-on-color"
+                  : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
+              }`}
+            >
+              {tab.label}
+            </a>
+          );
+        })}
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -409,6 +419,7 @@ function Section({
   return (
     <section
       id={id}
+      tabIndex={-1}
       className="scroll-mt-24 border-t border-ui-border-base px-6 py-6 first:border-t-0"
     >
       <div className="mb-5 flex items-start gap-3">
@@ -1597,7 +1608,7 @@ export function ProductStudioForm({
     ],
   );
 
-  const structuralLocked = status !== "draft" || offers.length > 0;
+  const structuralLocked = status === "published" || offers.length > 0;
   const reviewActionDisabled = reviewLoading || dirty;
   const sectionOneDone = Boolean(form.title.trim() && form.category_id);
   const sectionTwoDone = tags.length > 0;
@@ -2710,8 +2721,11 @@ export function ProductStudioForm({
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
                     Option axes for this imported catalogue product are
-                    read-only in this slice. Variant names, details, images and
-                    SKUs remain editable.
+                    read-only in this slice. Variant names, details and images
+                    remain editable.{" "}
+                    {structuralLocked
+                      ? "SKU changes are locked because this product is published or has offers."
+                      : "SKUs remain editable."}
                   </Text>
                 </div>
               ) : (
@@ -2911,7 +2925,7 @@ export function ProductStudioForm({
                               })
                             }
                             placeholder="Unique SKU"
-                            disabled={structuralLocked && Boolean(variant.id)}
+                            disabled={structuralLocked}
                           />
                         </label>
                         <label className="flex flex-col gap-1 md:col-span-2">
