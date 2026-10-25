@@ -1,7 +1,7 @@
 # Product Studio — consolidated page note
 
 Date: 2026-10-25
-Status: proposed design; no implementation authorized
+Status: implemented — staging verification pending
 Scope: Admin and Seller product create/edit flow
 Production: not authorized
 
