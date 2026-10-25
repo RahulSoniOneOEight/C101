@@ -155,8 +155,8 @@ deployment:
   rollback_baseline: f59a5f9
 implementation:
   status: staging-deployed-verified-pending-qc-rerun
-  release: 1c6d4a3
-  runtime_path: /opt/buildkart-releases/release-1c6d4a3
+  release: 6c8560b
+  runtime_path: /opt/buildkart-releases/release-6c8560b
   staging_test_product: prod_01M5T3CJBYS738XQ6PXQQQNFFS
   staging_test_pair: btp_caba4b93855046d1981b88524343095f
   staging_test_cart: cart_01M5T3ATCHQT10GKXR0F7D3A4C

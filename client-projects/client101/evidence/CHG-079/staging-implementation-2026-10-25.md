@@ -2,9 +2,9 @@
 
 - Date: 2026-10-25
 - Branch: `feat/staging-updates-02-04`
-- Final code commit: `1c6d4a3`
-- Staging release: `/opt/buildkart-releases/release-1c6d4a3`
-- Current symlink: `/opt/buildkart-releases/current -> /opt/buildkart-releases/release-1c6d4a3`
+- Final code commit: `6c8560b`
+- Staging release: `/opt/buildkart-releases/release-6c8560b`
+- Current symlink: `/opt/buildkart-releases/current -> /opt/buildkart-releases/release-6c8560b`
 - Environment: staging only
 - Production: unauthorized
 
@@ -16,7 +16,7 @@
 | R2 | Bought Together reciprocal merchandising | **PASS** | Pair `btp_caba4b93855046d1981b88524343095f`; reciprocal B2C and B2B PDP reads; pause hides, resume restores; duplicate create 409; audit 4+ entries; invalid product create 404; candidate search finds products beyond page 1 |
 | R3 | Product tile plus → quantity stepper | **PASS-CODE** | Flutter analyze pass; full Flutter tests pass; B2B tier selection now sets initial quantity/price and updates an existing line; B2C single-variant cards bind to canonical cart |
 | R4 | Cart-level delivery choice | **PASS** | Cart `cart_01M5T3ATCHQT10GKXR0F7D3A4C`: options expose `tier`; standard returns shipping ₹99 and total ₹4,089; express returns shipping ₹199 and total ₹4,189; checkout test covers one cart-level selection |
-| R5 | GPT-5.6 Sol QC | **PENDING RERUN** | Initial QC: REWORK. Corrections deployed in `1c6d4a3`. Final QC rerun pending. |
+| R5 | GPT-5.6 Sol QC | **PENDING RERUN** | Initial QC: REWORK. Corrections deployed in `6c8560b`. Final QC rerun pending. |
 
 ## Verification performed
 
