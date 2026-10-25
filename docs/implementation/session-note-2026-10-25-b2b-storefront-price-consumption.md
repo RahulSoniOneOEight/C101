@@ -107,6 +107,22 @@ Screenshots:
 - `client-projects/client101/evidence/CHG-078/b2b-mobile-catalogue.png`
 - `client-projects/client101/evidence/CHG-078/b2b-mobile-pdp.png`
 
+## Staging test data
+
+The live QC used one existing published staging product:
+
+- Product: `prod_01M59JHKBZ41EJTYW3X6MCXZC6`
+  (`1/2in Drive 24 Pcs Socket Set`).
+- Offer: `offer_01M59JHN9ECDEA5NEGH8996X6T`.
+- B2B list price: `₹4750`.
+- B2B selling price: `₹3990`.
+- MOQ: `5`.
+- Tiers: `5-9 @ ₹3890`, `10+ @ ₹3790`.
+- Effective from: `2026-10-01`.
+- Audit event recorded by the existing seller-price activity path.
+
+This is staging test data only. Production was not changed.
+
 ## Residual limitations
 
 - The mirror is written when a B2B price is saved. Price lists created before

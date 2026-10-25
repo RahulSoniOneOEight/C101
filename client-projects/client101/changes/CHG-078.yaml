@@ -54,6 +54,11 @@ implementation:
   backend_release: 1030b72
   web_release: 15c31e4
   medusa_release: 8ac070f
+  staging_test_product: prod_01M59JHKBZ41EJTYW3X6MCXZC6
+  staging_test_offer: offer_01M59JHN9ECDEA5NEGH8996X6T
+  staging_test_b2b_price: 3990
+  staging_test_b2b_list: 4750
+  staging_test_moq: 5
   evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
   files:
   - services/backend/packages/api/src/lib/b2b-pricing.ts
