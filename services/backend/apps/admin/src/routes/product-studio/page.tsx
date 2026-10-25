@@ -4,7 +4,7 @@ import { SingleColumnPage } from "@mercurjs/dashboard-shared";
 import { ProductStudioForm } from "./studio-form";
 
 export const config: RouteConfig = {
-  label: "Product Studio",
+  label: "New product",
   icon: DocumentText,
   rank: 20,
   nested: "/products",

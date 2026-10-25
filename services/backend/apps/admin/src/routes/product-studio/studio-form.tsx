@@ -304,13 +304,98 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+const WORKSPACE_TABS = [
+  { id: "studio-details", label: "Details" },
+  { id: "studio-tags", label: "Tags & specs" },
+  { id: "studio-variants", label: "Variants" },
+  { id: "studio-pricing", label: "Offers & pricing" },
+  { id: "studio-inventory", label: "Inventory" },
+  { id: "studio-review", label: "Review" },
+] as const;
+
+function WorkspaceTabs({ loaded }: { loaded: boolean }) {
+  const [active, setActive] = useState<string>("studio-details");
+
+  const scrollToSection = (id: string) => {
+    setActive(id);
+    document.getElementById(id)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    const url = new URL(window.location.href);
+    url.searchParams.set("section", id.replace("studio-", ""));
+    window.history.replaceState({}, "", url);
+  };
+
+  useEffect(() => {
+    if (!loaded || typeof window === "undefined") return;
+    const requested = new URLSearchParams(window.location.search).get("section");
+    if (!requested) return;
+    const id = `studio-${requested}`;
+    if (!WORKSPACE_TABS.some((tab) => tab.id === id)) return;
+    const handle = window.setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({
+        behavior: "auto",
+        block: "start",
+      });
+      setActive(id);
+    }, 150);
+    return () => window.clearTimeout(handle);
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!loaded || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible?.target.id) setActive(visible.target.id);
+      },
+      { rootMargin: "-160px 0px -55% 0px", threshold: [0.05, 0.25, 0.5] },
+    );
+    for (const tab of WORKSPACE_TABS) {
+      const element = document.getElementById(tab.id);
+      if (element) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [loaded]);
+
+  return (
+    <div
+      className="sticky top-0 z-10 border-y border-ui-border-base bg-ui-bg-base px-4 py-2"
+      data-testid="product-workspace-tabs"
+    >
+      <div className="flex flex-wrap gap-1">
+        {WORKSPACE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => scrollToSection(tab.id)}
+            aria-current={active === tab.id ? "true" : undefined}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              active === tab.id
+                ? "bg-ui-bg-interactive text-ui-fg-on-color"
+                : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Section({
+  id,
   number,
   title,
   description,
   complete,
   children,
 }: {
+  id?: string;
   number: number;
   title: string;
   description: string;
@@ -318,7 +403,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-ui-border-base px-6 py-6 first:border-t-0">
+    <section
+      id={id}
+      className="scroll-mt-24 border-t border-ui-border-base px-6 py-6 first:border-t-0"
+    >
       <div className="mb-5 flex items-start gap-3">
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -1505,6 +1593,8 @@ export function ProductStudioForm({
     ],
   );
 
+  const structuralLocked = status !== "draft" || offers.length > 0;
+  const reviewActionDisabled = reviewLoading || dirty;
   const sectionOneDone = Boolean(form.title.trim() && form.category_id);
   const sectionTwoDone = tags.length > 0;
   const sectionThreeDone = validSpecs.length > 0;
@@ -2213,6 +2303,8 @@ export function ProductStudioForm({
         </div>
       ) : null}
 
+      {!loading && canEdit ? <WorkspaceTabs loaded={loaded} /> : null}
+
       {loading ? (
         <Container>
           <Text size="small" className="text-ui-fg-subtle">
@@ -2233,6 +2325,7 @@ export function ProductStudioForm({
       ) : (
         <div className="flex flex-col gap-3 md:flex-row md:items-start">
           <Container className="min-w-0 flex-1 p-0">
+            {!productId ? (
             <div className="px-6 py-5">
               <Heading level="h2">Catalogue search</Heading>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
@@ -2314,8 +2407,10 @@ export function ProductStudioForm({
                 )}
               </div>
             </div>
+            ) : null}
 
             <Section
+              id="studio-details"
               number={1}
               title="Product details"
               description="The commercial identity of the item. Keep the title customer-facing and the internal codes exact."
@@ -2446,6 +2541,7 @@ export function ProductStudioForm({
             </Section>
 
             <Section
+              id="studio-tags"
               number={2}
               title="Search tags"
               description="Tags help operators find the product. They are not a substitute for structured specifications."
@@ -2519,6 +2615,7 @@ export function ProductStudioForm({
             </Section>
 
             <Section
+              id="studio-specs"
               number={3}
               title="Specifications"
               description="Structured product facts. Each specification becomes a filterable product attribute; do not put these in the title or description."
@@ -2590,11 +2687,21 @@ export function ProductStudioForm({
             </Section>
 
             <Section
+              id="studio-variants"
               number={4}
               title="Variants and SKUs"
               description="Each variant has a customer-facing name, details and an optional image. Options are custom-only and SKUs stay unique."
               complete={sectionFourDone}
             >
+              {structuralLocked ? (
+                <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                  <Text size="small" className="text-ui-fg-subtle">
+                    This product is published or has seller offers. Option axes,
+                    variant removal and SKU changes are locked. Variant names,
+                    details and images remain editable.
+                  </Text>
+                </div>
+              ) : null}
               {!optionsEditable ? (
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
@@ -2612,7 +2719,7 @@ export function ProductStudioForm({
                       type="button"
                       variant="secondary"
                       onClick={addOption}
-                      disabled={options.length >= 3}
+                      disabled={options.length >= 3 || structuralLocked}
                     >
                       Add option
                     </Button>
@@ -2635,6 +2742,7 @@ export function ProductStudioForm({
                           }
                           placeholder="Option name (e.g. Size)"
                           className="sm:w-44"
+                          disabled={structuralLocked}
                         />
                         <Input
                           value={option.values.join(", ")}
@@ -2643,6 +2751,7 @@ export function ProductStudioForm({
                           }
                           placeholder="Values separated by commas"
                           className="sm:flex-1"
+                          disabled={structuralLocked}
                         />
                         <Button
                           type="button"
@@ -2651,6 +2760,7 @@ export function ProductStudioForm({
                           onClick={() => removeOption(index)}
                           aria-label="Remove option"
                           className="shrink-0"
+                          disabled={structuralLocked}
                         >
                           ×
                         </Button>
@@ -2663,6 +2773,7 @@ export function ProductStudioForm({
                       type="button"
                       variant="secondary"
                       onClick={generateVariants}
+                      disabled={structuralLocked}
                     >
                       Generate combinations
                     </Button>
@@ -2700,6 +2811,7 @@ export function ProductStudioForm({
                       onChange={(event) => setSkuPrefix(event.target.value)}
                       placeholder="e.g. AK-PPR"
                       className="w-40"
+                      disabled={structuralLocked}
                     />
                   </label>
                   <Button
@@ -2707,6 +2819,7 @@ export function ProductStudioForm({
                     type="button"
                     variant="secondary"
                     onClick={fillBlankSkus}
+                    disabled={structuralLocked}
                   >
                     Fill blank SKUs
                   </Button>
@@ -2761,6 +2874,7 @@ export function ProductStudioForm({
                             type="button"
                             variant="transparent"
                             onClick={() => removeVariant(index)}
+                            disabled={structuralLocked}
                           >
                             Remove
                           </Button>
@@ -2793,6 +2907,7 @@ export function ProductStudioForm({
                               })
                             }
                             placeholder="Unique SKU"
+                            disabled={structuralLocked && Boolean(variant.id)}
                           />
                         </label>
                         <label className="flex flex-col gap-1 md:col-span-2">
@@ -2837,6 +2952,7 @@ export function ProductStudioForm({
               </div>
             </Section>
             <Section
+              id="studio-pricing"
               number={5}
               title="Pricing"
               description="Offer-scoped B2C and B2B pricing. Each channel has its own validation, save and audit trail."
@@ -2959,6 +3075,7 @@ export function ProductStudioForm({
               </div>
             </Section>
             <Section
+              id="studio-inventory"
               number={6}
               title="Inventory"
               description="Read-only Tryton stock summary by SKU, plus an audited adjustment request that never changes stock directly."
@@ -3117,6 +3234,7 @@ export function ProductStudioForm({
               </div>
             </Section>
             <Section
+              id="studio-review"
               number={7}
               title="Review and publish"
               description="Status check and publish. Required items block publishing; optional items are warnings."
@@ -3136,6 +3254,13 @@ export function ProductStudioForm({
                     {reviewStatusLabel}
                   </StatusBadge>
                 </div>
+
+                {dirty ? (
+                  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-subtle">
+                    You have unsaved changes. Save before submitting, publishing
+                    or changing lifecycle state.
+                  </div>
+                ) : null}
 
                 {mode === "admin" ? (
                   <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
@@ -3238,7 +3363,7 @@ export function ProductStudioForm({
                       size="small"
                       type="button"
                       isLoading={reviewLoading}
-                      disabled={!reviewReady || reviewLoading}
+                      disabled={!reviewReady || reviewActionDisabled}
                       onClick={() => runReviewAction("submit")}
                     >
                       Submit for review
@@ -3251,7 +3376,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         isLoading={reviewLoading}
-                        disabled={!reviewReady || reviewLoading}
+                        disabled={!reviewReady || reviewActionDisabled}
                         onClick={() => runReviewAction("approve")}
                       >
                         Approve and publish
@@ -3260,7 +3385,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("request-changes")}
                       >
                         Request changes
@@ -3269,7 +3394,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("reject")}
                       >
                         Reject
@@ -3283,7 +3408,7 @@ export function ProductStudioForm({
                       type="button"
                       variant="secondary"
                       isLoading={reviewLoading}
-                      disabled={reviewLoading}
+                      disabled={reviewActionDisabled}
                       onClick={() => runReviewAction("withdraw")}
                     >
                       Withdraw submission
@@ -3296,7 +3421,7 @@ export function ProductStudioForm({
                       type="button"
                       variant="secondary"
                       isLoading={reviewLoading}
-                      disabled={reviewLoading}
+                      disabled={reviewActionDisabled}
                       onClick={() => runReviewAction("reopen")}
                     >
                       Reopen as draft
@@ -3309,7 +3434,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("request-changes")}
                       >
                         Request changes
@@ -3318,7 +3443,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("unpublish")}
                       >
                         Unpublish
@@ -3327,7 +3452,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("pause")}
                       >
                         Pause
@@ -3336,7 +3461,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="danger"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("archive")}
                       >
                         Archive
@@ -3357,7 +3482,7 @@ export function ProductStudioForm({
                         size="small"
                         type="button"
                         variant="secondary"
-                        disabled={reviewLoading}
+                        disabled={reviewActionDisabled}
                         onClick={() => runReviewAction("restore")}
                       >
                         Restore as draft
@@ -3412,9 +3537,10 @@ export function ProductStudioForm({
           >
             <Container className="p-0">
               <div className="border-b border-ui-border-base px-5 py-4">
-                <Heading level="h2">Customer preview</Heading>
+                <Heading level="h2">Content preview</Heading>
                 <Text size="small" className="mt-1 text-ui-fg-subtle">
-                  What the structured record will look like to a buyer.
+                  How the structured record renders. Prices are not a live
+                  storefront projection.
                 </Text>
               </div>
               <div className="p-5">
