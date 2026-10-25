@@ -1,6 +1,6 @@
 change_id: CHG-078
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Make the B2B storefront consume the B2B price list saved in Product Studio, so
   B2B catalogue, product detail and RFQ surfaces use the B2B selling price, B2B
@@ -50,8 +50,10 @@ decisions:
     The selected B2B offer supplies MOQ and structured quantity tiers. If no B2B
     snapshot is configured, the existing storefront ladder remains the fallback.
 implementation:
-  status: code-complete-staging-deployment-pending
-  release: pending
+  status: staging-deployed-verified
+  backend_release: 1030b72
+  web_release: 15c31e4
+  medusa_release: 8ac070f
   evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
   files:
   - services/backend/packages/api/src/lib/b2b-pricing.ts
@@ -60,13 +62,21 @@ implementation:
   - services/experience-api/src/scripts/b2b-pricing-read-test.ts
   - apps/prototype_app/lib/domain/models.dart
   - apps/prototype_app/lib/providers/b2b_trade_providers.dart
+  - apps/prototype_app/lib/screens/b2b_quote_screens.dart
+  - apps/prototype_app/test/b2b_pricing_read_test.dart
   verification:
     api_typecheck: pass
     experience_api_typecheck: pass
     b2b_read_path_test: pass
+    flutter_test: pass
     flutter_analyze: pass
-    staging_b2b_catalogue_qc: pending
-    staging_b2b_pdp_qc: pending
-    staging_b2b_rfq_qc: pending
+    flutter_web_release_build: pass
+    staging_health: 200
+    hosted_acceptance: pass-11-of-11
+    staging_b2b_catalogue_qc: pass
+    staging_b2b_pdp_qc: pass
+    staging_b2b_rfq_qc: pass
+    staging_console_errors: 0
+    staging_mobile_overflow: none
   production_blocked_by:
   - human-production-authorization

@@ -358,12 +358,11 @@ active_changes:
   mobile_overflow: none
   console_errors: 0
   production_blocked_by:
-  - b2b-storefront-price-consumption
   - human-production-authorization
   evidence: docs/implementation/session-note-2026-10-25-product-studio-consolidation.md
   latest_staging_release: 17109f8
 - change_id: CHG-078
-  status: approved-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: b2b-storefront-price-read-path-staging-only
   approved_by: human-requester
@@ -374,9 +373,20 @@ active_changes:
   b2c_isolated: true
   effective_date_guard: true
   fallback_when_unconfigured: existing-offer-price-and-ladder
+  prefers_configured_b2b_offer: true
+  rfq_reprices_from_b2b_tiers: true
   production_release_authorized: false
+  staging_release: 1030b72
+  web_release: 15c31e4
+  medusa_release: 8ac070f
+  hosted_acceptance: pass-11-of-11
+  staging_b2b_catalogue_qc: pass
+  staging_b2b_pdp_qc: pass
+  staging_b2b_rfq_qc: pass
+  mobile_overflow: none
+  console_errors: 0
   production_blocked_by:
   - human-production-authorization
   evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
-  latest_staging_release: pending
+  latest_staging_release: 15c31e4
 

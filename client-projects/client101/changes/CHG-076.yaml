@@ -88,5 +88,4 @@ implementation:
     staging_console_errors: 0
     staging_mobile_overflow: none
   production_blocked_by:
-  - b2b-storefront-price-consumption
   - human-production-authorization
