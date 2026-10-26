@@ -103,7 +103,7 @@ const money = (amount?: number | null) =>
         style: "currency",
         currency: "INR",
         maximumFractionDigits: 0,
-      }).format(amount / 100);
+      }).format(amount);
 
 const tierText = (count: number): string =>
   count > 0 ? ` · ${count} tier${count === 1 ? "" : "s"}` : "";

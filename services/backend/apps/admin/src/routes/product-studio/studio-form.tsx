@@ -472,14 +472,20 @@ function Field({
 
 type TierDraft = { id?: string; min: string; max: string; amount: string };
 
-const inr = (minor: number) =>
+// Medusa stores money in major units, so format a major amount directly.
+const inr = (amount: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(minor / 100);
+  }).format(amount);
 
-const rupees = (minor: number) => String(minor / 100);
+// Product-Studio-owned snapshots (list_price_minor, B2B terms) remain in minor units.
+const inrMinor = (minor: number) => inr(minor / 100);
+
+const rupees = (amount: number) => String(amount);
+
+const rupeesFromMinor = (minor: number) => String(minor / 100);
 
 function validatePriceLadder(base: string, tiers: TierDraft[]): string[] {
   const errors: string[] = [];
@@ -570,7 +576,7 @@ function OfferPricingEditor({
     );
     setBase(basePrice ? rupees(basePrice.amount) : "");
     setListPrice(
-      offer.list_price_minor ? rupees(offer.list_price_minor) : "",
+      offer.list_price_minor ? rupeesFromMinor(offer.list_price_minor) : "",
     );
     setGstInclusive(offer.gst_inclusive !== false);
     setBaseId(basePrice?.id);
@@ -592,11 +598,11 @@ function OfferPricingEditor({
       };
     }>(b2bEndpoint)
       .then((result) => {
-        setB2bAmount(result.pricing.amount ? rupees(result.pricing.amount) : "");
+        setB2bAmount(result.pricing.amount ? rupeesFromMinor(result.pricing.amount) : "");
         setB2bPriceListId(result.pricing.price_list_id ?? null);
         setB2bList(
           result.pricing.list_price_minor
-            ? rupees(result.pricing.list_price_minor)
+            ? rupeesFromMinor(result.pricing.list_price_minor)
             : "",
         );
         setB2bMoq(String(result.pricing.moq ?? 1));
@@ -610,7 +616,7 @@ function OfferPricingEditor({
               tier.max_quantity === null || tier.max_quantity === undefined
                 ? ""
                 : String(tier.max_quantity),
-            amount: rupees(tier.amount),
+            amount: rupeesFromMinor(tier.amount),
           })),
         );
       })
@@ -669,14 +675,14 @@ function OfferPricingEditor({
         })),
         {
           ...(baseId ? { id: baseId } : {}),
-          amount: Math.round(Number(base) * 100),
+          amount: Number(base),
           currency_code: "inr",
           min_quantity: null,
           max_quantity: null,
         },
         ...tiers.map((tier) => ({
           ...(tier.id ? { id: tier.id } : {}),
-          amount: Math.round(Number(tier.amount) * 100),
+          amount: Number(tier.amount),
           currency_code: "inr",
           min_quantity: Number(tier.min),
           max_quantity: tier.max.trim() ? Number(tier.max) : null,
@@ -800,7 +806,7 @@ function OfferPricingEditor({
             B2C selling
           </Text>
           <Text size="small" weight="plus">
-            {base ? inr(Math.round(Number(base) * 100)) : "—"}
+            {base ? inr(Number(base)) : "—"}
           </Text>
         </div>
         <div>
@@ -808,7 +814,7 @@ function OfferPricingEditor({
             B2C list
           </Text>
           <Text size="small" weight="plus">
-            {listPrice ? inr(Math.round(Number(listPrice) * 100)) : "—"}
+            {listPrice ? inr(Number(listPrice)) : "—"}
           </Text>
         </div>
         <div>
@@ -816,7 +822,7 @@ function OfferPricingEditor({
             B2B selling
           </Text>
           <Text size="small" weight="plus">
-            {b2bAmount ? inr(Math.round(Number(b2bAmount) * 100)) : "—"}
+            {b2bAmount ? inr(Number(b2bAmount)) : "—"}
           </Text>
         </div>
         <div>
@@ -1875,7 +1881,7 @@ export function ProductStudioForm({
     if (blocked.length > 0) {
       setBulkNotice({
         kind: "error",
-        text: `No offers were updated. The list price ${inr(
+        text: `No offers were updated. The list price ${inrMinor(
           listMinor,
         )} is below the current selling price for: ${blocked.join(", ")}.`,
       });

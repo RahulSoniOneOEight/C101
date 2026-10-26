@@ -22,12 +22,13 @@ type Product = {
   variants?: Variant[];
 };
 
-const money = (minor: number) =>
+// Medusa prices are stored in major units after the money-unit cutover.
+const money = (amount: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(minor / 100);
+  }).format(amount);
 
 function basePrice(offer: Offer): number | null {
   const inr = (offer.prices ?? []).filter(
