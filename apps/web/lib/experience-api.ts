@@ -12,6 +12,7 @@ export interface OfferView {
   seller_id: string;
   seller_name?: string;
   sku: string;
+  variant_id?: string;
   currency_code: string;
   unit_amount_minor: number;
   in_stock?: boolean;
@@ -28,7 +29,17 @@ export interface ComposedProduct {
   offer_count?: number;
 }
 
+export interface VariantView {
+  id: string;
+  title?: string;
+  sku?: string;
+  best_price?: OfferView | null;
+  in_stock?: boolean | null;
+  offer_count?: number;
+}
+
 export interface ProductDetail extends ComposedProduct {
+  variants?: VariantView[];
   commercial?: {
     selected_seller?: OfferView | null;
     payment_eligibility?: string[];
@@ -89,6 +100,67 @@ export async function listProducts(limit = 24): Promise<ComposedProduct[]> {
 
 export async function getProduct(id: string): Promise<ProductDetail> {
   return call<ProductDetail>(`/v1/products/${encodeURIComponent(id)}`);
+}
+
+export interface PairedProduct extends ComposedProduct {
+  best_price?: OfferView | null;
+  offer_count?: number;
+}
+
+/**
+ * Resolves the variant the page is showing and the offer for it.
+ *
+ * The detail endpoint leaves the top-level `best_price` empty and puts the priced offer on
+ * `commercial.selected_seller`, while each `variants[].best_price` carries its own offer id and
+ * variant id. An explicit `?sku=` always wins, so a price shown is always the price of the variant
+ * being quoted - no silent "first variant" choice when one was requested.
+ */
+export function resolveVariant(
+  product: ProductDetail,
+  requestedSku?: string | null,
+): { variant: VariantView | null; offer: OfferView | null } {
+  const variants = product.variants ?? [];
+  const fallbackOffer = product.best_price ?? product.commercial?.selected_seller ?? null;
+  const requested = requestedSku ? variants.find((variant) => variant.sku === requestedSku) : undefined;
+  const variant =
+    requested ??
+    variants.find((candidate) => candidate.id === fallbackOffer?.variant_id) ??
+    variants.find((candidate) => Boolean(candidate.best_price?.id)) ??
+    variants[0] ??
+    null;
+  const offer =
+    variant?.best_price ??
+    (fallbackOffer && (!variant || variant.id === fallbackOffer.variant_id) ? fallbackOffer : null);
+  return { variant, offer };
+}
+
+export interface BoughtTogetherResult {
+  pair_id: string | null;
+  channel?: string;
+  paired_availability?: "in_stock" | "out_of_stock";
+  paired?: PairedProduct | null;
+}
+
+/**
+ * Bought together is SKU-scoped: the Experience API only returns a pair when the selected SKU is
+ * the one that was paired. Progressive enhancement - any failure returns null and the page renders
+ * without the section, exactly as it does when no pair exists.
+ */
+export async function getBoughtTogether(
+  productId: string,
+  sku: string | null | undefined,
+  channel: "b2c" | "b2b" = "b2c",
+): Promise<BoughtTogetherResult | null> {
+  const query = new URLSearchParams({ channel });
+  if (sku) query.set("sku", sku);
+  try {
+    const data = await call<BoughtTogetherResult>(
+      `/v1/products/${encodeURIComponent(productId)}/bought-together?${query.toString()}`,
+    );
+    return data?.pair_id ? data : null;
+  } catch {
+    return null;
+  }
 }
 
 export interface CheckoutInput {
