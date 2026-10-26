@@ -1,0 +1,238 @@
+change_id: CHG-086
+revision: 1
+status: approved-in-progress
+request: >-
+  Replace the CHG-049 storefront allowlist with commercial-readiness visibility and modernize the
+  shared Admin/Seller Product Studio so create and edit use one navigable, scope-safe workspace with
+  direct variants, focused offer pricing, explicit save states and actionable review diagnostics.
+type: product-studio-workspace-and-catalogue-visibility
+extends:
+- CHG-074
+- CHG-076
+- CHG-085
+requested_by: human-requester
+requested_at_utc: '2026-10-27'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-27'
+approval_source: chat-current-compatible-phases-and-archive-demo-qc
+approval_scope: full-product-studio-and-chg049-cutover-staging-only
+production_release_authorized: false
+
+lane: C
+release_mechanism:
+- image-rebuild
+- static-web
+- apk-sign-and-distribute
+- governed-data-update
+
+outcome: >-
+  Operators use the same clear Product workspace for create and edit. Legacy option mechanics are
+  hidden from normal work, commercial edits are offer-scoped and safely saved, review blockers link
+  to the exact field, and customer catalogue visibility no longer depends on a historical change ID.
+
+decisions:
+- id: DEC-086-01
+  area: Creation lifecycle
+  approved_default: >-
+    Preserve the current staging behavior: Product Studio creation publishes the record, links B2C
+    and provisions starter stock when a seller offer is selected. Pricing remains an explicit Save
+    pricing action. The UI must state Published but not live until commercial gates pass.
+- id: DEC-086-02
+  area: Customer visibility
+  approved_default: >-
+    Retire catalogue_import=CHG-049 as a visibility gate. A product is customer-visible only when it
+    is published, assigned to the requested channel and has an eligible priced in-stock seller offer.
+    catalogue_source is provenance only; historical catalogue_import metadata is retained for audit.
+- id: DEC-086-03
+  area: Demo and QC cleanup
+  approved_default: >-
+    Archive, never delete, the four approved unmarked but commercially-ready demo/QC products after
+    order-reference checks. Historical order snapshots and all product/variant/offer IDs remain.
+- id: DEC-086-04
+  area: Legacy options
+  approved_default: >-
+    Preserve native option and variant links in storage but remove legacy option cards and
+    unresolvable compatibility warnings from normal Admin/Seller workflows. Technical details are
+    Admin-only and collapsed when operationally useful.
+- id: DEC-086-05
+  area: Save scopes
+  approved_default: >-
+    Product content, one seller offer's pricing, selected bulk operations and Tryton adjustment
+    requests have distinct actions and dirty states. Product Save never claims to save pricing.
+- id: DEC-086-06
+  area: Global variant attributes
+  approved_default: >-
+    Global Color and Condition remain active/filterable specifications but are no longer variant
+    axes. Product-scoped attributes and existing option/variant records are not deleted.
+
+affected_capabilities:
+- product-listing
+- product-master-editing
+- seller-offer-pricing
+- b2c-catalogue
+- b2b-catalogue
+- inventory-readiness
+- product-review-and-publication
+- catalogue-provenance
+affected_domains:
+- commerce
+- marketplace
+- experience
+- erp-read-boundary
+affected_surfaces:
+- commerce-admin
+- commerce-vendor
+- experience-api
+- app.prototype.b2c-storefront
+- app.prototype.b2b-trade
+- firebase-staging-web
+- firebase-app-distribution
+- medusa-postgres-staging
+
+requirements:
+- id: R1
+  name: Shared workspace and navigation
+  outcome: >-
+    Admin and Seller expose Overview, Variants & offers, Inventory, Activity and Review/visibility
+    navigation with stable deep links, expandable sections and preserved return context.
+  status: in-progress
+- id: R2
+  name: Remove legacy workflow clutter
+  outcome: >-
+    Normal operators no longer see legacy option cards, option mismatch/support warnings or locked
+    SKU bulk tools; native records stay intact.
+  status: in-progress
+- id: R3
+  name: Focused and safe pricing
+  outcome: >-
+    Pricing opens one variant/seller offer at a time with one Save pricing action. Bulk changes
+    require selected rows, a single channel-specific operation and a scope preview.
+  status: in-progress
+- id: R4
+  name: Scope-aware saving
+  outcome: >-
+    Product and pricing saves remain visible while dirty, report saving/saved/failed states, preserve
+    values on error and protect navigation from silent loss.
+  status: in-progress
+- id: R5
+  name: Actionable review and visibility
+  outcome: >-
+    Review classifies blockers/warnings, marks affected sections with icon/text/count, links to the
+    exact field and states B2C/B2B visibility independently.
+  status: in-progress
+- id: R6
+  name: Retire CHG-049 visibility gate
+  outcome: >-
+    Storefront clients stop sending catalogue_import and the Experience API returns only products
+    that pass publication, channel, price and stock eligibility. Optional legacy query support is
+    diagnostic only.
+  status: in-progress
+- id: R7
+  name: Provenance without visibility coupling
+  outcome: >-
+    New studio products use catalogue_source=product_studio. Existing imported and studio products
+    are backfilled with provenance while historical catalogue_import values remain unchanged.
+  status: in-progress
+- id: R8
+  name: Governed staging cleanup
+  outcome: >-
+    Global Color/Condition cease to be variant axes and exactly four approved demo/QC products are
+    archived after snapshot, backup and dry-run; no records are deleted.
+  status: in-progress
+- id: R9
+  name: Current behavior preserved
+  outcome: >-
+    Auto-publish, B2C default, explicit Save pricing, offer ownership, money units, Tryton authority,
+    audit behavior and existing IDs remain intact.
+  status: in-progress
+- id: R10
+  name: Accessible responsive parity
+  outcome: >-
+    Admin and Seller pass desktop/mobile visual checks with no overflow or console errors; blocker
+    color is paired with icon/text and save/error notices are announced.
+  status: in-progress
+- id: R11
+  name: Scoped staging delivery
+  outcome: >-
+    Only CHG-086 commits and approved data records reach staging, all services become healthy, proxy
+    and Firebase clients are refreshed, rollback identifiers are recorded and production is untouched.
+  status: in-progress
+
+scope_lock:
+  allowed_paths:
+  - services/backend/apps/admin/src/routes/product-studio/**
+  - services/backend/apps/admin/src/routes/products/**
+  - services/backend/apps/vendor/src/routes/product-studio/**
+  - services/backend/apps/vendor/src/routes/products/**
+  - services/backend/packages/api/src/api/admin/buildkart/product-studio/**
+  - services/backend/packages/api/src/api/vendor/buildkart/product-studio/**
+  - services/backend/packages/api/src/lib/product-studio.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/commerce/**
+  - services/experience-api/src/medusa/**
+  - services/experience-api/src/scripts/promotion-acceptance.ts
+  - services/experience-api/src/scripts/b2b-pricing-read-test.ts
+  - apps/prototype_app/lib/core/app_config.dart
+  - apps/prototype_app/lib/data/experience_api.dart
+  - apps/prototype_app/lib/domain/models.dart
+  - apps/prototype_app/lib/providers/**
+  - apps/prototype_app/lib/screens/**
+  - apps/prototype_app/test/**
+  - services/hosted/scripts/chg086-product-visibility.sh
+  - client-projects/client101/changes/CHG-086.yaml
+  - client-projects/client101/evidence/CHG-086/**
+  - client-projects/client101/workflow/workflow-state.yaml
+  no_touch:
+  - production
+  - Tryton stock records and reservation logic
+  - order, cart, payment, refund and settlement records
+  - Medusa money-unit contract
+  - existing product, variant, offer and order identifiers
+  - Wonder Cement and RCC HUME PIPE data
+  - CHG-049 historical metadata values
+  data_records:
+  - product_attribute:pattr_01M4EC9BX8J18G5Z2JYF9FN6TD
+  - product_attribute:pattr_01M4EC9BX947JYA00T2YRSQTDB
+  - product:prod_01M4EC9DSW5MSACQWETJ3R38AW
+  - product:prod_01M4EC9DSW6J984KKM619VKZEA
+  - product:prod_01M5TC4ZM09R4FJMAFKP3G1H6C
+  - product:prod_01M5VAK0F4R5G7V2MYS0PPQ4TM
+  - product metadata rows selected by catalogue_import=CHG-049 or buildkart_product_studio=true
+  environment: staging
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: 0fcbd79
+  git_status: clean
+  active_release_symlink: /opt/buildkart-releases/release-0e64bd3
+  api_health: pass
+  medusa_health: pass
+  experience_health: pass
+  catalogue:
+    b2c_channel_products: 244
+    chg049_products: 237
+    unmarked_products: 7
+    unmarked_commercially_ready: 4
+  order_reference_checks:
+    prod_01M4EC9DSW5MSACQWETJ3R38AW: 2
+    prod_01M4EC9DSW6J984KKM619VKZEA: 1
+    prod_01M5TC4ZM09R4FJMAFKP3G1H6C: 1
+    prod_01M5VAK0F4R5G7V2MYS0PPQ4TM: 0
+
+rollback:
+  code: restore the pinned pre-CHG-086 service and client releases
+  data: restore the pre-change PostgreSQL snapshot or reverse only the allowlisted status/metadata/attribute rows
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Tryton reservation gap
+  reason: Outside CHG-086 and explicitly no-touch.
+- id: D2
+  name: Wonder Cement commercial completion
+  reason: Seller and price are still undecided; commercial readiness keeps it hidden.
+- id: D3
+  name: RCC HUME PIPE commercial completion
+  reason: No valid seller offer/price; commercial readiness keeps it hidden.

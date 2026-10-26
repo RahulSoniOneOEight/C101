@@ -261,8 +261,8 @@ class ExperienceApi {
   /// storefront layout section resolves its product source. Composition (price and offer) is unchanged,
   /// so a layout-driven rail renders exactly like a catalogue rail.
   ///
-  /// [catalogueImport] selects a governed imported catalogue by its metadata marker, so the storefront
-  /// can show the staged source catalogue without mixing in demonstration products.
+  /// [catalogueImport] is retained only for old diagnostic links. Normal clients must omit it;
+  /// the server owns publication, channel, offer-price and stock visibility rules.
   Future<List<Product>> getComposedProducts({
     int limit = 50,
     int offset = 0,

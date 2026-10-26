@@ -191,6 +191,7 @@ async function getOffersCached(
   productIds: string[],
   context: string,
   regionId: string = config.medusaRegionId,
+  salesChannelId?: string,
 ): Promise<{ offers: StoreOffer[]; cacheHit: boolean }> {
   const key = `${offerCacheKey(productIds, context)}|${regionId}`;
   const cached = offerCache.get(key);
@@ -198,7 +199,11 @@ async function getOffersCached(
     offerCacheHits++;
     return { offers: cached.offers, cacheHit: true };
   }
-  const offers = await medusa.listOffersByProducts(productIds, regionId);
+  const offers = await medusa.listOffersByProducts(
+    productIds,
+    regionId,
+    salesChannelId,
+  );
   offerCache.set(key, { offers, expiresAt: Date.now() + OFFER_CACHE_TTL_MS });
   offerCacheMisses++;
   return { offers, cacheHit: false };
@@ -549,6 +554,52 @@ function salesChannelIdFor(channel: "b2b" | "b2c"): string | undefined {
   return channel === "b2b"
     ? config.medusaB2bSalesChannelId ?? config.medusaB2cSalesChannelId
     : config.medusaB2cSalesChannelId;
+}
+
+function productComposeOptions(
+  product: StoreProduct,
+  channel: "b2b" | "b2c",
+): ComposeOptions {
+  return {
+    channel,
+    b2bPricing:
+      channel === "b2b"
+        ? ((product.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+            string,
+            B2bPricingSnapshot
+          >)
+        : null,
+  };
+}
+
+function productCommercialReadiness(
+  product: StoreProduct,
+  offers: StoreOffer[],
+  channel: "b2b" | "b2c",
+) {
+  const composeOptions = productComposeOptions(product, channel);
+  const composed = composeOffers(offers, composeOptions);
+  const priced = composed.offerViews.some(
+    (offer) =>
+      offer.unit_amount_minor !== null && offer.unit_amount_minor > 0,
+  );
+  const stocked = composed.offerViews.some(
+    (offer) =>
+      offer.in_stock === true &&
+      offer.unit_amount_minor !== null &&
+      offer.unit_amount_minor > 0,
+  );
+  return {
+    composeOptions,
+    ...composed,
+    gates: {
+      published_and_channel: true,
+      offer: offers.length > 0,
+      price: priced,
+      stock: stocked,
+    },
+    visible: composed.selected !== null,
+  };
 }
 
 function deliveryTierFor(option: StoreShippingOption): "standard" | "express" {
@@ -3813,12 +3864,184 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
-  // GET /v1/products — composed product list with best-price offer per product.
-  //
-  // `catalogue_import` selects the governed staged catalogue by its product metadata marker, so the
-  // storefront does not mix the source catalogue with pre-existing demonstration products. When it is
-  // present the imported subset is scanned once and then paginated in memory, because Medusa's store
-  // API has no portable metadata equality filter.
+  // POST /v1/internal/catalogue/readiness — server-owned Product Studio visibility diagnostics.
+  if (
+    url.pathname === "/v1/internal/catalogue/readiness" &&
+    req.method === "POST"
+  ) {
+    const operator = await requireAnyRole(req, [
+      "marketplace_operator",
+      "super_admin",
+    ]);
+    if ("response" in operator) return operator.response;
+    let body: { product_ids?: unknown };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const productIds = Array.isArray(body.product_ids)
+      ? [
+          ...new Set(
+            body.product_ids
+              .map((value) => String(value ?? "").trim())
+              .filter(Boolean),
+          ),
+        ].slice(0, 50)
+      : [];
+    if (productIds.length === 0) {
+      return problem(
+        400,
+        "product-ids-required",
+        "At least one product id is required.",
+      );
+    }
+
+    const result = new Map<
+      string,
+      Record<"b2c" | "b2b", Record<string, unknown>>
+    >(
+      productIds.map((id) => [
+        id,
+        {
+          b2c: { evaluated: false, visible: false },
+          b2b: { evaluated: false, visible: false },
+        },
+      ]),
+    );
+
+    for (const channel of ["b2c", "b2b"] as const) {
+      if (channel === "b2b" && !config.medusaB2bSalesChannelId) {
+        for (const id of productIds) {
+          result.get(id)!.b2b = {
+            evaluated: true,
+            enabled: false,
+            visible: false,
+            gates: {
+              published_and_channel: false,
+              offer: false,
+              price: false,
+              stock: false,
+            },
+            blocker: {
+              code: "channel_not_enabled",
+              message: "B2B sales channel is not enabled.",
+            },
+          };
+        }
+        continue;
+      }
+      const channelId = salesChannelIdFor(channel);
+      const availableEntries = await Promise.all(
+        productIds.map(async (id) => {
+          try {
+            return [id, await medusa.getProduct(id, channelId)] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      );
+      const products = availableEntries
+        .map(([, product]) => product)
+        .filter((product): product is StoreProduct => product !== null);
+      const regionId =
+        channel === "b2b"
+          ? config.medusaB2bRegionId ?? config.medusaRegionId
+          : config.medusaRegionId;
+      const offers = await medusa.listOffersByProducts(
+        products.map((product) => product.id),
+        regionId,
+        channelId,
+      );
+      const offersByProduct = new Map<string, StoreOffer[]>();
+      for (const offer of offers) {
+        const rows = offersByProduct.get(offer.product_id) ?? [];
+        rows.push(offer);
+        offersByProduct.set(offer.product_id, rows);
+      }
+
+      for (const id of productIds) {
+        const product = products.find((candidate) => candidate.id === id);
+        if (!product) {
+          result.get(id)![channel] = {
+            evaluated: true,
+            enabled: true,
+            visible: false,
+            gates: {
+              published_and_channel: false,
+              offer: false,
+              price: false,
+              stock: false,
+            },
+            blocker: {
+              code: "not_published_or_not_in_channel",
+              message: `Product is not published in ${channel.toUpperCase()} or is not assigned to that channel.`,
+            },
+          };
+          continue;
+        }
+        const productOffers = offersByProduct.get(id) ?? [];
+        const readiness = productCommercialReadiness(
+          product,
+          productOffers,
+          channel,
+        );
+        const priced = readiness.offerViews.filter(
+          (offer) =>
+            offer.unit_amount_minor !== null && offer.unit_amount_minor > 0,
+        );
+        const firstOffer = readiness.offerViews[0] ?? null;
+        const firstPriced = priced[0] ?? null;
+        const blocker = !readiness.gates.offer
+          ? {
+              code: "missing_offer",
+              message: `No seller offer is available in ${channel.toUpperCase()}.`,
+            }
+          : !readiness.gates.price
+            ? {
+                code: "missing_price",
+                message:
+                  channel === "b2b"
+                    ? "No active B2B price is saved for this seller offer."
+                    : "No positive B2C price is saved for this seller offer.",
+                variant_id: firstOffer?.variant_id ?? null,
+                offer_id: firstOffer?.id ?? null,
+                seller_name: firstOffer?.seller_name ?? null,
+              }
+            : !readiness.gates.stock
+              ? {
+                  code: "out_of_stock",
+                  message: "Priced seller offers have no sellable stock.",
+                  variant_id: firstPriced?.variant_id ?? null,
+                  offer_id: firstPriced?.id ?? null,
+                  seller_name: firstPriced?.seller_name ?? null,
+                }
+              : null;
+        result.get(id)![channel] = {
+          evaluated: true,
+          enabled: true,
+          visible: readiness.visible,
+          selected_offer: readiness.selected,
+          gates: readiness.gates,
+          blocker,
+          checked_at: new Date().toISOString(),
+        };
+      }
+    }
+
+    return json({
+      items: productIds.map((productId) => ({
+        product_id: productId,
+        channels: result.get(productId),
+      })),
+      rule: "published + channel + positive channel price + in-stock seller offer",
+      environment: config.environment,
+      correlation_id: cid,
+    });
+  }
+
+  // GET /v1/products — composed commercially-ready products.
+  // `catalogue_import` is retained only as an explicit diagnostic filter for old links.
   if (url.pathname === "/v1/products" && req.method === "GET") {
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 50), 1), 250);
     const offset = Math.max(Number(url.searchParams.get("offset") ?? 0), 0);
@@ -3832,37 +4055,47 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const channel = requestedChannel(url.searchParams.get("channel"), authorization);
     try {
       const t0 = performance.now();
-      let products: Awaited<ReturnType<typeof medusa.listProducts>>;
-      let totalCount: number | null = null;
-      if (catalogueImport) {
-        const scanned: Awaited<ReturnType<typeof medusa.listProducts>> = [];
-        for (let start = 0; start < MAX_CATALOGUE_SCAN; start += CATALOGUE_SCAN_PAGE_SIZE) {
+      const channelId = salesChannelIdFor(channel);
+      let candidates: Awaited<ReturnType<typeof medusa.listProducts>> = [];
+      if (collectionId) {
+        candidates = await medusa.listProductsByCollection(
+          collectionId,
+          Math.min(MAX_CATALOGUE_SCAN, 250),
+          channelId,
+        );
+      } else {
+        for (
+          let start = 0;
+          start < MAX_CATALOGUE_SCAN;
+          start += CATALOGUE_SCAN_PAGE_SIZE
+        ) {
           const page = await medusa.listProducts(
             CATALOGUE_SCAN_PAGE_SIZE,
             start,
-            salesChannelIdFor(channel),
+            channelId,
           );
-          scanned.push(...page);
+          candidates.push(...page);
           if (page.length < CATALOGUE_SCAN_PAGE_SIZE) break;
         }
-        const matched = orderByImageQuality(scanned.filter(
-          (p) => String(p.metadata?.catalogue_import ?? "") === catalogueImport,
-        ));
-        totalCount = matched.length;
-        products = matched.slice(offset, offset + limit);
-      } else if (collectionId) {
-        products = await medusa.listProductsByCollection(collectionId, limit);
-      } else {
-        products = await medusa.listProducts(limit, offset, salesChannelIdFor(channel));
+      }
+      // Kept only as an explicit diagnostic filter for old links. Default visibility never depends
+      // on a change-id marker; it is evaluated from commercial readiness below.
+      if (catalogueImport) {
+        candidates = candidates.filter(
+          (product) =>
+            String(product.metadata?.catalogue_import ?? "") ===
+            catalogueImport,
+        );
       }
       const productsMs = performance.now() - t0;
 
-      const productIds = products.map((p) => p.id);
+      const productIds = candidates.map((product) => product.id);
       const t1 = performance.now();
       const { offers: allOffers, cacheHit } = await getOffersCached(
         productIds,
         `${config.medusaCountryCode}:inr:${channel}`,
         regionId,
+        channelId,
       );
       const offersMs = performance.now() - t1;
 
@@ -3873,18 +4106,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         list.push(o);
         offersByProduct.set(o.product_id, list);
       }
-      const composed = products.map((p) => {
+      const commerciallyReady = candidates.flatMap((p) => {
         const offers = offersByProduct.get(p.id) ?? [];
-        const b2bPricing =
-          channel === "b2b"
-            ? ((p.metadata?.buildkart_b2b_pricing ?? {}) as Record<
-                string,
-                B2bPricingSnapshot
-              >)
-            : null;
-        const composeOptions: ComposeOptions = { channel, b2bPricing };
-        const { selected } = composeOffers(offers, composeOptions);
-        return {
+        const readiness = productCommercialReadiness(p, offers, channel);
+        if (!readiness.visible) return [];
+        return [{
           id: p.id,
           title: p.title,
           thumbnail: p.thumbnail,
@@ -3896,13 +4122,20 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           badges: (p.tags ?? []).map((tag) => tag.value),
           // Every variant carries its own sellable offer. A grouped product is one card; its SKUs
           // are the variants inside it, never extra cards.
-          variants: composeVariantPrices(p.variants, offers, composeOptions),
-          best_price: selected,
+          variants: composeVariantPrices(
+            p.variants,
+            offers,
+            readiness.composeOptions,
+          ),
+          best_price: readiness.selected,
           offer_count: offers.length,
           image_quality_score: imageQualityScore(p.id),
           image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
-        };
+        }];
       });
+      const ordered = orderByImageQuality(commerciallyReady);
+      const totalCount = ordered.length;
+      const composed = ordered.slice(offset, offset + limit);
       const composeMs = performance.now() - t2;
 
       return json({
@@ -3911,6 +4144,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         limit,
         offset,
         channel,
+        visibility_rule: "commercial_readiness",
+        legacy_filter_applied: catalogueImport || null,
         cache_hit: cacheHit,
         timing_ms: {
           products_fetch: Math.round(productsMs * 10) / 10,
@@ -3941,20 +4176,25 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const productMs = performance.now() - t0;
 
       const t1 = performance.now();
-      const { offers, cacheHit } = await getOffersCached([productId], context, regionId);
+      const { offers, cacheHit } = await getOffersCached(
+        [productId],
+        context,
+        regionId,
+        salesChannelIdFor(channel),
+      );
       const offersMs = performance.now() - t1;
 
       const t2 = performance.now();
-      const b2bPricing =
-        channel === "b2b"
-          ? ((p.metadata?.buildkart_b2b_pricing ?? {}) as Record<
-              string,
-              B2bPricingSnapshot
-            >)
-          : null;
-      const composeOptions: ComposeOptions = { channel, b2bPricing };
-      const { offerViews, selected } = composeOffers(offers, composeOptions);
+      const readiness = productCommercialReadiness(p, offers, channel);
       const composeMs = performance.now() - t2;
+
+      if (!readiness.visible) {
+        return problem(
+          404,
+          "product-not-commercially-ready",
+          "The product is not available in this channel.",
+        );
+      }
 
       return json({
         id: p.id,
@@ -3967,8 +4207,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         badges: (p.tags ?? []).map((tag) => tag.value),
         image_quality_score: imageQualityScore(p.id),
         image_quality_fixture: p.metadata?.catalogue_import === "CHG-049" ? "CHG-060" : null,
-        variants: composeVariantPrices(p.variants, offers, composeOptions),
-        offers: offerViews,
+        variants: composeVariantPrices(
+          p.variants,
+          offers,
+          readiness.composeOptions,
+        ),
+        offers: readiness.offerViews,
         channel,
         cache_hit: cacheHit,
         timing_ms: {
@@ -3977,10 +4221,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           composition: Math.round(composeMs * 10) / 10,
         },
         commercial: {
-          selected_seller: selected,
+          selected_seller: readiness.selected,
           payment_eligibility: [config.paymentAdapterMode],
-          moq: selected?.b2b_moq ?? null,
-          quantity_tiers: selected?.b2b_tiers ?? null,
+          moq: readiness.selected?.b2b_moq ?? null,
+          quantity_tiers: readiness.selected?.b2b_tiers ?? null,
+          visibility_rule: "commercial_readiness",
+          gates: readiness.gates,
         },
         environment: config.environment,
         test_data: true,

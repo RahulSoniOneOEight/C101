@@ -61,7 +61,55 @@ type Offer = {
   metadata?: Record<string, unknown>;
   list_price_minor?: number | null;
   gst_inclusive?: boolean;
+  b2b_pricing?: {
+    configured?: boolean;
+    amount?: number | null;
+    list_price_minor?: number | null;
+    moq?: number | null;
+  } | null;
   prices: OfferPrice[];
+};
+type ReadinessIssue = {
+  id: string;
+  severity: "blocker" | "warning";
+  group: "visibility" | "product" | "variants" | "inventory" | "quality";
+  message: string;
+  view: WorkspaceView;
+  field?: string;
+  channel?: "b2c" | "b2b";
+  variant_id?: string | null;
+  offer_id?: string | null;
+  seller_name?: string | null;
+};
+type ChannelReadiness = {
+  evaluated?: boolean;
+  enabled?: boolean;
+  visible?: boolean;
+  checked_at?: string;
+  gates?: {
+    published_and_channel?: boolean;
+    offer?: boolean;
+    price?: boolean;
+    stock?: boolean;
+  };
+  blocker?: { code?: string; message?: string } | null;
+};
+type ServerReadiness = {
+  checked_at: string;
+  rule: string;
+  blocker_count: number;
+  warning_count: number;
+  issues: ReadinessIssue[];
+  channels: { b2c: ChannelReadiness; b2b: ChannelReadiness };
+};
+type ProductActivity = {
+  id: string;
+  action: string;
+  note: string;
+  actor?: string | null;
+  status?: string | null;
+  applied: boolean;
+  created_at?: string | null;
 };
 type InventoryLocation = {
   id: number;
@@ -113,6 +161,9 @@ type StudioProduct = {
   options: Option[];
   variants: Variant[];
   offers: Offer[];
+  sales_channels?: Array<{ id: string; name: string }>;
+  readiness?: ServerReadiness;
+  activity?: ProductActivity[];
   can_edit: boolean;
   options_editable: boolean;
   studio_managed: boolean;
@@ -304,100 +355,84 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const WORKSPACE_TABS = [
-  { id: "studio-details", label: "Details" },
-  { id: "studio-tags", label: "Tags & specs" },
-  { id: "studio-variants", label: "Variants" },
-  { id: "studio-pricing", label: "Offers & pricing" },
-  { id: "studio-inventory", label: "Inventory" },
-  { id: "studio-review", label: "Review" },
-] as const;
+type WorkspaceView = "overview" | "variants" | "inventory" | "activity" | "review";
 
-function WorkspaceTabs({ loaded }: { loaded: boolean }) {
-  const [active, setActive] = useState<string>("studio-details");
+const WORKSPACE_VIEWS: Array<{ id: WorkspaceView; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "variants", label: "Variants & offers" },
+  { id: "inventory", label: "Inventory" },
+  { id: "activity", label: "Activity" },
+  { id: "review", label: "Review & visibility" },
+];
 
-  const scrollToSection = (id: string) => {
-    setActive(id);
-    document.getElementById(id)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-    const url = new URL(window.location.href);
-    url.searchParams.set("section", id.replace("studio-", ""));
-    window.history.replaceState({}, "", url);
-    window.setTimeout(() => {
-      document.getElementById(id)?.focus({ preventScroll: true });
-    }, 350);
+function WorkspaceNavigation({
+  active,
+  onChange,
+  variantCount,
+  inventoryAttention,
+  blockerCount,
+}: {
+  active: WorkspaceView;
+  onChange: (view: WorkspaceView) => void;
+  variantCount: number;
+  inventoryAttention: boolean;
+  blockerCount: number;
+}) {
+  const label = (view: WorkspaceView, base: string) => {
+    if (view === "variants") return `${base} (${variantCount})`;
+    if (view === "inventory" && inventoryAttention) return `${base} · attention`;
+    if (view === "review" && blockerCount > 0) {
+      return `${base} · ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}`;
+    }
+    return base;
   };
-
-  useEffect(() => {
-    if (!loaded || typeof window === "undefined") return;
-    const requested = new URLSearchParams(window.location.search).get("section");
-    if (!requested) return;
-    const id = `studio-${requested}`;
-    if (!WORKSPACE_TABS.some((tab) => tab.id === id)) return;
-    const handle = window.setTimeout(() => {
-      document.getElementById(id)?.scrollIntoView({
-        behavior: "auto",
-        block: "start",
-      });
-      setActive(id);
-    }, 150);
-    return () => window.clearTimeout(handle);
-  }, [loaded]);
-
-  useEffect(() => {
-    if (!loaded || typeof window === "undefined") return;
-    const syncActiveSection = () => {
-      const marker = window.scrollY + 200;
-      let current: string = WORKSPACE_TABS[0].id;
-      for (const tab of WORKSPACE_TABS) {
-        const element = document.getElementById(tab.id);
-        if (!element) continue;
-        const top = element.getBoundingClientRect().top + window.scrollY;
-        if (top <= marker) current = tab.id;
-      }
-      setActive(current);
-    };
-    syncActiveSection();
-    window.addEventListener("scroll", syncActiveSection, { passive: true });
-    window.addEventListener("resize", syncActiveSection);
-    return () => {
-      window.removeEventListener("scroll", syncActiveSection);
-      window.removeEventListener("resize", syncActiveSection);
-    };
-  }, [loaded]);
-
   return (
-    <nav
-      aria-label="Product workspace sections"
-      className="sticky top-0 z-10 border-y border-ui-border-base bg-ui-bg-base px-4 py-2"
-      data-testid="product-workspace-tabs"
+    <div
+      className="sticky top-0 z-20 border-y border-ui-border-base bg-ui-bg-base px-4 py-2"
+      data-testid="product-workspace-navigation"
     >
-      <div className="flex flex-wrap gap-1">
-        {WORKSPACE_TABS.map((tab) => {
-          const section = tab.id.replace("studio-", "");
+      <label className="flex min-h-11 items-center gap-2 md:hidden">
+        <span className="text-sm font-medium text-ui-fg-base">Workspace</span>
+        <select
+          aria-label="Product workspace destination"
+          className="h-11 min-w-0 flex-1 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
+          value={active}
+          onChange={(event) => onChange(event.target.value as WorkspaceView)}
+        >
+          {WORKSPACE_VIEWS.map((view) => (
+            <option key={view.id} value={view.id}>
+              {label(view.id, view.label)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <nav
+        aria-label="Product workspace destinations"
+        className="hidden flex-wrap gap-1 md:flex"
+      >
+        {WORKSPACE_VIEWS.map((view) => {
+          const blocked = view.id === "review" && blockerCount > 0;
           return (
-            <a
-              key={tab.id}
-              href={`?section=${section}`}
-              onClick={(event) => {
-                event.preventDefault();
-                scrollToSection(tab.id);
-              }}
-              aria-current={active === tab.id ? "location" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                active === tab.id
+            <button
+              key={view.id}
+              type="button"
+              onClick={() => onChange(view.id)}
+              aria-current={active === view.id ? "page" : undefined}
+              className={`min-h-11 rounded-md px-3 text-sm font-medium transition-colors ${
+                active === view.id
                   ? "bg-ui-bg-interactive text-ui-fg-on-color"
-                  : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
+                  : blocked
+                    ? "border border-ui-border-error text-ui-fg-error hover:bg-ui-bg-error"
+                    : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
               }`}
             >
-              {tab.label}
-            </a>
+              {blocked ? "⛔ " : ""}
+              {label(view.id, view.label)}
+            </button>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
 
@@ -407,6 +442,8 @@ function Section({
   title,
   description,
   complete,
+  defaultOpen = true,
+  attention,
   children,
 }: {
   id?: string;
@@ -414,8 +451,25 @@ function Section({
   title: string;
   description: string;
   complete?: boolean;
+  defaultOpen?: boolean;
+  attention?: string;
   children: React.ReactNode;
 }) {
+  const storageKey = id ? `buildkart:studio-section:${id}` : null;
+  const [open, setOpen] = useState(() => {
+    if (!storageKey || typeof window === "undefined") return defaultOpen;
+    const saved = window.sessionStorage.getItem(storageKey);
+    return saved === null ? defaultOpen : saved === "open";
+  });
+  const toggle = () => {
+    setOpen((current) => {
+      const next = !current;
+      if (storageKey) {
+        window.sessionStorage.setItem(storageKey, next ? "open" : "closed");
+      }
+      return next;
+    });
+  };
   return (
     <section
       id={id}
@@ -423,7 +477,14 @@ function Section({
       style={{ scrollMarginTop: "128px" }}
       className="scroll-mt-36 border-t border-ui-border-base px-6 py-6 first:border-t-0"
     >
-      <div className="mb-5 flex items-start gap-3">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className={`flex min-h-11 w-full items-start gap-3 rounded-md text-left focus:outline-none focus:ring-2 focus:ring-ui-fg-interactive ${
+          open ? "mb-5" : ""
+        }`}
+      >
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
             complete
@@ -433,14 +494,22 @@ function Section({
         >
           {number}
         </span>
-        <div>
+        <div className="min-w-0 flex-1">
           <Heading level="h2">{title}</Heading>
           <Text size="small" className="mt-1 text-ui-fg-subtle">
             {description}
           </Text>
+          {attention ? (
+            <Text size="xsmall" className="mt-1 text-ui-fg-error">
+              ⛔ {attention}
+            </Text>
+          ) : null}
         </div>
-      </div>
-      {children}
+        <span aria-hidden="true" className="px-2 text-ui-fg-subtle">
+          {open ? "⌃" : "⌄"}
+        </span>
+      </button>
+      {open ? children : null}
     </section>
   );
 }
@@ -486,6 +555,24 @@ const inrMinor = (minor: number) => inr(minor / 100);
 const rupees = (amount: number) => String(amount);
 
 const rupeesFromMinor = (minor: number) => String(minor / 100);
+
+/** Positive B2C base price on the offer, in major units, or null when unpriced. */
+const b2cBaseAmount = (offer: Offer): number | null => {
+  const price = offer.prices.find(
+    (row) =>
+      row.currency_code === "inr" &&
+      (row.min_quantity === null || row.min_quantity === undefined) &&
+      row.amount > 0,
+  );
+  return price ? price.amount : null;
+};
+
+/** Saved B2B selling price (minor units snapshot), or null when not configured. */
+const b2bAmountMinor = (offer: Offer): number | null =>
+  offer.b2b_pricing?.configured === true &&
+  Number(offer.b2b_pricing.amount ?? 0) > 0
+    ? Number(offer.b2b_pricing.amount)
+    : null;
 
 function validatePriceLadder(base: string, tiers: TierDraft[]): string[] {
   const errors: string[] = [];
@@ -541,11 +628,13 @@ function OfferPricingEditor({
   mode,
   variantLabel,
   onSaved,
+  onDirtyChange,
 }: {
   offer: Offer;
   mode: StudioMode;
   variantLabel: string;
   onSaved: (pricing: Offer) => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const [base, setBase] = useState("");
   const [listPrice, setListPrice] = useState("");
@@ -565,6 +654,12 @@ function OfferPricingEditor({
   const [b2bSaving, setB2bSaving] = useState(false);
   const [b2bNotice, setB2bNotice] = useState<string | null>(null);
   const [b2bPriceListId, setB2bPriceListId] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState("");
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     const inrPrices = offer.prices.filter(
@@ -574,12 +669,36 @@ function OfferPricingEditor({
       (price) =>
         price.min_quantity === null || price.min_quantity === undefined,
     );
-    setBase(basePrice ? rupees(basePrice.amount) : "");
-    setListPrice(
-      offer.list_price_minor ? rupeesFromMinor(offer.list_price_minor) : "",
-    );
+    const nextBase = basePrice ? rupees(basePrice.amount) : "";
+    const nextList = offer.list_price_minor
+      ? rupeesFromMinor(offer.list_price_minor)
+      : "";
+    setBase(nextBase);
+    setListPrice(nextList);
     setGstInclusive(offer.gst_inclusive !== false);
     setBaseId(basePrice?.id);
+    // The offer snapshot already carries saved B2B terms, so the editor renders them immediately
+    // rather than waiting for the dedicated price-list read.
+    setB2bAmount(
+      offer.b2b_pricing?.amount
+        ? rupeesFromMinor(Number(offer.b2b_pricing.amount))
+        : "",
+    );
+    setB2bList(
+      offer.b2b_pricing?.list_price_minor
+        ? rupeesFromMinor(Number(offer.b2b_pricing.list_price_minor))
+        : "",
+    );
+    setB2bMoq(String(offer.b2b_pricing?.moq ?? 1));
+    setSnapshot(
+      JSON.stringify({
+        base: nextBase,
+        list: nextList,
+        gst: offer.gst_inclusive !== false,
+        b2b: offer.b2b_pricing?.amount ?? null,
+      }),
+    );
+    setDirty(false);
     const b2bEndpoint =
       mode === "admin"
         ? `/admin/buildkart/offers/${offer.id}/b2b-pricing`
@@ -647,6 +766,17 @@ function OfferPricingEditor({
     );
     setErrors([]);
   }, [offer]);
+
+  useEffect(() => {
+    if (!snapshot) return;
+    const current = JSON.stringify({
+      base,
+      list: listPrice,
+      gst: gstInclusive,
+      b2b: b2bAmount,
+    });
+    setDirty(current !== snapshot);
+  }, [base, b2bAmount, gstInclusive, listPrice, snapshot]);
 
   const saveB2c = async (): Promise<boolean> => {
     const nextErrors = validatePriceLadder(base, tiers);
@@ -860,6 +990,7 @@ function OfferPricingEditor({
                 List price (INR) *
               </span>
               <Input
+                id={`offer-price-${offer.id}`}
                 inputMode="decimal"
                 value={listPrice}
                 onChange={(event) => setListPrice(event.target.value)}
@@ -871,6 +1002,7 @@ function OfferPricingEditor({
                 Base selling price (INR) *
               </span>
               <Input
+                id={`offer-selling-${offer.id}`}
                 inputMode="decimal"
                 value={base}
                 onChange={(event) => setBase(event.target.value)}
@@ -1131,7 +1263,9 @@ function OfferPricingEditor({
 
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-ui-border-base pt-3">
         <Text size="xsmall" className="text-ui-fg-subtle">
-          Saves B2C and configured B2B pricing for this offer.
+          {dirty
+            ? "Unsaved pricing · affects this offer only"
+            : "Saves B2C and configured B2B pricing for this offer."}
         </Text>
         <Button
           size="small"
@@ -1348,6 +1482,32 @@ export function ProductStudioForm({
   const [sellerProvisionReason, setSellerProvisionReason] = useState("");
   const [actingReason, setActingReason] = useState("");
   const [actingReference, setActingReference] = useState("");
+  const [view, setView] = useState<WorkspaceView>(() => {
+    if (typeof window === "undefined") return "overview";
+    const requested = new URLSearchParams(window.location.search).get("view");
+    return WORKSPACE_VIEWS.some((entry) => entry.id === requested)
+      ? (requested as WorkspaceView)
+      : "overview";
+  });
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [offerDirty, setOfferDirty] = useState(false);
+  const [readiness, setReadiness] = useState<ServerReadiness | null>(null);
+  const [activity, setActivity] = useState<ProductActivity[]>([]);
+  const [salesChannels, setSalesChannels] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [bulkScope, setBulkScope] = useState<"b2c" | "b2b">("b2c");
+  const [bulkSelected, setBulkSelected] = useState<string[]>([]);
+  const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
+
+  const navigateView = (next: WorkspaceView) => {
+    setView(next);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    window.history.replaceState({}, "", url);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
 
   const meta = useQuery({
     queryKey: ["buildkart", "product-studio", mode, "meta", appliedSearch],
@@ -1462,6 +1622,9 @@ export function ProductStudioForm({
         setStatus(product.status);
         setLifecycleState(product.lifecycle_state ?? null);
         setCanEdit(product.can_edit);
+        setReadiness(product.readiness ?? null);
+        setActivity(product.activity ?? []);
+        setSalesChannels(product.sales_channels ?? []);
         setLoaded(true);
         setDirty(false);
       })
@@ -1619,7 +1782,7 @@ export function ProductStudioForm({
   );
 
   const structuralLocked = status === "published" || offers.length > 0;
-  const reviewActionDisabled = reviewLoading || dirty;
+  const reviewActionDisabled = reviewLoading || dirty || offerDirty;
   const sectionOneDone = Boolean(form.title.trim() && form.category_id);
   const sectionTwoDone = tags.length > 0;
   const sectionThreeDone = validSpecs.length > 0;
@@ -1854,17 +2017,26 @@ export function ProductStudioForm({
       });
       return;
     }
-    const eligible = offers.filter((offer) =>
-      offer.prices.some(
-        (price) =>
-          price.currency_code === "inr" &&
-          (price.min_quantity === null || price.min_quantity === undefined),
-      ),
+    const eligible = offers.filter(
+      (offer) =>
+        bulkSelected.includes(offer.id) &&
+        offer.prices.some(
+          (price) =>
+            price.currency_code === "inr" &&
+            (price.min_quantity === null || price.min_quantity === undefined),
+        ),
     );
+    if (bulkSelected.length === 0) {
+      setBulkNotice({
+        kind: "info",
+        text: "Select at least one offer before applying a bulk change.",
+      });
+      return;
+    }
     if (eligible.length === 0) {
       setBulkNotice({
         kind: "info",
-        text: "No offers have a base selling price yet. Price variants individually first.",
+        text: "The selected offers have no base selling price yet. Price them individually first.",
       });
       return;
     }
@@ -1943,10 +2115,12 @@ export function ProductStudioForm({
         text: `${updatedCount} offers updated. Failed: ${failures.join("; ")}`,
       });
     } else {
+      setBulkSelected([]);
       setBulkNotice({
         kind: "success",
-        text: `${updatedCount} offers updated with list price and GST setting. Selling prices were preserved.`,
+        text: `${updatedCount} selected offers updated with list price and GST setting. Selling prices were preserved.`,
       });
+      void refreshProduct();
     }
   };
 
@@ -2139,11 +2313,14 @@ export function ProductStudioForm({
       setOffers(result.product.offers ?? []);
       setOptionsEditable(Boolean(result.product.options_editable));
       setStudioManaged(Boolean(result.product.studio_managed));
+      setReadiness(result.product.readiness ?? null);
+      setActivity(result.product.activity ?? []);
+      setSalesChannels(result.product.sales_channels ?? []);
       setNotice({
         kind: "success",
         text: productId
-          ? "Draft saved. The product master record is updated."
-          : "Draft created. You can continue editing it in this studio.",
+          ? "Product changes saved to the server."
+          : "Product created. Add pricing to make it live in the storefront.",
       });
       if (!productId) {
         navigate(`/product-studio/${result.product.id}`);
@@ -2157,6 +2334,70 @@ export function ProductStudioForm({
       setSaving(false);
     }
   };
+
+  const refreshProduct = async () => {
+    if (!productId) return;
+    try {
+      const { product } = await request<{ product: StudioProduct }>(
+        `${apiBase}/${productId}`,
+      );
+      setReadiness(product.readiness ?? null);
+      setActivity(product.activity ?? []);
+      setSalesChannels(product.sales_channels ?? []);
+      setStatus(product.status);
+      setOffers(product.offers ?? []);
+      setOptions(product.options ?? []);
+      setOptionsEditable(Boolean(product.options_editable));
+      setVariants(
+        product.variants?.length ? product.variants : [emptyVariant()],
+      );
+    } catch {
+      // Readiness refresh is best-effort; saved server state remains authoritative.
+    }
+  };
+
+  const gotoIssue = (issue: ReadinessIssue) => {
+    setPendingFix(issue);
+    navigateView(issue.view);
+    if (issue.offer_id) setSelectedOfferId(issue.offer_id);
+    window.setTimeout(() => {
+      const target =
+        (issue.field ? document.getElementById(issue.field) : null) ??
+        (issue.offer_id
+          ? document.getElementById(`offer-price-${issue.offer_id}`)
+          : null) ??
+        (issue.variant_id
+          ? document.getElementById(`variant-title-${issue.variant_id}`)
+          : null);
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      (target as HTMLElement | null)?.focus?.({ preventScroll: true });
+    }, 250);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const guard = (event: BeforeUnloadEvent) => {
+      if (!dirty && !offerDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [dirty, offerDirty]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "s") {
+        return;
+      }
+      event.preventDefault();
+      if (!dirty) return;
+      void save();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const reset = () => {
     if (!window.confirm("Discard this local draft and start again?")) return;
@@ -2201,6 +2442,24 @@ export function ProductStudioForm({
               >
                 {status}
               </StatusBadge>
+              {readiness && readiness.channels.b2c.enabled !== false ? (
+                <StatusBadge
+                  color={readiness.channels.b2c.visible ? "green" : "orange"}
+                >
+                  {readiness.channels.b2c.visible
+                    ? "B2C live"
+                    : status === "published"
+                      ? "B2C · Not live"
+                      : "B2C · Not live"}
+                </StatusBadge>
+              ) : null}
+              {readiness && readiness.channels.b2b.enabled !== false ? (
+                <StatusBadge
+                  color={readiness.channels.b2b.visible ? "green" : "grey"}
+                >
+                  {readiness.channels.b2b.visible ? "B2B live" : "B2B · Not live"}
+                </StatusBadge>
+              ) : null}
               {!studioManaged ? (
                 <StatusBadge color="grey">Catalogue-managed</StatusBadge>
               ) : null}
@@ -2263,7 +2522,15 @@ export function ProductStudioForm({
         </div>
       ) : null}
 
-      {!loading && canEdit ? <WorkspaceTabs loaded={loaded} /> : null}
+      {!loading && canEdit ? (
+        <WorkspaceNavigation
+          active={view}
+          onChange={navigateView}
+          variantCount={variants.length}
+          inventoryAttention={Boolean(inventoryError)}
+          blockerCount={readiness?.blocker_count ?? 0}
+        />
+      ) : null}
 
       {loading ? (
         <Container>
@@ -2369,6 +2636,8 @@ export function ProductStudioForm({
             </div>
             ) : null}
 
+            {view === "overview" ? (
+              <>
             <Section
               id="studio-details"
               number={1}
@@ -2427,6 +2696,24 @@ export function ProductStudioForm({
                       </option>
                     ))}
                   </select>
+                </Field>
+                <Field
+                  label="Selling channels"
+                  hint="Publication is controlled by lifecycle. Customer visibility also requires a positive channel price and sellable stock."
+                >
+                  <div className="flex min-h-8 flex-wrap items-center gap-1.5">
+                    {salesChannels.length === 0 ? (
+                      <span className="text-sm text-ui-fg-subtle">
+                        No sales channel assigned
+                      </span>
+                    ) : (
+                      salesChannels.map((channel) => (
+                        <StatusBadge key={channel.id} color="blue">
+                          {channel.name || channel.id}
+                        </StatusBadge>
+                      ))
+                    )}
+                  </div>
                 </Field>
                 {mode === "admin" ? (
                   <Field
@@ -2676,7 +2963,11 @@ export function ProductStudioForm({
                 </div>
               </div>
             </Section>
+              </>
+            ) : null}
 
+            {view === "variants" ? (
+              <>
             <Section
               id="studio-variants"
               number={4}
@@ -2687,37 +2978,31 @@ export function ProductStudioForm({
               {structuralLocked ? (
                 <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
-                    This product is published or has seller offers. Option axes,
-                    adding, duplicating or removing variants and SKU changes are
-                    locked. Variant names, details and images remain editable.
+                    This product is published or has seller offers. Adding,
+                    duplicating or removing variants and SKU changes are locked.
+                    Variant names, details and images remain editable.
                   </Text>
                 </div>
               ) : null}
-              {options.length > 0 ? (
-                <div>
-                  <Heading level="h2">Legacy options (read-only)</Heading>
-                  <Text size="small" className="mt-1 text-ui-fg-subtle">
-                    This product was created with option axes. They are retained
-                    for compatibility and cannot be changed here. Manage direct
-                    variants below.
-                  </Text>
-                  <div className="mt-3 flex flex-col gap-2">
+              {options.length > 0 && mode === "admin" ? (
+                <details className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                  <summary className="cursor-pointer text-xs font-medium text-ui-fg-subtle">
+                    Technical: legacy option axes ({options.length})
+                  </summary>
+                  <div className="mt-2 flex flex-col gap-1">
                     {options.map((option, index) => (
-                      <div
-                        key={`${option.name}-${index}`}
-                        className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3"
-                      >
-                        <Text size="small" weight="plus">
-                          {option.name || `Option ${index + 1}`}
-                        </Text>
-                        <Text size="small" className="text-ui-fg-subtle">
-                          {option.values.join(", ")}
-                        </Text>
-                      </div>
+                      <p key={`${option.name}-${index}`} className="text-xs text-ui-fg-subtle">
+                        {option.name || `Option ${index + 1}`}: {option.values.join(", ")}
+                      </p>
                     ))}
                   </div>
-                </div>
-              ) : (
+                  <p className="mt-2 text-xs text-ui-fg-subtle">
+                    Retained for compatibility with historical records. Legacy
+                    option mechanics are hidden from normal variant editing.
+                  </p>
+                </details>
+              ) : null}
+              {options.length === 0 ? (
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
                     Direct variant mode. No option axes are required; add or
@@ -2727,7 +3012,7 @@ export function ProductStudioForm({
                       : ""}
                   </Text>
                 </div>
-              )}
+              ) : null}
 
               <div className="mt-6 flex flex-wrap items-end justify-between gap-3 border-t border-ui-border-base pt-5">
                 <div>
@@ -2925,8 +3210,8 @@ export function ProductStudioForm({
             <Section
               id="studio-pricing"
               number={5}
-              title="Pricing"
-              description="Offer-scoped B2C and B2B pricing. Each channel has its own validation, save and audit trail."
+              title="Offers & pricing"
+              description="One seller offer at a time. B2C and B2B terms save together only for the selected offer."
               complete={sectionFiveDone}
             >
               {variants.length === 0 ? (
@@ -2935,103 +3220,314 @@ export function ProductStudioForm({
                 </Text>
               ) : (
                 <div className="flex flex-col gap-3">
-                  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-                    <p className="text-sm font-medium text-ui-fg-base">
-                      Bulk reference pricing
-                    </p>
-                    <p className="mt-1 text-xs text-ui-fg-subtle">
-                      Apply the same list price and GST setting to every offer
-                      that already has a selling price. Selling prices and
-                      quantity tiers are preserved.
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-end">
-                      <label className="flex flex-col gap-1">
-                        <span className="text-xs text-ui-fg-subtle">
-                          List price (INR)
-                        </span>
-                        <Input
-                          inputMode="decimal"
-                          value={bulkListPrice}
-                          onChange={(event) =>
-                            setBulkListPrice(event.target.value)
-                          }
-                          placeholder="MRP / list price"
-                          className="md:w-44"
-                        />
-                      </label>
-                      <label className="flex items-center gap-2 pb-2 text-sm text-ui-fg-base">
-                        <input
-                          type="checkbox"
-                          checked={bulkGstInclusive}
-                          onChange={(event) =>
-                            setBulkGstInclusive(event.target.checked)
-                          }
-                        />
-                        GST-inclusive
-                      </label>
-                      <Button
-                        size="small"
-                        type="button"
-                        variant="secondary"
-                        isLoading={bulkSaving}
-                        onClick={applyBulkReferencePricing}
-                      >
-                        Apply to all offers
-                      </Button>
-                    </div>
-                    {bulkNotice ? (
-                      <p
-                        className={`mt-2 text-xs ${
-                          bulkNotice.kind === "error"
-                            ? "text-ui-fg-error"
-                            : bulkNotice.kind === "success"
-                              ? "text-ui-fg-success"
-                              : "text-ui-fg-subtle"
-                        }`}
-                      >
-                        {bulkNotice.text}
+                  {offers.length === 0 ? (
+                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                      <p className="text-sm font-medium text-ui-fg-base">
+                        No seller offer yet
                       </p>
-                    ) : null}
-                  </div>
-                  {variants.map((variant) => {
-                    const variantOffers = offers.filter(
-                      (offer) => offer.variant_id === variant.id,
-                    );
-                    const variantLabel =
-                      variant.title || variant.sku || "Unnamed variant";
-                    return (
-                      <div key={variant.id ?? variantLabel} className="flex flex-col gap-2">
-                        {variantOffers.length === 0 ? (
-                          <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                            <p className="text-sm font-medium text-ui-fg-base">
-                              {variantLabel}
-                            </p>
-                            <p className="mt-1 text-xs text-ui-fg-subtle">
-                              No seller offer exists for this variant yet.
-                              Pricing becomes available after the offer and
-                              inventory provisioning step.
-                            </p>
-                          </div>
-                        ) : (
-                          variantOffers.map((offer) => (
-                            <OfferPricingEditor
-                              key={offer.id}
-                              offer={offer}
-                              mode={mode}
-                              variantLabel={variantLabel}
-                              onSaved={(updated) =>
-                                setOffers((current) =>
-                                  current.map((row) =>
-                                    row.id === updated.id ? updated : row,
-                                  ),
-                                )
-                              }
-                            />
-                          ))
-                        )}
+                      <p className="mt-1 text-xs text-ui-fg-subtle">
+                        A variant becomes purchasable after a seller offer
+                        exists. Save the product with a seller to provision
+                        offers.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="overflow-x-auto rounded-lg border border-ui-border-base">
+                        <Table>
+                          <Table.Header>
+                            <Table.Row>
+                              <Table.HeaderCell>
+                                <span className="sr-only">Select</span>
+                              </Table.HeaderCell>
+                              <Table.HeaderCell>Variant / SKU</Table.HeaderCell>
+                              <Table.HeaderCell>Seller</Table.HeaderCell>
+                              <Table.HeaderCell>B2C</Table.HeaderCell>
+                              <Table.HeaderCell>B2B</Table.HeaderCell>
+                              <Table.HeaderCell>
+                                <span className="sr-only">Actions</span>
+                              </Table.HeaderCell>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {offers.map((offer) => {
+                              const variant =
+                                variants.find(
+                                  (row) => row.id === offer.variant_id,
+                                ) ?? null;
+                              const label =
+                                variant?.title ||
+                                offer.sku ||
+                                "Unnamed variant";
+                              const b2c = b2cBaseAmount(offer);
+                              const b2b = b2bAmountMinor(offer);
+                              return (
+                                <Table.Row key={offer.id}>
+                                  <Table.Cell>
+                                    <input
+                                      type="checkbox"
+                                      aria-label={`Select ${label} ${offer.seller_name}`}
+                                      checked={bulkSelected.includes(offer.id)}
+                                      onChange={(event) =>
+                                        setBulkSelected((current) =>
+                                          event.target.checked
+                                            ? [...current, offer.id]
+                                            : current.filter(
+                                                (id) => id !== offer.id,
+                                              ),
+                                        )
+                                      }
+                                    />
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <p className="text-sm font-medium text-ui-fg-base">
+                                      {label}
+                                    </p>
+                                    <p className="text-xs text-ui-fg-subtle">
+                                      {offer.sku || "No SKU"}
+                                    </p>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <span className="text-xs text-ui-fg-subtle">
+                                      {offer.seller_name}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <span
+                                      className={
+                                        b2c
+                                          ? "text-sm text-ui-fg-base"
+                                          : "text-sm text-ui-fg-error"
+                                      }
+                                    >
+                                      {b2c ? inr(b2c) : "⛔ Missing"}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <span className="text-sm text-ui-fg-subtle">
+                                      {b2b ? inrMinor(b2b) : "Not set"}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Button
+                                      size="small"
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() =>
+                                        setSelectedOfferId((current) =>
+                                          current === offer.id ? null : offer.id,
+                                        )
+                                      }
+                                    >
+                                      {selectedOfferId === offer.id
+                                        ? "Close"
+                                        : "Open"}
+                                    </Button>
+                                  </Table.Cell>
+                                </Table.Row>
+                              );
+                            })}
+                          </Table.Body>
+                        </Table>
                       </div>
-                    );
-                  })}
+
+                      {bulkSelected.length > 0 ? (
+                        <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
+                          <p className="text-sm font-medium text-ui-fg-base">
+                            Bulk edit · {bulkSelected.length} selected offer
+                            {bulkSelected.length === 1 ? "" : "s"}
+                          </p>
+                          <p className="mt-1 text-xs text-ui-fg-subtle">
+                            Changes only the list price and GST setting for the
+                            selected offers. Selling prices and tiers are
+                            preserved. Review the scope before applying.
+                          </p>
+                          <div className="mt-3 flex flex-col gap-2 md:flex-row md:items-end">
+                            <label className="flex flex-col gap-1">
+                              <span className="text-xs text-ui-fg-subtle">
+                                Channel
+                              </span>
+                              <select
+                                className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
+                                value={bulkScope}
+                                onChange={(event) =>
+                                  setBulkScope(
+                                    event.target.value as "b2c" | "b2b",
+                                  )
+                                }
+                              >
+                                <option value="b2c">B2C list price</option>
+                                <option value="b2b">B2B (per offer, not bulk)</option>
+                              </select>
+                            </label>
+                            {bulkScope === "b2c" ? (
+                              <>
+                                <label className="flex flex-col gap-1">
+                                  <span className="text-xs text-ui-fg-subtle">
+                                    List price (INR)
+                                  </span>
+                                  <Input
+                                    inputMode="decimal"
+                                    value={bulkListPrice}
+                                    onChange={(event) =>
+                                      setBulkListPrice(event.target.value)
+                                    }
+                                    placeholder="MRP / list price"
+                                    className="md:w-44"
+                                  />
+                                </label>
+                                <label className="flex items-center gap-2 pb-2 text-sm text-ui-fg-base">
+                                  <input
+                                    type="checkbox"
+                                    checked={bulkGstInclusive}
+                                    onChange={(event) =>
+                                      setBulkGstInclusive(event.target.checked)
+                                    }
+                                  />
+                                  GST-inclusive
+                                </label>
+                                <Button
+                                  size="small"
+                                  type="button"
+                                  variant="secondary"
+                                  isLoading={bulkSaving}
+                                  onClick={() => applyBulkReferencePricing()}
+                                >
+                                  Apply to {bulkSelected.length}
+                                </Button>
+                              </>
+                            ) : (
+                              <Text size="small" className="text-ui-fg-subtle">
+                                B2B terms are saved per offer so MOQ, tiers and
+                                effective dates stay explicit. Open an offer to
+                                edit its B2B price.
+                              </Text>
+                            )}
+                          </div>
+                          {bulkNotice ? (
+                            <p
+                              className={`mt-2 text-xs ${
+                                bulkNotice.kind === "error"
+                                  ? "text-ui-fg-error"
+                                  : bulkNotice.kind === "success"
+                                    ? "text-ui-fg-success"
+                                    : "text-ui-fg-subtle"
+                              }`}
+                            >
+                              {bulkNotice.text}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {selectedOfferId ? (
+                        (() => {
+                          const index = offers.findIndex(
+                            (row) => row.id === selectedOfferId,
+                          );
+                          const offer = offers[index];
+                          if (!offer) return null;
+                          const variant =
+                            variants.find(
+                              (row) => row.id === offer.variant_id,
+                            ) ?? null;
+                          const move = (delta: number) => {
+                            const next = offers[index + delta];
+                            if (!next) return;
+                            if (offerDirty) {
+                              setNotice({
+                                kind: "info",
+                                text: "Save or discard pricing for this offer before opening another.",
+                              });
+                              return;
+                            }
+                            setSelectedOfferId(next.id);
+                          };
+                          return (
+                            <div
+                              id="focused-offer"
+                              className="rounded-lg border border-ui-border-base"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
+                                <div>
+                                  <p className="text-sm font-medium text-ui-fg-base">
+                                    Offer pricing · {index + 1} of{" "}
+                                    {offers.length}
+                                  </p>
+                                  <p className="text-xs text-ui-fg-subtle">
+                                    {variant?.title || offer.sku} ·{" "}
+                                    {offer.seller_name}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="small"
+                                    type="button"
+                                    variant="secondary"
+                                    disabled={index === 0}
+                                    onClick={() => move(-1)}
+                                  >
+                                    Previous
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    type="button"
+                                    variant="secondary"
+                                    disabled={index === offers.length - 1}
+                                    onClick={() => move(1)}
+                                  >
+                                    Next
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                      if (offerDirty) {
+                                        setNotice({
+                                          kind: "info",
+                                          text: "Save or discard pricing before closing this offer.",
+                                        });
+                                        return;
+                                      }
+                                      setSelectedOfferId(null);
+                                    }}
+                                  >
+                                    Close
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="p-4">
+                                <OfferPricingEditor
+                                  key={offer.id}
+                                  offer={offer}
+                                  mode={mode}
+                                  variantLabel={
+                                    variant?.title || offer.sku || ""
+                                  }
+                                  onDirtyChange={setOfferDirty}
+                                  onSaved={(updated) => {
+                                    setOffers((current) =>
+                                      current.map((row) =>
+                                        row.id === updated.id ? updated : row,
+                                      ),
+                                    );
+                                    setOfferDirty(false);
+                                    void refreshProduct();
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <Text size="small" className="text-ui-fg-subtle">
+                          Select one offer to edit its pricing. Pricing saves on
+                          its own scope and never changes product content.
+                        </Text>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
               <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
@@ -3039,12 +3535,13 @@ export function ProductStudioForm({
                   B2C pricing is stored on the offer. B2B pricing is stored in a
                   dedicated per-offer price list scoped to the B2B Trade
                   Customers group. Each channel saves separately and never
-                  changes the other. Seller price changes require the
-                  seller-administration role; B2B changes require the
-                  b2b-price.update permission.
+                  changes the other.
                 </Text>
               </div>
             </Section>
+              </>
+            ) : null}
+            {view === "inventory" ? (
             <Section
               id="studio-inventory"
               number={6}
@@ -3204,32 +3701,212 @@ export function ProductStudioForm({
                 </Text>
               </div>
             </Section>
+            ) : null}
+
+            {view === "activity" ? (
+            <Section
+              id="studio-activity"
+              number={6}
+              title="Activity"
+              description="Audited product, lifecycle and seller changes in newest-first order."
+            >
+              {activity.length === 0 ? (
+                <Text size="small" className="text-ui-fg-subtle">
+                  No audit activity has been recorded for this product yet.
+                </Text>
+              ) : (
+                <ol className="flex flex-col gap-2">
+                  {activity.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="rounded-lg border border-ui-border-base px-4 py-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-ui-fg-base">
+                          {entry.action.replaceAll("_", " ")}
+                        </span>
+                        <span className="text-xs text-ui-fg-subtle">
+                          {entry.created_at
+                            ? new Date(entry.created_at).toLocaleString("en-IN")
+                            : "—"}
+                        </span>
+                      </div>
+                      {entry.note ? (
+                        <p className="mt-1 text-xs text-ui-fg-subtle">
+                          {entry.note}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-ui-fg-subtle">
+                        {entry.actor ? `Actor ${entry.actor}` : "System"}
+                        {entry.status ? ` · ${entry.status}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Section>
+            ) : null}
+
+            {view === "review" ? (
             <Section
               id="studio-review"
               number={7}
-              title="Review and publish"
-              description="Status check and publish. Required items block publishing; optional items are warnings."
-              complete={reviewReady}
+              title="Review & visibility"
+              description="Server-owned publication and per-channel visibility. Every blocker links to the exact field."
+              complete={reviewReady && (readiness?.blocker_count ?? 0) === 0}
             >
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ui-border-base px-4 py-3">
                   <div>
                     <p className="text-sm font-medium text-ui-fg-base">
-                      Review status
+                      {status === "published" ? "Published" : reviewStatusLabel}
+                      {status === "published" &&
+                      readiness &&
+                      !readiness.channels.b2c.visible
+                        ? " · Not live"
+                        : ""}
                     </p>
                     <p className="text-xs text-ui-fg-subtle">
-                      Fix required items, then publish or submit for review.
+                      {readiness
+                        ? `Server checked ${new Date(
+                            readiness.checked_at,
+                          ).toLocaleTimeString("en-IN")} · ${readiness.blocker_count} blocker${
+                            readiness.blocker_count === 1 ? "" : "s"
+                          } · ${readiness.warning_count} warning${
+                            readiness.warning_count === 1 ? "" : "s"
+                          }`
+                        : "Visibility has not been checked yet."}
                     </p>
                   </div>
-                  <StatusBadge color={reviewStatusColor}>
-                    {reviewStatusLabel}
-                  </StatusBadge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge color={reviewStatusColor}>
+                      {reviewStatusLabel}
+                    </StatusBadge>
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      onClick={() => void refreshProduct()}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
                 </div>
 
-                {dirty ? (
+                {readiness ? (
+                  <div className="rounded-lg border border-ui-border-base">
+                    {(["b2c", "b2b"] as const).map((channel) => {
+                      const state = readiness.channels[channel];
+                      const label =
+                        channel === "b2c" ? "B2C storefront" : "B2B trade";
+                      if (state.enabled === false) {
+                        return (
+                          <div
+                            key={channel}
+                            className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3 last:border-b-0"
+                          >
+                            <span className="text-sm text-ui-fg-base">
+                              {label}
+                            </span>
+                            <span className="text-xs text-ui-fg-subtle">
+                              ○ Not enabled
+                            </span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div
+                          key={channel}
+                          className="border-b border-ui-border-base px-4 py-3 last:border-b-0"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-sm text-ui-fg-base">
+                              {label}
+                            </span>
+                            <span
+                              className={
+                                state.visible
+                                  ? "text-sm text-ui-fg-success"
+                                  : "text-sm text-ui-fg-error"
+                              }
+                            >
+                              {state.visible ? "✓ Live" : "⛔ Not live"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-ui-fg-subtle">
+                            Published{" "}
+                            {state.gates?.published_and_channel ? "✓" : "✕"} ·
+                            Offer {state.gates?.offer ? "✓" : "✕"} · Price{" "}
+                            {state.gates?.price ? "✓" : "✕"} · Stock{" "}
+                            {state.gates?.stock ? "✓" : "✕"}
+                          </p>
+                          {!state.visible && state.blocker?.message ? (
+                            <p className="mt-1 text-xs text-ui-fg-error">
+                              {state.blocker.message}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {readiness && readiness.issues.length > 0 ? (
+                  <div className="rounded-lg border border-ui-border-base">
+                    {readiness.issues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-border-base px-4 py-2.5 last:border-b-0"
+                      >
+                        <span
+                          className={
+                            issue.severity === "blocker"
+                              ? "text-sm text-ui-fg-error"
+                              : "text-sm text-ui-fg-subtle"
+                          }
+                        >
+                          {issue.severity === "blocker" ? "⛔" : "⚠"}{" "}
+                          {issue.message}
+                        </span>
+                        <Button
+                          size="small"
+                          type="button"
+                          variant="secondary"
+                          onClick={() => gotoIssue(issue)}
+                        >
+                          Fix
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : readiness ? (
+                  <p className="rounded-lg border border-ui-border-success bg-ui-bg-success px-4 py-3 text-sm text-ui-fg-success">
+                    ✓ All required checks pass.
+                  </p>
+                ) : null}
+
+                {pendingFix ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-xs text-ui-fg-subtle">
+                    <span>Fixing: {pendingFix.message}</span>
+                    <Button
+                      size="small"
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        setPendingFix(null);
+                        navigateView("review");
+                        void refreshProduct();
+                      }}
+                    >
+                      Back to Review
+                    </Button>
+                  </div>
+                ) : null}
+
+                {dirty || offerDirty ? (
                   <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-subtle">
-                    You have unsaved changes. Save before submitting, publishing
-                    or changing lifecycle state.
+                    Review may be out of date. Save product or pricing changes
+                    before changing lifecycle state.
                   </div>
                 ) : null}
 
@@ -3276,6 +3953,9 @@ export function ProductStudioForm({
                   </div>
                 ) : null}
 
+                <p className="text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
+                  Content checks
+                </p>
                 <div className="rounded-lg border border-ui-border-base">
                   {reviewChecks.map((check) => (
                     <div
@@ -3471,39 +4151,49 @@ export function ProductStudioForm({
 
               </div>
             </Section>
+            ) : null}
 
-            <div className="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-ui-border-base bg-ui-bg-base px-6 py-4 md:flex-row md:items-center md:justify-between">
+            <div
+              aria-live="polite"
+              className="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-ui-border-base bg-ui-bg-base px-6 py-4 md:flex-row md:items-center md:justify-between"
+            >
               <Text size="small" className="text-ui-fg-subtle">
-                {dirty
-                  ? "You have unsaved changes."
-                  : lastSaved
-                    ? `Last saved at ${lastSaved}.`
-                    : productId
-                      ? "No unsaved changes."
-                      : "Start with the product details, then save the draft."}
+                {saving
+                  ? "Saving product changes…"
+                  : dirty
+                    ? "Unsaved product changes · affects content, not pricing."
+                    : lastSaved
+                      ? `Saved to server · ${lastSaved}`
+                      : productId
+                        ? "No unsaved changes."
+                        : "Start with the product details, then save."}
               </Text>
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  size="small"
-                  type="button"
-                  variant="secondary"
-                  onClick={reset}
-                >
-                  Start again
-                </Button>
+                {dirty && productId ? (
+                  <Button
+                    size="small"
+                    type="button"
+                    variant="secondary"
+                    disabled={saving}
+                    onClick={reset}
+                  >
+                    Discard
+                  </Button>
+                ) : null}
                 <Button
                   size="small"
                   type="button"
                   isLoading={saving}
-                  disabled={!form.title.trim() || saving}
+                  disabled={!form.title.trim() || saving || !dirty}
                   onClick={save}
                 >
-                  {productId ? "Save draft" : "Create draft"}
+                  {productId ? "Save changes" : "Create product"}
                 </Button>
               </div>
             </div>
           </Container>
 
+          {view === "overview" ? (
           <div
             className="flex flex-col gap-3"
             style={{ width: 360, maxWidth: "100%", flexShrink: 0 }}
@@ -3636,12 +4326,14 @@ export function ProductStudioForm({
               </div>
               <div className="px-5 py-4">
                 <Text size="small" className="text-ui-fg-subtle">
-                  New products are published as soon as the draft is created. Set the
-                  selling price below to make the offer purchasable in the storefront.
+                  New products publish immediately, but only appear to customers
+                  once a seller offer has a positive channel price and sellable
+                  stock. Review & visibility shows the exact missing gate.
                 </Text>
               </div>
             </Container>
           </div>
+          ) : null}
         </div>
       )}
     </div>

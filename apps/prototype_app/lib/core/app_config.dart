@@ -56,16 +56,6 @@ class AppConfig {
     defaultValue: false,
   );
 
-  /// Metadata marker of the governed source catalogue to show in staging.
-  ///
-  /// The Experience API selects products by this marker (`catalogue_import`) so the storefront renders
-  /// the imported 500-SKU catalogue rather than every demonstration product that happens to be
-  /// published. Override with `--dart-define=CATALOGUE_IMPORT=` to show the whole catalogue.
-  static const String catalogueImport = String.fromEnvironment(
-    'CATALOGUE_IMPORT',
-    defaultValue: 'CHG-049',
-  );
-
   /// Short build identifier shown in the staging strip. Pass the commit SHA at
   /// build time so a stale tab or an older cached bundle is immediately obvious.
   static const String buildId = String.fromEnvironment(

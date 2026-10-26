@@ -20,6 +20,7 @@ import {
   recordProductAuditChangeWorkflow,
 } from "@mercurjs/core/workflows";
 import { AttributeType, ProductChangeActionType } from "@mercurjs/types";
+import { experienceAdminFetch } from "./experience-admin";
 import { recordSellerProductActivity } from "./seller-activity";
 
 export type StudioMode = "admin" | "vendor";
@@ -99,6 +100,8 @@ const productFields = [
   "thumbnail",
   "hs_code",
   "metadata",
+  "sales_channels.id",
+  "sales_channels.name",
   "categories.id",
   "categories.name",
   "tags.id",
@@ -641,6 +644,63 @@ export function studioReadiness(product: {
   };
 }
 
+type VisibilityGate = {
+  evaluated?: boolean;
+  enabled?: boolean;
+  visible?: boolean;
+  gates?: {
+    published_and_channel?: boolean;
+    offer?: boolean;
+    price?: boolean;
+    stock?: boolean;
+  };
+  blocker?: {
+    code?: string;
+    message?: string;
+    variant_id?: string | null;
+    offer_id?: string | null;
+    seller_name?: string | null;
+  } | null;
+  selected_offer?: Record<string, unknown> | null;
+  checked_at?: string;
+};
+
+async function loadCommercialVisibility(productId: string): Promise<{
+  b2c: VisibilityGate;
+  b2b: VisibilityGate;
+  rule: string;
+}> {
+  try {
+    const response = await experienceAdminFetch(
+      "/v1/internal/catalogue/readiness",
+      {
+        method: "POST",
+        body: { product_ids: [productId] },
+      },
+    );
+    if (response.status !== 200) throw new Error("readiness unavailable");
+    const item = Array.isArray(response.body.items)
+      ? (response.body.items[0] as
+          | { channels?: { b2c?: VisibilityGate; b2b?: VisibilityGate } }
+          | undefined)
+      : undefined;
+    return {
+      b2c: item?.channels?.b2c ?? { evaluated: false, visible: false },
+      b2b: item?.channels?.b2b ?? { evaluated: false, visible: false },
+      rule:
+        typeof response.body.rule === "string"
+          ? response.body.rule
+          : "published + channel + price + stock",
+    };
+  } catch {
+    return {
+      b2c: { evaluated: false, visible: false },
+      b2b: { evaluated: false, visible: false },
+      rule: "published + channel + price + stock",
+    };
+  }
+}
+
 /**
  * Channel a studio-created product must join to be visible to the storefront.
  * Prefers the deployment setting, then the channel whose name contains "B2C".
@@ -1068,6 +1128,10 @@ export async function loadStudioProduct(
     (sellerRows ?? []).map((seller: any) => [seller.id, seller.name]),
   );
 
+  const b2bPricing = (metadata.buildkart_b2b_pricing ?? {}) as Record<
+    string,
+    Record<string, unknown>
+  >;
   const loadedOffers = (offerRows ?? []).map((offer: any) => ({
     id: offer.id,
     seller_id: offer.seller_id,
@@ -1082,6 +1146,7 @@ export async function loadStudioProduct(
         ? Number(offer.metadata?.list_price_minor)
         : null,
     gst_inclusive: offer.metadata?.gst_inclusive !== false,
+    b2b_pricing: b2bPricing[offer.id] ?? null,
     prices: (offer.prices ?? []).filter(Boolean).map((price: any) => ({
       id: price.id,
       amount: Number(price.amount),
@@ -1096,6 +1161,165 @@ export async function loadStudioProduct(
     })),
   }));
 
+  const [{ data: activityRows }, visibility] = await Promise.all([
+    q.graph({
+      entity: "product_change_action",
+      fields: [
+        "id",
+        "action",
+        "details",
+        "internal_note",
+        "applied",
+        "ordering",
+        "created_at",
+        "product_change.status",
+        "product_change.created_by",
+        "product_change.internal_note",
+        "product_change.external_note",
+      ],
+      filters: { product_id: productId },
+      pagination: { take: 50, skip: 0, order: { ordering: "DESC" } },
+    }).catch(() => ({ data: [] })),
+    loadCommercialVisibility(productId),
+  ]);
+
+  const issues: Array<Record<string, unknown>> = [];
+  if (!String(product.title ?? "").trim()) {
+    issues.push({
+      id: "product-title",
+      severity: "blocker",
+      group: "product",
+      message: "Product title is required.",
+      view: "overview",
+      field: "product-title",
+    });
+  }
+  if (!product.categories?.[0]?.id) {
+    issues.push({
+      id: "product-category",
+      severity: "blocker",
+      group: "product",
+      message: "Category is required.",
+      view: "overview",
+      field: "product-category",
+    });
+  }
+  for (const variant of loadedVariants) {
+    const label = `${variant.title || "Unnamed variant"}${
+      variant.sku ? ` / ${variant.sku}` : ""
+    }`;
+    if (!variant.title?.trim()) {
+      issues.push({
+        id: `variant-title-${variant.id}`,
+        severity: "blocker",
+        group: "variants",
+        message: `${label} needs a customer-facing name.`,
+        view: "variants",
+        field: `variant-title-${variant.id}`,
+        variant_id: variant.id,
+      });
+    }
+    if (!variant.details?.trim()) {
+      issues.push({
+        id: `variant-details-${variant.id}`,
+        severity: "blocker",
+        group: "variants",
+        message: `${label} is missing customer-facing details.`,
+        view: "variants",
+        field: `variant-details-${variant.id}`,
+        variant_id: variant.id,
+      });
+    }
+    if (!variant.sku?.trim()) {
+      issues.push({
+        id: `variant-sku-${variant.id}`,
+        severity: "blocker",
+        group: "variants",
+        message: `${label} needs a SKU.`,
+        view: "variants",
+        field: `variant-sku-${variant.id}`,
+        variant_id: variant.id,
+      });
+    }
+  }
+  if (!product.thumbnail) {
+    issues.push({
+      id: "product-image",
+      severity: "warning",
+      group: "quality",
+      message: "Product image is missing; customers will see a placeholder.",
+      view: "overview",
+      field: "product-thumbnail",
+    });
+  }
+  if ((product.tags ?? []).length === 0) {
+    issues.push({
+      id: "product-tags",
+      severity: "warning",
+      group: "quality",
+      message: "Add search tags to improve discovery.",
+      view: "overview",
+      field: "product-tags",
+    });
+  }
+  if (visibility.b2c.evaluated && !visibility.b2c.visible) {
+    issues.push({
+      id: "b2c-visibility",
+      severity: "blocker",
+      group: "visibility",
+      channel: "b2c",
+      message:
+        visibility.b2c.blocker?.message ??
+        "Product is not commercially ready for B2C.",
+      view:
+        visibility.b2c.blocker?.code === "out_of_stock"
+          ? "inventory"
+          : visibility.b2c.blocker?.code === "missing_price" ||
+              visibility.b2c.blocker?.code === "missing_offer"
+            ? "variants"
+            : "review",
+      field:
+        visibility.b2c.blocker?.code === "missing_price"
+          ? `offer-price-${visibility.b2c.blocker?.offer_id ?? ""}`
+          : undefined,
+      variant_id: visibility.b2c.blocker?.variant_id ?? null,
+      offer_id: visibility.b2c.blocker?.offer_id ?? null,
+      seller_name: visibility.b2c.blocker?.seller_name ?? null,
+    });
+  }
+  if (
+    visibility.b2b.evaluated &&
+    visibility.b2b.enabled !== false &&
+    !visibility.b2b.visible
+  ) {
+    issues.push({
+      id: "b2b-visibility",
+      severity: "warning",
+      group: "visibility",
+      channel: "b2b",
+      message:
+        visibility.b2b.blocker?.message ??
+        "B2B pricing is not configured.",
+      view:
+        visibility.b2b.blocker?.code === "out_of_stock"
+          ? "inventory"
+          : "variants",
+      field:
+        visibility.b2b.blocker?.code === "missing_price"
+          ? `offer-price-${visibility.b2b.blocker?.offer_id ?? ""}`
+          : undefined,
+      variant_id: visibility.b2b.blocker?.variant_id ?? null,
+      offer_id: visibility.b2b.blocker?.offer_id ?? null,
+      seller_name: visibility.b2b.blocker?.seller_name ?? null,
+    });
+  }
+  const blockerCount = issues.filter(
+    (issue) => issue.severity === "blocker",
+  ).length;
+  const warningCount = issues.filter(
+    (issue) => issue.severity === "warning",
+  ).length;
+
   return {
     product: {
       id: product.id,
@@ -1104,6 +1328,12 @@ export async function loadStudioProduct(
       description: product.description ?? "",
       status: product.status ?? "draft",
       metadata,
+      sales_channels: (product.sales_channels ?? []).map(
+        (channel: { id?: string; name?: string }) => ({
+          id: channel.id ?? "",
+          name: channel.name ?? "",
+        }),
+      ),
       lifecycle_state:
         typeof metadata.lifecycle_state === "string"
           ? metadata.lifecycle_state
@@ -1136,6 +1366,31 @@ export async function loadStudioProduct(
         variants: loadedVariants,
         offers: loadedOffers,
       }),
+      readiness: {
+        checked_at:
+          visibility.b2c.checked_at ??
+          visibility.b2b.checked_at ??
+          new Date().toISOString(),
+        rule: visibility.rule,
+        blocker_count: blockerCount,
+        warning_count: warningCount,
+        issues,
+        channels: { b2c: visibility.b2c, b2b: visibility.b2b },
+      },
+      activity: (activityRows ?? []).map((row: any) => ({
+        id: row.id,
+        action: row.action,
+        details: row.details ?? {},
+        note:
+          row.internal_note ??
+          row.product_change?.external_note ??
+          row.product_change?.internal_note ??
+          "",
+        actor: row.product_change?.created_by ?? null,
+        status: row.product_change?.status ?? null,
+        applied: Boolean(row.applied),
+        created_at: row.created_at ?? null,
+      })),
       can_edit: canEdit,
       options_editable: studioManaged && canEdit,
       studio_managed: studioManaged,
@@ -1180,8 +1435,8 @@ export async function saveStudioProduct(
             title,
             subtitle: clean(input.subtitle) ?? undefined,
             description: clean(input.description) ?? undefined,
-            // Products created in the studio go live immediately; pricing is still applied from
-            // the Pricing section (an unpriced product is listed without a purchasable amount).
+            // Preserve the current auto-publish lifecycle. Commercial readiness keeps an unpriced
+            // or out-of-stock record out of customer catalogue responses until its offer is ready.
             status: "published",
             thumbnail: clean(input.thumbnail) ?? undefined,
             hs_code: clean(input.hsn_code) ?? undefined,
@@ -1193,9 +1448,9 @@ export async function saveStudioProduct(
               : undefined,
             metadata: {
               buildkart_product_studio: true,
-              // The storefront queries this marker; a product without it never appears.
-              catalogue_import:
-                process.env.STUDIO_CATALOGUE_IMPORT?.trim() || "CHG-049",
+              // Provenance is audit context only. Customer visibility is computed from commercial
+              // readiness and must never depend on this value.
+              catalogue_source: "product_studio",
               brand: clean(input.brand),
               manufacturer: clean(input.manufacturer),
               model_number: clean(input.model_number),
@@ -1409,6 +1664,15 @@ export async function saveStudioProduct(
   const metadata = {
     ...(current.metadata ?? {}),
     buildkart_product_studio: studioManaged,
+    ...(current.metadata?.catalogue_source
+      ? {}
+      : {
+          catalogue_source: studioManaged
+            ? "product_studio"
+            : current.metadata?.catalogue_import
+              ? "catalogue_import"
+              : "legacy_catalogue",
+        }),
     brand: clean(input.brand),
     manufacturer: clean(input.manufacturer),
     model_number: clean(input.model_number),

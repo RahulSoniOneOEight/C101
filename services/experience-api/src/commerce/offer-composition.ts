@@ -51,7 +51,7 @@ export function composeVariantPrices(
       ...variant,
       best_price: selected,
       offer_count: variantOffers.length,
-      in_stock: variantOffers.some((offer) => offer.in_stock !== false),
+      in_stock: selected !== null,
     };
   });
 }
@@ -82,8 +82,10 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
       b2b.amount > 0;
     // B2B amounts come from Product Studio snapshots and are already minor units. Medusa prices are
     // major units and are scaled here so every consumer keeps seeing minor units.
-    const selling = b2bConfigured
-      ? b2b!.amount!
+    // Channel pricing is deliberately independent. A B2B request is not eligible merely because
+    // the offer has a B2C Medusa price; the seller must have saved active B2B terms for that offer.
+    const selling = channel === "b2b"
+      ? (b2bConfigured ? b2b!.amount! : null)
       : medusaToMinor(o.calculated_price?.calculated_amount);
 
     // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
@@ -124,14 +126,18 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
     };
   });
   const eligible = offerViews.filter(
-    (o) => o.in_stock !== false && o.unit_amount_minor != null,
+    (o) =>
+      o.in_stock === true &&
+      o.unit_amount_minor != null &&
+      o.unit_amount_minor > 0 &&
+      (channel !== "b2b" || o.b2b_configured),
   );
-  // A B2B buyer must see an offer whose seller has published B2B terms. When at least one
-  // configured offer exists, compare only those; otherwise fall back to the normal offer price.
-  const configured = eligible.filter((o) => o.b2b_configured);
-  const candidates = channel === "b2b" && configured.length ? configured : eligible;
-  const selected = candidates.length
-    ? candidates.reduce((min, o) => (o.unit_amount_minor! < min.unit_amount_minor! ? o : min), candidates[0])
+  const selected = eligible.length
+    ? eligible.reduce(
+        (min, o) =>
+          o.unit_amount_minor! < min.unit_amount_minor! ? o : min,
+        eligible[0],
+      )
     : null;
   return { offerViews, selected };
 }

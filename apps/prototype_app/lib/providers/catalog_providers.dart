@@ -296,14 +296,7 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
     final api = ref.watch(experienceApiProvider);
     // Read every page: the catalogue is 233 grouped products / 500 SKUs, and a
     // single fixed page silently hid 133 of them.
-    var products = await api.getAllComposedProducts(
-      catalogueImport: AppConfig.catalogueImport,
-    );
-    // A catalogue with no import marker (or a differently named one) must still
-    // render rather than showing an empty storefront.
-    if (products.isEmpty) {
-      products = await api.getAllComposedProducts();
-    }
+    var products = await api.getAllComposedProducts();
     products = orderProductsByDisplayImage(products);
     await store.writeCatalog(products);
     return products;

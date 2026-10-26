@@ -154,14 +154,21 @@ assert.equal(
 );
 assert.equal(mixed.selected?.b2b_moq, 5);
 
-// --- An unconfigured B2B offer falls back rather than inventing a price ------------------------
+// --- An unconfigured B2B offer is not commercially ready in the B2B channel --------------------
+// CHG-086: channel pricing is independent. A B2C offer price never makes a B2B offer visible.
 const unconfigured = composeOffers([offer({ id: "offer_plain" })], {
   channel: "b2b",
   b2bPricing: { offer_plain: { configured: false } },
 });
-assert.equal(unconfigured.selected?.unit_amount_minor, 100000, "unconfigured B2B must fall back to the offer price");
-assert.equal(unconfigured.selected?.b2b_configured, false);
-assert.equal(unconfigured.selected?.b2b_moq, null, "unconfigured B2B must not invent an MOQ");
+assert.equal(unconfigured.selected, null, "unconfigured B2B must not select a B2C price");
+assert.equal(unconfigured.offerViews[0]?.b2b_configured, false);
+assert.equal(unconfigured.offerViews[0]?.b2b_moq, null, "unconfigured B2B must not invent an MOQ");
+assert.equal(unconfigured.offerViews[0]?.unit_amount_minor, null);
+
+// The same offer remains fully visible to B2C, so the gate is per channel rather than global.
+const b2cView = composeOffers([offer({ id: "offer_plain" })], { channel: "b2c" });
+assert.equal(b2cView.selected?.unit_amount_minor, 100000, "B2C keeps the offer price");
+assert.equal(b2cView.selected?.b2b_configured, false);
 
 // --- A snapshot outside its effective window is not applied -----------------------------------
 const future = composeOffers([offer({ id: "offer_future" })], {
@@ -176,8 +183,8 @@ const future = composeOffers([offer({ id: "offer_future" })], {
     },
   },
 });
-assert.equal(future.selected?.unit_amount_minor, 100000, "a future B2B price must not apply yet");
-assert.equal(future.selected?.b2b_configured, false);
+assert.equal(future.selected, null, "a future B2B price must not make the offer ready yet");
+assert.equal(future.offerViews[0]?.b2b_configured, false);
 const expired = composeOffers([offer({ id: "offer_expired" })], {
   channel: "b2b",
   b2bPricing: {
@@ -190,8 +197,8 @@ const expired = composeOffers([offer({ id: "offer_expired" })], {
     },
   },
 });
-assert.equal(expired.selected?.unit_amount_minor, 100000, "an expired B2B price must not apply");
-assert.equal(expired.selected?.b2b_configured, false);
+assert.equal(expired.selected, null, "an expired B2B price must not make the offer ready");
+assert.equal(expired.offerViews[0]?.b2b_configured, false);
 
 // --- Out-of-stock offers cannot win even with a lower B2B price --------------------------------
 const outOfStock = composeOffers(
@@ -209,6 +216,7 @@ const outOfStock = composeOffers(
     channel: "b2b",
     b2bPricing: {
       offer_oos: { configured: true, amount: 50000, list_price_minor: 60000, moq: 1, tiers: [] },
+      offer_live: { configured: true, amount: 150000, list_price_minor: 150000, moq: 1, tiers: [] },
     },
   },
 );
@@ -225,5 +233,5 @@ assert.equal(variants[0]?.best_price?.b2b_moq, 6);
 assert.equal(variants[0]?.best_price?.b2b_tiers?.length, 2);
 
 console.log(
-  "b2b-pricing-read-test: PASS (B2B snapshot drives selling/list/MOQ/tiers, B2C isolated, selection and fallback correct)",
+  "b2b-pricing-read-test: PASS (B2B snapshot drives selling/list/MOQ/tiers, channels isolated, selection and readiness correct)",
 );

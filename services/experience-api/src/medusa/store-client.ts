@@ -25,7 +25,7 @@ export interface StoreProduct {
   thumbnail?: string | null;
   description?: string | null;
   handle?: string | null;
-  /** Product traceability metadata, including `catalogue_import` and `brand`. */
+  /** Product traceability metadata, including audit-only provenance and `brand`. */
   metadata?: Record<string, unknown> | null;
   categories?: StoreProductCategoryLink[] | null;
   tags?: { id: string; value: string }[] | null;
@@ -183,19 +183,28 @@ export class MedusaStoreClient {
     // `+` keeps Medusa's default offer fields (id, product_id, variant_id, seller...) and adds the
     // computed/metadata fields. A bare `metadata` would replace the selection and break grouping.
     const fields = "+metadata,+calculated_price,+inventory_quantity,+in_stock";
-    const params = new URLSearchParams();
-    for (const id of productIds) {
-      params.append("product_id[]", id);
+    // Keep each Store API query below practical URL/row limits. Catalogue readiness scans can
+    // evaluate hundreds of products, while cart and detail callers still use a single chunk.
+    const chunks: string[][] = [];
+    for (let index = 0; index < productIds.length; index += 20) {
+      chunks.push(productIds.slice(index, index + 20));
     }
-    params.set("region_id", regionId);
-    params.set("country_code", this.config.medusaCountryCode);
-    params.set("fields", fields);
-    params.set("limit", String(Math.max(200, productIds.length * 50)));
-    const data = await this.getJson<{ offers: StoreOffer[] }>(
-      `/store/offers?${params.toString()}`,
-      salesChannelId,
+    const pages = await Promise.all(
+      chunks.map(async (ids) => {
+        const params = new URLSearchParams();
+        for (const id of ids) params.append("product_id[]", id);
+        params.set("region_id", regionId);
+        params.set("country_code", this.config.medusaCountryCode);
+        params.set("fields", fields);
+        params.set("limit", String(Math.max(200, ids.length * 50)));
+        const data = await this.getJson<{ offers: StoreOffer[] }>(
+          `/store/offers?${params.toString()}`,
+          salesChannelId,
+        );
+        return data.offers;
+      }),
     );
-    return data.offers;
+    return pages.flat();
   }
 
   async listProducts(
@@ -243,11 +252,16 @@ export class MedusaStoreClient {
    * the section stores a reference, commerce resolves the membership at read time, and no product list
    * is ever copied into editorial configuration.
    */
-  async listProductsByCollection(collectionId: string, limit = 12): Promise<StoreProduct[]> {
+  async listProductsByCollection(
+    collectionId: string,
+    limit = 12,
+    salesChannelId?: string,
+  ): Promise<StoreProduct[]> {
     const params = new URLSearchParams({ limit: String(limit), fields: PRODUCT_FIELDS });
     params.append("collection_id[]", collectionId);
     const data = await this.getJson<{ products: StoreProduct[] }>(
       `/store/products?${params.toString()}`,
+      salesChannelId,
     );
     return data.products;
   }

@@ -966,13 +966,7 @@ final tradeCatalogueLiveProvider =
         category.label.trim().toLowerCase(): category.id,
   };
   final api = ref.watch(experienceApiProvider);
-  var products = await api.getAllComposedProducts(
-    channel: 'b2b',
-    catalogueImport: AppConfig.catalogueImport,
-  );
-  if (products.isEmpty) {
-    products = await api.getAllComposedProducts(channel: 'b2b');
-  }
+  final products = await api.getAllComposedProducts(channel: 'b2b');
   return <TradeProduct>[
     for (final product in orderProductsByDisplayImage(products))
       tradeProductFromCatalogue(
