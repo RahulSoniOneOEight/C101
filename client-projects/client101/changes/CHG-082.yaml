@@ -1,0 +1,97 @@
+change_id: CHG-082
+revision: 1
+status: staging-deployed-verified
+request: >-
+  Make the buyer-visible order record match the canonical order: stop claiming a
+  captured payment that the simulated adapter never captures, give the buyer a
+  stable order reference instead of the internal cart id, show the real order
+  total including delivery, and list only completed orders in My Orders.
+type: order-read-model-truth-and-payment-copy
+extends:
+- CHG-080
+- CHG-017
+requested_by: human-requester
+requested_at_utc: '2026-10-26'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
+approval_source: chat-request-implement-order-read-model
+approval_scope: order-read-model-and-payment-copy-staging-only
+production_release_authorized: false
+
+# The UI/API work is Lane B. It ships as one static bundle plus one Experience API
+# image rebuild, so the release mechanism is image-rebuild while the lane stays B.
+lane: B
+release_mechanism: image-rebuild
+
+affected_capabilities:
+- b2c-checkout
+- b2c-orders
+- customer-account
+affected_domains:
+- experience
+- app
+affected_surfaces:
+- app.prototype.b2c
+- experience-api
+
+requirements:
+- id: R1
+  name: Honest payment copy
+  outcome: >-
+    The confirmation screen states the simulated payment is authorized, not captured, and no longer
+    promises a GST invoice the pilot does not issue.
+  status: pass
+- id: R2
+  name: Stable order reference
+  outcome: >-
+    /v1/me/orders and /v1/orders/{id} return an order_number derived deterministically from the order
+    group; the app renders it instead of the internal cart id.
+  status: pass
+- id: R3
+  name: Server-owned order money
+  outcome: >-
+    Completion stores currency, item subtotal, shipping, discount and total in minor units; both order
+    reads expose them; the list card and payment summary render the server total.
+  status: pass
+- id: R4
+  name: Completed orders only
+  outcome: >-
+    /v1/me/orders excludes correlation rows for in-flight carts, removing blank zero-item cards.
+  status: pass
+- id: R5
+  name: Legacy rows degrade safely
+  outcome: >-
+    Orders written before this change return a derived reference and total only, with null line
+    components; the UI hides unavailable rows instead of inventing values.
+  status: pass
+- id: R6
+  name: No money-storage or inventory change
+  outcome: >-
+    Stored money units, admin formatting, Tryton reservation and the payment adapter are untouched.
+  status: pass
+
+deferred:
+- id: D1
+  name: Admin money scaling (F1)
+  reason: Lane C write-boundary correction plus a backfill of existing orders; deferred by the requester.
+- id: D2
+  name: Tryton reservation on checkout (F4)
+  reason: Deferred by the requester; reconciliation still reports RESERVATION_OR_ORDER_MISSING.
+- id: D3
+  name: Merchant display id on the customer order
+  reason: >-
+    Requires Mercur to expose order-group display ids; the store order-group route needs a customer
+    JWT the pilot does not hold.
+
+release:
+  app_release: 76e1063
+  app_url: https://buildkart-staging.web.app
+  app_bundle_sha256: 9f160722b8ab6721a261f4d7b921a11729f48e17b0d864be73eccef33c893797
+  api_release: 9868236
+  api_image: buildkart-hosted-pilot-experience-api
+  rollback_app_channel: pre-orders-20261026
+  rollback_api_image_tag: pre-orders-20261026
+  production_release_authorized: false
+
+evidence: client-projects/client101/evidence/CHG-082/order-read-model-2026-10-26.md

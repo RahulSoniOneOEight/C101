@@ -516,3 +516,38 @@ active_changes:
     R6_qc: pass-with-gaps
   production_blocked_by:
   - human-production-authorization
+
+- change_id: CHG-082
+  status: staging-deployed-verified
+  approval_required: true
+  approved_by: human-requester
+  approved_at_utc: '2026-10-26'
+  approval_scope: order-read-model-and-payment-copy-staging-only
+  proposal: client-projects/client101/changes/CHG-082.yaml
+  scope: order-reference-order-money-and-honest-payment-copy
+  lane: B
+  release_mechanism: image-rebuild
+  app_release: 76e1063
+  api_release: 9868236
+  evidence: client-projects/client101/evidence/CHG-082/order-read-model-2026-10-26.md
+  rollback_app_channel: pre-orders-20261026
+  rollback_api_image_tag: pre-orders-20261026
+  resolved_findings:
+  - payment-capture-copy
+  - customer-order-reference
+  - order-card-total
+  - in-flight-carts-listed-as-orders
+  deferred_findings:
+  - admin-money-scaling
+  - missing-tryton-reservation
+  requirements:
+    R1_honest_payment_copy: pass
+    R2_stable_order_reference: pass
+    R3_server_owned_order_money: pass
+    R4_completed_orders_only: pass
+    R5_legacy_degradation: pass
+    R6_no_storage_or_inventory_change: pass
+  production_blocked_by:
+  - human-production-authorization
+  - admin-money-units-cutover
+  - tryton-reservation-decision
