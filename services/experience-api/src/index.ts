@@ -4172,7 +4172,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const context = `${config.medusaCountryCode}:inr:${channel}`;
 
       const t0 = performance.now();
-      const p = await medusa.getProduct(productId, salesChannelIdFor(channel));
+      let p: StoreProduct;
+      try {
+        p = await medusa.getProduct(productId, salesChannelIdFor(channel));
+      } catch {
+        // Medusa hides draft/unpublished records, so an unavailable id is a normal storefront 404 —
+        // never an upstream 502. This keeps archived records indistinguishable from unknown ones.
+        return problem(
+          404,
+          "product-not-found",
+          "The product is not available in this channel.",
+        );
+      }
       const productMs = performance.now() - t0;
 
       const t1 = performance.now();
