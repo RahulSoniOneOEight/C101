@@ -177,23 +177,19 @@ const formatDate = (value: string) =>
 
 function Thumb({ src, alt }: { src?: string | null; alt: string }) {
   const [failed, setFailed] = useState(false);
-  if (!src || failed) {
-    return (
-      <div
-        aria-label={alt}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ui-bg-subtle text-[9px] text-ui-fg-muted"
-      >
-        N/A
-      </div>
-    );
-  }
   return (
-    <img
-      src={src}
-      alt={alt}
-      className="h-8 w-8 shrink-0 rounded object-cover"
-      onError={() => setFailed(true)}
-    />
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded bg-ui-bg-subtle text-[9px] text-ui-fg-muted">
+      {!src || failed ? (
+        <span aria-label={alt}>N/A</span>
+      ) : (
+        <img
+          src={src}
+          alt={alt}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
   );
 }
 
