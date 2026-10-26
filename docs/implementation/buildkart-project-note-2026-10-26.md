@@ -323,7 +323,7 @@ proxy, verify, record the rollback SHA. Never deploy branch HEAD by default.
 | 8 | `CMS_OPERATOR_SECRET` appears to end in a stray `n` | verify against the host |
 | 9 | Repo `README.md` documents only the Flutter app and shared UI | under-describes two-thirds of the tree |
 | 10 | `apps/web` had no cross-sell by design | adding it is separate Lane B/C work |
-| 11 | `workflow-state.yaml` omits CHG-079 and CHG-080 and still reports `latest_staging_release` at `17109f8` / `15c31e4` | AGENTS.md makes workflow state authoritative, so it currently contradicts the deployed reality (`d365eba`); update it before the next governed change |
+| 11 | `latest_staging_release` in `workflow-state.yaml` is stale (`17109f8` / `15c31e4`). On `feat/bt-sku-pairs` CHG-079 and CHG-080 *are* recorded; older branches do not carry them | AGENTS.md makes workflow state authoritative, and the release pointer there contradicts the deployed `d365eba` |
 
 ---
 
