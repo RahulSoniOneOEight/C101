@@ -2672,37 +2672,6 @@ export function ProductStudioForm({
                     )}
                   </div>
                 </Field>
-                {mode === "admin" ? (
-                  <Field
-                    label="Seller offer provisioning"
-                    hint="Optional. Selecting a seller explicitly provisions offers for every SKU that has no offer. Requires a reason and is audited."
-                  >
-                    <select
-                      className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
-                      value={provisionSellerId}
-                      onChange={(event) =>
-                        setProvisionSellerId(event.target.value)
-                      }
-                    >
-                      <option value="">Do not provision seller offers</option>
-                      {(sellers.data?.sellers ?? []).map((seller) => (
-                        <option key={seller.id} value={seller.id}>
-                          {seller.name} — {seller.id}
-                        </option>
-                      ))}
-                    </select>
-                    {provisionSellerId ? (
-                      <Input
-                        className="mt-2"
-                        value={sellerProvisionReason}
-                        onChange={(event) =>
-                          setSellerProvisionReason(event.target.value)
-                        }
-                        placeholder="Reason for provisioning this seller (required)"
-                      />
-                    ) : null}
-                  </Field>
-                ) : null}
                 <Field label="Product type">
                   <Input
                     value={form.product_type}
@@ -3299,15 +3268,69 @@ export function ProductStudioForm({
                 </Text>
               ) : (
                 <div className="flex flex-col gap-3">
+                  {mode === "admin" ? (
+                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
+                      <p className="text-sm font-medium text-ui-fg-base">
+                        Seller
+                      </p>
+                      <p className="mt-1 text-xs text-ui-fg-subtle">
+                        Pricing belongs to a seller offer. Saving creates an
+                        offer for every variant that does not have one yet.
+                        {offers.length > 0
+                          ? ` Current: ${Array.from(
+                              new Set(offers.map((offer) => offer.seller_name)),
+                            ).join(", ")}.`
+                          : ""}
+                      </p>
+                      <div className="mt-3 flex flex-col gap-2 md:flex-row">
+                        <select
+                          aria-label="Seller for new offers"
+                          className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base md:w-72"
+                          value={provisionSellerId}
+                          onChange={(event) =>
+                            setProvisionSellerId(event.target.value)
+                          }
+                        >
+                          <option value="">Select a seller</option>
+                          {(sellers.data?.sellers ?? []).map((seller) => (
+                            <option key={seller.id} value={seller.id}>
+                              {seller.name}
+                            </option>
+                          ))}
+                        </select>
+                        {provisionSellerId ? (
+                          <Input
+                            className="md:flex-1"
+                            value={sellerProvisionReason}
+                            onChange={(event) =>
+                              setSellerProvisionReason(event.target.value)
+                            }
+                            placeholder="Reason for provisioning this seller (required)"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-xs text-ui-fg-subtle">
+                        Then use <strong>Save changes</strong> so the offers
+                        exist before pricing.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                      <p className="text-xs text-ui-fg-subtle">
+                        Offers are created automatically for your seller account
+                        when the product is saved.
+                      </p>
+                    </div>
+                  )}
                   {offers.length === 0 ? (
                     <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                       <p className="text-sm font-medium text-ui-fg-base">
                         No seller offer yet
                       </p>
                       <p className="mt-1 text-xs text-ui-fg-subtle">
-                        A variant becomes purchasable after a seller offer
-                        exists. Save the product with a seller to provision
-                        offers.
+                        {mode === "admin"
+                          ? "Choose a seller above, then Save changes. Offers are created per variant, and pricing becomes editable here."
+                          : "Save the product to create your seller offers, then set B2C and B2B pricing here."}
                       </p>
                     </div>
                   ) : (
