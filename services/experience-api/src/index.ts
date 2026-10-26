@@ -3446,6 +3446,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return json({
         shipping_options: options.map((option) => ({
           ...option,
+          amount: medusaToMinorOr(option.amount),
           tier: deliveryTierFor(option),
           description: option.type?.description ?? null,
           label: option.type?.label ?? null,
