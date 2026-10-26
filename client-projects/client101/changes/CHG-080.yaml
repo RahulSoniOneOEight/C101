@@ -23,6 +23,16 @@ flutter_web_status: staging-deployed-verified
 flutter_web_url: https://buildkart-staging.web.app
 follow_up_evidence:
 - client-projects/client101/evidence/CHG-080/flutter-web-sku-bought-together-2026-10-26.md
+- client-projects/client101/evidence/CHG-080/staging-order-checkout-admin-review-2026-10-26.md
+staging_order_journey:
+  cart_id: cart_01M5VWD5Q156Y5BQ6CX8H4TRTS
+  order_group_id: og_01M5VWW4KMVYZ4HMEE6V24ZSBC
+  admin_order_display_id: 127
+  admin_group_display_id: 110
+  sku: BAUM-237S1-SET-HEX
+  total_minor: 408900
+  status: verified-with-findings
+  findings: [admin-money-scaling, payment-capture-copy, customer-order-reference, missing-tryton-reservation]
 affected_capabilities:
 - product-merchandising
 - b2c-catalogue

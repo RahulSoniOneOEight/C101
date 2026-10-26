@@ -470,6 +470,20 @@ active_changes:
     business_rule_change: false
     tests: pass-281
     evidence: client-projects/client101/evidence/CHG-080/flutter-web-sku-bought-together-2026-10-26.md
+  - id: CHG-080-FU3
+    scope: staging-order-checkout-and-admin-review
+    status: verified-with-findings
+    release: 8150e0e
+    mechanism: no-release
+    business_rule_change: false
+    order_group: og_01M5VWW4KMVYZ4HMEE6V24ZSBC
+    admin_order: 127
+    findings_open:
+    - admin-money-scaling
+    - payment-capture-copy
+    - customer-order-reference
+    - missing-tryton-reservation
+    evidence: client-projects/client101/evidence/CHG-080/staging-order-checkout-admin-review-2026-10-26.md
   requirements:
     R1_sku_pair_storage: pass
     R2_sku_search_selection: pass
