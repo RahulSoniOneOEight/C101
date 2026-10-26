@@ -280,3 +280,50 @@ SINGLE-FLOW RULE APPLIED
    same cards and numbering, same fields, same right rail, same save-bar
    position and wording pattern. Only actions that require an existing
    record, and values that come from that record, differ.
+
+
+======================================================================
+FINAL STATUS — 2026-10-27 (release 214814c)
+======================================================================
+Sections — identical in New and Edit (verified live):
+ 1 Header                     9  Activity
+ 2 Workspace navigation      10  Review & visibility
+ 3 Product details           11  Content preview (rail)
+ 4 Media                     12  Readiness (rail)
+ 5 Organisation              13  Save bar
+ 6 Specifications            14  Guards & recovery
+ 7 Search listing
+ 8 Variants / Pricing
+
+Create flow
+- No catalogue search.
+- Only Product details opens; other cards collapsed with summaries.
+- Variant requires: seller, name, SKU, description.
+- Save variant -> lands on Pricing with the offer editor open.
+- Pricing: B2C and B2B in one editor, one Save pricing.
+
+Edit flow
+- Products list -> row click redirects to /product-studio/:id (same flow).
+- Native /products/:id redirects too. No second editor.
+- Header: Back to products only.
+
+Inventory
+- Compact table: Variant | SKU | Seller | Tryton | On hand | ATP | Open.
+- One expanded detail per SKU with locations and the audit request form.
+
+Data
+- Accidental sales channel "Pritesh jain" unlinked and soft-deleted.
+  Remaining channels: B2C Storefront, B2B Trade Portal.
+
+QC (live, release 214814c)
+- New product: prod_01M5X4VM8Y02E8QV7G7Z13BG8N (kept)
+- B2C 1200 list / 999 selling; B2B 1100 / 950, MOQ 5.
+- Review: Published, B2C live, B2B live, 0 blockers, 1 warning (tags).
+- Storefront detail: HTTP 200, price 99900 minor (Rs 999).
+- Mobile review screenshot captured.
+- Console errors: none.
+
+QC records retained (not deleted)
+- prod_01M5X2Q7DRJZGGVYGRDE293PF5
+- prod_01M5X38G182K7BJ367AP4RM6Q0
+- prod_01M5X4VM8Y02E8QV7G7Z13BG8N

@@ -179,3 +179,26 @@ While redacting the admin-console secret file, the command assumed `key=value` b
 - Scope: staging Admin console only (`admin@buildkart.test`); no production credential involved.
 - Action required: rotate the staging Admin password and update `/etc/buildkart/secrets/admin-console.txt`.
 - No secret was committed to Git.
+
+
+## 13. Final QC — release `214814c`
+
+| Check | Result |
+|---|---|
+| New vs Edit sections | 10/10 identical, same order |
+| Products list → row click | redirects to `/product-studio/:id` |
+| Native `/products/:id` | redirects to the studio |
+| Catalogue search on create | absent |
+| Variant seller/SKU required | enforced before create |
+| Save variant → pricing | lands `?view=variants&focus=pricing`, editor open |
+| Pricing save | B2C + B2B in one action |
+| Review | Published · B2C live · B2B live · 0 blockers · 1 warning |
+| Storefront | HTTP 200, ₹999 (99900 minor) |
+| Inventory | compact table + single expanded SKU |
+| Console errors | none |
+| QC product | `prod_01M5X4VM8Y02E8QV7G7Z13BG8N` (retained) |
+
+Existing QC records were **not** deleted: `prod_01M5X2Q7DRJZGGVYGRDE293PF5`,
+`prod_01M5X38G182K7BJ367AP4RM6Q0`, `prod_01M5X4VM8Y02E8QV7G7Z13BG8N`.
+
+Staging admin password rotation: explicitly waived by the requester (2026-10-27).
