@@ -1,5 +1,5 @@
 ﻿change_id: CHG-080
-revision: 1
+revision: 2
 status: staging-deployed-verified
 request: >-
   Change Bought Together pairing from product-level to SKU-level. Operators
@@ -18,6 +18,11 @@ staging_base_release: 7a27de7
 staging_release: d365eba
 staging_pair: btp_710026edf43347c9a92bed32f58a7eba
 evidence: client-projects/client101/evidence/CHG-080/staging-implementation-2026-10-26.md
+flutter_web_release: 8150e0e
+flutter_web_status: staging-deployed-verified
+flutter_web_url: https://buildkart-staging.web.app
+follow_up_evidence:
+- client-projects/client101/evidence/CHG-080/flutter-web-sku-bought-together-2026-10-26.md
 affected_capabilities:
 - product-merchandising
 - b2c-catalogue

@@ -450,6 +450,10 @@ active_changes:
   latest_staging_release: ef3dac4
   staging_pair: btp_710026edf43347c9a92bed32f58a7eba
   evidence: client-projects/client101/evidence/CHG-080/staging-implementation-2026-10-26.md
+  flutter_web_release: 8150e0e
+  flutter_web_status: staging-deployed-verified
+  flutter_web_url: https://buildkart-staging.web.app
+  flutter_web_evidence: client-projects/client101/evidence/CHG-080/flutter-web-sku-bought-together-2026-10-26.md
   follow_up_fixes:
   - id: CHG-080-FU1
     scope: admin-both-channel-pair-guard
@@ -458,6 +462,14 @@ active_changes:
     business_rule_change: false
     retro_approval_required: true
     evidence: client-projects/client101/evidence/CHG-080/admin-both-channel-guard-2026-10-26.md
+  - id: CHG-080-FU2
+    scope: flutter-web-sku-bought-together-release
+    status: staging-deployed-verified
+    release: 8150e0e
+    mechanism: static-ui
+    business_rule_change: false
+    tests: pass-281
+    evidence: client-projects/client101/evidence/CHG-080/flutter-web-sku-bought-together-2026-10-26.md
   requirements:
     R1_sku_pair_storage: pass
     R2_sku_search_selection: pass
