@@ -1526,6 +1526,7 @@ export function ProductStudioForm({
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
   const [openVariantIndex, setOpenVariantIndex] = useState<number | null>(null);
+  const [openInventorySku, setOpenInventorySku] = useState<string | null>(null);
   const autoOpenedVariant = useRef(false);
   const appliedPricingFocus = useRef(false);
 
@@ -3853,135 +3854,219 @@ export function ProductStudioForm({
                       {inventoryError}
                     </Text>
                   ) : (
-                    offers.map((offer) => {
-                      const item = inventory.find(
-                        (row) => row.sku === offer.sku,
-                      );
-                      const variant =
-                        variants.find(
-                          (row) => row.id === offer.variant_id,
-                        ) ?? null;
-                      const locationRows =
-                        item?.tryton.locations.filter(
-                          (location) =>
-                            location.on_hand !== 0 ||
-                            location.reserved !== 0 ||
-                            location.draft !== 0,
-                        ) ?? [];
-                      return (
-                        <div
-                          key={offer.id}
-                          className="rounded-lg border border-ui-border-base p-4"
-                        >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-medium text-ui-fg-base">
-                                {variant?.title || offer.sku}
-                              </p>
-                              <p className="text-xs text-ui-fg-subtle">
-                                {offer.sku} · {offer.seller_name}
-                              </p>
-                            </div>
-                            <StatusBadge
-                              color={item?.tryton.found ? "green" : "orange"}
-                            >
-                              {item?.tryton.found
-                                ? "Tryton product found"
-                                : "Not in Tryton"}
-                            </StatusBadge>
-                          </div>
+                    <>
+                      <div className="overflow-x-auto rounded-lg border border-ui-border-base">
+                        <Table>
+                          <Table.Header>
+                            <Table.Row>
+                              <Table.HeaderCell>Variant</Table.HeaderCell>
+                              <Table.HeaderCell>SKU</Table.HeaderCell>
+                              <Table.HeaderCell>Seller</Table.HeaderCell>
+                              <Table.HeaderCell>Tryton</Table.HeaderCell>
+                              <Table.HeaderCell>On hand</Table.HeaderCell>
+                              <Table.HeaderCell>ATP</Table.HeaderCell>
+                              <Table.HeaderCell>
+                                <span className="sr-only">Actions</span>
+                              </Table.HeaderCell>
+                            </Table.Row>
+                          </Table.Header>
+                          <Table.Body>
+                            {offers.map((offer) => {
+                              const item = inventory.find(
+                                (row) => row.sku === offer.sku,
+                              );
+                              const variant =
+                                variants.find(
+                                  (row) => row.id === offer.variant_id,
+                                ) ?? null;
+                              return (
+                                <Table.Row key={offer.id}>
+                                  <Table.Cell>
+                                    <span className="text-sm text-ui-fg-base">
+                                      {variant?.title || "Default"}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <span className="text-xs text-ui-fg-subtle">
+                                      {offer.sku}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <span className="text-xs text-ui-fg-subtle">
+                                      {offer.seller_name}
+                                    </span>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <StatusBadge
+                                      color={
+                                        item?.tryton.found ? "green" : "orange"
+                                      }
+                                    >
+                                      {item?.tryton.found ? "Found" : "Not found"}
+                                    </StatusBadge>
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    {item?.tryton.found
+                                      ? item.tryton.on_hand
+                                      : "—"}
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    {item?.tryton.found ? item.tryton.atp : "—"}
+                                  </Table.Cell>
+                                  <Table.Cell>
+                                    <Button
+                                      size="small"
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() =>
+                                        setOpenInventorySku((current) =>
+                                          current === offer.id ? null : offer.id,
+                                        )
+                                      }
+                                    >
+                                      {openInventorySku === offer.id
+                                        ? "Close"
+                                        : "Open"}
+                                    </Button>
+                                  </Table.Cell>
+                                </Table.Row>
+                              );
+                            })}
+                          </Table.Body>
+                        </Table>
+                      </div>
 
-                          {item?.tryton.found ? (
-                            <>
-                              <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-                                {[
-                                  ["On hand", item.tryton.on_hand],
-                                  ["Reserved", item.tryton.reserved],
-                                  ["ATP", item.tryton.atp],
-                                  ["Draft moves", item.tryton.draft],
-                                ].map(([label, value]) => (
-                                  <div
-                                    key={String(label)}
-                                    className="rounded-md bg-ui-bg-subtle px-3 py-2"
-                                  >
-                                    <p className="text-xs text-ui-fg-subtle">
-                                      {label}
-                                    </p>
-                                    <p className="text-sm font-semibold text-ui-fg-base">
-                                      {String(value)}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                              {locationRows.length > 0 ? (
-                                <div className="mt-3 overflow-x-auto">
-                                  <Table>
-                                    <Table.Header>
-                                      <Table.Row>
-                                        <Table.HeaderCell>
-                                          Tryton location
-                                        </Table.HeaderCell>
-                                        <Table.HeaderCell>
-                                          On hand
-                                        </Table.HeaderCell>
-                                        <Table.HeaderCell>
-                                          Reserved
-                                        </Table.HeaderCell>
-                                        <Table.HeaderCell>
-                                          ATP
-                                        </Table.HeaderCell>
-                                      </Table.Row>
-                                    </Table.Header>
-                                    <Table.Body>
-                                      {locationRows.map((location) => (
-                                        <Table.Row key={location.id}>
-                                          <Table.Cell>
-                                            {location.name}
-                                          </Table.Cell>
-                                          <Table.Cell>
-                                            {location.on_hand}
-                                          </Table.Cell>
-                                          <Table.Cell>
-                                            {location.reserved}
-                                          </Table.Cell>
-                                          <Table.Cell>
-                                            {location.atp}
-                                          </Table.Cell>
-                                        </Table.Row>
-                                      ))}
-                                    </Table.Body>
-                                  </Table>
+                      {openInventorySku ? (
+                        (() => {
+                          const offer = offers.find(
+                            (row) => row.id === openInventorySku,
+                          );
+                          if (!offer) return null;
+                          const item = inventory.find(
+                            (row) => row.sku === offer.sku,
+                          );
+                          const variant =
+                            variants.find(
+                              (row) => row.id === offer.variant_id,
+                            ) ?? null;
+                          const locationRows =
+                            item?.tryton.locations.filter(
+                              (location) =>
+                                location.on_hand !== 0 ||
+                                location.reserved !== 0 ||
+                                location.draft !== 0,
+                            ) ?? [];
+                          return (
+                            <div className="rounded-lg border border-ui-border-base p-4">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm font-medium text-ui-fg-base">
+                                    {variant?.title || offer.sku}
+                                  </p>
+                                  <p className="text-xs text-ui-fg-subtle">
+                                    {offer.sku} · {offer.seller_name}
+                                  </p>
                                 </div>
+                                <Button
+                                  size="small"
+                                  type="button"
+                                  variant="secondary"
+                                  onClick={() => setOpenInventorySku(null)}
+                                >
+                                  Close
+                                </Button>
+                              </div>
+
+                              {item?.tryton.found ? (
+                                <>
+                                  <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                                    {[
+                                      ["On hand", item.tryton.on_hand],
+                                      ["Reserved", item.tryton.reserved],
+                                      ["ATP", item.tryton.atp],
+                                      ["Draft moves", item.tryton.draft],
+                                    ].map(([label, value]) => (
+                                      <div
+                                        key={String(label)}
+                                        className="rounded-md bg-ui-bg-subtle px-3 py-2"
+                                      >
+                                        <p className="text-xs text-ui-fg-subtle">
+                                          {label}
+                                        </p>
+                                        <p className="text-sm font-semibold text-ui-fg-base">
+                                          {String(value)}
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  {locationRows.length > 0 ? (
+                                    <div className="mt-3 overflow-x-auto">
+                                      <Table>
+                                        <Table.Header>
+                                          <Table.Row>
+                                            <Table.HeaderCell>
+                                              Tryton location
+                                            </Table.HeaderCell>
+                                            <Table.HeaderCell>
+                                              On hand
+                                            </Table.HeaderCell>
+                                            <Table.HeaderCell>
+                                              Reserved
+                                            </Table.HeaderCell>
+                                            <Table.HeaderCell>ATP</Table.HeaderCell>
+                                          </Table.Row>
+                                        </Table.Header>
+                                        <Table.Body>
+                                          {locationRows.map((location) => (
+                                            <Table.Row key={location.id}>
+                                              <Table.Cell>
+                                                {location.name}
+                                              </Table.Cell>
+                                              <Table.Cell>
+                                                {location.on_hand}
+                                              </Table.Cell>
+                                              <Table.Cell>
+                                                {location.reserved}
+                                              </Table.Cell>
+                                              <Table.Cell>{location.atp}</Table.Cell>
+                                            </Table.Row>
+                                          ))}
+                                        </Table.Body>
+                                      </Table>
+                                    </div>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <p className="mt-3 text-xs text-ui-fg-subtle">
+                                  Tryton has no product or stock movements for
+                                  this SKU yet.
+                                </p>
+                              )}
+
+                              {item?.platform ? (
+                                <p className="mt-3 text-xs text-ui-fg-subtle">
+                                  Staging ledger: {item.platform.available}{" "}
+                                  available, {item.platform.reserved} reserved
+                                  (fixture data).
+                                </p>
                               ) : null}
-                            </>
-                          ) : (
-                            <p className="mt-3 text-xs text-ui-fg-subtle">
-                              Tryton has no product or stock movements for this
-                              SKU yet. On-hand, reserved and ATP are not
-                              provisioned.
-                            </p>
-                          )}
 
-                          {item?.platform ? (
-                            <p className="mt-3 text-xs text-ui-fg-subtle">
-                              Staging reservation ledger:{" "}
-                              {item.platform.available} available,{" "}
-                              {item.platform.reserved} reserved (fixture data,
-                              not Tryton).
-                            </p>
-                          ) : null}
-
-                          <InventoryRequestForm
-                            offer={offer}
-                            mode={mode}
-                          />
-                        </div>
-                      );
-                    })
+                              <InventoryRequestForm offer={offer} mode={mode} />
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <Text size="small" className="text-ui-fg-subtle">
+                          Select a SKU to see locations and request an
+                          adjustment.
+                        </Text>
+                      )}
+                    </>
                   )}
                 </div>
               )}
               <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+
                 <Text size="small" className="text-ui-fg-subtle">
                   Tryton remains the inventory authority. Adjustment requests
                   are audited events with no stock effect. Low-stock thresholds,
