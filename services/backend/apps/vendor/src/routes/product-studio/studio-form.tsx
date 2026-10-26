@@ -443,7 +443,9 @@ function Section({
   description,
   complete,
   defaultOpen = true,
+  ignoreStoredState = false,
   attention,
+  summary,
   children,
 }: {
   id?: string;
@@ -452,12 +454,16 @@ function Section({
   description: string;
   complete?: boolean;
   defaultOpen?: boolean;
+  ignoreStoredState?: boolean;
   attention?: string;
+  summary?: string;
   children: React.ReactNode;
 }) {
   const storageKey = id ? `buildkart:studio-section:${id}` : null;
   const [open, setOpen] = useState(() => {
-    if (!storageKey || typeof window === "undefined") return defaultOpen;
+    if (!storageKey || typeof window === "undefined" || ignoreStoredState) {
+      return defaultOpen;
+    }
     const saved = window.sessionStorage.getItem(storageKey);
     return saved === null ? defaultOpen : saved === "open";
   });
@@ -505,6 +511,17 @@ function Section({
             </Text>
           ) : null}
         </div>
+        {summary ? (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+              complete
+                ? "bg-ui-bg-subtle text-ui-fg-subtle"
+                : "bg-ui-bg-subtle text-ui-fg-subtle"
+            }`}
+          >
+            {summary}
+          </span>
+        ) : null}
         <span aria-hidden="true" className="px-2 text-ui-fg-subtle">
           {open ? "⌃" : "⌄"}
         </span>
@@ -2637,6 +2654,9 @@ export function ProductStudioForm({
               title="Product details"
               description="The commercial identity of the item. Keep the title customer-facing and the internal codes exact."
               complete={sectionOneDone}
+              defaultOpen
+              ignoreStoredState={!productId}
+              summary={sectionOneDone ? "✓ Complete" : "Needs title and category"}
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
@@ -2817,6 +2837,13 @@ export function ProductStudioForm({
               title="Search tags"
               description="Tags help operators find the product. They are not a substitute for structured specifications."
               complete={sectionTwoDone}
+              defaultOpen={Boolean(productId)}
+              ignoreStoredState={!productId}
+              summary={
+                tags.length > 0
+                  ? `${tags.length} tag${tags.length === 1 ? "" : "s"}`
+                  : "Optional"
+              }
             >
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => (
@@ -2891,6 +2918,13 @@ export function ProductStudioForm({
               title="Specifications"
               description="Structured product facts. Each specification becomes a filterable product attribute; do not put these in the title or description."
               complete={sectionThreeDone}
+              defaultOpen={Boolean(productId)}
+              ignoreStoredState={!productId}
+              summary={
+                validSpecs.length > 0
+                  ? `${validSpecs.length} value${validSpecs.length === 1 ? "" : "s"}`
+                  : "Optional"
+              }
             >
               <div className="flex flex-col gap-2">
                 {specs.map((spec, index) => (
@@ -2968,6 +3002,9 @@ export function ProductStudioForm({
               title="Variants and SKUs"
               description="Each variant has a customer-facing name, details and an optional image. Variants are created directly; SKUs stay unique."
               complete={sectionFourDone}
+              summary={`${variants.length} variant${
+                variants.length === 1 ? "" : "s"
+              }`}
             >
               {structuralLocked ? (
                 <div className="mb-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
@@ -3212,6 +3249,13 @@ export function ProductStudioForm({
               title="Offers & pricing"
               description="One seller offer at a time. B2C and B2B terms save together only for the selected offer."
               complete={sectionFiveDone}
+              summary={
+                offers.length === 0
+                  ? "No seller offer"
+                  : `${offers.filter((offer) => b2cBaseAmount(offer)).length}/${
+                      offers.length
+                    } priced`
+              }
             >
               {variants.length === 0 ? (
                 <Text size="small" className="text-ui-fg-subtle">
@@ -3547,6 +3591,7 @@ export function ProductStudioForm({
               number={6}
               title="Inventory"
               description="Read-only Tryton stock summary by SKU, plus an audited adjustment request that never changes stock directly."
+              summary={`${offers.length} SKU${offers.length === 1 ? "" : "s"}`}
             >
               {offers.length === 0 ? (
                 <Text size="small" className="text-ui-fg-subtle">
@@ -3709,6 +3754,7 @@ export function ProductStudioForm({
               number={6}
               title="Activity"
               description="Audited product, lifecycle and seller changes in newest-first order."
+              summary={`${activity.length} event${activity.length === 1 ? "" : "s"}`}
             >
               {activity.length === 0 ? (
                 <Text size="small" className="text-ui-fg-subtle">
@@ -3754,6 +3800,15 @@ export function ProductStudioForm({
               title="Review & visibility"
               description="Server-owned publication and per-channel visibility. Every blocker links to the exact field."
               complete={reviewReady && (readiness?.blocker_count ?? 0) === 0}
+              summary={
+                readiness
+                  ? `${readiness.blocker_count} blocker${
+                      readiness.blocker_count === 1 ? "" : "s"
+                    } · ${readiness.warning_count} warning${
+                      readiness.warning_count === 1 ? "" : "s"
+                    }`
+                  : "Not checked"
+              }
             >
               <div className="flex flex-col gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ui-border-base px-4 py-3">
