@@ -2961,7 +2961,7 @@ export function ProductStudioForm({
 
             {view === "variants" ? (
               <div className="flex flex-col">
-            <div className="order-2">
+            <div style={{ order: 2 }}>
             <Section
               id="studio-variants"
               number={5}
@@ -3205,7 +3205,7 @@ export function ProductStudioForm({
               </div>
             </Section>
             </div>
-            <div className="order-1">
+            <div style={{ order: 1 }}>
             <Section
               id="studio-pricing"
               number={4}
