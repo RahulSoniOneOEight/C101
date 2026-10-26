@@ -202,3 +202,21 @@ Existing QC records were **not** deleted: `prod_01M5X2Q7DRJZGGVYGRDE293PF5`,
 `prod_01M5X38G182K7BJ367AP4RM6Q0`, `prod_01M5X4VM8Y02E8QV7G7Z13BG8N`.
 
 Staging admin password rotation: explicitly waived by the requester (2026-10-27).
+
+
+## 14. Client releases — 2026-10-27
+
+| Client | Version | Artifact | Verified |
+|---|---|---|---|
+| Web storefront | `5c0e867` | Firebase hosting `buildkart-staging` | 200, no `CHG-049` default, BUILD_ID baked |
+| Android app | `0.5.0 (17)` | `app-release.apk`, 62,843,967 bytes | distributed to `hosted-pilot` |
+
+- APK SHA-256: `E5A544E0346AFF3EFB7D3236631A25873893B0AF309FB51B45DDB0C92C716D37`
+- App Distribution release: `19s6elboskq30`
+- APK build id: `5c0e867`
+- Upgrade note: testers on `0.4.0 (16)` still send the historical catalogue marker, so studio-created
+  products appear only after installing `0.5.0 (17)`.
+
+Edit-entry parity was closed in the same release: the Products list row-menu **Edit** pointed at
+`/products/:id/edit`, which now redirects to `/product-studio/:id` (Admin and Seller). Verified by
+clicking the menu item and landing on the studio.
