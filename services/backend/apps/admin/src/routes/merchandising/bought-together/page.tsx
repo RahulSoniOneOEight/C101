@@ -535,12 +535,15 @@ export default function BoughtTogetherPage() {
                     </div>
                     <div className="mt-1 flex flex-col gap-1">
                       {candidate.matching_skus.map((sku) => {
+                        // "both" must block on either channel: the server enforces one
+                        // active pair per SKU per channel, so a SKU already live in B2C
+                        // (or B2B) cannot be reused by a Both pair.
                         const existing =
                           channel === "b2c"
                             ? sku.active_pairs.b2c
                             : channel === "b2b"
                               ? sku.active_pairs.b2b
-                              : null;
+                              : (sku.active_pairs.b2c ?? sku.active_pairs.b2b);
                         const alreadySelected =
                           sku.variant_id === selectedA?.variantId ||
                           sku.variant_id === selectedB?.variantId;
