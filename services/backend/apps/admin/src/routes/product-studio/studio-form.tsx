@@ -1852,14 +1852,6 @@ export function ProductStudioForm({
         : status === "rejected" || !reviewReady
           ? "red"
           : "green";
-  const readySections = [
-    sectionOneDone,
-    sectionTwoDone,
-    sectionThreeDone,
-    sectionFourDone,
-    sectionFiveDone,
-  ].filter(Boolean).length;
-
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
     setDirty(true);
@@ -2465,9 +2457,9 @@ export function ProductStudioForm({
               ) : null}
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
-              One continuous product record covering details, search tags,
-              specifications, variants, SKUs, B2C pricing, read-only Tryton
-              inventory and the review-to-publish workflow.
+              One product workspace for content, seller offers and channel
+              visibility. Product content and each offer's pricing save
+              separately; Review shows the exact reason a record is not live.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2489,21 +2481,22 @@ export function ProductStudioForm({
         <div className="border-t border-ui-border-base px-6 py-4">
           <div className="flex flex-wrap items-center gap-2 text-xs text-ui-fg-subtle">
             <span className="font-medium text-ui-fg-base">
-              {readySections}/5 available sections ready
+              {status === "published"
+                ? readiness?.channels.b2c.visible
+                  ? "Published · B2C live"
+                  : "Published · Not live"
+                : `Status · ${status}`}
             </span>
             <span>·</span>
             <span>
-              {dirty ? "Unsaved changes" : "No unsaved changes"}
-              {lastSaved ? ` · saved ${lastSaved}` : ""}
+              {dirty
+                ? "Unsaved product changes"
+                : lastSaved
+                  ? `Saved to server ${lastSaved}`
+                  : "No unsaved product changes"}
             </span>
             <span>·</span>
-            <span>Local autosave keeps a recovery copy in this browser.</span>
-          </div>
-          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-ui-bg-subtle">
-            <div
-              className="h-full rounded-full bg-ui-bg-interactive transition-all"
-              style={{ width: `${(readySections / 5) * 100}%` }}
-            />
+            <span>Local autosave is a recovery copy, not a server save.</span>
           </div>
         </div>
       </Container>
@@ -2967,10 +2960,11 @@ export function ProductStudioForm({
             ) : null}
 
             {view === "variants" ? (
-              <>
+              <div className="flex flex-col">
+            <div className="order-2">
             <Section
               id="studio-variants"
-              number={4}
+              number={5}
               title="Variants and SKUs"
               description="Each variant has a customer-facing name, details and an optional image. Variants are created directly; SKUs stay unique."
               complete={sectionFourDone}
@@ -3035,27 +3029,30 @@ export function ProductStudioForm({
                       Add variant
                     </Button>
                   ) : null}
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-ui-fg-subtle">
-                      Bulk SKU prefix
-                    </span>
-                    <Input
-                      value={skuPrefix}
-                      onChange={(event) => setSkuPrefix(event.target.value)}
-                      placeholder="e.g. AK-PPR"
-                      className="w-40"
-                      disabled={structuralLocked}
-                    />
-                  </label>
-                  <Button
-                    size="small"
-                    type="button"
-                    variant="secondary"
-                    onClick={fillBlankSkus}
-                    disabled={structuralLocked}
-                  >
-                    Fill blank SKUs
-                  </Button>
+                  {!structuralLocked &&
+                  variants.some((variant) => !variant.sku.trim()) ? (
+                    <>
+                      <label className="flex flex-col gap-1">
+                        <span className="text-xs font-medium text-ui-fg-subtle">
+                          Bulk SKU prefix
+                        </span>
+                        <Input
+                          value={skuPrefix}
+                          onChange={(event) => setSkuPrefix(event.target.value)}
+                          placeholder="e.g. AK-PPR"
+                          className="w-40"
+                        />
+                      </label>
+                      <Button
+                        size="small"
+                        type="button"
+                        variant="secondary"
+                        onClick={fillBlankSkus}
+                      >
+                        Fill blank SKUs
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
@@ -3207,9 +3204,11 @@ export function ProductStudioForm({
                 })}
               </div>
             </Section>
+            </div>
+            <div className="order-1">
             <Section
               id="studio-pricing"
-              number={5}
+              number={4}
               title="Offers & pricing"
               description="One seller offer at a time. B2C and B2B terms save together only for the selected offer."
               complete={sectionFiveDone}
@@ -3539,7 +3538,8 @@ export function ProductStudioForm({
                 </Text>
               </div>
             </Section>
-              </>
+            </div>
+              </div>
             ) : null}
             {view === "inventory" ? (
             <Section
@@ -4153,6 +4153,7 @@ export function ProductStudioForm({
             </Section>
             ) : null}
 
+            {dirty || saving ? (
             <div
               aria-live="polite"
               className="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-ui-border-base bg-ui-bg-base px-6 py-4 md:flex-row md:items-center md:justify-between"
@@ -4160,13 +4161,7 @@ export function ProductStudioForm({
               <Text size="small" className="text-ui-fg-subtle">
                 {saving
                   ? "Saving product changes…"
-                  : dirty
-                    ? "Unsaved product changes · affects content, not pricing."
-                    : lastSaved
-                      ? `Saved to server · ${lastSaved}`
-                      : productId
-                        ? "No unsaved changes."
-                        : "Start with the product details, then save."}
+                  : "Unsaved product changes · affects content, not pricing."}
               </Text>
               <div className="flex flex-wrap items-center gap-2">
                 {dirty && productId ? (
@@ -4191,6 +4186,7 @@ export function ProductStudioForm({
                 </Button>
               </div>
             </div>
+            ) : null}
           </Container>
 
           {view === "overview" ? (
