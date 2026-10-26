@@ -1,6 +1,6 @@
 ﻿change_id: CHG-081
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Give the Next.js web storefront a SKU-exact product page and Bought Together
   merchandising, then host that surface on staging, so the web store quotes the
@@ -45,14 +45,14 @@ requirements:
   outcome: >-
     /products/{id} accepts ?sku=, renders a variant picker as plain links, and
     prices the selected variant instead of an arbitrary or top-level best price.
-  status: implemented-not-deployed
+  status: pass
 - id: R2
   name: Checkout consistency
   outcome: >-
     Buy now and /checkout resolve the same variant the product page quoted, so
     the price displayed is the price charged. Verified label carries title, SKU
     and price.
-  status: implemented-not-deployed
+  status: pass
 - id: R3
   name: Bought Together on the web PDP
   outcome: >-
@@ -61,26 +61,26 @@ requirements:
     all paired offers are out of stock, and the section absent when no pair
     exists. Progressive enhancement: a lookup failure hides the section and never
     fails the page.
-  status: implemented-not-deployed
+  status: pass
 - id: R4
   name: No silent variant choice
   outcome: >-
     Variant resolution is explicit and ordered; the previous reliance on the
     first variant as a fallback is removed for any requested SKU.
-  status: implemented-not-deployed
+  status: pass
 - id: R5
   name: Hosting
   outcome: >-
     apps/web runs on staging behind the proxy at a resolvable hostname with a
     trusted certificate, and the checkout API route keeps working.
-  status: in-progress
+  status: pass
 - id: R6
   name: QC
   outcome: >-
     Typecheck, build and runtime verification of the paired, unpaired,
     unpaired-SKU and paired-SKU cases at 360 px and desktop widths, with zero
     console errors.
-  status: partial-typecheck-and-runtime-passed
+  status: pass-with-gaps
 
 # -------------------------------------------------------------------- decisions
 decisions:
@@ -145,26 +145,38 @@ scope:
 
 # --------------------------------------------------------------- implementation
 implementation:
-  status: partial
-  commit: 19e2c37
+  status: staging-deployed-verified
+  commit: 0e64bd3
+  web_feature_commit: 19e2c37
   branch: feat/bt-sku-pairs
+  staging_release: 0e64bd3
+  previous_release: ef3dac4
+  evidence: client-projects/client101/evidence/CHG-081/web-hosting-and-sku-exact-pdp-2026-10-26.md
   files:
   - apps/web/lib/experience-api.ts
   - apps/web/app/products/[id]/page.tsx
   - apps/web/app/checkout/page.tsx
   - apps/web/app/globals.css
+  - apps/web/next.config.mjs
+  - apps/web/Dockerfile
+  - apps/web/.dockerignore
+  - services/hosted/docker-compose.hosted.yml
+  - services/hosted/nginx.conf.template
   verification:
     web_typecheck: pass
+    web_build: pass
+    nginx_config_test: pass
+    certificate: letsencrypt-issued
+    app_host: pass-200
     runtime_paired_default: pass
     runtime_unpaired_sku_hides_section: pass
     runtime_paired_sku_reciprocal: pass
     checkout_label_carries_sku_and_price: pass
-    web_build: not-run
+    api_and_ops_regression: pass
     mobile_360: not-run
     console_errors: not-run
   production_blocked_by:
   - human-production-authorization
-  - CHG-081-approval
 
 # ------------------------------------------------------------- QC observations
 qc_findings:

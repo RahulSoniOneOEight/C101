@@ -468,7 +468,7 @@ active_changes:
   - human-production-authorization
 
 - change_id: CHG-081
-  status: approved-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approved_by: human-requester
   approved_at_utc: '2026-10-26'
@@ -477,14 +477,16 @@ active_changes:
   scope: web-sku-exact-pdp-bought-together-and-hosting
   lane: C
   design_override: bought-together-slice-5-nextjs-opt-out
+  staging_release: 0e64bd3
+  evidence: client-projects/client101/evidence/CHG-081/web-hosting-and-sku-exact-pdp-2026-10-26.md
   production_release_authorized: false
   web_commit: 19e2c37
   requirements:
-    R1_sku_exact_pdp: implemented-not-deployed
-    R2_checkout_consistency: implemented-not-deployed
-    R3_web_bought_together: implemented-not-deployed
-    R4_no_silent_variant_choice: implemented-not-deployed
-    R5_hosting: in-progress
-    R6_qc: partial
+    R1_sku_exact_pdp: staging-deployed-verified
+    R2_checkout_consistency: staging-deployed-verified
+    R3_web_bought_together: staging-deployed-verified
+    R4_no_silent_variant_choice: staging-deployed-verified
+    R5_hosting: staging-deployed-verified
+    R6_qc: pass-with-gaps
   production_blocked_by:
   - human-production-authorization
