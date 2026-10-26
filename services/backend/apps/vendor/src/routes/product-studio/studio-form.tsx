@@ -3268,7 +3268,8 @@ export function ProductStudioForm({
                 </Text>
               ) : (
                 <div className="flex flex-col gap-3">
-                  {mode === "admin" ? (
+                  {offers.length === 0 ? (
+                    mode === "admin" ? (
                     <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
                       <p className="text-sm font-medium text-ui-fg-base">
                         Seller
@@ -3321,18 +3322,7 @@ export function ProductStudioForm({
                         when the product is saved.
                       </p>
                     </div>
-                  )}
-                  {offers.length === 0 ? (
-                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                      <p className="text-sm font-medium text-ui-fg-base">
-                        No seller offer yet
-                      </p>
-                      <p className="mt-1 text-xs text-ui-fg-subtle">
-                        {mode === "admin"
-                          ? "Choose a seller above, then Save changes. Offers are created per variant, and pricing becomes editable here."
-                          : "Save the product to create your seller offers, then set B2C and B2B pricing here."}
-                      </p>
-                    </div>
+                  )
                   ) : (
                     <>
                       <div className="overflow-x-auto rounded-lg border border-ui-border-base">
@@ -3631,14 +3621,6 @@ export function ProductStudioForm({
                   )}
                 </div>
               )}
-              <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                <Text size="small" className="text-ui-fg-subtle">
-                  B2C pricing is stored on the offer. B2B pricing is stored in a
-                  dedicated per-offer price list scoped to the B2B Trade
-                  Customers group. Each channel saves separately and never
-                  changes the other.
-                </Text>
-              </div>
             </Section>
             </div>
               </div>
