@@ -1,0 +1,220 @@
+change_id: CHG-081
+revision: 1
+status: proposed
+request: >-
+  Give the Next.js web storefront a SKU-exact product page and Bought Together
+  merchandising, then host that surface on staging, so the web store quotes the
+  price of the variant it actually sells and shows the same recommendations as
+  the Flutter app.
+type: web-storefront-sku-exact-pdp-and-bought-together
+extends:
+- CHG-080
+- CHG-079
+requested_by: human-requester
+requested_at_utc: '2026-10-26'
+approval_required: true
+approved_by: null
+approved_at_utc: null
+approval_scope: web-storefront-sku-exact-and-bought-together-staging-only
+production_release_authorized: false
+
+# Lane C, not B: the UI and API work is Lane B, but shipping it requires a new
+# compose service, a proxy route and a TLS certificate for the app host, which is
+# a Docker/dependency change. The slowest required lane governs the bundle.
+lane: C
+release_mechanism: image-rebuild
+
+affected_capabilities:
+- product-merchandising
+- b2c-catalogue
+- b2c-checkout
+- web-storefront
+affected_domains:
+- experience
+- web
+- hosting
+affected_surfaces:
+- app.web
+- experience-api
+- hosted.proxy
+
+# ---------------------------------------------------------------- requirements
+requirements:
+- id: R1
+  name: SKU-exact product page
+  outcome: >-
+    /products/{id} accepts ?sku=, renders a variant picker as plain links, and
+    prices the selected variant instead of an arbitrary or top-level best price.
+  status: implemented-not-deployed
+- id: R2
+  name: Checkout consistency
+  outcome: >-
+    Buy now and /checkout resolve the same variant the product page quoted, so
+    the price displayed is the price charged. Verified label carries title, SKU
+    and price.
+  status: implemented-not-deployed
+- id: R3
+  name: Bought Together on the web PDP
+  outcome: >-
+    Web PDP shows the SKU-scoped pair with the current item and the paired
+    product, price and seller when available, identity-only and Out of stock when
+    all paired offers are out of stock, and the section absent when no pair
+    exists. Progressive enhancement: a lookup failure hides the section and never
+    fails the page.
+  status: implemented-not-deployed
+- id: R4
+  name: No silent variant choice
+  outcome: >-
+    Variant resolution is explicit and ordered; the previous reliance on the
+    first variant as a fallback is removed for any requested SKU.
+  status: implemented-not-deployed
+- id: R5
+  name: Hosting
+  outcome: >-
+    apps/web runs on staging behind the proxy at a resolvable hostname with a
+    trusted certificate, and the checkout API route keeps working.
+  status: not-started
+- id: R6
+  name: QC
+  outcome: >-
+    Typecheck, build and runtime verification of the paired, unpaired,
+    unpaired-SKU and paired-SKU cases at 360 px and desktop widths, with zero
+    console errors.
+  status: partial-typecheck-and-runtime-passed
+
+# -------------------------------------------------------------------- decisions
+decisions:
+- id: DEC-081-01
+  area: Design override
+  question: >-
+    Bought Together design Slice 5 explicitly omitted the Next.js surface in v1
+    ("disable/omit ... revisit parity only if Next.js is confirmed as an active
+    staging customer surface").
+  proposed_default: >-
+    Override Slice 5 for the web surface. Requires explicit human approval
+    because it reverses an approved decision.
+  status: pending-approval
+- id: DEC-081-02
+  area: Pairing scope
+  question: >-
+    Should a customer viewing variant X see a pair configured on variant Y of the
+    same product?
+  proposed_default: >-
+    No. Configuration and display stay SKU-scoped (option A). The section appears
+    only when the selected SKU is the paired SKU.
+  status: pending-approval
+- id: DEC-081-03
+  area: Hosting shape
+  question: >-
+    Static export or a Node server container for apps/web?
+  proposed_default: >-
+    Node server container. A static export would break /api/checkout, which is a
+    server route and is the only path that can return a canonical order group.
+  status: pending-approval
+- id: DEC-081-04
+  area: Paired action
+  question: What action does the paired card offer on the web?
+  proposed_default: >-
+    Link to the paired product page. No combined add-to-cart and no cross-product
+    cart semantics in this change, matching the v1 rule for the other surfaces.
+  status: pending-approval
+- id: DEC-081-05
+  area: Variant selection transport
+  question: Client state or URL?
+  proposed_default: >-
+    URL parameter ?sku=, server-rendered. No client state, no hydration
+    dependency, linkable and crawlable.
+  status: pending-approval
+
+# ---------------------------------------------------------------------- scope
+scope:
+  allowed_paths:
+  - apps/web/**
+  - services/hosted/docker-compose.hosted.yml
+  - services/hosted/nginx.conf.template
+  - services/hosted/.env
+  - client-projects/client101/**
+  no_touch:
+  - apps/prototype_app/**
+  - services/experience-api/src/store/bought-together-store.ts
+  - services/backend/packages/api/src/api/admin/buildkart/merchandising/bought-together/**
+  - /etc/buildkart/secrets/**
+  data_records: []
+  environment: staging
+  production: forbidden
+
+# --------------------------------------------------------------- implementation
+implementation:
+  status: partial
+  commit: 19e2c37
+  branch: feat/bt-sku-pairs
+  files:
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/products/[id]/page.tsx
+  - apps/web/app/checkout/page.tsx
+  - apps/web/app/globals.css
+  verification:
+    web_typecheck: pass
+    runtime_paired_default: pass
+    runtime_unpaired_sku_hides_section: pass
+    runtime_paired_sku_reciprocal: pass
+    checkout_label_carries_sku_and_price: pass
+    web_build: not-run
+    mobile_360: not-run
+    console_errors: not-run
+  production_blocked_by:
+  - human-production-authorization
+  - CHG-081-approval
+
+# ------------------------------------------------------------- QC observations
+qc_findings:
+- id: Q1
+  finding: >-
+    GET /v1/products/{id}/bought-together is SKU-scoped: without ?sku it returns
+    pair_id null even when the product is paired.
+  impact: >-
+    Any consumer that omits sku will never render the section. The Bought
+    Together design document section 7.2 shows the endpoint returning a pair for
+    ?channel alone, which is documentation drift introduced by CHG-080.
+  action: correct the design document in this change
+- id: Q2
+  finding: >-
+    The product detail endpoint returns an empty top-level best_price and puts the
+    priced offer on commercial.selected_seller, while variants[].best_price
+    carries the real offer id and variant_id.
+  impact: >-
+    Consumers reading product.best_price get nothing; the old web page only
+    worked through a first-variant fallback.
+  action: resolveVariant() now reads all three sources in a defined order
+- id: Q3
+  finding: >-
+    app-staging.pinakaplay.cloud serves an untrusted certificate chain and returns
+    503 when certificate verification is bypassed, on an IP where api and ops
+    hosts serve trusted chains.
+  impact: blocks R5 entirely
+  action: issue or route a certificate for the app host, add the compose service
+- id: Q4
+  finding: >-
+    The web surface is B2C-only; B2B pairs will not display because no
+    channel=b2b caller exists.
+  impact: acceptable for v1 if declared
+  action: declare B2C-only scope in this change
+
+# ------------------------------------------------------------------ verification
+verification_plan:
+- web_typecheck_and_build
+- paired product with default SKU shows the section
+- paired product with the unpaired SKU hides the section
+- paired product with the paired SKU selected shows the reciprocal pair
+- unpaired product hides the section and still returns 200
+- checkout label and posted offerId match the displayed SKU and price
+- 360 px and desktop widths, zero console errors
+- hosted surface returns 200 with a trusted certificate (R5)
+
+# --------------------------------------------------------------------- approval
+approvals:
+- role: requester
+  decision: pending
+  note: >-
+    DEC-081-01 is the material one: it reverses Bought Together design Slice 5.
+    Nothing in the R5 hosting scope should start before it is accepted.
