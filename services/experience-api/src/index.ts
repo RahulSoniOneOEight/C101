@@ -4783,23 +4783,82 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         scanned.push(...page);
         if (page.length < 250) break;
       }
-      const items = scanned
+      const matched = scanned
         .filter((product) => {
           if (!query) return true;
           if (product.title.toLowerCase().includes(query)) return true;
-          return (product.variants ?? []).some((variant) =>
-            (variant.sku ?? "").toLowerCase().includes(query),
+          return (product.variants ?? []).some(
+            (variant) =>
+              (variant.sku ?? "").toLowerCase().includes(query) ||
+              (variant.title ?? "").toLowerCase().includes(query),
           );
         })
-        .slice(0, 20)
-        .map((product) => ({
+        .slice(0, 20);
+      const matchedIds = matched.map((product) => product.id);
+      const activePairs = await boughtTogether.activePairsForProducts(
+        matchedIds,
+        channel,
+      );
+      const regionId =
+        channel === "b2b"
+          ? config.medusaB2bRegionId ?? config.medusaRegionId
+          : config.medusaRegionId;
+      const offersByProduct = new Map<string, StoreOffer[]>();
+      try {
+        const offers = await medusa.listOffersByProducts(matchedIds, regionId);
+        for (const offer of offers) {
+          const list = offersByProduct.get(offer.product_id) ?? [];
+          list.push(offer);
+          offersByProduct.set(offer.product_id, list);
+        }
+      } catch {
+        // Candidate search still works without offer/stock enrichment.
+      }
+      const items = matched.map((product) => {
+        const variants = product.variants ?? [];
+        const matchingVariants = query
+          ? variants.filter(
+              (variant) =>
+                (variant.sku ?? "").toLowerCase().includes(query) ||
+                (variant.title ?? "").toLowerCase().includes(query),
+            )
+          : variants;
+        const visibleVariants = (
+          matchingVariants.length > 0 ? matchingVariants : variants
+        ).slice(0, 10);
+        const productOffers = offersByProduct.get(product.id) ?? [];
+        const matchingSkus = visibleVariants.map((variant) => {
+          const offer = productOffers.find(
+            (candidate) => candidate.variant_id === variant.id,
+          );
+          return {
+            variant_id: variant.id,
+            variant_title: variant.title ?? "",
+            sku: variant.sku ?? "",
+            offer_id: offer?.id ?? null,
+            in_stock: offer ? offer.in_stock !== false : null,
+          };
+        });
+        const activePair = activePairs.get(product.id);
+        return {
           id: product.id,
           title: product.title,
           thumbnail: product.thumbnail ?? null,
-          sku_count: product.variants?.length ?? 0,
+          sku_count: variants.length,
           status: "published",
-          channel_ready: { b2c: channel === "b2c", b2b: channel === "b2b" },
-        }));
+          channel_ready: {
+            b2c: channel === "b2c" && productOffers.length > 0,
+            b2b: channel === "b2b" && productOffers.length > 0,
+          },
+          matching_skus: matchingSkus,
+          active_pair: activePair
+            ? {
+                id: activePair.pair_id,
+                paired_product_id: activePair.paired_product_id,
+              }
+            : null,
+        };
+      });
       return json({ items, count: items.length, channel });
     } catch (error) {
       return problem(502, "catalogue-unavailable", (error as Error).message);

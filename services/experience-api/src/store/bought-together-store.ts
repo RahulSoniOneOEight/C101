@@ -369,6 +369,40 @@ export class BoughtTogetherStore {
     };
   }
 
+  /**
+   * Bulk active-pair lookup for the merchandising picker. One query for all
+   * candidate products avoids N+1 reads while the operator searches.
+   */
+  async activePairsForProducts(
+    productIds: string[],
+    channel: "b2c" | "b2b",
+  ): Promise<Map<string, { pair_id: string; paired_product_id: string }>> {
+    await this.ready;
+    const map = new Map<string, { pair_id: string; paired_product_id: string }>();
+    if (productIds.length === 0) return map;
+    const result = await this.pool.query(
+      `SELECT m.product_id,
+              p.id AS pair_id,
+              CASE WHEN p.product_a_id = m.product_id
+                   THEN p.product_b_id
+                   ELSE p.product_a_id
+              END AS paired_product_id
+       FROM bought_together_active_members m
+       JOIN bought_together_pairs p ON p.id = m.pair_id
+       WHERE m.channel = $1
+         AND m.product_id = ANY($2::text[])
+         AND p.status = 'active'`,
+      [channel, productIds],
+    );
+    for (const row of result.rows) {
+      map.set(String(row.product_id), {
+        pair_id: String(row.pair_id),
+        paired_product_id: String(row.paired_product_id),
+      });
+    }
+    return map;
+  }
+
   async audit(id: string): Promise<BoughtTogetherAuditRow[]> {
     await this.ready;
     const result = await this.pool.query(
