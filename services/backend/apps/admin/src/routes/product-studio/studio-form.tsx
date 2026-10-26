@@ -9,7 +9,14 @@
   Textarea,
 } from "@medusajs/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 declare const __BACKEND_URL__: string;
@@ -443,6 +450,16 @@ function WorkspaceNavigation({
   );
 }
 
+type StudioSaveContextValue = {
+  onSave: () => void;
+  saving: boolean;
+  dirty: boolean;
+  canSave: boolean;
+  isNew: boolean;
+};
+
+const StudioSaveContext = createContext<StudioSaveContextValue | null>(null);
+
 function Section({
   id,
   number,
@@ -466,6 +483,14 @@ function Section({
   summary?: string;
   children: React.ReactNode;
 }) {
+  const saveContext = useContext(StudioSaveContext);
+  const saveSection =
+    saveContext &&
+    id &&
+    /^studio-(details|media|organisation|specs|tags|variants)$/.test(id) &&
+    (saveContext.dirty || saveContext.isNew)
+      ? saveContext
+      : null;
   const storageKey = id ? `buildkart:studio-section:${id}` : null;
   const [open, setOpen] = useState(() => {
     if (!storageKey || typeof window === "undefined" || ignoreStoredState) {
@@ -490,13 +515,12 @@ function Section({
       style={{ scrollMarginTop: "128px" }}
       className="scroll-mt-36 border-t border-ui-border-base px-6 py-6 first:border-t-0"
     >
+      <div className={`flex min-h-11 items-start gap-2 ${open ? "mb-5" : ""}`}>
       <button
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className={`flex min-h-11 w-full items-start gap-3 rounded-md text-left focus:outline-none focus:ring-2 focus:ring-ui-fg-interactive ${
-          open ? "mb-5" : ""
-        }`}
+        className="flex min-h-11 flex-1 items-start gap-3 rounded-md text-left focus:outline-none focus:ring-2 focus:ring-ui-fg-interactive"
       >
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
@@ -533,6 +557,19 @@ function Section({
           {open ? "⌃" : "⌄"}
         </span>
       </button>
+      {saveSection ? (
+        <Button
+          size="small"
+          type="button"
+          variant="secondary"
+          isLoading={saveSection.saving}
+          disabled={!saveSection.canSave || saveSection.saving}
+          onClick={() => saveSection.onSave()}
+        >
+          Save
+        </Button>
+      ) : null}
+      </div>
       {open ? children : null}
     </section>
   );
@@ -2462,6 +2499,15 @@ export function ProductStudioForm({
       ?.name ?? "No category selected";
 
   return (
+    <StudioSaveContext.Provider
+      value={{
+        onSave: save,
+        saving,
+        dirty,
+        canSave: Boolean(form.title.trim()),
+        isNew: !productId,
+      }}
+    >
     <div className="flex flex-col gap-y-3 pb-24">
       <Container className="p-0">
         <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
@@ -4535,5 +4581,6 @@ export function ProductStudioForm({
         </div>
       ) : null}
     </div>
+    </StudioSaveContext.Provider>
   );
 }
