@@ -66,6 +66,14 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-25'
   scope: staging-updates-02-to-04-r1-r4
+- change_id: CHG-076
+  approved_by: human-requester
+  approved_at_utc: '2026-10-27'
+  scope: current-compatible-phased-product-studio-and-chg049-cutover-staging-only
+- change_id: CHG-086
+  approved_by: human-requester
+  approved_at_utc: '2026-10-27'
+  scope: full-product-studio-and-chg049-cutover-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -614,3 +622,34 @@ active_changes:
   production_blocked_by:
   - human-production-authorization
   - tryton-reservation-decision
+- change_id: CHG-086
+  status: staging-implemented-awaiting-verification
+  approval_required: true
+  approved_by: human-requester
+  approved_at_utc: '2026-10-27'
+  approval_scope: full-product-studio-and-chg049-cutover-staging-only
+  proposal: client-projects/client101/changes/CHG-086.yaml
+  scope: commercial-readiness-visibility-and-admin-seller-product-workspace
+  lane: C
+  release_mechanism:
+  - image-rebuild
+  - static-web
+  - governed-data-update
+  implementation_commit: c0d8483
+  data_change:
+    script: services/hosted/scripts/chg086-product-visibility.sh
+    mode: applied-reversible
+    archived_products:
+    - prod_01M4EC9DSW5MSACQWETJ3R38AW
+    - prod_01M4EC9DSW6J984KKM619VKZEA
+    - prod_01M5TC4ZM09R4FJMAFKP3G1H6C
+    - prod_01M5VAK0F4R5G7V2MYS0PPQ4TM
+    variant_axes_disabled:
+    - pattr_01M4EC9BX8J18G5Z2JYF9FN6TD
+    - pattr_01M4EC9BX947JYA00T2YRSQTDB
+    snapshot: /var/backups/buildkart/buildkart-20261026T185554Z.dump.age
+  rollback_tags:
+  - buildkart-hosted-pilot-medusa:rollback-0e64bd3
+  - buildkart-hosted-pilot-experience-api:rollback-0e64bd3
+  evidence: client-projects/client101/evidence/CHG-086/product-studio-and-visibility-2026-10-27.md
+  production_release_authorized: false
