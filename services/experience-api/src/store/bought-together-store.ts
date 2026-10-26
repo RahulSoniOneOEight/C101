@@ -8,6 +8,8 @@ export interface BoughtTogetherPair {
   id: string;
   product_a_id: string;
   product_b_id: string;
+  variant_a_id: string | null;
+  variant_b_id: string | null;
   channel: BoughtTogetherChannel;
   status: BoughtTogetherStatus;
   version: number;
@@ -20,6 +22,8 @@ export interface BoughtTogetherPair {
 export interface BoughtTogetherPairInput {
   product_a_id: string;
   product_b_id: string;
+  variant_a_id?: string | null;
+  variant_b_id?: string | null;
   channel: BoughtTogetherChannel;
   status: BoughtTogetherStatus;
 }
@@ -27,6 +31,7 @@ export interface BoughtTogetherPairInput {
 export interface BoughtTogetherActivePair {
   pair: BoughtTogetherPair;
   paired_product_id: string;
+  paired_variant_id: string | null;
 }
 
 export interface BoughtTogetherAuditRow {
@@ -59,6 +64,8 @@ function pairFromRow(row: Record<string, unknown>): BoughtTogetherPair {
     id: String(row.id),
     product_a_id: String(row.product_a_id),
     product_b_id: String(row.product_b_id),
+    variant_a_id: row.variant_a_id ? String(row.variant_a_id) : null,
+    variant_b_id: row.variant_b_id ? String(row.variant_b_id) : null,
     channel: row.channel as BoughtTogetherChannel,
     status: row.status as BoughtTogetherStatus,
     version: Number(row.version),
@@ -76,6 +83,16 @@ function assertInput(input: BoughtTogetherPairInput) {
   if (input.product_a_id === input.product_b_id) {
     throw new BoughtTogetherError("invalid_pair", "A product cannot be paired with itself.", 400);
   }
+  if (Boolean(input.variant_a_id) !== Boolean(input.variant_b_id)) {
+    throw new BoughtTogetherError(
+      "invalid_pair",
+      "Both SKUs must be supplied, or neither for a legacy product-level pair.",
+      400,
+    );
+  }
+  if (input.variant_a_id && input.variant_a_id === input.variant_b_id) {
+    throw new BoughtTogetherError("invalid_pair", "A SKU cannot be paired with itself.", 400);
+  }
   if (!CHANNELS.includes(input.channel)) {
     throw new BoughtTogetherError("invalid_pair", "Channel must be b2c, b2b or both.", 400);
   }
@@ -91,12 +108,12 @@ function mapDatabaseError(error: unknown): BoughtTogetherError {
     if (pgError.constraint?.includes("active_members")) {
       return new BoughtTogetherError(
         "product_already_paired",
-        "A product is already in an active pair for this channel.",
+        "A SKU is already in an active pair for this channel.",
       );
     }
     return new BoughtTogetherError(
       "pair_exists",
-      "A non-archived pair for these products already exists.",
+      "A non-archived pair for these SKUs already exists.",
     );
   }
   return new BoughtTogetherError(
@@ -126,12 +143,18 @@ export class BoughtTogetherStore {
         id            text PRIMARY KEY,
         product_a_id  text NOT NULL,
         product_b_id  text NOT NULL,
+        variant_a_id  text,
+        variant_b_id  text,
         channel       text NOT NULL CHECK (channel IN ('b2c', 'b2b', 'both')),
         status        text NOT NULL CHECK (status IN ('draft', 'active', 'paused', 'archived')),
         version       integer NOT NULL DEFAULT 1,
         pair_key      text GENERATED ALWAYS AS (
                         least(product_a_id, product_b_id) || ':' ||
                         greatest(product_a_id, product_b_id)
+                      ) STORED,
+        member_pair_key text GENERATED ALWAYS AS (
+                        least(coalesce(variant_a_id, product_a_id), coalesce(variant_b_id, product_b_id)) || ':' ||
+                        greatest(coalesce(variant_a_id, product_a_id), coalesce(variant_b_id, product_b_id))
                       ) STORED,
         created_by    text NOT NULL,
         updated_by    text NOT NULL,
@@ -140,16 +163,51 @@ export class BoughtTogetherStore {
         test_data     boolean NOT NULL DEFAULT true CHECK (test_data = true),
         CHECK (product_a_id <> product_b_id)
       );
-      CREATE UNIQUE INDEX IF NOT EXISTS bought_together_pairs_non_archived_pair_key
-        ON bought_together_pairs (pair_key)
+
+      -- Additive upgrade for stores created before SKU-level pairing.
+      ALTER TABLE bought_together_pairs ADD COLUMN IF NOT EXISTS variant_a_id text;
+      ALTER TABLE bought_together_pairs ADD COLUMN IF NOT EXISTS variant_b_id text;
+      ALTER TABLE bought_together_pairs ADD COLUMN IF NOT EXISTS member_pair_key text
+        GENERATED ALWAYS AS (
+          least(coalesce(variant_a_id, product_a_id), coalesce(variant_b_id, product_b_id)) || ':' ||
+          greatest(coalesce(variant_a_id, product_a_id), coalesce(variant_b_id, product_b_id))
+        ) STORED;
+
+      -- Product-level uniqueness is superseded by SKU-level uniqueness. Legacy
+      -- rows fall back to product ids through coalesce, so they stay protected.
+      DROP INDEX IF EXISTS bought_together_pairs_non_archived_pair_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS bought_together_pairs_non_archived_member_key
+        ON bought_together_pairs (member_pair_key)
         WHERE status <> 'archived';
 
       CREATE TABLE IF NOT EXISTS bought_together_active_members (
         product_id  text NOT NULL,
+        variant_id  text,
+        member_key  text NOT NULL,
         channel     text NOT NULL CHECK (channel IN ('b2c', 'b2b')),
         pair_id     text NOT NULL REFERENCES bought_together_pairs(id) ON DELETE CASCADE,
-        PRIMARY KEY (product_id, channel)
+        PRIMARY KEY (member_key, channel)
       );
+
+      ALTER TABLE bought_together_active_members ADD COLUMN IF NOT EXISTS variant_id text;
+      ALTER TABLE bought_together_active_members ADD COLUMN IF NOT EXISTS member_key text;
+      UPDATE bought_together_active_members
+         SET member_key = coalesce(variant_id, product_id)
+       WHERE member_key IS NULL;
+      ALTER TABLE bought_together_active_members ALTER COLUMN member_key SET NOT NULL;
+
+      DO $$
+      DECLARE definition text;
+      BEGIN
+        SELECT pg_get_constraintdef(c.oid) INTO definition
+        FROM pg_constraint c
+        WHERE c.conrelid = 'bought_together_active_members'::regclass
+          AND c.contype = 'p';
+        IF definition IS NOT NULL AND definition NOT LIKE '%member_key%' THEN
+          ALTER TABLE bought_together_active_members DROP CONSTRAINT bought_together_active_members_pkey;
+          ALTER TABLE bought_together_active_members ADD PRIMARY KEY (member_key, channel);
+        END IF;
+      END $$;
 
       CREATE TABLE IF NOT EXISTS bought_together_audit (
         id              bigserial PRIMARY KEY,
@@ -187,12 +245,18 @@ export class BoughtTogetherStore {
     await client.query(`DELETE FROM bought_together_active_members WHERE pair_id = $1`, [pair.id]);
     if (pair.status !== "active") return;
     const channels = pair.channel === "both" ? ["b2c", "b2b"] : [pair.channel];
+    const members = [
+      { productId: pair.product_a_id, variantId: pair.variant_a_id },
+      { productId: pair.product_b_id, variantId: pair.variant_b_id },
+    ];
     for (const channel of channels) {
-      for (const productId of [pair.product_a_id, pair.product_b_id]) {
+      for (const member of members) {
+        const memberKey = member.variantId ?? member.productId;
         await client.query(
-          `INSERT INTO bought_together_active_members (product_id, channel, pair_id)
-           VALUES ($1, $2, $3)`,
-          [productId, channel, pair.id],
+          `INSERT INTO bought_together_active_members
+             (product_id, variant_id, member_key, channel, pair_id)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [member.productId, member.variantId, memberKey, channel, pair.id],
         );
       }
     }
@@ -211,10 +275,19 @@ export class BoughtTogetherStore {
       const id = `btp_${randomUUID().replaceAll("-", "")}`;
       const result = await client.query(
         `INSERT INTO bought_together_pairs
-           (id, product_a_id, product_b_id, channel, status, created_by, updated_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $6)
+           (id, product_a_id, product_b_id, variant_a_id, variant_b_id, channel, status, created_by, updated_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
          RETURNING *`,
-        [id, input.product_a_id, input.product_b_id, input.channel, input.status, actorId],
+        [
+          id,
+          input.product_a_id,
+          input.product_b_id,
+          input.variant_a_id ?? null,
+          input.variant_b_id ?? null,
+          input.channel,
+          input.status,
+          actorId,
+        ],
       );
       const pair = pairFromRow(result.rows[0]);
       await this.replaceMembers(client, pair);
@@ -260,6 +333,10 @@ export class BoughtTogetherStore {
       const next: BoughtTogetherPairInput = {
         product_a_id: input.product_a_id ?? current.product_a_id,
         product_b_id: input.product_b_id ?? current.product_b_id,
+        variant_a_id:
+          input.variant_a_id === undefined ? current.variant_a_id : input.variant_a_id,
+        variant_b_id:
+          input.variant_b_id === undefined ? current.variant_b_id : input.variant_b_id,
         channel: input.channel ?? current.channel,
         status: input.status ?? current.status,
       };
@@ -268,14 +345,25 @@ export class BoughtTogetherStore {
         `UPDATE bought_together_pairs
          SET product_a_id = $2,
              product_b_id = $3,
-             channel = $4,
-             status = $5,
+             variant_a_id = $4,
+             variant_b_id = $5,
+             channel = $6,
+             status = $7,
              version = version + 1,
-             updated_by = $6,
+             updated_by = $8,
              updated_at = now()
          WHERE id = $1
          RETURNING *`,
-        [id, next.product_a_id, next.product_b_id, next.channel, next.status, actorId],
+        [
+          id,
+          next.product_a_id,
+          next.product_b_id,
+          next.variant_a_id ?? null,
+          next.variant_b_id ?? null,
+          next.channel,
+          next.status,
+          actorId,
+        ],
       );
       const updated = pairFromRow(result.rows[0]);
       await this.replaceMembers(client, updated);
@@ -347,6 +435,31 @@ export class BoughtTogetherStore {
     return result.rows[0] ? pairFromRow(result.rows[0]) : undefined;
   }
 
+  async getActiveForVariant(
+    variantId: string,
+    channel: "b2c" | "b2b",
+  ): Promise<BoughtTogetherActivePair | undefined> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT p.*,
+              CASE WHEN p.variant_a_id = $1 THEN p.product_b_id ELSE p.product_a_id END AS paired_product_id,
+              CASE WHEN p.variant_a_id = $1 THEN p.variant_b_id ELSE p.variant_a_id END AS paired_variant_id
+       FROM bought_together_active_members m
+       JOIN bought_together_pairs p ON p.id = m.pair_id
+       WHERE m.member_key = $1 AND m.channel = $2 AND p.status = 'active'
+       LIMIT 1`,
+      [variantId, channel],
+    );
+    const row = result.rows[0];
+    if (!row) return undefined;
+    return {
+      pair: pairFromRow(row),
+      paired_product_id: String(row.paired_product_id),
+      paired_variant_id: row.paired_variant_id ? String(row.paired_variant_id) : null,
+    };
+  }
+
+  /** Legacy product-level lookup for pairs created before SKU-level pairing. */
   async getActiveForProduct(
     productId: string,
     channel: "b2c" | "b2b",
@@ -354,10 +467,12 @@ export class BoughtTogetherStore {
     await this.ready;
     const result = await this.pool.query(
       `SELECT p.*,
-              CASE WHEN p.product_a_id = $1 THEN p.product_b_id ELSE p.product_a_id END AS paired_product_id
+              CASE WHEN p.product_a_id = $1 THEN p.product_b_id ELSE p.product_a_id END AS paired_product_id,
+              p.variant_a_id AS paired_variant_id
        FROM bought_together_active_members m
        JOIN bought_together_pairs p ON p.id = m.pair_id
-       WHERE m.product_id = $1 AND m.channel = $2 AND p.status = 'active'
+       WHERE m.member_key = $1 AND m.channel = $2 AND p.status = 'active'
+         AND p.variant_a_id IS NULL
        LIMIT 1`,
       [productId, channel],
     );
@@ -366,37 +481,46 @@ export class BoughtTogetherStore {
     return {
       pair: pairFromRow(row),
       paired_product_id: String(row.paired_product_id),
+      paired_variant_id: row.paired_variant_id ? String(row.paired_variant_id) : null,
     };
   }
 
   /**
    * Bulk active-pair lookup for the merchandising picker. One query for all
-   * candidate products avoids N+1 reads while the operator searches.
+   * candidate SKUs avoids N+1 reads while the operator searches.
    */
-  async activePairsForProducts(
-    productIds: string[],
+  async activePairsForVariants(
+    variantIds: string[],
     channel: "b2c" | "b2b",
-  ): Promise<Map<string, { pair_id: string; paired_product_id: string }>> {
+  ): Promise<Map<string, { pair_id: string; paired_variant_id: string | null; paired_product_id: string }>> {
     await this.ready;
-    const map = new Map<string, { pair_id: string; paired_product_id: string }>();
-    if (productIds.length === 0) return map;
+    const map = new Map<
+      string,
+      { pair_id: string; paired_variant_id: string | null; paired_product_id: string }
+    >();
+    if (variantIds.length === 0) return map;
     const result = await this.pool.query(
-      `SELECT m.product_id,
+      `SELECT m.member_key,
               p.id AS pair_id,
-              CASE WHEN p.product_a_id = m.product_id
+              CASE WHEN p.variant_a_id = m.member_key
+                   THEN p.variant_b_id
+                   ELSE p.variant_a_id
+              END AS paired_variant_id,
+              CASE WHEN p.variant_a_id = m.member_key
                    THEN p.product_b_id
                    ELSE p.product_a_id
               END AS paired_product_id
        FROM bought_together_active_members m
        JOIN bought_together_pairs p ON p.id = m.pair_id
        WHERE m.channel = $1
-         AND m.product_id = ANY($2::text[])
+         AND m.member_key = ANY($2::text[])
          AND p.status = 'active'`,
-      [channel, productIds],
+      [channel, variantIds],
     );
     for (const row of result.rows) {
-      map.set(String(row.product_id), {
+      map.set(String(row.member_key), {
         pair_id: String(row.pair_id),
+        paired_variant_id: row.paired_variant_id ? String(row.paired_variant_id) : null,
         paired_product_id: String(row.paired_product_id),
       });
     }

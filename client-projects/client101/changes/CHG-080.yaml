@@ -1,0 +1,89 @@
+change_id: CHG-080
+revision: 1
+status: approved-in-progress
+request: >-
+  Change Bought Together pairing from product-level to SKU-level. Operators
+  search and select two SKUs in the admin; the pair is stored by variant, the
+  admin list gains summary counters, both thumbnails, per-channel health and
+  clearer labels, and the storefront shows the pair only on the paired SKU.
+type: bought-together-sku-level-pairing
+extends:
+- CHG-079
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
+approval_source: chat-request-update-admin-sku-pairs-2026-10-26
+approval_scope: bought-together-sku-pairing-staging-only
+production_release_authorized: false
+affected_capabilities:
+- product-merchandising
+- b2c-catalogue
+- b2b-catalogue
+- admin-merchandising
+affected_domains:
+- commerce
+- experience
+- admin
+affected_surfaces:
+- backend.admin
+- experience-api
+- app.prototype.b2c
+- app.prototype.b2b
+requirements:
+- id: R1
+  name: SKU-level pair storage
+  outcome: >-
+    A pair records variant_a_id and variant_b_id in addition to the derived
+    product ids; uniqueness is per unordered SKU pair, and active membership is
+    keyed by variant per channel.
+  status: pending
+- id: R2
+  name: SKU search and selection
+  outcome: >-
+    The admin New pair flow searches SKUs by SKU, title or brand, returns SKU
+    rows with image, seller, price, stock and per-channel readiness, and blocks
+    duplicate SKUs or SKUs already paired in the selected channel.
+  status: pending
+- id: R3
+  name: Admin list clarity
+  outcome: >-
+    The list shows Active/Paused/Needs attention/Draft counters, both product
+    thumbnails with a fallback, per-channel health, Title Case badges, an
+    en-IN date and a storefront preview action.
+  status: pending
+- id: R4
+  name: Storefront SKU scope
+  outcome: >-
+    The PDP pair endpoint accepts the selected SKU (or variant id); the section
+    appears only for the paired SKU and reverses on the partner SKU. Legacy
+    product-level pairs remain readable.
+  status: pending
+- id: R5
+  name: Migration and compatibility
+  outcome: >-
+    Additive migration only. The existing product-level pair is archived and
+    recreated by SKU; no other pair data is destroyed.
+  status: pending
+decisions:
+- id: DEC-080-01
+  area: Pairing granularity
+  approved_default: >-
+    Pairing is variant-level. The store keeps variant_a_id/variant_b_id and the
+    derived product_a_id/product_b_id. Pair identity is the unordered variant
+    pair per channel set.
+- id: DEC-080-02
+  area: Storefront visibility
+  approved_default: >-
+    The Bought together section appears only when the selected SKU matches one
+    of the paired variants. Other variants of the same product hide the section.
+- id: DEC-080-03
+  area: B2B readiness
+  approved_default: >-
+    B2B activation requires a channel-eligible offer and an active B2B price
+    snapshot (b2b_configured) for both SKUs; otherwise health reports
+    b2b_not_configured and activation is refused.
+- id: DEC-080-04
+  area: Migration
+  approved_default: >-
+    Add variant columns and a member_key index in place. Backfill legacy rows
+    with their product ids; archive the single existing product-level pair and
+    recreate it by SKU because each side has more than one variant.

@@ -576,11 +576,17 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 async function validateBoughtTogetherInput(input: {
   product_a_id: string;
   product_b_id: string;
+  variant_a_id?: string | null;
+  variant_b_id?: string | null;
   channel: BoughtTogetherChannel;
 }): Promise<void> {
   const channels: Array<"b2c" | "b2b"> =
     input.channel === "both" ? ["b2c", "b2b"] : [input.channel];
-  const productIds = [input.product_a_id, input.product_b_id];
+  const members = [
+    { productId: input.product_a_id, variantId: input.variant_a_id ?? null },
+    { productId: input.product_b_id, variantId: input.variant_b_id ?? null },
+  ];
+  const productIds = members.map((member) => member.productId);
   for (const channel of channels) {
     const products = new Map<string, StoreProduct>();
     for (const productId of productIds) {
@@ -607,9 +613,22 @@ async function validateBoughtTogetherInput(input: {
       medusa.listOffersByProducts(productIds, regionId),
       4000,
     );
-    for (const productId of productIds) {
-      const product = products.get(productId);
-      const productOffers = offers.filter((offer) => offer.product_id === productId);
+    for (const member of members) {
+      const product = products.get(member.productId);
+      const productOffers = offers.filter(
+        (offer) =>
+          offer.product_id === member.productId &&
+          (!member.variantId || offer.variant_id === member.variantId),
+      );
+      if (productOffers.length === 0) {
+        throw new BoughtTogetherError(
+          "pair_not_ready",
+          member.variantId
+            ? `SKU ${member.variantId} has no offer in ${channel}.`
+            : `Product ${member.productId} has no offer in ${channel}.`,
+          409,
+        );
+      }
       const options: ComposeOptions = {
         channel,
         b2bPricing:
@@ -627,9 +646,30 @@ async function validateBoughtTogetherInput(input: {
       if (!priced) {
         throw new BoughtTogetherError(
           "pair_not_ready",
-          `Product ${productId} has no priced offer in ${channel}.`,
+          member.variantId
+            ? `SKU ${member.variantId} has no priced offer in ${channel}.`
+            : `Product ${member.productId} has no priced offer in ${channel}.`,
           409,
         );
+      }
+      if (channel === "b2b") {
+        const snapshots = (product?.metadata?.buildkart_b2b_pricing ?? {}) as Record<
+          string,
+          B2bPricingSnapshot
+        >;
+        const tradePriced = productOffers.some((offer) => {
+          const snapshot = snapshots[offer.id];
+          return snapshot?.configured === true && (snapshot.amount ?? 0) > 0;
+        });
+        if (!tradePriced) {
+          throw new BoughtTogetherError(
+            "pair_not_ready",
+            member.variantId
+              ? `SKU ${member.variantId} has no B2B trade price.`
+              : `Product ${member.productId} has no B2B trade price.`,
+            409,
+          );
+        }
       }
     }
   }
@@ -641,8 +681,12 @@ type BoughtTogetherEnrichedPair = BoughtTogetherPair & {
     title: string;
     thumbnail: string | null;
     sku_count: number;
+    variant_id: string | null;
+    variant_title: string | null;
+    sku: string | null;
     status: "published" | "unavailable";
     channel_ready: { b2c: boolean; b2b: boolean };
+    variant_channel_ready: { b2c: boolean | null; b2b: boolean | null };
   }>;
   health: "ready" | "out_of_stock" | "unavailable";
   health_by_channel: { b2c: "ready" | "out_of_stock" | "unavailable"; b2b: "ready" | "out_of_stock" | "unavailable" };
@@ -691,21 +735,41 @@ async function enrichBoughtTogetherPairs(
 
   const productFor = (id: string) =>
     productsByChannel.get("b2c")?.get(id) ?? productsByChannel.get("b2b")?.get(id);
-  const channelHealth = (id: string, channel: "b2c" | "b2b") => {
+  const variantFor = (id: string, variantId: string | null) => {
+    const product = productFor(id);
+    if (!product || !variantId) return null;
+    return (product.variants ?? []).find((variant) => variant.id === variantId) ?? null;
+  };
+  const offersFor = (id: string, variantId: string | null) =>
+    (offersByProduct.get(id) ?? []).filter(
+      (offer) => !variantId || offer.variant_id === variantId,
+    );
+  const channelHealth = (id: string, variantId: string | null, channel: "b2c" | "b2b") => {
     if (!productsByChannel.get(channel)?.has(id)) return "unavailable" as const;
-    const offers = offersByProduct.get(id) ?? [];
+    const offers = offersFor(id, variantId);
     if (offers.length === 0) return "unavailable" as const;
     return offers.some((offer) => offer.in_stock !== false)
       ? ("ready" as const)
       : ("out_of_stock" as const);
+  };
+  const variantChannelReady = (
+    id: string,
+    variantId: string | null,
+    channel: "b2c" | "b2b",
+  ) => {
+    if (!variantId) return null;
+    if (!productsByChannel.get(channel)?.has(id)) return false;
+    return offersFor(id, variantId).some(
+      (offer) => (offer.calculated_price?.calculated_amount ?? 0) > 0,
+    );
   };
 
   return rows.map((row) => {
     const selectedChannels: Array<"b2c" | "b2b"> =
       row.channel === "both" ? ["b2c", "b2b"] : [row.channel];
     const healthForChannel = (channel: "b2c" | "b2b") => {
-      const a = channelHealth(row.product_a_id, channel);
-      const b = channelHealth(row.product_b_id, channel);
+      const a = channelHealth(row.product_a_id, row.variant_a_id, channel);
+      const b = channelHealth(row.product_b_id, row.variant_b_id, channel);
       if (a === "unavailable" || b === "unavailable") return "unavailable" as const;
       if (a === "out_of_stock" || b === "out_of_stock") return "out_of_stock" as const;
       return "ready" as const;
@@ -719,23 +783,34 @@ async function enrichBoughtTogetherPairs(
       : selectedChannels.some((channel) => healthByChannel[channel] === "out_of_stock")
         ? ("out_of_stock" as const)
         : ("ready" as const);
-    const summary = (id: string) => {
+    const summary = (id: string, variantId: string | null) => {
       const product = productFor(id);
+      const variant = variantFor(id, variantId);
       return {
         id,
         title: product?.title ?? "Product unavailable",
         thumbnail: product?.thumbnail ?? null,
         sku_count: product?.variants?.length ?? 0,
+        variant_id: variantId,
+        variant_title: variant?.title ?? null,
+        sku: variant?.sku ?? null,
         status: product ? ("published" as const) : ("unavailable" as const),
         channel_ready: {
           b2c: productsByChannel.get("b2c")?.has(id) ?? false,
           b2b: productsByChannel.get("b2b")?.has(id) ?? false,
         },
+        variant_channel_ready: {
+          b2c: variantChannelReady(id, variantId, "b2c"),
+          b2b: variantChannelReady(id, variantId, "b2b"),
+        },
       };
     };
     return {
       ...row,
-      products: [summary(row.product_a_id), summary(row.product_b_id)],
+      products: [
+        summary(row.product_a_id, row.variant_a_id),
+        summary(row.product_b_id, row.variant_b_id),
+      ],
       health,
       health_by_channel: healthByChannel,
     };
@@ -3853,11 +3928,25 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     const regionId = regionFor(authorization);
     try {
-      const active = await boughtTogether.getActiveForProduct(productId, channel);
+      const currentProduct = await withTimeout(
+        medusa.getProduct(productId, salesChannelIdFor(channel)),
+        5000,
+      );
+      const skuParam = (url.searchParams.get("sku") ?? "").trim();
+      const variantParam = (url.searchParams.get("variant_id") ?? "").trim();
+      const currentVariant = variantParam
+        ? ((currentProduct.variants ?? []).find((variant) => variant.id === variantParam) ?? null)
+        : skuParam
+          ? ((currentProduct.variants ?? []).find(
+              (variant) => (variant.sku ?? "").toUpperCase() === skuParam.toUpperCase(),
+            ) ?? null)
+          : null;
+      const active = currentVariant
+        ? await boughtTogether.getActiveForVariant(currentVariant.id, channel)
+        : await boughtTogether.getActiveForProduct(productId, channel);
       if (!active) return json({ pair_id: null, channel, paired: null });
-      const [currentProduct, pairedProduct, offers] = await withTimeout(
+      const [pairedProduct, offers] = await withTimeout(
         Promise.all([
-          medusa.getProduct(productId, salesChannelIdFor(channel)),
           medusa.getProduct(active.paired_product_id, salesChannelIdFor(channel)),
           medusa.listOffersByProducts(
             [productId, active.paired_product_id],
@@ -3866,9 +3955,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         ]),
         5000,
       );
-      const currentOffers = offers.filter((offer) => offer.product_id === productId);
+      const currentOffers = offers.filter(
+        (offer) =>
+          offer.product_id === productId &&
+          (!currentVariant || offer.variant_id === currentVariant.id),
+      );
       const pairedOffers = offers.filter(
-        (offer) => offer.product_id === active.paired_product_id,
+        (offer) =>
+          offer.product_id === active.paired_product_id &&
+          (!active.paired_variant_id || offer.variant_id === active.paired_variant_id),
       );
       const currentOptions: ComposeOptions = {
         channel,
@@ -3928,12 +4023,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return json({
         pair_id: active.pair.id,
         channel,
+        variant_id: currentVariant?.id ?? null,
+        paired_variant_id: active.paired_variant_id,
         paired_availability: pairedInStock ? "in_stock" : "out_of_stock",
         paired: pairedInStock
           ? {
               ...pairedBase,
               variants: composeVariantPrices(
-                pairedProduct.variants,
+                active.paired_variant_id
+                  ? pairedProduct.variants.filter(
+                      (variant) => variant.id === active.paired_variant_id,
+                    )
+                  : pairedProduct.variants,
                 pairedOffers,
                 pairedOptions,
               ),
@@ -4836,16 +4937,26 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         })
         .slice(0, 20);
       const matchedIds = matched.map((product) => product.id);
+      const candidateVariantIds = [
+        ...new Set(
+          matched.flatMap((product) =>
+            (product.variants ?? []).slice(0, 10).map((variant) => variant.id),
+          ),
+        ),
+      ];
 
       const activePairsByChannel: Record<
         "b2c" | "b2b",
-        Map<string, { pair_id: string; paired_product_id: string }> | null
+        Map<
+          string,
+          { pair_id: string; paired_variant_id: string | null; paired_product_id: string }
+        > | null
       > = { b2c: null, b2b: null };
       for (const candidateChannel of channelsToEvaluate) {
         try {
           activePairsByChannel[candidateChannel] =
-            await boughtTogether.activePairsForProducts(
-              matchedIds,
+            await boughtTogether.activePairsForVariants(
+              candidateVariantIds,
               candidateChannel,
             );
         } catch (error) {
@@ -5000,19 +5111,35 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             offer_id: selected?.offer_id ?? null,
             in_stock: selected?.in_stock ?? null,
             channels: { b2c: b2cOffer, b2b: b2bOffer },
+            active_pairs: {
+              b2c: activePairsByChannel.b2c?.get(variant.id) ?? null,
+              b2b: activePairsByChannel.b2b?.get(variant.id) ?? null,
+            },
+            active_pair:
+              channel === "b2c"
+                ? (activePairsByChannel.b2c?.get(variant.id) ?? null)
+                : channel === "b2b"
+                  ? (activePairsByChannel.b2b?.get(variant.id) ?? null)
+                  : null,
           };
         });
+        const firstPair = matchingSkus[0]?.active_pairs ?? { b2c: null, b2b: null };
         const activePairs = {
-          b2c: null as { id: string; paired_product_id: string } | null,
-          b2b: null as { id: string; paired_product_id: string } | null,
+          b2c: firstPair.b2c
+            ? {
+                id: firstPair.b2c.pair_id,
+                paired_variant_id: firstPair.b2c.paired_variant_id,
+                paired_product_id: firstPair.b2c.paired_product_id,
+              }
+            : null,
+          b2b: firstPair.b2b
+            ? {
+                id: firstPair.b2b.pair_id,
+                paired_variant_id: firstPair.b2b.paired_variant_id,
+                paired_product_id: firstPair.b2b.paired_product_id,
+              }
+            : null,
         };
-        for (const candidateChannel of channelsToEvaluate) {
-          const map = activePairsByChannel[candidateChannel];
-          const pair = map?.get(product.id);
-          activePairs[candidateChannel] = pair
-            ? { id: pair.pair_id, paired_product_id: pair.paired_product_id }
-            : null;
-        }
         const selectedActivePair =
           channel === "b2c"
             ? activePairs.b2c
@@ -5092,6 +5219,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       const input = {
         product_a_id: String(body.product_a_id ?? ""),
         product_b_id: String(body.product_b_id ?? ""),
+        variant_a_id: body.variant_a_id ? String(body.variant_a_id) : null,
+        variant_b_id: body.variant_b_id ? String(body.variant_b_id) : null,
         channel: body.channel as BoughtTogetherChannel,
         status: (body.status as BoughtTogetherStatus) ?? "draft",
       };
@@ -5153,6 +5282,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         product_b_id: body.product_b_id
           ? String(body.product_b_id)
           : current.product_b_id,
+        variant_a_id:
+          body.variant_a_id !== undefined
+            ? body.variant_a_id
+              ? String(body.variant_a_id)
+              : null
+            : current.variant_a_id,
+        variant_b_id:
+          body.variant_b_id !== undefined
+            ? body.variant_b_id
+              ? String(body.variant_b_id)
+              : null
+            : current.variant_b_id,
         channel: body.channel
           ? (body.channel as BoughtTogetherChannel)
           : current.channel,
@@ -5168,6 +5309,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         {
           product_a_id: next.product_a_id,
           product_b_id: next.product_b_id,
+          variant_a_id: next.variant_a_id,
+          variant_b_id: next.variant_b_id,
           channel: next.channel,
           status: next.status,
         },

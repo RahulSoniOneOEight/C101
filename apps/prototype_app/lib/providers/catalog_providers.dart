@@ -333,11 +333,14 @@ final productProvider =
 /// Reciprocal Bought Together read. A null result means the section is hidden;
 /// the product page must still render.
 final boughtTogetherProvider = FutureProvider.autoDispose
-    .family<BoughtTogether?, ({String id, String channel})>((ref, key) async {
+    .family<BoughtTogether?, ({String id, String channel, String? sku})>(
+        (ref, key) async {
   try {
-    return await ref
-        .watch(experienceApiProvider)
-        .getBoughtTogether(key.id, channel: key.channel);
+    return await ref.watch(experienceApiProvider).getBoughtTogether(
+          key.id,
+          channel: key.channel,
+          sku: key.sku,
+        );
   } catch (_) {
     return null;
   }

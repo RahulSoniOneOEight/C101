@@ -196,7 +196,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
           const SizedBox(height: AgencySpacing.lg),
         ],
         _specs(context, selectedVariant),
-        BoughtTogetherSection(current: product),
+        BoughtTogetherSection(current: product, sku: selectedVariant?.sku),
         if (relatedProducts.isNotEmpty) ...<Widget>[
           const SizedBox(height: AgencySpacing.lg),
           _related(context, relatedProducts),

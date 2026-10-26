@@ -882,3 +882,29 @@ All QC 2 blockers were closed. No new blockers. Non-blocking clarifications were
 **Approval conditions:** create and approve a governed **Lane C** Change Contract before coding; implement the partial unique index and lifecycle tests as written; enforce effective-channel lookup, both-product revalidation, RBAC, PATCH proxy headers and the default-off staging guard; keep production disabled and human-authorized.
 
 **QC summary:** Revision 2 is approved for staging implementation, with coherent channel-scoped uniqueness, safe lifecycle recreation, authoritative pair reads, and no remaining blocking correctness gaps.
+
+---
+
+## Revision 3 — SKU-level pairing (2026-10-26, CHG-080)
+
+This revision supersedes the v1 non-goal **“No variant-level pairing”**. Operators pick two
+**SKUs**, not two products.
+
+- The admin picker searches by SKU, product title or brand and selects one SKU per side. Results
+  show SKU, seller, price/stock readiness and any existing active pair for the selected channel.
+- `bought_together_pairs` adds `variant_a_id` / `variant_b_id`; identity is the unordered SKU pair
+  (`member_pair_key`). Legacy product-level rows remain valid through `coalesce`.
+- `bought_together_active_members` is keyed by `member_key` (the variant id for SKU pairs, the
+  product id for legacy pairs) per channel.
+- The storefront read accepts `?sku=` (or `?variant_id=`) and resolves the pair for that SKU only.
+  Other variants of the same product hide the section. Without a SKU the legacy product-level read
+  is used.
+- B2B activation requires a channel-eligible offer **and** an active B2B trade price for both SKUs;
+  otherwise activation is refused and the admin shows `B2B ⚠ no trade price`.
+- The admin list adds Active / Paused / Needs attention / Draft counters, two thumbnails with a
+  fallback, per-channel health, Title Case badges, an `en-IN` date and a Preview action.
+- Migration is additive. The single existing product-level pair is archived and recreated by SKU,
+  because each side has more than one variant.
+
+Contract: `client-projects/client101/changes/CHG-080.yaml`.
+

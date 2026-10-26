@@ -19,6 +19,26 @@ type Channel = "b2c" | "b2b" | "both";
 type Status = "draft" | "active" | "paused" | "archived";
 type Health = "ready" | "out_of_stock" | "unavailable";
 
+type SkuOffer = {
+  offer_id: string | null;
+  in_stock: boolean | null;
+  evaluated: boolean;
+  visible: boolean | null;
+};
+
+type SkuOption = {
+  variant_id: string;
+  variant_title: string;
+  sku: string;
+  offer_id: string | null;
+  in_stock: boolean | null;
+  channels: { b2c: SkuOffer; b2b: SkuOffer };
+  active_pairs: {
+    b2c: { pair_id: string; paired_variant_id: string | null; paired_product_id: string } | null;
+    b2b: { pair_id: string; paired_variant_id: string | null; paired_product_id: string } | null;
+  };
+};
+
 type Candidate = {
   id: string;
   title: string;
@@ -26,16 +46,28 @@ type Candidate = {
   sku_count: number;
   status: string;
   channel_ready: { b2c: boolean | null; b2b: boolean | null };
+  matching_skus: SkuOption[];
 };
 
-type PairProduct = Candidate & {
+type PairProduct = {
+  id: string;
+  title: string;
+  thumbnail?: string | null;
+  sku_count: number;
+  variant_id: string | null;
+  variant_title: string | null;
+  sku: string | null;
   status: "published" | "unavailable";
+  channel_ready: { b2c: boolean; b2b: boolean };
+  variant_channel_ready: { b2c: boolean | null; b2b: boolean | null };
 };
 
 type Pair = {
   id: string;
   product_a_id: string;
   product_b_id: string;
+  variant_a_id: string | null;
+  variant_b_id: string | null;
   channel: Channel;
   status: Status;
   version: number;
@@ -52,6 +84,15 @@ type AuditRow = {
   actor_id: string;
   correlation_id?: string | null;
   created_at: string;
+};
+
+type Selection = {
+  productId: string;
+  variantId: string;
+  title: string;
+  sku: string;
+  thumbnail?: string | null;
+  channelReady: { b2c: boolean | null; b2b: boolean | null };
 };
 
 const backend = __BACKEND_URL__.replace(/\/$/, "");
@@ -71,14 +112,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (body.items ?? body.pair ?? body) as T;
 }
 
-async function listPairs(filter: {
-  status: string;
-  channel: string;
-}): Promise<Pair[]> {
-  const params = new URLSearchParams({ limit: "100" });
-  if (filter.status !== "all") params.set("status", filter.status);
-  if (filter.channel !== "all") params.set("channel", filter.channel);
-  return request<Pair[]>(`${API}?${params.toString()}`);
+async function listPairs(): Promise<Pair[]> {
+  return request<Pair[]>(`${API}?limit=100`);
 }
 
 async function listCandidates(query: string, channel: Channel): Promise<Candidate[]> {
@@ -89,6 +124,8 @@ async function listCandidates(query: string, channel: Channel): Promise<Candidat
 async function createPair(input: {
   product_a_id: string;
   product_b_id: string;
+  variant_a_id: string;
+  variant_b_id: string;
   channel: Channel;
   status: Status;
 }): Promise<void> {
@@ -104,6 +141,8 @@ async function patchPair(
   patch: Partial<Pick<Pair, "status" | "channel">> & {
     product_a_id?: string;
     product_b_id?: string;
+    variant_a_id?: string;
+    variant_b_id?: string;
   },
 ): Promise<void> {
   await request(`${API}/${encodeURIComponent(pair.id)}`, {
@@ -123,6 +162,45 @@ const healthColor = (health: Health) =>
 const statusColor = (status: Status) =>
   status === "active" ? "green" : status === "paused" ? "orange" : "grey";
 
+const titleCase = (value: string) =>
+  value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+
+function Thumb({ src, alt }: { src?: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div
+        aria-label={alt}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-ui-bg-subtle text-[9px] text-ui-fg-muted"
+      >
+        N/A
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-8 w-8 shrink-0 rounded object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+function readiness(value: boolean | null) {
+  return value === false ? "⚠" : value === true ? "✓" : "–";
+}
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const config: RouteConfig = {
   label: "Bought together",
@@ -134,11 +212,13 @@ export default function BoughtTogetherPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");
+  const [attentionOnly, setAttentionOnly] = useState(false);
   const [pairQuery, setPairQuery] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<Pair | null>(null);
-  const [productA, setProductA] = useState("");
-  const [productB, setProductB] = useState("");
+  const [selectedA, setSelectedA] = useState<Selection | null>(null);
+  const [selectedB, setSelectedB] = useState<Selection | null>(null);
+  const [activeSlot, setActiveSlot] = useState<"a" | "b">("a");
   const [channel, setChannel] = useState<Channel>("b2c");
   const [status, setStatus] = useState<Status>("draft");
   const [candidateQuery, setCandidateQuery] = useState("");
@@ -149,30 +229,64 @@ export default function BoughtTogetherPage() {
   const [auditFor, setAuditFor] = useState<string | null>(null);
 
   const pairs = useQuery({
-    queryKey: ["buildkart", "bought-together", statusFilter, channelFilter],
-    queryFn: () => listPairs({ status: statusFilter, channel: channelFilter }),
+    queryKey: ["buildkart", "bought-together", "all"],
+    queryFn: listPairs,
   });
 
   const candidates = useQuery({
-    queryKey: ["buildkart", "bought-together", "candidates", candidateQuery, channel, candidateRefresh],
+    queryKey: [
+      "buildkart",
+      "bought-together",
+      "candidates",
+      candidateQuery,
+      channel,
+      candidateRefresh,
+    ],
     queryFn: () => listCandidates(candidateQuery, channel),
+    enabled: editorOpen,
   });
 
   const openCreate = () => {
     setEditing(null);
-    setProductA("");
-    setProductB("");
+    setSelectedA(null);
+    setSelectedB(null);
+    setActiveSlot("a");
     setChannel("b2c");
     setStatus("draft");
     setEditorOpen(true);
     setError("");
     setAudit(null);
+    setCandidateQuery("");
   };
 
   const openEdit = (pair: Pair) => {
     setEditing(pair);
-    setProductA(pair.product_a_id);
-    setProductB(pair.product_b_id);
+    const [a, b] = pair.products;
+    setSelectedA(
+      a
+        ? {
+            productId: a.id,
+            variantId: a.variant_id ?? "",
+            title: a.title,
+            sku: a.sku ?? "",
+            thumbnail: a.thumbnail,
+            channelReady: a.variant_channel_ready,
+          }
+        : null,
+    );
+    setSelectedB(
+      b
+        ? {
+            productId: b.id,
+            variantId: b.variant_id ?? "",
+            title: b.title,
+            sku: b.sku ?? "",
+            thumbnail: b.thumbnail,
+            channelReady: b.variant_channel_ready,
+          }
+        : null,
+    );
+    setActiveSlot("a");
     setChannel(pair.channel);
     setStatus(pair.status);
     setEditorOpen(true);
@@ -180,23 +294,55 @@ export default function BoughtTogetherPage() {
     setAudit(null);
   };
 
+  const selectSku = (candidate: Candidate, sku: SkuOption) => {
+    const selection: Selection = {
+      productId: candidate.id,
+      variantId: sku.variant_id,
+      title: candidate.title,
+      sku: sku.sku,
+      thumbnail: candidate.thumbnail,
+      channelReady: {
+        b2c: sku.channels.b2c.visible !== false && sku.channels.b2c.in_stock !== false,
+        b2b: sku.channels.b2b.visible !== false && sku.channels.b2b.in_stock !== false,
+      },
+    };
+    if (activeSlot === "a") {
+      setSelectedA(selection);
+      setActiveSlot("b");
+    } else {
+      setSelectedB(selection);
+    }
+  };
+
   const save = async () => {
     setSaving(true);
     setError("");
     try {
-      if (!productA || !productB) throw new Error("Select two products.");
-      if (productA === productB) throw new Error("A product cannot be paired with itself.");
+      if (!selectedA || !selectedB) throw new Error("Select two SKUs.");
+      if (!selectedA.variantId || !selectedB.variantId) {
+        throw new Error("Both selections must be a SKU.");
+      }
+      if (selectedA.productId === selectedB.productId) {
+        throw new Error("A product cannot be paired with itself.");
+      }
+      if (selectedA.variantId === selectedB.variantId) {
+        throw new Error("A SKU cannot be paired with itself.");
+      }
       if (editing) {
         await patchPair(editing, {
-          product_a_id: productA,
-          product_b_id: productB,
+          product_a_id: selectedA.productId,
+          product_b_id: selectedB.productId,
+          variant_a_id: selectedA.variantId,
+          variant_b_id: selectedB.variantId,
           channel,
           status,
         });
       } else {
         await createPair({
-          product_a_id: productA,
-          product_b_id: productB,
+          product_a_id: selectedA.productId,
+          product_b_id: selectedB.productId,
+          variant_a_id: selectedA.variantId,
+          variant_b_id: selectedB.variantId,
           channel,
           status,
         });
@@ -213,7 +359,10 @@ export default function BoughtTogetherPage() {
   const transition = async (pair: Pair, next: Status) => {
     setError("");
     try {
-      if (next === "archived" && !window.confirm("Archive this pair? Archived pairs cannot be restored.")) {
+      if (
+        next === "archived" &&
+        !window.confirm("Archive this pair? Archived pairs cannot be restored.")
+      ) {
         return;
       }
       await patchPair(pair, { status: next });
@@ -233,18 +382,48 @@ export default function BoughtTogetherPage() {
     }
   };
 
-  const productLabel = (id: string) =>
-    candidates.data?.find((candidate) => candidate.id === id)?.title ??
-    pairs.data?.find((pair) => pair.products.some((product) => product.id === id))?.products.find((product) => product.id === id)?.title ??
-    id;
+  const allPairs = pairs.data ?? [];
+  const counters = {
+    active: allPairs.filter((pair) => pair.status === "active").length,
+    paused: allPairs.filter((pair) => pair.status === "paused").length,
+    attention: allPairs.filter((pair) => pair.health !== "ready").length,
+    draft: allPairs.filter((pair) => pair.status === "draft").length,
+  };
 
   const normalizedPairQuery = pairQuery.trim().toLowerCase();
-  const visiblePairs = (pairs.data ?? []).filter((pair) =>
-    normalizedPairQuery.length === 0
-      ? true
-      : pair.products.some((product) =>
-          product.title.toLowerCase().includes(normalizedPairQuery),
-        ),
+  const visiblePairs = allPairs.filter((pair) => {
+    if (statusFilter !== "all" && pair.status !== statusFilter) return false;
+    if (channelFilter !== "all") {
+      const matches =
+        pair.channel === channelFilter ||
+        (pair.channel === "both" && (channelFilter === "b2c" || channelFilter === "b2b"));
+      if (!matches) return false;
+    }
+    if (attentionOnly && pair.health === "ready") return false;
+    if (!normalizedPairQuery) return true;
+    return pair.products.some(
+      (product) =>
+        product.title.toLowerCase().includes(normalizedPairQuery) ||
+        (product.sku ?? "").toLowerCase().includes(normalizedPairQuery),
+    );
+  });
+
+  const counterButton = (
+    label: string,
+    value: number,
+    onClick: () => void,
+    active: boolean,
+  ) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-md border px-3 py-2 text-left ${
+        active ? "border-ui-border-interactive bg-ui-bg-highlight" : "border-ui-border-base bg-ui-bg-base"
+      }`}
+    >
+      <Text size="xsmall" className="text-ui-fg-subtle">{label}</Text>
+      <Text size="small" weight="plus">{value}</Text>
+    </button>
   );
 
   return (
@@ -254,7 +433,7 @@ export default function BoughtTogetherPage() {
           <div>
             <Heading>Bought together</Heading>
             <Text size="small" className="mt-1 text-ui-fg-subtle">
-              Pair two products. Each product page shows the other above Related products.
+              Pick two SKUs. Each SKU&apos;s product page shows the other above Related products.
             </Text>
           </div>
           <Button size="small" onClick={openCreate}>
@@ -277,41 +456,132 @@ export default function BoughtTogetherPage() {
               Close
             </Button>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ui-fg-subtle">Product A</span>
-              <select
-                className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm"
-                value={productA}
-                onChange={(event) => setProductA(event.target.value)}
-              >
-                <option value="">Select product A</option>
-                {(candidates.data ?? []).map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.title} · {candidate.sku_count} SKU{candidate.sku_count === 1 ? "" : "s"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ui-fg-subtle">Product B</span>
-              <select
-                className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm"
-                value={productB}
-                onChange={(event) => setProductB(event.target.value)}
-              >
-                <option value="">Select product B</option>
-                {(candidates.data ?? [])
-                  .filter((candidate) => candidate.id !== productA)
-                  .map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.title} · {candidate.sku_count} SKU{candidate.sku_count === 1 ? "" : "s"}
-                    </option>
-                  ))}
-              </select>
-            </label>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {(["a", "b"] as const).map((slot) => {
+              const selection = slot === "a" ? selectedA : selectedB;
+              return (
+                <div
+                  key={slot}
+                  className={`rounded-lg border p-3 ${
+                    activeSlot === slot ? "border-ui-border-interactive" : "border-ui-border-base"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <Text size="small" weight="plus">SKU {slot.toUpperCase()}</Text>
+                    <Button
+                      size="small"
+                      variant={activeSlot === slot ? "primary" : "secondary"}
+                      onClick={() => setActiveSlot(slot)}
+                    >
+                      {selection ? "Replace" : "Pick"}
+                    </Button>
+                  </div>
+                  {selection ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <Thumb src={selection.thumbnail} alt={selection.title} />
+                      <div className="min-w-0">
+                        <Text size="small" className="truncate">{selection.title}</Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {selection.sku} · B2C {readiness(selection.channelReady.b2c)} · B2B{" "}
+                          {readiness(selection.channelReady.b2b)}
+                        </Text>
+                      </div>
+                      <Button
+                        size="small"
+                        variant="transparent"
+                        onClick={() => (slot === "a" ? setSelectedA(null) : setSelectedB(null))}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <Text size="xsmall" className="mt-2 text-ui-fg-subtle">
+                      Search below and select a SKU.
+                    </Text>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+
+          <div className="flex flex-col gap-2">
+            <Text size="small" weight="plus">
+              Search SKUs {activeSlot === "a" ? "for A" : "for B"}
+            </Text>
+            <div className="flex gap-2">
+              <Input
+                value={candidateQuery}
+                onChange={(event) => setCandidateQuery(event.target.value)}
+                placeholder="SKU, product title or brand"
+              />
+              <Button
+                size="small"
+                variant="secondary"
+                onClick={() => setCandidateRefresh((value) => value + 1)}
+              >
+                Search
+              </Button>
+            </div>
+            <div className="max-h-64 overflow-auto rounded-md border border-ui-border-base">
+              {(candidates.data ?? []).length === 0 ? (
+                <div className="px-3 py-2">
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    {candidates.isFetching ? "Searching…" : "No published SKUs match."}
+                  </Text>
+                </div>
+              ) : (
+                (candidates.data ?? []).map((candidate) => (
+                  <div key={candidate.id} className="border-b border-ui-border-base px-3 py-2 last:border-b-0">
+                    <div className="flex items-center gap-2">
+                      <Thumb src={candidate.thumbnail} alt={candidate.title} />
+                      <Text size="small" weight="plus" className="truncate">{candidate.title}</Text>
+                    </div>
+                    <div className="mt-1 flex flex-col gap-1">
+                      {candidate.matching_skus.map((sku) => {
+                        const existing =
+                          channel === "b2c"
+                            ? sku.active_pairs.b2c
+                            : channel === "b2b"
+                              ? sku.active_pairs.b2b
+                              : null;
+                        const alreadySelected =
+                          sku.variant_id === selectedA?.variantId ||
+                          sku.variant_id === selectedB?.variantId;
+                        return (
+                          <div
+                            key={sku.variant_id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded px-2 py-1 hover:bg-ui-bg-subtle"
+                          >
+                            <div className="min-w-0">
+                              <Text size="xsmall" className="truncate">
+                                {sku.sku || sku.variant_title || sku.variant_id}
+                              </Text>
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                B2C {readiness(sku.channels.b2c.visible !== false && sku.channels.b2c.in_stock !== false)} ·
+                                B2B {readiness(sku.channels.b2b.visible !== false && sku.channels.b2b.in_stock !== false)}
+                                {existing ? " · already paired" : ""}
+                              </Text>
+                            </div>
+                            <Button
+                              size="small"
+                              variant="secondary"
+                              disabled={alreadySelected || Boolean(existing)}
+                              onClick={() => selectSku(candidate, sku)}
+                            >
+                              {existing ? "Paired" : "Select"}
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">Channel</span>
               <select
@@ -336,39 +606,24 @@ export default function BoughtTogetherPage() {
                 <option value="paused">Paused</option>
               </select>
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ui-fg-subtle">Find products</span>
-              <div className="flex gap-2">
-                <Input
-                  value={candidateQuery}
-                  onChange={(event) => setCandidateQuery(event.target.value)}
-                  placeholder="Title or SKU"
-                />
-                <Button
-                  size="small"
-                  variant="secondary"
-                  onClick={() => setCandidateRefresh((value) => value + 1)}
-                >
-                  Search
-                </Button>
-              </div>
-            </label>
           </div>
+
           <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
             <Text size="small" className="text-ui-fg-subtle">Preview</Text>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm">
-                {productA ? productLabel(productA) : "Product A"}
+                {selectedA ? `${selectedA.title} · ${selectedA.sku}` : "SKU A"}
               </div>
               <Text>+</Text>
               <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm">
-                {productB ? productLabel(productB) : "Product B"}
+                {selectedB ? `${selectedB.title} · ${selectedB.sku}` : "SKU B"}
               </div>
             </div>
             <Text size="small" className="mt-2 text-ui-fg-subtle">
-              A ↔ B. Both product pages show the other product; channel prices are composed at read time.
+              The pair is reciprocal and appears only on the two selected SKUs.
             </Text>
           </div>
+
           <div className="flex justify-end gap-2">
             <Button size="small" variant="secondary" onClick={() => setEditorOpen(false)} disabled={saving}>
               Cancel
@@ -381,17 +636,39 @@ export default function BoughtTogetherPage() {
       ) : null}
 
       <Container className="p-0">
+        <div className="flex flex-wrap items-center gap-2 px-6 pt-4">
+          {counterButton("Active", counters.active, () => {
+            setStatusFilter("active");
+            setAttentionOnly(false);
+          }, statusFilter === "active" && !attentionOnly)}
+          {counterButton("Paused", counters.paused, () => {
+            setStatusFilter("paused");
+            setAttentionOnly(false);
+          }, statusFilter === "paused" && !attentionOnly)}
+          {counterButton("Needs attention", counters.attention, () => {
+            setStatusFilter("all");
+            setAttentionOnly(true);
+          }, attentionOnly)}
+          {counterButton("Draft", counters.draft, () => {
+            setStatusFilter("draft");
+            setAttentionOnly(false);
+          }, statusFilter === "draft" && !attentionOnly)}
+        </div>
+
         <div className="flex flex-wrap items-center gap-2 px-6 py-3">
           <Input
             value={pairQuery}
             onChange={(event) => setPairQuery(event.target.value)}
-            placeholder="Search product in pair"
+            placeholder="Search SKU or product"
             className="w-56"
           />
           <select
             className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm"
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              setAttentionOnly(false);
+            }}
           >
             <option value="all">All statuses</option>
             <option value="draft">Draft</option>
@@ -413,6 +690,7 @@ export default function BoughtTogetherPage() {
             {visiblePairs.length} pair{visiblePairs.length === 1 ? "" : "s"}
           </Text>
         </div>
+
         <Table>
           <Table.Header>
             <Table.Row>
@@ -425,67 +703,104 @@ export default function BoughtTogetherPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {visiblePairs.map((pair) => (
-              <Table.Row key={pair.id}>
-                <Table.Cell>
-                  <div className="flex items-center gap-2">
-                    {pair.products.map((product) => (
-                      <div key={product.id} className="flex items-center gap-2">
-                        {product.thumbnail ? (
-                          <img src={product.thumbnail} alt="" className="h-8 w-8 rounded object-cover" />
-                        ) : null}
-                        <Text size="small">{product.title}</Text>
-                      </div>
-                    ))}
-                  </div>
-                </Table.Cell>
-                <Table.Cell>{pair.channel === "both" ? "B2C + B2B" : pair.channel.toUpperCase()}</Table.Cell>
-                <Table.Cell>
-                  <StatusBadge color={statusColor(pair.status)}>{pair.status}</StatusBadge>
-                </Table.Cell>
-                <Table.Cell>
-                  <StatusBadge color={healthColor(pair.health)}>{pair.health.replaceAll("_", " ")}</StatusBadge>
-                </Table.Cell>
-                <Table.Cell>
-                  <Text size="small" className="text-ui-fg-subtle">
-                    {pair.updated_by} · {new Date(pair.updated_at).toLocaleDateString()}
-                  </Text>
-                </Table.Cell>
-                <Table.Cell>
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <Button size="small" variant="transparent" onClick={() => openEdit(pair)}>
-                      Edit
-                    </Button>
-                    {pair.status === "active" ? (
-                      <Button size="small" variant="transparent" onClick={() => transition(pair, "paused")}>
-                        Pause
+            {visiblePairs.map((pair) => {
+              const showB2bWarning =
+                (pair.channel === "b2b" || pair.channel === "both") &&
+                pair.products.some((product) => product.variant_channel_ready.b2b === false);
+              return (
+                <Table.Row key={pair.id}>
+                  <Table.Cell>
+                    <div className="flex flex-wrap items-center gap-3">
+                      {pair.products.map((product, index) => (
+                        <div key={`${product.id}-${index}`} className="flex items-center gap-2">
+                          {index > 0 ? <Text size="small" className="text-ui-fg-muted">+</Text> : null}
+                          <Thumb src={product.thumbnail} alt={product.title} />
+                          <div className="min-w-0">
+                            <Text size="small" className="truncate">{product.title}</Text>
+                            <Text size="xsmall" className="text-ui-fg-subtle">
+                              {product.sku ?? `${product.sku_count} SKUs`}
+                            </Text>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {pair.channel === "both" ? "B2C + B2B" : pair.channel.toUpperCase()}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <StatusBadge color={statusColor(pair.status)}>
+                      {titleCase(pair.status)}
+                    </StatusBadge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge color={healthColor(pair.health)}>
+                        {titleCase(pair.health)}
+                      </StatusBadge>
+                      <Text size="xsmall" className="text-ui-fg-subtle">
+                        B2C {titleCase(pair.health_by_channel.b2c)}
+                        {showB2bWarning ? " · B2B ⚠ no trade price" : ` · B2B ${titleCase(pair.health_by_channel.b2b)}`}
+                      </Text>
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {pair.updated_by} · {formatDate(pair.updated_at)}
+                    </Text>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <Button size="small" variant="transparent" onClick={() => openEdit(pair)}>
+                        Edit
                       </Button>
-                    ) : pair.status !== "archived" ? (
-                      <Button size="small" variant="transparent" onClick={() => transition(pair, "active")}>
-                        Activate
+                      {pair.status === "active" ? (
+                        <Button size="small" variant="transparent" onClick={() => transition(pair, "paused")}>
+                          Pause
+                        </Button>
+                      ) : pair.status !== "archived" ? (
+                        <Button size="small" variant="transparent" onClick={() => transition(pair, "active")}>
+                          Activate
+                        </Button>
+                      ) : null}
+                      {pair.status !== "archived" ? (
+                        <Button size="small" variant="transparent" onClick={() => transition(pair, "archived")}>
+                          Archive
+                        </Button>
+                      ) : null}
+                      <Button size="small" variant="transparent" onClick={() => showAudit(pair)}>
+                        Audit
                       </Button>
-                    ) : null}
-                    {pair.status !== "archived" ? (
-                      <Button size="small" variant="transparent" onClick={() => transition(pair, "archived")}>
-                        Archive
-                      </Button>
-                    ) : null}
-                    <Button size="small" variant="transparent" onClick={() => showAudit(pair)}>
-                      Audit
-                    </Button>
-                  </div>
-                </Table.Cell>
-              </Table.Row>
-            ))}
+                      {pair.products[0] ? (
+                        <a
+                          className="self-center px-1 text-sm text-ui-fg-interactive hover:underline"
+                          href={`/products/${pair.products[0].id}`}
+                        >
+                          Preview
+                        </a>
+                      ) : null}
+                    </div>
+                  </Table.Cell>
+                </Table.Row>
+              );
+            })}
           </Table.Body>
         </Table>
+
         {visiblePairs.length === 0 ? (
           <div className="px-6 py-4">
             <Text size="small" className="text-ui-fg-subtle">
-              No pairs yet. Pair two products to show them together on both product pages.
+              No pairs yet. Pick two SKUs to show them together on both product pages.
             </Text>
           </div>
         ) : null}
+
+        <div className="px-6 py-3">
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            Ready = both SKUs published and channel-eligible. Needs attention = out of stock or
+            unavailable. A B2B pair also needs a trade price.
+          </Text>
+        </div>
       </Container>
 
       {audit && auditFor ? (
