@@ -4,6 +4,7 @@ import {
   MedusaError,
 } from "@medusajs/framework/utils";
 import {
+  createInventoryLevelsWorkflow,
   createProductOptionsWorkflow,
   createProductTagsWorkflow,
   createProductVariantsWorkflow,
@@ -640,6 +641,88 @@ export function studioReadiness(product: {
   };
 }
 
+/**
+ * Channel a studio-created product must join to be visible to the storefront.
+ * Prefers the deployment setting, then the channel whose name contains "B2C".
+ */
+async function defaultStorefrontChannelId(
+  scope: MedusaContainer,
+): Promise<string | null> {
+  const configured = process.env.MEDUSA_B2C_SALES_CHANNEL_ID?.trim();
+  if (configured) return configured;
+  const q = query(scope);
+  const { data } = await q.graph({
+    entity: "sales_channel",
+    fields: ["id", "name"],
+    pagination: { take: 20, skip: 0 },
+  });
+  const rows = (data ?? []) as Array<{ id: string; name?: string | null }>;
+  return (
+    rows.find((row) => (row.name ?? "").toLowerCase().includes("b2c"))?.id ??
+    rows[0]?.id ??
+    null
+  );
+}
+
+/**
+ * Stock new seller offers so they are purchasable. Without an inventory level the offer reports
+ * out of stock and the storefront hides its price, which is why studio-created products were
+ * invisible even once published.
+ */
+async function provisionOfferStock(
+  scope: MedusaContainer,
+  sellerId: string,
+  skus: string[],
+): Promise<void> {
+  const wanted = skus.map((sku) => sku.trim()).filter(Boolean);
+  if (wanted.length === 0) return;
+  const quantity = Math.max(1, Number(process.env.STUDIO_DEFAULT_STOCK ?? "50") || 50);
+  const q = query(scope);
+  const { data: sellers } = await q.graph({
+    entity: "seller",
+    fields: ["id", "stock_locations.id"],
+    filters: { id: sellerId },
+    pagination: { take: 1, skip: 0 },
+  });
+  const locationId =
+    ((sellers?.[0] as { stock_locations?: Array<{ id?: string }> } | undefined)
+      ?.stock_locations ?? [])[0]?.id ?? null;
+  if (!locationId) return;
+
+  const { data: items } = await q.graph({
+    entity: "inventory_item",
+    fields: ["id", "sku"],
+    filters: { sku: wanted },
+    pagination: { take: 500, skip: 0 },
+  });
+  const itemIds = (items ?? [])
+    .map((item: { id?: string }) => item.id)
+    .filter((id): id is string => Boolean(id));
+  if (itemIds.length === 0) return;
+
+  const { data: levels } = await q.graph({
+    entity: "inventory_level",
+    fields: ["inventory_item_id", "location_id"],
+    filters: { location_id: locationId, inventory_item_id: itemIds },
+    pagination: { take: 500, skip: 0 },
+  });
+  const stocked = new Set(
+    (levels ?? []).map((level: { inventory_item_id?: string }) => level.inventory_item_id),
+  );
+  const missing = itemIds.filter((id) => !stocked.has(id));
+  if (missing.length === 0) return;
+
+  await createInventoryLevelsWorkflow(scope).run({
+    input: {
+      inventory_levels: missing.map((inventoryItemId) => ({
+        inventory_item_id: inventoryItemId,
+        location_id: locationId,
+        stocked_quantity: quantity,
+      })),
+    } as never,
+  });
+}
+
 async function ensureSellerOffers(
   scope: MedusaContainer,
   sellerId: string,
@@ -1089,6 +1172,7 @@ export async function saveStudioProduct(
   }
 
   if (!productId) {
+    const storefrontChannelId = await defaultStorefrontChannelId(scope);
     const { result: createdResult } = await createProductsWorkflow(scope).run({
       input: {
         products: [
@@ -1102,8 +1186,14 @@ export async function saveStudioProduct(
             category_ids: input.category_id ? [input.category_id] : undefined,
             tags: tagIds.map((id) => ({ id })),
             attributes,
+            sales_channels: storefrontChannelId
+              ? [{ id: storefrontChannelId }]
+              : undefined,
             metadata: {
               buildkart_product_studio: true,
+              // The storefront queries this marker; a product without it never appears.
+              catalogue_import:
+                process.env.STUDIO_CATALOGUE_IMPORT?.trim() || "CHG-049",
               brand: clean(input.brand),
               manufacturer: clean(input.manufacturer),
               model_number: clean(input.model_number),
@@ -1133,6 +1223,11 @@ export async function saveStudioProduct(
         requestedSellerId,
         created.id,
         actorId,
+      );
+      await provisionOfferStock(
+        scope,
+        requestedSellerId,
+        variants.map((variant) => String(variant.sku ?? "").trim()).filter(Boolean),
       );
     }
     const saved = await loadStudioProduct(scope, mode, sellerId, created.id);
