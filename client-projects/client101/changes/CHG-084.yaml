@@ -51,8 +51,11 @@ requirements:
   status: pass
 - id: R4
   name: Write path corrected
-  outcome: Product Studio sends major units while Product-Studio-owned list_price_minor/B2B terms stay minor.
-  status: pass-code
+  outcome: >-
+    Product Studio sends major units while Product-Studio-owned list_price_minor/B2B terms stay minor.
+    Verified live: 3990 -> 4111 -> 3990 round trip reflected in Medusa, the API, the web storefront and
+    the installed Android app.
+  status: pass
 - id: R5
   name: Reversible
   outcome: Snapshot taken before apply; rollback image tags and env flag documented.

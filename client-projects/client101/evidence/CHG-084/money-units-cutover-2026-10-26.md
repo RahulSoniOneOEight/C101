@@ -91,3 +91,25 @@ returned Medusa major amounts directly (99 / 199). Commit `0ce55f8` converts the
 - One abandoned cart (`cart_01M5WA6EEYA90NGANFMNE5C0ZG`) was created while verifying shipping
   options; it is not listed in My Orders (only completed orders are) and holds no order.
 - Settlement statements are generated from static fixtures and were empty, so they were unaffected.
+
+## 8. Product Studio round trip (write path)
+
+The Product Studio write path was the highest-risk change, so it was exercised live on staging rather
+than left at code review.
+
+| Step | Stored Medusa `price.amount` | Experience API | Storefront | Android app |
+|---|---|---|---|---|
+| Baseline | 3990 | 399000 minor (?3,990) | ?3990 ? 16% off | ?3990 ? 16% off |
+| Save B2C selling = **4111** | **4111** | **411100 minor** (?4,111) | **?4111** ? 13% off | **?4111** ? 13% off |
+| Restore to **3990** | **3990** | **399000 minor** | ?3990 ? 16% off | ?3990 ? 16% off |
+
+Product: `1/2in Drive 24 Pcs Socket Set`, SKU `BAUM-237S1-SET-HEX`, offer
+`offer_01M59JHN9EP8RGG9MVGEJ33MSS`. The save replaced the offer price row with
+`price_01M59JHNB25Z5RD6P78YQFZ6ZD` = `4111` (major), and the restore wrote `3990` back. The catalogue
+was left at its original price.
+
+Screenshots: `screenshots/product-studio-4111.png`, `screenshots/storefront-4111.png`,
+`screenshots/android-4111.png`, `screenshots/android-restored-3990.png`.
+
+Note: the first read after saving still returned 399000 for a few seconds; that was a read racing the
+write, not a defect ? the subsequent read and both clients showed ?4,111.

@@ -605,7 +605,7 @@ active_changes:
     R1_medusa_major_units: pass
     R2_api_minor_contract: pass
     R3_admin_amounts: pass
-    R4_write_path: pass-code
+    R4_write_path: pass
     R5_reversible: pass
     R6_end_to_end: pass
   deferred:
