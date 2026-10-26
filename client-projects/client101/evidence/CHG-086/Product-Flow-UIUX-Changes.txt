@@ -1,0 +1,221 @@
+PRODUCT FLOW — UI / UX CHANGES (CHG-086)
+Admin + Seller, staging. Date: 2026-10-27
+Scope: what an operator sees and does. Backend behaviour is listed only
+where it changes the screen.
+
+======================================================================
+CHANGE 1 — ADD NEW PRODUCT: NO CATALOGUE SEARCH
+======================================================================
+Before
+  The create page opened with a "Catalogue search" card: a title search,
+  a result list, and "Edit in studio / Open" links. It pushed the actual
+  form below the fold and made create feel like a search task.
+
+After
+  The catalogue-search block is removed from /products/new.
+  Create begins directly with the workspace cards.
+  Nothing is pre-filled from another record; operators who need to find an
+  existing product use Products in the sidebar or the Products list.
+
+Result
+  One less decision, one less scroll, and a clear start: "fill in the
+  product, save it".
+
+======================================================================
+CHANGE 2 — ONE WORKSPACE FOR CREATE AND EDIT
+======================================================================
+- Create and Edit use the same component and the same layout.
+- Same five destinations, same cards, same labels on both Admin and Seller.
+- No second, differently-shaped form for new products.
+- Create ends by navigating into the new product's workspace, so the
+  operator continues in the same mental model.
+
+======================================================================
+CHANGE 3 — STICKY WORKSPACE NAVIGATION
+======================================================================
+- Five destinations, always reachable:
+    Overview | Variants & offers (n) | Inventory | Activity |
+    Review & visibility
+- Counts are meaningful: variants/offers, inventory attention, blockers.
+- A blocked destination shows an icon + text + count, never colour only:
+    "Review & visibility · 1 blocker"
+- Selecting a destination keeps it in the URL (?view=...), so Back and
+  Forward work and a link can be shared.
+- Mobile: the five tabs collapse into one labelled dropdown
+  ("Workspace ▾"), one tap to any destination.
+- The navigation stays pinned while the page scrolls.
+
+======================================================================
+CHANGE 4 — EXPANDABLE SECTION CARDS
+======================================================================
+- Every section is a collapsible card with a chevron, aria-expanded and a
+  visible keyboard focus ring.
+- New product: only "Product details" starts open. Search tags and
+  Specifications start collapsed.
+- Existing product: the operator's last open/closed state is restored for
+  that session; stale state is ignored on create.
+- Collapsed cards still say what is inside:
+    "Needs title and category", "Optional", "5 values",
+    "6 variants", "4/6 priced", "1 blocker · 3 warnings"
+- Several cards may stay open at once, so values can be compared.
+- A blocked card keeps its error summary visible when collapsed.
+- Review "Fix" expands the right card and focuses the exact field, not
+  just the top of the page.
+
+======================================================================
+CHANGE 5 — OVERVIEW CARD CONTENT
+======================================================================
+Product details
+- Product title, short description, full description.
+- Category selector.
+- Selling channels, read-only: shows the assigned channel badges, or
+  "No sales channel assigned". Explains that publication is lifecycle and
+  visibility also needs price + stock.
+- Admin only: optional seller-offer provisioning with a required reason.
+- Product type, brand, manufacturer, model/part number, HSN/GST code,
+  unit of measure, thumbnail URL.
+- Live content preview on the right (desktop) with title, image, tags,
+  variant/SKU count, offer price and specifications.
+- Readiness rail on the right lists content checks (title, category, tags,
+  specs, variants, pricing, thumbnail).
+
+Search tags
+- Chips with remove buttons, Enter/comma to add, suggestions from existing
+  tags, Backspace removes the last one.
+
+Specifications
+- One row per spec: name, value, optional unit.
+- Add/remove rows, suggestion list, and a running
+  "n complete · n incomplete" counter.
+
+======================================================================
+CHANGE 6 — VARIANTS & OFFERS
+======================================================================
+Order on the page
+- The offer table now comes FIRST. Variant editing comes second.
+- Reason: pricing and visibility are the daily tasks; variant editing is
+  occasional.
+
+Offer table
+- Columns: select checkbox, Variant / SKU, Seller, B2C price, B2B status,
+  Open.
+- Missing B2C price is written as "⛔ Missing", not left blank.
+- B2B shows the saved amount or "Not set".
+
+Focused offer editor
+- One offer at a time, with "Offer pricing · 2 of 6" context.
+- Previous / Next / Close stay in the header.
+- One explicit "Save pricing" action for that offer only.
+- B2C: list price, selling price, GST-inclusive, live discount readout.
+- B2B: list, selling, MOQ, effective dates, quantity tiers.
+- B2C and B2B save independently; a B2B failure keeps its inputs and the
+  action becomes a retry, without re-saving B2C.
+- Closing or moving away with unsaved pricing warns instead of discarding.
+
+Bulk editing
+- Bulk controls appear only after rows are selected.
+- The panel states: "Bulk edit · 2 selected offers".
+- The channel is explicit. B2B is deliberately not a bulk field (MOQ,
+  tiers and dates are per offer).
+- The action reads "Apply to 2", not "Apply to all offers".
+
+Variants
+- Direct variant rows: name, SKU, details shown in the app, image URL.
+- Duplicate / Remove per row; Add variant for editable drafts.
+- Locked products say why: published or has offers.
+- Bulk SKU prefix and "Fill blank SKUs" are hidden when the product is
+  locked, instead of showing disabled leftovers.
+
+Legacy clutter
+- Legacy option axes no longer appear as editable cards or compatibility
+  warnings.
+- Admin only: a collapsed "Technical: legacy option axes (n)" drawer keeps
+  the record inspectable without putting it in the workflow.
+
+======================================================================
+CHANGE 7 — SAVING THAT MATCHES THE SCOPE
+======================================================================
+- Three clearly separate scopes:
+    Product content     -> "Save changes"
+    One seller offer    -> "Save pricing"
+    Selected bulk rows  -> "Apply to n"
+- Inventory never uses "Save": it is "Request adjustment" / "Submit
+  request", and says it does not change Tryton stock.
+- The product save bar is sticky only while the product is dirty; when
+  clean there is no bar taking up space.
+- Wording is explicit: "Unsaved product changes · affects content, not
+  pricing", "Saving product changes…", "Saved to server".
+- Ctrl/Cmd+S saves the product scope and suppresses the browser dialog.
+- Discard is available on the dirty bar.
+- Leaving or refreshing with unsaved work triggers a native warning; the
+  dialog names the dirty scope.
+- Local autosave is labelled a recovery copy, never "saved".
+
+======================================================================
+CHANGE 8 — REVIEW & VISIBILITY
+======================================================================
+Header
+- Record status and channel status are separate.
+- Auto-published but not sellable shows: "Published · Not live".
+- Per-channel badges: "B2C live / B2C · Not live",
+  "B2B live / B2B · Not live".
+
+Body
+- Server-checked timestamp, blocker count and warning count.
+- Per channel, the exact gates are spelled out:
+    Published ✓ · Offer ✓ · Price ✓ · Stock ✕
+- The blocker is written in words, e.g.
+    "Priced seller offers have no sellable stock."
+    "No active B2B price is saved for this seller offer."
+- Every actionable item has a Fix button that lands on the owning view and
+  field.
+- After a fix, "Back to Review" and a refresh of server readiness.
+- Warnings (image, tags, B2B terms) are visually distinct from blockers.
+- Content checks remain as a secondary list, not the primary story.
+- Lifecycle actions are disabled while product or pricing is dirty, with
+  the reason shown next to them.
+
+======================================================================
+CHANGE 9 — INVENTORY AND ACTIVITY
+======================================================================
+Inventory
+- Read-only Tryton position per SKU: on hand, reserved, ATP, draft moves.
+- Location table when there are movements.
+- If Tryton has nothing: a plain statement, not an error.
+- Adjustment request form with quantity, reason and submit; last three
+  requests shown.
+- Footer states Tryton remains the authority.
+
+Activity
+- New destination listing audited product, lifecycle and seller changes,
+  newest first, with actor and status.
+
+======================================================================
+CHANGE 10 — MOBILE
+======================================================================
+- Single column; no clipped tables.
+- One sticky bottom bar, and only while something is dirty.
+- Destination dropdown replaces the tab row.
+- Offer detail is full-width with Back / Previous / Next.
+- Touch targets at least 44 px.
+- Save and error messages announced with aria-live.
+
+======================================================================
+CHANGE 11 — ACCESSIBILITY AND TONE
+======================================================================
+- Expand/collapse is a real button with aria-expanded.
+- Current destination uses aria-current.
+- Errors pair colour with an icon and text; red is reserved for blockers.
+- Focus moves to the field a Fix link targets.
+- Labels say what will happen ("Save changes", "Apply to 2", "Request
+  adjustment") rather than a generic "Save".
+- No unexplained counters: "Variants & offers (6)" and "1 blocker" replace
+  the old "3/5 sections ready".
+
+======================================================================
+STILL TO CONFIRM IN THE FINAL BUILD
+======================================================================
+- Create page screenshot showing no catalogue search, one open card and
+  two collapsed cards with status chips.
+- Offer table above variants on Variants & offers.
+- Create -> add price -> B2C live journey.
