@@ -4775,14 +4775,34 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
     if ("response" in operator) return operator.response;
     const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
-    const channel = url.searchParams.get("channel") === "b2b" ? "b2b" : "b2c";
+    const channelParam = url.searchParams.get("channel");
+    if (
+      channelParam &&
+      !["b2c", "b2b", "both"].includes(channelParam)
+    ) {
+      return problem(400, "invalid-channel", "channel must be b2c, b2b or both.");
+    }
+    const channel = (channelParam ?? "b2c") as "b2c" | "b2b" | "both";
+    const channelsToEvaluate: Array<"b2c" | "b2b"> =
+      channel === "both" ? ["b2c", "b2b"] : [channel];
+    const scanChannels: Array<"b2c" | "b2b"> =
+      channel === "both" ? ["b2c", "b2b"] : [channel];
     try {
-      const scanned: Awaited<ReturnType<typeof medusa.listProducts>> = [];
-      for (let offset = 0; offset < 1000; offset += 250) {
-        const page = await medusa.listProducts(250, offset, salesChannelIdFor(channel));
-        scanned.push(...page);
-        if (page.length < 250) break;
+      const scannedProducts = new Map<string, StoreProduct>();
+      let scanTruncated = false;
+      for (const scanChannel of scanChannels) {
+        for (let offset = 0; offset < 1000; offset += 250) {
+          const page = await medusa.listProducts(
+            250,
+            offset,
+            salesChannelIdFor(scanChannel),
+          );
+          for (const product of page) scannedProducts.set(product.id, product);
+          if (page.length < 250) break;
+          if (offset + 250 >= 1000) scanTruncated = true;
+        }
       }
+      const scanned = [...scannedProducts.values()];
       const matched = scanned
         .filter((product) => {
           if (!query) return true;
@@ -4795,25 +4815,103 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         })
         .slice(0, 20);
       const matchedIds = matched.map((product) => product.id);
-      const activePairs = await boughtTogether.activePairsForProducts(
-        matchedIds,
-        channel,
-      );
-      const regionId =
-        channel === "b2b"
-          ? config.medusaB2bRegionId ?? config.medusaRegionId
-          : config.medusaRegionId;
-      const offersByProduct = new Map<string, StoreOffer[]>();
-      try {
-        const offers = await medusa.listOffersByProducts(matchedIds, regionId);
-        for (const offer of offers) {
-          const list = offersByProduct.get(offer.product_id) ?? [];
-          list.push(offer);
-          offersByProduct.set(offer.product_id, list);
+
+      const activePairsByChannel: Record<
+        "b2c" | "b2b",
+        Map<string, { pair_id: string; paired_product_id: string }> | null
+      > = { b2c: null, b2b: null };
+      for (const candidateChannel of channelsToEvaluate) {
+        try {
+          activePairsByChannel[candidateChannel] =
+            await boughtTogether.activePairsForProducts(
+              matchedIds,
+              candidateChannel,
+            );
+        } catch (error) {
+          console.warn(
+            "[experience-api] bought-together conflict lookup failed:",
+            (error as Error).message,
+          );
+          return problem(
+            503,
+            "pair-store-unavailable",
+            "Could not check active product pairs.",
+          );
         }
-      } catch {
-        // Candidate search still works without offer/stock enrichment.
       }
+
+      const offersByChannel: Record<
+        "b2c" | "b2b",
+        Map<string, StoreOffer[]> | null
+      > = { b2c: null, b2b: null };
+      for (const candidateChannel of channelsToEvaluate) {
+        const regionId =
+          candidateChannel === "b2b"
+            ? config.medusaB2bRegionId ?? config.medusaRegionId
+            : config.medusaRegionId;
+        try {
+          const offers = await medusa.listOffersByProducts(
+            matchedIds,
+            regionId,
+            salesChannelIdFor(candidateChannel),
+          );
+          const byProduct = new Map<string, StoreOffer[]>();
+          for (const offer of offers) {
+            const list = byProduct.get(offer.product_id) ?? [];
+            list.push(offer);
+            byProduct.set(offer.product_id, list);
+          }
+          offersByChannel[candidateChannel] = byProduct;
+        } catch (error) {
+          console.warn(
+            `[experience-api] bought-together offer lookup failed for ${candidateChannel}:`,
+            (error as Error).message,
+          );
+        }
+      }
+
+      const eligibleOfferFor = (
+        candidateChannel: "b2c" | "b2b",
+        productId: string,
+        variantId: string,
+      ) => {
+        const byProduct = offersByChannel[candidateChannel];
+        if (!byProduct) {
+          return { offer_id: null, in_stock: null, evaluated: false };
+        }
+        const priced = (byProduct.get(productId) ?? []).filter(
+          (offer) =>
+            offer.variant_id === variantId &&
+            (offer.calculated_price?.calculated_amount ?? 0) > 0,
+        );
+        const offer =
+          priced.find((candidate) => candidate.in_stock !== false) ?? priced[0];
+        if (!offer) {
+          return { offer_id: null, in_stock: null, evaluated: true };
+        }
+        return {
+          offer_id: offer.id,
+          in_stock:
+            offer.in_stock === true
+              ? true
+              : offer.in_stock === false
+                ? false
+                : null,
+          evaluated: true,
+        };
+      };
+
+      const channelReady = (
+        candidateChannel: "b2c" | "b2b",
+        productId: string,
+      ): boolean | null => {
+        const byProduct = offersByChannel[candidateChannel];
+        if (!byProduct) return null;
+        return (byProduct.get(productId) ?? []).some(
+          (offer) => (offer.calculated_price?.calculated_amount ?? 0) > 0,
+        );
+      };
+
       const items = matched.map((product) => {
         const variants = product.variants ?? [];
         const matchingVariants = query
@@ -4823,23 +4921,44 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
                 (variant.title ?? "").toLowerCase().includes(query),
             )
           : variants;
-        const visibleVariants = (
-          matchingVariants.length > 0 ? matchingVariants : variants
-        ).slice(0, 10);
-        const productOffers = offersByProduct.get(product.id) ?? [];
+        const candidateVariants =
+          matchingVariants.length > 0 ? matchingVariants : variants;
+        const visibleVariants = candidateVariants.slice(0, 10);
         const matchingSkus = visibleVariants.map((variant) => {
-          const offer = productOffers.find(
-            (candidate) => candidate.variant_id === variant.id,
-          );
+          const b2cOffer = eligibleOfferFor("b2c", product.id, variant.id);
+          const b2bOffer = eligibleOfferFor("b2b", product.id, variant.id);
+          const selected =
+            channel === "b2c"
+              ? b2cOffer
+              : channel === "b2b"
+                ? b2bOffer
+                : null;
           return {
             variant_id: variant.id,
             variant_title: variant.title ?? "",
             sku: variant.sku ?? "",
-            offer_id: offer?.id ?? null,
-            in_stock: offer ? offer.in_stock !== false : null,
+            offer_id: selected?.offer_id ?? null,
+            in_stock: selected?.in_stock ?? null,
+            channels: { b2c: b2cOffer, b2b: b2bOffer },
           };
         });
-        const activePair = activePairs.get(product.id);
+        const activePairs = {
+          b2c: null as { id: string; paired_product_id: string } | null,
+          b2b: null as { id: string; paired_product_id: string } | null,
+        };
+        for (const candidateChannel of channelsToEvaluate) {
+          const map = activePairsByChannel[candidateChannel];
+          const pair = map?.get(product.id);
+          activePairs[candidateChannel] = pair
+            ? { id: pair.pair_id, paired_product_id: pair.paired_product_id }
+            : null;
+        }
+        const selectedActivePair =
+          channel === "b2c"
+            ? activePairs.b2c
+            : channel === "b2b"
+              ? activePairs.b2b
+              : null;
         return {
           id: product.id,
           title: product.title,
@@ -4847,21 +4966,29 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           sku_count: variants.length,
           status: "published",
           channel_ready: {
-            b2c: channel === "b2c" && productOffers.length > 0,
-            b2b: channel === "b2b" && productOffers.length > 0,
+            b2c: channelReady("b2c", product.id),
+            b2b: channelReady("b2b", product.id),
           },
           matching_skus: matchingSkus,
-          active_pair: activePair
-            ? {
-                id: activePair.pair_id,
-                paired_product_id: activePair.paired_product_id,
-              }
-            : null,
+          matching_sku_count: candidateVariants.length,
+          matching_skus_truncated: candidateVariants.length > visibleVariants.length,
+          active_pair: selectedActivePair,
+          active_pairs: activePairs,
         };
       });
-      return json({ items, count: items.length, channel });
+      return json({
+        items,
+        count: items.length,
+        channel,
+        evaluated_channels: channelsToEvaluate,
+        scan_truncated: scanTruncated,
+      });
     } catch (error) {
-      return problem(502, "catalogue-unavailable", (error as Error).message);
+      console.warn(
+        "[experience-api] bought-together candidate search failed:",
+        (error as Error).message,
+      );
+      return problem(502, "catalogue-unavailable", "Candidate search failed.");
     }
   }
 

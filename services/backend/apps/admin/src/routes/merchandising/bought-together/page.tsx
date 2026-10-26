@@ -25,7 +25,7 @@ type Candidate = {
   thumbnail?: string | null;
   sku_count: number;
   status: string;
-  channel_ready: { b2c: boolean; b2b: boolean };
+  channel_ready: { b2c: boolean | null; b2b: boolean | null };
 };
 
 type PairProduct = Candidate & {
@@ -82,10 +82,7 @@ async function listPairs(filter: {
 }
 
 async function listCandidates(query: string, channel: Channel): Promise<Candidate[]> {
-  const params = new URLSearchParams({
-    query,
-    channel: channel === "both" ? "b2c" : channel,
-  });
+  const params = new URLSearchParams({ query, channel });
   return request<Candidate[]>(`${API}/candidates?${params.toString()}`);
 }
 

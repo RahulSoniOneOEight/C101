@@ -177,6 +177,7 @@ export class MedusaStoreClient {
   async listOffersByProducts(
     productIds: string[],
     regionId = this.config.medusaRegionId,
+    salesChannelId?: string,
   ): Promise<StoreOffer[]> {
     if (!productIds.length) return [];
     // `+` keeps Medusa's default offer fields (id, product_id, variant_id, seller...) and adds the
@@ -190,7 +191,10 @@ export class MedusaStoreClient {
     params.set("country_code", this.config.medusaCountryCode);
     params.set("fields", fields);
     params.set("limit", String(Math.max(200, productIds.length * 50)));
-    const data = await this.getJson<{ offers: StoreOffer[] }>(`/store/offers?${params.toString()}`);
+    const data = await this.getJson<{ offers: StoreOffer[] }>(
+      `/store/offers?${params.toString()}`,
+      salesChannelId,
+    );
     return data.offers;
   }
 
