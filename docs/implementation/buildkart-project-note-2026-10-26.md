@@ -184,6 +184,7 @@ Governed components and design tokens consumed by the app as a local path depend
 | B2B storefront price consumption (snapshot, MOQ, tiers) | CHG-078 | staging deployed-verified |
 | Bought Together, product-level | CHG-079 | staging deployed |
 | Bought Together, SKU-level pairs + admin clarity | CHG-080 | staging deployed at `d365eba` |
+| Bought Together admin "Both"-channel paired guard | CHG-080-FU1 | staging deployed at `ef3dac4` |
 | Merchandising presets / offers / storefront layouts | CHG-029 and later | staging live |
 | Search insights (admin route + store) | CHG-075 | approved, code complete, staging verification pending |
 | Next.js web storefront cross-sell | - | not built (By design, Lane B/C work) |
@@ -193,8 +194,9 @@ Governed components and design tokens consumed by the app as a local path depend
 - **Contract:** CHG-079 (product-level) extended by **CHG-080** (SKU-level), status
   `staging-deployed-verified`, `staging_base_release: 7a27de7`, `staging_release: d365eba`,
   staging pair `btp_710026edf43347c9a92bed32f58a7eba`.
-- **Branch:** `feat/bt-sku-pairs`. Branch **HEAD is `6228f9c`** (a docs-only commit recording
-  CHG-080 evidence); `d365eba` is its parent and is what staging runs. Do not assume HEAD == deployed.
+- **Branch:** `feat/bt-sku-pairs`. Branch **HEAD and the deployed release are both `ef3dac4`**,
+  which carries the CHG-080-FU1 admin fix. `6228f9c` was the docs-only CHG-080 evidence commit and
+  `d365eba` was the CHG-080 release.
 - **Files:** `apps/prototype_app/lib/{domain/bought_together.dart,widgets/bought_together_section.dart}`,
   `test/bought_together_test.dart`, admin page
   `routes/merchandising/bought-together/page.tsx`, four admin proxy routes, and
@@ -290,19 +292,19 @@ All values are in the local-only appendix on the Desktop, and on the host at
 
 | Branch | HEAD | Bought Together | Notes |
 |---|---|---|---|
-| `feat/bt-sku-pairs` | `6228f9c` | yes, SKU-level | **staging runs `d365eba`**, one commit behind HEAD |
+| `feat/bt-sku-pairs` | `ef3dac4` | yes, SKU-level + Both guard | **staging runs `ef3dac4`** (CHG-080-FU1) |
 | `feat/staging-updates-02-04` | `7a27de7` | yes, product-level | base release for CHG-080 |
 | `feat/order-detail-workbench` | `82dcfbc` | no | checked out in the commission-statements clone, dirty |
 | `feat/buildkart-operations-console` | `fcdca49` | no | checked out in `C:\Users\LENOVO\C101`, dirty |
 | `release/pilot-cap-21` | `148b430` | no | referenced by the older SSH handover note |
 
-**Documented release SHAs disagree across sources.** Resolved reading: `d365eba` is current,
-`7a27de7` was the base, `148b430` is historical.
+**Documented release SHAs disagree across sources.** Resolved order: `7a27de7` was the base,
+`d365eba` delivered CHG-080, `ef3dac4` is current (CHG-080-FU1), `148b430` is historical.
 
-**Host-verified 2026-10-26:** `readlink -f /opt/buildkart-releases/current` returns
-`/opt/buildkart-releases/release-d365eba`; it is also the newest release directory;
-`medusa-api` is `running`/`healthy`; 16 containers are up. No deploy is needed to "update to latest" -
-staging is already on the newest release.
+**Host-verified 2026-10-26, after the FU1 deploy:** `readlink -f /opt/buildkart-releases/current`
+returns `/opt/buildkart-releases/release-ef3dac4`; `medusa-api` is `running`/`healthy`; api health,
+ops health, `/dashboard/` and `/seller/` all return 200. The previous image is preserved as
+`buildkart-hosted-pilot-medusa:rollback-d365eba`.
 
 Deploy discipline: build once, switch `current`, `up -d`, wait for `medusa-api` healthy, restart the
 proxy, verify, record the rollback SHA. Never deploy branch HEAD by default.
@@ -323,7 +325,7 @@ proxy, verify, record the rollback SHA. Never deploy branch HEAD by default.
 | 8 | `CMS_OPERATOR_SECRET` appears to end in a stray `n` | verify against the host |
 | 9 | Repo `README.md` documents only the Flutter app and shared UI | under-describes two-thirds of the tree |
 | 10 | `apps/web` had no cross-sell by design | adding it is separate Lane B/C work |
-| 11 | `latest_staging_release` in `workflow-state.yaml` is stale (`17109f8` / `15c31e4`). On `feat/bt-sku-pairs` CHG-079 and CHG-080 *are* recorded; older branches do not carry them | AGENTS.md makes workflow state authoritative, and the release pointer there contradicts the deployed `d365eba` |
+| 11 | Older `latest_staging_release` values in `workflow-state.yaml` (`17109f8` / `15c31e4`) belong to earlier changes. CHG-080 now records `latest_staging_release: ef3dac4` and CHG-080-FU1; older branches still lack CHG-079/080 | resolved for this branch; historical per-change entries are by design |
 
 ---
 

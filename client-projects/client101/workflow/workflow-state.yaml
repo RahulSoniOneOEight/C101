@@ -447,8 +447,17 @@ active_changes:
   production_release_authorized: false
   base_release: 7a27de7
   staging_release: d365eba
+  latest_staging_release: ef3dac4
   staging_pair: btp_710026edf43347c9a92bed32f58a7eba
   evidence: client-projects/client101/evidence/CHG-080/staging-implementation-2026-10-26.md
+  follow_up_fixes:
+  - id: CHG-080-FU1
+    scope: admin-both-channel-pair-guard
+    status: staging-deployed-pending-ui-qc
+    release: ef3dac4
+    business_rule_change: false
+    retro_approval_required: true
+    evidence: client-projects/client101/evidence/CHG-080/admin-both-channel-guard-2026-10-26.md
   requirements:
     R1_sku_pair_storage: pass
     R2_sku_search_selection: pass
