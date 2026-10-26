@@ -1,4 +1,5 @@
 import type { StoreOffer } from "../medusa/store-client.js";
+import { medusaToMinor } from "./money.js";
 
 /**
  * The B2B snapshot mirrored onto the product read model when Product Studio saves a B2B price
@@ -79,9 +80,12 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
       b2bWindowOpen &&
       typeof b2b.amount === "number" &&
       b2b.amount > 0;
+    // B2B amounts come from Product Studio snapshots and are already minor units. Medusa prices are
+    // major units and are scaled here so every consumer keeps seeing minor units.
     const selling = b2bConfigured
       ? b2b!.amount!
-      : o.calculated_price?.calculated_amount ?? null;
+      : medusaToMinor(o.calculated_price?.calculated_amount);
+
     // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
     // discounted selling price. Without this the storefront would show selling == list and no saving.
     const fixtureList = b2bConfigured
@@ -89,7 +93,7 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
       : Number(o.metadata?.list_price_minor);
     const list = Number.isFinite(fixtureList) && fixtureList > 0
       ? fixtureList
-      : o.calculated_price?.original_amount ?? selling;
+      : medusaToMinor(o.calculated_price?.original_amount) ?? selling;
     const discountMinor =
       list !== null && selling !== null && list > selling ? list - selling : 0;
     return {

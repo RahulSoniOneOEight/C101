@@ -82,6 +82,7 @@ import {
   orderLineSnapshots,
 } from "./returns/eligibility.js";
 import { itemSubtotalMinor } from "./commerce/cart-totals.js";
+import { medusaToMinor, medusaToMinorOr } from "./commerce/money.js";
 import {
   imageQualityScore,
   orderByImageQuality,
@@ -1178,27 +1179,33 @@ function composeCartView(cart: StoreCart) {
   const itemSubtotal = itemSubtotalMinor(cart);
   const items = (cart.items ?? []).map((item) => ({
     ...item,
+    // Medusa amounts are scaled into the API's minor-unit contract here; clients keep dividing by 100.
+    unit_price: medusaToMinorOr(item.unit_price),
+    subtotal: medusaToMinorOr(item.subtotal),
+    total: medusaToMinorOr(item.total),
     adjustments: (item.adjustments ?? []).map((adjustment) => ({
       code: adjustment.code ?? null,
-      amount: Math.abs(adjustment.amount ?? 0),
+      amount: Math.abs(medusaToMinorOr(adjustment.amount)),
       label: adjustment.description ?? adjustment.code ?? "Discount",
     })),
   }));
   return {
     ...cart,
     items,
+    total: medusaToMinorOr(cart.total),
+    shipping_total: medusaToMinorOr(cart.shipping_total),
     // Stable storefront semantics: "subtotal" is products only. Preserve the
     // engine's shipping-inclusive subtotal separately for audit/debugging.
     subtotal: itemSubtotal,
     item_subtotal: itemSubtotal,
-    engine_subtotal: cart.subtotal,
+    engine_subtotal: medusaToMinorOr(cart.subtotal),
     promotions: (cart.promotions ?? []).map((promotion) => ({
       code: promotion.code,
       is_automatic: Boolean(promotion.is_automatic),
     })),
-    discount_total: cart.discount_total ?? 0,
-    item_discount_total: cart.item_discount_total ?? 0,
-    shipping_discount_total: cart.shipping_discount_total ?? 0,
+    discount_total: medusaToMinorOr(cart.discount_total),
+    item_discount_total: medusaToMinorOr(cart.item_discount_total),
+    shipping_discount_total: medusaToMinorOr(cart.shipping_discount_total),
     adjustments: items.flatMap((item) =>
       item.adjustments.map((adjustment) => ({
         ...adjustment,
@@ -3731,10 +3738,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             // Legacy rows without this block fall back to the group total only.
             currency_code: cart.currency_code ?? "inr",
             amounts: {
-              subtotal: cart.item_subtotal ?? null,
-              shipping: cart.shipping_total ?? null,
-              discount: cart.discount_total ?? 0,
-              total: result.order_group?.total ?? cart.total ?? null,
+              subtotal: itemSubtotalMinor(cart),
+              shipping: medusaToMinor(cart.shipping_total),
+              discount: medusaToMinorOr(cart.discount_total),
+              total: medusaToMinor(result.order_group?.total ?? cart.total),
             },
             customer_reference: customerOrderReference(
               result.order_group?.id ?? cartId,
@@ -3750,7 +3757,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
                 sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
                 title: item.product_title ?? item.title,
                 quantity: item.quantity,
-                unit_price: item.unit_price,
+                unit_price: medusaToMinorOr(item.unit_price),
                 product_id: item.product_id ?? null,
                 variant_id: item.variant_id ?? null,
                 seller_id: item.seller_id ?? offer?.seller_id ?? null,
