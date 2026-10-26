@@ -1526,6 +1526,7 @@ export function ProductStudioForm({
   const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
   const [openVariantIndex, setOpenVariantIndex] = useState<number | null>(null);
   const autoOpenedVariant = useRef(false);
+  const appliedPricingFocus = useRef(false);
 
   const navigateView = (next: WorkspaceView) => {
     setView(next);
@@ -1639,6 +1640,22 @@ export function ProductStudioForm({
           product.variants?.length ? product.variants : [emptyVariant()],
         );
         setOffers(product.offers ?? []);
+        if (
+          !appliedPricingFocus.current &&
+          typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("focus") === "pricing"
+        ) {
+          appliedPricingFocus.current = true;
+          const firstOffer = (product.offers ?? [])[0];
+          if (firstOffer?.id) {
+            setSelectedOfferId(firstOffer.id);
+            window.setTimeout(() => {
+              document
+                .getElementById("studio-pricing")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }, 500);
+          }
+        }
         setProvisionSellerId("");
         setSellerProvisionReason("");
         setOptionsEditable(Boolean(product.options_editable));
@@ -2390,12 +2407,20 @@ export function ProductStudioForm({
         kind: "success",
         text: productId
           ? "Product changes saved to the server."
-          : "Product created. Add pricing to make it live in the storefront.",
+          : "Variant saved. Set its B2C and B2B price next.",
       });
+      if (pendingFix) {
+        setPendingFix(null);
+        setReviewNotice({
+          kind: "success",
+          text: "Server readiness re-checked after saving.",
+        });
+        navigateView("review");
+      }
       if (!productId) {
         // Keep the operator on the same destination after the record is created; otherwise the
         // edit route remounts at Overview and feels like a different screen.
-        navigate(`/product-studio/${result.product.id}?view=${view}`);
+        navigate(`/product-studio/${result.product.id}?view=variants&focus=pricing`);
       }
     } catch (error) {
       setNotice({
@@ -3759,6 +3784,14 @@ export function ProductStudioForm({
                                     );
                                     setOfferDirty(false);
                                     void refreshProduct();
+                                    if (pendingFix) {
+                                      setPendingFix(null);
+                                      setReviewNotice({
+                                        kind: "success",
+                                        text: "Server readiness re-checked after saving pricing.",
+                                      });
+                                      navigateView("review");
+                                    }
                                   }}
                                 />
                               </div>
