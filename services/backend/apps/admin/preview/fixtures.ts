@@ -164,6 +164,7 @@ const baseProduct = {
   studio_managed: true,
   owned: true,
   sales_channels: channels,
+  available_channels: channels,
 };
 
 function withVariants(count: number, priced: boolean) {

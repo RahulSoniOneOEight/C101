@@ -29,6 +29,7 @@ type MetaResponse = {
   categories: Category[];
   tags: Tag[];
   catalogue: CatalogueItem[];
+  channels: Array<{ id: string; name: string }>;
 };
 type Spec = { id?: string; name: string; value: string; unit: string };
 type Option = { id?: string; name: string; values: string[] };
@@ -162,6 +163,7 @@ type StudioProduct = {
   variants: Variant[];
   offers: Offer[];
   sales_channels?: Array<{ id: string; name: string }>;
+  available_channels?: Array<{ id: string; name: string }>;
   readiness?: ServerReadiness;
   activity?: ProductActivity[];
   can_edit: boolean;
@@ -1475,9 +1477,10 @@ export function ProductStudioForm({
   const [offerDirty, setOfferDirty] = useState(false);
   const [readiness, setReadiness] = useState<ServerReadiness | null>(null);
   const [activity, setActivity] = useState<ProductActivity[]>([]);
-  const [salesChannels, setSalesChannels] = useState<
+  const [availableChannels, setAvailableChannels] = useState<
     Array<{ id: string; name: string }>
   >([]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
   const [bulkScope, setBulkScope] = useState<"b2c" | "b2b">("b2c");
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
@@ -1604,7 +1607,12 @@ export function ProductStudioForm({
         setCanEdit(product.can_edit);
         setReadiness(product.readiness ?? null);
         setActivity(product.activity ?? []);
-        setSalesChannels(product.sales_channels ?? []);
+        setAvailableChannels(
+          product.available_channels ?? product.sales_channels ?? [],
+        );
+        setSelectedChannelIds(
+          (product.sales_channels ?? []).map((channel) => channel.id),
+        );
         setLoaded(true);
         setDirty(false);
       })
@@ -1649,6 +1657,18 @@ export function ProductStudioForm({
     void loadInventory(skus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, offers]);
+
+  useEffect(() => {
+    if (productId) return;
+    const channels = meta.data?.channels ?? [];
+    if (channels.length === 0) return;
+    setAvailableChannels((current) => (current.length > 0 ? current : channels));
+    setSelectedChannelIds((current) => {
+      if (current.length > 0) return current;
+      const b2c = channels.find((channel) => /b2c/i.test(channel.name));
+      return b2c ? [b2c.id] : [];
+    });
+  }, [productId, meta.data?.channels]);
 
   const validSpecs = useMemo(
     () => specs.filter((spec) => spec.name.trim() && spec.value.trim()),
@@ -2248,6 +2268,7 @@ export function ProductStudioForm({
               seller_provision_reason: sellerProvisionReason,
             }
           : {}),
+        sales_channel_ids: selectedChannelIds,
         tags,
         specifications: validSpecs.map((spec) => ({
           name: spec.name,
@@ -2293,7 +2314,12 @@ export function ProductStudioForm({
       setStudioManaged(Boolean(result.product.studio_managed));
       setReadiness(result.product.readiness ?? null);
       setActivity(result.product.activity ?? []);
-      setSalesChannels(result.product.sales_channels ?? []);
+      setAvailableChannels(
+        result.product.available_channels ?? result.product.sales_channels ?? [],
+      );
+      setSelectedChannelIds(
+        (result.product.sales_channels ?? []).map((channel) => channel.id),
+      );
       setNotice({
         kind: "success",
         text: productId
@@ -2321,7 +2347,12 @@ export function ProductStudioForm({
       );
       setReadiness(product.readiness ?? null);
       setActivity(product.activity ?? []);
-      setSalesChannels(product.sales_channels ?? []);
+      setAvailableChannels(
+        product.available_channels ?? product.sales_channels ?? [],
+      );
+      setSelectedChannelIds(
+        (product.sales_channels ?? []).map((channel) => channel.id),
+      );
       setStatus(product.status);
       setOffers(product.offers ?? []);
       setOptions(product.options ?? []);
@@ -2656,20 +2687,49 @@ export function ProductStudioForm({
                 </Field>
                 <Field
                   label="Selling channels"
-                  hint="Publication is controlled by lifecycle. Customer visibility also requires a positive channel price and sellable stock."
+                  hint="Choose where this product is published. A channel still needs a priced, in-stock seller offer before customers see it."
                 >
-                  <div className="flex min-h-8 flex-wrap items-center gap-1.5">
-                    {salesChannels.length === 0 ? (
+                  <div className="flex min-h-8 flex-col gap-2">
+                    {availableChannels.length === 0 ? (
                       <span className="text-sm text-ui-fg-subtle">
-                        No sales channel assigned
+                        No sales channels configured
                       </span>
                     ) : (
-                      salesChannels.map((channel) => (
-                        <StatusBadge key={channel.id} color="blue">
-                          {channel.name || channel.id}
-                        </StatusBadge>
-                      ))
+                      availableChannels.map((channel) => {
+                        const checked = selectedChannelIds.includes(channel.id);
+                        const disabled = mode !== "admin";
+                        return (
+                          <label
+                            key={channel.id}
+                            className="flex items-center gap-2 text-sm text-ui-fg-base"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={disabled}
+                              onChange={(event) => {
+                                setSelectedChannelIds((current) =>
+                                  event.target.checked
+                                    ? [...current, channel.id]
+                                    : current.filter(
+                                        (id) => id !== channel.id,
+                                      ),
+                                );
+                                setDirty(true);
+                                setNotice(null);
+                              }}
+                            />
+                            {channel.name || channel.id}
+                          </label>
+                        );
+                      })
                     )}
+                    {mode !== "admin" ? (
+                      <span className="text-xs text-ui-fg-subtle">
+                        Channel assignment is managed by the marketplace
+                        operator.
+                      </span>
+                    ) : null}
                   </div>
                 </Field>
                 <Field label="Product type">

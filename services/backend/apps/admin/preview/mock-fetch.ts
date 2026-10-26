@@ -68,6 +68,10 @@ export function installMockFetch() {
           { id: "tag_3", value: "best deal" },
         ],
         catalogue: [],
+        channels: [
+          { id: "sc_b2c", name: "B2C Storefront" },
+          { id: "sc_b2b", name: "B2B Trade" },
+        ],
       });
     }
 

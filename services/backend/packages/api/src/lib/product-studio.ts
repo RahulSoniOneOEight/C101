@@ -64,6 +64,7 @@ export type StudioSaveInput = {
   specifications?: StudioSpecInput[] | null;
   options?: StudioOptionInput[] | null;
   variants?: StudioVariantInput[] | null;
+  sales_channel_ids?: string[] | null;
   seller_id?: string | null;
   seller_provision_reason?: string | null;
 };
@@ -910,8 +911,12 @@ export async function loadStudioMeta(
     ...(sellerProductIds ? { id: sellerProductIds } : {}),
   };
 
-  const [{ data: categories }, { data: tags }, { data: catalogue }] =
-    await Promise.all([
+  const [
+    { data: categories },
+    { data: tags },
+    { data: catalogue },
+    { data: channels },
+  ] = await Promise.all([
       q.graph({
         entity: "product_category",
         fields: ["id", "name", "parent_category_id"],
@@ -930,6 +935,11 @@ export async function loadStudioMeta(
             filters: productFilter,
             pagination: { take: 8, skip: 0 },
           }),
+      q.graph({
+        entity: "sales_channel",
+        fields: ["id", "name"],
+        pagination: { take: 50, skip: 0 },
+      }),
     ]);
 
   return {
@@ -939,6 +949,15 @@ export async function loadStudioMeta(
     tags: (tags ?? []).sort((a: any, b: any) =>
       String(a.value ?? "").localeCompare(String(b.value ?? "")),
     ),
+    channels: (channels ?? [])
+      .map((channel: any) => ({
+        id: String(channel.id ?? ""),
+        name: String(channel.name ?? ""),
+      }))
+      .filter((channel: { id: string }) => Boolean(channel.id))
+      .sort((a: { name: string }, b: { name: string }) =>
+        a.name.localeCompare(b.name),
+      ),
     catalogue: catalogue ?? [],
   };
 }
@@ -1161,6 +1180,21 @@ export async function loadStudioProduct(
     })),
   }));
 
+  const { data: channelRows } = await q.graph({
+    entity: "sales_channel",
+    fields: ["id", "name"],
+    pagination: { take: 50, skip: 0 },
+  });
+  const availableChannels = (channelRows ?? [])
+    .map((channel: { id?: string; name?: string }) => ({
+      id: channel.id ?? "",
+      name: channel.name ?? "",
+    }))
+    .filter((channel: { id: string }) => Boolean(channel.id))
+    .sort((left: { name: string }, right: { name: string }) =>
+      left.name.localeCompare(right.name),
+    );
+
   const [{ data: activityRows }, visibility] = await Promise.all([
     q.graph({
       entity: "product_change_action",
@@ -1334,6 +1368,7 @@ export async function loadStudioProduct(
           name: channel.name ?? "",
         }),
       ),
+      available_channels: availableChannels,
       lifecycle_state:
         typeof metadata.lifecycle_state === "string"
           ? metadata.lifecycle_state
@@ -1427,7 +1462,21 @@ export async function saveStudioProduct(
   }
 
   if (!productId) {
+    const requestedChannels = Array.from(
+      new Set(
+        (input.sales_channel_ids ?? [])
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    );
     const storefrontChannelId = await defaultStorefrontChannelId(scope);
+    // An explicit list from the operator wins, including an empty one. Only an omitted list falls
+    // back to the deployment default, so unticking every channel means "published nowhere yet".
+    const createChannelIds = Array.isArray(input.sales_channel_ids)
+      ? requestedChannels
+      : storefrontChannelId
+        ? [storefrontChannelId]
+        : [];
     const { result: createdResult } = await createProductsWorkflow(scope).run({
       input: {
         products: [
@@ -1443,8 +1492,8 @@ export async function saveStudioProduct(
             category_ids: input.category_id ? [input.category_id] : undefined,
             tags: tagIds.map((id) => ({ id })),
             attributes,
-            sales_channels: storefrontChannelId
-              ? [{ id: storefrontChannelId }]
+            sales_channels: createChannelIds.length
+              ? createChannelIds.map((id) => ({ id }))
               : undefined,
             metadata: {
               buildkart_product_studio: true,
@@ -1693,6 +1742,17 @@ export async function saveStudioProduct(
         category_ids: input.category_id ? [input.category_id] : [],
         tags: tagIds.map((id) => ({ id })),
         metadata,
+        ...(Array.isArray(input.sales_channel_ids)
+          ? {
+              sales_channels: Array.from(
+                new Set(
+                  input.sales_channel_ids
+                    .map((id) => id.trim())
+                    .filter(Boolean),
+                ),
+              ).map((id) => ({ id })),
+            }
+          : {}),
       } as any,
     },
   });
