@@ -1,0 +1,136 @@
+CHG-086 — PRODUCT STUDIO + CATALOGUE VISIBILITY
+Staging only. Production untouched. Date: 2026-10-27
+
+======================================================================
+1. CUSTOMER VISIBILITY (replaces the CHG-049 marker gate)
+======================================================================
+- A product is visible in a channel only when ALL are true:
+    published  +  assigned to that channel  +  has a seller offer
+    +  positive price in that channel  +  sellable stock.
+- catalogue_import=CHG-049 is no longer a visibility gate.
+- The marker still works only when an old link explicitly passes it
+  (diagnostic use).
+- Product detail now returns 404 when the product is not commercially
+  ready, or when Medusa hides it (draft/archived).
+- B2B requires its own saved B2B price. A B2C price no longer makes a
+  B2B offer visible.
+- Offer reads are channel-scoped and chunked (20 ids/request) instead of
+  one unbounded query.
+
+======================================================================
+2. PRODUCT STUDIO — ADMIN AND SELLER (same component)
+======================================================================
+Navigation
+- Sticky five-destination workspace:
+    Overview | Variants & offers (n) | Inventory | Activity |
+    Review & visibility (blockers)
+- Mobile: one labelled destination dropdown.
+- URL keeps ?view=... so Back/Forward and deep links work.
+
+Expandable sections
+- Every card expands/collapses with aria-expanded and a focus ring.
+- Existing product: last expansion state is restored per session.
+- New product: only Product details opens; other cards start collapsed.
+- Collapsed cards show a status chip:
+    Needs title and category / Optional / n values / n variants /
+    n/m priced / n blockers · n warnings.
+- Review "Fix" opens the owning view, expands the card and focuses the
+  exact field.
+
+Variants & offers
+- Offer table first: variant/SKU, seller, B2C price, B2B status, Open.
+- One focused offer editor at a time with Previous / Next / Close.
+- One explicit "Save pricing" action scoped to that offer.
+- B2C and B2B remain separate saves; a partial failure keeps inputs.
+- Bulk edit only after selecting rows; shows the selected count and the
+  channel; applies to the reviewed selection only.
+- B2B is explicitly per offer (MOQ, tiers, effective dates).
+
+Saving
+- Product content and offer pricing have separate dirty states.
+- One "Save changes" action; the sticky bar exists only while dirty.
+- Ctrl/Cmd+S saves the product scope; native unload warning when dirty.
+- Save failure keeps entered values; success keeps scroll/focus.
+- Pricing dirty state blocks lifecycle actions.
+
+Legacy / clutter
+- Legacy option axes are hidden from normal variant editing.
+- Admin-only collapsed "Technical: legacy option axes" drawer.
+- Bulk SKU prefix / Fill blank SKUs hidden when the product is locked.
+
+Review & visibility
+- Server-owned gates per channel: Published / Offer / Price / Stock.
+- "Published · Not live" shown for auto-published but not-ready records.
+- Exact blocker text, no colour-only signalling.
+- Header badges: B2C live / B2C · Not live, B2B live / B2B · Not live.
+- Content checks remain as a secondary list.
+- Activity shows the audited product-change trail, newest first.
+
+Create flow
+- Same workspace component as edit.
+- The "Catalogue search" duplicate-check block is REMOVED from the
+  add-new-product page (requested).
+- Product details is the only card open on create.
+
+======================================================================
+3. PROVENANCE (audit only, never a gate)
+======================================================================
+- New studio products write catalogue_source=product_studio.
+- Existing rows backfilled to product_studio / catalogue_import /
+  legacy_catalogue.
+- catalogue_import historical values are preserved exactly.
+
+======================================================================
+4. STAGING DATA (exact allowlist, reversible, no deletes)
+======================================================================
+- Archived (status=draft, lifecycle_state=archived):
+    prod_01M4EC9DSW5MSACQWETJ3R38AW  VoltEdge Modular Switch 1-Way
+    prod_01M4EC9DSW6J984KKM619VKZEA  WoodWise Plywood Sheet 18mm 8x4
+    prod_01M5TC4ZM09R4FJMAFKP3G1H6C  QC Live Variant Product
+    prod_01M5VAK0F4R5G7V2MYS0PPQ4TM  QC Pexels Variant Product
+- Color and Condition: is_variant_axis=false.
+  Still active and filterable as specifications.
+- All product/variant/offer/order ids unchanged.
+- Historical order lines verified unchanged by hash before commit.
+- Wonder Cement and RCC HUME PIPE untouched.
+- Pre-change encrypted backup:
+    buildkart-20261026T185554Z.dump.age
+- Script: services/hosted/scripts/chg086-product-visibility.sh
+  (dry-run by default, --apply commits, postconditions + order hashes)
+
+======================================================================
+5. STOREFRONT CLIENTS
+======================================================================
+- Flutter no longer sends catalogue_import; it reads the server-owned
+  catalogue.
+- Web bundle rebuilt and deployed to buildkart-staging.web.app.
+
+======================================================================
+6. VERIFICATION
+======================================================================
+- Typechecks: Experience API, API package, Admin, Vendor — PASS.
+- flutter analyze — clean; flutter test — 283 PASS.
+- test:b2b-pricing-read, test:image-quality-order, test:cart-totals — PASS.
+- Data script dry run + apply with postconditions — PASS.
+- Catalogue API: 237 ready products, zero unready titles.
+- Detail 404s for archived and not-ready products — PASS.
+- Admin/Seller desktop+mobile screenshots: 0 console errors.
+- create -> price -> live journey: pending final run.
+
+======================================================================
+7. KNOWN DEVIATION (recorded, not hidden)
+======================================================================
+- The web storefront was deployed before the API image, so for a few
+  minutes the old API served 240 products including 3 unready ones.
+  Corrected within the same release window; final state verified at 237.
+- Catalogue search removal + collapsed create cards are in the final
+  build; screenshots to follow.
+
+======================================================================
+8. ROLLBACK
+======================================================================
+- Images tagged: buildkart-hosted-pilot-medusa:rollback-0e64bd3
+                 buildkart-hosted-pilot-experience-api:rollback-0e64bd3
+- Data: restore the encrypted backup, or reverse only the six allowlisted
+  rows (4 products, 2 attributes).
+- Production release: NOT authorised.

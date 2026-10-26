@@ -1,4 +1,4 @@
-import {
+﻿import {
   Button,
   Container,
   Heading,
@@ -380,9 +380,9 @@ function WorkspaceNavigation({
 }) {
   const label = (view: WorkspaceView, base: string) => {
     if (view === "variants") return `${base} (${variantCount})`;
-    if (view === "inventory" && inventoryAttention) return `${base} · attention`;
+    if (view === "inventory" && inventoryAttention) return `${base} Â· attention`;
     if (view === "review" && blockerCount > 0) {
-      return `${base} · ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}`;
+      return `${base} Â· ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}`;
     }
     return base;
   };
@@ -426,7 +426,7 @@ function WorkspaceNavigation({
                     : "text-ui-fg-subtle hover:bg-ui-bg-subtle"
               }`}
             >
-              {blocked ? "⛔ " : ""}
+              {blocked ? "â›” " : ""}
               {label(view.id, view.label)}
             </button>
           );
@@ -507,7 +507,7 @@ function Section({
           </Text>
           {attention ? (
             <Text size="xsmall" className="mt-1 text-ui-fg-error">
-              ⛔ {attention}
+              â›” {attention}
             </Text>
           ) : null}
         </div>
@@ -523,7 +523,7 @@ function Section({
           </span>
         ) : null}
         <span aria-hidden="true" className="px-2 text-ui-fg-subtle">
-          {open ? "⌃" : "⌄"}
+          {open ? "âŒƒ" : "âŒ„"}
         </span>
       </button>
       {open ? children : null}
@@ -934,7 +934,7 @@ function OfferPricingEditor({
             {variantLabel || offer.sku}
           </p>
           <p className="text-xs text-ui-fg-subtle">
-            {offer.sku || "No SKU"} · {offer.seller_name}
+            {offer.sku || "No SKU"} Â· {offer.seller_name}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -953,7 +953,7 @@ function OfferPricingEditor({
             B2C selling
           </Text>
           <Text size="small" weight="plus">
-            {base ? inr(Number(base)) : "—"}
+            {base ? inr(Number(base)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -961,7 +961,7 @@ function OfferPricingEditor({
             B2C list
           </Text>
           <Text size="small" weight="plus">
-            {listPrice ? inr(Number(listPrice)) : "—"}
+            {listPrice ? inr(Number(listPrice)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -969,7 +969,7 @@ function OfferPricingEditor({
             B2B selling
           </Text>
           <Text size="small" weight="plus">
-            {b2bAmount ? inr(Number(b2bAmount)) : "—"}
+            {b2bAmount ? inr(Number(b2bAmount)) : "â€”"}
           </Text>
         </div>
         <div>
@@ -977,7 +977,7 @@ function OfferPricingEditor({
             B2B MOQ
           </Text>
           <Text size="small" weight="plus">
-            {b2bAmount ? b2bMoq || "—" : "—"}
+            {b2bAmount ? b2bMoq || "â€”" : "â€”"}
           </Text>
         </div>
       </div>
@@ -1045,7 +1045,7 @@ function OfferPricingEditor({
                       Number(listPrice)) *
                       100,
                   ),
-                )}% below list · ${
+                )}% below list Â· ${
                   gstInclusive ? "GST-inclusive" : "GST-exclusive"
                 }`
               : "Enter list and selling prices to calculate the discount."}
@@ -1075,7 +1075,7 @@ function OfferPricingEditor({
                 B2B pricing
               </Heading>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Dedicated price list · B2B Trade Customers
+                Dedicated price list Â· B2B Trade Customers
               </Text>
             </div>
             <StatusBadge color={b2bAmount ? "green" : "grey"}>
@@ -1281,7 +1281,7 @@ function OfferPricingEditor({
       <div className="mt-4 flex items-center justify-between gap-3 border-t border-ui-border-base pt-3">
         <Text size="xsmall" className="text-ui-fg-subtle">
           {dirty
-            ? "Unsaved pricing · affects this offer only"
+            ? "Unsaved pricing Â· affects this offer only"
             : "Saves B2C and configured B2B pricing for this offer."}
         </Text>
         <Button
@@ -1433,8 +1433,8 @@ function InventoryRequestForm({
         <div className="mt-2 space-y-1">
           {history.map((item) => (
             <p key={item.id} className="text-xs text-ui-fg-subtle">
-              {item.status} · {item.quantity_delta > 0 ? "+" : ""}
-              {item.quantity_delta} · {item.reason} ·{" "}
+              {item.status} Â· {item.quantity_delta > 0 ? "+" : ""}
+              {item.quantity_delta} Â· {item.reason} Â·{" "}
               {new Date(item.requested_at).toLocaleDateString("en-IN")}
             </p>
           ))}
@@ -1483,8 +1483,6 @@ export function ProductStudioForm({
   const [studioManaged, setStudioManaged] = useState(true);
   const [skuPrefix, setSkuPrefix] = useState("");
   const [tagInput, setTagInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(Boolean(productId));
   const [loaded, setLoaded] = useState(!productId);
@@ -1527,11 +1525,8 @@ export function ProductStudioForm({
   };
 
   const meta = useQuery({
-    queryKey: ["buildkart", "product-studio", mode, "meta", appliedSearch],
-    queryFn: () =>
-      request<MetaResponse>(
-        `${apiBase}?q=${encodeURIComponent(appliedSearch)}`,
-      ),
+    queryKey: ["buildkart", "product-studio", mode, "meta"],
+    queryFn: () => request<MetaResponse>(apiBase),
   });
   const sellers = useQuery({
     queryKey: ["buildkart", "sellers", mode],
@@ -2458,15 +2453,15 @@ export function ProductStudioForm({
                   {readiness.channels.b2c.visible
                     ? "B2C live"
                     : status === "published"
-                      ? "B2C · Not live"
-                      : "B2C · Not live"}
+                      ? "B2C Â· Not live"
+                      : "B2C Â· Not live"}
                 </StatusBadge>
               ) : null}
               {readiness && readiness.channels.b2b.enabled !== false ? (
                 <StatusBadge
                   color={readiness.channels.b2b.visible ? "green" : "grey"}
                 >
-                  {readiness.channels.b2b.visible ? "B2B live" : "B2B · Not live"}
+                  {readiness.channels.b2b.visible ? "B2B live" : "B2B Â· Not live"}
                 </StatusBadge>
               ) : null}
               {!studioManaged ? (
@@ -2500,11 +2495,11 @@ export function ProductStudioForm({
             <span className="font-medium text-ui-fg-base">
               {status === "published"
                 ? readiness?.channels.b2c.visible
-                  ? "Published · B2C live"
-                  : "Published · Not live"
-                : `Status · ${status}`}
+                  ? "Published Â· B2C live"
+                  : "Published Â· Not live"
+                : `Status Â· ${status}`}
             </span>
-            <span>·</span>
+            <span>Â·</span>
             <span>
               {dirty
                 ? "Unsaved product changes"
@@ -2512,7 +2507,7 @@ export function ProductStudioForm({
                   ? `Saved to server ${lastSaved}`
                   : "No unsaved product changes"}
             </span>
-            <span>·</span>
+            <span>Â·</span>
             <span>Local autosave is a recovery copy, not a server save.</span>
           </div>
         </div>
@@ -2545,7 +2540,7 @@ export function ProductStudioForm({
       {loading ? (
         <Container>
           <Text size="small" className="text-ui-fg-subtle">
-            Loading product record…
+            Loading product recordâ€¦
           </Text>
         </Container>
       ) : !canEdit ? (
@@ -2562,90 +2557,6 @@ export function ProductStudioForm({
       ) : (
         <div className="flex flex-col gap-3 md:flex-row md:items-start">
           <Container className="min-w-0 flex-1 p-0">
-            {!productId ? (
-            <div className="px-6 py-5">
-              <Heading level="h2">Catalogue search</Heading>
-              <Text size="small" className="mt-1 text-ui-fg-subtle">
-                Check whether the product already exists before creating a
-                duplicate master record.
-              </Text>
-              <form
-                className="mt-3 flex gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  setAppliedSearch(search.trim());
-                }}
-              >
-                <Input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search existing products by title"
-                />
-                <Button size="small" type="submit" variant="secondary">
-                  Search
-                </Button>
-              </form>
-              <div className="mt-3 flex flex-col divide-y divide-ui-border-base">
-                {(meta.data?.catalogue ?? []).length === 0 ? (
-                  <Text size="small" className="py-2 text-ui-fg-subtle">
-                    {meta.isPending
-                      ? "Searching…"
-                      : appliedSearch
-                        ? "No matching products."
-                        : "No recent products to show."}
-                  </Text>
-                ) : (
-                  (meta.data?.catalogue ?? []).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        {item.thumbnail ? (
-                          <img
-                            src={item.thumbnail}
-                            alt=""
-                            className="rounded object-cover"
-                            style={{ width: 36, height: 36, flexShrink: 0 }}
-                          />
-                        ) : (
-                          <div className="h-9 w-9 rounded bg-ui-bg-subtle" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-ui-fg-base">
-                            {item.title}
-                          </p>
-                          <p className="text-xs text-ui-fg-subtle">
-                            {item.categories?.[0]?.name ?? "Uncategorised"} ·{" "}
-                            {item.status}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {mode === "admin" ||
-                        mode === "vendor" ||
-                        item.status === "draft" ? (
-                          <Link
-                            to={`/product-studio/${item.id}`}
-                            className="text-xs font-medium text-ui-fg-interactive hover:underline"
-                          >
-                            Edit in studio
-                          </Link>
-                        ) : null}
-                        <Link
-                          to={`/products/${item.id}`}
-                          className="text-xs font-medium text-ui-fg-interactive hover:underline"
-                        >
-                          Open
-                        </Link>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-            ) : null}
-
             {view === "overview" ? (
               <>
             <Section
@@ -2656,7 +2567,7 @@ export function ProductStudioForm({
               complete={sectionOneDone}
               defaultOpen
               ignoreStoredState={!productId}
-              summary={sectionOneDone ? "✓ Complete" : "Needs title and category"}
+              summary={sectionOneDone ? "âœ“ Complete" : "Needs title and category"}
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
@@ -2743,7 +2654,7 @@ export function ProductStudioForm({
                       <option value="">Do not provision seller offers</option>
                       {(sellers.data?.sellers ?? []).map((seller) => (
                         <option key={seller.id} value={seller.id}>
-                          {seller.name} — {seller.id}
+                          {seller.name} â€” {seller.id}
                         </option>
                       ))}
                     </select>
@@ -2824,7 +2735,7 @@ export function ProductStudioForm({
                       onChange={(event) =>
                         update("thumbnail", event.target.value)
                       }
-                      placeholder="https://…"
+                      placeholder="https://â€¦"
                     />
                   </Field>
                 </div>
@@ -2858,7 +2769,7 @@ export function ProductStudioForm({
                       className="text-ui-fg-muted hover:text-ui-fg-base"
                       onClick={() => removeTag(tag)}
                     >
-                      ×
+                      Ã—
                     </button>
                   </span>
                 ))}
@@ -2965,7 +2876,7 @@ export function ProductStudioForm({
                       aria-label="Remove specification"
                       className="shrink-0"
                     >
-                      ×
+                      Ã—
                     </Button>
                   </div>
                 ))}
@@ -2984,7 +2895,7 @@ export function ProductStudioForm({
                     Add specification
                   </Button>
                   <Text size="small" className="text-ui-fg-subtle">
-                    {validSpecs.length} complete ·{" "}
+                    {validSpecs.length} complete Â·{" "}
                     {partialSpecRows.length} incomplete
                   </Text>
                 </div>
@@ -3050,7 +2961,7 @@ export function ProductStudioForm({
                   <Heading level="h2">Variants</Heading>
                   <Text size="small" className="mt-1 text-ui-fg-subtle">
                     {variants.length} variant
-                    {variants.length === 1 ? "" : "s"} · non-empty SKUs must be
+                    {variants.length === 1 ? "" : "s"} Â· non-empty SKUs must be
                     unique.
                   </Text>
                 </div>
@@ -3117,10 +3028,10 @@ export function ProductStudioForm({
                           .map(
                             (option) =>
                               `${option.name}: ${
-                                variant.options[option.name] ?? "—"
+                                variant.options[option.name] ?? "â€”"
                               }`,
                           )
-                          .join(" · ")
+                          .join(" Â· ")
                       : variant.title.trim() || `Variant ${index + 1}`;
                   return (
                     <div
@@ -3187,7 +3098,7 @@ export function ProductStudioForm({
                         </label>
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
-                            SKU * {skuDuplicate ? "· duplicate" : ""}
+                            SKU * {skuDuplicate ? "Â· duplicate" : ""}
                           </span>
                           <Input
                             value={variant.sku}
@@ -3343,7 +3254,7 @@ export function ProductStudioForm({
                                           : "text-sm text-ui-fg-error"
                                       }
                                     >
-                                      {b2c ? inr(b2c) : "⛔ Missing"}
+                                      {b2c ? inr(b2c) : "â›” Missing"}
                                     </span>
                                   </Table.Cell>
                                   <Table.Cell>
@@ -3377,7 +3288,7 @@ export function ProductStudioForm({
                       {bulkSelected.length > 0 ? (
                         <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
                           <p className="text-sm font-medium text-ui-fg-base">
-                            Bulk edit · {bulkSelected.length} selected offer
+                            Bulk edit Â· {bulkSelected.length} selected offer
                             {bulkSelected.length === 1 ? "" : "s"}
                           </p>
                           <p className="mt-1 text-xs text-ui-fg-subtle">
@@ -3494,11 +3405,11 @@ export function ProductStudioForm({
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
                                 <div>
                                   <p className="text-sm font-medium text-ui-fg-base">
-                                    Offer pricing · {index + 1} of{" "}
+                                    Offer pricing Â· {index + 1} of{" "}
                                     {offers.length}
                                   </p>
                                   <p className="text-xs text-ui-fg-subtle">
-                                    {variant?.title || offer.sku} ·{" "}
+                                    {variant?.title || offer.sku} Â·{" "}
                                     {offer.seller_name}
                                   </p>
                                 </div>
@@ -3602,7 +3513,7 @@ export function ProductStudioForm({
                 <div className="flex flex-col gap-3">
                   {inventoryLoading ? (
                     <Text size="small" className="text-ui-fg-subtle">
-                      Loading inventory from Tryton…
+                      Loading inventory from Trytonâ€¦
                     </Text>
                   ) : inventoryError ? (
                     <Text size="small" className="text-ui-fg-error">
@@ -3635,7 +3546,7 @@ export function ProductStudioForm({
                                 {variant?.title || offer.sku}
                               </p>
                               <p className="text-xs text-ui-fg-subtle">
-                                {offer.sku} · {offer.seller_name}
+                                {offer.sku} Â· {offer.seller_name}
                               </p>
                             </div>
                             <StatusBadge
@@ -3774,7 +3685,7 @@ export function ProductStudioForm({
                         <span className="text-xs text-ui-fg-subtle">
                           {entry.created_at
                             ? new Date(entry.created_at).toLocaleString("en-IN")
-                            : "—"}
+                            : "â€”"}
                         </span>
                       </div>
                       {entry.note ? (
@@ -3784,7 +3695,7 @@ export function ProductStudioForm({
                       ) : null}
                       <p className="mt-1 text-xs text-ui-fg-subtle">
                         {entry.actor ? `Actor ${entry.actor}` : "System"}
-                        {entry.status ? ` · ${entry.status}` : ""}
+                        {entry.status ? ` Â· ${entry.status}` : ""}
                       </p>
                     </li>
                   ))}
@@ -3804,7 +3715,7 @@ export function ProductStudioForm({
                 readiness
                   ? `${readiness.blocker_count} blocker${
                       readiness.blocker_count === 1 ? "" : "s"
-                    } · ${readiness.warning_count} warning${
+                    } Â· ${readiness.warning_count} warning${
                       readiness.warning_count === 1 ? "" : "s"
                     }`
                   : "Not checked"
@@ -3818,16 +3729,16 @@ export function ProductStudioForm({
                       {status === "published" &&
                       readiness &&
                       !readiness.channels.b2c.visible
-                        ? " · Not live"
+                        ? " Â· Not live"
                         : ""}
                     </p>
                     <p className="text-xs text-ui-fg-subtle">
                       {readiness
                         ? `Server checked ${new Date(
                             readiness.checked_at,
-                          ).toLocaleTimeString("en-IN")} · ${readiness.blocker_count} blocker${
+                          ).toLocaleTimeString("en-IN")} Â· ${readiness.blocker_count} blocker${
                             readiness.blocker_count === 1 ? "" : "s"
-                          } · ${readiness.warning_count} warning${
+                          } Â· ${readiness.warning_count} warning${
                             readiness.warning_count === 1 ? "" : "s"
                           }`
                         : "Visibility has not been checked yet."}
@@ -3864,7 +3775,7 @@ export function ProductStudioForm({
                               {label}
                             </span>
                             <span className="text-xs text-ui-fg-subtle">
-                              ○ Not enabled
+                              â—‹ Not enabled
                             </span>
                           </div>
                         );
@@ -3885,15 +3796,15 @@ export function ProductStudioForm({
                                   : "text-sm text-ui-fg-error"
                               }
                             >
-                              {state.visible ? "✓ Live" : "⛔ Not live"}
+                              {state.visible ? "âœ“ Live" : "â›” Not live"}
                             </span>
                           </div>
                           <p className="mt-1 text-xs text-ui-fg-subtle">
                             Published{" "}
-                            {state.gates?.published_and_channel ? "✓" : "✕"} ·
-                            Offer {state.gates?.offer ? "✓" : "✕"} · Price{" "}
-                            {state.gates?.price ? "✓" : "✕"} · Stock{" "}
-                            {state.gates?.stock ? "✓" : "✕"}
+                            {state.gates?.published_and_channel ? "âœ“" : "âœ•"} Â·
+                            Offer {state.gates?.offer ? "âœ“" : "âœ•"} Â· Price{" "}
+                            {state.gates?.price ? "âœ“" : "âœ•"} Â· Stock{" "}
+                            {state.gates?.stock ? "âœ“" : "âœ•"}
                           </p>
                           {!state.visible && state.blocker?.message ? (
                             <p className="mt-1 text-xs text-ui-fg-error">
@@ -3920,7 +3831,7 @@ export function ProductStudioForm({
                               : "text-sm text-ui-fg-subtle"
                           }
                         >
-                          {issue.severity === "blocker" ? "⛔" : "⚠"}{" "}
+                          {issue.severity === "blocker" ? "â›”" : "âš "}{" "}
                           {issue.message}
                         </span>
                         <Button
@@ -3936,7 +3847,7 @@ export function ProductStudioForm({
                   </div>
                 ) : readiness ? (
                   <p className="rounded-lg border border-ui-border-success bg-ui-bg-success px-4 py-3 text-sm text-ui-fg-success">
-                    ✓ All required checks pass.
+                    âœ“ All required checks pass.
                   </p>
                 ) : null}
 
@@ -3984,7 +3895,7 @@ export function ProductStudioForm({
                         <option value="">Act as BuildKart</option>
                         {(sellers.data?.sellers ?? []).map((seller) => (
                           <option key={seller.id} value={seller.id}>
-                            {seller.name} · {seller.id}
+                            {seller.name} Â· {seller.id}
                           </option>
                         ))}
                       </select>
@@ -4215,8 +4126,8 @@ export function ProductStudioForm({
             >
               <Text size="small" className="text-ui-fg-subtle">
                 {saving
-                  ? "Saving product changes…"
-                  : "Unsaved product changes · affects content, not pricing."}
+                  ? "Saving product changesâ€¦"
+                  : "Unsaved product changes Â· affects content, not pricing."}
               </Text>
               <div className="flex flex-wrap items-center gap-2">
                 {dirty && productId ? (
@@ -4270,7 +4181,7 @@ export function ProductStudioForm({
                   </div>
                 )}
                 <p className="text-xs uppercase tracking-wide text-ui-fg-subtle">
-                  {form.brand.trim() || "Brand"} · {previewCategory}
+                  {form.brand.trim() || "Brand"} Â· {previewCategory}
                 </p>
                 <p className="mt-1 text-lg font-semibold text-ui-fg-base">
                   {previewTitle}
@@ -4299,15 +4210,15 @@ export function ProductStudioForm({
                   <p className="mt-2 text-xs text-ui-fg-subtle">
                     {variants.length} variant{variants.length === 1 ? "" : "s"}
                     {variants[0]?.sku
-                      ? ` · first SKU ${variants[0].sku}`
-                      : " · no SKU yet"}
+                      ? ` Â· first SKU ${variants[0].sku}`
+                      : " Â· no SKU yet"}
                   </p>
                   <p className="mt-1 text-xs text-ui-fg-subtle">
                     {offers.length === 0
                       ? "No seller offer pricing yet."
                       : `${offers.length} offer${
                           offers.length === 1 ? "" : "s"
-                        } · ${inr(
+                        } Â· ${inr(
                           offers[0].prices.find(
                             (price) =>
                               price.currency_code === "inr" &&
