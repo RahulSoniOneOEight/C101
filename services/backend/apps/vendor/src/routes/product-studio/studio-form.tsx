@@ -949,41 +949,6 @@ function OfferPricingEditor({
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3 rounded-md bg-ui-bg-subtle p-3 md:grid-cols-4">
-        <div>
-          <Text size="xsmall" className="text-ui-fg-subtle">
-            B2C selling
-          </Text>
-          <Text size="small" weight="plus">
-            {base ? inr(Number(base)) : "—"}
-          </Text>
-        </div>
-        <div>
-          <Text size="xsmall" className="text-ui-fg-subtle">
-            B2C list
-          </Text>
-          <Text size="small" weight="plus">
-            {listPrice ? inr(Number(listPrice)) : "—"}
-          </Text>
-        </div>
-        <div>
-          <Text size="xsmall" className="text-ui-fg-subtle">
-            B2B selling
-          </Text>
-          <Text size="small" weight="plus">
-            {b2bAmount ? inr(Number(b2bAmount)) : "—"}
-          </Text>
-        </div>
-        <div>
-          <Text size="xsmall" className="text-ui-fg-subtle">
-            B2B MOQ
-          </Text>
-          <Text size="small" weight="plus">
-            {b2bAmount ? b2bMoq || "—" : "—"}
-          </Text>
-        </div>
-      </div>
-
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <section
           aria-labelledby={`b2c-pricing-${offer.id}`}
@@ -1006,7 +971,7 @@ function OfferPricingEditor({
           <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">
-                List price (INR) *
+                MRP / list price (₹) *
               </span>
               <Input
                 id={`offer-price-${offer.id}`}
@@ -1018,7 +983,7 @@ function OfferPricingEditor({
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">
-                Base selling price (INR) *
+                Selling price (₹) *
               </span>
               <Input
                 id={`offer-selling-${offer.id}`}
@@ -1093,7 +1058,7 @@ function OfferPricingEditor({
           <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">
-                B2B list price (INR)
+                B2B list price (₹)
               </span>
               <Input
                 inputMode="decimal"
@@ -1104,7 +1069,7 @@ function OfferPricingEditor({
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">
-                B2B selling price (INR)
+                B2B selling price (₹)
               </span>
               <Input
                 inputMode="decimal"
@@ -1115,7 +1080,7 @@ function OfferPricingEditor({
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs font-medium text-ui-fg-subtle">
-                MOQ
+                MOQ (minimum order)
               </span>
               <Input
                 inputMode="numeric"
@@ -2584,7 +2549,7 @@ export function ProductStudioForm({
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="md:col-span-2">
-                  <Field label="Product title" required>
+                  <Field label="Product name" required>
                     <Input
                       value={form.title}
                       onChange={(event) => update("title", event.target.value)}
@@ -2594,7 +2559,7 @@ export function ProductStudioForm({
                 </div>
                 <div className="md:col-span-2">
                   <Field
-                    label="Short description"
+                    label="Card subtitle (shown in listings)"
                     hint="A one-line summary used in listings and search."
                   >
                     <Input
@@ -2607,7 +2572,7 @@ export function ProductStudioForm({
                   </Field>
                 </div>
                 <div className="md:col-span-2">
-                  <Field label="Full description">
+                  <Field label="Product description (shown on the product page)">
                     <Textarea
                       value={form.description}
                       onChange={(event) =>
@@ -2633,7 +2598,7 @@ export function ProductStudioForm({
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field
-                  label="Thumbnail URL"
+                  label="Main product image URL"
                   hint="Used on catalogue cards and as the default product image."
                 >
                   <Input
@@ -2773,7 +2738,7 @@ export function ProductStudioForm({
                   />
                 </Field>
                 <Field
-                  label="HSN / GST code"
+                  label="HSN code (tax)"
                   hint="Stored on the product master for tax and invoice use."
                 >
                   <Input
@@ -2784,7 +2749,7 @@ export function ProductStudioForm({
                     placeholder="e.g. 3917"
                   />
                 </Field>
-                <Field label="Unit of measure">
+                <Field label="Selling unit">
                   <Input
                     value={form.unit_of_measure}
                     onChange={(event) =>
@@ -2965,12 +2930,12 @@ export function ProductStudioForm({
 
             {view === "variants" ? (
               <div className="flex flex-col">
-            <div style={{ order: 2 }}>
+            <div style={{ order: 1 }}>
             <Section
               id="studio-variants"
-              number={7}
-              title="Variants and SKUs"
-              description="Each variant has a customer-facing name, details and an optional image. Variants are created directly; SKUs stay unique."
+              number={6}
+              title="Variants"
+              description="Create one row per sellable version. Each row needs a customer-facing name, a unique variant SKU and a description for the product page."
               complete={sectionFourDone}
               summary={`${variants.length} variant${
                 variants.length === 1 ? "" : "s"
@@ -3006,8 +2971,9 @@ export function ProductStudioForm({
               {options.length === 0 ? (
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
-                    Direct variant mode. No option axes are required; add or
-                    edit variants below.
+                    {variants.length === 1
+                      ? "Single-variant product. This row is the default SKU customers buy; its name and description appear on the product page."
+                      : "One row per sellable version. No option axes are required."}
                     {!optionsEditable
                       ? " Imported catalogue variants are structural read-only; names, details and images remain editable."
                       : ""}
@@ -3074,8 +3040,9 @@ export function ProductStudioForm({
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell>Variant</Table.HeaderCell>
-                      <Table.HeaderCell>SKU</Table.HeaderCell>
+                      <Table.HeaderCell>Variant SKU</Table.HeaderCell>
                       <Table.HeaderCell>Details</Table.HeaderCell>
+                      <Table.HeaderCell>B2C price</Table.HeaderCell>
                       <Table.HeaderCell>
                         <span className="sr-only">Actions</span>
                       </Table.HeaderCell>
@@ -3121,6 +3088,27 @@ export function ProductStudioForm({
                             <span className="text-xs text-ui-fg-subtle">
                               {variant.details.trim() || "Missing details"}
                             </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            {(() => {
+                              const variantOffer = offers.find(
+                                (offer) => offer.variant_id === variant.id,
+                              );
+                              const amount = variantOffer
+                                ? b2cBaseAmount(variantOffer)
+                                : null;
+                              return (
+                                <span
+                                  className={
+                                    amount
+                                      ? "text-sm text-ui-fg-base"
+                                      : "text-sm text-ui-fg-subtle"
+                                  }
+                                >
+                                  {amount ? inr(amount) : "Not set"}
+                                </span>
+                              );
+                            })()}
                           </Table.Cell>
                           <Table.Cell>
                             <div className="flex flex-wrap justify-end gap-1">
@@ -3218,7 +3206,7 @@ export function ProductStudioForm({
                       <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
-                            Variant name *
+                            Variant name (shown to customers) *
                           </span>
                           <Input
                             value={variant.title}
@@ -3231,7 +3219,7 @@ export function ProductStudioForm({
                           />
                         </label>
                         <label className="flex flex-col gap-1">
-                          <span className="text-xs text-ui-fg-subtle">SKU *</span>
+                          <span className="text-xs text-ui-fg-subtle">Variant SKU (used by offers, stock and orders) *</span>
                           <Input
                             value={variant.sku}
                             onChange={(event) =>
@@ -3245,7 +3233,7 @@ export function ProductStudioForm({
                         </label>
                         <label className="flex flex-col gap-1 md:col-span-2">
                           <span className="text-xs text-ui-fg-subtle">
-                            Details shown in app *
+                            Variant description (shown on the product page) *
                           </span>
                           <Textarea
                             value={variant.details}
@@ -3259,7 +3247,7 @@ export function ProductStudioForm({
                         </label>
                         <label className="flex flex-col gap-1 md:col-span-2">
                           <span className="text-xs text-ui-fg-subtle">
-                            Variant image URL
+                            Variant image URL (optional)
                           </span>
                           <Input
                             value={variant.image_url}
@@ -3290,12 +3278,12 @@ export function ProductStudioForm({
               )}
             </Section>
             </div>
-            <div style={{ order: 1 }}>
+            <div style={{ order: 2 }}>
             <Section
               id="studio-pricing"
-              number={6}
-              title="Offers & pricing"
-              description="One seller offer at a time. B2C and B2B terms save together only for the selected offer."
+              number={7}
+              title="Pricing"
+              description="One price per variant. B2C and B2B terms save together for the selected variant."
               complete={sectionFiveDone}
               summary={
                 offers.length === 0
@@ -3331,7 +3319,7 @@ export function ProductStudioForm({
                               <Table.HeaderCell>
                                 <span className="sr-only">Select</span>
                               </Table.HeaderCell>
-                              <Table.HeaderCell>Variant / SKU</Table.HeaderCell>
+                              <Table.HeaderCell>Variant</Table.HeaderCell>
                               <Table.HeaderCell>Seller</Table.HeaderCell>
                               <Table.HeaderCell>B2C</Table.HeaderCell>
                               <Table.HeaderCell>B2B</Table.HeaderCell>
@@ -3412,7 +3400,7 @@ export function ProductStudioForm({
                                     >
                                       {selectedOfferId === offer.id
                                         ? "Close"
-                                        : "Open"}
+                                        : "Set pricing"}
                                     </Button>
                                   </Table.Cell>
                                 </Table.Row>
@@ -3542,7 +3530,7 @@ export function ProductStudioForm({
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
                                 <div>
                                   <p className="text-sm font-medium text-ui-fg-base">
-                                    Offer pricing · {index + 1} of{" "}
+                                    Pricing · {index + 1} of{" "}
                                     {offers.length}
                                   </p>
                                   <p className="text-xs text-ui-fg-subtle">
@@ -3613,8 +3601,7 @@ export function ProductStudioForm({
                         })()
                       ) : (
                         <Text size="small" className="text-ui-fg-subtle">
-                          Select one offer to edit its pricing. Pricing saves on
-                          its own scope and never changes product content.
+                          Select a variant to set its price. Pricing saves on its own scope and never changes product content.
                         </Text>
                       )}
                     </>
