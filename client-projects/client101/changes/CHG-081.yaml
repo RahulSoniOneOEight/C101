@@ -1,6 +1,6 @@
-change_id: CHG-081
+﻿change_id: CHG-081
 revision: 1
-status: proposed
+status: approved-in-progress
 request: >-
   Give the Next.js web storefront a SKU-exact product page and Bought Together
   merchandising, then host that surface on staging, so the web store quotes the
@@ -13,8 +13,8 @@ extends:
 requested_by: human-requester
 requested_at_utc: '2026-10-26'
 approval_required: true
-approved_by: null
-approved_at_utc: null
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
 approval_scope: web-storefront-sku-exact-and-bought-together-staging-only
 production_release_authorized: false
 
@@ -73,7 +73,7 @@ requirements:
   outcome: >-
     apps/web runs on staging behind the proxy at a resolvable hostname with a
     trusted certificate, and the checkout API route keeps working.
-  status: not-started
+  status: in-progress
 - id: R6
   name: QC
   outcome: >-
@@ -93,7 +93,7 @@ decisions:
   proposed_default: >-
     Override Slice 5 for the web surface. Requires explicit human approval
     because it reverses an approved decision.
-  status: pending-approval
+  status: approved
 - id: DEC-081-02
   area: Pairing scope
   question: >-
@@ -102,7 +102,7 @@ decisions:
   proposed_default: >-
     No. Configuration and display stay SKU-scoped (option A). The section appears
     only when the selected SKU is the paired SKU.
-  status: pending-approval
+  status: approved
 - id: DEC-081-03
   area: Hosting shape
   question: >-
@@ -110,21 +110,21 @@ decisions:
   proposed_default: >-
     Node server container. A static export would break /api/checkout, which is a
     server route and is the only path that can return a canonical order group.
-  status: pending-approval
+  status: approved
 - id: DEC-081-04
   area: Paired action
   question: What action does the paired card offer on the web?
   proposed_default: >-
     Link to the paired product page. No combined add-to-cart and no cross-product
     cart semantics in this change, matching the v1 rule for the other surfaces.
-  status: pending-approval
+  status: approved
 - id: DEC-081-05
   area: Variant selection transport
   question: Client state or URL?
   proposed_default: >-
     URL parameter ?sku=, server-rendered. No client state, no hydration
     dependency, linkable and crawlable.
-  status: pending-approval
+  status: approved
 
 # ---------------------------------------------------------------------- scope
 scope:
@@ -214,7 +214,7 @@ verification_plan:
 # --------------------------------------------------------------------- approval
 approvals:
 - role: requester
-  decision: pending
+  decision: approved
   note: >-
     DEC-081-01 is the material one: it reverses Bought Together design Slice 5.
     Nothing in the R5 hosting scope should start before it is accepted.

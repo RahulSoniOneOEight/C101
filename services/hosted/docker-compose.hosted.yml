@@ -213,21 +213,45 @@ services:
       start_period: 60s
 
   # Internal reverse proxy: host-based privilege policy + rate limiting. Public only through Traefik.
+  # Web storefront (Next.js standalone). Only the app hostname reaches it, via the proxy.
+  web:
+    image: buildkart-hosted-pilot-web
+    build:
+      context: ../../apps/web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      # Server-side calls stay on the private network; the browser never sees this origin.
+      EXPERIENCE_API_BASE_URL: http://experience-api:9020
+    depends_on:
+      experience-api: {condition: service_healthy}
+    networks: [private]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
   proxy:
     image: nginx:1.27-alpine
     restart: unless-stopped
     command:
       - /bin/sh
       - -c
-      - envsubst '$$PUBLIC_API_HOSTNAME $$PUBLIC_OPS_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
+      - envsubst '$$PUBLIC_API_HOSTNAME $$PUBLIC_OPS_HOSTNAME $$PUBLIC_APP_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
     environment:
       PUBLIC_API_HOSTNAME: ${PUBLIC_API_HOSTNAME:?set PUBLIC_API_HOSTNAME}
       PUBLIC_OPS_HOSTNAME: ${PUBLIC_OPS_HOSTNAME:?set PUBLIC_OPS_HOSTNAME}
+      PUBLIC_APP_HOSTNAME: ${PUBLIC_APP_HOSTNAME:?set PUBLIC_APP_HOSTNAME}
     volumes:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
     depends_on:
       experience-api: {condition: service_healthy}
       tryton: {condition: service_started}
+      # nginx resolves upstream hostnames at startup, so `web` must exist before the proxy boots.
+      web: {condition: service_started}
     networks: [private, coolify]
     labels:
       traefik.enable: "true"
@@ -253,6 +277,18 @@ services:
       traefik.http.routers.buildkart-ops-http.entrypoints: "http"
       traefik.http.routers.buildkart-ops-http.middlewares: "buildkart-redirect"
       traefik.http.routers.buildkart-ops-http.service: "buildkart-proxy"
+      # Web storefront host. Traefik issues the certificate through the same letsencrypt resolver
+      # as the customer and operator hosts; without this router the hostname falls back to
+      # Traefik's default (untrusted) certificate.
+      traefik.http.routers.buildkart-app.rule: "Host(`${PUBLIC_APP_HOSTNAME}`)"
+      traefik.http.routers.buildkart-app.entrypoints: "https"
+      traefik.http.routers.buildkart-app.tls: "true"
+      traefik.http.routers.buildkart-app.tls.certresolver: "letsencrypt"
+      traefik.http.routers.buildkart-app.service: "buildkart-proxy"
+      traefik.http.routers.buildkart-app-http.rule: "Host(`${PUBLIC_APP_HOSTNAME}`)"
+      traefik.http.routers.buildkart-app-http.entrypoints: "http"
+      traefik.http.routers.buildkart-app-http.middlewares: "buildkart-redirect"
+      traefik.http.routers.buildkart-app-http.service: "buildkart-proxy"
       traefik.http.middlewares.buildkart-redirect.redirectscheme.scheme: "https"
 
 volumes:

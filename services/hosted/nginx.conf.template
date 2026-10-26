@@ -19,6 +19,7 @@ http {
   upstream experience_api { server experience-api:9020; }
   upstream medusa_api { server medusa-api:9010; }
   upstream tryton_api { server tryton:8000; }
+  upstream web_app { server web:3000; }
 
   server {
     listen 8080 default_server;
@@ -85,6 +86,11 @@ http {
       proxy_pass http://experience_api;
     }
 
-    location / { return 404; }
+    # Web storefront. Reachable ONLY on the app hostname. The customer (API) and operator hosts
+    # keep 404 at / so neither can accidentally serve or cache the storefront.
+    location / {
+      if ($host != $PUBLIC_APP_HOSTNAME) { return 404; }
+      proxy_pass http://web_app;
+    }
   }
 }
