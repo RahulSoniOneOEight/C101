@@ -17,7 +17,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 declare const __BACKEND_URL__: string;
 
@@ -1466,6 +1466,7 @@ export function ProductStudioForm({
   productId?: string;
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const apiBase =
     mode === "admin"
       ? "/admin/buildkart/product-studio"
@@ -1728,6 +1729,22 @@ export function ProductStudioForm({
       setOpenVariantIndex(0);
     }
   }, [loaded, variants, openVariantIndex]);
+
+  // Consume a notice passed across the create → edit navigation, then clear it from history state
+  // so a refresh does not replay it.
+  useEffect(() => {
+    const carried = (location.state as
+      | { studioNotice?: Notice }
+      | null
+      | undefined)?.studioNotice;
+    if (!carried) return;
+    setNotice(carried);
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     if (productId) return;
@@ -2403,12 +2420,14 @@ export function ProductStudioForm({
       setSelectedChannelIds(
         (result.product.sales_channels ?? []).map((channel) => channel.id),
       );
-      setNotice({
-        kind: "success",
-        text: productId
-          ? "Product changes saved to the server."
-          : "Variant saved. Set its B2C and B2B price next.",
-      });
+      // On create the success message travels with the navigation, so the old page never renders a
+      // stale "New product · not created yet" header.
+      if (productId) {
+        setNotice({
+          kind: "success",
+          text: "Product changes saved to the server.",
+        });
+      }
       if (pendingFix) {
         setPendingFix(null);
         setReviewNotice({
@@ -2420,7 +2439,14 @@ export function ProductStudioForm({
       if (!productId) {
         // Keep the operator on the same destination after the record is created; otherwise the
         // edit route remounts at Overview and feels like a different screen.
-        navigate(`/product-studio/${result.product.id}?view=variants&focus=pricing`);
+        navigate(`/product-studio/${result.product.id}?view=variants&focus=pricing`, {
+          state: {
+            studioNotice: {
+              kind: "success",
+              text: "Variant saved. Set its B2C and B2B price next.",
+            },
+          },
+        });
       }
     } catch (error) {
       setNotice({
@@ -2589,13 +2615,7 @@ export function ProductStudioForm({
                 Back to products
               </Button>
             </Link>
-            {productId ? (
-              <Link to={`/products/${productId}`}>
-                <Button size="small" variant="secondary">
-                  Open native record
-                </Button>
-              </Link>
-            ) : null}
+
           </div>
         </div>
 
@@ -2654,7 +2674,7 @@ export function ProductStudioForm({
             Loading product record…
           </Text>
         </Container>
-      ) : !canEdit ? (
+      ) : productId && !canEdit ? (
         <Container className="flex flex-col gap-2">
           <Heading level="h2">Read-only product</Heading>
           <Text size="small" className="text-ui-fg-subtle">
