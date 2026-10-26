@@ -4775,29 +4775,50 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const operator = await requireAnyRole(req, ["marketplace_operator", "super_admin"]);
     if ("response" in operator) return operator.response;
     const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
-    const channelParam = url.searchParams.get("channel");
+    const channelParamRaw = url.searchParams.get("channel");
+    const channelParam = channelParamRaw?.trim();
     if (
-      channelParam &&
+      channelParam !== undefined &&
+      channelParam !== null &&
       !["b2c", "b2b", "both"].includes(channelParam)
     ) {
       return problem(400, "invalid-channel", "channel must be b2c, b2b or both.");
     }
-    const channel = (channelParam ?? "b2c") as "b2c" | "b2b" | "both";
+    const channel = (channelParam || "b2c") as "b2c" | "b2b" | "both";
+    if (
+      (channel === "b2b" || channel === "both") &&
+      !config.medusaB2bSalesChannelId
+    ) {
+      return problem(
+        503,
+        "b2b-channel-unavailable",
+        "B2B sales channel is not configured.",
+      );
+    }
     const channelsToEvaluate: Array<"b2c" | "b2b"> =
       channel === "both" ? ["b2c", "b2b"] : [channel];
     const scanChannels: Array<"b2c" | "b2b"> =
       channel === "both" ? ["b2c", "b2b"] : [channel];
     try {
       const scannedProducts = new Map<string, StoreProduct>();
+      const visibleProductIdsByChannel: Record<
+        "b2c" | "b2b",
+        Set<string> | null
+      > = { b2c: null, b2b: null };
       let scanTruncated = false;
       for (const scanChannel of scanChannels) {
+        const visible = new Set<string>();
+        visibleProductIdsByChannel[scanChannel] = visible;
         for (let offset = 0; offset < 1000; offset += 250) {
           const page = await medusa.listProducts(
             250,
             offset,
             salesChannelIdFor(scanChannel),
           );
-          for (const product of page) scannedProducts.set(product.id, product);
+          for (const product of page) {
+            scannedProducts.set(product.id, product);
+            visible.add(product.id);
+          }
           if (page.length < 250) break;
           if (offset + 250 >= 1000) scanTruncated = true;
         }
@@ -4875,19 +4896,54 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         productId: string,
         variantId: string,
       ) => {
+        const visibleIds = visibleProductIdsByChannel[candidateChannel];
+        if (!visibleIds) {
+          return {
+            offer_id: null,
+            in_stock: null,
+            evaluated: false,
+            visible: null,
+          };
+        }
+        if (!visibleIds.has(productId)) {
+          return {
+            offer_id: null,
+            in_stock: null,
+            evaluated: true,
+            visible: false,
+          };
+        }
         const byProduct = offersByChannel[candidateChannel];
         if (!byProduct) {
-          return { offer_id: null, in_stock: null, evaluated: false };
+          return {
+            offer_id: null,
+            in_stock: null,
+            evaluated: false,
+            visible: true,
+          };
         }
         const priced = (byProduct.get(productId) ?? []).filter(
           (offer) =>
             offer.variant_id === variantId &&
             (offer.calculated_price?.calculated_amount ?? 0) > 0,
         );
-        const offer =
-          priced.find((candidate) => candidate.in_stock !== false) ?? priced[0];
+        const stockRank = (offer: StoreOffer) =>
+          offer.in_stock === true ? 0 : offer.in_stock === false ? 2 : 1;
+        priced.sort(
+          (left, right) =>
+            stockRank(left) - stockRank(right) ||
+            (left.calculated_price?.calculated_amount ?? 0) -
+              (right.calculated_price?.calculated_amount ?? 0) ||
+            left.id.localeCompare(right.id),
+        );
+        const offer = priced[0];
         if (!offer) {
-          return { offer_id: null, in_stock: null, evaluated: true };
+          return {
+            offer_id: null,
+            in_stock: null,
+            evaluated: true,
+            visible: true,
+          };
         }
         return {
           offer_id: offer.id,
@@ -4898,6 +4954,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
                 ? false
                 : null,
           evaluated: true,
+          visible: true,
         };
       };
 
@@ -4905,6 +4962,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         candidateChannel: "b2c" | "b2b",
         productId: string,
       ): boolean | null => {
+        const visibleIds = visibleProductIdsByChannel[candidateChannel];
+        if (!visibleIds) return null;
+        if (!visibleIds.has(productId)) return false;
         const byProduct = offersByChannel[candidateChannel];
         if (!byProduct) return null;
         return (byProduct.get(productId) ?? []).some(
