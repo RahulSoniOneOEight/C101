@@ -5422,10 +5422,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(403, "customer-role-required");
     }
     const limit = Number.parseInt(url.searchParams.get("limit") ?? "50", 10);
-    const records = await correlation.listForUser(
-      authenticated.user.id,
-      Number.isFinite(limit) ? limit : 50,
-    );
+    // Only completed orders belong in the buyer's order history. A correlation row also exists for
+    // an in-flight cart (it owns the checkout), so listing every row produced blank "0 items" cards
+    // for carts that were never completed.
+    const records = (
+      await correlation.listForUser(
+        authenticated.user.id,
+        Number.isFinite(limit) ? limit : 50,
+      )
+    ).filter((ref) => Boolean(ref.medusa_order_group_id));
     return json({
       items: records.map((ref) => ({
         order_id: ref.checkout_ref,
