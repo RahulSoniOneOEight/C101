@@ -3636,8 +3636,8 @@ export function ProductStudioForm({
               </div>
               <div className="px-5 py-4">
                 <Text size="small" className="text-ui-fg-subtle">
-                  Publish remains disabled in this slice. Completing variants,
-                  pricing and inventory is required before review.
+                  New products are published as soon as the draft is created. Set the
+                  selling price below to make the offer purchasable in the storefront.
                 </Text>
               </div>
             </Container>

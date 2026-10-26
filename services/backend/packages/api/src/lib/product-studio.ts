@@ -1180,7 +1180,9 @@ export async function saveStudioProduct(
             title,
             subtitle: clean(input.subtitle) ?? undefined,
             description: clean(input.description) ?? undefined,
-            status: "draft",
+            // Products created in the studio go live immediately; pricing is still applied from
+            // the Pricing section (an unpriced product is listed without a purchasable amount).
+            status: "published",
             thumbnail: clean(input.thumbnail) ?? undefined,
             hs_code: clean(input.hsn_code) ?? undefined,
             category_ids: input.category_id ? [input.category_id] : undefined,
