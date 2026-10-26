@@ -153,3 +153,29 @@ guarantees rollback of the script alone cannot corrupt historical orders.
 ## 8. Deployment and runtime evidence
 
 _To be appended after the staging release._
+
+
+## 11. Live journey — variant then pricing (2026-10-27)
+
+Deployed commit `6d8e602`. Executed against staging with a real Admin session.
+
+| Step | Observed |
+|---|---|
+| Login | ok |
+| Create page | `/dashboard/products/new` |
+| Seller selectable on the variant | `BuildMaster Supplies` |
+| Save variant | navigated to `/product-studio/prod_01M5X2Q7DRJZGGVYGRDE293PF5?view=variants&focus=pricing` |
+| Pricing | table shows `0/1 priced` and the first offer editor is open |
+| B2C + B2B inputs | both present in one editor, one **Save pricing** |
+
+Test record created by this check: `prod_01M5X2Q7DRJZGGVYGRDE293PF5` (`CHG086-JRN-030215`).
+It is a QC record and can be archived with the next governed cleanup.
+
+## 12. Security incident to action
+
+While redacting the admin-console secret file, the command assumed `key=value` but the file uses
+`Key : value`, so the staging Admin password was printed into the working transcript.
+
+- Scope: staging Admin console only (`admin@buildkart.test`); no production credential involved.
+- Action required: rotate the staging Admin password and update `/etc/buildkart/secrets/admin-console.txt`.
+- No secret was committed to Git.
