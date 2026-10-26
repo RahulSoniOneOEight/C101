@@ -1299,10 +1299,20 @@ class OrderDetailScreen extends ConsumerWidget {
                   fontSize: 12, height: 1.4, color: colors.contentSecondary)),
           const SizedBox(height: AgencySpacing.md),
           _section(context, 'Payment summary'),
-          _row(context, 'Items total', order.total.formatted),
-          _row(context, 'Shipping', 'Free'),
+          if (order.subtotal != null)
+            _row(context, 'Items total', order.subtotal!.formatted)
+          else
+            _row(context, 'Items total', order.total.formatted),
+          if (order.shipping != null)
+            _row(
+              context,
+              'Shipping',
+              order.shipping!.amount == 0 ? 'Free' : order.shipping!.formatted,
+            ),
+          if ((order.discount?.amount ?? 0) > 0)
+            _row(context, 'Discount', '-${order.discount!.formatted}'),
           const Divider(),
-          _row(context, 'Total paid', order.total.formatted, bold: true),
+          _row(context, 'Order total', order.total.formatted, bold: true),
           const SizedBox(height: AgencySpacing.lg),
           if (order.returnEligible)
             PinWorkflowAction(
@@ -1717,7 +1727,7 @@ class OrderConfirmedScreen extends StatelessWidget {
                   style:
                       TextStyle(fontSize: 14, color: colors.contentSecondary)),
               const SizedBox(height: AgencySpacing.xs),
-              Text('Payment confirmed · GST invoice will be issued',
+              Text('Simulated payment authorized · no real charge',
                   textAlign: TextAlign.center,
                   style:
                       TextStyle(fontSize: 12, color: colors.contentSecondary)),

@@ -1,4 +1,4 @@
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { ServerWebSocket } from "bun";
 import { loadConfig } from "./config.js";
 import {
@@ -1220,6 +1220,64 @@ function promotionRejectionReason(message: string): string {
   }
   if (m.includes("limit") || m.includes("usage")) return "usage_limit";
   return "not_eligible";
+}
+
+/**
+ * Stable, non-enumerable customer-facing order reference.
+ *
+ * Medusa/Mercur merchant numbers (#G110/#127) are only served on the admin API, which the Experience
+ * API cannot read without an operator session. Until the backend returns `display_id` on completion,
+ * the customer reference is derived deterministically from the order group so it survives retries and
+ * is safe to quote to support alongside the internal group id.
+ */
+function customerOrderReference(
+  orderGroupId: string,
+  createdAt?: string | null,
+): string {
+  const day = (createdAt ?? new Date().toISOString()).slice(2, 10).replace(/-/g, "");
+  const digest = createHash("sha256").update(orderGroupId).digest();
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  let suffix = "";
+  for (let i = 0; i < 6; i += 1) suffix += alphabet[digest[i] % 32];
+  return `BK-${day}-${suffix}`;
+}
+
+/**
+ * Buyer-visible money and reference for a correlated order.
+ *
+ * Amounts are stored at completion in the API's minor-unit convention. Legacy rows written before
+ * that (older than this change) carry only the group total, so the summary degrades to a total and
+ * null line components rather than inventing subtotal or shipping values.
+ */
+function orderMoneySummary(ref: {
+  medusa_order_group?: Record<string, unknown> | null;
+}): {
+  order_number: string | null;
+  subtotal_minor: number | null;
+  shipping_minor: number | null;
+  discount_minor: number | null;
+  total_minor: number | null;
+  currency_code: string;
+} {
+  const group = ref.medusa_order_group ?? null;
+  const amounts =
+    group && typeof group.amounts === "object" && group.amounts !== null
+      ? (group.amounts as Record<string, unknown>)
+      : null;
+  const minor = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) ? value : null;
+  const groupId = group ? String(group.id ?? "") : "";
+  const createdAt = group ? String(group.created_at ?? "") : "";
+  const stored = group ? String(group.customer_reference ?? "") : "";
+  return {
+    order_number:
+      stored || (groupId ? customerOrderReference(groupId, createdAt || null) : null),
+    subtotal_minor: minor(amounts?.subtotal),
+    shipping_minor: minor(amounts?.shipping),
+    discount_minor: minor(amounts?.discount),
+    total_minor: minor(amounts?.total) ?? minor(group?.total),
+    currency_code: String(group?.currency_code ?? "inr").toUpperCase(),
+  };
 }
 
 /** Minimal read-only operator console (staging) served as a static HTML page. */
@@ -3669,6 +3727,20 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             ...(result.order_group ?? {}),
             destination_postcode:
               (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+            // Buyer-visible money, stored once at completion in the API's minor-unit convention.
+            // Legacy rows without this block fall back to the group total only.
+            currency_code: cart.currency_code ?? "inr",
+            amounts: {
+              subtotal: cart.item_subtotal ?? null,
+              shipping: cart.shipping_total ?? null,
+              discount: cart.discount_total ?? 0,
+              total: result.order_group?.total ?? cart.total ?? null,
+            },
+            customer_reference: customerOrderReference(
+              result.order_group?.id ?? cartId,
+              (result.order_group as { created_at?: string } | undefined)?.created_at ??
+                null,
+            ),
             lines: (cart.items ?? []).map((item) => {
               const offer = item.metadata?.offer_id
                 ? offerById.get(item.metadata.offer_id)
@@ -5360,6 +5432,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         medusa_order_group_id: ref.medusa_order_group_id,
         status: ref.medusa_order_group_id ? "confirmed" : "not_started",
         created_at: ref.created_at,
+        ...orderMoneySummary(ref),
         lines: orderLineSnapshots(ref),
         payment_mode: config.paymentAdapterMode,
         test_data: true,
@@ -5390,6 +5463,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       order_id: orderId,
       medusa_order_group_id: orderGroup,
       status: orderGroup ? "confirmed" : "not_started",
+      ...orderMoneySummary(ref),
       payment_mode: config.paymentAdapterMode,
       environment: config.environment,
       test_data: true,

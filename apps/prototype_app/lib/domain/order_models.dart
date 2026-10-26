@@ -89,9 +89,9 @@ class ShipmentLine {
         sku: json['sku'] as String? ?? '',
         orderedQty:
             ((json['orderedQty'] ?? json['ordered_qty']) as num?)?.toInt() ?? 0,
-        deliveredQty:
-            ((json['deliveredQty'] ?? json['delivered_qty']) as num?)?.toInt() ??
-                0,
+        deliveredQty: ((json['deliveredQty'] ?? json['delivered_qty']) as num?)
+                ?.toInt() ??
+            0,
       );
 }
 
@@ -118,9 +118,9 @@ class ShipmentEvent {
         occurredAt: DateTime.tryParse(
           (json['occurredAt'] ?? json['occurred_at']) as String? ?? '',
         ),
-        providerEventId: (json['providerEventId'] ??
-                json['provider_event_id']) as String? ??
-            '',
+        providerEventId:
+            (json['providerEventId'] ?? json['provider_event_id']) as String? ??
+                '',
       );
 }
 
@@ -149,7 +149,8 @@ class Shipment {
         id: json['id'] as String? ?? '',
         status: json['status'] as String? ?? 'booked',
         trackingNumber:
-            (json['trackingNumber'] ?? json['tracking_number']) as String? ?? '',
+            (json['trackingNumber'] ?? json['tracking_number']) as String? ??
+                '',
         provider: json['provider'] as String? ?? 'simulated',
         deliveredAt: DateTime.tryParse(
           (json['deliveredAt'] ?? json['delivered_at']) as String? ?? '',
@@ -194,7 +195,8 @@ class ReturnSummary {
                           ?.toInt() ??
                       0,
                   unitPriceMinor: 0,
-                  lineKey: (line['lineKey'] ?? line['line_key']) as String? ?? '',
+                  lineKey:
+                      (line['lineKey'] ?? line['line_key']) as String? ?? '',
                   sku: line['sku'] as String? ?? '',
                 ))
             .toList(),
@@ -217,6 +219,11 @@ class CustomerOrder {
     this.returns = const <ReturnSummary>[],
     this.returnStatus,
     this.medusaOrderGroupId,
+    this.subtotalMinor,
+    this.shippingMinor,
+    this.discountMinor,
+    this.totalMinor,
+    this.currencyCode = 'INR',
   });
 
   final String id;
@@ -235,17 +242,41 @@ class CustomerOrder {
   final String? returnStatus;
   final String? medusaOrderGroupId;
 
+  /// Server-owned order money in minor units. Null on orders written before the
+  /// completion payload carried a summary; the UI then falls back to line totals.
+  final int? subtotalMinor;
+  final int? shippingMinor;
+  final int? discountMinor;
+  final int? totalMinor;
+  final String currencyCode;
+
   int get itemCount => lines.fold(0, (sum, l) => sum + l.quantity);
 
+  Money? get subtotal => subtotalMinor == null
+      ? null
+      : Money(amount: subtotalMinor!, currencyCode: currencyCode);
+
+  Money? get shipping => shippingMinor == null
+      ? null
+      : Money(amount: shippingMinor!, currencyCode: currencyCode);
+
+  Money? get discount => discountMinor == null
+      ? null
+      : Money(amount: discountMinor!, currencyCode: currencyCode);
+
+  /// Server-owned order total (items + shipping - discounts). Falls back to the
+  /// line sum only for legacy payloads that predate the stored summary.
   Money get total => Money(
-        amount: lines.fold(0, (sum, l) => sum + l.lineTotal.amount),
-        currencyCode: 'INR',
+        amount:
+            totalMinor ?? lines.fold(0, (sum, l) => sum + l.lineTotal.amount),
+        currencyCode: currencyCode,
       );
 
   factory CustomerOrder.fromApi(Map<String, dynamic> json) {
     final eligibility = <String, Map<String, dynamic>>{};
-    for (final item in (json['return_eligibility'] as List? ?? const <dynamic>[])
-        .whereType<Map<String, dynamic>>()) {
+    for (final item
+        in (json['return_eligibility'] as List? ?? const <dynamic>[])
+            .whereType<Map<String, dynamic>>()) {
       eligibility[item['line_key'] as String? ?? ''] = item;
     }
     final rawLines = (json['lines'] as List? ?? const <dynamic>[])
@@ -266,9 +297,10 @@ class CustomerOrder {
         returnEligible: eligible?['eligible'] as bool? ?? false,
         ineligibleReason: eligible?['ineligible_reason'] as String?,
         deadline: DateTime.tryParse(eligible?['deadline'] as String? ?? ''),
-        allowedReasons: (eligible?['allowed_reasons'] as List? ?? const <dynamic>[])
-            .whereType<String>()
-            .toList(),
+        allowedReasons:
+            (eligible?['allowed_reasons'] as List? ?? const <dynamic>[])
+                .whereType<String>()
+                .toList(),
       );
     }).toList();
     final shipments = (json['shipments'] as List? ?? const <dynamic>[])
@@ -280,9 +312,17 @@ class CustomerOrder {
         .map(ReturnSummary.fromJson)
         .toList();
     final created = DateTime.tryParse(json['created_at'] as String? ?? '');
-    final anyDelivered = shipments.any((shipment) => shipment.status == 'delivered');
-    final anyShipped = shipments.any((shipment) =>
-        ['in_transit', 'out_for_delivery', 'picked_up'].contains(shipment.status));
+    final currency =
+        (json['currency_code'] as String?)?.trim().toUpperCase() ?? 'INR';
+    int? minor(String key) => (json[key] as num?)?.toInt();
+    final serverNumber = (json['order_number'] as String?)?.trim();
+    final anyDelivered =
+        shipments.any((shipment) => shipment.status == 'delivered');
+    final anyShipped = shipments.any((shipment) => [
+          'in_transit',
+          'out_for_delivery',
+          'picked_up'
+        ].contains(shipment.status));
     final status = json['status'] as String? ?? 'confirmed';
     final stage = status != 'confirmed'
         ? OrderStage.processing
@@ -329,8 +369,11 @@ class CustomerOrder {
     ];
     return CustomerOrder(
       id: json['order_id'] as String? ?? '',
-      number: 'Order #BK-${json['order_id'] ?? ''}',
-      dateLabel: created == null ? 'Staging order' : 'Placed ${_dateLabel(created)}',
+      number: (serverNumber != null && serverNumber.isNotEmpty)
+          ? serverNumber
+          : 'Order #BK-${json['order_id'] ?? ''}',
+      dateLabel:
+          created == null ? 'Staging order' : 'Placed ${_dateLabel(created)}',
       stage: stage,
       lines: lines,
       addressLabel: 'Delivery address captured at checkout',
@@ -340,6 +383,11 @@ class CustomerOrder {
       returns: returns,
       returnStatus: returns.isEmpty ? null : returns.first.status,
       medusaOrderGroupId: json['medusa_order_group_id'] as String?,
+      subtotalMinor: minor('subtotal_minor'),
+      shippingMinor: minor('shipping_minor'),
+      discountMinor: minor('discount_minor'),
+      totalMinor: minor('total_minor'),
+      currencyCode: currency,
     );
   }
 
@@ -360,8 +408,18 @@ class CustomerOrder {
   }
 
   static String _month(int month) => const <String>[
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ][month - 1];
 
   CustomerOrder copyWith({
