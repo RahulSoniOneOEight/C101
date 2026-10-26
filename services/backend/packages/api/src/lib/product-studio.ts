@@ -46,6 +46,7 @@ export type StudioVariantInput = {
   upc?: string | null;
   barcode?: string | null;
   options?: Record<string, string> | null;
+  seller_id?: string | null;
 };
 
 export type StudioSaveInput = {
@@ -217,6 +218,7 @@ type NormalizedVariant = {
   upc: string | null;
   barcode: string | null;
   options: Record<string, string>;
+  sellerId: string | null;
 };
 
 function variantMetadata(
@@ -301,6 +303,7 @@ function normalizeVariants(
         upc: null,
         barcode: null,
         options: {},
+        sellerId: null,
       },
     ];
   }
@@ -357,6 +360,7 @@ function normalizeVariants(
       upc: clean(variant.upc),
       barcode: clean(variant.barcode),
       options: options.length > 0 ? normalizedOptions : {},
+      sellerId: clean(variant.seller_id),
     };
   });
 }
@@ -784,11 +788,32 @@ async function provisionOfferStock(
   });
 }
 
+/**
+ * Variant-level seller assignment. Each sellable variant names its seller, so offers are created
+ * for exactly those SKUs instead of every SKU on the product.
+ */
+function groupVariantsBySeller(
+  variants: NormalizedVariant[],
+  fallbackSellerId: string | null,
+): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
+  for (const variant of variants) {
+    const seller = variant.sellerId ?? fallbackSellerId;
+    const sku = (variant.sku ?? "").trim();
+    if (!seller || !sku) continue;
+    const list = groups.get(seller) ?? [];
+    list.push(sku);
+    groups.set(seller, list);
+  }
+  return groups;
+}
+
 async function ensureSellerOffers(
   scope: MedusaContainer,
   sellerId: string,
   productId: string,
   actorId: string,
+  onlySkus?: string[],
 ) {
   const q = query(scope);
   const { data: variants } = await q.graph({
@@ -797,8 +822,14 @@ async function ensureSellerOffers(
     filters: { product_id: productId },
     pagination: { take: 500, skip: 0 },
   });
+  const skuFilter = onlySkus
+    ? new Set(onlySkus.map((sku) => sku.trim()).filter(Boolean))
+    : null;
   const candidates = (variants ?? []).filter(
-    (variant: any) => variant.id && String(variant.sku ?? "").trim(),
+    (variant: any) =>
+      variant.id &&
+      String(variant.sku ?? "").trim() &&
+      (!skuFilter || skuFilter.has(String(variant.sku ?? "").trim())),
   );
   if (candidates.length === 0) return;
 
@@ -1147,6 +1178,21 @@ export async function loadStudioProduct(
     (sellerRows ?? []).map((seller: any) => [seller.id, seller.name]),
   );
 
+  const sellerByVariant = new Map<string, string>();
+  for (const offer of offerRows ?? []) {
+    if (
+      offer?.variant_id &&
+      offer?.seller_id &&
+      !sellerByVariant.has(offer.variant_id)
+    ) {
+      sellerByVariant.set(offer.variant_id, offer.seller_id);
+    }
+  }
+  for (const variant of loadedVariants) {
+    (variant as { seller_id?: string }).seller_id =
+      sellerByVariant.get(variant.id) ?? "";
+  }
+
   const b2bPricing = (metadata.buildkart_b2b_pricing ?? {}) as Record<
     string,
     Record<string, unknown>
@@ -1460,6 +1506,9 @@ export async function saveStudioProduct(
       "A reason is required before provisioning seller offers.",
     );
   }
+  if (mode === "admin" && !productId && variants.some((variant) => !variant.sellerId)) {
+    throw new StudioError(422, "Select a seller for every variant.");
+  }
 
   if (!productId) {
     const requestedChannels = Array.from(
@@ -1523,18 +1572,10 @@ export async function saveStudioProduct(
     } else {
       await replaceOptionsAndVariants(scope, created.id, options, variants);
     }
-    if (requestedSellerId) {
-      await ensureSellerOffers(
-        scope,
-        requestedSellerId,
-        created.id,
-        actorId,
-      );
-      await provisionOfferStock(
-        scope,
-        requestedSellerId,
-        variants.map((variant) => String(variant.sku ?? "").trim()).filter(Boolean),
-      );
+    const sellerGroups = groupVariantsBySeller(variants, requestedSellerId);
+    for (const [seller, skus] of sellerGroups) {
+      await ensureSellerOffers(scope, seller, created.id, actorId, skus);
+      await provisionOfferStock(scope, seller, skus);
     }
     const saved = await loadStudioProduct(scope, mode, sellerId, created.id);
     if (requestedSellerId) {
@@ -1789,9 +1830,17 @@ export async function saveStudioProduct(
     await syncVariants(scope, productId, variants);
   }
 
-  const offerSellerId = mode === "admin" ? requestedSellerId : sellerId;
-  if (offerSellerId) {
-    await ensureSellerOffers(scope, offerSellerId, productId, actorId);
+  const fallbackSellerId = mode === "admin" ? requestedSellerId : sellerId;
+  const sellerGroups = groupVariantsBySeller(variants, fallbackSellerId);
+  for (const [variantSellerId, skus] of sellerGroups) {
+    await ensureSellerOffers(
+      scope,
+      variantSellerId,
+      productId,
+      actorId,
+      skus,
+    );
+    await provisionOfferStock(scope, variantSellerId, skus);
   }
 
   await recordProductAuditChangeWorkflow(scope).run({

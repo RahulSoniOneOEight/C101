@@ -9,7 +9,7 @@
   Textarea,
 } from "@medusajs/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 declare const __BACKEND_URL__: string;
@@ -43,6 +43,7 @@ type Variant = {
   upc: string;
   barcode: string;
   options: Record<string, string>;
+  seller_id: string;
 };
 type OfferPrice = {
   id: string;
@@ -213,6 +214,7 @@ const emptyVariant = (): Variant => ({
   upc: "",
   barcode: "",
   options: {},
+  seller_id: "",
 });
 
 function draftString(value: unknown, fallback = ""): string {
@@ -314,6 +316,7 @@ function normalizeDraftVariants(value: unknown): Variant[] {
         upc: draftString(item.upc),
         barcode: draftString(item.barcode),
         options,
+        seller_id: draftString(item.seller_id),
       };
     });
 }
@@ -1485,6 +1488,7 @@ export function ProductStudioForm({
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
   const [openVariantIndex, setOpenVariantIndex] = useState<number | null>(null);
+  const autoOpenedVariant = useRef(false);
 
   const navigateView = (next: WorkspaceView) => {
     setView(next);
@@ -1657,6 +1661,19 @@ export function ProductStudioForm({
     void loadInventory(skus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, offers]);
+
+  // A single variant is the common case, so open it directly instead of making the operator click
+  // "Open" to fill the only row.
+  useEffect(() => {
+    if (!loaded) return;
+    if (variants.length !== 1) return;
+    if (openVariantIndex !== null || autoOpenedVariant.current) return;
+    const only = variants[0];
+    if (!only.sku.trim() || !only.details.trim() || !only.seller_id) {
+      autoOpenedVariant.current = true;
+      setOpenVariantIndex(0);
+    }
+  }, [loaded, variants, openVariantIndex]);
 
   useEffect(() => {
     if (productId) return;
@@ -2249,6 +2266,17 @@ export function ProductStudioForm({
       setNotice({ kind: "error", text: "Variant combinations must be unique." });
       return;
     }
+    if (
+      mode === "admin" &&
+      !productId &&
+      variants.some((variant) => !variant.seller_id)
+    ) {
+      setNotice({
+        kind: "error",
+        text: "Select a seller for every variant before creating the product.",
+      });
+      return;
+    }
     if (mode === "admin" && provisionSellerId && !sellerProvisionReason.trim()) {
       setNotice({
         kind: "error",
@@ -2289,6 +2317,7 @@ export function ProductStudioForm({
           upc: variant.upc,
           barcode: variant.barcode,
           options: variant.options,
+          seller_id: variant.seller_id || null,
         })),
       };
       const result = await request<{ product: StudioProduct }>(
@@ -2964,7 +2993,7 @@ export function ProductStudioForm({
               id="studio-variants"
               number={6}
               title="Variants"
-              description="Create one row per sellable version. Each row needs a customer-facing name, a unique variant SKU and a description for the product page."
+              description="Each row is one sellable version with its own SKU, seller and price."
               complete={sectionFourDone}
               summary={`${variants.length} variant${
                 variants.length === 1 ? "" : "s"
@@ -2997,15 +3026,11 @@ export function ProductStudioForm({
                   </p>
                 </details>
               ) : null}
-              {options.length === 0 ? (
+              {!optionsEditable ? (
                 <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                   <Text size="small" className="text-ui-fg-subtle">
-                    {variants.length === 1
-                      ? "Single-variant product. This row is the default SKU customers buy; its name and description appear on the product page."
-                      : "One row per sellable version. No option axes are required."}
-                    {!optionsEditable
-                      ? " Imported catalogue variants are structural read-only; names, details and images remain editable."
-                      : ""}
+                    Imported catalogue variants are structural read-only; names,
+                    details and images remain editable.
                   </Text>
                 </div>
               ) : null}
@@ -3014,9 +3039,7 @@ export function ProductStudioForm({
                 <div>
                   <Heading level="h2">Variants</Heading>
                   <Text size="small" className="mt-1 text-ui-fg-subtle">
-                    {variants.length} variant
-                    {variants.length === 1 ? "" : "s"} · non-empty SKUs must be
-                    unique.
+                    {variants.length} variant{variants.length === 1 ? "" : "s"} · SKUs must be unique
                   </Text>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
@@ -3032,11 +3055,11 @@ export function ProductStudioForm({
                     </Button>
                   ) : null}
                   {!structuralLocked &&
-                  variants.some((variant) => !variant.sku.trim()) ? (
+                  variants.filter((variant) => !variant.sku.trim()).length > 1 ? (
                     <>
                       <label className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-ui-fg-subtle">
-                          Bulk SKU prefix
+                          SKU prefix
                         </span>
                         <Input
                           value={skuPrefix}
@@ -3070,6 +3093,7 @@ export function ProductStudioForm({
                     <Table.Row>
                       <Table.HeaderCell>Variant</Table.HeaderCell>
                       <Table.HeaderCell>Variant SKU</Table.HeaderCell>
+                      <Table.HeaderCell>Seller</Table.HeaderCell>
                       <Table.HeaderCell>Details</Table.HeaderCell>
                       <Table.HeaderCell>B2C price</Table.HeaderCell>
                       <Table.HeaderCell>
@@ -3111,6 +3135,22 @@ export function ProductStudioForm({
                               }
                             >
                               {variant.sku.trim() || "⛔ Missing"}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span
+                              className={
+                                variant.seller_id
+                                  ? "text-sm text-ui-fg-base"
+                                  : "text-sm text-ui-fg-error"
+                              }
+                            >
+                              {variant.seller_id
+                                ? (sellers.data?.sellers ?? []).find(
+                                    (seller) =>
+                                      seller.id === variant.seller_id,
+                                  )?.name ?? variant.seller_id
+                                : "⛔ Missing"}
                             </span>
                           </Table.Cell>
                           <Table.Cell>
@@ -3233,6 +3273,37 @@ export function ProductStudioForm({
                         </div>
                       </div>
                       <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
+                        {mode === "admin" ? (
+                          <label className="flex flex-col gap-1 md:col-span-2">
+                            <span className="text-xs text-ui-fg-subtle">
+                              Seller (owns this variant's offer) *
+                            </span>
+                            <select
+                              className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
+                              value={variant.seller_id}
+                              onChange={(event) =>
+                                updateVariant(index, {
+                                  seller_id: event.target.value,
+                                })
+                              }
+                            >
+                              <option value="">Select a seller</option>
+                              {(sellers.data?.sellers ?? []).map((seller) => (
+                                <option key={seller.id} value={seller.id}>
+                                  {seller.name}
+                                </option>
+                              ))}
+                            </select>
+                            <span className="text-xs text-ui-fg-subtle">
+                              The offer, price and stock belong to this variant
+                              and seller.
+                            </span>
+                          </label>
+                        ) : (
+                          <p className="text-xs text-ui-fg-subtle md:col-span-2">
+                            Sold by your seller account.
+                          </p>
+                        )}
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
                             Variant name (shown to customers) *
@@ -3329,60 +3400,16 @@ export function ProductStudioForm({
               ) : (
                 <div className="flex flex-col gap-3">
                   {offers.length === 0 ? (
-                    mode === "admin" ? (
-                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
+                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
                       <p className="text-sm font-medium text-ui-fg-base">
-                        Seller
+                        No seller offer yet
                       </p>
                       <p className="mt-1 text-xs text-ui-fg-subtle">
-                        Pricing belongs to a seller offer. Saving creates an
-                        offer for every variant that does not have one yet.
-                        {offers.length > 0
-                          ? ` Current: ${Array.from(
-                              new Set(offers.map((offer) => offer.seller_name)),
-                            ).join(", ")}.`
-                          : ""}
-                      </p>
-                      <div className="mt-3 flex flex-col gap-2 md:flex-row">
-                        <select
-                          aria-label="Seller for new offers"
-                          className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base md:w-72"
-                          value={provisionSellerId}
-                          onChange={(event) =>
-                            setProvisionSellerId(event.target.value)
-                          }
-                        >
-                          <option value="">Select a seller</option>
-                          {(sellers.data?.sellers ?? []).map((seller) => (
-                            <option key={seller.id} value={seller.id}>
-                              {seller.name}
-                            </option>
-                          ))}
-                        </select>
-                        {provisionSellerId ? (
-                          <Input
-                            className="md:flex-1"
-                            value={sellerProvisionReason}
-                            onChange={(event) =>
-                              setSellerProvisionReason(event.target.value)
-                            }
-                            placeholder="Reason for provisioning this seller (required)"
-                          />
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-xs text-ui-fg-subtle">
-                        Then use <strong>Save changes</strong> so the offers
-                        exist before pricing.
+                        Assign a seller on each variant, then Save changes. The
+                        offer is created with the variant and B2C/B2B pricing
+                        becomes editable here.
                       </p>
                     </div>
-                  ) : (
-                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                      <p className="text-xs text-ui-fg-subtle">
-                        Offers are created automatically for your seller account
-                        when the product is saved.
-                      </p>
-                    </div>
-                  )
                   ) : (
                     <>
                       <div className="overflow-x-auto rounded-lg border border-ui-border-base">
@@ -4308,42 +4335,6 @@ export function ProductStudioForm({
             </Section>
             ) : null}
 
-            {dirty || saving || !productId ? (
-            <div
-              aria-live="polite"
-              className="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-ui-border-base bg-ui-bg-base px-6 py-4 md:flex-row md:items-center md:justify-between"
-            >
-              <Text size="small" className="text-ui-fg-subtle">
-                {saving
-                  ? "Saving product changes…"
-                  : !productId
-                    ? "Complete the required details, then create the product."
-                    : "Unsaved product changes · affects content, not pricing."}
-              </Text>
-              <div className="flex flex-wrap items-center gap-2">
-                {dirty && productId ? (
-                  <Button
-                    size="small"
-                    type="button"
-                    variant="secondary"
-                    disabled={saving}
-                    onClick={reset}
-                  >
-                    Discard
-                  </Button>
-                ) : null}
-                <Button
-                  size="small"
-                  type="button"
-                  isLoading={saving}
-                  disabled={!form.title.trim() || saving || !dirty}
-                  onClick={save}
-                >
-                  {productId ? "Save changes" : "Create product"}
-                </Button>
-              </div>
-            </div>
-            ) : null}
           </Container>
 
           {view === "overview" ? (
@@ -4486,6 +4477,43 @@ export function ProductStudioForm({
           ) : null}
         </div>
       )}
+
+      {!loading && canEdit && (dirty || saving || !productId) ? (
+        <div
+          aria-live="polite"
+          className="sticky bottom-0 z-30 flex flex-col gap-2 border-t border-ui-border-base bg-ui-bg-base px-4 py-3 md:flex-row md:items-center md:justify-between"
+        >
+          <Text size="small" className="text-ui-fg-subtle">
+            {saving
+              ? "Saving product changes…"
+              : !productId
+                ? "Ready to create the product? Pricing can be added after."
+                : "Unsaved product changes · affects content, not pricing."}
+          </Text>
+          <div className="flex flex-wrap items-center gap-2">
+            {dirty && productId ? (
+              <Button
+                size="small"
+                type="button"
+                variant="secondary"
+                disabled={saving}
+                onClick={reset}
+              >
+                Discard
+              </Button>
+            ) : null}
+            <Button
+              size="small"
+              type="button"
+              isLoading={saving}
+              disabled={!form.title.trim() || saving || !dirty}
+              onClick={save}
+            >
+              {productId ? "Save changes" : "Create product"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

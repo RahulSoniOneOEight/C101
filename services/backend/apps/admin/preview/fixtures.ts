@@ -178,6 +178,7 @@ function withVariants(count: number, priced: boolean) {
     upc: "",
     barcode: "",
     options: {},
+    seller_id: "sel_buildmaster",
   }));
   const offers = variants.map((variant, index) =>
     offer(
