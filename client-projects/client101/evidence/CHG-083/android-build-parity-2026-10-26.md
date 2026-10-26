@@ -49,7 +49,8 @@ feature is hidden on Android:
 | Change | Detail |
 |---|---|
 | Version | `pubspec.yaml` `0.3.0+15` → `0.4.0+16` |
-| Release tooling | `apps/prototype_app/tool/release_apk.sh` — preflights signing, Google Services config and keystore; builds with staging defines; prints size/SHA-256; optional `--distribute` to `hosted-pilot` |
+| Release tooling | `apps/prototype_app/tool/release_apk.sh` — preflights signing, Google Services config and keystore; builds with staging defines; prints size/SHA-256 (portable hash helper); optional `--distribute` to `hosted-pilot` |
+| Signing | New staging release keystore (RSA 4096, SHA384, 10,000 days); certificate SHA-256 `ffd6629c…e02117`; copies stored on the workstation and at `/etc/buildkart/secrets/android` (0600) |
 | Config hygiene | `android/.gitignore` now excludes `google-services.json` |
 | Build identity | `--dart-define=BUILD_ID=<commit>` baked into the staging badge |
 
@@ -93,32 +94,60 @@ Screenshots: `screenshots/android-*.png`.
 |---|---|
 | Channel | Firebase App Distribution, project `buildkart-staging` |
 | App | `1:564417431699:android:f41fd37a7307760c5fa566` ("BuildKart Android Staging") |
-| Group | `hosted-pilot` — 7 testers, 14 releases |
-| Last real distribution | `0.3.0 (15)` (recorded build, 25 Oct) |
-| Guest hosting channel | `buildkart-apk` preview channel returns 404 for every path — empty leftover, expires 2026-11-01 |
+| Group | `hosted-pilot` — 7 testers, **15 releases** after this rollout |
+| Released build | **`0.4.0 (16)`**, release id `22pov5aoei7ag` |
+| Previous build | `0.3.0 (15)`, SHA-256 `4c1b5db6…dc1bf9a` |
+| Guest hosting channel | `buildkart-apk` preview channel deleted (was empty, 404 on every path) |
 
-## 8. Blocker
+### Published artifact
 
-A signed, distributable APK cannot be produced in this environment: neither this machine nor the
-staging host holds `android/key.properties` or the release keystore, and the repo deliberately has
-none. The guard is correct and was verified to fail closed.
+| Property | Value |
+|---|---|
+| Version | `0.4.0 (16)` |
+| Bytes | 62,843,967 |
+| SHA-256 | `3c68696c65005a4efa3a904225a6e33da72ab734b165567f7550191fa224de26` |
+| Signing | `CN=BuildKart Staging, OU=Hosted Pilot, O=BuildKart` (v2 scheme) |
+| Certificate SHA-256 | `ffd6629c1f6aa725b3c2a62c870587f3b6ab20eee1b1deb43c45bad599e02117` |
+| Build identity | `STAGING · 580b3fa` |
+| API target | `api-staging.pinakaplay.cloud` |
 
-To finish: place `android/key.properties` and the keystore where the build runs, then
+### Signing-key change (one-time uninstall)
 
-```bash
-cd apps/prototype_app
-BUILD_ID=$(git rev-parse --short HEAD) tool/release_apk.sh --distribute
-```
+The previously distributed APK was signed with certificate
+`921c0e4c…36ef581`; its keystore is not available anywhere in this environment or on the host.
+Per the requester's approval, a new staging release keystore was generated (RSA 4096, SHA384, 10,000
+days) and used to sign `0.4.0`. Because the certificate differs, Android will refuse an in-place
+upgrade:
 
-That produces `0.4.0 (16)`, prints its SHA-256, and uploads it to `hosted-pilot`.
+> Testers must **uninstall the old BuildKart Staging app once**, then install `0.4.0 (16)` from the
+> App Distribution invite. Data stored locally (saved addresses, cart, preferences) resets on that
+> uninstall.
 
-Distributing the debug-signed QC APK was deliberately **not** done: it would break the update path
-for the seven testers (signature mismatch), forcing an uninstall.
+Custody of the new key:
 
-## 9. Residual risks
+| Location | Content | Permissions |
+|---|---|---|
+| `D:\AndroidHome\buildkart-staging-release.jks` | keystore | workstation |
+| `D:\AndroidHome\buildkart-staging-release.credentials.txt` | store/key password, alias | workstation |
+| `/etc/buildkart/secrets/android/` (host) | identical copies | 0600, root |
 
-- Version was not bumped between the 9 Oct and 25 Oct builds, so those releases were indistinguishable
-  in App Distribution. `0.4.0+16` restores monotonic versioning; every future release must bump it.
-- Testers on `0.3.0 (15)` are missing Bought Together and the order fixes until a signed `0.4.0`
-  reaches them.
-- The empty `buildkart-apk` hosting channel should be deleted to leave one distribution path.
+Neither file is in Git; `android/key.properties` is already ignored.
+
+### Release artifact verification
+
+| Check | Result |
+|---|---|
+| `aapt2` version | `0.4.0`, versionCode `16` |
+| `apksigner` | verified, 1 signer, new certificate |
+| Badge at runtime | `STAGING · 580b3fa` |
+| `Bought together` / `Recommended with this item` in AOT payload | present |
+| `Simulated payment authorized`, `Order total` | present |
+| `Payment confirmed` (old copy) | absent |
+| Launch, pilot login, home, My Orders (`BK-…`, ₹4089) on the signed build | pass |
+
+## 8. Remaining open items
+
+- Admin money units (CHG-082 F1) and Tryton reservation (F4) remain deferred by the requester.
+- Future APK releases must bump the version and reuse the new keystore; `tool/release_apk.sh
+  --distribute` performs the build, hash and upload in one step.
+

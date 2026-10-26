@@ -46,7 +46,14 @@ flutter build apk --release \
 
 [ -f "$OUT" ] || fail "release APK was not produced"
 SIZE="$(wc -c < "$OUT" | tr -d ' ')"
-SHA="$(shasum -a 256 "$OUT" | awk '{print $1}')"
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then openssl dgst -sha256 "$1" | awk '{print $NF}'
+  else echo "unavailable"
+  fi
+}
+SHA="$(hash_file "$OUT")"
 
 echo
 echo "apk    : $OUT"

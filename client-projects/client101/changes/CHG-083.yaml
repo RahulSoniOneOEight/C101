@@ -1,6 +1,6 @@
 change_id: CHG-083
 revision: 1
-status: implementation-complete-distribution-blocked
+status: staging-distributed-verified
 request: >-
   Bring the Android build to feature parity with the updated web storefront (Bought Together,
   SKU-scoped pairing, honest payment copy, server order number and totals), verify it on a device,
@@ -54,24 +54,33 @@ requirements:
 - id: R5
   name: Signed distribution to hosted-pilot
   outcome: >-
-    Requires android/key.properties plus the protected release keystore, neither of which exists in
-    this environment or on the host. Distribution was not attempted.
-  status: blocked
+    0.4.0 (16) signed with the new staging release key and distributed to the hosted-pilot group
+    (release 22pov5aoei7ag). Testers must uninstall the previous build once because the certificate
+    changed; this was explicitly approved.
+  status: pass
 
-blocked_by:
-- id: B1
-  name: Release keystore
-  detail: >-
-    Provide android/key.properties and the keystore, or run tool/release_apk.sh --distribute where
-    they live.
+signing:
+  certificate_sha256: ffd6629c1f6aa725b3c2a62c870587f3b6ab20eee1b1deb43c45bad599e02117
+  previous_certificate_sha256: 921c0e4ceb88170b9026e3013ca083b52c022d3c345d79a7a3b11693e36ef581
+  keystore_custody:
+  - D:/AndroidHome/buildkart-staging-release.jks
+  - /etc/buildkart/secrets/android/ (root 0600)
+  tester_action: uninstall the previous build once, then install 0.4.0 (16)
 
 deferred:
 - id: D1
-  name: Retire the empty buildkart-apk hosting channel
+  name: Admin money units (CHG-082 F1)
 - id: D2
-  name: Admin money units (CHG-082 F1) and Tryton reservation (F4) remain open
+  name: Tryton reservation (CHG-082 F4)
 
 artifacts:
+  released_apk:
+    path: build/app/outputs/flutter-apk/app-release.apk
+    version: 0.4.0+16
+    bytes: 62843967
+    sha256: 3c68696c65005a4efa3a904225a6e33da72ab734b165567f7550191fa224de26
+    release_id: 22pov5aoei7ag
+    distributed_at_utc: '2026-10-26T13:06:00Z'
   qc_apk:
     path: D:/buildkart-qc/app-debug-0.4.0-16.apk
     version: 0.4.0+16
