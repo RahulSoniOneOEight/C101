@@ -2604,9 +2604,7 @@ export function ProductStudioForm({
               ) : null}
             </div>
             <Text size="small" className="mt-1 max-w-3xl text-ui-fg-subtle">
-              One product workspace for content, seller offers and channel
-              visibility. Product content and each offer's pricing save
-              separately; Review shows the exact reason a record is not live.
+              Content, variants, pricing and visibility in one place.
             </Text>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2694,7 +2692,7 @@ export function ProductStudioForm({
               id="studio-details"
               number={1}
               title="Product details"
-              description="The commercial identity of the item. Keep the title customer-facing and the internal codes exact."
+              description="Customer-facing name and description."
               complete={sectionOneDone}
               defaultOpen
               ignoreStoredState={!productId}
@@ -2713,7 +2711,7 @@ export function ProductStudioForm({
                 <div className="md:col-span-2">
                   <Field
                     label="Card subtitle (shown in listings)"
-                    hint="A one-line summary used in listings and search."
+                    hint="Shown under the name in listings."
                   >
                     <Input
                       value={form.subtitle}
@@ -2743,7 +2741,7 @@ export function ProductStudioForm({
               id="studio-media"
               number={2}
               title="Media"
-              description="The customer-facing image. Use a governed HTTPS URL in staging."
+              description="Shown on cards and the product page."
               complete={Boolean(form.thumbnail.trim())}
               defaultOpen={false}
               ignoreStoredState={!productId}
@@ -2752,7 +2750,7 @@ export function ProductStudioForm({
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field
                   label="Main product image URL"
-                  hint="Used on catalogue cards and as the default product image."
+                  hint="Used on cards and the product page."
                 >
                   <Input
                     value={form.thumbnail}
@@ -2784,7 +2782,7 @@ export function ProductStudioForm({
               id="studio-organisation"
               number={3}
               title="Organisation"
-              description="Where the product belongs and who sells it. Category and channel drive visibility."
+              description="Category, channels and product facts."
               complete={Boolean(form.category_id)}
               defaultOpen={false}
               ignoreStoredState={!productId}
@@ -2809,7 +2807,7 @@ export function ProductStudioForm({
                 </Field>
                 <Field
                   label="Selling channels"
-                  hint="Choose where this product is published. A channel still needs a priced, in-stock seller offer before customers see it."
+                  hint="Where customers can see this product."
                 >
                   <div className="flex min-h-8 flex-col gap-2">
                     {availableChannels.length === 0 ? (
@@ -2890,7 +2888,7 @@ export function ProductStudioForm({
                 </Field>
                 <Field
                   label="HSN code (tax)"
-                  hint="Stored on the product master for tax and invoice use."
+                  hint=""
                 >
                   <Input
                     value={form.hsn_code}
@@ -2918,7 +2916,7 @@ export function ProductStudioForm({
               id="studio-tags"
               number={5}
               title="Search listing"
-              description="Tags help operators find the product. They are not a substitute for structured specifications."
+              description="Tags used for search and filtering."
               complete={sectionTwoDone}
               defaultOpen={false}
               ignoreStoredState={!productId}
@@ -3000,7 +2998,7 @@ export function ProductStudioForm({
               id="studio-specs"
               number={4}
               title="Specifications"
-              description="Structured product facts. Each specification becomes a filterable product attribute; do not put these in the title or description."
+              description="Filterable product facts."
               complete={sectionThreeDone}
               defaultOpen={false}
               ignoreStoredState={!productId}
@@ -3497,7 +3495,7 @@ export function ProductStudioForm({
               id="studio-pricing"
               number={7}
               title="Pricing"
-              description="One price per variant. B2C and B2B terms save together for the selected variant."
+              description="Set B2C and B2B for each variant."
               complete={sectionFiveDone}
               summary={
                 offers.length === 0
@@ -3836,7 +3834,7 @@ export function ProductStudioForm({
               id="studio-inventory"
               number={8}
               title="Inventory"
-              description="Read-only Tryton stock summary by SKU, plus an audited adjustment request that never changes stock directly."
+              description="Read-only Tryton stock."
               summary={`${offers.length} SKU${offers.length === 1 ? "" : "s"}`}
             >
               {offers.length === 0 ? (
@@ -3999,7 +3997,7 @@ export function ProductStudioForm({
               id="studio-activity"
               number={9}
               title="Activity"
-              description="Audited product, lifecycle and seller changes in newest-first order."
+              description="Audited changes, newest first."
               summary={`${activity.length} event${activity.length === 1 ? "" : "s"}`}
             >
               {activity.length === 0 ? (
@@ -4044,7 +4042,7 @@ export function ProductStudioForm({
               id="studio-review"
               number={10}
               title="Review & visibility"
-              description="Server-owned publication and per-channel visibility. Every blocker links to the exact field."
+              description="Why this product is or is not live."
               complete={reviewReady && (readiness?.blocker_count ?? 0) === 0}
               summary={
                 readiness
