@@ -219,3 +219,64 @@ STILL TO CONFIRM IN THE FINAL BUILD
   two collapsed cards with status chips.
 - Offer table above variants on Variants & offers.
 - Create -> add price -> B2C live journey.
+
+
+======================================================================
+NEW vs EDIT — DIFFERENCES ON THE LIVE PAGE (measured 2026-10-27)
+======================================================================
+Measured on the staging build that was live before 2b25b11, by loading
+/dashboard/products/new and
+/dashboard/product-studio/prod_01M5T3CJBYS738XQ6PXQQQNFFS?view=overview
+in the same admin session.
+
+FOUND — now unified
+1. Catalogue search
+   NEW: a "Catalogue search" card, search field, Search button and a
+        result list with "Edit in studio / Open".
+   EDIT: absent.
+   -> Removed from create.
+
+2. Status shown before a record exists
+   NEW: badges "Staging" + "draft"; status line "Status · draft".
+   EDIT: badges "Staging" + "published" + "B2C · Not live" +
+         "B2B · Not live"; status line "Published · Not live".
+   -> Create now shows "Not created" and
+      "New product · not created yet". No false draft claim.
+
+3. Primary action visibility
+   NEW: no save bar while clean, so "Create product" was only discoverable
+        after typing.
+   EDIT: save bar appears only when dirty (intended).
+   -> Create now always shows its bar with
+      "Complete the required details, then create the product."
+
+4. Expansion defaults
+   NEW: all three Overview cards open (long form).
+   EDIT: all open.
+   -> Create now opens only Product details; tags and specifications are
+      collapsed with status chips. Edit restores the last state.
+
+5. Card status
+   NEW: no summary on collapsed cards.
+   EDIT: no summary.
+   -> Both now show "Needs title and category", "Optional",
+      "n values", "n variants", "n/m priced", "n blockers · n warnings".
+
+REMAINING — intentional, because the record does not exist yet
+6. "Open native record" appears on edit only. On create there is no record
+   to open. Layout space is reserved so the header does not jump after the
+   first save.
+7. Nav counts differ: "Variants & offers (1)" on a fresh create (the
+   placeholder variant) vs the real count on edit.
+8. Review & visibility shows no blocker badge on create until the record
+   is saved and the server has checked it.
+9. Lifecycle actions (Submit / Approve / Unpublish / Pause / Archive /
+   Restore) appear on edit only, because they act on a saved status.
+10. Content preview shows "Untitled product" and Readiness shows
+    "Missing" until the operator types; edit shows real values.
+
+SINGLE-FLOW RULE APPLIED
+   Everything structural is shared: same header, same five destinations,
+   same cards and numbering, same fields, same right rail, same save-bar
+   position and wording pattern. Only actions that require an existing
+   record, and values that come from that record, differ.
