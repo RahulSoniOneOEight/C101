@@ -2356,7 +2356,9 @@ export function ProductStudioForm({
           : "Product created. Add pricing to make it live in the storefront.",
       });
       if (!productId) {
-        navigate(`/product-studio/${result.product.id}`);
+        // Keep the operator on the same destination after the record is created; otherwise the
+        // edit route remounts at Overview and feels like a different screen.
+        navigate(`/product-studio/${result.product.id}?view=${view}`);
       }
     } catch (error) {
       setNotice({
@@ -2460,7 +2462,7 @@ export function ProductStudioForm({
       ?.name ?? "No category selected";
 
   return (
-    <div className="flex flex-col gap-y-3">
+    <div className="flex flex-col gap-y-3 pb-24">
       <Container className="p-0">
         <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
@@ -3368,6 +3370,27 @@ export function ProductStudioForm({
                           />
                         ) : null}
                       </div>
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-ui-border-base pt-3">
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          {productId
+                            ? "Variant changes save with the product."
+                            : "Save the variant to create its seller offer, then set pricing."}
+                        </Text>
+                        <Button
+                          size="small"
+                          type="button"
+                          isLoading={saving}
+                          disabled={
+                            saving ||
+                            !variant.title.trim() ||
+                            !variant.sku.trim() ||
+                            (mode === "admin" && !variant.seller_id)
+                          }
+                          onClick={save}
+                        >
+                          Save variant
+                        </Button>
+                      </div>
                     </div>
                   );
                 })()
@@ -3387,7 +3410,9 @@ export function ProductStudioForm({
               complete={sectionFiveDone}
               summary={
                 offers.length === 0
-                  ? "No seller offer"
+                  ? productId
+                    ? "No offer yet"
+                    : "Set a variant first"
                   : `${offers.filter((offer) => b2cBaseAmount(offer)).length}/${
                       offers.length
                     } priced`
@@ -3400,16 +3425,11 @@ export function ProductStudioForm({
               ) : (
                 <div className="flex flex-col gap-3">
                   {offers.length === 0 ? (
-                    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-                      <p className="text-sm font-medium text-ui-fg-base">
-                        No seller offer yet
-                      </p>
-                      <p className="mt-1 text-xs text-ui-fg-subtle">
-                        Assign a seller on each variant, then Save changes. The
-                        offer is created with the variant and B2C/B2B pricing
-                        becomes editable here.
-                      </p>
-                    </div>
+                    <Text size="small" className="text-ui-fg-subtle">
+                      {productId
+                        ? "Save the product to create its seller offers, then price them here."
+                        : "Set a variant first."}
+                    </Text>
                   ) : (
                     <>
                       <div className="overflow-x-auto rounded-lg border border-ui-border-base">
