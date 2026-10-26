@@ -1,4 +1,4 @@
-import {
+﻿import {
   Button,
   Container,
   Heading,
@@ -379,7 +379,9 @@ function WorkspaceNavigation({
   blockerCount: number;
 }) {
   const label = (view: WorkspaceView, base: string) => {
-    if (view === "variants") return `${base} (${variantCount})`;
+    if (view === "variants") {
+      return variantCount > 0 ? `${base} (${variantCount})` : base;
+    }
     if (view === "inventory" && inventoryAttention) return `${base} · attention`;
     if (view === "review" && blockerCount > 0) {
       return `${base} · ${blockerCount} blocker${blockerCount === 1 ? "" : "s"}`;
@@ -1514,6 +1516,7 @@ export function ProductStudioForm({
   const [bulkScope, setBulkScope] = useState<"b2c" | "b2b">("b2c");
   const [bulkSelected, setBulkSelected] = useState<string[]>([]);
   const [pendingFix, setPendingFix] = useState<ReadinessIssue | null>(null);
+  const [openVariantIndex, setOpenVariantIndex] = useState<number | null>(null);
 
   const navigateView = (next: WorkspaceView) => {
     setView(next);
@@ -1779,7 +1782,12 @@ export function ProductStudioForm({
       { label: "Search tags", ok: tags.length > 0 },
       { label: "Specifications", ok: validSpecs.length > 0 },
       { label: "Variants and SKUs", ok: variantsReady },
-      { label: "Pricing", ok: hasPricedVariants },
+      {
+        label: "Pricing",
+        ok: hasPricedVariants,
+        // Pricing needs a saved offer, so it cannot be satisfied before the record exists.
+        deferred: !productId,
+      },
       { label: "Thumbnail", ok: Boolean(form.thumbnail.trim()) },
     ],
     [
@@ -1787,6 +1795,7 @@ export function ProductStudioForm({
       form.thumbnail,
       form.title,
       hasPricedVariants,
+      productId,
       tags,
       validSpecs,
       variantsReady,
@@ -2535,7 +2544,7 @@ export function ProductStudioForm({
         <WorkspaceNavigation
           active={view}
           onChange={navigateView}
-          variantCount={variants.length}
+          variantCount={productId ? variants.length : 0}
           inventoryAttention={Boolean(inventoryError)}
           blockerCount={readiness?.blocker_count ?? 0}
         />
@@ -2609,6 +2618,61 @@ export function ProductStudioForm({
                     />
                   </Field>
                 </div>
+              </div>
+            </Section>
+
+            <Section
+              id="studio-media"
+              number={2}
+              title="Media"
+              description="The customer-facing image. Use a governed HTTPS URL in staging."
+              complete={Boolean(form.thumbnail.trim())}
+              defaultOpen={false}
+              ignoreStoredState={!productId}
+              summary={form.thumbnail.trim() ? "1 image" : "No image"}
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field
+                  label="Thumbnail URL"
+                  hint="Used on catalogue cards and as the default product image."
+                >
+                  <Input
+                    value={form.thumbnail}
+                    onChange={(event) => update("thumbnail", event.target.value)}
+                    placeholder="https://…"
+                  />
+                </Field>
+                <div>
+                  {form.thumbnail.trim() ? (
+                    <img
+                      src={form.thumbnail}
+                      alt=""
+                      style={{ width: 112, height: 112, objectFit: "cover" }}
+                      className="rounded-lg border border-ui-border-base"
+                    />
+                  ) : (
+                    <div
+                      style={{ width: 112, height: 112 }}
+                      className="flex items-center justify-center rounded-lg border border-dashed border-ui-border-base text-xs text-ui-fg-subtle"
+                    >
+                      No image
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Section>
+
+            <Section
+              id="studio-organisation"
+              number={3}
+              title="Organisation"
+              description="Where the product belongs and who sells it. Category and channel drive visibility."
+              complete={Boolean(form.category_id)}
+              defaultOpen={false}
+              ignoreStoredState={!productId}
+              summary={form.category_id ? "Category set" : "Category required"}
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Field label="Category" required>
                   <select
                     className="h-8 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 text-sm text-ui-fg-base"
@@ -2729,30 +2793,18 @@ export function ProductStudioForm({
                     placeholder="e.g. piece, metre, box"
                   />
                 </Field>
-                <div className="md:col-span-2">
-                  <Field
-                    label="Thumbnail URL"
-                    hint="Use a governed HTTPS image URL in staging."
-                  >
-                    <Input
-                      value={form.thumbnail}
-                      onChange={(event) =>
-                        update("thumbnail", event.target.value)
-                      }
-                      placeholder="https://…"
-                    />
-                  </Field>
-                </div>
               </div>
             </Section>
 
+            <div className="flex flex-col">
+            <div style={{ order: 2 }}>
             <Section
               id="studio-tags"
-              number={2}
-              title="Search tags"
+              number={5}
+              title="Search listing"
               description="Tags help operators find the product. They are not a substitute for structured specifications."
               complete={sectionTwoDone}
-              defaultOpen={Boolean(productId)}
+              defaultOpen={false}
               ignoreStoredState={!productId}
               summary={
                 tags.length > 0
@@ -2826,14 +2878,15 @@ export function ProductStudioForm({
                   ))}
               </div>
             </Section>
-
+            </div>
+            <div style={{ order: 1 }}>
             <Section
               id="studio-specs"
-              number={3}
+              number={4}
               title="Specifications"
               description="Structured product facts. Each specification becomes a filterable product attribute; do not put these in the title or description."
               complete={sectionThreeDone}
-              defaultOpen={Boolean(productId)}
+              defaultOpen={false}
               ignoreStoredState={!productId}
               summary={
                 validSpecs.length > 0
@@ -2905,6 +2958,8 @@ export function ProductStudioForm({
                 </div>
               </div>
             </Section>
+            </div>
+            </div>
               </>
             ) : null}
 
@@ -2913,7 +2968,7 @@ export function ProductStudioForm({
             <div style={{ order: 2 }}>
             <Section
               id="studio-variants"
-              number={5}
+              number={7}
               title="Variants and SKUs"
               description="Each variant has a customer-facing name, details and an optional image. Variants are created directly; SKUs stay unique."
               complete={sectionFourDone}
@@ -3014,78 +3069,153 @@ export function ProductStudioForm({
                 </div>
               ) : null}
 
-              <div className="mt-3 flex flex-col gap-2">
-                {variants.map((variant, index) => {
-                  const skuDuplicate = Boolean(
-                    variant.sku.trim() &&
-                      duplicateSkus.has(variant.sku.trim().toLowerCase()),
-                  );
-                  const combinationDuplicate = Boolean(
-                    options.length > 0 &&
-                      duplicateCombinations.has(
-                        combinationKey(options, variant.options),
-                      ),
-                  );
-                  const combinationLabel =
-                    options.length > 0
-                      ? options
-                          .map(
-                            (option) =>
-                              `${option.name}: ${
-                                variant.options[option.name] ?? "—"
-                              }`,
-                          )
-                          .join(" · ")
-                      : variant.title.trim() || `Variant ${index + 1}`;
-                  return (
-                    <div
-                      key={variant.id ?? index}
-                      className={`rounded-lg border p-3 ${
-                        skuDuplicate || combinationDuplicate
-                          ? "border-ui-border-error bg-ui-bg-error"
-                          : "border-ui-border-base"
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-ui-fg-subtle">
-                          {combinationLabel}
-                        </span>
-                        {optionsEditable && variants.length > 1 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {options.length === 0 ? (
+              <div className="mt-3 overflow-x-auto rounded-lg border border-ui-border-base">
+                <Table>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>Variant</Table.HeaderCell>
+                      <Table.HeaderCell>SKU</Table.HeaderCell>
+                      <Table.HeaderCell>Details</Table.HeaderCell>
+                      <Table.HeaderCell>
+                        <span className="sr-only">Actions</span>
+                      </Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {variants.map((variant, index) => {
+                      const skuDuplicate = Boolean(
+                        variant.sku.trim() &&
+                          duplicateSkus.has(variant.sku.trim().toLowerCase()),
+                      );
+                      const combinationDuplicate = Boolean(
+                        options.length > 0 &&
+                          duplicateCombinations.has(
+                            combinationKey(options, variant.options),
+                          ),
+                      );
+                      const invalid = skuDuplicate || combinationDuplicate;
+                      return (
+                        <Table.Row key={variant.id ?? index}>
+                          <Table.Cell>
+                            <p className="text-sm font-medium text-ui-fg-base">
+                              {variant.title.trim() || `Variant ${index + 1}`}
+                            </p>
+                            {invalid ? (
+                              <p className="text-xs text-ui-fg-error">
+                                Duplicate SKU or option combination
+                              </p>
+                            ) : null}
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span
+                              className={
+                                variant.sku.trim()
+                                  ? "text-sm text-ui-fg-base"
+                                  : "text-sm text-ui-fg-error"
+                              }
+                            >
+                              {variant.sku.trim() || "⛔ Missing"}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span className="text-xs text-ui-fg-subtle">
+                              {variant.details.trim() || "Missing details"}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <div className="flex flex-wrap justify-end gap-1">
                               <Button
                                 size="small"
                                 type="button"
-                                variant="transparent"
-                                onClick={() => duplicateVariant(index)}
-                                disabled={structuralLocked}
+                                variant="secondary"
+                                onClick={() =>
+                                  setOpenVariantIndex((current) =>
+                                    current === index ? null : index,
+                                  )
+                                }
                               >
-                                Duplicate
+                                {openVariantIndex === index ? "Close" : "Open"}
                               </Button>
-                            ) : null}
-                            <Button
-                              size="small"
-                              type="button"
-                              variant="transparent"
-                              onClick={() => removeVariant(index)}
-                              disabled={structuralLocked}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        ) : optionsEditable && options.length === 0 ? (
+                              {!structuralLocked &&
+                              optionsEditable &&
+                              options.length === 0 ? (
+                                <Button
+                                  size="small"
+                                  type="button"
+                                  variant="transparent"
+                                  onClick={() => duplicateVariant(index)}
+                                >
+                                  Duplicate
+                                </Button>
+                              ) : null}
+                              {!structuralLocked &&
+                              optionsEditable &&
+                              variants.length > 1 ? (
+                                <Button
+                                  size="small"
+                                  type="button"
+                                  variant="transparent"
+                                  onClick={() => {
+                                    removeVariant(index);
+                                    setOpenVariantIndex(null);
+                                  }}
+                                >
+                                  Remove
+                                </Button>
+                              ) : null}
+                            </div>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    })}
+                  </Table.Body>
+                </Table>
+              </div>
+
+              {openVariantIndex !== null && variants[openVariantIndex] ? (
+                (() => {
+                  const index = openVariantIndex;
+                  const variant = variants[index];
+                  const label = variant.title.trim() || `Variant ${index + 1}`;
+                  return (
+                    <div className="mt-3 rounded-lg border border-ui-border-base p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-ui-fg-base">
+                            Variant · {index + 1} of {variants.length}
+                          </p>
+                          <p className="text-xs text-ui-fg-subtle">{label}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
                           <Button
                             size="small"
                             type="button"
-                            variant="transparent"
-                            onClick={() => duplicateVariant(index)}
-                            disabled={structuralLocked}
+                            variant="secondary"
+                            disabled={index === 0}
+                            onClick={() => setOpenVariantIndex(index - 1)}
                           >
-                            Duplicate
+                            Previous
                           </Button>
-                        ) : null}
+                          <Button
+                            size="small"
+                            type="button"
+                            variant="secondary"
+                            disabled={index === variants.length - 1}
+                            onClick={() => setOpenVariantIndex(index + 1)}
+                          >
+                            Next
+                          </Button>
+                          <Button
+                            size="small"
+                            type="button"
+                            variant="secondary"
+                            onClick={() => setOpenVariantIndex(null)}
+                          >
+                            Close
+                          </Button>
+                        </div>
                       </div>
-                      <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-ui-fg-subtle">
                             Variant name *
@@ -3101,9 +3231,7 @@ export function ProductStudioForm({
                           />
                         </label>
                         <label className="flex flex-col gap-1">
-                          <span className="text-xs text-ui-fg-subtle">
-                            SKU * {skuDuplicate ? "· duplicate" : ""}
-                          </span>
+                          <span className="text-xs text-ui-fg-subtle">SKU *</span>
                           <Input
                             value={variant.sku}
                             onChange={(event) =>
@@ -3147,20 +3275,25 @@ export function ProductStudioForm({
                           <img
                             src={variant.image_url}
                             alt=""
-                            className="h-16 w-16 rounded-md border border-ui-border-base object-cover"
+                            style={{ width: 64, height: 64, objectFit: "cover" }}
+                            className="rounded-md border border-ui-border-base"
                           />
                         ) : null}
                       </div>
                     </div>
                   );
-                })}
-              </div>
+                })()
+              ) : (
+                <Text size="small" className="mt-3 text-ui-fg-subtle">
+                  Select a variant to edit its name, SKU, details and image.
+                </Text>
+              )}
             </Section>
             </div>
             <div style={{ order: 1 }}>
             <Section
               id="studio-pricing"
-              number={4}
+              number={6}
               title="Offers & pricing"
               description="One seller offer at a time. B2C and B2B terms save together only for the selected offer."
               complete={sectionFiveDone}
@@ -3503,7 +3636,7 @@ export function ProductStudioForm({
             {view === "inventory" ? (
             <Section
               id="studio-inventory"
-              number={6}
+              number={8}
               title="Inventory"
               description="Read-only Tryton stock summary by SKU, plus an audited adjustment request that never changes stock directly."
               summary={`${offers.length} SKU${offers.length === 1 ? "" : "s"}`}
@@ -3666,7 +3799,7 @@ export function ProductStudioForm({
             {view === "activity" ? (
             <Section
               id="studio-activity"
-              number={6}
+              number={9}
               title="Activity"
               description="Audited product, lifecycle and seller changes in newest-first order."
               summary={`${activity.length} event${activity.length === 1 ? "" : "s"}`}
@@ -3711,7 +3844,7 @@ export function ProductStudioForm({
             {view === "review" ? (
             <Section
               id="studio-review"
-              number={7}
+              number={10}
               title="Review & visibility"
               description="Server-owned publication and per-channel visibility. Every blocker links to the exact field."
               complete={reviewReady && (readiness?.blocker_count ?? 0) === 0}
@@ -4266,28 +4399,25 @@ export function ProductStudioForm({
               <div className="border-b border-ui-border-base px-5 py-4">
                 <Heading level="h2">Readiness</Heading>
               </div>
-              <div className="divide-y divide-ui-border-base">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-5 py-4">
                 {checks.map((check) => (
-                  <div
-                    key={check.label}
-                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm"
-                  >
-                    <span
-                      className={
-                        check.ok ? "text-ui-fg-base" : "text-ui-fg-subtle"
-                      }
-                    >
+                  <div key={check.label} className="flex flex-col">
+                    <span className="text-xs text-ui-fg-subtle">
                       {check.label}
                       {check.required ? " *" : ""}
                     </span>
                     <span
                       className={
                         check.ok
-                          ? "text-ui-fg-success"
-                          : "text-ui-fg-subtle"
+                          ? "text-xs font-medium text-ui-fg-success"
+                          : "text-xs font-medium text-ui-fg-subtle"
                       }
                     >
-                      {check.ok ? "Ready" : "Missing"}
+                      {check.ok
+                        ? "✓ Ready"
+                        : "deferred" in check && check.deferred
+                          ? "After create"
+                          : "Missing"}
                     </span>
                   </div>
                 ))}
