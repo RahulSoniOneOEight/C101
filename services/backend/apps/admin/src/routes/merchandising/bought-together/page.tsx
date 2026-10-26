@@ -707,13 +707,17 @@ export default function BoughtTogetherPage() {
               const showB2bWarning =
                 (pair.channel === "b2b" || pair.channel === "both") &&
                 pair.products.some((product) => product.variant_channel_ready.b2b === false);
+              const healthChannels: Array<"b2c" | "b2b"> =
+                pair.channel === "both" ? ["b2c", "b2b"] : [pair.channel];
               return (
                 <Table.Row key={pair.id}>
                   <Table.Cell>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-col gap-1">
                       {pair.products.map((product, index) => (
                         <div key={`${product.id}-${index}`} className="flex items-center gap-2">
-                          {index > 0 ? <Text size="small" className="text-ui-fg-muted">+</Text> : null}
+                          <span className="w-5 shrink-0 text-center text-xs text-ui-fg-muted">
+                            {index > 0 ? "+" : ""}
+                          </span>
                           <Thumb src={product.thumbnail} alt={product.title} />
                           <div className="min-w-0">
                             <Text size="small" className="truncate">{product.title}</Text>
@@ -739,21 +743,33 @@ export default function BoughtTogetherPage() {
                         {titleCase(pair.health)}
                       </StatusBadge>
                       <Text size="xsmall" className="text-ui-fg-subtle">
-                        B2C {titleCase(pair.health_by_channel.b2c)}
-                        {showB2bWarning ? " · B2B ⚠ no trade price" : ` · B2B ${titleCase(pair.health_by_channel.b2b)}`}
+                        {healthChannels
+                          .map(
+                            (key) =>
+                              `${key.toUpperCase()} ${titleCase(pair.health_by_channel[key])}`,
+                          )
+                          .join(" · ")}
+                        {showB2bWarning ? " · ⚠ no trade price" : ""}
                       </Text>
                     </div>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text size="small" className="text-ui-fg-subtle">
-                      {pair.updated_by} · {formatDate(pair.updated_at)}
+                    <Text
+                      size="small"
+                      className="text-ui-fg-subtle"
+                      title={pair.updated_by}
+                    >
+                      {pair.updated_by.includes("@") ? pair.updated_by : "Admin"} ·{" "}
+                      {formatDate(pair.updated_at)}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
                     <div className="flex flex-wrap justify-end gap-1">
-                      <Button size="small" variant="transparent" onClick={() => openEdit(pair)}>
-                        Edit
-                      </Button>
+                      {pair.status !== "archived" ? (
+                        <Button size="small" variant="transparent" onClick={() => openEdit(pair)}>
+                          Edit
+                        </Button>
+                      ) : null}
                       {pair.status === "active" ? (
                         <Button size="small" variant="transparent" onClick={() => transition(pair, "paused")}>
                           Pause
