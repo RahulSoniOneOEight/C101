@@ -579,3 +579,38 @@ active_changes:
   - human-production-authorization
   - admin-money-units-cutover
   - tryton-reservation-decision
+
+- change_id: CHG-084
+  status: staging-applied-verified
+  approval_required: true
+  approved_by: human-requester
+  approved_at_utc: '2026-10-26'
+  approval_scope: money-unit-cutover-staging-only
+  proposal: client-projects/client101/changes/CHG-084.yaml
+  scope: medusa-major-units-api-minor-contract-and-backfill
+  lane: C
+  release_mechanism: migration
+  commits:
+  - 7ef4747
+  - b3047ca
+  - 0ce55f8
+  snapshot: /var/backups/buildkart/buildkart-pre-money-20261026T141137Z.dump
+  migration_marker: 2026-10-major-units
+  flag: MEDUSA_MONEY_UNITS=major
+  rollback_tags:
+  - buildkart-hosted-pilot-experience-api:pre-money-20261026
+  - buildkart-hosted-pilot-medusa:pre-money-20261026
+  evidence: client-projects/client101/evidence/CHG-084/money-units-cutover-2026-10-26.md
+  requirements:
+    R1_medusa_major_units: pass
+    R2_api_minor_contract: pass
+    R3_admin_amounts: pass
+    R4_write_path: pass-code
+    R5_reversible: pass
+    R6_end_to_end: pass
+  deferred:
+  - tryton-reservation
+  - first-product-studio-edit-watch
+  production_blocked_by:
+  - human-production-authorization
+  - tryton-reservation-decision

@@ -1,0 +1,88 @@
+change_id: CHG-084
+revision: 1
+status: staging-applied-verified
+request: >-
+  Correct the money-unit boundary so Medusa stores major currency units: convert the existing
+  minors-in-major columns back, make Product Studio write major units, and keep the Experience API's
+  minor-unit contract so the storefront and app are unchanged.
+type: money-unit-write-boundary-and-backfill
+extends:
+- CHG-082
+requested_by: human-requester
+requested_at_utc: '2026-10-26'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
+approval_source: chat-request-include-f1-in-release
+approval_scope: money-unit-cutover-staging-only
+production_release_authorized: false
+
+lane: C
+release_mechanism: migration
+
+affected_capabilities:
+- admin-orders
+- admin-products
+- b2c-checkout
+- b2c-orders
+- marketplace-finance
+affected_domains:
+- commerce
+- experience
+- admin
+affected_surfaces:
+- medusa-postgres
+- experience-api
+- backend.admin
+- backend.vendor
+
+requirements:
+- id: R1
+  name: Medusa stores major units
+  outcome: price, cart/order lines, shipping, payments, commission and order summaries are major units.
+  status: pass
+- id: R2
+  name: API contract unchanged
+  outcome: Storefront and app still receive integer minor units; PDP ₹3990 and orders ₹4089 unchanged.
+  status: pass
+- id: R3
+  name: Admin shows real amounts
+  outcome: Order #127 renders ₹3,990 + ₹99 = ₹4,089 with commission ₹119.70.
+  status: pass
+- id: R4
+  name: Write path corrected
+  outcome: Product Studio sends major units while Product-Studio-owned list_price_minor/B2B terms stay minor.
+  status: pass-code
+- id: R5
+  name: Reversible
+  outcome: Snapshot taken before apply; rollback image tags and env flag documented.
+  status: pass
+- id: R6
+  name: End-to-end after cutover
+  outcome: A new order placed after the cutover completed correctly (#G113, ₹4,089).
+  status: pass
+
+artifacts:
+  snapshot: /var/backups/buildkart/buildkart-pre-money-20261026T141137Z.dump
+  migration_marker: 2026-10-major-units
+  rollback_tags:
+  - buildkart-hosted-pilot-experience-api:pre-money-20261026
+  - buildkart-hosted-pilot-medusa:pre-money-20261026
+  env_backup: /etc/buildkart/secrets/experience-api.env.bak-money-20261026
+  flag: MEDUSA_MONEY_UNITS=major
+  commits:
+  - 7ef4747
+  - b3047ca
+  - 0ce55f8
+  verified_orders:
+  - order_01M5VWW4K5QGJPAQA5A5R1XWNH
+  - og_01M5WA54HJKV7ENRCTEPSG4EEJ
+
+deferred:
+- id: D1
+  name: Tryton reservation (CHG-082 F4) remains out of scope
+- id: D2
+  name: First operator price edit in Product Studio should be watched
+
+evidence: client-projects/client101/evidence/CHG-084/money-units-cutover-2026-10-26.md
+production_release_authorized: false
