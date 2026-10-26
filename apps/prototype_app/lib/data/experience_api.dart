@@ -447,12 +447,16 @@ class ExperienceApi {
     return Product.fromComposedJson(res.data!);
   }
 
-  /// Reciprocal Bought Together pair for the product page.
+  /// Reciprocal Bought Together pair for the product page. `sku` scopes the
+  /// pair to the selected variant; without it the legacy product-level lookup
+  /// is used.
   Future<BoughtTogether?> getBoughtTogether(String productId,
-      {String channel = 'b2c'}) async {
+      {String channel = 'b2c', String? sku}) async {
+    final query = <String, dynamic>{'channel': channel};
+    if (sku != null && sku.trim().isNotEmpty) query['sku'] = sku.trim();
     final res = await _retryTransient(() => _dio.get<Map<String, dynamic>>(
           '/v1/products/$productId/bought-together',
-          queryParameters: <String, dynamic>{'channel': channel},
+          queryParameters: query,
         ));
     final data = res.data;
     if (data == null) return null;

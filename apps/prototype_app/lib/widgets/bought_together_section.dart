@@ -17,18 +17,20 @@ class BoughtTogetherSection extends ConsumerWidget {
   const BoughtTogetherSection({
     required this.current,
     this.channel = 'b2c',
+    this.sku,
     this.currentTrade,
     super.key,
   });
 
   final Product current;
   final String channel;
+  final String? sku;
   final TradeProduct? currentTrade;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pair = ref.watch(
-      boughtTogetherProvider((id: current.id, channel: channel)),
+      boughtTogetherProvider((id: current.id, channel: channel, sku: sku)),
     );
     return pair.maybeWhen(
       data: (value) {

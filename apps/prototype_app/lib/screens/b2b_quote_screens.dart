@@ -388,6 +388,7 @@ class _B2BTradePdpScreenState extends ConsumerState<B2BTradePdpScreen> {
           BoughtTogetherSection(
             current: p.product,
             channel: 'b2b',
+            sku: selectedVariant?.sku,
             currentTrade: p,
           ),
         ],
