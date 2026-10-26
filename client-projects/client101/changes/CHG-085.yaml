@@ -1,0 +1,59 @@
+change_id: CHG-085
+revision: 1
+status: staging-applied-verified
+request: >-
+  Make the admin-created product prod_01M5WE3CZVR1975QKR14332R9D ("x1") visible in the storefront and
+  app without changing the curated catalogue behaviour.
+type: studio-product-visibility
+extends:
+- CHG-084
+requested_by: human-requester
+requested_at_utc: '2026-10-26'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
+approval_source: chat-request-option-a
+approval_scope: single-product-visibility-staging-only
+production_release_authorized: false
+
+lane: A
+release_mechanism: data-only
+
+affected_capabilities:
+- b2c-catalogue
+affected_domains:
+- commerce
+affected_surfaces:
+- medusa-postgres
+
+requirements:
+- id: R1
+  name: Governed-catalogue marker
+  outcome: Product metadata carries catalogue_import = CHG-049.
+  status: pass
+- id: R2
+  name: B2C sales-channel link
+  outcome: Product is linked to the B2C Storefront channel.
+  status: pass
+- id: R3
+  name: Sellable stock
+  outcome: Inventory level of 1,000,000 at the BuildMaster warehouse makes the offer in stock.
+  status: pass
+- id: R4
+  name: Visible in both clients
+  outcome: API list, storefront PDP and the installed Android app all show the product at ₹150.
+  status: pass
+
+deferred:
+- id: D1
+  name: Product Studio create does not attach channel/marker/stock (systemic, 9-11 products affected)
+
+artifacts:
+  product: prod_01M5WE3CZVR1975QKR14332R9D
+  channel: sc_01M4EC8S2EBB6ZEAMGPGX7MP13
+  inventory_level_written: true
+  code_change: false
+  rollback: delete the added channel row and inventory_level row; remove the catalogue_import key
+
+evidence: client-projects/client101/evidence/CHG-085/studio-product-visibility-2026-10-26.md
+production_release_authorized: false
