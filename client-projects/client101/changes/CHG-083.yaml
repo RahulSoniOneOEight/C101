@@ -1,0 +1,92 @@
+change_id: CHG-083
+revision: 1
+status: implementation-complete-distribution-blocked
+request: >-
+  Bring the Android build to feature parity with the updated web storefront (Bought Together,
+  SKU-scoped pairing, honest payment copy, server order number and totals), verify it on a device,
+  and prepare it for pilot distribution.
+type: android-build-parity-and-distribution-readiness
+extends:
+- CHG-082
+- CHG-080
+requested_by: human-requester
+requested_at_utc: '2026-10-26'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-26'
+approval_source: chat-request-update-apk-all-features-and-qc
+approval_scope: android-build-version-qc-staging-only
+production_release_authorized: false
+
+lane: A
+release_mechanism: apk-sign-and-distribute
+
+affected_capabilities:
+- b2c-storefront
+- b2c-orders
+- android-distribution
+affected_domains:
+- app
+- distribution
+affected_surfaces:
+- app.prototype.android
+- firebase.app-distribution
+
+requirements:
+- id: R1
+  name: Feature parity
+  outcome: The Android build contains every web feature; only FCM push is platform-gated (Android-only).
+  status: pass
+- id: R2
+  name: Version identity
+  outcome: Version bumped to 0.4.0 (16) so releases are distinguishable and monotonic.
+  status: pass
+- id: R3
+  name: Reproducible release
+  outcome: A preflighted script builds with staging defines and BUILD_ID, reports the hash, and can distribute.
+  status: pass
+- id: R4
+  name: Device QC
+  outcome: >-
+    Login, home, SKU-exact PDP, Bought Together, My Orders references/totals and order detail verified
+    on a 1080x2400 Android emulator against staging.
+  status: pass
+- id: R5
+  name: Signed distribution to hosted-pilot
+  outcome: >-
+    Requires android/key.properties plus the protected release keystore, neither of which exists in
+    this environment or on the host. Distribution was not attempted.
+  status: blocked
+
+blocked_by:
+- id: B1
+  name: Release keystore
+  detail: >-
+    Provide android/key.properties and the keystore, or run tool/release_apk.sh --distribute where
+    they live.
+
+deferred:
+- id: D1
+  name: Retire the empty buildkart-apk hosting channel
+- id: D2
+  name: Admin money units (CHG-082 F1) and Tryton reservation (F4) remain open
+
+artifacts:
+  qc_apk:
+    path: D:/buildkart-qc/app-debug-0.4.0-16.apk
+    version: 0.4.0+16
+    bytes: 175847369
+    sha256: ebdf9f342669f8c746569709973c7f67247ff22266f130c04713de7df6a906b4
+    signing: debug (QC only, not distributed)
+  distributed_build_before:
+    version: 0.3.0+15
+    sha256: 4c1b5db6f8c9b7b6a84a04ca66851bd757e11a4db59b2aff3eb98bd50dc1bf9a
+  app_distribution:
+    project: buildkart-staging
+    app_id: '1:564417431699:android:f41fd37a7307760c5fa566'
+    group: hosted-pilot
+    testers: 7
+    releases: 14
+
+evidence: client-projects/client101/evidence/CHG-083/android-build-parity-2026-10-26.md
+production_release_authorized: false

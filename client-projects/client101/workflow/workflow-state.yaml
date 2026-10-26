@@ -551,3 +551,29 @@ active_changes:
   - human-production-authorization
   - admin-money-units-cutover
   - tryton-reservation-decision
+
+- change_id: CHG-083
+  status: implementation-complete-distribution-blocked
+  approval_required: true
+  approved_by: human-requester
+  approved_at_utc: '2026-10-26'
+  approval_scope: android-build-version-qc-staging-only
+  proposal: client-projects/client101/changes/CHG-083.yaml
+  scope: android-feature-parity-version-and-release-tooling
+  lane: A
+  release_mechanism: apk-sign-and-distribute
+  app_version: 0.4.0+16
+  qc_commit: 43b1c60
+  distributed_build_before: 0.3.0+15
+  evidence: client-projects/client101/evidence/CHG-083/android-build-parity-2026-10-26.md
+  blocked_by:
+  - release-keystore-unavailable
+  requirements:
+    R1_feature_parity: pass
+    R2_version_identity: pass
+    R3_reproducible_release: pass
+    R4_device_qc: pass
+    R5_signed_distribution: blocked
+  production_blocked_by:
+  - human-production-authorization
+  - signed-apk-distribution
