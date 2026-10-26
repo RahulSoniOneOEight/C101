@@ -1,4 +1,4 @@
-client_id: client101
+﻿client_id: client101
 workflow_version: 1
 current_stage: multi-surface-prototype
 completed:
@@ -437,7 +437,7 @@ active_changes:
 
 
 - change_id: CHG-080
-  status: approved-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: bought-together-sku-pairing-staging-only
   approved_by: human-requester
@@ -446,11 +446,15 @@ active_changes:
   scope: bought-together-sku-level-pairing-and-admin-clarity
   production_release_authorized: false
   base_release: 7a27de7
+  staging_release: d365eba
+  staging_pair: btp_710026edf43347c9a92bed32f58a7eba
+  evidence: client-projects/client101/evidence/CHG-080/staging-implementation-2026-10-26.md
   requirements:
-    R1_sku_pair_storage: pending
-    R2_sku_search_selection: pending
-    R3_admin_list_clarity: pending
-    R4_storefront_sku_scope: pending
-    R5_migration_compatibility: pending
+    R1_sku_pair_storage: pass
+    R2_sku_search_selection: pass
+    R3_admin_list_clarity: pass
+    R4_storefront_sku_scope: pass
+    R5_migration_compatibility: pass
   production_blocked_by:
   - human-production-authorization
+

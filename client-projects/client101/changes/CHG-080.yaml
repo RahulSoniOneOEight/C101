@@ -1,6 +1,6 @@
-change_id: CHG-080
+﻿change_id: CHG-080
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Change Bought Together pairing from product-level to SKU-level. Operators
   search and select two SKUs in the admin; the pair is stored by variant, the
@@ -14,6 +14,10 @@ approved_at_utc: '2026-10-26'
 approval_source: chat-request-update-admin-sku-pairs-2026-10-26
 approval_scope: bought-together-sku-pairing-staging-only
 production_release_authorized: false
+staging_base_release: 7a27de7
+staging_release: d365eba
+staging_pair: btp_710026edf43347c9a92bed32f58a7eba
+evidence: client-projects/client101/evidence/CHG-080/staging-implementation-2026-10-26.md
 affected_capabilities:
 - product-merchandising
 - b2c-catalogue
@@ -35,34 +39,34 @@ requirements:
     A pair records variant_a_id and variant_b_id in addition to the derived
     product ids; uniqueness is per unordered SKU pair, and active membership is
     keyed by variant per channel.
-  status: pending
+  status: pass
 - id: R2
   name: SKU search and selection
   outcome: >-
     The admin New pair flow searches SKUs by SKU, title or brand, returns SKU
     rows with image, seller, price, stock and per-channel readiness, and blocks
     duplicate SKUs or SKUs already paired in the selected channel.
-  status: pending
+  status: pass
 - id: R3
   name: Admin list clarity
   outcome: >-
     The list shows Active/Paused/Needs attention/Draft counters, both product
     thumbnails with a fallback, per-channel health, Title Case badges, an
     en-IN date and a storefront preview action.
-  status: pending
+  status: pass
 - id: R4
   name: Storefront SKU scope
   outcome: >-
     The PDP pair endpoint accepts the selected SKU (or variant id); the section
     appears only for the paired SKU and reverses on the partner SKU. Legacy
     product-level pairs remain readable.
-  status: pending
+  status: pass
 - id: R5
   name: Migration and compatibility
   outcome: >-
     Additive migration only. The existing product-level pair is archived and
     recreated by SKU; no other pair data is destroyed.
-  status: pending
+  status: pass
 decisions:
 - id: DEC-080-01
   area: Pairing granularity
@@ -87,3 +91,4 @@ decisions:
     Add variant columns and a member_key index in place. Backfill legacy rows
     with their product ids; archive the single existing product-level pair and
     recreate it by SKU because each side has more than one variant.
+
