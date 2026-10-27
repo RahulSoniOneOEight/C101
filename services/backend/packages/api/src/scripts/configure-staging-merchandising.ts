@@ -309,7 +309,8 @@ export default async function configureStagingMerchandising({ container }: ExecA
               name: campaignPreset.title,
               starts_at: new Date(campaignPreset.startsAt),
               ends_at: new Date(campaignPreset.endsAt),
-              budget: { id: existingOfferCampaign.budget.id, limit: offerBudgetLimit },
+              // The workflow resolves the campaign's single budget; the DTO forbids an id here.
+              budget: { limit: offerBudgetLimit },
             },
           ],
         },
