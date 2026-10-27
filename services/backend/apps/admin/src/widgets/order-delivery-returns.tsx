@@ -556,7 +556,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3">
                               <Meta name="Delivered" value={`${delivered} of ${ordered} units`} />
-                              <Meta name="Seller" value={shipment.sellerId} mono />
+                              <Meta name="Seller code" value={shipment.sellerId} mono />
                             </div>
                             <div
                               className="mt-3 h-1.5 overflow-hidden rounded-full bg-ui-bg-subtle"

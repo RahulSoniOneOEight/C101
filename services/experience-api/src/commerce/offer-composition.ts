@@ -82,11 +82,23 @@ export function composeOffers(offers: StoreOffer[], options: ComposeOptions = {}
       b2b.amount > 0;
     // B2B amounts come from Product Studio snapshots and are already minor units. Medusa prices are
     // major units and are scaled here so every consumer keeps seeing minor units.
+    // B2C prices may carry an optional schedule; outside the window the offer is not priced.
+    const b2cStart = o.metadata?.b2c_starts_at
+      ? Date.parse(String(o.metadata.b2c_starts_at))
+      : null;
+    const b2cEnd = o.metadata?.b2c_ends_at
+      ? Date.parse(String(o.metadata.b2c_ends_at))
+      : null;
+    const b2cWindowOpen =
+      (b2cStart === null || (!Number.isNaN(b2cStart) && b2cStart <= now)) &&
+      (b2cEnd === null || (!Number.isNaN(b2cEnd) && b2cEnd > now));
     // Channel pricing is deliberately independent. A B2B request is not eligible merely because
     // the offer has a B2C Medusa price; the seller must have saved active B2B terms for that offer.
     const selling = channel === "b2b"
       ? (b2bConfigured ? b2b!.amount! : null)
-      : medusaToMinor(o.calculated_price?.calculated_amount);
+      : b2cWindowOpen
+        ? medusaToMinor(o.calculated_price?.calculated_amount)
+        : null;
 
     // CHG-052 staging price fixture: the source amount is the list price and the offer carries the
     // discounted selling price. Without this the storefront would show selling == list and no saving.

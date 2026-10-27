@@ -24,12 +24,17 @@ export interface OfferPricing {
   metadata: Record<string, unknown>;
   list_price_minor: number | null;
   gst_inclusive: boolean;
+  /** Optional B2C schedule; absent means the price is live immediately. */
+  b2c_starts_at: string | null;
+  b2c_ends_at: string | null;
   prices: OfferPriceRow[];
 }
 
 export interface OfferPricingPolicy {
   list_price_minor?: number | null;
   gst_inclusive?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
   reason?: string | null;
   enforce_policy?: boolean;
 }
@@ -179,6 +184,10 @@ export async function loadOfferPricing(
         ? listCandidate
         : null,
     gst_inclusive: metadata.gst_inclusive !== false,
+    b2c_starts_at:
+      typeof metadata.b2c_starts_at === "string" ? metadata.b2c_starts_at : null,
+    b2c_ends_at:
+      typeof metadata.b2c_ends_at === "string" ? metadata.b2c_ends_at : null,
     prices: (offer.prices ?? []).map((price) => ({
       id: price.id,
       amount: Number(price.amount),
@@ -252,8 +261,15 @@ export async function updateOfferPricing(
     ...(policy.gst_inclusive !== undefined
       ? { gst_inclusive: policy.gst_inclusive }
       : {}),
+    ...(policy.starts_at !== undefined
+      ? { b2c_starts_at: policy.starts_at }
+      : {}),
+    ...(policy.ends_at !== undefined ? { b2c_ends_at: policy.ends_at } : {}),
   };
-  const metadataChanged = enforcePolicy;
+  const metadataChanged =
+    enforcePolicy ||
+    policy.starts_at !== undefined ||
+    policy.ends_at !== undefined;
 
   await updateOffersWorkflow(scope as never).run({
     input: {

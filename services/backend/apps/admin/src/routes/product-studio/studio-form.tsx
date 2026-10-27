@@ -70,6 +70,8 @@ type Offer = {
   metadata?: Record<string, unknown>;
   list_price_minor?: number | null;
   gst_inclusive?: boolean;
+  b2c_starts_at?: string | null;
+  b2c_ends_at?: string | null;
   b2b_pricing?: {
     configured?: boolean;
     amount?: number | null;
@@ -715,6 +717,10 @@ function OfferPricingEditor({
   const [b2bSaving, setB2bSaving] = useState(false);
   const [b2bNotice, setB2bNotice] = useState<string | null>(null);
   const [b2bPriceListId, setB2bPriceListId] = useState<string | null>(null);
+  const [b2cScheduled, setB2cScheduled] = useState(false);
+  const [b2cFrom, setB2cFrom] = useState("");
+  const [b2cTo, setB2cTo] = useState("");
+  const [b2bScheduled, setB2bScheduled] = useState(false);
   const [snapshot, setSnapshot] = useState("");
   const [dirty, setDirty] = useState(false);
 
@@ -738,6 +744,11 @@ function OfferPricingEditor({
     setListPrice(nextList);
     setGstInclusive(offer.gst_inclusive !== false);
     setBaseId(basePrice?.id);
+    const b2cStart = offer.b2c_starts_at ? offer.b2c_starts_at.slice(0, 16) : "";
+    const b2cEnd = offer.b2c_ends_at ? offer.b2c_ends_at.slice(0, 16) : "";
+    setB2cFrom(b2cStart);
+    setB2cTo(b2cEnd);
+    setB2cScheduled(Boolean(b2cStart || b2cEnd));
     // The offer snapshot already carries saved B2B terms, so the editor renders them immediately
     // rather than waiting for the dedicated price-list read.
     setB2bAmount(
@@ -788,6 +799,7 @@ function OfferPricingEditor({
         setB2bMoq(String(result.pricing.moq ?? 1));
         setB2bFrom(result.pricing.starts_at?.slice(0, 16) ?? "");
         setB2bTo(result.pricing.ends_at?.slice(0, 16) ?? "");
+        setB2bScheduled(Boolean(result.pricing.starts_at || result.pricing.ends_at));
         setB2bGst(result.pricing.gst_inclusive !== false);
         setB2bTiers(
           result.pricing.tiers.map((tier) => ({
@@ -899,6 +911,8 @@ function OfferPricingEditor({
           reason: null,
           list_price_minor: listMinor,
           gst_inclusive: gstInclusive,
+          starts_at: b2cScheduled && b2cFrom ? new Date(b2cFrom).toISOString() : null,
+          ends_at: b2cScheduled && b2cTo ? new Date(b2cTo).toISOString() : null,
           enforce_policy: true,
         }),
       });
@@ -940,8 +954,10 @@ function OfferPricingEditor({
           list_price_minor: Math.round(Number(b2bList) * 100),
           moq: Number(b2bMoq),
           tiers,
-          starts_at: b2bFrom ? new Date(b2bFrom).toISOString() : null,
-          ends_at: b2bTo ? new Date(b2bTo).toISOString() : null,
+          starts_at:
+            b2bScheduled && b2bFrom ? new Date(b2bFrom).toISOString() : null,
+          ends_at:
+            b2bScheduled && b2bTo ? new Date(b2bTo).toISOString() : null,
           gst_inclusive: b2bGst,
           reason: null,
         }),
@@ -1043,6 +1059,42 @@ function OfferPricingEditor({
               />
               B2C price is GST-inclusive
             </label>
+            <label className="flex items-center gap-2 text-sm text-ui-fg-base md:col-span-2">
+              <input
+                type="checkbox"
+                checked={b2cScheduled}
+                onChange={(event) => setB2cScheduled(event.target.checked)}
+              />
+              Schedule this price
+            </label>
+            {b2cScheduled ? (
+              <>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-ui-fg-subtle">
+                    Starts
+                  </span>
+                  <Input
+                    type="datetime-local"
+                    value={b2cFrom}
+                    onChange={(event) => setB2cFrom(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-ui-fg-subtle">
+                    Ends
+                  </span>
+                  <Input
+                    type="datetime-local"
+                    value={b2cTo}
+                    onChange={(event) => setB2cTo(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : (
+              <p className="text-xs text-ui-fg-subtle md:col-span-2">
+                Live as soon as it is saved.
+              </p>
+            )}
           </div>
 
           <p className="mt-2 text-xs text-ui-fg-subtle">
@@ -1139,26 +1191,42 @@ function OfferPricingEditor({
               />
               B2B price is GST-inclusive
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ui-fg-subtle">
-                Effective from
-              </span>
-              <Input
-                type="datetime-local"
-                value={b2bFrom}
-                onChange={(event) => setB2bFrom(event.target.value)}
+            <label className="flex items-center gap-2 text-sm text-ui-fg-base">
+              <input
+                type="checkbox"
+                checked={b2bScheduled}
+                onChange={(event) => setB2bScheduled(event.target.checked)}
               />
+              Schedule this price
             </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-ui-fg-subtle">
-                Effective to
-              </span>
-              <Input
-                type="datetime-local"
-                value={b2bTo}
-                onChange={(event) => setB2bTo(event.target.value)}
-              />
-            </label>
+            {b2bScheduled ? (
+              <>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-ui-fg-subtle">
+                    Starts
+                  </span>
+                  <Input
+                    type="datetime-local"
+                    value={b2bFrom}
+                    onChange={(event) => setB2bFrom(event.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-ui-fg-subtle">
+                    Ends
+                  </span>
+                  <Input
+                    type="datetime-local"
+                    value={b2bTo}
+                    onChange={(event) => setB2bTo(event.target.value)}
+                  />
+                </label>
+              </>
+            ) : (
+              <p className="text-xs text-ui-fg-subtle">
+                Live as soon as it is saved.
+              </p>
+            )}
           </div>
 
           <div className="mt-4 flex flex-col gap-2">
@@ -1878,6 +1946,9 @@ export function ProductStudioForm({
 
   const structuralLocked = status === "published" || offers.length > 0;
   const reviewActionDisabled = reviewLoading || dirty || offerDirty;
+  const actingSellerLabel =
+    (sellers.data?.sellers ?? []).find((seller) => seller.id === actingSellerId)
+      ?.name ?? actingSellerId;
   const sectionOneDone = Boolean(form.title.trim() && form.category_id);
   const sectionTwoDone = tags.length > 0;
   const sectionThreeDone = validSpecs.length > 0;
@@ -4313,7 +4384,7 @@ export function ProductStudioForm({
                         <option value="">Act as BuildKart</option>
                         {(sellers.data?.sellers ?? []).map((seller) => (
                           <option key={seller.id} value={seller.id}>
-                            {seller.name} · {seller.id}
+                            {seller.name} ({seller.id})
                           </option>
                         ))}
                       </select>
@@ -4330,8 +4401,8 @@ export function ProductStudioForm({
                     </div>
                     {actingSellerId ? (
                       <p className="mt-2 text-xs text-ui-fg-error">
-                        Acting for {actingSellerId}. Every review action will be
-                        audited with both actor and seller.
+                        Acting for {actingSellerLabel} ({actingSellerId}). Every
+                        review action will be audited with both actor and seller.
                       </p>
                     ) : null}
                   </div>

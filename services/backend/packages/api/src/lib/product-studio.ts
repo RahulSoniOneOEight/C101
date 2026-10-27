@@ -1211,6 +1211,14 @@ export async function loadStudioProduct(
         ? Number(offer.metadata?.list_price_minor)
         : null,
     gst_inclusive: offer.metadata?.gst_inclusive !== false,
+    b2c_starts_at:
+      typeof offer.metadata?.b2c_starts_at === "string"
+        ? offer.metadata.b2c_starts_at
+        : null,
+    b2c_ends_at:
+      typeof offer.metadata?.b2c_ends_at === "string"
+        ? offer.metadata.b2c_ends_at
+        : null,
     b2b_pricing: b2bPricing[offer.id] ?? null,
     prices: (offer.prices ?? []).filter(Boolean).map((price: any) => ({
       id: price.id,

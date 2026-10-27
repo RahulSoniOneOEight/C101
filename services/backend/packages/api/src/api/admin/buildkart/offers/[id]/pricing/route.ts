@@ -19,6 +19,8 @@ type PricingBody = {
   reason?: string;
   list_price_minor?: number | null;
   gst_inclusive?: boolean;
+  starts_at?: string | null;
+  ends_at?: string | null;
   enforce_policy?: boolean;
   acting_for_seller_id?: string | null;
   reference?: string | null;
@@ -74,6 +76,8 @@ export async function POST(
       {
         list_price_minor: body.list_price_minor,
         gst_inclusive: body.gst_inclusive,
+        starts_at: body.starts_at ?? null,
+        ends_at: body.ends_at ?? null,
         reason: body.reason ?? null,
         enforce_policy: body.enforce_policy,
       },
