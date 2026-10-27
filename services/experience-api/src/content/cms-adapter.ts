@@ -93,6 +93,13 @@ export interface CmsCollectionResolution<T> {
 /** A category banner as stored, keyed by whichever category reference it carries. */
 export interface CategoryBannerOverride {
   categoryId: string;
+  /**
+   * CHG-087 / U-001: the banner owns the category copy. A non-empty heading becomes the category
+   * `label` and a non-empty subtitle becomes `short_text`; empty values fall back to the category
+   * editorial and then the governed seed. Image and alt are unaffected.
+   */
+  title?: string;
+  subtitle?: string;
   image?: string;
   alt?: string;
 }
@@ -277,12 +284,23 @@ export function bannerEligibility(value: unknown, now: Date): StorefrontBannerEl
  * Draft preview. Uses the same field mapping as live delivery but ignores the delivery window so an
  * operator can inspect a scheduled or expired banner. Returns undefined when required fields are
  * missing, which is itself useful validation feedback.
+ *
+ * `image_alt` is carried on the preview only. The home banner delivery contract deliberately omits
+ * alt text (CHG-047); the category surface delivers it as `banner_image_alt`. The console preview
+ * needs to show the operator what they typed, so the projection adds it without widening delivery.
  */
-export function buildBannerPreview(
-  value: unknown,
-  now: Date,
-): { presentation?: StorefrontBannerPresentation; eligibility: StorefrontBannerEligibility } {
-  return { presentation: mapBannerFields(value), eligibility: bannerEligibility(value, now) };
+export interface BannerPreviewProjection {
+  presentation?: StorefrontBannerPresentation & { image_alt?: string };
+  eligibility: StorefrontBannerEligibility;
+}
+
+export function buildBannerPreview(value: unknown, now: Date): BannerPreviewProjection {
+  const presentation = mapBannerFields(value);
+  const alt = text(record(value)?.imageAltText);
+  return {
+    presentation: presentation && alt ? { ...presentation, image_alt: alt } : presentation,
+    eligibility: bannerEligibility(value, now),
+  };
 }
 
 function mapCategoryEditorial(value: unknown): StorefrontCategoryEditorial | undefined {
@@ -715,8 +733,12 @@ export class CmsContentAdapter {
           const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
             ?? externalImageUri(banner.externalImageUrl);
           const alt = text(banner.imageAltText);
+          const title = text(banner.title);
+          const subtitle = text(banner.subtitle);
           return [{
             categoryId,
+            ...(title ? { title } : {}),
+            ...(subtitle ? { subtitle } : {}),
             ...(image ? { image } : {}),
             ...(alt ? { alt } : {}),
           }];

@@ -218,6 +218,10 @@ export function seedCategoryPresentation(categoryName: string): CategoryPresenta
  * CMS presentation is matched on `category_id` first, then on category name, so the governed
  * fallback keeps working before an operator has saved an editorial record. A category is never
  * dropped because presentation is missing; it falls back to the commerce name and a default icon.
+ *
+ * A published category banner owns the copy: its heading and subtitle outrank the category
+ * editorial, which outranks the governed seed. Image and alt text keep their own chain, so a
+ * banner that only supplies artwork does not erase the editorial label.
  */
 export function composeStorefrontCategories(
   categories: CategoryIdentity[],
@@ -245,14 +249,21 @@ export function composeStorefrontCategories(
     const editorial =
       byId.get(category.id.toLowerCase()) ??
       editorials.find((item) => item.category_id.toLowerCase() === category.name.toLowerCase());
-    const label = editorial?.label ?? seed?.label ?? category.name;
-    const iconKey = normalizeIconKey(editorial?.icon_key ?? seed?.icon_key);
-    const shortText = editorial?.short_text ?? seed?.short_text;
     const override = bannersByKey.get(category.id.toLowerCase()) ??
       bannersByKey.get(category.name.toLowerCase()) ??
       (category.handle ? bannersByKey.get(category.handle.toLowerCase()) : undefined);
+    // CHG-087 / U-001: the published category banner owns the copy. Precedence is
+    // banner heading -> category editorial label -> governed seed -> commerce name, with the same
+    // chain for supporting text (subtitle -> editorial short_text -> seed). Every step is a
+    // fallback over a missing value, so an empty or unpublished field can never blank a category.
+    const label = override?.title ?? editorial?.label ?? seed?.label ?? category.name;
+    const shortText = override?.subtitle ?? editorial?.short_text ?? seed?.short_text;
+    const iconKey = normalizeIconKey(editorial?.icon_key ?? seed?.icon_key);
     const bannerImage = override?.image ?? editorial?.banner_image_uri ?? seed?.banner_image_uri;
     const bannerAlt = override?.alt ?? editorial?.banner_image_alt;
+    // Text authored on the banner is CMS presentation just as an editorial record is; reporting
+    // "governed-editorial-seed" while the heading came from a banner would misstate the source.
+    const fromCms = Boolean(editorial || override?.title || override?.subtitle);
     return {
       category_id: category.id,
       slug: category.handle ?? null,
@@ -262,7 +273,7 @@ export function composeStorefrontCategories(
       icon_key: iconKey,
       ...(bannerImage ? { banner_image_uri: bannerImage } : {}),
       ...(bannerAlt ? { banner_image_alt: bannerAlt } : {}),
-      presentation_source: editorial ? "cms" : "governed-editorial-seed",
+      presentation_source: fromCms ? "cms" : "governed-editorial-seed",
     };
   });
   return prioritizeStorefrontCategories(composed);

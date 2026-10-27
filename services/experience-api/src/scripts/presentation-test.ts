@@ -6,7 +6,7 @@
  * blocks a category, and that no transactional field leaks into the payload.
  */
 import assert from "node:assert/strict";
-import { CmsContentAdapter } from "../content/cms-adapter.js";
+import { CmsContentAdapter, buildBannerPreview } from "../content/cms-adapter.js";
 import {
   composeStorefrontCategories,
   resolveSeedBanners,
@@ -59,9 +59,29 @@ const bannerResponse = {
       placement: "b2c.category.banner",
       categoryId: "pcat_construction",
       title: "Construction banner",
+      subtitle: "Site supplies and bulk cement",
       externalImageUrl: "https://images.example.com/category-banner.jpg",
       imageAltText: "Construction category banner",
       priority: 10,
+    },
+    {
+      // CHG-087: the banner heading/subtitle outrank the category editorial and the seed.
+      contentKey: "cms-b2c-category-banner-electrical",
+      placement: "b2c.category.banner",
+      categoryId: "pcat_electrical",
+      title: "Electrical switchgear and lighting",
+      subtitle: "Wiring, fittings and switchgear",
+      priority: 20,
+    },
+    {
+      // Artwork only. The heading is required by the CMS schema, but the composer must still
+      // tolerate an empty value rather than blanking the seed label.
+      contentKey: "cms-b2c-category-banner-agri",
+      placement: "b2c.category.banner",
+      categoryId: "pcat_agri",
+      title: "",
+      externalImageUrl: "https://images.example.com/agri-banner.jpg",
+      priority: 30,
     },
     {
       // A B2B category banner must not reach the B2C category surface either.
@@ -69,6 +89,7 @@ const bannerResponse = {
       placement: "b2b.category.banner",
       categoryId: "pcat_construction",
       title: "Trade construction banner",
+      subtitle: "Trade pricing for site supplies",
       externalImageUrl: "https://images.example.com/trade-category-banner.jpg",
       imageAltText: "Trade construction category banner",
       priority: 99,
@@ -203,9 +224,129 @@ assert.equal(
   "an id-keyed banner must apply to a name-keyed editorial",
 );
 
+// --- CHG-087 / U-001: the published category banner owns the category copy ---------------------
+collection = "banners";
+const categoryBanners = await adapter.resolveCategoryBanners("b2c", "en-IN");
+const constructionBanner = categoryBanners.items.find((item) => item.categoryId === "pcat_construction");
+assert.equal(constructionBanner?.title, "Construction banner", "the banner heading is carried for composition");
+assert.equal(constructionBanner?.subtitle, "Site supplies and bulk cement");
+assert.equal(constructionBanner?.image, "https://images.example.com/category-banner.jpg");
+assert.equal(constructionBanner?.alt, "Construction category banner");
+assert.equal(
+  categoryBanners.items.some((item) => item.categoryId === "pcat_electrical"),
+  true,
+  "a banner without artwork is still a text override",
+);
+
+const withBannerText = composeStorefrontCategories(
+  [
+    { id: "pcat_construction", name: "Construction", handle: "construction" },
+    { id: "pcat_electrical", name: "Electrical", handle: "electrical" },
+    { id: "pcat_agri", name: "Agriculture & Seeds", handle: "agriculture-&-seeds" },
+    { id: "pcat_misc", name: "Miscellaneous" },
+  ],
+  editorials.items,
+  categoryBanners.items,
+);
+
+// R1/R2: heading and subtitle beat the category editorial.
+const overEditorial = withBannerText.find((item) => item.category_id === "pcat_construction")!;
+assert.equal(overEditorial.label, "Construction banner", "the banner heading outranks the category editorial");
+assert.equal(
+  overEditorial.short_text,
+  "Site supplies and bulk cement",
+  "the banner subtitle outranks the editorial short text",
+);
+assert.equal(
+  overEditorial.banner_image_uri,
+  "https://images.example.com/category-banner.jpg",
+  "image delivery is unchanged by the text override",
+);
+assert.equal(overEditorial.banner_image_alt, "Construction category banner");
+assert.equal(overEditorial.presentation_source, "cms");
+
+// R1/R2: heading and subtitle beat the governed seed; the seed still supplies the icon.
+const overSeed = withBannerText.find((item) => item.category_id === "pcat_electrical")!;
+assert.equal(overSeed.label, "Electrical switchgear and lighting", "the banner heading outranks the governed seed");
+assert.equal(overSeed.short_text, "Wiring, fittings and switchgear");
+assert.equal(overSeed.icon_key, "electrical", "the icon still comes from the governed seed");
+assert.equal(overSeed.presentation_source, "cms");
+
+// R3: empty banner copy falls through to the seed, and never blanks the label.
+const imageOnlyBanner = withBannerText.find((item) => item.category_id === "pcat_agri")!;
+assert.equal(imageOnlyBanner.label, "Agriculture & Seeds", "an empty heading must not blank the seed label");
+assert.equal(imageOnlyBanner.short_text, "Seeds, soil and garden tools");
+assert.equal(imageOnlyBanner.banner_image_uri, "https://images.example.com/agri-banner.jpg");
+
+// R3: an empty subtitle alone falls back to the editorial short text.
+const titleOnly = composeStorefrontCategories(
+  [{ id: "pcat_construction", name: "Construction", handle: "construction" }],
+  editorials.items,
+  [{ categoryId: "pcat_construction", title: "Banner heading only" }],
+);
+assert.equal(titleOnly[0].label, "Banner heading only");
+assert.equal(titleOnly[0].short_text, "Cement, steel and site supplies", "an empty subtitle falls back to the editorial");
+
+// R3: with no banner, no editorial and no seed the commerce name is the last resort.
+const commerceOnly = withBannerText.find((item) => item.category_id === "pcat_misc")!;
+assert.equal(commerceOnly.label, "Miscellaneous", "the commerce name is the last resort");
+assert.equal(commerceOnly.presentation_source, "governed-editorial-seed");
+
+// R1/R2 apply to B2B through its own banner, isolated from the B2C copy.
+const b2bCategoryBanners = await adapter.resolveCategoryBanners("b2b", "en-IN");
+const b2bComposed = composeStorefrontCategories(
+  [{ id: "pcat_construction", name: "Construction", handle: "construction" }],
+  [],
+  b2bCategoryBanners.items,
+);
+assert.equal(b2bComposed[0].label, "Trade construction banner", "B2B category banners deliver their own heading");
+assert.equal(b2bComposed[0].short_text, "Trade pricing for site supplies");
+assert.equal(b2bComposed[0].banner_image_uri, "https://images.example.com/trade-category-banner.jpg");
+assert.equal(b2bComposed[0].presentation_source, "cms");
+
+// R4: category copy never leaks into the home banner list.
+const homeTitles = banners.items.map((banner) => banner.title);
+for (const categoryTitle of ["Construction banner", "Electrical switchgear and lighting", "Trade construction banner"]) {
+  assert.equal(
+    homeTitles.includes(categoryTitle),
+    false,
+    `the home banner list must not carry category copy: ${categoryTitle}`,
+  );
+}
+
 // Unknown icon keys are constrained to the approved set.
 assert.equal(normalizeIconKey("<script>"), "category");
 assert.equal(normalizeIconKey(undefined), "category");
+
+// --- draft preview carries alt text without widening home delivery ---------------------------
+const preview = buildBannerPreview(
+  {
+    contentKey: "cms-b2c-category-banner",
+    placement: "b2c.category.banner",
+    categoryId: "pcat_construction",
+    title: "Construction banner",
+    externalImageUrl: "https://images.example.com/category-banner.jpg",
+    imageAltText: "Construction category banner",
+  },
+  now,
+);
+assert.equal(preview.presentation?.title, "Construction banner");
+assert.equal(
+  preview.presentation?.image_alt,
+  "Construction category banner",
+  "the console preview must show the authored alternative text",
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(banners.items[0], "image_alt"),
+  false,
+  "home banner delivery must not gain an alt field",
+);
+assert.equal(
+  buildBannerPreview({ contentKey: "x", placement: "b2c.home.hero", title: "No alt" }, now)
+    .presentation?.image_alt,
+  undefined,
+  "no authored alt means no alt in the preview",
+);
 
 // --- fallback seed ---------------------------------------------------------------------------
 const seedBanners = resolveSeedBanners("b2c", "en-IN");
