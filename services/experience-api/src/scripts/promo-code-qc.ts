@@ -321,15 +321,37 @@ async function readOrder(actor: Session, cartId: string): Promise<OrderRead> {
   });
 }
 
-function offerFor(products: Product[], category: string): { id: string; sellingAmount: number } {
-  const product = products.find(
-    (candidate) =>
-      candidate.categories?.some((item) => item.name === category) && candidate.best_price?.id,
-  );
-  assert.ok(product?.best_price?.id, `no live offer found for ${category}`);
+function offerFor(
+  products: Product[],
+  predicate: (product: Product) => boolean,
+  label: string,
+): { id: string; sellingAmount: number; category: string } {
+  const product = products.find((candidate) => {
+    const amount = candidate.best_price?.selling_amount_minor ?? candidate.best_price?.unit_amount_minor;
+    return Boolean(candidate.best_price?.id) && typeof amount === "number" && predicate(candidate);
+  });
+  assert.ok(product?.best_price?.id, `no live offer found for ${label}`);
   const sellingAmount = product.best_price.selling_amount_minor ?? product.best_price.unit_amount_minor;
-  assert.ok(typeof sellingAmount === "number", `no selling amount found for ${category}`);
-  return { id: product.best_price.id, sellingAmount };
+  assert.ok(typeof sellingAmount === "number", `no selling amount found for ${label}`);
+  return {
+    id: product.best_price.id,
+    sellingAmount,
+    category: product.categories?.map((category) => category.name).join(", ") ?? label,
+  };
+}
+
+/** The catalogue is paginated; read enough pages to find two distinct categories. */
+async function loadCatalogue(actor: Session): Promise<Product[]> {
+  const products: Product[] = [];
+  for (let offset = 0; offset < 1500; offset += 250) {
+    const page = await jsonRequest<{ products: Product[] }>(
+      `/v1/products?limit=250&offset=${offset}`,
+      { headers: { authorization: `Bearer ${actor.token}` } },
+    );
+    products.push(...page.products);
+    if (page.products.length < 250) break;
+  }
+  return products;
 }
 
 async function requirement(id: string, label: string, run: () => Promise<string>): Promise<boolean> {
@@ -350,21 +372,26 @@ const [trade, nonTrade] = await Promise.all([
   session(tradeIdentifier),
   session(nonTradeIdentifier),
 ]);
-const catalogue = await jsonRequest<{ products: Product[] }>(
-  "/v1/products?limit=250&catalogue_import=CHG-049",
-  { headers: { authorization: `Bearer ${trade.token}` } },
+const products = await loadCatalogue(trade);
+const plywoodOffer = offerFor(
+  products,
+  (product) => product.categories?.some((category) => category.name === "Plywood & Boards") === true,
+  "Plywood & Boards",
 );
-
-const basinOffer = offerFor(catalogue.products, "Basin Mixers & Taps");
-const plywoodOffer = offerFor(catalogue.products, "Plywood & Boards");
+const otherOffer = offerFor(
+  products,
+  (product) => product.categories?.some((category) => category.name !== "Plywood & Boards") === true,
+  "a second category",
+);
 console.log(
-  `U-003 QC against ${baseUrl}: basin offer ${basinOffer.id} (${inr(basinOffer.sellingAmount)}), ` +
-    `plywood offer ${plywoodOffer.id} (${inr(plywoodOffer.sellingAmount)})`,
+  `U-003 QC against ${baseUrl}: offer A ${otherOffer.id} (${otherOffer.category}, ` +
+    `${inr(otherOffer.sellingAmount)}), offer B ${plywoodOffer.id} (${plywoodOffer.category}, ` +
+    `${inr(plywoodOffer.sellingAmount)})`,
 );
 
 // --- B2C cart ---------------------------------------------------------------------------------
 let b2cCart = await createCart(nonTrade, "b2c_app");
-const b2cFirstLine = await addOffer(nonTrade, b2cCart.id, basinOffer.id);
+const b2cFirstLine = await addOffer(nonTrade, b2cCart.id, otherOffer.id);
 b2cCart = b2cFirstLine;
 
 /** R4 — Flat5% arrives on the first line with no user action and carries the automatic marker. */
@@ -383,12 +410,12 @@ await requirement("R4", "new cart receives Flat5% automatically", async () => {
 
 /** R1 — one store-wide 5% offer across two different categories (no category/sales-channel rule). */
 await requirement("R1", "FLAT5 is a store-wide 5% order offer", async () => {
-  assert.ok(basinOffer.sellingAmount > 0 && plywoodOffer.sellingAmount > 0, "offers must be priced");
+  assert.ok(otherOffer.sellingAmount > 0 && plywoodOffer.sellingAmount > 0, "offers must be priced");
   b2cCart = await settle(nonTrade, b2cCart.id);
   b2cCart = await addOffer(nonTrade, b2cCart.id, plywoodOffer.id);
   assertSingleOffer(b2cCart, "FLAT5", "two categories");
   const detail = assertDiscount(b2cCart, 5, "Flat5% across two categories");
-  return `${detail}; Basin + Plywood lines; code-based (no category, group or channel rule)`;
+  return `${detail}; ${otherOffer.category} + ${plywoodOffer.category}; code-based (no category, group or channel rule)`;
 });
 
 /** R2 - PLY5 is retired: absent from a new plywood cart and rejected when typed. */
@@ -503,7 +530,7 @@ await requirement("R9", "non-trade buyers still cannot use trade codes", async (
 let b2bCart: Cart | null = null;
 await requirement("R8b", "a new cart auto-applies Flat5% again", async () => {
   b2bCart = await createCart(trade, "b2b_app");
-  b2bCart = await addOffer(trade, b2bCart.id, basinOffer.id);
+  b2bCart = await addOffer(trade, b2bCart.id, otherOffer.id);
   assertSingleOffer(b2bCart, "FLAT5", "fresh B2B cart");
   const detail = assertDiscount(b2bCart, 5, "fresh B2B cart Flat5%");
   return `${detail}; cart ${b2bCart.id}`;
