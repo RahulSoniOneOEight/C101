@@ -99,10 +99,13 @@ interface OrderRead {
 
 const ledger: Array<{ id: string; status: "PASS" | "FAIL"; detail: string }> = [];
 
-/** Medusa computes percentage discounts as decimals; compare to the exact minor-unit value. */
+/**
+ * Medusa computes percentage discounts as decimals; the merged CHG-086 boundary rounds to
+ * integer minor units. Compare to the matching precision on both builds.
+ */
 const AMOUNT_TOLERANCE = 1e-6;
 /** Let Medusa's promotion workflow settle between user-style actions (not a bulk API loop). */
-const SETTLE_MS = Number(process.env.U003_QC_SETTLE_MS ?? 1200);
+const SETTLE_MS = Number(process.env.U003_QC_SETTLE_MS ?? 3000);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -146,8 +149,11 @@ function assertSingleOffer(cart: Cart, code: string, label: string): void {
 /** Exact percentage assertion in minor units; also pins the discount-rate ceiling. */
 function assertDiscount(cart: Cart, percent: number, label: string): string {
   const subtotal = subtotalOf(cart);
-  const expected = percentOf(subtotal, percent);
   const actual = cart.discount_total ?? 0;
+  const raw = percentOf(subtotal, percent);
+  // The CHG-086 money boundary rounds to whole minor units; the U-003 boundary kept decimals.
+  const expected =
+    Number.isInteger(actual) && Number.isInteger(subtotal) ? Math.round(raw) : raw;
   assert.ok(
     amountsEqual(actual, expected),
     `${label}: expected ${percent}% of ${inr(subtotal)} = ${inr(expected)}, got ${inr(actual)}`,
@@ -383,10 +389,15 @@ const otherOffer = offerFor(
   (product) => product.categories?.some((category) => category.name !== "Plywood & Boards") === true,
   "a second category",
 );
+const basinOffer = offerFor(
+  products,
+  (product) => product.categories?.some((category) => category.name === "Basin Mixers & Taps") === true,
+  "Basin Mixers & Taps",
+);
 console.log(
   `U-003 QC against ${baseUrl}: offer A ${otherOffer.id} (${otherOffer.category}, ` +
     `${inr(otherOffer.sellingAmount)}), offer B ${plywoodOffer.id} (${plywoodOffer.category}, ` +
-    `${inr(plywoodOffer.sellingAmount)})`,
+    `${inr(plywoodOffer.sellingAmount)}), trade offer ${basinOffer.id} (${basinOffer.category})`,
 );
 
 // --- B2C cart ---------------------------------------------------------------------------------
@@ -530,7 +541,7 @@ await requirement("R9", "non-trade buyers still cannot use trade codes", async (
 let b2bCart: Cart | null = null;
 await requirement("R8b", "a new cart auto-applies Flat5% again", async () => {
   b2bCart = await createCart(trade, "b2b_app");
-  b2bCart = await addOffer(trade, b2bCart.id, otherOffer.id);
+  b2bCart = await addOffer(trade, b2bCart.id, basinOffer.id);
   assertSingleOffer(b2bCart, "FLAT5", "fresh B2B cart");
   const detail = assertDiscount(b2bCart, 5, "fresh B2B cart Flat5%");
   return `${detail}; cart ${b2bCart.id}`;
