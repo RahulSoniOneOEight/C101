@@ -1,0 +1,39 @@
+# U-003 QC output
+
+**Status: NOT RUN — runtime evidence is gated on the human staging deploy approval.**
+
+This file is intentionally a placeholder so it cannot be mistaken for a passing run. Replace it
+with the verbatim output of the commands below once the control room records the deploy gate and
+the requester pastes `DEPLOY APPROVED`.
+
+## Commands (staging, after deploy and after the promotion data script)
+
+```sh
+# 1. Governed promotion configuration (idempotent). Capture both PROMO_STATE lines.
+docker exec <medusa-api-container> bun run src/scripts/configure-staging-merchandising.ts
+
+# 2. Runtime QC against the deployed Experience API.
+EXPERIENCE_BASE_URL=https://<staging-experience-api> \
+  bun run services/experience-api/src/scripts/promo-code-qc.ts
+
+# 3. Existing promotion acceptance regression.
+EXPERIENCE_BASE_URL=https://<staging-experience-api> \
+  bun run services/experience-api/src/scripts/promotion-acceptance.ts
+```
+
+## Expected QC ledger
+
+| ID | Check | Expected |
+|---|---|---|
+| R1 | FLAT5 is store-wide 5% | exactly 5% across two categories |
+| R2 | PLY5 retired | absent on a new plywood cart; applying it returns 422 |
+| R3 | ORDER10 is 10% by code | exactly 10% |
+| R4 | Flat5% is automatic | present on the first line with `is_automatic=true` |
+| R5 | removal is sticky | 0% after re-fetch, quantity change and address/shipping |
+| R6 | ORDER10 after removal | exactly 10%, Flat5% absent, no 15% cart |
+| R7 | replacement | ORDER10 → ORDER5 → ORDER10, one offer each time |
+| R8 | remove active code | 0%, and a new cart re-applies Flat5% |
+| R9 | B2B gating | Flat5% applies; TRADE7 replaces it; non-trade rejected |
+| R10 | simulated checkout | order total equals items − 10% + shipping; simulated payment; no reservation |
+
+If any line fails, paste the failure text here and stop — do not retry a deploy.

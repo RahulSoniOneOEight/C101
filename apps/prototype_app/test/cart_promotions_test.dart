@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/models.dart';
 import 'package:prototype_app/providers/cart_providers.dart';
+import 'package:prototype_app/widgets/promotion_panel.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Stands in for the engine: accepts one code, refuses another.
@@ -138,5 +140,79 @@ void main() {
         contains('expired'));
     expect(const PromotionRejected(code: 'X', reason: 'usage_limit').message,
         contains('usage limit'));
+  });
+
+  test('promotion labels come from the API, survive persistence and fall back to code',
+      () {
+    final cart = Cart.fromJson(<String, dynamic>{
+      'id': 'cart_1',
+      'currency_code': 'INR',
+      'promotions': <dynamic>[
+        <String, dynamic>{
+          'code': 'FLAT5',
+          'label': 'Flat5%',
+          'is_automatic': true,
+        },
+      ],
+    });
+    final flat5 = cart.promotions.single;
+    expect(flat5.displayLabel, 'Flat5%');
+    expect(flat5.isAutomatic, isTrue);
+
+    // The cart is cached locally, so the label must round-trip.
+    final restored = AppliedPromotion.fromJson(flat5.toJson());
+    expect(restored.displayLabel, 'Flat5%');
+    expect(restored.isAutomatic, isTrue);
+
+    // Legacy payloads without a label still render the code.
+    expect(AppliedPromotion.fromJson(<String, dynamic>{'code': 'ORDER5'}).displayLabel,
+        'ORDER5');
+  });
+
+  testWidgets('the automatic Flat5% chip is removable', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      experienceApiProvider.overrideWithValue(_PromoApi()),
+    ]);
+    addTearDown(container.dispose);
+    await container.read(cartProvider.notifier).replaceFromServer(const Cart(
+      id: 'cart_1',
+      items: <CartLineItem>[
+        CartLineItem(id: 'line_1', title: 'Socket Set', quantity: 1),
+      ],
+      subtotal: Money(amount: 12000, currencyCode: 'INR'),
+      discountTotal: Money(amount: 600, currencyCode: 'INR'),
+      total: Money(amount: 11400, currencyCode: 'INR'),
+      promotions: <AppliedPromotion>[
+        AppliedPromotion(code: 'FLAT5', label: 'Flat5%', isAutomatic: true),
+      ],
+    ));
+
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: Consumer(builder: (context, ref, _) {
+            final cart = ref.watch(cartProvider).value;
+            if (cart == null) return const SizedBox.shrink();
+            return PromotionPanel(cart: cart);
+          }),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // A store-applied offer is shown with its customer label and a delete action.
+    expect(find.text('Flat5% · Auto'), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    final cart = container.read(cartProvider).value!;
+    expect(cart.promotions, isEmpty);
+    expect(find.text('Flat5% · Auto'), findsNothing);
   });
 }

@@ -59,6 +59,11 @@ export interface MerchandisingPromotionPreset {
   value: number;
   target: MerchandisingPromotionTarget;
   automatic: boolean;
+  /**
+   * Lifecycle state applied by the configuration script. Retired promotions stay in the record
+   * for redemption history instead of being deleted. Defaults to `active`.
+   */
+  status?: "active" | "inactive";
   startsAt: string;
   endsAt: string;
   usageLimit: number;
@@ -172,7 +177,10 @@ export const MERCHANDISING_PROMOTION_PRESETS: MerchandisingPromotionPreset[] = [
     applicationMethod: "percentage",
     value: 5,
     target: { type: "category", reference: "Plywood & Boards" },
-    automatic: true,
+    // U-003 D6: retired from new carts but kept for redemption history and existing order
+    // adjustments. It is no longer automatic, so re-activating it can never re-apply silently.
+    automatic: false,
+    status: "inactive",
     startsAt: "2026-10-10T00:00:00Z",
     endsAt: "2026-11-30T23:59:59Z",
     usageLimit: 200,

@@ -395,6 +395,58 @@ export const STAGING_OFFER_CAMPAIGN = {
 };
 
 /**
+ * U-003 — pilot flat offers.
+ *
+ * The always-on 5% offer and the 10% order code live in their own campaign so a bounded offer
+ * lab cannot exhaust their budget mid-QC. Both are **code** promotions, never engine-automatic:
+ * the Experience API applies FLAT5 itself and must be able to remove it. A true automatic
+ * promotion is re-applied by the engine on every cart recalculation, which is the defect U-003
+ * has to fix.
+ */
+export const PILOT_FLAT_OFFERS: StagingOffer[] = [
+  {
+    code: "FLAT5",
+    title: "Pilot 5% off the order",
+    campaignKey: "BK-STG-CAMP-PILOT-FLAT",
+    mechanic: "order-percentage",
+    trigger: "code",
+    value: 5,
+    // Applied by the Experience API on the first line; a large limit keeps it always-on in
+    // staging without consuming the bounded offer lab.
+    usageLimit: 10_000,
+    fundingSource: "marketplace",
+    testData: true,
+  },
+  {
+    code: "ORDER10",
+    title: "Pilot order 10% off (code)",
+    campaignKey: "BK-STG-CAMP-PILOT-FLAT",
+    mechanic: "order-percentage",
+    trigger: "code",
+    value: 10,
+    usageLimit: 5_000,
+    fundingSource: "marketplace",
+    testData: true,
+  },
+];
+
+export const PILOT_FLAT_OFFERS_CAMPAIGN = {
+  campaignKey: "BK-STG-CAMP-PILOT-FLAT",
+  title: "Pilot Flat Offers",
+  // INR 500,000 of marketplace-funded spend; deliberately larger than the bounded offer lab
+  // so an always-on offer cannot stop mid-QC.
+  budgetAmountMinor: 50_000_000,
+  currencyCode: "inr" as const,
+  startsAt: "2026-10-01T00:00:00Z",
+  endsAt: "2026-12-31T23:59:59Z",
+  fundingSource: "marketplace" as const,
+  testData: true as const,
+};
+
+/** Campaigns configured by the governed staging script, in declaration order. */
+export const OFFER_CAMPAIGNS = [STAGING_OFFER_CAMPAIGN, PILOT_FLAT_OFFERS_CAMPAIGN];
+
+/**
  * Contract-shaped catalogue for the CHG-030 offer lab, returned by the read-only operator route.
  */
 export function merchandisingOfferCatalogue() {
@@ -513,7 +565,55 @@ export function assertOfferInvariants(): void {
     throw new Error("The pattern catalogue must document the buyget pattern.");
   }
 
+  assertPilotFlatOfferInvariants();
+
   assertDiscountCeilingInvariant();
+}
+
+/**
+ * U-003 pilot offers: code-triggered order percentages, marketplace-funded, in their own
+ * campaign, never above the ceiling. Multiple order offers may coexist in the catalogue because
+ * the storefront keeps exactly one offer applied per cart (that rule is runtime, not declarative).
+ */
+export function assertPilotFlatOfferInvariants(): void {
+  const campaignKeys = new Set([PILOT_FLAT_OFFERS_CAMPAIGN.campaignKey]);
+  const codes = new Set<string>();
+
+  for (const offer of PILOT_FLAT_OFFERS) {
+    if (codes.has(offer.code)) {
+      throw new Error(`Duplicate pilot flat offer code: ${offer.code}`);
+    }
+    codes.add(offer.code);
+
+    if (offer.fundingSource !== "marketplace") {
+      throw new Error(`${offer.code} must be marketplace-funded.`);
+    }
+    if (!campaignKeys.has(offer.campaignKey)) {
+      throw new Error(`${offer.code} references unknown campaign ${offer.campaignKey}.`);
+    }
+    if (offer.mechanic !== "order-percentage") {
+      throw new Error(`${offer.code} must be an order-percentage offer.`);
+    }
+    if (offer.trigger !== "code") {
+      throw new Error(`${offer.code} must be code-triggered, never engine-automatic.`);
+    }
+
+    // Building the payload surfaces ceiling and mechanic errors at declaration time.
+    buildOffer({
+      code: offer.code,
+      mechanic: offer.mechanic,
+      value: offer.value,
+      automatic: false,
+      usageLimit: offer.usageLimit,
+    });
+  }
+
+  const highest = Math.max(...PILOT_FLAT_OFFERS.map((offer) => offer.value));
+  if (highest > DISCOUNT_CEILING_PERCENT) {
+    throw new Error(
+      `Pilot flat offers exceed the ${DISCOUNT_CEILING_PERCENT}% staging discount ceiling.`,
+    );
+  }
 }
 
 /**

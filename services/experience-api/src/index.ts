@@ -1184,6 +1184,17 @@ function composeCartView(cart: StoreCart) {
       label: adjustment.description ?? adjustment.code ?? "Discount",
     })),
   }));
+  // U-003: FLAT5 is a normal code promotion applied by this API, so the engine reports it as
+  // non-automatic. The cart view carries the store-applied marker from cart metadata, which is
+  // what lets the app offer an honest remove action.
+  const autoCode = automaticOfferCode(cart);
+  const promotions = (cart.promotions ?? []).map((promotion) => ({
+    code: promotion.code,
+    label: promotionLabel(promotion.code),
+    is_automatic:
+      Boolean(promotion.is_automatic) ||
+      (autoCode !== null && promotion.code.toLowerCase() === autoCode.toLowerCase()),
+  }));
   return {
     ...cart,
     items,
@@ -1192,10 +1203,11 @@ function composeCartView(cart: StoreCart) {
     subtotal: itemSubtotal,
     item_subtotal: itemSubtotal,
     engine_subtotal: cart.subtotal,
-    promotions: (cart.promotions ?? []).map((promotion) => ({
-      code: promotion.code,
-      is_automatic: Boolean(promotion.is_automatic),
-    })),
+    promotions,
+    auto_offer:
+      autoCode !== null && promotions.some((promotion) => promotion.is_automatic)
+        ? { code: autoCode, label: promotionLabel(autoCode), removable: true }
+        : null,
     discount_total: cart.discount_total ?? 0,
     item_discount_total: cart.item_discount_total ?? 0,
     shipping_discount_total: cart.shipping_discount_total ?? 0,
@@ -1207,6 +1219,76 @@ function composeCartView(cart: StoreCart) {
       })),
     ),
   };
+}
+
+/** Code the Experience API applies on the customer's behalf (U-003 D5: FLAT5, shown as Flat5%). */
+const AUTOMATIC_OFFER_CODE = "FLAT5";
+/** Cart metadata: the code this API applied automatically, or null once the customer chooses. */
+const AUTOMATIC_OFFER_APPLIED_KEY = "auto_offer_applied_code";
+/** Cart metadata: the customer removed or replaced the offer, so it must not return (D2). */
+const AUTOMATIC_OFFER_OPT_OUT_KEY = "auto_offer_opt_out";
+/** Display labels where the engine code is not the customer-facing label. */
+const PROMOTION_LABELS: Record<string, string> = { FLAT5: "Flat5%" };
+
+function promotionLabel(code: string): string {
+  return PROMOTION_LABELS[code.toUpperCase()] ?? code;
+}
+
+function automaticOfferCode(cart: StoreCart): string | null {
+  const value = cart.metadata?.[AUTOMATIC_OFFER_APPLIED_KEY];
+  return typeof value === "string" && value ? value : null;
+}
+
+function appliedPromotionCodes(cart: StoreCart): string[] {
+  return [...new Set((cart.promotions ?? []).map((promotion) => promotion.code))];
+}
+
+function hasPromotionCode(cart: StoreCart, code: string): boolean {
+  return (cart.promotions ?? []).some(
+    (promotion) => promotion.code.toLowerCase() === code.toLowerCase(),
+  );
+}
+
+/** Cart metadata plus the offer state a write is about to persist. */
+function offerMetadata(
+  cart: StoreCart,
+  state: { appliedCode: string | null; optedOut: boolean },
+): Record<string, unknown> {
+  return {
+    ...(cart.metadata ?? {}),
+    [AUTOMATIC_OFFER_APPLIED_KEY]: state.appliedCode,
+    [AUTOMATIC_OFFER_OPT_OUT_KEY]: state.optedOut,
+  };
+}
+
+/**
+ * Apply FLAT5 to a cart that has lines and no offer yet (U-003).
+ *
+ * The engine cannot make an automatic promotion removable: it re-applies it on every
+ * recalculation. So the API owns the "automatic" behaviour and records the applied code in cart
+ * metadata. A failed apply never blocks the cart; the view only advertises what the engine
+ * actually granted.
+ */
+async function applyAutomaticOffer(cartId: string, cart: StoreCart): Promise<StoreCart> {
+  if ((cart.items ?? []).length === 0) return cart;
+  if ((cart.promotions ?? []).length > 0) return cart;
+  if (cart.metadata?.[AUTOMATIC_OFFER_OPT_OUT_KEY] === true) return cart;
+  try {
+    const applied = await medusa.addPromotion(cartId, AUTOMATIC_OFFER_CODE);
+    if (!hasPromotionCode(applied, AUTOMATIC_OFFER_CODE)) return cart;
+    const metadata = offerMetadata(
+      { ...cart, ...applied, metadata: { ...(cart.metadata ?? {}), ...(applied.metadata ?? {}) } },
+      { appliedCode: AUTOMATIC_OFFER_CODE, optedOut: false },
+    );
+    try {
+      await medusa.updateCartMetadata(cartId, metadata);
+    } catch {
+      // The engine already granted the discount; a metadata write failure must not hide it.
+    }
+    return { ...applied, metadata };
+  } catch {
+    return cart;
+  }
 }
 
 /** Maps an engine rejection onto a reason the customer UI can explain. */
@@ -3174,8 +3256,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST/DELETE /v1/carts/{cartId}/promotions — apply or remove promotion codes.
   //
-  // The engine decides eligibility. The BFF only translates its answer into a stable shape, so the
-  // storefront never has to invent a reason or claim a discount the engine did not grant.
+  // U-003 D1: exactly one offer is active per cart. Applying a code replaces the current offer and
+  // a rejection restores it. Removing an offer is sticky for that cart (D2): the store-applied
+  // FLAT5 never returns on a refresh, quantity change or checkout. The engine still decides
+  // eligibility; the BFF only translates its answer and never advertises an ungranted discount.
   const cartPromotions = url.pathname.match(/^\/v1\/carts\/([^/]+)\/promotions$/);
   if (cartPromotions && (req.method === "POST" || req.method === "DELETE")) {
     const cartId = cartPromotions[1];
@@ -3201,53 +3285,173 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!codes.length) {
       return problem(400, "invalid-promotion-code", "A promotion code is required.");
     }
-    const applied: string[] = [];
-    const rejected: { code: string; reason: string }[] = [];
-    let cart: StoreCart | null = null;
-    for (const code of codes) {
-      try {
-        cart = req.method === "POST"
-          ? await medusa.addPromotion(cartId, code)
-          : await medusa.removePromotion(cartId, code);
-        if (req.method === "POST") {
-          // Medusa can accept a code and still grant nothing (for example when no line matches the
-          // promotion's target). Only a code present on the returned cart is a real application;
-          // otherwise the UI would advertise a discount the engine never applied.
-          const attached = (cart.promotions ?? []).some(
-            (promotion) => promotion.code.toLowerCase() === code.toLowerCase(),
-          );
-          if (!attached) {
-            rejected.push({ code, reason: "not_eligible" });
-            continue;
+    if (req.method === "POST" && codes.length > 1) {
+      return problem(
+        400,
+        "invalid-promotion-code",
+        "Only one promotion code can be applied at a time.",
+      );
+    }
+
+    try {
+      if (req.method === "DELETE") {
+        const removed: string[] = [];
+        const rejected: { code: string; reason: string }[] = [];
+        for (const target of codes) {
+          try {
+            await medusa.removePromotion(cartId, target);
+            removed.push(target);
+          } catch (error) {
+            rejected.push({
+              code: target,
+              reason: promotionRejectionReason((error as Error).message),
+            });
           }
         }
-        applied.push(code);
-      } catch (error) {
-        rejected.push({
-          code,
-          reason: promotionRejectionReason((error as Error).message),
+        const cart = await medusa.getCart(cartId);
+        const metadata = offerMetadata(cart, { appliedCode: null, optedOut: true });
+        try {
+          await medusa.updateCartMetadata(cartId, metadata);
+        } catch {
+          // The removal is already true on the cart; never turn it into a failure.
+        }
+        if (!removed.length && rejected.length) {
+          return json({
+            type: "promotion-rejected",
+            title: "promotion-rejected",
+            status: 422,
+            rejected_codes: rejected,
+            environment: config.environment,
+            test_data: true,
+            correlation_id: cid,
+          }, 422);
+        }
+        return json({
+          ...composeCartView({ ...cart, metadata }),
+          applied_codes: removed,
+          rejected_codes: rejected,
+          environment: config.environment,
+          test_data: true,
+          correlation_id: cid,
         });
       }
-    }
-    if (!cart || applied.length === 0) {
+
+      const code = codes[0];
+      const current = await medusa.getCart(cartId);
+      const previousCodes = appliedPromotionCodes(current);
+      if (
+        previousCodes.length === 1 &&
+        previousCodes[0].toLowerCase() === code.toLowerCase()
+      ) {
+        return json({
+          ...composeCartView(current),
+          applied_codes: [code],
+          rejected_codes: [],
+          environment: config.environment,
+          test_data: true,
+          correlation_id: cid,
+        });
+      }
+
+      for (const previous of previousCodes) {
+        try {
+          await medusa.removePromotion(cartId, previous);
+        } catch {
+          // Engine-owned automatic promotions cannot be removed; the guard below catches leftovers.
+        }
+      }
+
+      let cart: StoreCart | null = null;
+      let rejection: string | null = null;
+      try {
+        cart = await medusa.addPromotion(cartId, code);
+        // Medusa can accept a code and still grant nothing (for example when no line matches the
+        // promotion's target). Only a code present on the returned cart is a real application.
+        if (!hasPromotionCode(cart, code)) rejection = "not_eligible";
+      } catch (error) {
+        rejection = promotionRejectionReason((error as Error).message);
+      }
+
+      if (!rejection && cart) {
+        // One offer at a time: if the engine kept an older promotion, drop it before returning.
+        const extras = appliedPromotionCodes(cart).filter(
+          (appliedCode) => appliedCode.toLowerCase() !== code.toLowerCase(),
+        );
+        for (const extra of extras) {
+          try {
+            await medusa.removePromotion(cartId, extra);
+          } catch {
+            // fall through to the read-back check
+          }
+        }
+        if (extras.length) {
+          const refreshed = await medusa.getCart(cartId).catch(() => null);
+          if (refreshed) cart = refreshed;
+        }
+        if (appliedPromotionCodes(cart).length > 1) {
+          // The engine refuses to release an offer. Refuse the swap rather than show 15%.
+          for (const appliedCode of appliedPromotionCodes(cart)) {
+            try {
+              await medusa.removePromotion(cartId, appliedCode);
+            } catch {
+              // best effort
+            }
+          }
+          for (const previous of previousCodes) {
+            try {
+              await medusa.addPromotion(cartId, previous);
+            } catch {
+              // best effort
+            }
+          }
+          return json({
+            type: "promotion-rejected",
+            title: "promotion-rejected",
+            status: 422,
+            rejected_codes: [{ code, reason: "not_eligible" }],
+            restored_codes: previousCodes,
+            environment: config.environment,
+            test_data: true,
+            correlation_id: cid,
+          }, 422);
+        }
+        const metadata = offerMetadata(cart, { appliedCode: null, optedOut: true });
+        try {
+          await medusa.updateCartMetadata(cartId, metadata);
+        } catch {
+          // The applied code is already on the cart; keep the discount visible.
+        }
+        return json({
+          ...composeCartView({ ...cart, metadata }),
+          applied_codes: [code],
+          rejected_codes: [],
+          environment: config.environment,
+          test_data: true,
+          correlation_id: cid,
+        });
+      }
+
+      // Rejected: keep the customer's current offer and return the engine's reason.
+      for (const previous of previousCodes) {
+        try {
+          await medusa.addPromotion(cartId, previous);
+        } catch {
+          // best effort restore
+        }
+      }
       return json({
         type: "promotion-rejected",
         title: "promotion-rejected",
         status: 422,
-        rejected_codes: rejected,
+        rejected_codes: [{ code, reason: rejection ?? "not_eligible" }],
+        restored_codes: previousCodes,
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
       }, 422);
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
     }
-    return json({
-      ...composeCartView(cart),
-      applied_codes: applied,
-      rejected_codes: rejected,
-      environment: config.environment,
-      test_data: true,
-      correlation_id: cid,
-    });
   }
 
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
@@ -3541,8 +3745,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     try {
       const cart = await medusa.addLineItem(cartId, body.offer_id, body.quantity as number);
+      // U-003: the first line makes the cart eligible for the store-applied Flat5% offer. The cart
+      // is created empty, so this is the earliest point where the engine can grant it.
+      const withOffer = await applyAutomaticOffer(cartId, cart);
       return json({
-        ...composeCartView(cart),
+        ...composeCartView(withOffer),
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
