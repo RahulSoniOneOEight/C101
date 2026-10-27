@@ -54,13 +54,23 @@ function ProductCreateEntry() {
             pricing, inventory and review.
           </Text>
         </div>
-        <Button
-          size="small"
-          onClick={() => navigate("/products/new")}
-          data-testid="product-create-cta"
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={() => navigate("/products/import")}
+            data-testid="product-import-cta"
+          >
+            Import CSV
+          </Button>
+          <Button
+            size="small"
+            onClick={() => navigate("/products/new")}
+            data-testid="product-create-cta"
         >
-          Create product
-        </Button>
+            Create product
+          </Button>
+        </div>
       </div>
     </Container>
   );
