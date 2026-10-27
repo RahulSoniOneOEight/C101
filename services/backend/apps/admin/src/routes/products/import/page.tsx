@@ -35,6 +35,9 @@ const TEMPLATE_COLUMNS = [
   "b2b_list_price",
   "b2b_selling_price",
   "b2b_moq",
+  "b2b_tiers",
+  "stock_quantity",
+  "channel",
 ];
 
 const SAMPLE = [
@@ -61,6 +64,9 @@ const SAMPLE = [
   "1100",
   "950",
   "5",
+  "5:950|10:900",
+  "50",
+  "b2c",
 ];
 
 type RowResult = {

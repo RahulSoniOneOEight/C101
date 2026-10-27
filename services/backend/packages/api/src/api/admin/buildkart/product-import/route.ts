@@ -3,6 +3,7 @@ import type {
   MedusaResponse,
 } from "@medusajs/framework/http";
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils";
+import { updateInventoryLevelsWorkflow } from "@medusajs/core-flows";
 import {
   StudioError,
   saveStudioProduct,
@@ -37,6 +38,8 @@ type ImportRow = {
   b2b_list_price?: string;
   b2b_selling_price?: string;
   b2b_moq?: string;
+  b2b_tiers?: string;
+  stock_quantity?: string;
   channel?: string;
 };
 
@@ -58,6 +61,30 @@ const moneyMinor = (value: string) => {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : null;
 };
+
+/** "5:950|10:900" -> [{ min_quantity: 5, amount: 95000 }, ...] (minor units). */
+function parseTiers(raw: string) {
+  return raw
+    .split("|")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [min, amount] = entry.split(":");
+      return {
+        min_quantity: Number(clean(min)),
+        max_quantity: null,
+        amount: Math.round(Number(clean(amount)) * 100),
+      };
+    })
+    .filter(
+      (tier) =>
+        Number.isInteger(tier.min_quantity) &&
+        tier.min_quantity >= 2 &&
+        Number.isFinite(tier.amount) &&
+        tier.amount > 0,
+    )
+    .sort((left, right) => left.min_quantity - right.min_quantity);
+}
 
 function parseSpecs(raw: string) {
   return raw
@@ -158,7 +185,11 @@ export async function POST(
     if (!sellingMajor) errors.push("b2c_selling_price is required");
 
     const categoryId = categoryIdByName.get(categoryName.toLowerCase());
-    const sellerId = sellerIdByName.get(sellerName.toLowerCase());
+    const sellerId =
+      sellerIdByName.get(sellerName.toLowerCase()) ??
+      ((sellers ?? []).find(
+        (row: any) => String(row.id).toLowerCase() === sellerName.toLowerCase(),
+      )?.id as string | undefined);
     const listMinor = moneyMinor(listMajor);
     const sellingMinor = moneyMinor(sellingMajor);
 
@@ -228,7 +259,18 @@ export async function POST(
             seller_id: sellerId,
           },
         ],
-        sales_channel_ids: b2cChannel?.id ? [String(b2cChannel.id)] : [],
+        sales_channel_ids: (() => {
+          const wanted = clean(row.channel).toLowerCase();
+          const ids: string[] = [];
+          if (wanted !== "b2b" && b2cChannel?.id) ids.push(String(b2cChannel.id));
+          if (wanted === "b2b" || wanted === "both") {
+            const b2bChannel = (channels ?? []).find((candidate: any) =>
+              /b2b/i.test(String(candidate.name ?? "")),
+            );
+            if (b2bChannel?.id) ids.push(String(b2bChannel.id));
+          }
+          return ids;
+        })(),
       };
 
       const saved = await saveStudioProduct(
@@ -265,16 +307,73 @@ export async function POST(
 
       const b2bSelling = moneyMinor(clean(row.b2b_selling_price));
       if (b2bSelling !== null) {
+        const tiers = parseTiers(clean(row.b2b_tiers));
+        for (const tier of tiers) {
+          if (tier.amount > b2bSelling) {
+            errors.push(
+              `b2b tier starting at ${tier.min_quantity} cannot cost more than the B2B selling price`,
+            );
+          }
+        }
         await saveB2bPricing(req.scope, offer.id, {
           amount: b2bSelling,
           list_price_minor: moneyMinor(clean(row.b2b_list_price)) ?? b2bSelling,
           moq: Number(clean(row.b2b_moq)) || 1,
-          tiers: [],
+          tiers,
           starts_at: null,
           ends_at: null,
           gst_inclusive: true,
           reason: `CSV import (${sku})`,
         });
+      }
+
+      const requestedStock = Number(clean(row.stock_quantity));
+      if (Number.isInteger(requestedStock) && requestedStock >= 0) {
+        try {
+          const { data: sellerRows } = await query.graph({
+            entity: "seller",
+            fields: ["id", "stock_locations.id"],
+            filters: { id: sellerId },
+            pagination: { take: 1, skip: 0 },
+          });
+          const locationId =
+            ((sellerRows?.[0] as { stock_locations?: Array<{ id?: string }> })
+              ?.stock_locations ?? [])[0]?.id ?? null;
+          const { data: items } = await query.graph({
+            entity: "inventory_item",
+            fields: ["id"],
+            filters: { sku },
+            pagination: { take: 1, skip: 0 },
+          });
+          const inventoryItemId = (items?.[0] as { id?: string } | undefined)?.id;
+          if (locationId && inventoryItemId) {
+            const { data: levels } = await query.graph({
+              entity: "inventory_level",
+              fields: ["id"],
+              filters: {
+                inventory_item_id: inventoryItemId,
+                location_id: locationId,
+              },
+              pagination: { take: 1, skip: 0 },
+            });
+            const levelId = (levels?.[0] as { id?: string } | undefined)?.id;
+            if (levelId) {
+              await updateInventoryLevelsWorkflow(req.scope).run({
+                input: {
+                  updates: [
+                    {
+                      inventory_item_id: inventoryItemId,
+                      location_id: locationId,
+                      stocked_quantity: requestedStock,
+                    },
+                  ],
+                } as never,
+              });
+            }
+          }
+        } catch (stockError) {
+          console.warn("[product-import] stock override skipped:", (stockError as Error).message);
+        }
       }
 
       results.push({ row: rowNumber, sku, status: "created", product_id: productId, errors: [] });
