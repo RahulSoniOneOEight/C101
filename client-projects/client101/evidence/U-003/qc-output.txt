@@ -10,7 +10,9 @@ the requester pastes `DEPLOY APPROVED`.
 
 ```sh
 # 1. Governed promotion configuration (idempotent). Capture both PROMO_STATE lines.
-docker exec <medusa-api-container> bun run src/scripts/configure-staging-merchandising.ts
+#    Run inside the Medusa API container (staging runbook §merchandising):
+docker exec -e BUILDKART_ENVIRONMENT=staging <medusa-api-container> \
+  bun run configure:staging-merchandising
 
 # 2. Runtime QC against the deployed Experience API.
 EXPERIENCE_BASE_URL=https://<staging-experience-api> \
