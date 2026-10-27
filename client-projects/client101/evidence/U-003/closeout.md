@@ -5,135 +5,162 @@
 - **Worktree:** `C:\Users\LENOVO\AppData\Local\Temp\opencode\bk-u003-promo-codes`
 - **Branch:** `feat/u003-promo-codes`
 - **Base:** `33c6add` (host-verified staging release 2026-10-27T12:55Z)
-- **Release candidate:** `fd52d6a63bdd3b3113b9f86e5901307aa87d1413` (`fd52d6a`)
-- **Commit range:** `33c6add..fd52d6a` (one commit)
-- **Deploy:** **not performed**. No staging data was written. No production access.
-- **Status:** code complete, static verification green, runtime QC pending the human deploy gate.
+- **Runtime release:** **`1951cea`** (`/opt/buildkart-releases/release-1951cea`)
+- **Rollback:** `33c6add` — not used
+- **Deploy:** staging only, executed under the requester's gate
+  (`DEPLOY APPROVED: U-003 release 1951cea … Staging only.`)
+- **Production:** untouched, forbidden
 
-## G1 baseline
+## Outcome
+
+Every new cart auto-receives a removable `Flat5%` (5% off items). A manual code replaces it,
+one offer at a time; removing the active code leaves 0% and does not bring Flat5% back. `ORDER10`
+is live as a 10% code. `PLY5` is retired (inactive, no longer automatic, history retained).
+
+Runtime QC passed **12/12** on staging (`qc-output.txt`), including a simulated checkout whose
+order total records the 10% discount with no reservation.
+
+## G1 baseline (before any write)
 
 | Item | Value |
 |---|---|
 | Branch | `feat/u003-promo-codes` |
 | HEAD | `33c6adde9c6539225f230040e36720ce6e36267b` |
-| `git status` | clean (no untracked or modified files) |
-| Base relationship | HEAD == brief base `33c6add` |
-| Environment | staging only; production forbidden |
+| `git status` | clean |
+| Staging `current` | `release-33c6add` |
+| `medusa-api` / `experience-api` | running, healthy |
+| Host disk | 164 GB free |
 
-## G2 scope lock — diff mapping
+## G5 scoped release
 
-`git diff --name-only 33c6add..fd52d6a`:
+`git log --oneline 33c6add..1951cea` — one commit:
+
+```
+1951cea fix(promotions): use the typed campaign budget update (U-003)
+```
+
+(The branch also carries the earlier feature commit `fd52d6a` plus four test/evidence commits; see
+"Evidence tooling" below.)
+
+`git diff --name-only 33c6add..1951cea`:
 
 | Changed path | Allowed by brief | Purpose |
 |---|---|---|
 | `services/experience-api/src/index.ts` | yes | auto-apply FLAT5, one-offer replacement/removal, opt-out metadata, cart marker |
-| `services/experience-api/src/scripts/promotion-acceptance.ts` | yes | updated regression for the new behaviour |
-| `services/experience-api/src/scripts/promo-code-qc.ts` | yes (new) | R1–R10 QC with exact amounts |
+| `services/experience-api/src/scripts/promotion-acceptance.ts` | yes | updated regression |
+| `services/experience-api/src/scripts/promo-code-qc.ts` | yes (new) | exact-amount QC for R1–R10 |
 | `apps/prototype_app/lib/domain/models.dart` | yes | carries the API `label` through the model and local cache |
-| `apps/prototype_app/lib/widgets/promotion_panel.dart` | yes | `Flat5% · Auto` is an `InputChip` with a delete action |
-| `apps/prototype_app/test/cart_promotions_test.dart` | yes | label round-trip + removable auto chip widget test |
-| `services/backend/.../staging-merchandising/presets.ts` | yes | `PLY5` inactive, no longer automatic; optional `status` field |
-| `services/backend/.../staging-merchandising/offer-patterns.ts` | yes | `FLAT5`, `ORDER10`, "Pilot Flat Offers" campaign + invariants |
-| `services/backend/.../scripts/configure-staging-merchandising.ts` | yes | idempotent campaign/offer apply + before/after promotion audit |
-| `services/backend/.../scripts/merchandising-pilot-flat-offers-test.ts` | yes (new) | pure declarative proof of the U-003 configuration |
-| `client-projects/client101/evidence/U-003/**` | yes | this closeout, decision record, state, QC placeholder |
+| `apps/prototype_app/lib/widgets/promotion_panel.dart` | yes | `Flat5% · Auto` is an `InputChip` with delete |
+| `apps/prototype_app/test/cart_promotions_test.dart` | yes | label round-trip + removable auto chip |
+| `services/backend/.../staging-merchandising/presets.ts` | yes | `PLY5` inactive / not automatic; optional `status` |
+| `services/backend/.../staging-merchandising/offer-patterns.ts` | yes | FLAT5, ORDER10, Pilot Flat Offers + invariants |
+| `services/backend/.../scripts/configure-staging-merchandising.ts` | yes | idempotent campaign/offer apply + before/after audit |
+| `services/backend/.../scripts/merchandising-pilot-flat-offers-test.ts` | yes (new) | declarative configuration test |
+| `client-projects/client101/evidence/U-003/**` | yes | decision record, state, QC, closeout |
 
-No file outside the allowlist changed. No no-touch path (`apps/web`, `services/cms`, `services/hosted`, migrations, env files, `workflow-state.yaml`, other promotions) was touched.
+No file outside the allowlist. No no-touch path touched (`apps/web`, `services/cms`,
+`services/hosted`, migrations, env files, `workflow-state.yaml`, other promotions).
+
+## Deploy record
+
+| Step | Result |
+|---|---|
+| First approved candidate `fd52d6a` | **Not released** — Medusa image build failed `TS2353` (campaign budget `id` not allowed by the DTO). Staging untouched. |
+| Corrected candidate `1951cea` | Approved; image build `BUILD_EXIT=0` (medusa, medusa-worker, experience-api, event-workers) |
+| Immutable release worktree | `/opt/buildkart-releases/release-1951cea`, HEAD `1951cea`; `.env` copied from the previous release |
+| `current` switch | `release-1951cea` |
+| Containers | `medusa-api`, `medusa-worker`, `experience-api`, `event-workers` recreated; all healthy |
+| Promotion data | `configure:staging-merchandising` exit 0 at 14:29:11–14:29:15Z; `PROMO_STATE before/after` captured |
+| Proxy | restarted |
+| Health | api 200 · ops 200 · dashboard 200 · seller 200 · app 200 |
+| Runtime QC | 12/12 PASS |
+| Acceptance | PASS |
+| Hosted acceptance | 11/11 PASS |
+| Rollback | `33c6add` unused |
 
 ## Requirement ledger
 
-Statuses are the ceiling before deploy: **PASS-CODE** means code/type/build verified, runtime not exercised. No requirement is claimed PASS.
-
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| R1 | `FLAT5` active, order-level 5%, no category/group/channel rule, B2C+B2B | **PASS-CODE** | `offer-patterns.ts` declaration + `merchandising-pilot-flat-offers-test.ts` (order target, no rules); QC R1 across two categories, R9 on B2B; live `PROMO_STATE` line pending |
-| R2 | `PLY5` inactive, no new cart receives it, history untouched | **PASS-CODE** | `presets.ts` status `inactive`, `automatic:false`; declarative test; QC R2 (absent + 422); no delete in the script |
-| R3 | `ORDER10` active, order-level 10%, code-based, usage limit | **PASS-CODE** | declaration (limit 5,000) + declarative test; QC R3 |
-| R4 | New cart with a line shows Flat5% with no action, automatic marker | **PASS-CODE** | `applyAutomaticOffer` on first line + metadata marker; widget test; QC R4 |
-| R5 | Remove Flat5%; total rises 5 points; stays removed on re-fetch/quantity/address/checkout | **PASS-CODE** | DELETE sets sticky opt-out; QC R5 (exact rise + three repeated reads) |
-| R6 | ORDER10 after removal is exactly 10%, Flat5% absent, no 15% cart | **PASS-CODE** | remove-then-apply; single-offer guard; QC R6 |
-| R7 | A code replaces the current offer; no cart over 10% | **PASS-CODE** | apply path removes existing codes; QC R7 (`ORDER10→ORDER5→ORDER10`) |
-| R8 | Removing the active code leaves 0%; a new cart re-applies Flat5% | **PASS-CODE** | QC R8 (0% after re-fetch) + R8b (fresh B2B cart) |
-| R9 | B2B: Flat5% applies, TRADE7 replaces it, trade gating unchanged, non-trade rejected | **PASS-CODE** | QC R9 (non-trade 422) + R9b (B2B replacement, 7% exact) |
-| R10 | One simulated checkout with ORDER10 records the discount; no money/stock effect | **PASS-CODE** | QC R10 (order total == discounted cart total, simulated payment, `reservation_status=not_started`) |
-| R11 | QC script asserts exact rupee amounts for R1–R10 | **PASS-CODE** | `promo-code-qc.ts` (typecheck); runtime output pending in `qc-output.txt` |
-| R12 | Existing promotion tests updated; typecheck; Flutter analyze/test; zero console errors; screenshot | **PASS-CODE** | see verification below; screenshot + runtime console deferred to staging |
+| R1 | `FLAT5` active, order-level 5%, no category/group/channel rule, B2C+B2B | **PASS** | live `PROMO_STATE` (order/5, no rules); QC R1 across two categories; R9 B2B |
+| R2 | `PLY5` inactive, no new cart receives it, history untouched | **PASS** | live state `inactive`, `is_automatic=false`; QC R2 (absent + 422) |
+| R3 | `ORDER10` active, order-level 10%, code-based, usage limit | **PASS** | live state (order/10, limit 5000, no rules); QC R3 |
+| R4 | New cart with a line shows Flat5% with no action, automatic marker | **PASS** | QC R4: `is_automatic=true`, label `Flat5%`, 5% of INR 15.17 = INR 0.76 |
+| R5 | Remove Flat5%; total rises 5 points; stays removed on re-fetch/quantity/address/checkout | **PASS** | QC R5: 0% after removal, re-fetch, quantity change and address/shipping; checkout later with ORDER10 |
+| R6 | ORDER10 after removal is exactly 10%, Flat5% absent, no 15% cart | **PASS** | QC R6: 10% of INR 34.71 = INR 3.47, single offer |
+| R7 | A code replaces the current offer; no cart over 10% | **PASS** | QC R7: ORDER10→ORDER5→ORDER10, exact amounts |
+| R8 | Removing the active code leaves 0%; a new cart re-applies Flat5% | **PASS** | QC R8 (0% after re-fetch) + R8b (fresh B2B cart 5%) |
+| R9 | B2B: Flat5% applies, TRADE7 replaces it, gating unchanged, non-trade rejected | **PASS** | QC R9 (non-trade 422) + R9b (TRADE7 7% of INR 15.17 = INR 1.06) |
+| R10 | One simulated checkout with ORDER10 records the discount; no money/stock effect | **PASS** | order `og_01M5YWHA0HP53H6MK9QVARFBZK`: INR 33.22 = 34.71 − 3.47 + 1.98; simulated payment; `reservation_status=not_started` |
+| R11 | QC script asserts exact rupee amounts for R1–R10 | **PASS** | `qc-output.txt` §2; 12 checks exact to the paise |
+| R12 | Existing tests updated; typecheck; Flutter analyze/test; zero console errors; panel screenshot | **PASS-CODE** | typecheck 0 · Flutter analyze clean · 282 tests + widget test · acceptance PASS. Runtime console and screenshots are in the deferred register (app is not hosted on staging). |
 
-## Verification run (local, 2026-10-27)
+## Verification (post-deploy, staging)
 
-| Check | Command | Result |
-|---|---|---|
-| Experience API typecheck | `cd services/experience-api && bunx tsc --noEmit` | **PASS** (exit 0) |
-| U-003 declarative configuration test | `cd services/backend/packages/api && bun run src/scripts/merchandising-pilot-flat-offers-test.ts` | **PASS** (`FLAT5 5% + ORDER10 10% ... PLY5 inactive and not automatic; ceiling respected`) |
-| Flutter analyze | `cd apps/prototype_app && flutter analyze` | **PASS** (`No issues found!`) |
-| Flutter tests (full suite) | `cd apps/prototype_app && flutter test` | **PASS** (282 tests, goldens included) |
-| Promotion widget test | `flutter test test/cart_promotions_test.dart` | **PASS** (6 tests, incl. removable auto chip) |
-| `promotion-acceptance.ts` (live) | requires staging | **NOT RUN** — gated on deploy |
-| `promo-code-qc.ts` (live) | requires staging | **NOT RUN** — gated on deploy |
+| Check | Result |
+|---|---|
+| `promo-code-qc.ts` | **PASS 12/12** (exact minor-unit amounts) |
+| `promotion-acceptance.ts` | **PASS** |
+| Hosted acceptance | **11/11 PASS** |
+| Health | api 200 · ops 200 · dashboard 200 · seller 200 · app 200 |
+| Containers | medusa-api healthy · experience-api healthy · worker/event-workers running |
+| Typecheck (host image) | exit 0 |
+| Flutter analyze | No issues |
+| Flutter tests | 282 passed (full suite, goldens included) |
+| Flutter web release build | **PASS** (`Built build\web`) |
+| Declarative U-003 test | PASS |
 
-### Pre-existing failures (unchanged, out of scope)
+### Test data (staging)
 
-- `services/backend/packages/api/src/scripts/staging-merchandising-test.ts` is **already red at
-  `33c6add`**: it asserts legacy codes (`BK-STG-PROMO-*`, `BK-STG-OFFER-ORDER10`) that no longer
-  exist after the short-code rename (`6397551`). The path is outside this brief's allowlist
-  (`merchandising-*test*.ts` does not match `staging-merchandising-test.ts`) and its reviewed
-  fixture is also outside the allowlist. Not changed.
-- `merchandising-offer-patterns-test.ts` needs the Medusa container/backend dependencies, which
-  are not installed in this worktree; not run.
+- B2C cart (QC): `cart_01M5YWG73GHM4CBBR9EK7ZFDJP`
+- B2B cart (QC): `cart_01M5YWH3SZCJZ8PCNM2TBMDBR2`
+- Simulated order: `og_01M5YWHA0HP53H6MK9QVARFBZK`
+- No real money, no stock reservation (`reservation_status=not_started`).
 
-## Behaviour notes / interpretations
+## Evidence tooling (test-only, after deploy)
 
-1. **Sticky removal applies to any offer removal** (not only Flat5%). Removing ORDER10 leaves 0%
-   and does not restore Flat5%, as R6/R8 require. Applying a manual code also sets the opt-out,
-   because the customer chose to replace the store offer.
-2. **One code per POST.** A request with multiple codes now returns `400
-   invalid-promotion-code` instead of applying them in sequence. The app sends one code; D1 makes
-   multi-code requests meaningless. Existing single-code clients are unaffected.
-3. **Rejection restores the previous offer.** The API removes the current code, attempts the new
-   one, and re-applies the previous code if the engine refuses. The 422 body keeps the existing
-   `rejected_codes` shape and adds `restored_codes`.
-4. **Defensive 15% guard.** If the engine leaves two offers applied, the API removes both rather
-   than return a stacked cart.
-5. **Auto-apply runs on the first line**, not on cart creation (an empty cart cannot be
-   discounted). Carts that already had lines before the deploy are not retrofitted.
+Two evidence scripts needed corrections after the first run; the **runtime image is unchanged at
+`1951cea`**. The corrected scripts were executed through read-only bind mounts:
+
+| Commit | Change |
+|---|---|
+| `ecb6e38` | QC compares exact decimal minor units (Medusa keeps fractional paise) and waits for the promotion workflow between user-style actions |
+| `aa9aa6d` | QC selects one delivery option per seller (multi-seller cart) |
+| `8290841` | Same exact-decimal comparison in `promotion-acceptance.ts` |
+
+The first QC run also exposed that the evidence script fired mutations faster than the storefront
+ever can; the deployed API handled the user-paced sequence correctly (see §Residual risks).
 
 ## Deferred register
 
 | Item | Why | Owner / when |
 |---|---|---|
-| Runtime QC R1–R10 (`qc-output.txt`) | Requires the approved deploy + promotion data script | worker-live after `DEPLOY APPROVED` |
-| Cart/checkout screenshots (`screenshots/`) | Require the deployed app against staging | worker-live after deploy |
-| Zero console errors at runtime | Requires the app running against staging | worker-live after deploy |
+| Cart/checkout screenshots showing `Flat5% · Auto` + remove and ORDER10 | Flutter app is source-only on staging (`app-staging` is the Next.js storefront); needs a local app session | control-room live cart QC / requester |
+| Zero console errors in the running app | same reason | control-room live cart QC |
 | Formal CHG number | Requester assigns it | control room / requester |
-| Production release | Forbidden by the brief | human authorisation only |
+| Production release | Forbidden | human authorisation only |
 
 ## Residual risks
 
-1. **Discount base.** Medusa documents that `target_type: order` distributes across cart items
-   (not shipping). QC R6/R10 assert exact 10% of the item subtotal with a shipping method
-   attached; if the deployed engine differs, QC fails rather than shipping a wrong amount.
-2. **Engine behaviour change.** Flat5% relies on a code promotion plus the API's opt-out, not on
-   engine state. If a future release makes FLAT5 automatic again, removal would regress; the QC
-   suite is the guard.
-3. **Metadata write failure after apply.** The discount still shows, but as a manual code (no
-   automatic marker). It remains removable; no false claim is made.
-4. **Restore failure after a rejection.** If re-applying the previous code fails, the customer is
-   left at 0% rather than a wrong discount; the 422 explains the rejection.
-5. **Budget exhaustion.** "Pilot Flat Offers" holds INR 500,000 of spend budget; if exhausted,
-   FLAT5 stops applying. QC would show 0% on a new cart.
-6. **PLY5 history.** Inactive, not deleted. Existing order adjustments are untouched; an existing
-   cart that already carries PLY5 keeps it until recalculation, but it is no longer automatic.
-7. **Pre-existing red test** (above) remains red; it does not cover U-003 behaviour.
-8. **Cart summary label.** `apps/prototype_app/lib/screens/cart_screen.dart` is outside the scope
-   lock, so its one-line discount summary still prints the code (`FLAT5`). The offers panel and
-   the API payload use the customer label `Flat5%`.
+1. **Rapid API race.** The QC originally fired apply/remove within milliseconds; Medusa's
+   recalculation workflows overlapped and briefly reported a stale 5%. At user pace (≥1.2 s
+   between actions, and the app blocks while busy) the behaviour is correct. The API removes the
+   previous code before applying the new one; the final cart state is single-offer.
+2. **Fractional paise.** Medusa returns percentage discounts as decimals (`75.85` paise); the app
+   model stores integer minor units and truncates sub-paise fractions in display. This is
+   pre-existing and worth <1 paise; the QC asserts the exact server amount.
+3. **PLY5 history.** Inactive, not deleted; existing adjustments/orders untouched.
+4. **Budget.** Pilot Flat Offers holds INR 500,000; if exhausted, Flat5% stops applying.
+5. **Pre-existing red test.** `staging-merchandising-test.ts` was already red at `33c6add` (stale
+   `BK-STG-PROMO-*` codes; path/fixture outside the allowlist). Not changed.
+6. **Cart summary label.** `cart_screen.dart` is outside the scope lock; its one-line summary still
+   prints `FLAT5`. The offers panel and API label are `Flat5%`.
+7. **Multi-code POST.** A request with multiple codes now returns 400; the app sends one.
 
 ## Release and rollback
 
-- **Release candidate:** `fd52d6a`
-- **Previous release / rollback:** `33c6add`
-- **Mechanism:** Experience API image + Flutter app build, plus the idempotent
-  `configure-staging-merchandising` data script (run once after approval, before QC).
-- **Deploy order (brief):** API healthy → data script → app build → proxy restart → QC.
-- **Not authorised by this brief.** Awaiting a recorded deploy gate and the requester's pasted
-  approval. Production is untouched.
+- **Runtime release:** `1951cea` — `/opt/buildkart-releases/release-1951cea`
+- **Rollback:** `33c6add` — `/opt/buildkart-releases/release-33c6add`
+- **Mechanism:** Experience API + Medusa image, Flutter web build (artifact), idempotent promotion
+  data script; proxy restart after healthy containers.
+- **Production:** untouched and forbidden.

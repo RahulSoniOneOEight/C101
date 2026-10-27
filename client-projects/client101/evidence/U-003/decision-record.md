@@ -56,5 +56,5 @@ a delete action.
 | Requester brief B002 (D1–D7) | Recorded 2026-10-27 |
 | Decision record | This file |
 | Formal CHG registration | Pending — requester to assign a number |
-| Staging deploy | Not yet authorised; human gate required |
+| Staging deploy | **Executed** 2026-10-27 under the requester's gate, release `1951cea`; rollback `33c6add` |
 | Production | Forbidden |
