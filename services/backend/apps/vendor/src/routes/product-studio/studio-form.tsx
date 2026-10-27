@@ -2439,7 +2439,11 @@ export function ProductStudioForm({
               seller_provision_reason: sellerProvisionReason,
             }
           : {}),
-        sales_channel_ids: selectedChannelIds,
+        // On create an untouched list means "use the deployment default"; only an explicit
+        // selection (or an edit) is sent as-is, so a product is never published to no channel.
+        ...(selectedChannelIds.length > 0 || productId
+          ? { sales_channel_ids: selectedChannelIds }
+          : {}),
         tags,
         specifications: validSpecs.map((spec) => ({
           name: spec.name,
