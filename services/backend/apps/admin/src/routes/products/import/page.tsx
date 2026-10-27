@@ -174,10 +174,8 @@ export default function ProductImportPage() {
   }
 
   const failures = result?.results.filter((row) => row.status === "failed") ?? [];
-  const canImport =
-    result?.mode === "validate" &&
-    result.totals.failed === 0 &&
-    result.totals.ready > 0;
+  // Failed rows are skipped; valid rows can still be imported.
+  const canImport = result?.mode === "validate" && result.totals.ready > 0;
 
   return (
     <div className="flex flex-col gap-y-3 pb-24">
@@ -304,7 +302,9 @@ export default function ProductImportPage() {
                 disabled={!canImport || busy !== null}
                 onClick={() => void run("apply")}
               >
-                Import {result?.mode === "validate" ? result.totals.ready : ""} products
+                Import{" "}
+                {result?.mode === "validate" ? result.totals.ready : ""} product
+                {result?.mode === "validate" && result.totals.ready === 1 ? "" : "s"}
               </Button>
             </div>
             {error ? (
