@@ -3,6 +3,7 @@ import type {
   MedusaResponse,
 } from "@medusajs/framework/http";
 import { experienceAdminFetch } from "../../../../lib/experience-admin";
+import { loadSellerNames, sellerDisplayName } from "../../../../lib/seller-names";
 import type { AdminShipmentListResponse } from "./types";
 
 export async function GET(
@@ -14,5 +15,20 @@ export async function GET(
     actorId: req.auth_context?.actor_id,
     query: `limit=${encodeURIComponent(limit)}`,
   });
-  res.status(result.status).json(result.body as unknown as AdminShipmentListResponse);
+  if (result.status >= 400) {
+    res.status(result.status).json(result.body as never);
+    return;
+  }
+  const body = result.body as unknown as AdminShipmentListResponse;
+  const sellerNames = await loadSellerNames(
+    req.scope,
+    (body.items ?? []).map((shipment) => shipment.sellerId),
+  );
+  res.status(result.status).json({
+    ...body,
+    items: (body.items ?? []).map((shipment) => ({
+      ...shipment,
+      seller_name: sellerDisplayName(sellerNames, shipment.sellerId),
+    })),
+  });
 }

@@ -10,6 +10,8 @@ export interface AdminShipment {
   orderGroupId: string;
   allocationId: string;
   sellerId: string;
+  /** Resolved from the seller module at read time; falls back to sellerId in the UI. */
+  seller_name?: string;
   provider: string;
   trackingNumber: string;
   status: string;

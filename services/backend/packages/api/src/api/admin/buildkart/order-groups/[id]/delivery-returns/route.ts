@@ -4,6 +4,7 @@ import type {
 } from "@medusajs/framework/http";
 import { experienceAdminFetch } from "../../../../../../lib/experience-admin";
 import { hasPermission } from "../../../../../../lib/rbac";
+import { loadSellerNames, sellerDisplayName } from "../../../../../../lib/seller-names";
 import type { AdminOrderGroupDeliveryReturnsResponse } from "./types";
 
 export async function GET(
@@ -23,8 +24,17 @@ export async function GET(
     return;
   }
   const body = result.body as unknown as AdminOrderGroupDeliveryReturnsResponse;
+  const sellerNames = await loadSellerNames(
+    req.scope,
+    (body.shipments ?? []).map((shipment) => shipment.sellerId),
+  );
+  const shipments = (body.shipments ?? []).map((shipment) => ({
+    ...shipment,
+    seller_name: sellerDisplayName(sellerNames, shipment.sellerId),
+  }));
   res.status(result.status).json({
     ...body,
+    shipments,
     capabilities: {
       can_update_delivery: hasPermission(req, "delivery.update"),
       can_update_return: hasPermission(req, "return.respond"),

@@ -211,7 +211,9 @@ export default function ShipmentDetailPage() {
                   Seller
                 </Text>
                 <Text size="small" weight="plus">
-                  {shipment.sellerId}
+                  <span title={shipment.sellerId}>
+                    {shipment.seller_name || shipment.sellerId}
+                  </span>
                 </Text>
               </div>
               <div>

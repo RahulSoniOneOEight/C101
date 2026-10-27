@@ -185,13 +185,13 @@ const orderedQuantity = (shipment: Shipment) =>
 const requestedQuantity = (record: ReturnCase) =>
   record.lines.reduce((total, line) => total + line.requestedQty, 0);
 
-const Meta = ({ name, value, mono = false }: { name: string; value: string; mono?: boolean }) => (
+const Meta = ({ name, value, mono = false, title }: { name: string; value: string; mono?: boolean; title?: string }) => (
   <div className="min-w-0">
     <Text size="xsmall" className="text-ui-fg-subtle">
       {name}
     </Text>
     <Text size="small" weight="plus" className={mono ? "break-all font-mono" : "break-words"}>
-      {value}
+      <span title={title}>{value}</span>
     </Text>
   </div>
 );
@@ -481,6 +481,13 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
     can_update_return: false,
     can_decide_return: false,
   };
+  const distinctSellers = Array.from(
+    new Set(
+      data.shipments
+        .map((shipment) => shipment.seller_name || shipment.sellerId)
+        .filter(Boolean),
+    ),
+  );
   const refundedTotal = Number(order.summary?.refunded_total ?? 0);
   const currencyCode = order.currency_code ?? "inr";
   const activities = [
@@ -515,6 +522,14 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                   <Heading level="h2">Delivery</Heading>
                   <StatusBadge color="grey">{data.shipments.length}</StatusBadge>
                 </div>
+                {distinctSellers.length > 0 ? (
+                  <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                    {distinctSellers.length === 1
+                      ? "Seller"
+                      : `Sellers (${distinctSellers.length})`}
+                    : {distinctSellers.join(" · ")}
+                  </Text>
+                ) : null}
               </div>
               <Button asChild size="small" variant="secondary">
                 <Link to="/shipments">All shipments</Link>
@@ -556,7 +571,11 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-3">
                               <Meta name="Delivered" value={`${delivered} of ${ordered} units`} />
-                              <Meta name="Seller code" value={shipment.sellerId} mono />
+                              <Meta
+                                name="Seller / Store"
+                                value={shipment.seller_name || shipment.sellerId}
+                                title={shipment.sellerId}
+                              />
                             </div>
                             <div
                               className="mt-3 h-1.5 overflow-hidden rounded-full bg-ui-bg-subtle"

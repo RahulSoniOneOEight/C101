@@ -177,7 +177,11 @@ export default function ShipmentsPage() {
                             {shipment.orderGroupId}
                           </Text>
                         </Table.Cell>
-                        <Table.Cell>{shipment.sellerId}</Table.Cell>
+                        <Table.Cell>
+                          <span title={shipment.sellerId}>
+                            {shipment.seller_name || shipment.sellerId}
+                          </span>
+                        </Table.Cell>
                         <Table.Cell>
                           <StatusBadge color={statusColor(shipment.status)}>
                             {label(shipment.status)}
