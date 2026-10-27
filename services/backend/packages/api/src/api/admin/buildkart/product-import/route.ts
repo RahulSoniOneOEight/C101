@@ -83,7 +83,12 @@ function parseTiers(raw: string) {
         Number.isFinite(tier.amount) &&
         tier.amount > 0,
     )
-    .sort((left, right) => left.min_quantity - right.min_quantity);
+    .sort((left, right) => left.min_quantity - right.min_quantity)
+    .map((tier, index, all) => ({
+      ...tier,
+      max_quantity:
+        index < all.length - 1 ? all[index + 1].min_quantity - 1 : null,
+    }));
 }
 
 function parseSpecs(raw: string) {
