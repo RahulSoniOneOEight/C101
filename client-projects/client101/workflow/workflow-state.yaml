@@ -623,7 +623,7 @@ active_changes:
   - human-production-authorization
   - tryton-reservation-decision
 - change_id: CHG-086
-  status: staging-implemented-awaiting-verification
+  status: staging-applied-verified
   approval_required: true
   approved_by: human-requester
   approved_at_utc: '2026-10-27'
@@ -636,6 +636,20 @@ active_changes:
   - static-web
   - governed-data-update
   implementation_commit: c0d8483
+  latest_commit: 71acdb4
+  release:
+    admin_seller: ecb01e1
+    experience_api: ecb01e1
+    web_storefront: 5c0e867
+    android: 0.5.0+17
+    rebuilt_no_cache: true
+  verification:
+    smoke_gate: pass
+    catalogue_rule: commercial_readiness
+    dashboard_markers: pass
+    import_csv: pass
+    pricing_schedules: pass
+  incident: client-projects/client101/evidence/CHG-086/stale-image-incident-2026-10-27.md
   data_change:
     script: services/hosted/scripts/chg086-product-visibility.sh
     mode: applied-reversible
