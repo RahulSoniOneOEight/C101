@@ -105,6 +105,12 @@ try {
   if (price !== 99900) throw new Error(`unexpected storefront price ${price}`);
   step("storefront", `${productId} @ ${price}`);
 
+  const catalogue = await (await fetch(`${BASE}/v1/products?channel=b2c&limit=1`)).json();
+  if (catalogue.visibility_rule !== "commercial_readiness") {
+    throw new Error("catalogue is serving a stale Experience API build");
+  }
+  step("catalogue rule", catalogue.visibility_rule);
+
   if (consoleErrors.length > 0) {
     throw new Error(`console errors: ${consoleErrors.slice(0, 3).join(" | ")}`);
   }
