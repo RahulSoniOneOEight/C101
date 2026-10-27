@@ -13,5 +13,12 @@
 - `delivery-after-390.png` — same at 390px; actions stack and remain usable.
 - `shipments-after-1440.png` — shipments list Seller column with names.
 - `shipment-detail-after-1440.png` — shipment detail Seller with the name.
+- `orders-list-after-1440.png` — admin orders list shows group `#121` (`#144`, `#145`).
+- `order-after-1440.png` — order page with the delivery names.
+
+## Out-of-scope finding
+
+- `web-order-confirmation.png` — web storefront checkout fails with `401 A pilot bearer session is
+  required`; no order is created. The web server-side client has no pilot session (CHG-081 gap).
 
 Do not retouch these images; they are evidence.

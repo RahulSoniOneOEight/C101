@@ -125,6 +125,20 @@ Screenshots:
 | Shipment detail | Allocation `alloc_…` | labelled technical reference; kept |
 | Return card | `record.id` / `v{version}` | return reference labelled; version removal deferred (R6) |
 
+## Out-of-scope finding — web storefront checkout
+
+An order attempt on the web storefront (`https://app-staging.pinakaplay.cloud`) reached
+`/checkout` and failed at **`POST /v1/carts` → 401 “A pilot bearer session is required.”**
+The web server-side client (`apps/web/lib/experience-api.ts`) calls the Experience API without a
+pilot bearer session, so it cannot create a cart or place an order. **No order was created.**
+
+This is the CHG-081 checkout-consistency gap, not a U-005 regression. Evidence:
+`screenshots/web-order-confirmation.png`.
+
+The admin orders page still shows the existing order group `#121` (`#144`, `#145`) and the order
+detail shows the U-005 seller names — see `orders-list-after-1440.png` and
+`order-after-1440.png`.
+
 ## Deferred register
 
 | Item | Why | Owner / when |
