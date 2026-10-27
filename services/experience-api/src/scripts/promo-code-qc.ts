@@ -285,15 +285,27 @@ async function addAddressAndShipping(actor: Session, cartId: string): Promise<Ca
       },
     }),
   );
-  const shipping = await jsonRequest<{ shipping_options: Array<{ id: string }> }>(
+  const shipping = await jsonRequest<{
+    shipping_options: Array<{ id: string; seller_id: string }>;
+  }>(
     `/v1/carts/${encodeURIComponent(cartId)}/shipping-options`,
     { headers: { authorization: `Bearer ${actor.token}` } },
   );
   assert.ok(shipping.shipping_options.length > 0, "cart must resolve a seller shipping option");
-  return jsonRequest<Cart>(
-    `/v1/carts/${encodeURIComponent(cartId)}/shipping-methods`,
-    authenticated(actor.token, { option_id: shipping.shipping_options[0].id }),
-  );
+  // One delivery selection per seller; a multi-seller cart needs one method for each.
+  const optionBySeller = new Map<string, { id: string; seller_id: string }>();
+  for (const option of shipping.shipping_options) {
+    if (!optionBySeller.has(option.seller_id)) optionBySeller.set(option.seller_id, option);
+  }
+  let cart: Cart | null = null;
+  for (const option of optionBySeller.values()) {
+    cart = await jsonRequest<Cart>(
+      `/v1/carts/${encodeURIComponent(cartId)}/shipping-methods`,
+      authenticated(actor.token, { option_id: option.id }),
+    );
+  }
+  assert.ok(cart, "shipping method selection must return the cart");
+  return cart;
 }
 
 async function completeCheckout(actor: Session, cartId: string): Promise<CompletedOrder> {
