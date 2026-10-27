@@ -124,6 +124,9 @@ Statuses are the ceiling before deploy: **PASS-CODE** means code/type/build veri
 6. **PLY5 history.** Inactive, not deleted. Existing order adjustments are untouched; an existing
    cart that already carries PLY5 keeps it until recalculation, but it is no longer automatic.
 7. **Pre-existing red test** (above) remains red; it does not cover U-003 behaviour.
+8. **Cart summary label.** `apps/prototype_app/lib/screens/cart_screen.dart` is outside the scope
+   lock, so its one-line discount summary still prints the code (`FLAT5`). The offers panel and
+   the API payload use the customer label `Flat5%`.
 
 ## Release and rollback
 
