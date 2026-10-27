@@ -1,0 +1,228 @@
+PRODUCT STUDIO - UPDATE NOTE (CHG-086)
+Staging only. Production untouched.
+Last updated: 2026-10-27
+Release: dashboard + API ecb01e1 | web 5c0e867 | Android 0.5.0 (17)
+
+================================================================
+1. WHAT IS LIVE ON STAGING
+================================================================
+Admin:   https://ops-staging.pinakaplay.cloud/dashboard/
+Seller:  https://ops-staging.pinakaplay.cloud/seller/
+Web:     https://buildkart-staging.web.app
+App:     0.5.0 (17), distributed to hosted-pilot
+
+Smoke gate: PASS (create -> price -> live -> storefront price)
+Catalogue rule: commercial_readiness
+IMPORTANT: images were rebuilt with --no-cache after a stale-layer
+incident. Both the dashboard bundle and the Experience API had been
+serving old code. Do not trust "Image built" - verify a marker.
+
+================================================================
+2. ONE FLOW FOR NEW AND EDIT
+================================================================
+Entry points that all land in the same workspace:
+- Products -> Create product            -> /products/new
+- Products list -> row click            -> /product-studio/:id
+- Products list -> row menu -> Edit     -> /product-studio/:id
+- Direct /products/:id or /products/:id/edit -> redirects to studio
+
+16 sections, identical in New and Edit (verified live):
+ 1 Header                     9  Activity
+ 2 Workspace navigation      10  Review & visibility
+ 3 Product details           11  Content preview (rail)
+ 4 Media                     12  Readiness (rail)
+ 5 Organisation              13  Save bar
+ 6 Specifications            14  Guards & recovery
+ 7 Search listing            15  Section save actions
+ 8 Variants / Pricing        16  Page notice
+
+Only record-dependent states differ: Not created vs published,
+empty values, lifecycle actions, real counts.
+
+================================================================
+3. SECTIONS IN DETAIL
+================================================================
+3.1 Overview
+- Product details: product name, card subtitle, product description
+- Media: main product image URL + preview
+- Organisation:
+    category (required)
+    selling channels: B2C / B2B checkboxes (tick both = both)
+    product type, brand, manufacturer, model / part number,
+    HSN code (tax), selling unit
+- Specifications: name / value / unit rows, suggestions
+- Search listing: tags
+- Each card: expand/collapse, status chip (Complete, Optional,
+  4 values, 1 image...), per-section Save when dirty
+- New product: only Product details open; edit restores last state
+
+3.2 Variants & offers
+- Variants FIRST, then Pricing
+- Compact table: Variant | Variant SKU | Seller | Details | B2C price | Open
+- One focused editor at a time: Previous / Next / Close
+- Variant requires: Seller*, Variant name*, Variant SKU*,
+  description*, optional image
+- Single variant opens automatically (it is the default SKU)
+- Locked products explain why add/duplicate/remove/SKU edits are off
+- Bulk SKU prefix + Fill blank SKUs only when 2+ variants need a SKU
+
+3.3 Pricing
+- One price per variant's seller offer
+- B2C and B2B in one editor, one Save pricing
+- B2C: MRP / list price, selling price, GST inclusive
+- B2B: list, selling, MOQ, quantity tiers, GST
+- Scheduling is OPTIONAL and OFF by default:
+    [ ] Schedule this price  -> "Live as soon as it is saved"
+    [x] Schedule this price  -> Starts / Ends datetime fields
+  Applies to BOTH B2C and B2B.
+- B2C schedules are stored on the offer and enforced by the
+  catalogue: outside the window the product is not live.
+- B2B schedules use the existing effective-window logic.
+- No duplicate "offer price vs B2C price" entry: the summary strip
+  was removed.
+
+3.4 Inventory
+- Compact table: Variant | SKU | Seller | Tryton | On hand | ATP | Open
+- One expanded SKU: metrics, locations, staging ledger note,
+  audited adjustment request (does not change Tryton stock)
+
+3.5 Activity
+- Audited product/lifecycle/seller changes, newest first
+
+3.6 Review & visibility
+- Per channel: Published / Offer / Price / Stock gates
+- Published - Not live when a gate fails
+- Every blocker has a Fix link to the owning view and field
+- Saving after a Fix returns to Review with a fresh server check
+- B2B issues are warnings, not B2C blockers
+
+================================================================
+4. SAVING
+================================================================
+Separate scopes, separate labels:
+  Product content -> Save changes (also Save on each card)
+  One offer       -> Save pricing
+  Bulk selection  -> Apply to N
+  Inventory       -> Request adjustment (never a save)
+- Save bar is pinned to the viewport, visible only when dirty
+  (always visible while creating)
+- Ctrl/Cmd+S saves product content
+- Unsaved product/pricing blocks lifecycle actions
+- Local autosave is labelled a recovery copy, not a save
+
+================================================================
+5. CSV PRODUCT IMPORT
+================================================================
+Location: Products -> Import CSV -> /products/import
+
+Flow:
+ 1. Download empty template / template with example row
+ 2. Upload CSV -> preview (first 20 rows)
+ 3. Validate -> per-row status
+ 4. Import N products -> results + Download errors
+
+Template columns (26):
+ product_title, card_subtitle, description, category, brand,
+ manufacturer, model_number, product_type, hsn_code,
+ unit_of_measure, image_url, tags, specifications,
+ variant_name, variant_sku, variant_description,
+ variant_image_url, seller,
+ b2c_list_price, b2c_selling_price,
+ b2b_list_price, b2b_selling_price, b2b_moq, b2b_tiers,
+ stock_quantity, channel
+
+Formats:
+ - tags: semicolon separated        (plumbing;pipe)
+ - specifications: Name=Value|Name=Value
+ - b2b_tiers: min:price|min:price   (5:950|10:900)
+   ranges are closed automatically (5-9, 10+)
+ - seller: name OR seller code (sel_...)
+ - channel: b2c (default) | b2b | both
+ - prices in rupees, not paise
+
+Rules:
+ - one row = one product with one variant
+ - SKU must be new; existing SKUs are rejected
+ - category and seller must already exist
+ - selling <= list
+ - failed rows are skipped; valid rows still import
+ - imported products follow the same publish, channel, offer,
+   stock and pricing path as the studio
+
+Desktop templates:
+ C:\Users\LENOVO\Desktop\product-import-template.csv
+ C:\Users\LENOVO\Desktop\product-import-example.csv
+
+================================================================
+6. LABELS REWRITTEN FOR CLARITY
+================================================================
+Product title            -> Product name
+Short description        -> Card subtitle (shown in listings)
+Full description         -> Product description (shown on the product page)
+Thumbnail URL            -> Main product image URL
+HSN / GST code           -> HSN code (tax)
+Unit of measure          -> Selling unit
+SKU                      -> Variant SKU (used by offers, stock and orders)
+Details shown in app     -> Variant description (shown on the product page)
+List price (INR)         -> MRP / list price (Rs)
+Base selling price       -> Selling price (Rs)
+MOQ                      -> MOQ (minimum order)
+Seller codes             -> name (code) where space allows
+
+Section descriptions trimmed to one line each.
+
+================================================================
+7. STAGING DATA CHANGES
+================================================================
+Archived (reversible, no deletes):
+ - VoltEdge Modular Switch 1-Way
+ - WoodWise Plywood Sheet 18mm 8x4
+ - QC Live Variant Product
+ - QC Pexels Variant Product
+Colour and Condition: is_variant_axis = false (still filterable)
+Accidental sales channel "Pritesh jain": unlinked + soft-deleted
+Remaining channels: B2C Storefront, B2B Trade Portal
+
+================================================================
+8. QC EVIDENCE (all retained)
+================================================================
+Studio product  prod_01M5Z2PVY57PK3WQCZPZE90TN5  Rs 1,099 / B2B 1,050
+CSV product     prod_01M5Z2QBFM6AJH5VWBYDTXXQ0T  Rs 799  / B2B 780 + tiers
+  -> both 200, in catalogue, PDP renders, Add to cart present
+Smoke product   prod_01M5Z1VQD77PMVHHY4A283DQRD  Rs 999
+Earlier QC: prod_01M5X2Q7..., prod_01M5X38G..., prod_01M5X4VM8...,
+            prod_01M5Y0R6..., prod_01M5Y3XC...
+
+Web store:
+ https://buildkart-staging.web.app/#/product/prod_01M5Z2PVY57PK3WQCZPZE90TN5
+ https://buildkart-staging.web.app/#/product/prod_01M5Z2QBFM6AJH5VWBYDTXXQ0T
+
+Visibility rule: published + in channel + positive price in that
+channel + in stock. Provenance never gates visibility.
+
+================================================================
+9. BUILD / DEPLOY NOTES (why some updates looked lost)
+================================================================
+Stale Docker layers served old code for both images while reporting
+"Image built". Fix: rebuild with --no-cache, then verify markers.
+Guard: the smoke gate now fails if the catalogue rule is missing.
+
+Faster future loop:
+ - Dev proxy (HMR): BUILDKART_PROXY_TARGET=staging + MERCUR_BACKEND_URL
+   = http://localhost:7000 (admin) / 7001 (vendor)
+ - One image build per approved bundle
+ - Image only for API/routing changes the proxy cannot exercise
+ - Smoke gate after every deploy:
+   node tooling/qa/product-studio-smoke.mjs
+
+================================================================
+10. OPEN ITEMS
+================================================================
+- CSV import is create-only (no bulk update of existing SKUs)
+- CSV import is one variant per row (no multi-variant rows)
+- Order delivery/returns widget shows "Seller code" only; the
+  payload has no seller name
+- Android builds older than 0.5.0 (17) still filter by the old
+  CHG-049 marker and will not show new products until updated
+- Staging admin password rotation explicitly waived
+- Production release remains unauthorized
