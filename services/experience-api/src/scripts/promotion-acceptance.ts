@@ -166,6 +166,20 @@ function offerFor(products: Product[], category: string): {
   return { id: product.best_price.id, sellingAmount };
 }
 
+/** The catalogue is paginated; read enough pages to find the category offers. */
+async function loadCatalogue(actor: Session): Promise<Product[]> {
+  const products: Product[] = [];
+  for (let offset = 0; offset < 1500; offset += 250) {
+    const page = await jsonRequest<{ products: Product[] }>(
+      `/v1/products?limit=250&offset=${offset}`,
+      { headers: { authorization: `Bearer ${actor.token}` } },
+    );
+    products.push(...page.products);
+    if (page.products.length < 250) break;
+  }
+  return products;
+}
+
 function hasPromotion(cart: Cart, code: string): boolean {
   return Boolean(cart.promotions?.some((promotion) => promotion.code === code));
 }
@@ -209,14 +223,10 @@ const [trade, nonTrade] = await Promise.all([
   session(tradeIdentifier),
   session(nonTradeIdentifier),
 ]);
-const catalogue = await jsonRequest<{ products: Product[] }>(
-  "/v1/products?limit=250&catalogue_import=CHG-049",
-  { headers: { authorization: `Bearer ${trade.token}` } },
-);
-
-const basinOffer = offerFor(catalogue.products, "Basin Mixers & Taps");
-const pliersOffer = offerFor(catalogue.products, "Pliers & Cutters");
-const plywoodOffer = offerFor(catalogue.products, "Plywood & Boards");
+const products = await loadCatalogue(nonTrade);
+const basinOffer = offerFor(products, "Basin Mixers & Taps");
+const pliersOffer = offerFor(products, "Pliers & Cutters");
+const plywoodOffer = offerFor(products, "Plywood & Boards");
 
 // --- B2C: the store-applied Flat5% offer and code replacement (U-003) -------------------------
 const b2cCart = await createCart(nonTrade, "b2c_app");
