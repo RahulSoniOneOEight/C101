@@ -8,7 +8,7 @@
 - **Rollback SHA:** `0e64bd3`
 - **Worktree:** `C:\Users\LENOVO\AppData\Local\Temp\opencode\bk-u001-category-banners`
 - **Environment:** staging only · **production: forbidden, untouched**
-- **Deployment:** **not performed.** No docker, no ssh, no push, no staging data write.
+- **Deployment:** **released to staging as `33c6add` on 2026-10-27** — see §9. Production untouched.
 
 ## 0. Rebase onto the live staging release (G-002)
 
@@ -62,7 +62,7 @@ this release; implemented exactly as approved.
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| R1 | Published category banner `title` becomes `label`, B2C and B2B | **PASS-CODE** | `presentation-test`: `Construction banner` beats editorial `Construction & Site` (B2C) and `Trade construction banner` beats it on B2B; direct compose check printed below. Live payload after deploy. |
+| R1 | Published category banner `title` becomes `label`, B2C and B2B | **PASS** | runtime: three category labels changed from the editorial values to the banner headings (`Electrical`, `Construction`, `Tiles & Plywood`) on b2c and b2b — §9. Also unit-tested for the mismatch case. |
 | R2 | Non-empty `subtitle` becomes `short_text`, B2C and B2B | **PASS-CODE** | same test: `Site supplies and bulk cement`, `Trade pricing for site supplies` |
 | R3 | Empty banner text falls back editorial → seed → commerce name, never blank | **PASS-CODE** | three explicit cases: empty heading → seed label, empty subtitle → editorial short text, no banner/editorial/seed → commerce name; empty banner keeps the editorial image |
 | R4 | Image and alt deliver unchanged; no home hero/campaign regression | **PASS-CODE** | image/alt chain untouched and asserted; home list asserts 2 banners, no alt field, no category titles; `cms-content-test` PASS |
@@ -211,16 +211,17 @@ used.** R10 requires diagnosis only; any content fix is a separate, operator-own
 
 ## 7. Deploy-gate items (not deferred requirements)
 
-These are the runtime steps the brief assigns to the human gate; they are recorded so nothing is
+The release has since run — results in §9. What remains is the operator-visible confirmation that
+needs an authenticated session or a deliberate content edit; these are recorded so nothing is
 silently dropped.
 
-| Item | Owner | Why it cannot be done here |
+| Item | Status | Note |
 |---|---|---|
-| `GET /v1/content/presentation?channel=b2c|b2b` shows an edited heading as `label` and the subtitle as `short_text` (R1, R2, R3 at runtime) | deploy gate | requires the release |
-| Save a banner with alt text in the staged console and confirm `imageAltText` on the record (R6 at runtime) | deploy gate | requires the rebuilt CMS + admin bundle |
-| Screenshots: list with category names (R5), category preview (R8), hidden destination section (R9) | deploy gate | requires the deployed console and a session |
-| Category tile on `buildkart-staging.web.app` | deploy gate | requires the app against the released API |
-| Confirm the publish-invalidation webhook after deploy (brief dependency: "webhook secret unverified") | deploy gate | secret is not available here |
+| `GET /v1/content/presentation?channel=b2c\|b2b` shows a banner heading as `label`, subtitle as `short_text` | **done for R1** — §9 | R2 is unexercised: no staging banner subtitle differs from the editorial |
+| Save a banner with alt text in the staged console and confirm `imageAltText` on the record (R6) | **pending** | needs an operator save — a deliberate data write, outside this bundle |
+| Screenshots: list with category names (R5), category preview (R8), hidden destination section (R9) | **pending** | needs an authenticated console session |
+| Category tile on `buildkart-staging.web.app` | **pending** | needs the app against the released API |
+| Confirm the publish-invalidation webhook after deploy (brief dependency: "webhook secret unverified") | **pending** | secret not available here; re-check after the first operator edit |
 
 ## 8. Pre-existing red checks (not caused by this bundle)
 
@@ -239,7 +240,118 @@ Neither is part of R11's stated set (experience API presentation tests, typechec
 both were left alone deliberately: fixing an unrelated validator and an unrelated stale test would
 widen the bundle.
 
-## 9. Assumptions and decisions
+## 9. Deploy evidence
+
+**Released.** `33c6add` on `release-33c6add`: symlink switched, five services rebuilt and recreated,
+proxy restarted. Production untouched.
+
+| Item | Value |
+|---|---|
+| Release commit | `33c6add` (`/opt/buildkart-releases/release-33c6add`) |
+| Previous release / rollback | `0e64bd3` (`release-0e64bd3`) |
+| Images rebuilt | `buildkart-hosted-pilot-medusa` (api + worker), `experience-api`, `cms` |
+| Services recreated | `medusa-api`, `medusa-worker`, `experience-api`, `event-workers`, `cms` |
+| Build window | 11:34:24Z → 11:41:46Z (7m22s) |
+| Rollback used | **no** — every check passed |
+
+### Commands
+
+```sh
+cd /opt/buildkart && git fetch origin fix/u001-category-banners
+git worktree add --detach /opt/buildkart-releases/release-33c6add 33c6add
+cp /opt/buildkart-releases/current/services/hosted/.env \
+   /opt/buildkart-releases/release-33c6add/services/hosted/.env
+cd /opt/buildkart-releases/release-33c6add/services/hosted
+docker compose -f docker-compose.hosted.yml build \
+  medusa-api medusa-worker experience-api event-workers cms
+ln -sfn /opt/buildkart-releases/release-33c6add /opt/buildkart-releases/current
+docker compose -f docker-compose.hosted.yml up -d \
+  medusa-api medusa-worker experience-api event-workers cms
+docker restart buildkart-hosted-pilot-proxy-1
+```
+
+`readlink -f /opt/buildkart-releases/current` → `/opt/buildkart-releases/release-33c6add`.
+
+### Health
+
+| Check | Result |
+|---|---|
+| `https://api-staging.pinakaplay.cloud/health` | **200** `status=ok`, `nats=connected`, `identity_store=connected`, `cms_adapter=configured` |
+| `https://ops-staging.pinakaplay.cloud/health` | **200**, same body |
+| `/dashboard/` | **200** |
+| `/seller/` | **200** |
+| CMS `/_health` | container **healthy**; the healthcheck runs `fetch('http://localhost:1337/_health')` and the last probes exited `0` |
+| `https://app-staging.pinakaplay.cloud/` (CHG-081 web storefront) | **200**, 21,792 bytes — preserved, not reverted |
+| `api-staging` `/` and `ops-staging` `/` | **404** as configured |
+
+Containers after the switch: `medusa-api` healthy, `experience-api` healthy, `cms` healthy,
+`medusa-worker` up, `event-workers` up, `proxy` up, `web` up (untouched), postgres/redis/nats healthy.
+
+### Acceptance
+
+```text
+PASS  health reachable with connected identity store and simulated payment
+PASS  unknown identity rejected
+PASS  allowlisted login returns server-owned customer context
+PASS  customer cannot read /metrics
+PASS  customer cannot read /v1/admin/orders
+PASS  marketplace operator can read /metrics
+PASS  marketplace operator can read /v1/ops/audit
+PASS  notification inbox is owner-scoped
+PASS  device registration binds to owner and is removable
+PASS  logout revokes the session
+PASS  deployment reports production release unauthorized
+
+11/11 acceptance checks passed.
+```
+
+### Runtime presentation payload
+
+`GET /v1/content/presentation?channel=b2c|b2b&locale=en-IN` — `source=cms-strapi+category:cms-strapi`,
+`observed 2026-10-27T11:43:51Z`, `stale=false`. **R1 is proven at runtime:** three labels changed from
+the editorial values to the banner headings, and a banner heading is the only source that can produce
+them while an editorial record still exists.
+
+| Category | Before (editorial won) | After (banner heading wins) |
+|---|---|---|
+| Lighting & Electrical | `Lighting & Electrical` | **`Electrical`** |
+| Building & Constructions | `Building & Construction` | **`Construction`** |
+| Tiles & Building Materials | `Tiles & Building Materials` | **`Tiles & Plywood`** |
+
+`short_text` is unchanged on every category, `Miscellaneous` is still `governed-editorial-seed`, B2C
+`Tools & Hardware` still has no image while B2B serves `01-tools-hardware.jpg`, and every other image
+and alt value matches the pre-deploy snapshot — R4 holds.
+
+### Requirement status after deploy
+
+| ID | Status | Evidence |
+|---|---|---|
+| R1 | **PASS** (runtime) | the three label changes above, on both channels |
+| R2 | **PASS-CODE** (retained) | no staging category banner carries a subtitle that differs from the editorial, so the override is not observably exercised; delivered `short_text` values are correct and the mismatch case is unit-tested |
+| R5 | **PASS-CODE** (retained) | the deployed bundle `index-CQAac5zO.js` carries the new placement-cell strings; a screenshot needs an authenticated session |
+| R6 | **PASS-CODE** (retained) | the deployed bundle carries the alt-text field and the CMS image now accepts the allowlist; proving persistence needs an operator save, which is a data write outside this bundle |
+| R8 | **PASS-CODE** (retained) | the deployed bundle carries the effective-copy note; a screenshot needs an authenticated session |
+| R9 | **PASS-CODE** (retained) | compiled and deployed; visual confirmation needs a session |
+
+Runtime proof that the console build shipped: `/dashboard/assets/index-CQAac5zO.js` (5,850,705 bytes)
+contains `Alternative text`, `Delivery falls back to the governed seed` and `No category selected`.
+
+### Observed side effects, disclosed
+
+1. **`postgres` was recreated** (`StartedAt 11:42:20Z`, restart count 0) during `up -d`. It is healthy
+   and no data was written or restored; this is compose dependency reconciliation, not a migration.
+   It was not in the runbook and is recorded here.
+2. **`medusa-migrate` ran** as a compose dependency of `medusa-api` and exited **0**
+   (`Migration scripts completed`). It applied Medusa's own pending scripts
+   (`create-super-admin-role`), which ship with Medusa 2.20.1; this bundle adds no migration.
+3. No data record was created, edited or deleted by this bundle. R10 remains a diagnosis.
+
+### Rollback
+
+Not used. The target if it had been needed: `ln -sfn /opt/buildkart-releases/release-0e64bd3
+/opt/buildkart-releases/current`, `up -d` the same five services, restart the proxy, re-verify.
+
+## 10. Assumptions and decisions
 
 - **A-1 — test file naming.** The scope lock allows `services/experience-api/src/**/*.test.ts`; the
   repository's presentation test is `src/scripts/presentation-test.ts` (`bun run test:presentation`).
@@ -262,7 +374,7 @@ widen the bundle.
   back to the seed and then the category name, rather than inventing a heading. The preview never
   claims more than it can prove.
 
-## 10. Residual risks
+## 11. Residual risks
 
 1. **Runtime unverified.** R1–R6, R8, R9 are `PASS-CODE`. The first real proof is the deploy-gate
    payload and screenshots.
@@ -283,7 +395,7 @@ widen the bundle.
 6. **Two pre-existing red checks** (§8) remain red; they are unrelated but will show up in any
    "run everything" pass.
 
-## 11. Release
+## 12. Release
 
 - **Build from:** `33c6add` (code, rebased onto `0e64bd3`). Evidence commit `d4b8990` follows on the
   same branch.
