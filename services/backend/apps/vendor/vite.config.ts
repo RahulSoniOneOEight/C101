@@ -15,7 +15,28 @@ export default defineConfig(({ mode }) => {
   // same-origin; it defaults to http://localhost:9000 for development.
   const backendUrl = env.VITE_MERCUR_BACKEND_URL || env.MERCUR_BACKEND_URL
 
+
+  // Optional: run the dashboard with HMR against a deployed staging environment.
+  //   BUILDKART_PROXY_TARGET=https://ops-staging.pinakaplay.cloud \
+  //   MERCUR_BACKEND_URL=http://localhost:7001 bunx vite
+  // Same-origin calls keep the staging session cookie valid while API paths are proxied.
+  const proxyTarget = env.BUILDKART_PROXY_TARGET?.trim();
+  const stagingProxy = proxyTarget
+    ? {
+        server: {
+          port: 7001,
+          proxy: Object.fromEntries(
+            ["/vendor","/admin","/auth","/store","/static","/uploads","/health"].map((path) => [
+              path,
+              { target: proxyTarget, changeOrigin: true, secure: true },
+            ]),
+          ),
+        },
+      }
+    : {};
+
   return {
+    ...stagingProxy,
     plugins: [
       react(),
       mercurDashboardPlugin({
