@@ -180,13 +180,14 @@ function subtotalOf(cart: Cart): number {
   );
 }
 
-/** Exact discount for an order-level percentage, in minor units. */
+/** Exact discount for an order-level percentage, in minor units (Medusa keeps decimals). */
 function expectPercentDiscount(cart: Cart, percent: number, label: string): void {
-  const expected = Math.round((subtotalOf(cart) * percent) / 100);
-  assert.equal(
-    cart.discount_total ?? 0,
-    expected,
-    `${label}: expected ${percent}% of ${subtotalOf(cart)} = ${expected}, got ${cart.discount_total ?? 0}`,
+  const subtotal = subtotalOf(cart);
+  const expected = (subtotal * percent) / 100;
+  const actual = cart.discount_total ?? 0;
+  assert.ok(
+    Math.abs(actual - expected) < 1e-6,
+    `${label}: expected ${percent}% of ${subtotal} = ${expected}, got ${actual}`,
   );
 }
 
