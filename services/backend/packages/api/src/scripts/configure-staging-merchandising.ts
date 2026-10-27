@@ -30,7 +30,8 @@ import {
 } from "../staging-merchandising/presets";
 import { isStagingMerchandisingEnabled } from "../staging-merchandising/runtime";
 import {
-  STAGING_OFFER_CAMPAIGN,
+  OFFER_CAMPAIGNS,
+  PILOT_FLAT_OFFERS,
   STAGING_OFFERS,
   buildOffer,
 } from "../staging-merchandising/offer-patterns";
@@ -51,6 +52,9 @@ interface PromotionRuleRecord {
 interface PromotionRecord {
   id: string;
   code: string;
+  status?: string;
+  is_automatic?: boolean | null;
+  limit?: number | null;
   campaign_id: string | null;
   rules?: PromotionRuleRecord[];
   application_method?: ApplicationMethodRecord;
@@ -104,6 +108,10 @@ export default async function configureStagingMerchandising({ container }: ExecA
       config?: Record<string, unknown>,
     ): Promise<PromotionRecord[]>;
   };
+
+  // U-003 evidence: the exact promotion state before and after the governed apply. This is the
+  // "live promotion/rule read" behind R1-R3; it is idempotent and never mutates anything.
+  await logGovernedPromotionState(logger, promotionService, "before");
 
   // 1. Trade customer group used by the B2B promotion rule.
   let [tradeGroup] = await customerService.listCustomerGroups({
@@ -229,7 +237,7 @@ export default async function configureStagingMerchandising({ container }: ExecA
           promotionsData: [
             {
               id: existing.id,
-              status: "active",
+              status: preset.status ?? "active",
               is_automatic: preset.automatic,
               limit: preset.usageLimit,
             },
@@ -265,7 +273,7 @@ export default async function configureStagingMerchandising({ container }: ExecA
           {
             code: preset.code,
             type: "standard",
-            status: "active",
+            status: preset.status ?? "active",
             is_automatic: preset.automatic,
             limit: preset.usageLimit,
             campaign_id: campaignId,
@@ -278,61 +286,66 @@ export default async function configureStagingMerchandising({ container }: ExecA
     logger.info(`Created staging promotion ${preset.code}.`);
   }
 
-  // 5. CHG-030 offer lab — one campaign plus engine-verified offer patterns.
-  const [existingOfferCampaign] = await promotionService.listCampaigns(
-    { campaign_identifier: STAGING_OFFER_CAMPAIGN.campaignKey },
-    { relations: ["budget"] },
-  );
-  const offerBudgetLimit = budgetAmountMajor(STAGING_OFFER_CAMPAIGN.budgetAmountMinor);
-  let offerCampaignId: string;
+  // 5. CHG-030 offer lab + U-003 pilot flat offers — campaigns plus engine-verified patterns.
+  const offerCampaignIdByKey = new Map<string, string>();
+  for (const campaignPreset of OFFER_CAMPAIGNS) {
+    const [existingOfferCampaign] = await promotionService.listCampaigns(
+      { campaign_identifier: campaignPreset.campaignKey },
+      { relations: ["budget"] },
+    );
+    const offerBudgetLimit = budgetAmountMajor(campaignPreset.budgetAmountMinor);
 
-  if (existingOfferCampaign) {
-    const budgetUpdate = existingOfferCampaign.budget?.id
-      ? { budget: { id: existingOfferCampaign.budget.id, limit: offerBudgetLimit } }
-      : {};
-    if (!existingOfferCampaign.budget?.id) {
-      throw new Error(
-        `Staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey} has no budget. Delete and reconfigure it.`,
-      );
+    if (existingOfferCampaign) {
+      if (!existingOfferCampaign.budget?.id) {
+        throw new Error(
+          `Staging campaign ${campaignPreset.campaignKey} has no budget. Delete and reconfigure it.`,
+        );
+      }
+      await updateCampaignsWorkflow(container).run({
+        input: {
+          campaignsData: [
+            {
+              id: existingOfferCampaign.id,
+              name: campaignPreset.title,
+              starts_at: new Date(campaignPreset.startsAt),
+              ends_at: new Date(campaignPreset.endsAt),
+              // The workflow resolves the campaign's single budget; the DTO forbids an id here.
+              budget: { limit: offerBudgetLimit },
+            },
+          ],
+        },
+      });
+      offerCampaignIdByKey.set(campaignPreset.campaignKey, existingOfferCampaign.id);
+      logger.info(`Updated staging campaign ${campaignPreset.campaignKey}.`);
+      continue;
     }
-    await updateCampaignsWorkflow(container).run({
-      input: {
-        campaignsData: [
-          {
-            id: existingOfferCampaign.id,
-            name: STAGING_OFFER_CAMPAIGN.title,
-            starts_at: new Date(STAGING_OFFER_CAMPAIGN.startsAt),
-            ends_at: new Date(STAGING_OFFER_CAMPAIGN.endsAt),
-            ...budgetUpdate,
-          },
-        ],
-      },
-    });
-    offerCampaignId = existingOfferCampaign.id;
-    logger.info(`Updated staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey}.`);
-  } else {
+
     const { result } = await createCampaignsWorkflow(container).run({
       input: {
         campaignsData: [
           {
-            name: STAGING_OFFER_CAMPAIGN.title,
-            campaign_identifier: STAGING_OFFER_CAMPAIGN.campaignKey,
-            starts_at: new Date(STAGING_OFFER_CAMPAIGN.startsAt),
-            ends_at: new Date(STAGING_OFFER_CAMPAIGN.endsAt),
+            name: campaignPreset.title,
+            campaign_identifier: campaignPreset.campaignKey,
+            starts_at: new Date(campaignPreset.startsAt),
+            ends_at: new Date(campaignPreset.endsAt),
             budget: {
               type: "spend" as const,
               limit: offerBudgetLimit,
-              currency_code: STAGING_OFFER_CAMPAIGN.currencyCode,
+              currency_code: campaignPreset.currencyCode,
             },
           },
         ],
       },
     });
-    offerCampaignId = result[0].id;
-    logger.info(`Created staging campaign ${STAGING_OFFER_CAMPAIGN.campaignKey}.`);
+    offerCampaignIdByKey.set(campaignPreset.campaignKey, result[0].id);
+    logger.info(`Created staging campaign ${campaignPreset.campaignKey}.`);
   }
 
-  for (const offer of STAGING_OFFERS) {
+  for (const offer of [...STAGING_OFFERS, ...PILOT_FLAT_OFFERS]) {
+    const offerCampaignId = offerCampaignIdByKey.get(offer.campaignKey);
+    if (!offerCampaignId) {
+      throw new Error(`${offer.code} references an unconfigured campaign.`);
+    }
     let categoryId: string | undefined;
     if (offer.categoryReference) {
       categoryId = categoryByName.get(offer.categoryReference)?.id;
@@ -425,8 +438,75 @@ export default async function configureStagingMerchandising({ container }: ExecA
     logger.info(`Created staging offer ${offer.code}.`);
   }
 
+  await logGovernedPromotionState(logger, promotionService, "after");
+
   logger.info(
     "CHG-029 merchandising presets configured; promotions are marketplace-funded and no seller link was created.",
+  );
+}
+
+/** Promotion codes whose live state U-003 must prove before and after the governed apply. */
+const AUDITED_PROMOTION_CODES = ["FLAT5", "ORDER10", "PLY5", "ORDER5"];
+
+function ruleValuesOf(rule: PromotionRuleRecord): string[] {
+  return (rule.values ?? []).map((value) =>
+    typeof value === "string" ? value : value.value,
+  );
+}
+
+/**
+ * Emit the live status/value/target/rules of the promotions U-003 touches. Read-only: this is the
+ * evidence behind R1-R3 and it is safe to re-run.
+ */
+async function logGovernedPromotionState(
+  logger: { info(message: string): void },
+  promotionService: {
+    listPromotions(
+      filters: Record<string, unknown>,
+      config?: Record<string, unknown>,
+    ): Promise<PromotionRecord[]>;
+  },
+  phase: "before" | "after",
+): Promise<void> {
+  const promotions = (
+    await Promise.all(
+      AUDITED_PROMOTION_CODES.map((code) =>
+        promotionService.listPromotions(
+          { code },
+          { relations: ["rules", "rules.values", "application_method"] },
+        ),
+      ),
+    )
+  ).flat() as PromotionRecord[];
+
+  const state = promotions
+    .map((promotion) => ({
+      code: promotion.code,
+      status: promotion.status ?? null,
+      is_automatic: promotion.is_automatic ?? null,
+      limit: promotion.limit ?? null,
+      campaign_id: promotion.campaign_id,
+      application_method: promotion.application_method
+        ? {
+            type: promotion.application_method.type,
+            target_type: promotion.application_method.target_type,
+            allocation: promotion.application_method.allocation,
+            value: promotion.application_method.value,
+          }
+        : null,
+      rules: (promotion.rules ?? []).map((rule) => ({
+        attribute: rule.attribute,
+        operator: rule.operator,
+        values: ruleValuesOf(rule),
+      })),
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code));
+
+  logger.info(
+    `U-003 PROMO_STATE ${phase} ${JSON.stringify({
+      codes: AUDITED_PROMOTION_CODES,
+      promotions: state,
+    })}`,
   );
 }
 

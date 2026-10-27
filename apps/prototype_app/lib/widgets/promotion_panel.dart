@@ -128,16 +128,19 @@ class _PromotionPanelState extends ConsumerState<PromotionPanel> {
               runSpacing: AgencySpacing.xs,
               children: <Widget>[
                 for (final promotion in automatic)
-                  Chip(
+                  InputChip(
                     avatar: const Icon(Icons.auto_awesome, size: 14),
-                    label: Text('${promotion.code} · Auto',
+                    label: Text('${promotion.displayLabel} · Auto',
                         style: const TextStyle(fontSize: 11)),
+                    deleteIcon: const Icon(Icons.close, size: 16),
+                    deleteButtonTooltipMessage: 'Remove offer',
+                    onDeleted: _busy ? null : () => _remove(promotion.code),
                   ),
               ],
             ),
             const SizedBox(height: AgencySpacing.xs),
             Text(
-              'Store-applied offers stay active. You can still add a code and the engine will decide the final discount.',
+              'Applied by the store. Remove it or enter a different code — only one offer applies at a time.',
               style: TextStyle(fontSize: 11, color: colors.contentSecondary),
             ),
           ],
@@ -149,7 +152,7 @@ class _PromotionPanelState extends ConsumerState<PromotionPanel> {
               children: <Widget>[
                 for (final promotion in codes)
                   InputChip(
-                    label: Text(promotion.code,
+                    label: Text(promotion.displayLabel,
                         style: const TextStyle(fontSize: 11)),
                     onDeleted: _busy ? null : () => _remove(promotion.code),
                   ),

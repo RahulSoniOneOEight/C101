@@ -702,19 +702,31 @@ String? cartLineImageUrl(CartLineItem line, List<Product> catalogue) {
 
 /// A promotion code applied to a cart by the engine.
 class AppliedPromotion {
-  const AppliedPromotion({required this.code, this.isAutomatic = false});
+  const AppliedPromotion({
+    required this.code,
+    this.label,
+    this.isAutomatic = false,
+  });
 
   final String code;
+
+  /// Customer-facing label from the API (`Flat5%`); falls back to the code.
+  final String? label;
+
   final bool isAutomatic;
+
+  String get displayLabel => (label ?? '').isEmpty ? code : label!;
 
   factory AppliedPromotion.fromJson(Map<String, dynamic> json) =>
       AppliedPromotion(
         code: json['code'] as String? ?? '',
+        label: json['label'] as String?,
         isAutomatic: json['is_automatic'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'code': code,
+        'label': label,
         'is_automatic': isAutomatic,
       };
 }

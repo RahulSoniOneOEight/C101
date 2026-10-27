@@ -35,12 +35,15 @@ import {
   PREVIEW_DEVICES,
   SUPPORTED_PLACEMENTS,
   bannerTitle,
+  categoryEditorialCopy,
+  effectiveCategoryCopy,
   formFromDocument,
   isRenderedPlacement,
   localeLabel,
   placementLabel,
   placementRequiresCategory,
   serializeBannerForm,
+  supportedPlacement,
   validateBannerForm,
   type BannerForm,
   type PreviewDevice,
@@ -125,6 +128,7 @@ export function BannerEditor({
   // A placement belongs to one channel, so its audience list has a single entry. A stored legacy value
   // is added back so the field never shows blank, and is normalised on the next save.
   const requiresCategory = placementRequiresCategory(form.placement);
+  const placementChannel = supportedPlacement(form.placement)?.channel ?? "b2c";
   const categoriesQuery = useQuery({
     queryKey: ["buildkart", "commerce-categories"],
     queryFn: () => client.admin.buildkart.categories.query(),
@@ -132,6 +136,42 @@ export function BannerEditor({
     staleTime: 5 * 60 * 1000,
   });
   const categoryOptions = categoriesQuery.data?.categories ?? [];
+  const categoryName = categoryOptions.find((category) => category.id === form.categoryId)?.name;
+
+  // Delivery resolves a category's copy from the banner first, then the published category
+  // editorial. The preview reads the same two records so it cannot show a heading delivery ignores.
+  const editorialsQuery = useQuery({
+    queryKey: ["buildkart", "cms-content", "category-editorial", activeLocale],
+    queryFn: () => client.admin.buildkart.content.query({
+      kind: "category-editorial",
+      locale: activeLocale,
+    }),
+    enabled: open && requiresCategory,
+    staleTime: 60 * 1000,
+  });
+  const categoryCopy = useMemo(() => {
+    if (!requiresCategory) return undefined;
+    const editorial = categoryEditorialCopy(
+      editorialsQuery.data?.documents ?? [],
+      placementChannel,
+      form.categoryId,
+      categoryName,
+    );
+    return effectiveCategoryCopy({
+      title: form.title,
+      subtitle: form.subtitle,
+      editorialLabel: editorial?.label,
+      editorialShortText: editorial?.shortText,
+    });
+  }, [
+    requiresCategory,
+    editorialsQuery.data,
+    placementChannel,
+    form.categoryId,
+    form.title,
+    form.subtitle,
+    categoryName,
+  ]);
 
   // The page remounts this editor per record (`key`), so initial state is enough: no reset effect.
 
@@ -458,8 +498,7 @@ export function BannerEditor({
                     >
                       Category details
                     </Link>
-                    . B2B category banners save and publish now but render only once the B2B app reads
-                    the CMS.
+                    ; a heading or supporting text entered here overrides them for this category.
                   </Text>
                 </section>
 
@@ -484,6 +523,19 @@ export function BannerEditor({
                       onChange={(event) => update({ externalImageUrl: event.target.value })}
                     />
                   </Field>
+                  <Field
+                    id="banner-image-alt"
+                    label="Alternative text"
+                    description="Describes the creative for screen readers. Delivered with a category banner image; a home banner is described by its heading."
+                  >
+                    <Input
+                      id="banner-image-alt"
+                      maxLength={160}
+                      value={form.imageAltText}
+                      onChange={(event) => update({ imageAltText: event.target.value })}
+                      data-testid="banner-image-alt"
+                    />
+                  </Field>
                   <Field id="banner-crop" label="Image crop" description="Not supported yet.">
                     <Input id="banner-crop" value="Fixed by the customer app" disabled readOnly />
                   </Field>
@@ -506,52 +558,65 @@ export function BannerEditor({
                       onChange={(event) => update({ subtitle: event.target.value })}
                     />
                   </Field>
-                  <Field id="banner-cta-label" label="Button label">
-                    <Input
-                      id="banner-cta-label"
-                      maxLength={25}
-                      value={form.ctaLabel}
-                      onChange={(event) => update({ ctaLabel: event.target.value })}
-                    />
-                  </Field>
-                </section>
-
-                <section className="flex flex-col gap-y-5">
-                  <div>
-                    <Heading level="h2">03 · Destination</Heading>
-                    <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                      Editorial references only. Searchable commerce pickers are not available yet, so
-                      enter the governed reference directly.
-                    </Text>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field id="banner-dest-type" label="Destination type">
-                      <Select value={form.ctaTargetType} onValueChange={(value) => update({ ctaTargetType: value })}>
-                        <Select.Trigger id="banner-dest-type"><Select.Value /></Select.Trigger>
-                        <Select.Content>
-                          {CTA_TARGET_TYPES.map((value) => (
-                            <Select.Item key={value} value={value}>{CTA_TARGET_LABELS[value]}</Select.Item>
-                          ))}
-                        </Select.Content>
-                      </Select>
-                    </Field>
-                    <Field
-                      id="banner-dest-target"
-                      label={form.ctaTargetType === "url" ? "External URL" : "Reference"}
-                      description={form.ctaTargetType === "route"
-                        ? "Must start with '/', for example /browse?tag=Flash%20Deals."
-                        : form.ctaTargetType === "url"
-                          ? "Must be an https URL."
-                          : "Enter the governed commerce reference id."}
-                    >
+                  {requiresCategory ? null : (
+                    <Field id="banner-cta-label" label="Button label">
                       <Input
-                        id="banner-dest-target"
-                        value={form.ctaTargetId}
-                        onChange={(event) => update({ ctaTargetId: event.target.value })}
+                        id="banner-cta-label"
+                        maxLength={25}
+                        value={form.ctaLabel}
+                        onChange={(event) => update({ ctaLabel: event.target.value })}
                       />
                     </Field>
-                  </div>
+                  )}
                 </section>
+
+                {requiresCategory ? (
+                  <section className="flex flex-col gap-y-2">
+                    <Heading level="h2">03 · Destination</Heading>
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      A category banner does not take a call to action in this bundle: tapping the
+                      category tile already opens the category, so no destination is stored or
+                      delivered.
+                    </Text>
+                  </section>
+                ) : (
+                  <section className="flex flex-col gap-y-5">
+                    <div>
+                      <Heading level="h2">03 · Destination</Heading>
+                      <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                        Editorial references only. Searchable commerce pickers are not available yet, so
+                        enter the governed reference directly.
+                      </Text>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field id="banner-dest-type" label="Destination type">
+                        <Select value={form.ctaTargetType} onValueChange={(value) => update({ ctaTargetType: value })}>
+                          <Select.Trigger id="banner-dest-type"><Select.Value /></Select.Trigger>
+                          <Select.Content>
+                            {CTA_TARGET_TYPES.map((value) => (
+                              <Select.Item key={value} value={value}>{CTA_TARGET_LABELS[value]}</Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select>
+                      </Field>
+                      <Field
+                        id="banner-dest-target"
+                        label={form.ctaTargetType === "url" ? "External URL" : "Reference"}
+                        description={form.ctaTargetType === "route"
+                          ? "Must start with '/', for example /browse?tag=Flash%20Deals."
+                          : form.ctaTargetType === "url"
+                            ? "Must be an https URL."
+                            : "Enter the governed commerce reference id."}
+                      >
+                        <Input
+                          id="banner-dest-target"
+                          value={form.ctaTargetId}
+                          onChange={(event) => update({ ctaTargetId: event.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  </section>
+                )}
 
                 <section className="flex flex-col gap-y-5">
                   <div>
@@ -664,6 +729,7 @@ export function BannerEditor({
                       isPending={preview.isPending}
                       isError={preview.isError}
                       errorMessage={preview.error instanceof Error ? preview.error.message : undefined}
+                      categoryCopy={categoryCopy}
                     />
                   ) : (
                     <Text size="small" className="text-ui-fg-subtle">

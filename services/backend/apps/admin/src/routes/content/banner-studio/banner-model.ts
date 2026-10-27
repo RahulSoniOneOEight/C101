@@ -223,6 +223,7 @@ export interface BannerForm {
   categoryId: string;
   title: string;
   subtitle: string;
+  imageAltText: string;
   ctaLabel: string;
   ctaTargetType: string;
   ctaTargetId: string;
@@ -241,6 +242,7 @@ export const EMPTY_BANNER_FORM: BannerForm = {
   categoryId: "",
   title: "",
   subtitle: "",
+  imageAltText: "",
   ctaLabel: "",
   ctaTargetType: "route",
   ctaTargetId: "",
@@ -267,6 +269,7 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     categoryId: text(document.categoryId),
     title: text(document.title),
     subtitle: text(document.subtitle),
+    imageAltText: text(document.imageAltText),
     ctaLabel: text(document.ctaLabel),
     ctaTargetType: text(document.ctaTargetType) || "route",
     ctaTargetId: text(document.ctaTargetId),
@@ -360,6 +363,7 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     categoryId: placementRequiresCategory(form.placement) ? form.categoryId.trim() || null : null,
     title: form.title.trim(),
     subtitle: form.subtitle.trim() || null,
+    imageAltText: form.imageAltText.trim() || null,
     ctaLabel: form.ctaLabel.trim() || null,
     ctaTargetType: form.ctaTargetType,
     ctaTargetId: form.ctaTargetId.trim() || null,
@@ -388,6 +392,80 @@ export function bannerKey(document: ContentDocument): string {
   return typeof document.contentKey === "string" && document.contentKey.trim()
     ? document.contentKey.trim()
     : document.documentId;
+}
+
+/**
+ * The copy the storefront will actually show for a category placement — CHG-087 / U-001.
+ *
+ * Delivery precedence is banner heading -> category editorial label -> governed seed -> commerce
+ * name, and subtitle -> editorial short text -> seed. The console cannot read the governed seed, so
+ * when neither record supplies a value this reports `fallback` and the preview says so instead of
+ * printing a heading that delivery would ignore.
+ */
+export type CategoryCopySource = "banner" | "editorial" | "fallback";
+export type CategoryShortTextSource = "banner" | "editorial" | "none";
+
+export interface EffectiveCategoryCopy {
+  label: string;
+  labelSource: CategoryCopySource;
+  shortText: string;
+  shortTextSource: CategoryShortTextSource;
+}
+
+export function effectiveCategoryCopy(input: {
+  title: string;
+  subtitle: string;
+  editorialLabel?: string;
+  editorialShortText?: string;
+}): EffectiveCategoryCopy {
+  const title = input.title.trim();
+  const subtitle = input.subtitle.trim();
+  const editorialLabel = input.editorialLabel?.trim() ?? "";
+  const editorialShortText = input.editorialShortText?.trim() ?? "";
+  const label = title || editorialLabel;
+  const shortText = subtitle || editorialShortText;
+  return {
+    label,
+    labelSource: title ? "banner" : editorialLabel ? "editorial" : "fallback",
+    shortText,
+    shortTextSource: subtitle ? "banner" : editorialShortText ? "editorial" : "none",
+  };
+}
+
+/**
+ * The published category editorial that delivery will read for this category.
+ *
+ * Only published records (`published` or `modified`, which both have a published version) are
+ * considered: a draft editorial is never delivered, so previewing it would recreate the same
+ * contradiction this preview exists to remove. The id may also be stored under the category name.
+ */
+export function categoryEditorialCopy(
+  documents: ContentDocument[],
+  channel: "b2c" | "b2b",
+  categoryId: string,
+  categoryName?: string,
+): { label?: string; shortText?: string } | undefined {
+  const wanted = [categoryId, categoryName ?? ""]
+    .map((value) => value.trim().toLocaleLowerCase())
+    .filter(Boolean);
+  if (wanted.length === 0) return undefined;
+  const match = documents.find((document) => {
+    if (document.publicationStatus === "draft") return false;
+    const rowChannel = typeof document.channel === "string" ? document.channel : "b2c";
+    if (rowChannel !== channel) return false;
+    const key = typeof document.categoryId === "string"
+      ? document.categoryId.trim().toLocaleLowerCase()
+      : "";
+    return wanted.includes(key);
+  });
+  if (!match) return undefined;
+  const label = text(match.displayLabel) || text(match.heading);
+  const shortText = text(match.shortText) || text(match.description);
+  if (!label && !shortText) return undefined;
+  return {
+    ...(label ? { label: label.trim() } : {}),
+    ...(shortText ? { shortText: shortText.trim() } : {}),
+  };
 }
 
 /**

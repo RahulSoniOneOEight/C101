@@ -6,6 +6,7 @@ import {
   ELIGIBILITY_LABELS,
   localeLabel,
   type BannerPreviewResponse,
+  type EffectiveCategoryCopy,
   type PreviewDevice,
 } from "./banner-model";
 
@@ -21,6 +22,22 @@ const FRAME_HEIGHT: Record<PreviewDevice, string> = {
   desktop: "min-h-48",
 };
 
+/**
+ * Where the text the operator is looking at actually comes from. A category preview must never show
+ * a heading that delivery ignores, so the source is stated rather than implied.
+ */
+function copyProvenance(copy: EffectiveCategoryCopy): string {
+  const heading = copy.labelSource === "banner"
+    ? "Heading from this banner."
+    : "No banner heading, so the heading comes from Category details.";
+  const supporting = copy.shortTextSource === "banner"
+    ? "Supporting text from this banner."
+    : copy.shortTextSource === "editorial"
+      ? "Supporting text from Category details."
+      : "No supporting text is delivered.";
+  return `${heading} ${supporting}`;
+}
+
 export function BannerPreview({
   locale,
   device,
@@ -28,6 +45,7 @@ export function BannerPreview({
   isPending,
   isError,
   errorMessage,
+  categoryCopy,
 }: {
   locale: ContentLocale;
   device: PreviewDevice;
@@ -35,11 +53,14 @@ export function BannerPreview({
   isPending: boolean;
   isError: boolean;
   errorMessage?: string;
+  /** Present only for a category placement, where delivery reads two records with a precedence. */
+  categoryCopy?: EffectiveCategoryCopy;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   const presentation = preview?.presentation ?? null;
   const eligibility = preview?.eligibility;
   const imageUri = presentation?.image_uri;
+  const imageAlt = presentation?.image_alt;
   const showImage = Boolean(imageUri) && !imageFailed;
 
   return (
@@ -63,7 +84,7 @@ export function BannerPreview({
           {showImage && imageUri ? (
             <img
               src={imageUri}
-              alt={presentation?.image_alt ?? ""}
+              alt={imageAlt ?? ""}
               className="absolute inset-0 h-full w-full object-cover"
               onError={() => setImageFailed(true)}
             />
@@ -82,9 +103,40 @@ export function BannerPreview({
               <Text size="small" className="text-ui-fg-error">
                 {errorMessage ?? "Preview is unavailable. The delivery service could not be reached."}
               </Text>
+            ) : categoryCopy ? (
+              <>
+                {categoryCopy.label ? (
+                  <Text
+                    size="large"
+                    weight="plus"
+                    className="whitespace-pre-line leading-snug"
+                    data-testid="banner-preview-heading"
+                  >
+                    {categoryCopy.label}
+                  </Text>
+                ) : (
+                  <Text
+                    size="small"
+                    className="text-ui-fg-subtle"
+                    data-testid="banner-preview-heading"
+                  >
+                    No heading here and no Category details label for this category. Delivery falls
+                    back to the governed seed and then the category name, so only the image is shown.
+                  </Text>
+                )}
+                {categoryCopy.shortText ? (
+                  <Text size="small" className="text-ui-fg-muted">{categoryCopy.shortText}</Text>
+                ) : null}
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  {copyProvenance(categoryCopy)}
+                </Text>
+                {imageAlt ? (
+                  <Text size="xsmall" className="text-ui-fg-subtle">Alt text: {imageAlt}</Text>
+                ) : null}
+              </>
             ) : !presentation ? (
               <Text size="small" className="text-ui-fg-subtle">
-                Add a heading, placement, key and alternative text to complete the preview.
+                Add a heading, placement and key to complete the preview.
               </Text>
             ) : (
               <>

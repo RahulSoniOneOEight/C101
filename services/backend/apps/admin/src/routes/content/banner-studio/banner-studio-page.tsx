@@ -38,6 +38,7 @@ import {
   isStudioTab,
   localeLabel,
   placementLabel,
+  placementRequiresCategory,
   scheduleLabel,
   type BannerLifecycle,
 } from "./banner-model";
@@ -237,6 +238,21 @@ export function BannerStudioPage() {
     [contentQuery.data],
   );
 
+  // A category banner is stored as a commerce category id. The list shows the category name, so it
+  // has to resolve that id against the same read-only catalogue the editor picks from.
+  const categoriesQuery = useQuery({
+    queryKey: ["buildkart", "commerce-categories"],
+    queryFn: () => client.admin.buildkart.categories.query(),
+    enabled: documents.some((document) => placementRequiresCategory(document.placement)),
+    staleTime: 5 * 60 * 1000,
+  });
+  const categoryNames = useMemo(
+    () => new Map(
+      (categoriesQuery.data?.categories ?? []).map((category) => [category.id, category.name]),
+    ),
+    [categoriesQuery.data],
+  );
+
   const updateParams = (values: Record<string, string | null>, resetPage = false) => {
     const next = new URLSearchParams(searchParams);
     Object.entries(values).forEach(([key, value]) => {
@@ -286,13 +302,15 @@ export function BannerStudioPage() {
     .filter((document) => (placementFilter ? document.placement === placementFilter : true))
     .filter((document) => {
       if (!term) return true;
+      const categoryId = typeof document.categoryId === "string" ? document.categoryId.trim() : "";
       return [
         bannerCustomerHeading(document),
         bannerTitle(document),
         bannerKey(document),
         document.documentId,
         placementLabel(document.placement),
-        typeof document.categoryId === "string" ? document.categoryId : "",
+        categoryId,
+        categoryId ? categoryNames.get(categoryId) ?? "" : "",
       ].join(" ").toLocaleLowerCase().includes(term);
     })
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
@@ -509,7 +527,7 @@ export function BannerStudioPage() {
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell>Storefront heading / banner</Table.HeaderCell>
-                      <Table.HeaderCell>Placement / audience</Table.HeaderCell>
+                      <Table.HeaderCell>Placement</Table.HeaderCell>
                       <Table.HeaderCell>Status</Table.HeaderCell>
                       <Table.HeaderCell>Schedule · IST</Table.HeaderCell>
                       <Table.HeaderCell>Updated</Table.HeaderCell>
@@ -523,6 +541,11 @@ export function BannerStudioPage() {
                       const lifecycle = bannerLifecycle(document, now);
                       const customerHeading = bannerCustomerHeading(document);
                       const internalName = bannerTitle(document);
+                      const categoryId = typeof document.categoryId === "string"
+                        ? document.categoryId.trim()
+                        : "";
+                      const isCategoryBanner = placementRequiresCategory(document.placement);
+                      const categoryName = categoryId ? categoryNames.get(categoryId) : undefined;
                       return (
                         <Table.Row key={document.documentId}>
                           <Table.Cell>
@@ -548,10 +571,18 @@ export function BannerStudioPage() {
                             </div>
                           </Table.Cell>
                           <Table.Cell>
-                            <Text size="small">{placementLabel(document.placement)}</Text>
-                            <Text size="xsmall" className="text-ui-fg-subtle">
-                              {placementLabel(document.placement)}
+                            <Text size="small">
+                              {categoryName ?? placementLabel(document.placement)}
                             </Text>
+                            {categoryName ? (
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                {placementLabel(document.placement)}
+                              </Text>
+                            ) : isCategoryBanner ? (
+                              <Text size="xsmall" className="text-ui-fg-subtle">
+                                {categoryId ? `Category ${categoryId}` : "No category selected"}
+                              </Text>
+                            ) : null}
                             {isRenderedPlacement(document.placement) ? null : (
                               <Text size="xsmall" className="text-ui-fg-muted">
                                 Not rendered by the app

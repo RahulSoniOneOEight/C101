@@ -1,0 +1,149 @@
+# U-003 QC output — staging
+
+- **Environment:** staging (`https://api-staging.pinakaplay.cloud`)
+- **Runtime release:** `1951cea` (`/opt/buildkart-releases/release-1951cea`)
+- **Rollback:** `33c6add` — not used
+- **Run at:** 2026-10-27T14:29Z–14:35Z (host clock)
+- **Production:** untouched
+- **Data:** two QC carts, one B2B cart, one simulated order (see IDs below). No real money, no stock.
+
+## 1. Governed promotion apply (idempotent)
+
+Command (inside `medusa-api`):
+
+```sh
+docker exec -e BUILDKART_ENVIRONMENT=staging buildkart-hosted-pilot-medusa-api-1 \
+  sh -lc 'cd /app/packages/api && bun run configure:staging-merchandising'
+```
+
+Result: `PROMO_SCRIPT_EXIT=0`. Live state before/after:
+
+```
+U-003 PROMO_STATE before
+{"codes":["FLAT5","ORDER10","PLY5","ORDER5"],"promotions":[
+ {"code":"ORDER5","status":"active","is_automatic":false,"limit":300,
+  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
+ {"code":"PLY5","status":"active","is_automatic":true,"limit":200,
+  "application_method":{"type":"percentage","target_type":"items","allocation":"across","value":5},"rules":[]}]}
+
+U-003 PROMO_STATE after
+{"codes":["FLAT5","ORDER10","PLY5","ORDER5"],"promotions":[
+ {"code":"FLAT5","status":"active","is_automatic":false,"limit":10000,
+  "campaign_id":"procamp_01M5YW7VFGRQCDFJERDS0QM7QT",
+  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
+ {"code":"ORDER10","status":"active","is_automatic":false,"limit":5000,
+  "campaign_id":"procamp_01M5YW7VFGRQCDFJERDS0QM7QT",
+  "application_method":{"type":"percentage","target_type":"order","value":10},"rules":[]},
+ {"code":"ORDER5","status":"active","is_automatic":false,"limit":300,
+  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
+ {"code":"PLY5","status":"inactive","is_automatic":false,"limit":200,
+  "application_method":{"type":"percentage","target_type":"items","allocation":"across","value":5},"rules":[]}]}
+```
+
+Campaign created: `BK-STG-CAMP-PILOT-FLAT` — "Pilot Flat Offers", spend budget INR 500,000,
+2026-10-01 → 2026-12-31 (DB read below).
+
+## 2. `promo-code-qc.ts` — verbatim output
+
+Executed against the deployed image with the corrected evidence script mounted read-only (see §5).
+
+```
+U-003 QC against https://api-staging.pinakaplay.cloud: basin offer offer_01M59JTD9J6NJXQAA1KBN118NC (INR 15.17), plywood offer offer_01M59JTETF6DG8WP2V4QAQJX8A (INR 4.37)
+[R4] PASS new cart receives Flat5% automatically — 5% of INR 15.17 = INR 0.76; marker is_automatic=true; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+[R1] PASS FLAT5 is a store-wide 5% order offer — 5% of INR 19.54 = INR 0.98; Basin + Plywood lines; code-based (no category, group or channel rule)
+[R2] PASS PLY5 is inactive and cannot be applied — no PLY5 on a new plywood cart; applying PLY5 is rejected (422); Flat5% kept
+[R5] PASS Flat5% is removable and stays removed — discount INR 0.98 released; 0% after re-fetch, quantity change and address/shipping
+[R3] PASS ORDER10 is a code-based 10% offer — 10% of INR 34.71 = INR 3.47; applied only by code; usage limit recorded in the configure output
+[R6] PASS ORDER10 applies at exactly 10% after removal — 10% of INR 34.71 = INR 3.47; Flat5% absent; single offer (no 15% cart)
+[R7] PASS a code replaces the current offer — 5% of INR 34.71 = INR 1.74; then 10% of INR 34.71 = INR 3.47; one offer each time
+[R8] PASS removing the active code leaves 0% — 0% after removal and after re-fetch
+[R9] PASS non-trade buyers still cannot use trade codes — TRADE7 rejected (422) for the non-trade actor; cart stayed at 0%
+[R8b] PASS a new cart auto-applies Flat5% again — 5% of INR 15.17 = INR 0.76; cart cart_01M5YWH3SZCJZ8PCNM2TBMDBR2
+[R9b] PASS TRADE7 replaces Flat5% for a B2B trade buyer — Flat5% replaced; TRADE7 INR 1.06 (7% of INR 15.17)
+[R10] PASS a simulated checkout records the 10% discount — order og_01M5YWHA0HP53H6MK9QVARFBZK total INR 33.22 (items INR 34.71 - 10% INR 3.47 + shipping INR 1.98); reservation not_started; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+
+U-003 QC summary
+  R4   PASS new cart receives Flat5% automatically — 5% of INR 15.17 = INR 0.76; marker is_automatic=true; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+  R1   PASS FLAT5 is a store-wide 5% order offer — 5% of INR 19.54 = INR 0.98; Basin + Plywood lines; code-based (no category, group or channel rule)
+  R2   PASS PLY5 is inactive and cannot be applied — no PLY5 on a new plywood cart; applying PLY5 is rejected (422); Flat5% kept
+  R5   PASS Flat5% is removable and stays removed — discount INR 0.98 released; 0% after re-fetch, quantity change and address/shipping
+  R3   PASS ORDER10 is a code-based 10% offer — 10% of INR 34.71 = INR 3.47; applied only by code; usage limit recorded in the configure output
+  R6   PASS ORDER10 applies at exactly 10% after removal — 10% of INR 34.71 = INR 3.47; Flat5% absent; single offer (no 15% cart)
+  R7   PASS a code replaces the current offer — 5% of INR 34.71 = INR 1.74; then 10% of INR 34.71 = INR 3.47; one offer each time
+  R8   PASS removing the active code leaves 0% — 0% after removal and after re-fetch
+  R9   PASS non-trade buyers still cannot use trade codes — TRADE7 rejected (422) for the non-trade actor; cart stayed at 0%
+  R8b  PASS a new cart auto-applies Flat5% again — 5% of INR 15.17 = INR 0.76; cart cart_01M5YWH3SZCJZ8PCNM2TBMDBR2
+  R9b  PASS TRADE7 replaces Flat5% for a B2B trade buyer — Flat5% replaced; TRADE7 INR 1.06 (7% of INR 15.17)
+  R10  PASS a simulated checkout records the 10% discount — order og_01M5YWHA0HP53H6MK9QVARFBZK total INR 33.22 (items INR 34.71 - 10% INR 3.47 + shipping INR 1.98); reservation not_started; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+
+U-003 QC PASS (12 checks, exact minor-unit amounts).
+QC_EXIT=0
+```
+
+## 3. Promotion acceptance regression — verbatim output
+
+```
+promotion acceptance passed: Flat5% auto (B2C+B2B), ORDER10/ORDER5 replacement, remove=0%, TRADE7/TRADEVIP replacement, non-trade rejection, PLY5 retired, TOOLS200, fresh cart re-apply
+ACCEPTANCE_EXIT=0
+```
+
+## 4. Hosted staging acceptance — verbatim output
+
+```
+PASS  health reachable with connected identity store and simulated payment  (status=200 payment=simulated test_data=true)
+PASS  unknown identity rejected  (status=403)
+PASS  allowlisted login returns server-owned customer context  (roles=customer)
+PASS  customer cannot read /metrics  (status=404)
+PASS  customer cannot read /v1/admin/orders  (status=404)
+PASS  marketplace operator can read /metrics  (status=200)
+PASS  marketplace operator can read /v1/ops/audit  (status=200)
+PASS  notification inbox is owner-scoped  (status=200/200)
+PASS  device registration binds to owner and is removable  (register=201 remove=204)
+PASS  logout revokes the session  (logout=204 after=401)
+PASS  deployment reports production release unauthorized  (status=404)
+
+11/11 acceptance checks passed.
+PASS: hosted staging acceptance passed.
+```
+
+## 5. Evidence tooling note
+
+The runtime image was built and deployed from `1951cea`. Two **test-only** corrections were made
+after the deploy and executed through read-only bind mounts; the runtime tree is unchanged:
+
+- `ecb6e38` — QC compares exact decimal minor units (Medusa keeps fractional paise) and waits for
+  the promotion workflow between user-style actions.
+- `aa9aa6d` — QC selects one delivery option per seller (the multi-seller cart needs both).
+- `8290841` — the same exact-decimal comparison in `promotion-acceptance.ts`.
+
+A first deploy attempt at `fd52d6a` failed the Medusa image build (`TS2353` in the campaign budget
+update) and was never released; `1951cea` is the corrected, approved runtime SHA.
+
+## 6. Live state after the release
+
+```
+CURRENT=/opt/buildkart-releases/release-1951cea
+RELEASE_HEAD=1951ceabcc1ed1f1f6bdfc8ad707506f8f500a99
+
+https://api-staging.pinakaplay.cloud/health      -> 200
+https://ops-staging.pinakaplay.cloud/health      -> 200
+https://ops-staging.pinakaplay.cloud/dashboard/  -> 200
+https://ops-staging.pinakaplay.cloud/seller/     -> 200
+https://app-staging.pinakaplay.cloud/            -> 200
+
+medusa-api        running healthy
+medusa-worker     running
+experience-api    running healthy
+event-workers     running
+proxy             running
+
+Pilot Flat Offers budget: spend / 500000 / inr
+
+FLAT5    percentage / order / 5    (no rules, limit 10000)
+ORDER10  percentage / order / 10   (no rules, limit 5000)
+ORDER5   percentage / order / 5    (unchanged, limit 300)
+PLY5     percentage / items / 5    (inactive, not automatic, limit 200)
+```
+
+The idempotent script also re-applied the existing preset values for the other seeded promotions;
+their live status/values match the pre-existing configuration (no new records, no deletions).
