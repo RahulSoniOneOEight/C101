@@ -99,12 +99,23 @@ interface OrderRead {
 
 const ledger: Array<{ id: string; status: "PASS" | "FAIL"; detail: string }> = [];
 
+/** Medusa computes percentage discounts as decimals; compare to the exact minor-unit value. */
+const AMOUNT_TOLERANCE = 1e-6;
+/** Let Medusa's promotion workflow settle between user-style actions (not a bulk API loop). */
+const SETTLE_MS = Number(process.env.U003_QC_SETTLE_MS ?? 1200);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function inr(minor: number | null | undefined): string {
   return `INR ${((minor ?? 0) / 100).toFixed(2)}`;
 }
 
 function percentOf(subtotal: number, percent: number): number {
-  return Math.round((subtotal * percent) / 100);
+  return (subtotal * percent) / 100;
+}
+
+function amountsEqual(actual: number, expected: number): boolean {
+  return Math.abs(actual - expected) < AMOUNT_TOLERANCE;
 }
 
 function subtotalOf(cart: Cart): number {
@@ -137,14 +148,13 @@ function assertDiscount(cart: Cart, percent: number, label: string): string {
   const subtotal = subtotalOf(cart);
   const expected = percentOf(subtotal, percent);
   const actual = cart.discount_total ?? 0;
-  assert.equal(
-    actual,
-    expected,
+  assert.ok(
+    amountsEqual(actual, expected),
     `${label}: expected ${percent}% of ${inr(subtotal)} = ${inr(expected)}, got ${inr(actual)}`,
   );
   const rate = subtotal === 0 ? 0 : (actual * 100) / subtotal;
   assert.ok(
-    rate <= 10,
+    rate <= 10 + AMOUNT_TOLERANCE,
     `${label}: discount rate ${rate.toFixed(2)}% exceeds the 10% ceiling`,
   );
   return `${percent}% of ${inr(subtotal)} = ${inr(actual)}`;
@@ -207,6 +217,15 @@ async function getCart(actor: Session, cartId: string): Promise<Cart> {
   return jsonRequest<Cart>(`/v1/carts/${encodeURIComponent(cartId)}`, {
     headers: { authorization: `Bearer ${actor.token}` },
   });
+}
+
+/**
+ * Wait for the promotion workflow to settle, then read the cart. The storefront blocks while an
+ * apply/remove is in flight; the QC must not fire the next mutation before Medusa has recalculated.
+ */
+async function settle(actor: Session, cartId: string): Promise<Cart> {
+  await sleep(SETTLE_MS);
+  return getCart(actor, cartId);
 }
 
 async function addOffer(actor: Session, cartId: string, offerId: string, quantity = 1): Promise<Cart> {
@@ -338,6 +357,7 @@ b2cCart = b2cFirstLine;
 
 /** R4 — Flat5% arrives on the first line with no user action and carries the automatic marker. */
 await requirement("R4", "new cart receives Flat5% automatically", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   assert.ok(b2cCart.customer_id, "cart must be canonical");
   assertSingleOffer(b2cCart, "FLAT5", "first line");
   const flat5 = promotionOf(b2cCart, "FLAT5");
@@ -352,37 +372,38 @@ await requirement("R4", "new cart receives Flat5% automatically", async () => {
 /** R1 — one store-wide 5% offer across two different categories (no category/sales-channel rule). */
 await requirement("R1", "FLAT5 is a store-wide 5% order offer", async () => {
   assert.ok(basinOffer.sellingAmount > 0 && plywoodOffer.sellingAmount > 0, "offers must be priced");
+  b2cCart = await settle(nonTrade, b2cCart.id);
   b2cCart = await addOffer(nonTrade, b2cCart.id, plywoodOffer.id);
   assertSingleOffer(b2cCart, "FLAT5", "two categories");
   const detail = assertDiscount(b2cCart, 5, "Flat5% across two categories");
   return `${detail}; Basin + Plywood lines; code-based (no category, group or channel rule)`;
 });
 
-/** R2 — PLY5 is retired: absent from a new plywood cart and rejected when typed. */
+/** R2 - PLY5 is retired: absent from a new plywood cart and rejected when typed. */
 await requirement("R2", "PLY5 is inactive and cannot be applied", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   assert.ok(!hasPromotion(b2cCart, "PLY5"), "PLY5 must not auto-apply after retirement");
   assertSingleOffer(b2cCart, "FLAT5", "plywood line");
   await applyPromotion(nonTrade, b2cCart.id, "PLY5", 422);
-  const restored = await getCart(nonTrade, b2cCart.id);
+  const restored = await settle(nonTrade, b2cCart.id);
   assertSingleOffer(restored, "FLAT5", "offer kept after the PLY5 rejection");
   b2cCart = restored;
   return "no PLY5 on a new plywood cart; applying PLY5 is rejected (422); Flat5% kept";
 });
 
-/** R5 — removal is honoured and sticky across re-fetch, quantity change and address/shipping. */
+/** R5 - removal is honoured and sticky across re-fetch, quantity change and address/shipping. */
 await requirement("R5", "Flat5% is removable and stays removed", async () => {
-  const before = b2cCart;
+  const before = await settle(nonTrade, b2cCart.id);
   const afterRemove = await removePromotion(nonTrade, b2cCart.id, "FLAT5");
   assert.equal(afterRemove.discount_total ?? 0, 0, "removal must leave a zero discount");
   assert.ok(!hasPromotion(afterRemove, "FLAT5"), "removal must drop the code");
   const rise = (afterRemove.total ?? 0) - (before.total ?? 0);
-  assert.equal(
-    rise,
-    before.discount_total ?? 0,
+  assert.ok(
+    amountsEqual(rise, before.discount_total ?? 0),
     `total must rise by the discount ${inr(before.discount_total)}, rose ${inr(rise)}`,
   );
 
-  const refetched = await getCart(nonTrade, b2cCart.id);
+  const refetched = await settle(nonTrade, b2cCart.id);
   assert.equal(refetched.discount_total ?? 0, 0, "the offer must not return on re-fetch");
 
   const line = refetched.items?.[0];
@@ -392,25 +413,28 @@ await requirement("R5", "Flat5% is removable and stays removed", async () => {
 
   const addressed = await addAddressAndShipping(nonTrade, b2cCart.id);
   assert.equal(addressed.discount_total ?? 0, 0, "the offer must not return on address/shipping update");
-  b2cCart = addressed;
+  b2cCart = await settle(nonTrade, b2cCart.id);
 
   return `discount ${inr(before.discount_total)} released; 0% after re-fetch, quantity change and address/shipping`;
 });
 
-/** R3 — ORDER10 exists, is code-based and grants exactly 10% (config read in evidence). */
+/** R3 - ORDER10 exists, is code-based and grants exactly 10% (config read in evidence). */
 await requirement("R3", "ORDER10 is a code-based 10% offer", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const order10 = await applyPromotion(nonTrade, b2cCart.id, "ORDER10");
   assertSingleOffer(order10, "ORDER10", "ORDER10");
   assert.equal(promotionOf(order10, "ORDER10")?.label, "ORDER10", "ORDER10 label");
   const detail = assertDiscount(order10, 10, "ORDER10");
+  await sleep(SETTLE_MS);
   const cleared = await removePromotion(nonTrade, b2cCart.id, "ORDER10");
   assert.equal(cleared.discount_total ?? 0, 0, "control cleanup must return to 0%");
-  b2cCart = cleared;
+  b2cCart = await settle(nonTrade, b2cCart.id);
   return `${detail}; applied only by code; usage limit recorded in the configure output`;
 });
 
-/** R6 — ORDER10 applied after removal is exactly 10% and Flat5% is absent. */
+/** R6 - ORDER10 applied after removal is exactly 10% and Flat5% is absent. */
 await requirement("R6", "ORDER10 applies at exactly 10% after removal", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const order10 = await applyPromotion(nonTrade, b2cCart.id, "ORDER10");
   assertSingleOffer(order10, "ORDER10", "ORDER10 after removal");
   assert.ok(!hasPromotion(order10, "FLAT5"), "Flat5% must be absent");
@@ -419,13 +443,15 @@ await requirement("R6", "ORDER10 applies at exactly 10% after removal", async ()
   return `${detail}; Flat5% absent; single offer (no 15% cart)`;
 });
 
-/** R7 — ORDER10 -> ORDER5 -> ORDER10 replaces, never stacks. */
+/** R7 - ORDER10 -> ORDER5 -> ORDER10 replaces, never stacks. */
 await requirement("R7", "a code replaces the current offer", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const order5 = await applyPromotion(nonTrade, b2cCart.id, "ORDER5");
   assertSingleOffer(order5, "ORDER5", "ORDER5");
   assert.ok(!hasPromotion(order5, "ORDER10"), "ORDER10 must be gone");
   const fiveDetail = assertDiscount(order5, 5, "ORDER5");
 
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const backToTen = await applyPromotion(nonTrade, b2cCart.id, "ORDER10");
   assertSingleOffer(backToTen, "ORDER10", "ORDER10 again");
   assert.ok(!hasPromotion(backToTen, "ORDER5"), "ORDER5 must be gone");
@@ -434,32 +460,34 @@ await requirement("R7", "a code replaces the current offer", async () => {
   return `${fiveDetail}; then ${tenDetail}; one offer each time`;
 });
 
-/** R8 — removing the active code leaves 0% (the B2B cart below proves a new cart re-applies). */
+/** R8 - removing the active code leaves 0% (the B2B cart below proves a new cart re-applies). */
 await requirement("R8", "removing the active code leaves 0%", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const cleared = await removePromotion(nonTrade, b2cCart.id, "ORDER10");
   assert.equal(cleared.discount_total ?? 0, 0, "removal must leave 0%");
   assert.equal(cleared.promotions?.length ?? 0, 0, "no offer may remain");
-  const refetched = await getCart(nonTrade, b2cCart.id);
+  const refetched = await settle(nonTrade, b2cCart.id);
   assert.equal(refetched.discount_total ?? 0, 0, "0% must persist after re-fetch");
   b2cCart = refetched;
   return "0% after removal and after re-fetch";
 });
 
-/** R9 (non-trade half) — a non-trade buyer still cannot use TRADE7; the current offer is kept. */
+/** R9 (non-trade half) - a non-trade buyer still cannot use TRADE7; the current offer is kept. */
 await requirement("R9", "non-trade buyers still cannot use trade codes", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const rejected = await jsonRequest<{ rejected_codes?: Array<{ code: string; reason: string }> }>(
     `/v1/carts/${encodeURIComponent(b2cCart.id)}/promotions`,
     authenticated(nonTrade.token, { code: "TRADE7" }),
     422,
   );
   assert.equal(rejected.rejected_codes?.[0]?.code, "TRADE7", "TRADE7 must be rejected for non-trade");
-  const restored = await getCart(nonTrade, b2cCart.id);
+  const restored = await settle(nonTrade, b2cCart.id);
   assert.equal(restored.discount_total ?? 0, 0, "the rejected code must not grant a discount");
   b2cCart = restored;
   return "TRADE7 rejected (422) for the non-trade actor; cart stayed at 0%";
 });
 
-/** R8 (second half) — a brand-new B2B cart auto-applies Flat5% again. */
+/** R8 (second half) - a brand-new B2B cart auto-applies Flat5% again. */
 let b2bCart: Cart | null = null;
 await requirement("R8b", "a new cart auto-applies Flat5% again", async () => {
   b2bCart = await createCart(trade, "b2b_app");
@@ -469,41 +497,41 @@ await requirement("R8b", "a new cart auto-applies Flat5% again", async () => {
   return `${detail}; cart ${b2bCart.id}`;
 });
 
-/** R9 (B2B half) — Flat5% applies, then TRADE7 replaces it with 7% on the targeted line. */
+/** R9 (B2B half) - Flat5% applies, then TRADE7 replaces it with 7% on the targeted line. */
 await requirement("R9b", "TRADE7 replaces Flat5% for a B2B trade buyer", async () => {
   assert.ok(b2bCart, "a B2B cart is required");
+  b2bCart = await settle(trade, b2bCart.id);
   const trade7 = await applyPromotion(trade, b2bCart.id, "TRADE7");
   assertSingleOffer(trade7, "TRADE7", "TRADE7 on B2B");
   assert.ok(!hasPromotion(trade7, "FLAT5"), "TRADE7 must replace Flat5%");
   const tradeSubtotal = subtotalOf(trade7);
-  assert.equal(
-    trade7.discount_total ?? 0,
-    percentOf(tradeSubtotal, 7),
+  assert.ok(
+    amountsEqual(trade7.discount_total ?? 0, percentOf(tradeSubtotal, 7)),
     `TRADE7 must be exactly 7% of ${inr(tradeSubtotal)}, got ${inr(trade7.discount_total)}`,
   );
   b2bCart = trade7;
   return `Flat5% replaced; TRADE7 ${inr(trade7.discount_total)} (7% of ${inr(tradeSubtotal)})`;
 });
 
-/** R10 — one simulated checkout with ORDER10 records the discount; no money and no stock effect. */
+/** R10 - one simulated checkout with ORDER10 records the discount; no money and no stock effect. */
 await requirement("R10", "a simulated checkout records the 10% discount", async () => {
+  b2cCart = await settle(nonTrade, b2cCart.id);
   const priced = await applyPromotion(nonTrade, b2cCart.id, "ORDER10");
   assertSingleOffer(priced, "ORDER10", "pre-checkout");
   assertDiscount(priced, 10, "pre-checkout ORDER10");
   const expectedTotal =
     subtotalOf(priced) - (priced.discount_total ?? 0) + (priced.shipping_total ?? 0);
-  assert.equal(
-    priced.total ?? 0,
-    expectedTotal,
+  assert.ok(
+    amountsEqual(priced.total ?? 0, expectedTotal),
     `cart total ${inr(priced.total)} must equal items - 10% + shipping (${inr(expectedTotal)})`,
   );
 
+  await sleep(SETTLE_MS);
   const completed = await completeCheckout(nonTrade, priced.id);
   assert.equal(completed.type, "order_group", `checkout failed: ${JSON.stringify(completed)}`);
   assert.ok(completed.order_group?.id, "order group must be recorded");
-  assert.equal(
-    completed.order_group?.total,
-    priced.total,
+  assert.ok(
+    amountsEqual(completed.order_group?.total ?? 0, priced.total ?? 0),
     `order total ${inr(completed.order_group?.total)} must equal the discounted cart total ${inr(priced.total)}`,
   );
   assert.equal(completed.payment?.payment_mode, "simulated", "payment must be simulated");
