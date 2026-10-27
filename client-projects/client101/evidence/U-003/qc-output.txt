@@ -1,149 +1,157 @@
-# U-003 QC output — staging
+# U-003 + CHG-086 — combined staging release QC
 
-- **Environment:** staging (`https://api-staging.pinakaplay.cloud`)
-- **Runtime release:** `1951cea` (`/opt/buildkart-releases/release-1951cea`)
-- **Rollback:** `33c6add` — not used
-- **Run at:** 2026-10-27T14:29Z–14:35Z (host clock)
+- **Environment:** staging
+- **Runtime release:** `399a969` (`/opt/buildkart-releases/release-399a969`)
+- **Rollback:** `ecb01e1` (CHG-086, the release that was running before the combined deploy)
 - **Production:** untouched
-- **Data:** two QC carts, one B2B cart, one simulated order (see IDs below). No real money, no stock.
+- **Bundle:** U-003 promo offers + CHG-086 product studio (merged; one conflict resolved)
+- **Data:** test carts and simulated orders for U-003; one smoke product for CHG-086. No real money, no stock reservation.
 
-## 1. Governed promotion apply (idempotent)
+## 1. Deploy gate
 
-Command (inside `medusa-api`):
+| Step | Result |
+|---|---|
+| First U-003 release `1951cea` | Live at 14:35Z, then replaced by a concurrent CHG-086 deploy (`ecb01e1`) at 16:04/16:06Z |
+| Combined candidate | `399a969` — merge of `bb7d904` (CHG-086) + `ae0afee` (U-003 line) |
+| Build | `--no-cache` for medusa-api, medusa-worker, experience-api, event-workers; `BUILD_EXIT=0` |
+| Image markers before switch | medusa: CHG-086 import page/route + U-003 promo script/offers + admin "Import products" bundle; experience-api: U-003 auto-offer + CHG-086 money helper + corrected QC scripts |
+| `current` | `release-399a969`, HEAD `399a969` |
+| Containers | medusa-api healthy · experience-api healthy · worker/event-workers running |
+| Proxy | restarted |
+| Health | api 200 · ops 200 · dashboard 200 · seller 200 · app 200 |
 
-```sh
-docker exec -e BUILDKART_ENVIRONMENT=staging buildkart-hosted-pilot-medusa-api-1 \
-  sh -lc 'cd /app/packages/api && bun run configure:staging-merchandising'
+## 2. Promotion data (idempotent re-apply, 16:55Z)
+
 ```
-
-Result: `PROMO_SCRIPT_EXIT=0`. Live state before/after:
-
-```
-U-003 PROMO_STATE before
-{"codes":["FLAT5","ORDER10","PLY5","ORDER5"],"promotions":[
- {"code":"ORDER5","status":"active","is_automatic":false,"limit":300,
-  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
- {"code":"PLY5","status":"active","is_automatic":true,"limit":200,
-  "application_method":{"type":"percentage","target_type":"items","allocation":"across","value":5},"rules":[]}]}
-
 U-003 PROMO_STATE after
-{"codes":["FLAT5","ORDER10","PLY5","ORDER5"],"promotions":[
- {"code":"FLAT5","status":"active","is_automatic":false,"limit":10000,
-  "campaign_id":"procamp_01M5YW7VFGRQCDFJERDS0QM7QT",
-  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
- {"code":"ORDER10","status":"active","is_automatic":false,"limit":5000,
-  "campaign_id":"procamp_01M5YW7VFGRQCDFJERDS0QM7QT",
-  "application_method":{"type":"percentage","target_type":"order","value":10},"rules":[]},
- {"code":"ORDER5","status":"active","is_automatic":false,"limit":300,
-  "application_method":{"type":"percentage","target_type":"order","value":5},"rules":[]},
- {"code":"PLY5","status":"inactive","is_automatic":false,"limit":200,
-  "application_method":{"type":"percentage","target_type":"items","allocation":"across","value":5},"rules":[]}]}
+FLAT5    active    is_automatic=false  limit=10000  percentage/order/5   rules=[]
+ORDER10  active    is_automatic=false  limit=5000   percentage/order/10  rules=[]
+ORDER5   active    is_automatic=false  limit=300    percentage/order/5   rules=[]
+PLY5     inactive  is_automatic=false  limit=200    percentage/items/5   rules=[]
 ```
 
-Campaign created: `BK-STG-CAMP-PILOT-FLAT` — "Pilot Flat Offers", spend budget INR 500,000,
-2026-10-01 → 2026-12-31 (DB read below).
+Campaign `BK-STG-CAMP-PILOT-FLAT` — "Pilot Flat Offers", spend INR 500,000, ends 2026-12-31.
 
-## 2. `promo-code-qc.ts` — verbatim output
-
-Executed against the deployed image with the corrected evidence script mounted read-only (see §5).
+## 3. `promo-code-qc.ts` — verbatim output
 
 ```
-U-003 QC against https://api-staging.pinakaplay.cloud: basin offer offer_01M59JTD9J6NJXQAA1KBN118NC (INR 15.17), plywood offer offer_01M59JTETF6DG8WP2V4QAQJX8A (INR 4.37)
-[R4] PASS new cart receives Flat5% automatically — 5% of INR 15.17 = INR 0.76; marker is_automatic=true; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
-[R1] PASS FLAT5 is a store-wide 5% order offer — 5% of INR 19.54 = INR 0.98; Basin + Plywood lines; code-based (no category, group or channel rule)
+U-003 QC against https://api-staging.pinakaplay.cloud: offer A offer_01M59JHP06K65WX1NXKF2AQT1E (Passenger Car (PCR), INR 879.12), offer B offer_01M59JTETF6DG8WP2V4QAQJX8A (Plywood & Boards, INR 436.90), trade offer offer_01M59JTD9J6NJXQAA1KBN118NC (Basin Mixers & Taps)
+[R4] PASS new cart receives Flat5% automatically — 5% of INR 879.12 = INR 43.96; marker is_automatic=true; cart cart_01M5Z4W7F5A9WHTFY4GEBR1AZM
+[R1] PASS FLAT5 is a store-wide 5% order offer — 5% of INR 1316.02 = INR 65.80; Passenger Car (PCR) + Plywood & Boards; code-based (no category, group or channel rule)
 [R2] PASS PLY5 is inactive and cannot be applied — no PLY5 on a new plywood cart; applying PLY5 is rejected (422); Flat5% kept
-[R5] PASS Flat5% is removable and stays removed — discount INR 0.98 released; 0% after re-fetch, quantity change and address/shipping
-[R3] PASS ORDER10 is a code-based 10% offer — 10% of INR 34.71 = INR 3.47; applied only by code; usage limit recorded in the configure output
-[R6] PASS ORDER10 applies at exactly 10% after removal — 10% of INR 34.71 = INR 3.47; Flat5% absent; single offer (no 15% cart)
-[R7] PASS a code replaces the current offer — 5% of INR 34.71 = INR 1.74; then 10% of INR 34.71 = INR 3.47; one offer each time
+[R5] PASS Flat5% is removable and stays removed — discount INR 65.80 released; 0% after re-fetch, quantity change and address/shipping
+[R3] PASS ORDER10 is a code-based 10% offer — 10% of INR 2195.14 = INR 219.51; applied only by code; usage limit recorded in the configure output
+[R6] PASS ORDER10 applies at exactly 10% after removal — 10% of INR 2195.14 = INR 219.51; Flat5% absent; single offer (no 15% cart)
+[R7] PASS a code replaces the current offer — 5% of INR 2195.14 = INR 109.76; then 10% of INR 2195.14 = INR 219.51; one offer each time
 [R8] PASS removing the active code leaves 0% — 0% after removal and after re-fetch
 [R9] PASS non-trade buyers still cannot use trade codes — TRADE7 rejected (422) for the non-trade actor; cart stayed at 0%
-[R8b] PASS a new cart auto-applies Flat5% again — 5% of INR 15.17 = INR 0.76; cart cart_01M5YWH3SZCJZ8PCNM2TBMDBR2
-[R9b] PASS TRADE7 replaces Flat5% for a B2B trade buyer — Flat5% replaced; TRADE7 INR 1.06 (7% of INR 15.17)
-[R10] PASS a simulated checkout records the 10% discount — order og_01M5YWHA0HP53H6MK9QVARFBZK total INR 33.22 (items INR 34.71 - 10% INR 3.47 + shipping INR 1.98); reservation not_started; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+[R8b] PASS a new cart auto-applies Flat5% again — 5% of INR 1517.00 = INR 75.85; cart cart_01M5Z4Y2CEGVTVD3T8D10EPS6A
+[R9b] PASS TRADE7 replaces Flat5% for a B2B trade buyer — Flat5% replaced; TRADE7 INR 106.19 (7% of INR 1517.00)
+[R10] PASS a simulated checkout records the 10% discount — order og_01M5Z4YDTS57Z0ES1NJ7GZRDZ6 total INR 2173.63 (items INR 2195.14 - 10% INR 219.51 + shipping INR 198.00); reservation not_started; cart cart_01M5Z4W7F5A9WHTFY4GEBR1AZM
 
 U-003 QC summary
-  R4   PASS new cart receives Flat5% automatically — 5% of INR 15.17 = INR 0.76; marker is_automatic=true; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
-  R1   PASS FLAT5 is a store-wide 5% order offer — 5% of INR 19.54 = INR 0.98; Basin + Plywood lines; code-based (no category, group or channel rule)
-  R2   PASS PLY5 is inactive and cannot be applied — no PLY5 on a new plywood cart; applying PLY5 is rejected (422); Flat5% kept
-  R5   PASS Flat5% is removable and stays removed — discount INR 0.98 released; 0% after re-fetch, quantity change and address/shipping
-  R3   PASS ORDER10 is a code-based 10% offer — 10% of INR 34.71 = INR 3.47; applied only by code; usage limit recorded in the configure output
-  R6   PASS ORDER10 applies at exactly 10% after removal — 10% of INR 34.71 = INR 3.47; Flat5% absent; single offer (no 15% cart)
-  R7   PASS a code replaces the current offer — 5% of INR 34.71 = INR 1.74; then 10% of INR 34.71 = INR 3.47; one offer each time
-  R8   PASS removing the active code leaves 0% — 0% after removal and after re-fetch
-  R9   PASS non-trade buyers still cannot use trade codes — TRADE7 rejected (422) for the non-trade actor; cart stayed at 0%
-  R8b  PASS a new cart auto-applies Flat5% again — 5% of INR 15.17 = INR 0.76; cart cart_01M5YWH3SZCJZ8PCNM2TBMDBR2
-  R9b  PASS TRADE7 replaces Flat5% for a B2B trade buyer — Flat5% replaced; TRADE7 INR 1.06 (7% of INR 15.17)
-  R10  PASS a simulated checkout records the 10% discount — order og_01M5YWHA0HP53H6MK9QVARFBZK total INR 33.22 (items INR 34.71 - 10% INR 3.47 + shipping INR 1.98); reservation not_started; cart cart_01M5YWG73GHM4CBBR9EK7ZFDJP
+  R4   PASS ... (same detail as above)
+  R1   PASS ...
+  R2   PASS ...
+  R5   PASS ...
+  R3   PASS ...
+  R6   PASS ...
+  R7   PASS ...
+  R8   PASS ...
+  R9   PASS ...
+  R8b  PASS ...
+  R9b  PASS ...
+  R10  PASS ...
 
 U-003 QC PASS (12 checks, exact minor-unit amounts).
 QC_EXIT=0
 ```
 
-## 3. Promotion acceptance regression — verbatim output
+## 4. Promotion acceptance — verbatim output
 
 ```
 promotion acceptance passed: Flat5% auto (B2C+B2B), ORDER10/ORDER5 replacement, remove=0%, TRADE7/TRADEVIP replacement, non-trade rejection, PLY5 retired, TOOLS200, fresh cart re-apply
 ACCEPTANCE_EXIT=0
 ```
 
-## 4. Hosted staging acceptance — verbatim output
+## 5. CHG-086 product studio — smoke gate
+
+Command: `node tooling/qa/product-studio-smoke.mjs` against `https://ops-staging.pinakaplay.cloud`.
 
 ```
-PASS  health reachable with connected identity store and simulated payment  (status=200 payment=simulated test_data=true)
-PASS  unknown identity rejected  (status=403)
-PASS  allowlisted login returns server-owned customer context  (roles=customer)
-PASS  customer cannot read /metrics  (status=404)
-PASS  customer cannot read /v1/admin/orders  (status=404)
-PASS  marketplace operator can read /metrics  (status=200)
-PASS  marketplace operator can read /v1/ops/audit  (status=200)
-PASS  notification inbox is owner-scoped  (status=200/200)
-PASS  device registration binds to owner and is removable  (register=201 remove=204)
-PASS  logout revokes the session  (logout=204 after=401)
-PASS  deployment reports production release unauthorized  (status=404)
+PASS login
+PASS create filled
+PASS variant saved — prod_01M5Z521VRV7T8SDNTPCZHYKTH
+PASS pricing saved
+PASS review live
+PASS storefront — prod_01M5Z521VRV7T8SDNTPCZHYKTH @ 99900
+PASS catalogue rule — commercial_readiness
+PASS no console errors
 
-11/11 acceptance checks passed.
-PASS: hosted staging acceptance passed.
+SMOKE PASS prod_01M5Z521VRV7T8SDNTPCZHYKTH
+SMOKE_EXIT=0
 ```
 
-## 5. Evidence tooling note
+## 6. CHG-086 product studio — read-only UI check
 
-The runtime image was built and deployed from `1951cea`. Two **test-only** corrections were made
-after the deploy and executed through read-only bind mounts; the runtime tree is unchanged:
-
-- `ecb6e38` — QC compares exact decimal minor units (Medusa keeps fractional paise) and waits for
-  the promotion workflow between user-style actions.
-- `aa9aa6d` — QC selects one delivery option per seller (the multi-seller cart needs both).
-- `8290841` — the same exact-decimal comparison in `promotion-acceptance.ts`.
-
-A first deploy attempt at `fd52d6a` failed the Medusa image build (`TS2353` in the campaign budget
-update) and was never released; `1951cea` is the corrected, approved runtime SHA.
-
-## 6. Live state after the release
+Command: authenticated browser check against `https://ops-staging.pinakaplay.cloud`.
 
 ```
-CURRENT=/opt/buildkart-releases/release-1951cea
-RELEASE_HEAD=1951ceabcc1ed1f1f6bdfc8ad707506f8f500a99
-
-https://api-staging.pinakaplay.cloud/health      -> 200
-https://ops-staging.pinakaplay.cloud/health      -> 200
-https://ops-staging.pinakaplay.cloud/dashboard/  -> 200
-https://ops-staging.pinakaplay.cloud/seller/     -> 200
-https://app-staging.pinakaplay.cloud/            -> 200
-
-medusa-api        running healthy
-medusa-worker     running
-experience-api    running healthy
-event-workers     running
-proxy             running
-
-Pilot Flat Offers budget: spend / 500000 / inr
-
-FLAT5    percentage / order / 5    (no rules, limit 10000)
-ORDER10  percentage / order / 10   (no rules, limit 5000)
-ORDER5   percentage / order / 5    (unchanged, limit 300)
-PLY5     percentage / items / 5    (inactive, not automatic, limit 200)
+PASS CSV import page
+PASS CSV template action
+PASS CSV validation copy
+PASS Product name field
+PASS Organisation section
+PASS Variants & offers section
+PASS Review section
+PASS Studio detail loads
+PASS No console errors
+STUDIO_EXIT=0
 ```
 
-The idempotent script also re-applied the existing preset values for the other seeded promotions;
-their live status/values match the pre-existing configuration (no new records, no deletions).
+Screenshots: `client-projects/client101/evidence/CHG-086/screenshots/`
+- `products-import.png` — CSV import page with template/validate/import actions.
+- `products-new.png` — product studio create workspace.
+- `product-studio-live.png` — the smoke product in the studio (published, B2C/B2B live).
+
+Import API route: `POST /admin/buildkart/product-import` returns **401** unauthenticated
+(route exists and requires admin auth), not 404.
+
+## 7. CHG-086 data preserved
+
+```
+VoltEdge Modular Switch 1-Way     draft
+WoodWise Plywood Sheet 18mm 8x4   draft
+
+B2B Trade Portal   active (not deleted)
+B2C Storefront     active (not deleted)
+Pritesh jain       soft-deleted 2026-10-26 22:01:44Z
+```
+
+No product, channel or price record was changed by the U-003 promotion work.
+
+## 8. Live release state
+
+```
+CURRENT=/opt/buildkart-releases/release-399a969
+HEAD=399a969d9fd10ce7a01008cc7fe8e64d146ab805
+api-staging/health 200 · ops-staging/health 200 · dashboard 200 · seller 200 · app 200
+medusa-api healthy · experience-api healthy · worker/event-workers running · proxy running
+```
+
+## 9. Evidence tooling note
+
+The runtime image is `399a969`. After the build, the QC/acceptance scripts needed
+catalogue-pagination and money-scale corrections; those are **test-only** commits
+(`c8453ac`, `e2ae082`, `907cc68`, `c4c7503`, `fbe3d82`) and were executed through read-only bind
+mounts. The merged images contain both feature sets (verified by markers); no runtime file changed
+after the build.
+
+## 10. Test data
+
+- B2C QC cart: `cart_01M5Z4W7F5A9WHTFY4GEBR1AZM`
+- B2B QC cart: `cart_01M5Z4Y2CEGVTVD3T8D10EPS6A`
+- Simulated order: `og_01M5Z4YDTS57Z0ES1NJ7GZRDZ6` (total INR 2,173.63; reservation not started)
+- Earlier U-003 QC runs created additional staging carts; one earlier simulated order was created
+  by the pre-fix scale check. Both are test-only, no money/stock.
+- CHG-086 smoke product: `prod_01M5Z521VRV7T8SDNTPCZHYKTH` ("Smoke 594475", INR 999).

@@ -1,9 +1,10 @@
 # U-003 — promotion state, before and after
 
-- **Run:** 2026-10-27T14:29Z, staging release `1951cea`
+- **First run:** 2026-10-27T14:29Z, staging release `1951cea`
+- **Idempotent re-run:** 2026-10-27T16:55Z, combined release `399a969`
 - **Command:** `docker exec -e BUILDKART_ENVIRONMENT=staging <medusa-api> sh -lc 'cd /app/packages/api && bun run configure:staging-merchandising'`
-- **Result:** exit 0; script is idempotent (a second run re-applies the same state).
-- **Verbatim output:** `qc-output.txt` §1.
+- **Result:** exit 0; the second run produced the same after-state (no duplicate promotions or campaign).
+- **Verbatim output:** `qc-output.txt` §1 and §2.
 
 ## Before (live read by the script, 14:29:14Z)
 
