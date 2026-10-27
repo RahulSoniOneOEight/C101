@@ -372,7 +372,7 @@ const [trade, nonTrade] = await Promise.all([
   session(tradeIdentifier),
   session(nonTradeIdentifier),
 ]);
-const products = await loadCatalogue(trade);
+const products = await loadCatalogue(nonTrade);
 const plywoodOffer = offerFor(
   products,
   (product) => product.categories?.some((category) => category.name === "Plywood & Boards") === true,
