@@ -90,6 +90,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: scoped-staging-deployment-and-browser-qc
+- change_id: CHG-089
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: implement-next-in-app-step-customer-return-initiation
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -539,6 +543,31 @@ active_changes:
   staging_current: release-2bdc555
   staging_rollback_release: release-0dfdbff
   staging_fixture_residue: 0
+  production_release_authorized: false
+- change_id: CHG-089
+  status: implementation-source-verified
+  approval_required: true
+  approval_scope: implement-next-in-app-step-customer-return-initiation
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  proposal: client-projects/client101/changes/CHG-089.yaml
+  lane: A
+  release_mechanism:
+  - ui
+  - image-rebuild
+  scope: customer-web-return-initiation
+  implementation_authorized: true
+  local_implementation_status: pass-source
+  typecheck: pass
+  build: pass
+  browser_qc: pass-18-of-18
+  browser_qc_viewports:
+  - 390x844
+  - 1440x900
+  browser_qc_mode: read-only-against-staging-api
+  submit_path_exercised: false
+  staging_deployment_authorized: false
+  staging_deployment_status: not-authorized
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

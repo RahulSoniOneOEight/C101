@@ -248,12 +248,41 @@ export interface CustomerReturn {
   refundSimulation: CustomerRefundSimulation | null;
 }
 
+export interface CustomerReturnEligibilityLine {
+  line_key: string;
+  sku: string;
+  title: string;
+  ordered_qty: number;
+  delivered_qty: number;
+  requested_qty: number;
+  returnable_qty: number;
+  deadline: string | null;
+  allowed_reasons: string[];
+  eligible: boolean;
+  ineligible_reason: string | null;
+}
+
 export interface CustomerOrderDetail extends CustomerOrderSummary {
   reservation_status: string;
   reconciled: boolean;
   shipments: CustomerShipment[];
   returns: CustomerReturn[];
+  return_eligibility: CustomerReturnEligibilityLine[];
   logistics_mode: "simulated";
+}
+
+export interface CreateReturnLineInput {
+  lineKey: string;
+  requestedQty: number;
+  reasonCode: string;
+}
+
+export interface CreateReturnInput {
+  idempotencyKey: string;
+  resolution: "refund" | "replacement";
+  reasonCode: string;
+  comment?: string;
+  lines: CreateReturnLineInput[];
 }
 
 export async function listMyOrders(
@@ -283,6 +312,38 @@ export async function getMyReturn(
   const result = await call<{ return: CustomerReturn }>(
     `/v1/returns/${encodeURIComponent(returnId)}`,
     { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.return;
+}
+
+/**
+ * Owner-scoped return request. Eligibility, allowed reasons and returnable quantities are
+ * server-computed; this client only forwards the customer's choice and the idempotency key.
+ */
+export async function createMyReturn(
+  sessionToken: string,
+  orderId: string,
+  input: CreateReturnInput,
+): Promise<CustomerReturn> {
+  const result = await call<{ return: CustomerReturn }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/returns`,
+    {
+      method: "POST",
+      headers: {
+        ...authenticatedHeaders(sessionToken),
+        "idempotency-key": input.idempotencyKey,
+      },
+      body: JSON.stringify({
+        resolution: input.resolution,
+        reason_code: input.reasonCode,
+        customer_comment: input.comment?.trim() ? input.comment.trim() : undefined,
+        lines: input.lines.map((line) => ({
+          line_key: line.lineKey,
+          requested_qty: line.requestedQty,
+          reason_code: line.reasonCode,
+        })),
+      }),
+    },
   );
   return result.return;
 }

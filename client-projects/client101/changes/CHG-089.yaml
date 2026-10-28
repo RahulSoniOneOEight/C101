@@ -1,0 +1,211 @@
+change_id: CHG-089
+revision: 1
+status: implementation-source-verified
+request: >-
+  Let a signed-in customer start a return from their own order page in the customer web app,
+  choose eligible lines and quantities, pick an allowed reason and resolution, and land on the
+  return status page the marketplace already uses.
+type: customer-return-initiation
+extends:
+- CHG-087
+related:
+- CHG-088
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-next-step-implementation
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_scope: implement-next-in-app-step
+implementation_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: A
+release_mechanism:
+- ui
+- image-rebuild
+
+context:
+- >-
+  The Experience API already exposes owner-scoped return creation
+  (POST /v1/orders/{orderRef}/returns) and server-computed eligibility on the customer order read
+  (return_eligibility with returnable_qty, deadline and allowed_reasons).
+- >-
+  The customer web app could list orders, read tracking and open an existing return, but had no way
+  to start one. Only the Admin/Seller workbenches and API scripts could create the request.
+- >-
+  CHG-087 and CHG-088 define the lifecycle vocabulary this surface must use: a return is a request
+  under review, not a refund; inspection is evidence; refund projections are simulated.
+
+outcome: >-
+  A signed-in customer can request a return for delivered, in-window units from their own order.
+  Eligibility, quantities and reasons are never trusted from the browser; the server re-computes
+  them. The new request appears immediately in the return detail view with the existing progress
+  and simulated-refund messaging.
+
+decisions:
+- id: DEC-089-01
+  area: API reuse
+  proposed_default: >-
+    Use the existing Experience API contract unchanged. No new endpoint, schema, event or state
+    transition. Lane A, UI only.
+- id: DEC-089-02
+  area: Eligibility source
+  proposed_default: >-
+    Render only lines the server marks eligible with returnable_qty > 0. Quantity inputs are clamped
+    client-side, and the API remains the authority that rejects ineligible or over-quantity lines.
+- id: DEC-089-03
+  area: Reason and resolution
+  proposed_default: >-
+    Offer only the allowed_reasons returned by the API. Resolution is refund or replacement; refund
+    is labelled simulated. No free-text reason codes.
+- id: DEC-089-04
+  area: Idempotency
+  proposed_default: >-
+    The browser sends an idempotency key that is stable for an identical payload and regenerated
+    when the payload changes, so a double submit cannot create two returns.
+- id: DEC-089-05
+  area: Boundary wording
+  proposed_default: >-
+    The flow states that a request is not a refund, that review is required, and that inspection and
+    refund are evidence/simulation only.
+- id: DEC-089-06
+  area: Provider boundary
+  proposed_default: >-
+    No PSP, Medusa refund, Tryton stock, carrier or settlement call is added. No upload of return
+    evidence; that needs object storage and stays deferred.
+
+affected_capabilities:
+- returns
+- customer-post-purchase
+affected_domains:
+- returns
+- customer-experience
+affected_surfaces:
+- customer-web.orders
+- customer-web.returns
+
+requirements:
+- id: R1
+  name: Owner-scoped entry point
+  outcome: >-
+    The order page shows a Start a return action only when the server reports eligible, returnable
+    units, with per-line returnable quantities.
+  status: pass
+- id: R2
+  name: Request form
+  outcome: >-
+    The form shows only eligible lines, clamps quantities to returnable_qty, offers the API's allowed
+    reasons and both resolutions, and cannot submit zero units.
+  status: pass
+- id: R3
+  name: Server-side authority
+  outcome: >-
+    The browser never supplies owner identity, eligibility or allowed reasons. The API re-computes
+    eligibility and rejects invalid requests with a readable message.
+  status: pass
+- id: R4
+  name: Idempotent submit
+  outcome: >-
+    Identical payloads reuse one idempotency key; a changed payload gets a new one. Double click is
+    blocked while the request is in flight.
+  status: pass
+- id: R5
+  name: Honest lifecycle messaging
+  outcome: >-
+    The flow and the destination page state that a request is not a refund, inspection is evidence,
+    and any refund projection is simulated with no money or stock effect.
+  status: pass
+- id: R6
+  name: Verification
+  outcome: >-
+    Typecheck and production build pass; browser QC at 390x844 and 1440x900 passes against the
+    staging Experience API without writing data.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-089.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-089/**
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/api/returns/route.ts
+  - apps/web/app/orders/[id]/page.tsx
+  - apps/web/app/orders/[id]/returns/new/**
+  - apps/web/app/globals.css
+  no_touch:
+  - services/experience-api (no API or schema change)
+  - services/backend (Admin and Seller surfaces unchanged)
+  - Medusa payment, refund and order-transaction rows
+  - Tryton stock and movement rows
+  - carrier, PSP, settlement and accounting integrations
+  - production
+  data_records: []
+  environment: local-ui-against-staging-api-read-only
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: 825cfd2
+  staging_release: 2bdc55503
+  staging_current: release-2bdc555
+
+required_tests:
+- Order page shows the action only when eligible units exist.
+- Form lists only eligible lines with correct returnable quantities.
+- Submit is disabled at zero units and enabled after a quantity.
+- Reason list matches the API's allowed reasons.
+- The API rejects an ineligible line or over-quantity even if the browser is bypassed.
+- A submitted request appears on the return status page with the requested lines.
+- No Medusa/Tryton rows change and no provider call is made.
+- Typecheck, build, and 390/1440 browser QC pass with no console errors.
+
+verification:
+  local_completed_at_utc: '2026-10-29'
+  environment: local-next-start-against-staging-api
+  result: pass-source
+  staging_deployed: false
+  production_released: false
+  typecheck: pass
+  build: pass
+  routes:
+  - /orders/[id]/returns/new
+  - /api/returns
+  browser_qc: pass-18-of-18
+  browser_qc_viewports:
+  - 390x844
+  - 1440x900
+  browser_qc_console_errors: 0
+  browser_qc_failed_requests: 0
+  browser_qc_mode: read-only
+  submit_path_exercised: false
+  schema_changes: none
+  medusa_rows_changed: false
+  tryton_rows_changed: false
+  evidence_dir: client-projects/client101/evidence/CHG-089
+
+rollback:
+  code: revert the five customer-web files listed in scope_lock
+  data: none (no payload exercised)
+  staging: not applicable until separately authorized
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Submit-path staging QC
+  reason: Needs a deployed web image and one temporary return fixture; staging deployment is separately gated.
+- id: D2
+  name: Return evidence upload
+  reason: Needs object storage and a retention policy; no storage provider is integrated.
+- id: D3
+  name: Real refund and inventory disposition
+  reason: PSP/Medusa refund and Tryton posting remain unauthorized.
+- id: D4
+  name: Production release
+  reason: Legal/tax review and human production authorization remain required.
+
+approval_checkpoint: >-
+  The requester asked to proceed with the next implementation step on 2026-10-29. Source
+  implementation and read-only staging browser QC are complete; deploying the customer web image and
+  running the submit path require separate staging authorization.
