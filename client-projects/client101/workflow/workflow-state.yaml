@@ -712,7 +712,7 @@ active_changes:
   web_checkout_fixed_by: CHG-094
   production_release_authorized: false
 - change_id: CHG-094
-  status: staging-deployment-authorized-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: fix-web-checkout-session-forwarding
   approved_by: human-requester
@@ -734,10 +734,27 @@ active_changes:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-29'
   staging_deploy_owner: requester-authorized-opencode-agent
-  staging_deployment_status: authorized-in-progress
+  staging_deployment_status: staging-deployed-verified
   staging_baseline_release: 23bb1040d
   staging_baseline_path: /opt/buildkart-releases/release-23bb104
   staging_baseline_web_image: sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49
+  staging_release_commit: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_release_path: /opt/buildkart-releases/release-b7f93b9
+  staging_current: release-b7f93b9
+  staging_rollback_release: release-23bb104
+  staging_web_image: sha256:b708b8a9ac295688ac255552552590e68f9b4afacf7c020a9131e1862da48449
+  staging_browser_qc: pass-31-of-31
+  staging_readback_qc: pass-13-of-13
+  staging_operator_visibility_qc: pass-12-of-12
+  staging_public_health: pass-4-of-4
+  staging_console_errors: 0
+  staging_unexpected_failed_requests: 0
+  staging_test_order: order_01M624MKX6SNH9CTJ1RM6TXMAQ
+  staging_test_order_number: BK-261028-B2HR38
+  staging_test_order_group: og_01M624MKXNDYY0EQ0DBYYQ96DN
+  staging_test_checkout_ref: cart_01M624MH558QNVK63BJVN0JQ8H
+  staging_zero_prohibited_effects: pass
+  staging_visual_review: pass-with-pre-existing-seller-mobile-summary-overlap
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

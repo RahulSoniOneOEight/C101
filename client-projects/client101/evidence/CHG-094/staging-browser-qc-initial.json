@@ -1,0 +1,156 @@
+{
+  "generated_at": "2026-10-28T20:53:48.288Z",
+  "target": "https://app-staging.pinakaplay.cloud",
+  "release": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+  "product_id": "prod_01M59JS4A6QTH32AXVW9P2D3A3",
+  "sku": "XZ5QR",
+  "owner": "nihar1008.nj@gmail.com",
+  "order_group_id": "og_01M624MKXNDYY0EQ0DBYYQ96DN",
+  "checkout_response": {
+    "status": 200,
+    "type": "order_group",
+    "payment_mode": "simulated",
+    "test_data": true
+  },
+  "checks": [
+    {
+      "name": "signed-out checkout redirects to sign-in",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/sign-in?next=%2Fcheckout%3FproductId%3Dprod_01M59JS4A6QTH32AXVW9P2D3A3%26sku%3DXZ5QR"
+    },
+    {
+      "name": "redirect preserves the exact checkout path",
+      "status": "PASS",
+      "detail": "/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR"
+    },
+    {
+      "name": "sign-in returns to exact checkout",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR"
+    },
+    {
+      "name": "session remains HTTP-only and secure",
+      "status": "PASS",
+      "detail": "httpOnly=true; secure=true; sameSite=Lax"
+    },
+    {
+      "name": "checkout renders the selected product",
+      "status": "PASS",
+      "detail": "product title"
+    },
+    {
+      "name": "checkout renders the selected SKU",
+      "status": "PASS",
+      "detail": "XZ5QR"
+    },
+    {
+      "name": "desktop checkout has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "checkout route returns 200",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "server returns a canonical order group",
+      "status": "PASS",
+      "detail": "og_01M624MKXNDYY0EQ0DBYYQ96DN"
+    },
+    {
+      "name": "payment is explicitly simulated test data",
+      "status": "PASS",
+      "detail": "simulated; test_data=true"
+    },
+    {
+      "name": "confirmation displays the canonical group",
+      "status": "PASS",
+      "detail": "og_01M624MKXNDYY0EQ0DBYYQ96DN"
+    },
+    {
+      "name": "mobile confirmation has no horizontal overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "owner order list renders after checkout",
+      "status": "PASS",
+      "detail": "orders heading"
+    },
+    {
+      "name": "new product is visible in owner order list",
+      "status": "FAIL",
+      "detail": "product title"
+    },
+    {
+      "name": "mobile owner order list has no horizontal overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "browser console has no errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "page has no uncaught errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "browser has no failed requests",
+      "status": "FAIL",
+      "detail": "10"
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "failed_requests": [
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/returns?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR&_rsc=wCudfKGETyaWfMGy",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR&_rsc=WQvJxD8uy0vp3X-P",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623CTCV1FGY33NF4BP8PTCN?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M624MH558QNVK63BJVN0JQ8H?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/returns?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623W3B4DM46P9KM11XJXJZ4?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "summary": {
+    "total": 18,
+    "passed": 16,
+    "failed": 2
+  }
+}

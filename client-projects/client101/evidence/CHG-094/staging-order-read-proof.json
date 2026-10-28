@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-10-28T20:56:21.795Z",
+  "checkout_ref": "cart_01M624MH558QNVK63BJVN0JQ8H",
+  "order_id": "cart_01M624MH558QNVK63BJVN0JQ8H",
+  "order_group_id": "og_01M624MKXNDYY0EQ0DBYYQ96DN",
+  "order_number": "BK-261028-B2HR38",
+  "status": "confirmed",
+  "payment_mode": "simulated",
+  "test_data": true,
+  "total_minor": 51405,
+  "line_count": 1,
+  "lines": [
+    {
+      "sku": "XZ5QR",
+      "title": "Action Tesa HDHMR Board, Plain, 8' X 4'",
+      "quantity": 1,
+      "unit_price_minor": 43690
+    }
+  ],
+  "shipments": [
+    {
+      "id": "ship_eaa77870c32d47df959aad82de57cd66",
+      "status": "booked",
+      "tracking_number": "SIM-936AA14DF213",
+      "provider": "simulated",
+      "logistics_mode": "simulated",
+      "test_data": true
+    }
+  ],
+  "returns": 0
+}

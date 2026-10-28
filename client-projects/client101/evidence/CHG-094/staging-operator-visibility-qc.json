@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-10-28T20:58:02.920Z",
+  "target": "https://ops-staging.pinakaplay.cloud",
+  "release": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+  "order_id": "order_01M624MKX6SNH9CTJ1RM6TXMAQ",
+  "display_id": 150,
+  "seller": "UrbanBuild Supply",
+  "mode": "read-only",
+  "checks": [
+    {
+      "name": "Admin renders order #150",
+      "status": "PASS",
+      "detail": "#150"
+    },
+    {
+      "name": "Admin shows authorized simulated payment state",
+      "status": "PASS",
+      "detail": "Payment Authorized"
+    },
+    {
+      "name": "Admin shows booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Admin desktop has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "owning Seller renders order #150",
+      "status": "PASS",
+      "detail": "#150"
+    },
+    {
+      "name": "Seller delivery and returns widget renders",
+      "status": "PASS",
+      "detail": "widget"
+    },
+    {
+      "name": "Seller shows booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Seller desktop has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "Seller mobile has no horizontal overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "operator consoles have no console errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "operator consoles have no uncaught errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "operator consoles have no unexpected failed requests",
+      "status": "PASS",
+      "detail": "0; ignored 0 cancelled prefetches"
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "unexpected_failed_requests": [],
+  "ignored_expected_prefetch_aborts": [],
+  "summary": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "captured_at_utc": "2026-10-28T20:56:44Z",
+  "release": {
+    "baseline_sha": "23bb1040d1290628094bca467088e62fb07719b4",
+    "release_sha": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+    "branch": "release/chg-094",
+    "path": "/opt/buildkart-releases/release-b7f93b9",
+    "commit_count": 1,
+    "changed_files": [
+      "apps/web/app/api/checkout/route.ts",
+      "apps/web/app/checkout/page.tsx",
+      "apps/web/app/sign-in/page.tsx",
+      "apps/web/app/sign-in/sign-in-form.tsx",
+      "apps/web/lib/experience-api.ts"
+    ]
+  },
+  "images": {
+    "rollback": {
+      "tag": "buildkart-hosted-pilot-web:rollback-23bb104",
+      "id": "sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49"
+    },
+    "deployed": {
+      "tag": "buildkart-hosted-pilot-web:latest",
+      "id": "sha256:b708b8a9ac295688ac255552552590e68f9b4afacf7c020a9131e1862da48449"
+    }
+  },
+  "runtime": {
+    "web_health": "healthy",
+    "api_health_http": 200,
+    "app_sign_in_http": 200,
+    "admin_http": 200,
+    "seller_http": 200,
+    "signed_out_checkout_http": 307,
+    "signed_out_checkout_location": "/sign-in?next=%2Fcheckout%3FproductId%3Dprod_01M59JS4A6QTH32AXVW9P2D3A3%26sku%3DXZ5QR",
+    "release_marker": "pass",
+    "proxy_restarted": true
+  },
+  "order": {
+    "checkout_ref": "cart_01M624MH558QNVK63BJVN0JQ8H",
+    "order_group_id": "og_01M624MKXNDYY0EQ0DBYYQ96DN",
+    "medusa_order_id": "order_01M624MKX6SNH9CTJ1RM6TXMAQ",
+    "display_id": 150,
+    "order_number": "BK-261028-B2HR38",
+    "owner_user_id": "pilot_customer_b2c04",
+    "owner_email": "nihar1008.nj@gmail.com",
+    "channel": "b2c",
+    "api_status": "confirmed",
+    "medusa_status": "pending",
+    "total_minor": 51405,
+    "sku": "XZ5QR",
+    "payment": {
+      "collection_id": "pay_col_01M624MKQ35YWYRB50QECT4RRG",
+      "session_id": "payses_01M624MKRXJ1BHNBXRTYCAKCHQ",
+      "provider_id": "pp_simulated_simulated",
+      "status": "authorized",
+      "mode": "simulated",
+      "order_payment_links": 0
+    },
+    "shipment": {
+      "id": "ship_eaa77870c32d47df959aad82de57cd66",
+      "status": "booked",
+      "tracking_number": "SIM-936AA14DF213",
+      "provider": "simulated",
+      "test_data": true
+    },
+    "notification": "order_confirmed_v1",
+    "tryton_move_id": null
+  },
+  "counts": {
+    "medusa": {
+      "orders": { "before": 37, "after": 38, "delta": 1, "expected": true },
+      "order_groups": { "before": 28, "after": 29, "delta": 1, "expected": true },
+      "payment": { "before": 22, "after": 23, "delta": 1, "expected": true, "provider": "simulated" },
+      "payment_collection": { "before": 33, "after": 34, "delta": 1, "expected": true },
+      "payment_session": { "before": 33, "after": 34, "delta": 1, "expected": true },
+      "refund": { "before": 1, "after": 1, "delta": 0, "boundary": "pass" },
+      "order_transaction": { "before": 1, "after": 1, "delta": 0, "boundary": "pass" },
+      "order_payment_collection": { "before": 1, "after": 1, "delta": 0, "known_gap": true }
+    },
+    "experience": {
+      "correlation": { "before": 163, "after": 164, "delta": 1, "expected": true },
+      "returns": { "before": 4, "after": 4, "delta": 0, "boundary": "pass" },
+      "shipments": { "before": 37, "after": 38, "delta": 1, "expected": true, "provider": "simulated" },
+      "notifications": { "before": 97, "after": 98, "delta": 1, "expected": true },
+      "delivery_attempts": { "before": 29, "after": 29, "delta": 0, "boundary": "pass" },
+      "domain_events": { "before": 209, "after": 210, "delta": 1, "expected": true }
+    },
+    "tryton": {
+      "stock_move": { "before": 55, "after": 55, "delta": 0, "boundary": "pass" },
+      "stock_shipment_out": { "before": 0, "after": 0, "delta": 0, "boundary": "pass" },
+      "stock_shipment_out_return": { "before": 0, "after": 0, "delta": 0, "boundary": "pass" }
+    }
+  },
+  "workers": {
+    "status": "ok",
+    "payment_mode": "simulated",
+    "fcm_delivery": "disabled",
+    "failed": 0,
+    "dead_lettered": 0,
+    "tryton_reservation_processed": 0
+  },
+  "boundaries": {
+    "real_psp": "none",
+    "refund": "none",
+    "order_transaction": "none",
+    "tryton_stock_or_shipment": "none",
+    "external_carrier": "none",
+    "external_notification_delivery": "none",
+    "settlement_or_accounting": "none",
+    "production": "untouched"
+  }
+}

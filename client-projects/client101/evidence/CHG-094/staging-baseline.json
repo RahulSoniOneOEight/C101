@@ -37,6 +37,7 @@
     "returns": 4,
     "shipments": 37,
     "notifications": 97,
+    "delivery_attempts": 29,
     "domain_events": 209
   },
   "tryton": {
@@ -47,6 +48,7 @@
   "notes": [
     "The signed-out checkout returned 200 before CHG-094 instead of redirecting to sign-in.",
     "The CHG-094 marker 'Sign in to place an order.' was absent from the running web image.",
+    "The delivery-attempt baseline of 29 is carried from the authoritative CHG-090/CHG-093 runtime record; its latest row predates this deployment (2026-10-28T13:43:48Z).",
     "The only local untracked files were the preserved fulfillment-preview design harness."
   ]
 }

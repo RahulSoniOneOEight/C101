@@ -1,6 +1,6 @@
 change_id: CHG-094
 revision: 1
-status: staging-deployment-authorized-in-progress
+status: staging-deployed-verified
 request: >-
   Fix the customer web checkout so a signed-in owner can place a B2C order. The form currently fails
   with "A pilot bearer session is required" because the session is never forwarded to the API.
@@ -21,7 +21,7 @@ implementation_authorized: true
 staging_deployment_authorized: true
 staging_deployment_authorized_at_utc: '2026-10-29'
 staging_deploy_owner: requester-authorized-opencode-agent
-staging_deployment_status: authorized-in-progress
+staging_deployment_status: staging-deployed-verified
 production_release_authorized: false
 
 lane: B
@@ -71,33 +71,33 @@ requirements:
 - id: R1
   name: Session forwarding
   outcome: The checkout route forwards the signed-in session to every cart/checkout call.
-  status: PASS-CODE
+  status: PASS
 - id: R2
   name: Sign-in gate
   outcome: Opening checkout while signed out redirects to sign-in with a next path and returns afterwards.
-  status: PASS-CODE
+  status: PASS
 - id: R3
   name: Canonical success
   outcome: Only a server-returned order group is shown as confirmation; no client-side fabrication.
-  status: PASS-CODE
+  status: PASS
 - id: R4
   name: Safe next
   outcome: The next path must start with a single slash; absolute or protocol-relative URLs are ignored.
-  status: PASS-CODE
+  status: PASS
 - id: R5
   name: Source verification
   outcome: Typecheck, production build and a browser QC against the staging API pass.
-  status: PASS-CODE
+  status: PASS
 - id: R6
   name: Scoped staging release
   outcome: Only the five approved customer-web files are released from the deployed baseline.
-  status: pending
+  status: PASS
 - id: R7
   name: Deployed journey and boundaries
   outcome: >-
     The deployed sign-in return and canonical checkout pass, public surfaces remain healthy, and
     refund, order-transaction, Tryton stock/shipment and external delivery-attempt counts do not move.
-  status: pending
+  status: PASS
 
 scope_lock:
   allowed_paths:
@@ -156,8 +156,15 @@ baseline:
 verification:
   local_completed_at_utc: '2026-10-29'
   environment: local-next-start-against-staging-api
-  result: pass-source
-  staging_deployed: false
+  result: pass-staging
+  staging_deployed: true
+  staging_deployed_at_utc: '2026-10-29'
+  staging_release_commit: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_release_path: /opt/buildkart-releases/release-b7f93b9
+  staging_current: release-b7f93b9
+  staging_rollback_release: release-23bb104
+  staging_web_image: sha256:b708b8a9ac295688ac255552552590e68f9b4afacf7c020a9131e1862da48449
+  staging_rollback_image: sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49
   production_released: false
   typecheck: pass
   build: pass
@@ -168,12 +175,34 @@ verification:
   display_id: 149
   order_channel: b2c
   order_status: pending
+  staging_browser_qc: pass-31-of-31
+  staging_readback_qc: pass-13-of-13
+  staging_operator_visibility_qc: pass-12-of-12
+  staging_console_errors: 0
+  staging_page_errors: 0
+  staging_unexpected_failed_requests: 0
+  staging_visual_review: pass-with-pre-existing-seller-mobile-summary-overlap
+  staging_checkout_ref: cart_01M624MH558QNVK63BJVN0JQ8H
+  staging_order_group_id: og_01M624MKXNDYY0EQ0DBYYQ96DN
+  staging_order_id: order_01M624MKX6SNH9CTJ1RM6TXMAQ
+  staging_order_number: BK-261028-B2HR38
+  staging_display_id: 150
+  staging_order_channel: b2c
+  staging_order_api_status: confirmed
+  staging_order_medusa_status: pending
+  staging_public_health: pass-4-of-4
+  staging_release_marker: pass
+  staging_refund_rows_unchanged: true
+  staging_order_transaction_rows_unchanged: true
+  staging_delivery_attempts_unchanged: true
+  staging_tryton_rows_unchanged: true
+  staging_provider_effects: simulated-only
   schema_changes: none
   evidence_dir: client-projects/client101/evidence/CHG-094
 
 rollback:
   code: revert the five customer-web files
-  data: cancel order #149 if it should not remain
+  data: orders #149 and #150 are retained staging test data; image rollback does not remove them
   staging: restore buildkart-hosted-pilot-web:rollback-23bb104 and release-23bb104; recreate web; restart proxy
   production: not-applicable-not-authorized
 
@@ -182,6 +211,20 @@ deferred:
   name: Payment link and ERP reservation
   reason: Recorded in CHG-093; separate product decisions.
 
+residual_findings:
+- id: RF1
+  severity: medium
+  name: Payment and ERP linkage
+  statement: >-
+    The simulated payment session remains authorized on the cart and is not linked to the order;
+    no Tryton reservation is created. This is unchanged from CHG-093 and outside CHG-094.
+- id: RF2
+  severity: low
+  name: Seller mobile line-summary overlap
+  statement: >-
+    Visual review found the pre-existing price/allocation overlap in the Seller order summary at
+    390x844. The customer checkout and order pages have no overflow; Seller source was a no-touch area.
+
 approval_checkpoint: >-
-  Scoped staging deployment of the customer web image and one canonical B2C order QC were authorized
-  by the human requester. Production remains unauthorized.
+  Scoped staging deployment and one canonical B2C order QC are complete and verified. Production
+  remains unauthorized.

@@ -1,0 +1,119 @@
+{
+  "generated_at": "2026-10-28T20:58:35.070Z",
+  "target": "https://app-staging.pinakaplay.cloud",
+  "release": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+  "owner": "nihar1008.nj@gmail.com",
+  "checkout_ref": "cart_01M624MH558QNVK63BJVN0JQ8H",
+  "order_group_id": "og_01M624MKXNDYY0EQ0DBYYQ96DN",
+  "order_number": "BK-261028-B2HR38",
+  "mode": "read-only-after-single-order-checkout",
+  "checks": [
+    {
+      "name": "new canonical order number is listed",
+      "status": "PASS",
+      "detail": "BK-261028-B2HR38"
+    },
+    {
+      "name": "desktop order list has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "new order links to its owner-scoped checkout reference",
+      "status": "PASS",
+      "detail": "cart_01M624MH558QNVK63BJVN0JQ8H"
+    },
+    {
+      "name": "order detail shows canonical order number",
+      "status": "PASS",
+      "detail": "BK-261028-B2HR38"
+    },
+    {
+      "name": "order detail shows the purchased SKU",
+      "status": "PASS",
+      "detail": "XZ5QR"
+    },
+    {
+      "name": "order detail shows the server-owned total",
+      "status": "PASS",
+      "detail": "₹514.05"
+    },
+    {
+      "name": "order detail shows the booked shipment",
+      "status": "PASS",
+      "detail": "booked"
+    },
+    {
+      "name": "desktop order detail has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "mobile order detail has no horizontal overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "browser console has no errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "page has no uncaught errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "browser has no unexpected failed requests",
+      "status": "PASS",
+      "detail": "0; ignored 8 cancelled Next.js RSC prefetches"
+    },
+    {
+      "name": "protocol-relative next path cannot leave the staging host",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/orders"
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "unexpected_failed_requests": [],
+  "ignored_expected_rsc_aborts": [
+    {
+      "url": "https://app-staging.pinakaplay.cloud/?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders?_rsc=7MU2vz2ZFnHwgCi8",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M5Z4SNVA6DR595ASBWW20NK8?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623CTCV1FGY33NF4BP8PTCN?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M624MH558QNVK63BJVN0JQ8H?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623W3B4DM46P9KM11XJXJZ4?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M5Y54HVDTDJ2MTP6X45Q5W9R?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M624MH558QNVK63BJVN0JQ8H?_rsc=d4hBgemiPC5f7-CD",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0
+  }
+}
