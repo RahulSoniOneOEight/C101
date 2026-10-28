@@ -1,0 +1,224 @@
+change_id: CHG-088
+revision: 1
+status: approved-in-progress
+request: >-
+  Align the native Admin and Seller order-detail operations with the CHG-087 return lifecycle and
+  extend order-page fulfillment controls, without replacing native Mercur order management or
+  creating real refund, carrier, stock or settlement effects.
+type: native-order-operations-alignment
+extends:
+- CHG-035
+- CHG-087
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-enhance-native-order-pages
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-select-enhance-native-pages
+approval_scope: local-implementation-staging-deployment-separately-gated
+implementation_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: B
+release_mechanism:
+- api+ui
+- image-rebuild
+
+context:
+- >-
+  The live staging order pages are native Mercur pages plus BuildKart widgets. The local
+  fulfillment-preview harness was a design reference and was never registered or deployed.
+- >-
+  The live order-detail Returns card still uses legacy labels and actions. It can show a received
+  return as "Return Completed" and does not expose CHG-087 inspection or simulated-refund context.
+- >-
+  CHG-087 inspection and refund workbenches are live at /dashboard/returns/:id and
+  /seller/returns/:id. The order page should link to those surfaces rather than duplicate closure
+  actions.
+- >-
+  The shipment API already supports partial delivery, attempts, buyer action, delays, damage/loss,
+  RTO and Admin cancellation. The order page exposes only four delivery statuses today.
+
+outcome: >-
+  Admin and Seller order details show an accurate, role-scoped delivery and return context. The
+  order page links to the correct return workbench, never presents a premature "completed" state,
+  and supports the fulfillment transitions already allowed by the shipment API.
+
+decisions:
+- id: DEC-088-01
+  area: Surface strategy
+  proposed_default: >-
+    Keep native Mercur orders list, order summary, payment and order-group pages. Enhance the
+    BuildKart widgets only. Do not promote or replace native order management with the local
+    fixture harness.
+- id: DEC-088-02
+  area: Return actions
+  proposed_default: >-
+    The order page may approve/reject a requested return. It must not record receipt, inspection,
+    closure or a refund simulation. Those actions stay on the full return workbench.
+- id: DEC-088-03
+  area: Return labels and context
+  proposed_default: >-
+    Use the full CHG-087 lifecycle vocabulary. Received means received/inspection pending, not
+    completed. Inspection complete means refund simulation pending. Closed means simulated or
+    recorded workflow closure, never a real money movement.
+- id: DEC-088-04
+  area: Seller redaction
+  proposed_default: >-
+    Seller order pages show inspection status only. They never show refund amount, breakdown or
+    simulation reference, and never offer decision/refund actions.
+- id: DEC-088-05
+  area: Fulfillment depth
+  proposed_default: >-
+    Derive delivery options from the shipment's allowed transitions and expose the existing
+    partial-delivery, attempt, buyer-action, delay, damage/loss, RTO and Admin-cancellation fields.
+    Per-line delivered quantities and proof references remain required where the API requires them.
+- id: DEC-088-06
+  area: Provider boundary
+  proposed_default: >-
+    No PSP, Medusa refund, Tryton stock, carrier, settlement or accounting mutation is added.
+    Shiprocket, real refunds and real inventory disposition remain deferred.
+
+affected_capabilities:
+- order-operations
+- fulfillment
+- returns
+- seller-operations
+- admin-operations
+affected_domains:
+- marketplace
+- operations
+- logistics
+- returns
+affected_surfaces:
+- commerce-admin.orders
+- commerce-vendor.orders
+- commerce-admin.shipments
+- commerce-vendor.shipments
+
+requirements:
+- id: R1
+  name: Admin return context
+  outcome: >-
+    Admin order detail shows the full CHG-087 return state, inspection evidence status and
+    simulated refund projection, with a link to the return workbench.
+  status: pass-code
+- id: R2
+  name: Seller return context
+  outcome: >-
+    Seller order detail shows scoped return and inspection status but no refund amount, breakdown,
+    simulation reference, decision or closure action.
+  status: pass-code
+- id: R3
+  name: No order-page closure bypass
+  outcome: >-
+    Receipt, inspection, refund simulation and refund-return closure are not available from the
+    order page; only the full return workbench can perform them.
+  status: pass-code
+- id: R4
+  name: Fulfillment depth
+  outcome: >-
+    Admin and Seller order pages expose partial delivery, attempts, buyer action, delay, exceptions,
+    proof and per-line quantities through the existing versioned shipment API.
+  status: pass-code
+- id: R5
+  name: Summary accuracy
+  outcome: >-
+    Order operations tiles reflect inspection pending/complete and simulated refunds without
+    claiming that real money or stock moved.
+  status: pass-code
+- id: R6
+  name: Verification and cleanup
+  outcome: >-
+    Local typecheck/build and browser QC pass at 390x844 and 1440x900, Seller redaction is proven,
+    and no staging fixture or provider effect remains.
+  status: pass-code
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-088.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-088/**
+  - services/backend/apps/admin/src/widgets/order-delivery-returns.tsx
+  - services/backend/apps/admin/src/widgets/order-workbench-status.tsx
+  - services/backend/apps/vendor/src/widgets/order-delivery-returns.tsx
+  - services/backend/apps/vendor/src/widgets/order-workbench-status.tsx
+  no_touch:
+  - production
+  - Medusa payment, capture, refund and order-transaction rows
+  - Tryton stock, reservation and warehouse-movement rows
+  - settlement, commission, invoice and accounting rows
+  - Shiprocket, PSP and carrier integrations
+  - native Mercur order list/detail replacement
+  - local fulfillment-preview harness
+  - unrelated catalogue, pricing, CMS and checkout behavior
+  data_records:
+  - isolated local return and shipment fixtures tagged test_data=true
+  environment: local-preview-then-separately-authorized-staging
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: bf9247e
+  staging_release: 0dfdbff
+  staging_current: release-0dfdbff
+
+required_tests:
+- Admin order detail shows received/inspection pending, inspection complete and simulated refund states accurately.
+- Seller order detail never shows refund amount, breakdown or simulation reference.
+- Order page cannot record receipt, inspection, refund simulation or close a refund return.
+- Partial delivery records per-line quantities and proof.
+- Attempt, buyer-action, delay, damage/loss and Admin-cancellation controls use only allowed transitions.
+- Seller delivery/return controls remain allocation-scoped.
+- Typecheck, Admin/Vendor build, and local browser QC pass at 390x844 and 1440x900.
+- No Medusa/Tryton rows change; no staging fixture remains after acceptance.
+
+verification:
+  local_completed_at_utc: '2026-10-29'
+  environment: local-static
+  result: pass-code
+  staging_deployed: false
+  production_released: false
+  admin_typecheck: pass
+  vendor_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  bundle_markers:
+  - Open return workbench
+  - Inspection complete
+  - Partially delivered
+  browser_qc: pending-staging-authorization
+  schema_changes: none
+  medusa_financial_rows_changed: false
+  tryton_stock_rows_changed: false
+  evidence_dir: client-projects/client101/evidence/CHG-088
+  staging_deployment_status: not-authorized
+
+rollback:
+  code: revert only the four order widget files and CHG-088 governance/evidence additions
+  data: remove only the CHG-088 smoke fixture
+  staging: not applicable until separately authorized
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Real refund execution
+  reason: PSP/Medusa refund integration, Finance/Tax approval and production governance remain required.
+- id: D2
+  name: Real inventory disposition
+  reason: Tryton remains authoritative; no stock or movement post is authorized.
+- id: D3
+  name: Shiprocket and carrier labels/pickup
+  reason: Explicitly deferred provider integration.
+- id: D4
+  name: Settlement and commission reversal
+  reason: Accounting behavior and approval remain incomplete.
+- id: D5
+  name: Production release
+  reason: Legal/tax review and human production authorization remain required.
+
+approval_checkpoint: >-
+  The requester selected native-page enhancement on 2026-10-29. Local implementation is authorized;
+  staging deployment requires a separate scoped-release authorization.

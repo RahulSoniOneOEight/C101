@@ -82,6 +82,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-28'
   scope: scoped-staging-deployment-a13bcb4-synthetic-fixture
+- change_id: CHG-088
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: enhance-native-order-pages-and-order-operation-alignment
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -501,6 +505,27 @@ active_changes:
   - buildkart-hosted-pilot-experience-api:rollback-a13bcb4
   - buildkart-hosted-pilot-web:rollback-a13bcb4
   staging_deployment_status: staging-deployed-verified
+  production_release_authorized: false
+- change_id: CHG-088
+  status: implementation-complete-local-verification-pending-browser
+  approval_required: true
+  approval_scope: enhance-native-order-pages-and-order-operation-alignment
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  proposal: client-projects/client101/changes/CHG-088.yaml
+  lane: B
+  release_mechanism:
+  - api+ui
+  - image-rebuild
+  scope: native-order-operations-return-and-fulfillment-alignment
+  implementation_authorized: true
+  local_implementation_status: pass-code
+  local_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  browser_qc: pending-staging-authorization
+  staging_deployment_authorized: false
+  staging_deployment_status: not-authorized
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
