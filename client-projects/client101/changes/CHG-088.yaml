@@ -18,8 +18,12 @@ approved_at_utc: '2026-10-29'
 approval_source: chat-select-enhance-native-pages
 approval_scope: local-implementation-staging-deployment-separately-gated
 implementation_authorized: true
-staging_deployment_authorized: false
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-29'
+staging_deployment_approval_source: chat-authorize-chg088-staging-deployment
+staging_deploy_owner: requester-authorized-opencode-agent
 production_release_authorized: false
+staging_deployment_status: authorized-in-progress
 
 lane: B
 release_mechanism:

@@ -86,6 +86,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: enhance-native-order-pages-and-order-operation-alignment
+- change_id: CHG-088
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: scoped-staging-deployment-and-browser-qc
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -507,7 +511,7 @@ active_changes:
   staging_deployment_status: staging-deployed-verified
   production_release_authorized: false
 - change_id: CHG-088
-  status: implementation-complete-local-verification-pending-browser
+  status: authorized-in-progress
   approval_required: true
   approval_scope: enhance-native-order-pages-and-order-operation-alignment
   approved_by: human-requester
@@ -523,9 +527,11 @@ active_changes:
   local_typecheck: pass
   admin_build: pass
   vendor_build: pass
-  browser_qc: pending-staging-authorization
-  staging_deployment_authorized: false
-  staging_deployment_status: not-authorized
+  browser_qc: pending-staging
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-29'
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_status: authorized-in-progress
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
