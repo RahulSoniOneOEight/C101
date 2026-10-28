@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-10-28T20:40:30.230Z",
+  "target": "http://localhost:3100",
+  "api": "https://api-staging.pinakaplay.cloud",
+  "product_id": "prod_01M59JS4A6QTH32AXVW9P2D3A3",
+  "sku": "XZ5QR",
+  "owner": "nihar1008.nj@gmail.com",
+  "order_group_id": "og_01M623W6Z2PPX94861WA9WE0QP",
+  "checks": [
+    {
+      "name": "signed-out checkout redirects",
+      "status": "PASS",
+      "detail": "http://localhost:3100/sign-in?next=%2Fcheckout%3FproductId%3Dprod_01M59JS4A6QTH32AXVW9P2D3A3%26sku%3DXZ5QR"
+    },
+    {
+      "name": "returns to checkout after sign-in",
+      "status": "PASS",
+      "detail": "http://localhost:3100/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR"
+    },
+    {
+      "name": "order confirmed by the server",
+      "status": "PASS",
+      "detail": "og_01M623W6Z2PPX94861WA9WE0QP"
+    },
+    {
+      "name": "canonical order group returned",
+      "status": "PASS",
+      "detail": "og_01M623W6Z2PPX94861WA9WE0QP"
+    },
+    {
+      "name": "new order listed after checkout",
+      "status": "PASS",
+      "detail": "orders page rendered"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  }
+}

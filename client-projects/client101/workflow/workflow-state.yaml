@@ -118,6 +118,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: scoped-staging-deployment-and-evidence-qc
+- change_id: CHG-094
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: fix-web-checkout-session-forwarding
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -701,6 +705,30 @@ active_changes:
   erp_reservation: fail
   test_order_retained: order_01M623D0NTGQF67FRV62HP564N
   b2b_abandoned_cart: cart_01M623F1HHR74KGVYBEQEBEMVC
+  web_checkout_fixed_by: CHG-094
+  production_release_authorized: false
+- change_id: CHG-094
+  status: implemented-source-verified
+  approval_required: true
+  approval_scope: fix-web-checkout-session-forwarding
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  proposal: client-projects/client101/changes/CHG-094.yaml
+  lane: B
+  release_mechanism:
+  - ui
+  - image-rebuild
+  scope: web-checkout-session-forwarding
+  implementation_authorized: true
+  local_implementation_status: pass-source
+  typecheck: pass
+  build: pass
+  browser_qc: pass-5-of-5
+  browser_qc_mode: local-build-against-staging-api
+  qc_order_id: order_01M623W6YSVTCMBMS2CWDZAGZ9
+  qc_order_group_id: og_01M623W6Z2PPX94861WA9WE0QP
+  staging_deployment_authorized: false
+  staging_deployment_status: not-authorized
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

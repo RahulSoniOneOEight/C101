@@ -1,0 +1,150 @@
+change_id: CHG-094
+revision: 1
+status: implemented-source-verified
+request: >-
+  Fix the customer web checkout so a signed-in owner can place a B2C order. The form currently fails
+  with "A pilot bearer session is required" because the session is never forwarded to the API.
+type: web-checkout-session-forwarding
+extends:
+- CHG-084
+related:
+- CHG-093
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-fix-web-checkout-auth
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-select-web-checkout-auth
+approval_scope: local-implementation
+implementation_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: B
+release_mechanism:
+- ui
+- image-rebuild
+
+context:
+- >-
+  CHG-093 found that the web checkout fails before creating a cart: /api/checkout calls
+  completeCheckout(), which creates the cart without an Authorization header. POST /v1/carts is
+  owner-scoped and returns 401.
+- >-
+  The checkout page was reachable while signed out, so the failure surfaced as a checkout error
+  instead of a sign-in prompt.
+
+outcome: >-
+  A signed-out visitor opening checkout is sent to sign-in and returned to the exact checkout URL
+  afterwards. A signed-in owner can place an order from the web; the server forwards the HTTP-only
+  session and still treats the API's canonical order group as the only success signal.
+
+decisions:
+- id: DEC-094-01
+  area: Auth model
+  proposed_default: >-
+    Checkout requires a signed-in owner. Anonymous checkout stays unsupported because the cart API is
+    owner-scoped and guest carts would add an unowned state to the marketplace.
+- id: DEC-094-02
+  area: Token handling
+  proposed_default: >-
+    The session token stays in the HTTP-only cookie. The Next route reads it server-side and forwards
+    it to the Experience API; the browser never sees the token or the API origin.
+- id: DEC-094-03
+  area: Return path
+  proposed_default: >-
+    Sign-in accepts a `next` path, restricted to a single leading slash to prevent open redirects,
+    and returns the visitor to checkout after verification.
+
+affected_capabilities:
+- checkout
+- customer-post-purchase
+affected_surfaces:
+- customer-web.checkout
+- customer-web.sign-in
+
+requirements:
+- id: R1
+  name: Session forwarding
+  outcome: The checkout route forwards the signed-in session to every cart/checkout call.
+  status: pass
+- id: R2
+  name: Sign-in gate
+  outcome: Opening checkout while signed out redirects to sign-in with a next path and returns afterwards.
+  status: pass
+- id: R3
+  name: Canonical success
+  outcome: Only a server-returned order group is shown as confirmation; no client-side fabrication.
+  status: pass
+- id: R4
+  name: Safe next
+  outcome: The next path must start with a single slash; absolute or protocol-relative URLs are ignored.
+  status: pass
+- id: R5
+  name: Verification
+  outcome: Typecheck, production build and a browser QC against the staging API pass.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/api/checkout/route.ts
+  - apps/web/app/checkout/page.tsx
+  - apps/web/app/sign-in/page.tsx
+  - apps/web/app/sign-in/sign-in-form.tsx
+  - client-projects/client101/changes/CHG-094.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-094/**
+  no_touch:
+  - services/experience-api (no API change)
+  - services/backend
+  - Medusa payment, refund and order-transaction rows
+  - Tryton stock and movement rows
+  - carrier, PSP, settlement and accounting
+  - production
+  data_records:
+  - one B2C web order created during QC and kept as staging test data
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: d4c46ab
+  staging_release: 23bb1040d
+  staging_current: release-23bb104
+
+verification:
+  local_completed_at_utc: '2026-10-29'
+  environment: local-next-start-against-staging-api
+  result: pass-source
+  staging_deployed: false
+  production_released: false
+  typecheck: pass
+  build: pass
+  browser_qc: pass-5-of-5
+  browser_qc_mode: real-order-created
+  order_group_id: og_01M623W6Z2PPX94861WA9WE0QP
+  order_id: order_01M623W6YSVTCMBMS2CWDZAGZ9
+  display_id: 149
+  order_channel: b2c
+  order_status: pending
+  schema_changes: none
+  evidence_dir: client-projects/client101/evidence/CHG-094
+
+rollback:
+  code: revert the five customer-web files
+  data: cancel order #149 if it should not remain
+  staging: not applicable until separately authorized
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Staging deployment
+  reason: Requires a scoped customer-web release and a repeat QC on the deployed build.
+- id: D2
+  name: Payment link and ERP reservation
+  reason: Recorded in CHG-093; separate product decisions.
+
+approval_checkpoint: >-
+  Implemented and verified against the staging API from a local production build. Deploying the web
+  image remains separately gated; production is unauthorized.

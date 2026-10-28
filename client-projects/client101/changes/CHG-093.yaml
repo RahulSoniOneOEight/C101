@@ -36,6 +36,7 @@ findings:
   statement: >-
     Submitting the web checkout as a signed-in owner fails with "A pilot bearer session is required";
     /api/checkout creates the cart without forwarding the session token.
+  fixed_by: CHG-094
   evidence: web/checkout-result.png
 - id: F2
   severity: high
