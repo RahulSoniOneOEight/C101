@@ -1,0 +1,143 @@
+change_id: CHG-090
+revision: 1
+status: staging-applied-verified
+request: >-
+  Stop external push delivery on staging while the Firebase credentials are invalid, so tester
+  traffic cannot accumulate further failed/dead-lettered delivery attempts. In-app notifications
+  must keep working.
+type: staging-notification-delivery-containment
+extends:
+- CHG-035
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-next-steps-can-implement
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-next-steps-can-implement
+approval_scope: staging-configuration-only
+production_release_authorized: false
+
+lane: C
+release_mechanism:
+- staging-secret-change
+- container-recreate
+
+context:
+- >-
+  Staging ran with FCM_DELIVERY_ENABLED=true and a pre-existing invalid-credential backlog. The
+  worker health endpoint exposed an fcm_delivery=enabled state, and delivery attempts had been
+  dead-lettering since before CHG-087.
+- >-
+  No valid Firebase service-account credential is available to this project, so supplying
+  credentials is not possible. Disabling external delivery is the safe containment.
+- >-
+  In-app notifications are stored by the Experience API independently of FCM; disabling the gateway
+  only removes the external push attempt.
+
+outcome: >-
+  Staging records notifications without attempting external delivery. The worker reports
+  fcm_delivery=disabled, no new delivery-attempt rows are created, and the API/web/Admin/Seller
+  surfaces stay healthy. Re-enabling requires valid credentials and a new decision.
+
+decisions:
+- id: DEC-090-01
+  area: Containment vs credentials
+  proposed_default: >-
+    Disable FCM delivery (`FCM_DELIVERY_ENABLED=false`) rather than leave a broken gateway enabled.
+    No credential is fabricated or committed.
+- id: DEC-090-02
+  area: Blast radius
+  proposed_default: >-
+    Change only the staging secret and recreate `experience-api` and `event-workers`. No image build,
+    no schema change, no data migration.
+- id: DEC-090-03
+  area: Notification semantics
+  proposed_default: >-
+    Notifications remain test_data records in `pilot_notification`. Delivery-attempt rows are not
+    created while the gateway is null.
+
+affected_capabilities:
+- notifications
+- staging-operations
+affected_surfaces:
+- staging.experience-api
+- staging.event-workers
+
+requirements:
+- id: R1
+  name: External delivery disabled
+  outcome: Both containers report FCM_DELIVERY_ENABLED=false and the worker health shows fcm_delivery=disabled.
+  status: pass
+- id: R2
+  name: No new delivery attempts
+  outcome: Delivery-attempt count and last-attempt timestamp are unchanged after the change.
+  status: pass
+- id: R3
+  name: Surfaces healthy
+  outcome: Experience API healthy; API, app, Admin and Seller return 200.
+  status: pass
+- id: R4
+  name: Reversible
+  outcome: The previous secret file is backed up with a documented restore and recreate step.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - /etc/buildkart/secrets/experience-api.env (staging only, not committed)
+  - client-projects/client101/changes/CHG-090.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-090/**
+  no_touch:
+  - application source
+  - database schema and rows
+  - Medusa, Tryton, carrier, PSP and settlement
+  - production
+  environment: staging
+  production: forbidden
+
+baseline:
+  staging_release: bab4e5171
+  staging_current: release-bab4e51
+  fcm_delivery: enabled
+  delivery_attempts: 29
+
+verification:
+  applied_at_utc: '2026-10-29'
+  environment: staging
+  result: pass
+  secret_backup: /var/backups/buildkart/experience-api.env.20261028T200141Z
+  secret_mode: '600 root:root'
+  fcm_delivery_before: enabled
+  fcm_delivery_after: disabled
+  experience_api_health: healthy
+  worker_health: '{"status":"ok","fcm_delivery":"disabled"}'
+  delivery_attempts_before: 29
+  delivery_attempts_after: 29
+  public_surfaces:
+  - api 200
+  - app 200
+  - admin 200
+  - seller 200
+  schema_changes: none
+  data_changes: none
+  evidence_dir: client-projects/client101/evidence/CHG-090
+
+rollback:
+  steps: >-
+    Copy the backup secret back over /etc/buildkart/secrets/experience-api.env, then recreate
+    experience-api and event-workers with docker compose --no-deps --force-recreate.
+  restore_proven: false
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Valid Firebase credentials
+  reason: Requires a service account for the staging Firebase project and a reviewed rollout.
+- id: D2
+  name: Delivery backlog cleanup
+  reason: Existing dead-letter rows are historical evidence; purging them needs an ops decision.
+
+approval_checkpoint: >-
+  Containment applied to staging only under the requester's 2026-10-29 instruction. Production is
+  untouched and remains unauthorized.

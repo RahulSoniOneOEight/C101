@@ -1,0 +1,150 @@
+change_id: CHG-091
+revision: 1
+status: implementation-source-verified
+request: >-
+  Give a signed-in customer one place to see every return they have requested, with status, reason,
+  date and a link to the return detail, reachable from the primary navigation.
+type: customer-returns-index
+extends:
+- CHG-089
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-next-steps-can-implement
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_scope: implement-next-in-app-step
+implementation_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: A
+release_mechanism:
+- ui
+- image-rebuild
+
+context:
+- >-
+  CHG-089 added return initiation, but returns were only reachable through an order. The Experience
+  API already exposes the owner-scoped list at GET /v1/me/returns.
+- >-
+  The customer web had /returns/[id] but no index, and the primary navigation only linked Catalogue
+  and Orders.
+
+outcome: >-
+  A signed-in customer opens Returns from the navigation and sees only their own return requests with
+  honest status wording. Empty state points back to orders. No new API or schema.
+
+decisions:
+- id: DEC-091-01
+  area: Data source
+  proposed_default: >-
+    Use GET /v1/me/returns with the HTTP-only session cookie. No client-side filtering of another
+    owner's data is possible because the API scopes by session identity.
+- id: DEC-091-02
+  area: Presentation
+  proposed_default: >-
+    Reuse the existing return-row pattern and status vocabulary. Do not invent counts or promise
+    refunds; point to the detail page for progress.
+- id: DEC-091-03
+  area: Scope
+  proposed_default: >-
+    UI only. No Experience API, schema, Admin or Seller change.
+
+affected_capabilities:
+- returns
+- customer-post-purchase
+affected_surfaces:
+- customer-web.returns
+
+requirements:
+- id: R1
+  name: Navigation and list
+  outcome: Returns is reachable from the primary navigation and lists the signed-in customer's requests.
+  status: pass
+- id: R2
+  name: Owner scope
+  outcome: The list is produced by the owner-scoped API using the session cookie; no identifier is accepted from the browser.
+  status: pass
+- id: R3
+  name: Honest wording
+  outcome: Rows show status, reason, line count and request date; the page states a request is not a refund.
+  status: pass
+- id: R4
+  name: Empty state
+  outcome: With no returns, the page explains how to start one and links to orders.
+  status: pass
+- id: R5
+  name: Verification
+  outcome: Typecheck and production build pass; 390x844 and 1440x900 browser QC passes read-only.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/returns/page.tsx
+  - apps/web/app/layout.tsx
+  - client-projects/client101/changes/CHG-091.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-091/**
+  no_touch:
+  - services/experience-api
+  - services/backend
+  - Medusa, Tryton, carrier, PSP and settlement
+  - production
+  data_records: []
+  environment: local-ui-against-staging-api-read-only
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: 5170e53
+  staging_release: bab4e5171
+  staging_current: release-bab4e51
+
+required_tests:
+- Signed-in customer sees the Returns navigation link and their own requests.
+- Each row links to the matching return detail.
+- No other owner's return is shown.
+- Empty state renders when the customer has no returns.
+- Typecheck, build and 390/1440 browser QC pass with no console errors.
+
+verification:
+  local_completed_at_utc: '2026-10-29'
+  environment: local-next-start-against-staging-api
+  result: pass-source
+  staging_deployed: false
+  production_released: false
+  typecheck: pass
+  build: pass
+  routes:
+  - /returns
+  browser_qc: pass-16-of-16
+  browser_qc_viewports:
+  - 390x844
+  - 1440x900
+  browser_qc_mode: read-only
+  browser_qc_console_errors: 0
+  browser_qc_failed_requests: 0
+  schema_changes: none
+  medusa_rows_changed: false
+  tryton_rows_changed: false
+  evidence_dir: client-projects/client101/evidence/CHG-091
+
+rollback:
+  code: revert apps/web/app/returns/page.tsx, the layout nav entry and listMyReturns
+  data: none
+  staging: not applicable until separately authorized
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Staging deployment
+  reason: Requires a scoped web release and browser QC against the deployed build.
+- id: D2
+  name: Production release
+  reason: Legal/tax review and human production authorization remain required.
+
+approval_checkpoint: >-
+  Implemented and read-only verified on 2026-10-29. Deploying the customer web image is separately
+  gated; production remains unauthorized.
