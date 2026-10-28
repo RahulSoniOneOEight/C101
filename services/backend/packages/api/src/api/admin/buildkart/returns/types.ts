@@ -7,6 +7,40 @@ export interface AdminReturnLine {
   requestedQty: number;
   approvedQty: number | null;
   reasonCode: string;
+  unitPriceMinor: number;
+  receivedQty: number | null;
+  condition: string | null;
+  disposition: string | null;
+  inspectionNote: string | null;
+  inspectedAt: string | null;
+  inspectedBy: string | null;
+}
+
+export interface AdminReturnRefundSimulationBreakdown {
+  itemSubtotalMinor: number;
+  taxMinor: number;
+  shippingMinor: number;
+  restockingFeeMinor: number;
+  returnFreightMinor: number;
+}
+
+export interface AdminReturnRefundSimulation {
+  id: string;
+  returnCaseId: string;
+  operationKey: string;
+  amountMinor: number;
+  currencyCode: string;
+  method: "original_method_simulation" | "cod_bank_transfer_simulation";
+  status: "simulated_pending" | "simulated_completed" | "simulated_failed";
+  simulationReference: string;
+  breakdown: AdminReturnRefundSimulationBreakdown;
+  failureReason: string | null;
+  createdAt: string;
+  recordedAt: string;
+  testData: true;
+  simulated: true;
+  moneyEffect: "none";
+  stockEffect: "none";
 }
 
 export interface AdminReturnEvent {
@@ -37,6 +71,7 @@ export interface AdminReturnCase {
   decisionComment: string | null;
   lines: AdminReturnLine[];
   events: AdminReturnEvent[];
+  refundSimulation: AdminReturnRefundSimulation | null;
 }
 
 export interface AdminReturnListResponse {
@@ -47,6 +82,7 @@ export interface AdminReturnListResponse {
 
 export interface AdminReturnActionResponse {
   return: AdminReturnCase;
+  refund_simulation?: AdminReturnRefundSimulation;
   duplicate?: boolean;
   environment: string;
   test_data: true;

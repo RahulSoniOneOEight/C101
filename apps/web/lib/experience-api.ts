@@ -7,6 +7,20 @@
 
 const baseUrl = process.env.EXPERIENCE_API_BASE_URL ?? "http://localhost:9020";
 
+export const PILOT_SESSION_COOKIE = "buildkart_pilot_session";
+export const PILOT_CHALLENGE_COOKIE = "buildkart_pilot_challenge";
+
+export class ExperienceApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly problemType?: string,
+  ) {
+    super(message);
+    this.name = "ExperienceApiError";
+  }
+}
+
 export interface OfferView {
   id: string;
   seller_id: string;
@@ -88,9 +102,189 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Experience API ${path} -> ${res.status}: ${text.slice(0, 200)}`);
+    let message = `Experience API request failed (${res.status}).`;
+    let problemType: string | undefined;
+    try {
+      const problem = JSON.parse(text) as {
+        detail?: unknown;
+        title?: unknown;
+        type?: unknown;
+      };
+      if (typeof problem.detail === "string" && problem.detail.trim()) {
+        message = problem.detail.trim();
+      } else if (typeof problem.title === "string" && problem.title.trim()) {
+        message = problem.title.trim();
+      }
+      if (typeof problem.type === "string") problemType = problem.type;
+    } catch {
+      // Do not expose an upstream HTML/error body to the browser.
+    }
+    throw new ExperienceApiError(res.status, message, problemType);
   }
   return (text ? JSON.parse(text) : undefined) as T;
+}
+
+function authenticatedHeaders(sessionToken: string): HeadersInit {
+  return { authorization: `Bearer ${sessionToken}` };
+}
+
+export interface PilotUserView {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface OtpChallengeResult {
+  challenge_id: string;
+  expires_in_seconds: number;
+  test_data: true;
+}
+
+export interface OtpVerificationResult {
+  session_token: string;
+  expires_in_seconds: number;
+  user: PilotUserView;
+  test_data: true;
+}
+
+export async function requestOtpChallenge(identifier: string): Promise<OtpChallengeResult> {
+  return call<OtpChallengeResult>("/v1/auth/otp/challenges", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
+  });
+}
+
+export async function verifyOtpChallenge(
+  challengeId: string,
+  code: string,
+): Promise<OtpVerificationResult> {
+  return call<OtpVerificationResult>("/v1/auth/otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
+
+export async function revokePilotSession(sessionToken: string): Promise<void> {
+  await call<void>("/v1/auth/logout", {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+  });
+}
+
+export interface CustomerOrderLine {
+  line_key: string;
+  sku: string;
+  title: string;
+  quantity: number;
+  unit_price: number;
+  product_id: string | null;
+  variant_id: string | null;
+  seller_id: string | null;
+}
+
+export interface CustomerOrderSummary {
+  order_id: string;
+  medusa_order_group_id: string | null;
+  order_number: string | null;
+  status: string;
+  created_at: string;
+  subtotal_minor: number | null;
+  shipping_minor: number | null;
+  discount_minor: number | null;
+  total_minor: number | null;
+  currency_code: string;
+  payment_mode: string;
+  test_data: true;
+  lines: CustomerOrderLine[];
+}
+
+export interface CustomerShipment {
+  id: string;
+  trackingNumber: string;
+  provider: string;
+  status: string;
+  deliveredAt: string | null;
+  logisticsMode: "simulated";
+  testData: true;
+}
+
+export interface CustomerReturnLine {
+  id: string;
+  lineKey: string;
+  sku: string;
+  requestedQty: number;
+  approvedQty: number | null;
+  receivedQty: number | null;
+  condition: string | null;
+  disposition: string | null;
+  inspectionNote: string | null;
+  inspectedAt: string | null;
+}
+
+export interface CustomerRefundSimulation {
+  id: string;
+  amountMinor: number;
+  currencyCode: string;
+  method: string;
+  status: "simulated_pending" | "simulated_completed" | "simulated_failed";
+  simulationReference: string;
+  recordedAt: string;
+  testData: true;
+  simulated: true;
+  moneyEffect: "none";
+  stockEffect: "none";
+}
+
+export interface CustomerReturn {
+  id: string;
+  orderId: string;
+  status: string;
+  resolution: string;
+  reasonCode: string;
+  requestedAt: string;
+  decisionComment: string | null;
+  testData: true;
+  lines: CustomerReturnLine[];
+  refundSimulation: CustomerRefundSimulation | null;
+}
+
+export interface CustomerOrderDetail extends CustomerOrderSummary {
+  reservation_status: string;
+  reconciled: boolean;
+  shipments: CustomerShipment[];
+  returns: CustomerReturn[];
+  logistics_mode: "simulated";
+}
+
+export async function listMyOrders(
+  sessionToken: string,
+  limit = 50,
+): Promise<CustomerOrderSummary[]> {
+  const result = await call<{ items: CustomerOrderSummary[] }>(
+    `/v1/me/orders?limit=${Math.max(1, Math.min(limit, 100))}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.items ?? [];
+}
+
+export async function getMyOrder(
+  sessionToken: string,
+  orderId: string,
+): Promise<CustomerOrderDetail> {
+  return call<CustomerOrderDetail>(`/v1/orders/${encodeURIComponent(orderId)}`, {
+    headers: authenticatedHeaders(sessionToken),
+  });
+}
+
+export async function getMyReturn(
+  sessionToken: string,
+  returnId: string,
+): Promise<CustomerReturn> {
+  const result = await call<{ return: CustomerReturn }>(
+    `/v1/returns/${encodeURIComponent(returnId)}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.return;
 }
 
 export async function listProducts(limit = 24): Promise<ComposedProduct[]> {

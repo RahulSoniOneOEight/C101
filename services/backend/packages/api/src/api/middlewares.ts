@@ -13,6 +13,8 @@ import {
   AdminPreviewCmsContent,
 } from "./admin/buildkart/content/validators";
 import { ManualReturnStatus } from "./admin/buildkart/returns/[id]/status/validators";
+import { ReturnInspection } from "./admin/buildkart/returns/[id]/inspection/validators";
+import { RecordRefundSimulation } from "./admin/buildkart/returns/[id]/refund-simulation/validators";
 import { ManualShipmentStatus } from "./admin/buildkart/shipments/[id]/status/validators";
 
 const routes = [
@@ -35,6 +37,21 @@ const routes = [
     method: ["POST"],
     matcher: "/vendor/buildkart/returns/:id/status",
     middlewares: [validateAndTransformBody(ManualReturnStatus)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/returns/:id/inspection",
+    middlewares: [validateAndTransformBody(ReturnInspection)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/vendor/buildkart/returns/:id/inspection",
+    middlewares: [validateAndTransformBody(ReturnInspection)],
+  },
+  {
+    method: ["POST"],
+    matcher: "/admin/buildkart/returns/:id/refund-simulation",
+    middlewares: [validateAndTransformBody(RecordRefundSimulation)],
   },
   {
     method: ["GET"],

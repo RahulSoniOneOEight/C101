@@ -1,13 +1,13 @@
 asyncapi: 3.1.0
 info:
   title: BuildKart Domain Events
-  version: 0.3.0-draft
+  version: 0.4.0-draft
   description: >-
-    Revision 7 review draft for CHG-017 and CHG-035. Delivery is at least once; consumers must
-    deduplicate by event_id and reject unsupported schema versions. Simulated payment and logistics
-    events are test data and do not establish provider evidence. Return events are workflow events
-    with no Medusa money effect or Tryton stock effect. No broker or environment is selected by
-    this document.
+    Revision 8 review draft for CHG-017, CHG-035 and approved CHG-087. Delivery is at least once;
+    consumers must deduplicate by event_id and reject unsupported schema versions. Simulated payment,
+    logistics and return-refund events are test data and do not establish provider evidence. Return
+    events are workflow evidence with no Medusa money effect or Tryton stock effect. No broker or
+    environment is selected by this document.
 defaultContentType: application/json
 channels:
   identityAuthenticated:
@@ -98,6 +98,14 @@ channels:
     address: return.status-changed.v1
     messages:
       returnStatusChanged: {$ref: '#/components/messages/ReturnStatusChanged'}
+  returnInspectionCompleted:
+    address: return.inspection-completed.v1
+    messages:
+      returnInspectionCompleted: {$ref: '#/components/messages/ReturnInspectionCompleted'}
+  returnRefundSimulationRecorded:
+    address: return.refund-simulation-recorded.v1
+    messages:
+      returnRefundSimulationRecorded: {$ref: '#/components/messages/ReturnRefundSimulationRecorded'}
   integrationDeliveryFailed:
     address: integration.delivery-failed.v1
     messages:
@@ -177,6 +185,12 @@ operations:
   receiveReturnStatusChanged:
     action: receive
     channel: {$ref: '#/channels/returnStatusChanged'}
+  receiveReturnInspectionCompleted:
+    action: receive
+    channel: {$ref: '#/channels/returnInspectionCompleted'}
+  receiveReturnRefundSimulationRecorded:
+    action: receive
+    channel: {$ref: '#/channels/returnRefundSimulationRecorded'}
   receiveIntegrationDeliveryFailed:
     action: receive
     channel: {$ref: '#/channels/integrationDeliveryFailed'}
@@ -254,6 +268,12 @@ components:
     ReturnStatusChanged:
       name: return.status-changed
       payload: {$ref: '#/components/schemas/ReturnStatusChangedEvent'}
+    ReturnInspectionCompleted:
+      name: return.inspection-completed
+      payload: {$ref: '#/components/schemas/ReturnInspectionCompletedEvent'}
+    ReturnRefundSimulationRecorded:
+      name: return.refund-simulation-recorded
+      payload: {$ref: '#/components/schemas/ReturnRefundSimulationRecordedEvent'}
     IntegrationDeliveryFailed:
       name: integration.delivery-failed
       payload: {$ref: '#/components/schemas/IntegrationDeliveryFailedEvent'}
@@ -466,6 +486,61 @@ components:
         return_id: {type: string}
         status: {type: string, enum: [requested, approved, rejected, cancelled, pickup_scheduled, received, closed]}
         occurred_at: {type: string, format: date-time}
+    ReturnInspectionLineData:
+      type: object
+      required: [line_key, approved_qty, received_qty, condition, disposition]
+      properties:
+        line_key: {type: string}
+        approved_qty: {type: integer, minimum: 1}
+        received_qty: {type: integer, minimum: 0}
+        condition: {type: string, enum: [sellable, damaged, incomplete, wrong_item]}
+        disposition: {type: string, enum: [restock, repair, quarantine, dispose]}
+        note: {type: [string, 'null']}
+    ReturnInspectionData:
+      type: object
+      required: [return_id, order_id, status, lines, inspected_at, inspected_by, test_data, simulated, money_effect, stock_effect]
+      properties:
+        return_id: {type: string}
+        order_id: {type: string}
+        order_group_id: {type: [string, 'null']}
+        status: {type: string, const: inspection_complete}
+        lines:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ReturnInspectionLineData'}
+        inspected_at: {type: string, format: date-time}
+        inspected_by: {type: string}
+        test_data: {type: boolean, const: true}
+        simulated: {type: boolean, const: true}
+        money_effect: {type: string, const: none}
+        stock_effect: {type: string, const: none}
+    ReturnRefundSimulationData:
+      type: object
+      required: [return_id, order_id, refund_simulation_id, status, amount, method, simulation_reference, recorded_at, test_data, simulated, money_effect, stock_effect]
+      properties:
+        return_id: {type: string}
+        order_id: {type: string}
+        order_group_id: {type: [string, 'null']}
+        refund_simulation_id: {type: string}
+        status: {type: string, enum: [simulated_pending, simulated_completed, simulated_failed]}
+        amount: {$ref: '#/components/schemas/Money'}
+        method: {type: string, enum: [original_method_simulation, cod_bank_transfer_simulation]}
+        simulation_reference: {type: string, pattern: '^SIM-'}
+        breakdown:
+          type: object
+          additionalProperties: false
+          required: [item_subtotal_minor, tax_minor, shipping_minor, restocking_fee_minor, return_freight_minor]
+          properties:
+            item_subtotal_minor: {type: integer, minimum: 0}
+            tax_minor: {type: integer, minimum: 0}
+            shipping_minor: {type: integer, minimum: 0}
+            restocking_fee_minor: {type: integer, minimum: 0}
+            return_freight_minor: {type: integer, minimum: 0}
+        recorded_at: {type: string, format: date-time}
+        test_data: {type: boolean, const: true}
+        simulated: {type: boolean, const: true}
+        money_effect: {type: string, const: none}
+        stock_effect: {type: string, const: none}
     IntegrationDeliveryFailedData:
       type: object
       required: [delivery_id, dependency, error_code, failure_class, attempt_count]
@@ -578,6 +653,18 @@ components:
       - type: object
         required: [data]
         properties: {data: {$ref: '#/components/schemas/ReturnStatusData'}}
+    ReturnInspectionCompletedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ReturnInspectionData'}}
+    ReturnRefundSimulationRecordedEvent:
+      allOf:
+      - $ref: '#/components/schemas/EventMetadata'
+      - type: object
+        required: [data]
+        properties: {data: {$ref: '#/components/schemas/ReturnRefundSimulationData'}}
     IntegrationDeliveryFailedEvent:
       allOf:
       - $ref: '#/components/schemas/EventMetadata'

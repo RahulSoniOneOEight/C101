@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -12,10 +13,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <header className="site-header">
-          <a href="/" className="brand">
+          <Link href="/" className="brand">
             BuildKart
-          </a>
-          <span className="env-badge">staging · simulated payment</span>
+          </Link>
+          <nav className="site-nav" aria-label="Primary navigation">
+            <Link href="/">Catalogue</Link>
+            <Link href="/orders">Orders</Link>
+          </nav>
+          <span className="env-badge">staging · simulated</span>
         </header>
         <main className="container">{children}</main>
         <footer className="site-footer">

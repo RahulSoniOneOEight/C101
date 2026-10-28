@@ -528,6 +528,14 @@ export type Routes = {
             };
             merchandisingOffers: typeof import("../src/api/admin/buildkart/merchandising-offers/route");
             merchandisingPresets: typeof import("../src/api/admin/buildkart/merchandising-presets/route");
+            merchandising: {
+                boughtTogether: typeof import("../src/api/admin/buildkart/merchandising/bought-together/route") & {
+                    $id: typeof import("../src/api/admin/buildkart/merchandising/bought-together/[id]/route") & {
+                        audit: typeof import("../src/api/admin/buildkart/merchandising/bought-together/[id]/audit/route");
+                    };
+                    candidates: typeof import("../src/api/admin/buildkart/merchandising/bought-together/candidates/route");
+                };
+            };
             offers: {
                 $id: {
                     b2bPricing: typeof import("../src/api/admin/buildkart/offers/[id]/b2b-pricing/route");
@@ -541,6 +549,7 @@ export type Routes = {
                 };
             };
             orderStatuses: typeof import("../src/api/admin/buildkart/order-statuses/route");
+            productImport: typeof import("../src/api/admin/buildkart/product-import/route");
             productStudio: typeof import("../src/api/admin/buildkart/product-studio/route") & {
                 $id: typeof import("../src/api/admin/buildkart/product-studio/[id]/route") & {
                     review: typeof import("../src/api/admin/buildkart/product-studio/[id]/review/route");
@@ -549,6 +558,8 @@ export type Routes = {
             returns: typeof import("../src/api/admin/buildkart/returns/route") & {
                 $id: typeof import("../src/api/admin/buildkart/returns/[id]/route") & {
                     approve: typeof import("../src/api/admin/buildkart/returns/[id]/approve/route");
+                    inspection: typeof import("../src/api/admin/buildkart/returns/[id]/inspection/route");
+                    refundSimulation: typeof import("../src/api/admin/buildkart/returns/[id]/refund-simulation/route");
                     reject: typeof import("../src/api/admin/buildkart/returns/[id]/reject/route");
                     status: typeof import("../src/api/admin/buildkart/returns/[id]/status/route");
                 };
@@ -1007,6 +1018,7 @@ export type Routes = {
             };
             returns: typeof import("../src/api/vendor/buildkart/returns/route") & {
                 $id: typeof import("../src/api/vendor/buildkart/returns/[id]/route") & {
+                    inspection: typeof import("../src/api/vendor/buildkart/returns/[id]/inspection/route");
                     status: typeof import("../src/api/vendor/buildkart/returns/[id]/status/route");
                 };
             };

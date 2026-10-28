@@ -53,15 +53,54 @@ export const SELLER_RETURN_TRANSITIONS = new Set<ReturnStatus>([
   "in_return_transit",
   "received",
   "inspection_pending",
-  "inspection_complete",
-  "closed",
 ]);
 
-export function allowedReturnTransitions(status: ReturnStatus): ReturnStatus[] {
-  return [...RETURN_TRANSITIONS[status]];
+export function allowedReturnTransitions(
+  status: ReturnStatus,
+  resolution?: ReturnResolution,
+): ReturnStatus[] {
+  return RETURN_TRANSITIONS[status].filter(
+    (target) =>
+      target !== "inspection_complete" &&
+      !(resolution === "refund" && target === "closed"),
+  );
 }
 
 export type ReturnResolution = "refund" | "replacement";
+
+export type ReturnCondition = "sellable" | "damaged" | "incomplete" | "wrong_item";
+export type ReturnDisposition = "restock" | "repair" | "quarantine" | "dispose";
+export type RefundSimulationStatus =
+  | "simulated_pending"
+  | "simulated_completed"
+  | "simulated_failed";
+
+export interface RefundSimulationBreakdown {
+  itemSubtotalMinor: number;
+  taxMinor: number;
+  shippingMinor: number;
+  restockingFeeMinor: number;
+  returnFreightMinor: number;
+}
+
+export interface ReturnRefundSimulation {
+  id: string;
+  returnCaseId: string;
+  operationKey: string;
+  amountMinor: number;
+  currencyCode: string;
+  method: "original_method_simulation" | "cod_bank_transfer_simulation";
+  status: RefundSimulationStatus;
+  simulationReference: string;
+  breakdown: RefundSimulationBreakdown;
+  failureReason: string | null;
+  createdAt: string;
+  recordedAt: string;
+  testData: true;
+  simulated: true;
+  moneyEffect: "none";
+  stockEffect: "none";
+}
 
 export interface ReturnLineInput {
   lineKey: string;
@@ -70,6 +109,7 @@ export interface ReturnLineInput {
   deliveredQty: number;
   requestedQty: number;
   reasonCode: string;
+  unitPriceMinor?: number;
 }
 
 export interface ReturnEvidenceInput {
@@ -83,6 +123,13 @@ export interface ReturnEvidenceInput {
 export interface ReturnLine extends ReturnLineInput {
   id: string;
   approvedQty: number | null;
+  unitPriceMinor: number;
+  receivedQty: number | null;
+  condition: ReturnCondition | null;
+  disposition: ReturnDisposition | null;
+  inspectionNote: string | null;
+  inspectedAt: string | null;
+  inspectedBy: string | null;
 }
 
 export interface ReturnEvidence extends ReturnEvidenceInput {
@@ -123,6 +170,7 @@ export interface ReturnCase {
   lines: ReturnLine[];
   evidence: ReturnEvidence[];
   events: ReturnEvent[];
+  refundSimulation: ReturnRefundSimulation | null;
 }
 
 interface ReturnCaseRow {
@@ -157,6 +205,37 @@ interface ReturnLineRow {
   requested_qty: number;
   approved_qty: number | null;
   reason_code: string;
+  unit_price_minor: number;
+  received_qty: number | null;
+  condition: ReturnCondition | null;
+  disposition: ReturnDisposition | null;
+  inspection_note: string | null;
+  inspected_at: Date | string | null;
+  inspected_by: string | null;
+}
+
+interface ReturnRefundSimulationRow {
+  id: string;
+  return_case_id: string;
+  operation_key: string;
+  request_hash: string;
+  amount_minor: number;
+  currency_code: string;
+  method: "original_method_simulation" | "cod_bank_transfer_simulation";
+  status: RefundSimulationStatus;
+  simulation_reference: string;
+  breakdown: {
+    item_subtotal_minor: number;
+    tax_minor: number;
+    shipping_minor: number;
+    restocking_fee_minor: number;
+    return_freight_minor: number;
+  };
+  failure_reason: string | null;
+  created_at: Date | string;
+  recorded_at: Date | string;
+  test_data: true;
+  simulated: true;
 }
 
 interface ReturnEvidenceRow {
@@ -248,6 +327,39 @@ export class ReturnStore {
         approved_qty   integer,
         reason_code    text NOT NULL,
         UNIQUE (return_case_id, line_key)
+      );
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS unit_price_minor integer NOT NULL DEFAULT 0;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS received_qty integer;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS condition text;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS disposition text;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS inspection_note text;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS inspected_at timestamptz;
+      ALTER TABLE pilot_return_line
+        ADD COLUMN IF NOT EXISTS inspected_by text;
+
+      CREATE TABLE IF NOT EXISTS pilot_return_refund_simulation (
+        id                   text PRIMARY KEY,
+        return_case_id       text NOT NULL UNIQUE REFERENCES pilot_return_case(id) ON DELETE CASCADE,
+        operation_key        text NOT NULL,
+        request_hash         text NOT NULL,
+        amount_minor         integer NOT NULL CHECK (amount_minor > 0),
+        currency_code        text NOT NULL DEFAULT 'INR' CHECK (currency_code = upper(currency_code)),
+        method               text NOT NULL CHECK (method IN ('original_method_simulation','cod_bank_transfer_simulation')),
+        status               text NOT NULL CHECK (status IN ('simulated_pending','simulated_completed','simulated_failed')),
+        simulation_reference text NOT NULL CHECK (simulation_reference LIKE 'SIM-%'),
+        breakdown            jsonb NOT NULL,
+        failure_reason       text,
+        created_at           timestamptz NOT NULL DEFAULT now(),
+        recorded_at          timestamptz NOT NULL DEFAULT now(),
+        test_data            boolean NOT NULL DEFAULT true CHECK (test_data = true),
+        simulated            boolean NOT NULL DEFAULT true CHECK (simulated = true),
+        UNIQUE (return_case_id, operation_key)
       );
 
       CREATE TABLE IF NOT EXISTS pilot_return_event (
@@ -359,8 +471,8 @@ export class ReturnStore {
       for (const line of input.lines) {
         await client.query(
           `INSERT INTO pilot_return_line
-             (id, return_case_id, line_key, sku, ordered_qty, delivered_qty, requested_qty, approved_qty, reason_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, null, $8)`,
+             (id, return_case_id, line_key, sku, ordered_qty, delivered_qty, requested_qty, approved_qty, reason_code, unit_price_minor)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, null, $8, $9)`,
           [
             `retl_${randomUUID().replaceAll("-", "")}`,
             id,
@@ -370,6 +482,7 @@ export class ReturnStore {
             line.deliveredQty,
             line.requestedQty,
             line.reasonCode,
+            line.unitPriceMinor ?? 0,
           ],
         );
       }
@@ -439,7 +552,7 @@ export class ReturnStore {
     );
     if (!result.rows[0]) return null;
     const row = result.rows[0];
-    const [lines, evidence, events] = await Promise.all([
+    const [lines, evidence, events, refundSimulation] = await Promise.all([
       this.pool.query<ReturnLineRow>(
         `SELECT * FROM pilot_return_line WHERE return_case_id = $1 ORDER BY line_key`,
         [id],
@@ -450,6 +563,10 @@ export class ReturnStore {
       ),
       this.pool.query<ReturnEventRow>(
         `SELECT * FROM pilot_return_event WHERE return_case_id = $1 ORDER BY occurred_at, id`,
+        [id],
+      ),
+      this.pool.query<ReturnRefundSimulationRow>(
+        `SELECT * FROM pilot_return_refund_simulation WHERE return_case_id = $1`,
         [id],
       ),
     ]);
@@ -463,7 +580,7 @@ export class ReturnStore {
       policySnapshot: row.policy_snapshot,
       status: row.status,
       version: Number(row.version),
-      allowedTransitions: allowedReturnTransitions(row.status),
+      allowedTransitions: allowedReturnTransitions(row.status, row.resolution),
       resolution: row.resolution,
       reasonCode: row.reason_code,
       customerComment: row.customer_comment,
@@ -482,6 +599,13 @@ export class ReturnStore {
         requestedQty: line.requested_qty,
         approvedQty: line.approved_qty,
         reasonCode: line.reason_code,
+        unitPriceMinor: line.unit_price_minor,
+        receivedQty: line.received_qty,
+        condition: line.condition,
+        disposition: line.disposition,
+        inspectionNote: line.inspection_note,
+        inspectedAt: line.inspected_at ? iso(line.inspected_at) : null,
+        inspectedBy: line.inspected_by,
       })),
       evidence: evidence.rows.map((item) => ({
         id: item.id,
@@ -501,6 +625,32 @@ export class ReturnStore {
         detail: event.detail,
         occurredAt: iso(event.occurred_at),
       })),
+      refundSimulation: refundSimulation.rows[0]
+        ? {
+            id: refundSimulation.rows[0].id,
+            returnCaseId: refundSimulation.rows[0].return_case_id,
+            operationKey: refundSimulation.rows[0].operation_key,
+            amountMinor: refundSimulation.rows[0].amount_minor,
+            currencyCode: refundSimulation.rows[0].currency_code,
+            method: refundSimulation.rows[0].method,
+            status: refundSimulation.rows[0].status,
+            simulationReference: refundSimulation.rows[0].simulation_reference,
+            breakdown: {
+              itemSubtotalMinor: refundSimulation.rows[0].breakdown.item_subtotal_minor,
+              taxMinor: refundSimulation.rows[0].breakdown.tax_minor,
+              shippingMinor: refundSimulation.rows[0].breakdown.shipping_minor,
+              restockingFeeMinor: refundSimulation.rows[0].breakdown.restocking_fee_minor,
+              returnFreightMinor: refundSimulation.rows[0].breakdown.return_freight_minor,
+            },
+            failureReason: refundSimulation.rows[0].failure_reason,
+            createdAt: iso(refundSimulation.rows[0].created_at),
+            recordedAt: iso(refundSimulation.rows[0].recorded_at),
+            testData: true,
+            simulated: true,
+            moneyEffect: "none",
+            stockEffect: "none",
+          }
+        : null,
     };
   }
 
@@ -640,6 +790,378 @@ export class ReturnStore {
     }
   }
 
+  async inspect(input: {
+    id: string;
+    expectedVersion: number;
+    actorId: string;
+    actorRole: string;
+    lines: Array<{
+      lineKey: string;
+      receivedQty: number;
+      condition: ReturnCondition;
+      disposition: ReturnDisposition;
+      note?: string | null;
+    }>;
+    note?: string | null;
+    allowedLineKeys?: readonly string[];
+  }): Promise<ReturnCase> {
+    await this.ready;
+    const current = await this.get(input.id);
+    if (!current) {
+      throw Object.assign(new Error("Return case not found."), { code: "return-not-found" });
+    }
+    if (!(["received", "inspection_pending"] as ReturnStatus[]).includes(current.status)) {
+      throw Object.assign(
+        new Error("Return must be received before inspection."),
+        { code: "return-not-inspectable" },
+      );
+    }
+    if (current.version !== input.expectedVersion) {
+      throw Object.assign(
+        new Error(
+          `Return changed from version ${input.expectedVersion} to ${current.version}. Refresh before retrying.`,
+        ),
+        { code: "return-version-conflict", currentVersion: current.version },
+      );
+    }
+    const inspectionNote = input.note?.trim();
+    if (!inspectionNote) {
+      throw Object.assign(
+        new Error("An inspection note is required."),
+        { code: "inspection-note-required" },
+      );
+    }
+    const approved = new Map(
+      current.lines
+        .filter((line) => (line.approvedQty ?? 0) > 0)
+        .map((line) => [line.lineKey, line.approvedQty as number]),
+    );
+    if (input.allowedLineKeys) {
+      const allowed = new Set(input.allowedLineKeys);
+      if ([...approved.keys()].some((lineKey) => !allowed.has(lineKey))) {
+        throw Object.assign(
+          new Error("This return contains approved lines outside the seller allocation."),
+          { code: "inspection-scope-incomplete" },
+        );
+      }
+    }
+    if (approved.size === 0 || input.lines.length !== approved.size) {
+      throw Object.assign(
+        new Error("Inspection must include every approved return line exactly once."),
+        { code: "inspection-lines-required" },
+      );
+    }
+    const seen = new Set<string>();
+    const conditions = new Set<ReturnCondition>(["sellable", "damaged", "incomplete", "wrong_item"]);
+    const dispositions = new Set<ReturnDisposition>(["restock", "repair", "quarantine", "dispose"]);
+    for (const line of input.lines) {
+      if (seen.has(line.lineKey) || !approved.has(line.lineKey)) {
+        throw Object.assign(
+          new Error("Inspection lines must match the approved return lines."),
+          { code: "inspection-lines-required" },
+        );
+      }
+      seen.add(line.lineKey);
+      if (
+        !Number.isInteger(line.receivedQty) ||
+        line.receivedQty < 0 ||
+        line.receivedQty > (approved.get(line.lineKey) ?? 0)
+      ) {
+        throw Object.assign(
+          new Error("Received quantity must be between 0 and the approved quantity."),
+          { code: "invalid-inspection-quantity" },
+        );
+      }
+      if (!conditions.has(line.condition) || !dispositions.has(line.disposition)) {
+        throw Object.assign(
+          new Error("Inspection condition or disposition is invalid."),
+          { code: "invalid-inspection" },
+        );
+      }
+    }
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const line of input.lines) {
+        await client.query(
+          `UPDATE pilot_return_line
+              SET received_qty = $3, condition = $4, disposition = $5,
+                  inspection_note = $6, inspected_at = now(), inspected_by = $7
+            WHERE return_case_id = $1 AND line_key = $2`,
+          [
+            input.id,
+            line.lineKey,
+            line.receivedQty,
+            line.condition,
+            line.disposition,
+            line.note?.trim() || inspectionNote,
+            input.actorId,
+          ],
+        );
+      }
+      const updatedCase = await client.query(
+        `UPDATE pilot_return_case
+            SET status = 'inspection_complete', version = version + 1
+          WHERE id = $1 AND version = $2 AND status IN ('received', 'inspection_pending')
+          RETURNING version`,
+        [input.id, input.expectedVersion],
+      );
+      if (updatedCase.rowCount !== 1) {
+        throw Object.assign(
+          new Error("Return changed while inspection was being recorded. Refresh before retrying."),
+          { code: "return-version-conflict" },
+        );
+      }
+      await client.query(
+        `INSERT INTO pilot_return_event
+           (id, return_case_id, event_type, actor_id, actor_role, detail)
+         VALUES ($1, $2, 'return.inspection_completed', $3, $4, $5)`,
+        [
+          `rete_${randomUUID().replaceAll("-", "")}`,
+          input.id,
+          input.actorId,
+          input.actorRole,
+          JSON.stringify({
+            lines: input.lines,
+            note: inspectionNote,
+            test_data: true,
+            simulated: true,
+            money_effect: "none",
+            stock_effect: "none",
+          }),
+        ],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+    const updated = await this.get(input.id);
+    if (!updated) throw new Error("Return case disappeared after inspection.");
+    return updated;
+  }
+
+  async recordRefundSimulation(input: {
+    id: string;
+    expectedVersion: number;
+    operationKey: string;
+    actorId: string;
+    actorRole: string;
+    method: "original_method_simulation" | "cod_bank_transfer_simulation";
+    amountMinor: number;
+    currencyCode: string;
+    breakdown: RefundSimulationBreakdown;
+  }): Promise<{
+    returnCase: ReturnCase;
+    refundSimulation: ReturnRefundSimulation;
+    duplicate: boolean;
+  }> {
+    await this.ready;
+    if (!new Set(["marketplace_operator", "super_admin"]).has(input.actorRole)) {
+      throw Object.assign(
+        new Error("Only an Admin operator can record a refund simulation."),
+        { code: "refund-operator-required" },
+      );
+    }
+    const operationKey = input.operationKey.trim();
+    if (operationKey.length < 8 || operationKey.length > 200) {
+      throw Object.assign(
+        new Error("An operation key between 8 and 200 characters is required."),
+        { code: "operation-key-required" },
+      );
+    }
+    if (!Number.isInteger(input.amountMinor) || input.amountMinor <= 0) {
+      throw Object.assign(
+        new Error("A positive simulated refund amount is required."),
+        { code: "refund-amount-required" },
+      );
+    }
+    const currencyCode = input.currencyCode.trim().toUpperCase();
+    if (currencyCode !== "INR") {
+      throw Object.assign(
+        new Error("The bounded staging refund simulation supports INR only."),
+        { code: "unsupported-refund-currency" },
+      );
+    }
+    if (
+      input.method !== "original_method_simulation" &&
+      input.method !== "cod_bank_transfer_simulation"
+    ) {
+      throw Object.assign(
+        new Error("The simulated refund method is invalid."),
+        { code: "invalid-refund-method" },
+      );
+    }
+    const breakdownEntries = Object.entries(input.breakdown);
+    if (
+      breakdownEntries.length !== 5 ||
+      breakdownEntries.some(([, value]) => !Number.isInteger(value) || value < 0)
+    ) {
+      throw Object.assign(
+        new Error("Every simulated refund breakdown value must be a non-negative integer."),
+        { code: "invalid-refund-breakdown" },
+      );
+    }
+    const calculatedAmount =
+      input.breakdown.itemSubtotalMinor +
+      input.breakdown.taxMinor +
+      input.breakdown.shippingMinor -
+      input.breakdown.restockingFeeMinor -
+      input.breakdown.returnFreightMinor;
+    if (calculatedAmount !== input.amountMinor) {
+      throw Object.assign(
+        new Error("The simulated refund amount must match its explicit breakdown."),
+        { code: "refund-breakdown-mismatch" },
+      );
+    }
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify({
+        amountMinor: input.amountMinor,
+        currencyCode,
+        method: input.method,
+        breakdown: input.breakdown,
+      }))
+      .digest("hex");
+    const id = `refsim_${randomUUID().replaceAll("-", "")}`;
+    const simulationReference = `SIM-REFUND-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      const locked = await client.query<ReturnCaseRow>(
+        `SELECT * FROM pilot_return_case WHERE id = $1 FOR UPDATE`,
+        [input.id],
+      );
+      const current = locked.rows[0];
+      if (!current) {
+        throw Object.assign(new Error("Return case not found."), {
+          code: "return-not-found",
+        });
+      }
+      const existing = await client.query<ReturnRefundSimulationRow>(
+        `SELECT * FROM pilot_return_refund_simulation WHERE return_case_id = $1`,
+        [input.id],
+      );
+      if (existing.rows[0]) {
+        if (existing.rows[0].operation_key === operationKey) {
+          if (existing.rows[0].request_hash !== requestHash) {
+            throw Object.assign(
+              new Error("Operation key reused with a different refund simulation payload."),
+              { code: "idempotency-key-reuse" },
+            );
+          }
+        } else {
+          throw Object.assign(
+            new Error("A simulated refund projection already exists for this return."),
+            { code: "refund-simulation-exists" },
+          );
+        }
+        await client.query("COMMIT");
+        const replay = await this.get(input.id);
+        if (!replay?.refundSimulation) {
+          throw new Error("Refund simulation disappeared during replay.");
+        }
+        return {
+          returnCase: replay,
+          refundSimulation: replay.refundSimulation,
+          duplicate: true,
+        };
+      }
+      if (current.status !== "inspection_complete") {
+        throw Object.assign(
+          new Error("Return must be inspected before a refund simulation can be recorded."),
+          { code: "return-not-refundable" },
+        );
+      }
+      if (Number(current.version) !== input.expectedVersion) {
+        throw Object.assign(
+          new Error(
+            `Return changed from version ${input.expectedVersion} to ${current.version}. Refresh before retrying.`,
+          ),
+          { code: "return-version-conflict", currentVersion: Number(current.version) },
+        );
+      }
+      const breakdown = {
+        item_subtotal_minor: input.breakdown.itemSubtotalMinor,
+        tax_minor: input.breakdown.taxMinor,
+        shipping_minor: input.breakdown.shippingMinor,
+        restocking_fee_minor: input.breakdown.restockingFeeMinor,
+        return_freight_minor: input.breakdown.returnFreightMinor,
+      };
+      await client.query(
+        `INSERT INTO pilot_return_refund_simulation
+           (id, return_case_id, operation_key, request_hash, amount_minor, currency_code, method,
+            status, simulation_reference, breakdown, recorded_at, test_data, simulated)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'simulated_completed', $8, $9, now(), true, true)`,
+        [
+          id,
+          input.id,
+          operationKey,
+          requestHash,
+          input.amountMinor,
+          currencyCode,
+          input.method,
+          simulationReference,
+          JSON.stringify(breakdown),
+        ],
+      );
+      const updatedCase = await client.query(
+        `UPDATE pilot_return_case
+            SET status = 'closed', version = version + 1
+          WHERE id = $1 AND version = $2 AND status = 'inspection_complete'
+          RETURNING version`,
+        [input.id, input.expectedVersion],
+      );
+      if (updatedCase.rowCount !== 1) {
+        throw Object.assign(
+          new Error("Return changed while the refund was being recorded. Refresh before retrying."),
+          { code: "return-version-conflict" },
+        );
+      }
+      await client.query(
+        `INSERT INTO pilot_return_event
+           (id, return_case_id, event_type, actor_id, actor_role, detail, operation_key)
+         VALUES ($1, $2, 'return.refund_simulation_recorded', $3, $4, $5, $6)`,
+        [
+          `rete_${randomUUID().replaceAll("-", "")}`,
+          input.id,
+          input.actorId,
+          input.actorRole,
+          JSON.stringify({
+            refund_simulation_id: id,
+            status: "simulated_completed",
+            amount_minor: input.amountMinor,
+            currency_code: currencyCode,
+            method: input.method,
+            simulation_reference: simulationReference,
+            breakdown,
+            test_data: true,
+            simulated: true,
+            money_effect: "none",
+            stock_effect: "none",
+          }),
+          operationKey,
+        ],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+    const updated = await this.get(input.id);
+    if (!updated?.refundSimulation) {
+      throw new Error("Refund simulation disappeared after creation.");
+    }
+    return {
+      returnCase: updated,
+      refundSimulation: updated.refundSimulation,
+      duplicate: false,
+    };
+  }
+
   async updateStatus(input: {
     id: string;
     status: ReturnStatus;
@@ -687,6 +1209,8 @@ export class ReturnStore {
       }
       if (
         ["approved", "rejected", "requested"].includes(input.status) ||
+        input.status === "inspection_complete" ||
+        (input.status === "closed" && current.resolution === "refund") ||
         !RETURN_TRANSITIONS[current.status].includes(input.status)
       ) {
         throw Object.assign(

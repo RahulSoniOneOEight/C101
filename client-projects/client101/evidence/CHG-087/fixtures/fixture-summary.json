@@ -1,0 +1,23 @@
+{
+  "fixture_id": "chg087_qc_01",
+  "order_id": "checkout_chg087_qc_01",
+  "order_group_id": "og_chg087_qc_01",
+  "return_id": "ret_38b875490a284f808956cbaca24e3b98",
+  "shipment_id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+  "seller_id": "seller_qc_01",
+  "owner_user_id": "pilot_01",
+  "policy_version": "return-policy-2026-11-01",
+  "final_status": "closed",
+  "final_version": 5,
+  "refund_simulation_reference": "SIM-REFUND-1572BC00",
+  "refund_amount_minor": 304700,
+  "money_effect": "none",
+  "stock_effect": "none",
+  "captured_stages": [
+    "approved",
+    "received",
+    "inspection_complete",
+    "closed"
+  ],
+  "test_data": true
+}
