@@ -46,9 +46,23 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   const currencyCode = order.currency_code ?? "inr";
   const delivery = deliverySummary(data.shipments);
   const returnState = returnSummary(data.returns);
+  const simulatedRefund = data.returns
+    .map((record) => record.refundSimulation)
+    .filter((record): record is NonNullable<typeof record> => Boolean(record))
+    .sort((left, right) => Date.parse(right.recordedAt) - Date.parse(left.recordedAt))[0];
   const paymentLabel = order.payment_status
     ? paymentStatusLabel(order.payment_status)
     : "Status unavailable";
+  const refundValue = simulatedRefund
+    ? `${formatCurrency(simulatedRefund.amountMinor / 100, simulatedRefund.currencyCode)} simulated`
+    : refundedTotal > 0
+      ? formatCurrency(refundedTotal, currencyCode)
+      : "No refund";
+  const refundDetail = simulatedRefund
+    ? `${simulatedRefund.simulationReference} · no real money`
+    : refundedTotal > 0
+      ? "Native refund"
+      : undefined;
 
   return (
     <section aria-labelledby="order-workbench-title">
@@ -68,10 +82,10 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
               color={paymentStatusColor(order.payment_status)}
             />
             <StatusTile
-              label="Refunded"
-              value={refundedTotal > 0 ? formatCurrency(refundedTotal, currencyCode) : "No refund"}
-              detail={refundedTotal > 0 ? "Native refund" : undefined}
-              color={refundedTotal > 0 ? "orange" : "grey"}
+              label="Refund"
+              value={refundValue}
+              detail={refundDetail}
+              color={simulatedRefund || refundedTotal > 0 ? "orange" : "grey"}
             />
             <StatusTile
               label="Delivery"
