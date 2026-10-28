@@ -1,0 +1,28 @@
+{
+  "probed_at": "2026-10-28T20:33:16.789Z",
+  "buyer": "pilot_buyer_b2b01",
+  "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+  "product_title": "Wonder Cement",
+  "b2c_display_price_minor": 40000,
+  "b2b_display_price_minor": 35000,
+  "b2b_offer_id": "offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M",
+  "cart_id": "cart_01M623F1HHR74KGVYBEQEBEMVC",
+  "cart_channel": "b2b",
+  "cart_metadata": {
+    "channel": "b2b",
+    "business_account_id": "business_arjun_traders",
+    "auto_offer_applied_code": "FLAT5"
+  },
+  "cart_line": {
+    "sku": null,
+    "unit_price_minor": 40000,
+    "quantity": 1,
+    "adjustment_code": "FLAT5",
+    "adjustment_minor": 2000
+  },
+  "cart_subtotal_minor": 40000,
+  "cart_discount_minor": 2000,
+  "cart_total_minor": 38000,
+  "order_created": false,
+  "verdict": "B2B cart channel is tagged, but the line is priced at the B2C amount and the B2C promotion is applied"
+}

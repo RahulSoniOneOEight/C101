@@ -1,0 +1,144 @@
+change_id: CHG-093
+revision: 1
+status: qc-complete
+request: >-
+  Establish whether a B2C and a B2B order can be placed on staging and QC the resulting flows.
+type: order-flow-verification
+extends:
+- CHG-086
+- CHG-087
+related:
+- CHG-089
+- CHG-091
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-place-b2c-b2b-orders
+approval_required: false
+implementation_authorized: false
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: verification
+environment: staging
+release_under_test: 23bb1040d
+
+outcome: >-
+  A B2C order can be placed through the authenticated app/API path and is visible in the customer
+  web, Admin and the owning Seller, with a booked simulated shipment and an in-app confirmation. The
+  customer web checkout cannot place an order because it does not forward the session. No B2B order
+  can be placed: the app writes local state only and the API cart prices B2B lines at the B2C amount,
+  with the B2C FLAT5 promotion applied.
+
+findings:
+- id: F1
+  severity: high
+  area: b2c-web-checkout
+  statement: >-
+    Submitting the web checkout as a signed-in owner fails with "A pilot bearer session is required";
+    /api/checkout creates the cart without forwarding the session token.
+  evidence: web/checkout-result.png
+- id: F2
+  severity: high
+  area: b2b-ordering
+  statement: >-
+    B2B placeOrder in the app only mutates local state; no cart, checkout or order API is called, and
+    no canonical B2B order can exist.
+  evidence: apps/prototype_app/lib/providers/b2b_trade_providers.dart:1548
+- id: F3
+  severity: high
+  area: b2b-pricing
+  statement: >-
+    A b2b-tagged cart prices the line at the B2C amount (₹400) instead of the B2B amount (₹350) and
+    auto-applies the B2C FLAT5 promotion, producing ₹380. Completing it would create a mispriced
+    "B2B" order.
+  evidence: b2b probe; cart_01M623F1HHR74KGVYBEQEBEMVC
+- id: F4
+  severity: medium
+  area: payment-linkage
+  statement: >-
+    The simulated payment session remains authorized on the cart; no order_payment_collection link is
+    created for the completed order, which stays pending with Paid Total ₹0.
+- id: F5
+  severity: medium
+  area: erp-reservation
+  statement: >-
+    No Tryton reservation or stock move is created by checkout. 0 of 161 correlations have a
+    tryton_move_id; reservation is empty. The reserve/commit endpoints exist but no client calls them.
+- id: F6
+  severity: low
+  area: seller-ux
+  statement: >-
+    A Seller opening another Seller's order gets a generic "An error occurred" page instead of a
+    scoped not-found state. The owning Seller renders normally.
+
+b2c_record:
+  cart_id: cart_01M623CTCV1FGY33NF4BP8PTCN
+  order_group_id: og_01M623D0Q3GES1MMFE8VYAEFC2
+  order_id: order_01M623D0NTGQF67FRV62HP564N
+  display_id: 148
+  seller: UrbanBuild Supply
+  line: XZ5QR x 1
+  total_minor: 51405
+  payment_mode: simulated
+  payment_state: authorized-on-cart-not-linked
+  shipment_id: ship_4d5fbaba7c544e0a99e2917fa64cfe05
+  notification: order_confirmed_v1
+  retained_as_test_data: true
+
+b2b_record:
+  buyer: pilot_buyer_b2b01
+  product_id: prod_01M5Q98Y7CEHEPKZENTNGF9CVW
+  b2c_price_minor: 40000
+  b2b_price_minor: 35000
+  cart_id: cart_01M623F1HHR74KGVYBEQEBEMVC
+  cart_channel: b2b
+  cart_line_price_minor: 40000
+  cart_total_minor: 38000
+  applied_promotion: FLAT5
+  order_created: false
+
+verification:
+  b2c_web_checkout: fail
+  b2c_authenticated_order: pass
+  b2c_customer_visibility: pass
+  b2c_admin_visibility: pass
+  b2c_seller_visibility: pass
+  b2b_app_order: fail
+  b2b_cart_channel: pass
+  b2b_cart_pricing: fail
+  payment_linkage: fail
+  erp_reservation: fail
+  checks_total: 7
+  checks_passed: 7
+  note: >-
+    The 7 automated visibility checks pass; they cover rendering, not the failed capabilities above.
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-093.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-093/**
+  no_touch:
+  - application source (QC only)
+  - Medusa refund, Tryton stock, carrier, settlement, production
+  data_records:
+  - B2C order #148 kept as staging test data
+  - B2B abandoned cart kept (no order, no payment)
+  production: forbidden
+
+deferred:
+- id: D1
+  name: B2C web checkout fix
+  reason: Requires forwarding the session from /api/checkout and a scoped web release.
+- id: D2
+  name: B2B pricing and order wiring
+  reason: Requires a pricing design decision (cart override vs Medusa price lists) before implementation.
+- id: D3
+  name: Payment linkage and capture policy
+  reason: Needs a product decision on simulated capture and order payment state.
+- id: D4
+  name: ERP reservation wiring
+  reason: Needs a decision on synchronous reserve vs event-driven reserve/commit.
+
+approval_checkpoint: >-
+  QC only. No source change, no deploy, no production action. Fixes require separate scoped changes.

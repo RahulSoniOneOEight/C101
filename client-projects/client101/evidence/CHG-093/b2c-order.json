@@ -1,0 +1,32 @@
+{
+  "placed_at": "2026-10-28T20:32:10.069Z",
+  "correlation_id": "chg093-b2c-1793219522495",
+  "owner": "nihar1008.nj@gmail.com",
+  "cart_id": "cart_01M623CTCV1FGY33NF4BP8PTCN",
+  "cart_channel": "b2c",
+  "line_offer": "offer_01M59JTETF6DG8WP2V4QAQJX8A",
+  "order_group_id": "og_01M623D0Q3GES1MMFE8VYAEFC2",
+  "completion_type": "order_group",
+  "payment_mode": "simulated",
+  "order_status": "confirmed",
+  "order_id": "order_01M623D0NTGQF67FRV62HP564N",
+  "order_display_id": 148,
+  "order_total_minor": 51405,
+  "order_lines": [
+    {
+      "sku": "XZ5QR",
+      "qty": 1,
+      "unit_price_minor": 43690
+    }
+  ],
+  "shipment": {
+    "id": "ship_4d5fbaba7c544e0a99e2917fa64cfe05",
+    "status": "booked",
+    "seller_id": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+    "seller": "UrbanBuild Supply"
+  },
+  "notification": "order_confirmed_v1",
+  "payment_linkage": "none (order_payment_collection empty for this order)",
+  "tryton_move_id": null,
+  "retained_as_test_data": true
+}

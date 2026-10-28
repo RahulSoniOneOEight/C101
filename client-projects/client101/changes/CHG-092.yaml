@@ -1,6 +1,6 @@
 change_id: CHG-092
 revision: 1
-status: implementation-source-verified
+status: staging-deployed-qc-pending
 request: >-
   Let a customer attach photos to a return request, store them privately, and show them to the
   customer, Admin and the allocated Seller through short-lived signed links.
@@ -18,7 +18,13 @@ approved_by: human-requester
 approved_at_utc: '2026-10-29'
 approval_scope: implement-next-in-app-step
 implementation_authorized: true
-staging_deployment_authorized: false
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-29'
+staging_deployment_approval_source: chat-authorize-chg092-staging-deployment
+staging_deploy_owner: requester-authorized-opencode-agent
+staging_deployment_status: staging-deployed-qc-pending
+staging_deployed_at_utc: '2026-10-29'
+staging_release_commit: 23bb1040d
 production_release_authorized: false
 
 lane: C
@@ -162,7 +168,9 @@ verification:
   local_completed_at_utc: '2026-10-29'
   environment: local-source
   result: pass-source
-  staging_deployed: false
+  staging_deployed: true
+  staging_release_commit: 23bb1040d
+  staging_upload_qc: pending
   production_released: false
   experience_api_typecheck: pass
   admin_typecheck: pass
@@ -176,7 +184,6 @@ verification:
   bundle_markers:
   - Customer photos
   - Uploading photos
-  staging_upload_qc: pending
   schema_changes: none
   medusa_rows_changed: false
   tryton_rows_changed: false

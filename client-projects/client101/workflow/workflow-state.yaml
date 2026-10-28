@@ -114,6 +114,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: implement-next-in-app-step-return-evidence-capture
+- change_id: CHG-092
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: scoped-staging-deployment-and-evidence-qc
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -669,8 +673,34 @@ active_changes:
   web_build: pass
   store_unit_checks: pass
   signing_unit_checks: pass
-  staging_deployment_authorized: false
-  staging_deployment_status: not-authorized
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-29'
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_status: staging-deployed-qc-pending
+  staging_release_commit: 23bb1040d
+  staging_current: release-23bb104
+  staging_rollback_release: release-92c0c4d
+  evidence_upload_qc: pending
+  production_release_authorized: false
+- change_id: CHG-093
+  status: qc-complete
+  approval_required: false
+  proposal: client-projects/client101/changes/CHG-093.yaml
+  lane: verification
+  scope: b2c-b2b-order-flow-qc
+  release_under_test: 23bb1040d
+  b2c_web_checkout: fail-bearer-session-not-forwarded
+  b2c_authenticated_order: pass
+  b2c_customer_visibility: pass
+  b2c_admin_visibility: pass
+  b2c_seller_visibility: pass
+  b2b_app_order: fail-local-state-only
+  b2b_cart_channel: pass
+  b2b_cart_pricing: fail-b2c-price-and-promotion
+  payment_linkage: fail
+  erp_reservation: fail
+  test_order_retained: order_01M623D0NTGQF67FRV62HP564N
+  b2b_abandoned_cart: cart_01M623F1HHR74KGVYBEQEBEMVC
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

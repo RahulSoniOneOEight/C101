@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-10-28T20:34:30.897Z",
+  "order_id": "order_01M623D0NTGQF67FRV62HP564N",
+  "cart_ref": "cart_01M623CTCV1FGY33NF4BP8PTCN",
+  "checks": [
+    {
+      "surface": "web",
+      "name": "new B2C order listed",
+      "status": "PASS",
+      "detail": "order list"
+    },
+    {
+      "surface": "web",
+      "name": "order detail shows the line",
+      "status": "PASS",
+      "detail": "line visible"
+    },
+    {
+      "surface": "web",
+      "name": "order detail shows shipment",
+      "status": "PASS",
+      "detail": "shipment status"
+    },
+    {
+      "surface": "admin",
+      "name": "order page loads",
+      "status": "PASS",
+      "detail": "display id"
+    },
+    {
+      "surface": "admin",
+      "name": "order operations tile present",
+      "status": "PASS",
+      "detail": "widget mounted"
+    },
+    {
+      "surface": "seller",
+      "name": "seller page renders",
+      "status": "PASS",
+      "detail": "page body"
+    },
+    {
+      "surface": "seller",
+      "name": "no buildkart delivery section for other seller",
+      "status": "PASS",
+      "detail": "informational"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0
+  }
+}
