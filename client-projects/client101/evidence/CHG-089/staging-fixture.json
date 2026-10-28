@@ -1,0 +1,14 @@
+{
+  "fixture": "chg089_staging_submit_qc",
+  "return_id": "ret_e624bfb25b20406e80c2ac89a9b8f871",
+  "order_id": "cart_01M5Y54HVDTDJ2MTP6X45Q5W9R",
+  "medusa_order_group_id": "og_01M5Y5K08Z21PYDZY7M8CMS3KD",
+  "owner": "pilot_customer_b2c04",
+  "line_key": "cali_01M5Y5F10TTKNTQC7PFZP18FJ6",
+  "sku": "OHS-CHR-1787",
+  "requested_qty": 1,
+  "reason_code": "damaged",
+  "note": "CHG-089 staging QC: temporary return, safe to remove.",
+  "created_at_utc": "2026-10-28T19:49:11.565Z",
+  "removed_after_qc": true
+}

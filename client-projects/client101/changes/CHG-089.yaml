@@ -1,6 +1,6 @@
 change_id: CHG-089
 revision: 1
-status: implementation-source-verified
+status: staging-deployed-verified
 request: >-
   Let a signed-in customer start a return from their own order page in the customer web app,
   choose eligible lines and quantities, pick an allowed reason and resolution, and land on the
@@ -18,7 +18,13 @@ approved_by: human-requester
 approved_at_utc: '2026-10-29'
 approval_scope: implement-next-in-app-step
 implementation_authorized: true
-staging_deployment_authorized: false
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-29'
+staging_deployment_approval_source: chat-authorize-chg089-staging-deployment
+staging_deploy_owner: requester-authorized-opencode-agent
+staging_deployment_status: staging-deployed-verified
+staging_deployed_at_utc: '2026-10-29'
+staging_release_commit: bab4e5171
 production_release_authorized: false
 
 lane: A
@@ -163,9 +169,12 @@ required_tests:
 
 verification:
   local_completed_at_utc: '2026-10-29'
-  environment: local-next-start-against-staging-api
-  result: pass-source
-  staging_deployed: false
+  environment: staging
+  result: pass
+  staging_deployed: true
+  staging_release_commit: bab4e5171
+  staging_current: release-bab4e51
+  staging_rollback_release: release-2bdc555
   production_released: false
   typecheck: pass
   build: pass
@@ -173,28 +182,29 @@ verification:
   - /orders/[id]/returns/new
   - /api/returns
   browser_qc: pass-18-of-18
-  browser_qc_viewports:
+  browser_qc_mode: read-only-against-staging-api
+  staging_submit_qc: pass-13-of-13
+  staging_submit_qc_viewports:
   - 390x844
   - 1440x900
   browser_qc_console_errors: 0
   browser_qc_failed_requests: 0
-  browser_qc_mode: read-only
-  submit_path_exercised: false
+  submit_path_exercised: true
+  staging_fixture_return: ret_e624bfb25b20406e80c2ac89a9b8f871
+  staging_fixture_residue: 0
   schema_changes: none
   medusa_rows_changed: false
   tryton_rows_changed: false
+  notification_delivery_attempts_during_qc: 0
   evidence_dir: client-projects/client101/evidence/CHG-089
 
 rollback:
   code: revert the five customer-web files listed in scope_lock
-  data: none (no payload exercised)
-  staging: not applicable until separately authorized
+  data: remove only the CHG-089 QC fixture return
+  staging: tag rollback-2bdc555, point current at release-2bdc555, recreate web, restart proxy
   production: not-applicable-not-authorized
 
 deferred:
-- id: D1
-  name: Submit-path staging QC
-  reason: Needs a deployed web image and one temporary return fixture; staging deployment is separately gated.
 - id: D2
   name: Return evidence upload
   reason: Needs object storage and a retention policy; no storage provider is integrated.
@@ -206,6 +216,5 @@ deferred:
   reason: Legal/tax review and human production authorization remain required.
 
 approval_checkpoint: >-
-  The requester asked to proceed with the next implementation step on 2026-10-29. Source
-  implementation and read-only staging browser QC are complete; deploying the customer web image and
-  running the submit path require separate staging authorization.
+  Customer return initiation is deployed at bab4e51 and the submit path is verified on staging with a
+  removed fixture. Production remains unauthorized.

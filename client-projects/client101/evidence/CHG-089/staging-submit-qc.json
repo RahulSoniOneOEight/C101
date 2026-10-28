@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-10-28T19:49:11.564Z",
+  "target": "https://app-staging.pinakaplay.cloud",
+  "order_id": "cart_01M5Y54HVDTDJ2MTP6X45Q5W9R",
+  "return_id": "ret_e624bfb25b20406e80c2ac89a9b8f871",
+  "fixture_note": "CHG-089 staging QC: temporary return, safe to remove.",
+  "checks": [
+    {
+      "viewport": "desktop",
+      "name": "owner sign-in",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/orders"
+    },
+    {
+      "viewport": "desktop",
+      "name": "start-return action",
+      "status": "PASS",
+      "detail": "order page CTA"
+    },
+    {
+      "viewport": "desktop",
+      "name": "return form rendered",
+      "status": "PASS",
+      "detail": "6 eligible line(s)"
+    },
+    {
+      "viewport": "desktop",
+      "name": "submit enabled after quantity",
+      "status": "PASS",
+      "detail": "one unit selected"
+    },
+    {
+      "viewport": "desktop",
+      "name": "return created",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/returns/ret_e624bfb25b20406e80c2ac89a9b8f871"
+    },
+    {
+      "viewport": "desktop",
+      "name": "return reference shown",
+      "status": "PASS",
+      "detail": "owner-scoped reference"
+    },
+    {
+      "viewport": "desktop",
+      "name": "status is requested",
+      "status": "PASS",
+      "detail": "no decision or refund claimed"
+    },
+    {
+      "viewport": "desktop",
+      "name": "progress starts at request recorded",
+      "status": "PASS",
+      "detail": "lifecycle progress rendered"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no-refund boundary wording",
+      "status": "PASS",
+      "detail": "simulation disclosure present"
+    },
+    {
+      "viewport": "desktop",
+      "name": "new return listed on the order",
+      "status": "PASS",
+      "detail": "order returns list links to the new case"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "desktop width within viewport"
+    },
+    {
+      "viewport": "mobile",
+      "name": "return visible for owner",
+      "status": "PASS",
+      "detail": "owner scoped"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "mobile width within viewport"
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "screenshots": [
+    "staging-screenshots/desktop/order.png",
+    "staging-screenshots/desktop/return-form.png",
+    "staging-screenshots/desktop/return-created.png",
+    "staging-screenshots/desktop/order-with-return.png",
+    "staging-screenshots/mobile/return-created.png"
+  ]
+}
