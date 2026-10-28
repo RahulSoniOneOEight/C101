@@ -25,6 +25,8 @@
 
 No infrastructure or schema change: `services/hosted` is identical between `0dfdbff` and `2bdc555`. Only the Admin and Seller dashboard bundles inside the Medusa image changed.
 
+Governance and evidence for this change are committed on `feat/bt-sku-pairs` (`67b454a`), not on the release branch, so the deployed SHA stays immutable.
+
 ---
 
 ## 2. Pre-change gates
