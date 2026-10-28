@@ -33,9 +33,7 @@ Evidence: `local-browser-qc.json`, `local-screenshots/`, `tools/local-browser-qc
 
 ## Pending
 
-- Deploy the customer web image and re-run the index against the deployed build.
-- Empty state is code-reviewed but was not reachable for this owner (who has returns); it renders
-  only when the API returns an empty list.
+Closed on 2026-10-29. See `staging-deployment.md` for the deployed release and 22/22 staging browser QC.
 
 ## Deferred
 

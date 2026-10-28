@@ -1,0 +1,152 @@
+{
+  "generated_at": "2026-10-28T20:08:43.727Z",
+  "target": "https://app-staging.pinakaplay.cloud",
+  "read_only": true,
+  "checks": [
+    {
+      "viewport": "mobile",
+      "name": "owner sign-in",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/orders"
+    },
+    {
+      "viewport": "mobile",
+      "name": "returns nav link",
+      "status": "PASS",
+      "detail": "primary navigation"
+    },
+    {
+      "viewport": "mobile",
+      "name": "returns index loads",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/returns"
+    },
+    {
+      "viewport": "mobile",
+      "name": "owner returns listed",
+      "status": "PASS",
+      "detail": "rows=3"
+    },
+    {
+      "viewport": "mobile",
+      "name": "status vocabulary",
+      "status": "PASS",
+      "detail": "status rendered"
+    },
+    {
+      "viewport": "mobile",
+      "name": "not-a-refund wording",
+      "status": "PASS",
+      "detail": "boundary wording"
+    },
+    {
+      "viewport": "mobile",
+      "name": "row links to detail",
+      "status": "PASS",
+      "detail": "/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no overflow on index",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "viewport": "mobile",
+      "name": "detail opens from list",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no overflow on detail",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "viewport": "mobile",
+      "name": "return initiation still present",
+      "status": "PASS",
+      "detail": "no regression on CHG-089 entry point"
+    },
+    {
+      "viewport": "desktop",
+      "name": "owner sign-in",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/orders"
+    },
+    {
+      "viewport": "desktop",
+      "name": "returns nav link",
+      "status": "PASS",
+      "detail": "primary navigation"
+    },
+    {
+      "viewport": "desktop",
+      "name": "returns index loads",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/returns"
+    },
+    {
+      "viewport": "desktop",
+      "name": "owner returns listed",
+      "status": "PASS",
+      "detail": "rows=3"
+    },
+    {
+      "viewport": "desktop",
+      "name": "status vocabulary",
+      "status": "PASS",
+      "detail": "status rendered"
+    },
+    {
+      "viewport": "desktop",
+      "name": "not-a-refund wording",
+      "status": "PASS",
+      "detail": "boundary wording"
+    },
+    {
+      "viewport": "desktop",
+      "name": "row links to detail",
+      "status": "PASS",
+      "detail": "/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no overflow on index",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "viewport": "desktop",
+      "name": "detail opens from list",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no overflow on detail",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "viewport": "desktop",
+      "name": "return initiation still present",
+      "status": "PASS",
+      "detail": "no regression on CHG-089 entry point"
+    }
+  ],
+  "summary": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "screenshots": [
+    "staging-screenshots/mobile/returns-index.png",
+    "staging-screenshots/mobile/return-detail.png",
+    "staging-screenshots/desktop/returns-index.png",
+    "staging-screenshots/desktop/return-detail.png"
+  ]
+}

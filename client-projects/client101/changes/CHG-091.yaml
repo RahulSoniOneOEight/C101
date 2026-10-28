@@ -1,6 +1,6 @@
 change_id: CHG-091
 revision: 1
-status: implementation-source-verified
+status: staging-deployed-verified
 request: >-
   Give a signed-in customer one place to see every return they have requested, with status, reason,
   date and a link to the return detail, reachable from the primary navigation.
@@ -15,7 +15,13 @@ approved_by: human-requester
 approved_at_utc: '2026-10-29'
 approval_scope: implement-next-in-app-step
 implementation_authorized: true
-staging_deployment_authorized: false
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-29'
+staging_deployment_approval_source: chat-authorize-chg091-staging-deployment
+staging_deploy_owner: requester-authorized-opencode-agent
+staging_deployment_status: staging-deployed-verified
+staging_deployed_at_utc: '2026-10-29'
+staging_release_commit: 92c0c4d9f
 production_release_authorized: false
 
 lane: A
@@ -111,21 +117,26 @@ required_tests:
 
 verification:
   local_completed_at_utc: '2026-10-29'
-  environment: local-next-start-against-staging-api
-  result: pass-source
-  staging_deployed: false
+  environment: staging
+  result: pass
+  staging_deployed: true
+  staging_release_commit: 92c0c4d9f
+  staging_current: release-92c0c4d
+  staging_rollback_release: release-bab4e51
   production_released: false
   typecheck: pass
   build: pass
   routes:
   - /returns
   browser_qc: pass-16-of-16
-  browser_qc_viewports:
+  browser_qc_mode: read-only-against-staging-api
+  staging_browser_qc: pass-22-of-22
+  staging_browser_qc_viewports:
   - 390x844
   - 1440x900
-  browser_qc_mode: read-only
   browser_qc_console_errors: 0
   browser_qc_failed_requests: 0
+  staging_writes: none
   schema_changes: none
   medusa_rows_changed: false
   tryton_rows_changed: false
@@ -134,17 +145,14 @@ verification:
 rollback:
   code: revert apps/web/app/returns/page.tsx, the layout nav entry and listMyReturns
   data: none
-  staging: not applicable until separately authorized
+  staging: tag rollback-bab4e51, point current at release-bab4e51, recreate web, restart proxy
   production: not-applicable-not-authorized
 
 deferred:
-- id: D1
-  name: Staging deployment
-  reason: Requires a scoped web release and browser QC against the deployed build.
 - id: D2
   name: Production release
   reason: Legal/tax review and human production authorization remain required.
 
 approval_checkpoint: >-
-  Implemented and read-only verified on 2026-10-29. Deploying the customer web image is separately
-  gated; production remains unauthorized.
+  Deployed at 92c0c4d and verified on staging at both viewports with no data writes. Production
+  remains unauthorized.

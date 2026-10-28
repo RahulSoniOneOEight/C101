@@ -106,6 +106,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: implement-next-in-app-step-customer-returns-index
+- change_id: CHG-091
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: scoped-staging-deployment-and-browser-qc
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -606,7 +610,7 @@ active_changes:
   secret_backup: /var/backups/buildkart/experience-api.env.20261028T200141Z
   production_release_authorized: false
 - change_id: CHG-091
-  status: implementation-source-verified
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: implement-next-in-app-step-customer-returns-index
   approved_by: human-requester
@@ -622,12 +626,19 @@ active_changes:
   typecheck: pass
   build: pass
   browser_qc: pass-16-of-16
-  browser_qc_viewports:
+  browser_qc_mode: read-only-against-staging-api
+  staging_browser_qc: pass-22-of-22
+  staging_browser_qc_viewports:
   - 390x844
   - 1440x900
-  browser_qc_mode: read-only-against-staging-api
-  staging_deployment_authorized: false
-  staging_deployment_status: not-authorized
+  staging_writes: none
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-29'
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_status: staging-deployed-verified
+  staging_release_commit: 92c0c4d9f
+  staging_current: release-92c0c4d
+  staging_rollback_release: release-bab4e51
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
