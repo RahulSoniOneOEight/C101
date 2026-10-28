@@ -5,12 +5,15 @@ import { useState } from "react";
 
 type Stage = "identify" | "verify";
 
-export function SignInForm() {
+export function SignInForm({ next }: { next?: string }) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("identify");
   const [identifier, setIdentifier] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  const destination =
+    next && next.startsWith("/") && !next.startsWith("//") ? next : "/orders";
 
   async function requestCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,7 +48,7 @@ export function SignInForm() {
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Could not verify the code.");
-      router.replace("/orders");
+      router.replace(destination);
       router.refresh();
     } catch (cause) {
       setError((cause as Error).message);

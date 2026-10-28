@@ -493,14 +493,24 @@ export interface CheckoutInput {
  * Performs the canonical checkout server-side against the shared Experience API. Success is the
  * server's canonical order group; the client cannot fabricate it.
  */
-export async function completeCheckout(input: CheckoutInput): Promise<CompletionResult> {
-  const cart = await call<{ id: string }>("/v1/carts", { method: "POST", body: JSON.stringify({}) });
+export async function completeCheckout(
+  input: CheckoutInput,
+  sessionToken: string,
+): Promise<CompletionResult> {
+  const auth = authenticatedHeaders(sessionToken);
+  const cart = await call<{ id: string }>("/v1/carts", {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({}),
+  });
   await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
     method: "POST",
+    headers: auth,
     body: JSON.stringify({ offer_id: input.offerId, quantity: 1 }),
   });
   await call(`/v1/carts/${encodeURIComponent(cart.id)}/customer-details`, {
     method: "POST",
+    headers: auth,
     body: JSON.stringify({
       email: input.email,
       shipping_address: {
@@ -515,14 +525,17 @@ export async function completeCheckout(input: CheckoutInput): Promise<Completion
   });
   const shipping = await call<{ shipping_options: { id: string }[] }>(
     `/v1/carts/${encodeURIComponent(cart.id)}/shipping-options`,
+    { headers: auth },
   );
   const option = shipping.shipping_options[0];
   if (!option) throw new Error("no eligible shipping option for this cart");
   await call(`/v1/carts/${encodeURIComponent(cart.id)}/shipping-methods`, {
     method: "POST",
+    headers: auth,
     body: JSON.stringify({ option_id: option.id }),
   });
   return call<CompletionResult>(`/v1/checkouts/${encodeURIComponent(cart.id)}/complete`, {
     method: "POST",
+    headers: auth,
   });
 }

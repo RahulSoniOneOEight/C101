@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { formatMoney, getProduct, resolveVariant } from "@/lib/experience-api";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import {
+  PILOT_SESSION_COOKIE,
+  formatMoney,
+  getProduct,
+  resolveVariant,
+} from "@/lib/experience-api";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +29,13 @@ export default async function CheckoutPage({
         </p>
       </section>
     );
+  }
+
+  const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  if (!token) {
+    const query = new URLSearchParams({ productId });
+    if (sku) query.set("sku", sku);
+    redirect(`/sign-in?next=${encodeURIComponent(`/checkout?${query.toString()}`)}`);
   }
 
   const product = await getProduct(productId);

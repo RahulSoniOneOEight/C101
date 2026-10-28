@@ -2,7 +2,12 @@ import { SignInForm } from "./sign-in-form";
 
 export const dynamic = "force-dynamic";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   return (
     <section className="narrow-page">
       <span className="eyebrow">Customer access</span>
@@ -11,7 +16,7 @@ export default function SignInPage() {
         Orders, tracking and returns are owner-scoped. An order or return identifier alone never
         grants access.
       </p>
-      <SignInForm />
+      <SignInForm next={next} />
       <p className="boundary-note">
         Bounded pilot identity · synthetic users · simulated OTP · HTTP-only browser session
       </p>
