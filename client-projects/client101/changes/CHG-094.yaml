@@ -1,6 +1,6 @@
 change_id: CHG-094
 revision: 1
-status: implemented-source-verified
+status: staging-deployment-authorized-in-progress
 request: >-
   Fix the customer web checkout so a signed-in owner can place a B2C order. The form currently fails
   with "A pilot bearer session is required" because the session is never forwarded to the API.
@@ -16,9 +16,12 @@ approval_required: true
 approved_by: human-requester
 approved_at_utc: '2026-10-29'
 approval_source: chat-select-web-checkout-auth
-approval_scope: local-implementation
+approval_scope: local-implementation-and-scoped-staging-web-deployment
 implementation_authorized: true
-staging_deployment_authorized: false
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-29'
+staging_deploy_owner: requester-authorized-opencode-agent
+staging_deployment_status: authorized-in-progress
 production_release_authorized: false
 
 lane: B
@@ -68,23 +71,33 @@ requirements:
 - id: R1
   name: Session forwarding
   outcome: The checkout route forwards the signed-in session to every cart/checkout call.
-  status: pass
+  status: PASS-CODE
 - id: R2
   name: Sign-in gate
   outcome: Opening checkout while signed out redirects to sign-in with a next path and returns afterwards.
-  status: pass
+  status: PASS-CODE
 - id: R3
   name: Canonical success
   outcome: Only a server-returned order group is shown as confirmation; no client-side fabrication.
-  status: pass
+  status: PASS-CODE
 - id: R4
   name: Safe next
   outcome: The next path must start with a single slash; absolute or protocol-relative URLs are ignored.
-  status: pass
+  status: PASS-CODE
 - id: R5
-  name: Verification
+  name: Source verification
   outcome: Typecheck, production build and a browser QC against the staging API pass.
-  status: pass
+  status: PASS-CODE
+- id: R6
+  name: Scoped staging release
+  outcome: Only the five approved customer-web files are released from the deployed baseline.
+  status: pending
+- id: R7
+  name: Deployed journey and boundaries
+  outcome: >-
+    The deployed sign-in return and canonical checkout pass, public surfaces remain healthy, and
+    refund, order-transaction, Tryton stock/shipment and external delivery-attempt counts do not move.
+  status: pending
 
 scope_lock:
   allowed_paths:
@@ -104,14 +117,41 @@ scope_lock:
   - carrier, PSP, settlement and accounting
   - production
   data_records:
-  - one B2C web order created during QC and kept as staging test data
+  - one B2C web order created during local QC and kept as staging test data
+  - one additional B2C web order may be created by deployed staging QC and kept as staging test data
   production: forbidden
 
 baseline:
   branch: feat/bt-sku-pairs
   head: d4c46ab
+  implementation_commit: 43c337c46e95a4ea86c3607af44ea0f7c1be2b7e
   staging_release: 23bb1040d
   staging_current: release-23bb104
+  staging_release_path: /opt/buildkart-releases/release-23bb104
+  captured_at_utc: '2026-10-28T20:46:07Z'
+  web_image: sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49
+  public_health: pass-4-of-4
+  signed_out_checkout_status: 200-no-redirect
+  release_marker: absent
+  medusa_counts:
+    orders: 37
+    order_groups: 28
+    payment: 22
+    refund: 1
+    order_transaction: 1
+    payment_collection: 33
+    payment_session: 33
+    order_payment_collection: 1
+  experience_counts:
+    correlation: 163
+    returns: 4
+    shipments: 37
+    notifications: 97
+    domain_events: 209
+  tryton_counts:
+    stock_move: 55
+    stock_shipment_out: 0
+    stock_shipment_out_return: 0
 
 verification:
   local_completed_at_utc: '2026-10-29'
@@ -134,17 +174,14 @@ verification:
 rollback:
   code: revert the five customer-web files
   data: cancel order #149 if it should not remain
-  staging: not applicable until separately authorized
+  staging: restore buildkart-hosted-pilot-web:rollback-23bb104 and release-23bb104; recreate web; restart proxy
   production: not-applicable-not-authorized
 
 deferred:
 - id: D1
-  name: Staging deployment
-  reason: Requires a scoped customer-web release and a repeat QC on the deployed build.
-- id: D2
   name: Payment link and ERP reservation
   reason: Recorded in CHG-093; separate product decisions.
 
 approval_checkpoint: >-
-  Implemented and verified against the staging API from a local production build. Deploying the web
-  image remains separately gated; production is unauthorized.
+  Scoped staging deployment of the customer web image and one canonical B2C order QC were authorized
+  by the human requester. Production remains unauthorized.

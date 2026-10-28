@@ -1,0 +1,52 @@
+{
+  "captured_at_utc": "2026-10-28T20:46:07Z",
+  "release": {
+    "name": "release-23bb104",
+    "sha": "23bb1040d1290628094bca467088e62fb07719b4",
+    "path": "/opt/buildkart-releases/release-23bb104",
+    "deploy_lock": "absent"
+  },
+  "runtime": {
+    "web": "running|healthy",
+    "experience_api": "running|healthy",
+    "medusa_api": "running|healthy",
+    "proxy": "running",
+    "web_image": "sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49",
+    "web_image_created": "2026-10-28T20:24:19.7897628Z"
+  },
+  "public_http": {
+    "api_health": 200,
+    "app_sign_in": 200,
+    "admin": 200,
+    "seller": 200,
+    "signed_out_checkout": 200
+  },
+  "release_marker": "absent",
+  "medusa": {
+    "orders": 37,
+    "order_groups": 28,
+    "payment": 22,
+    "refund": 1,
+    "order_transaction": 1,
+    "payment_collection": 33,
+    "payment_session": 33,
+    "order_payment_collection": 1
+  },
+  "experience": {
+    "correlation": 163,
+    "returns": 4,
+    "shipments": 37,
+    "notifications": 97,
+    "domain_events": 209
+  },
+  "tryton": {
+    "stock_move": 55,
+    "stock_shipment_out": 0,
+    "stock_shipment_out_return": 0
+  },
+  "notes": [
+    "The signed-out checkout returned 200 before CHG-094 instead of redirecting to sign-in.",
+    "The CHG-094 marker 'Sign in to place an order.' was absent from the running web image.",
+    "The only local untracked files were the preserved fulfillment-preview design harness."
+  ]
+}

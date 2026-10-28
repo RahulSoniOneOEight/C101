@@ -122,6 +122,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: fix-web-checkout-session-forwarding
+- change_id: CHG-094
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: scoped-staging-web-deployment-and-order-qc
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -708,7 +712,7 @@ active_changes:
   web_checkout_fixed_by: CHG-094
   production_release_authorized: false
 - change_id: CHG-094
-  status: implemented-source-verified
+  status: staging-deployment-authorized-in-progress
   approval_required: true
   approval_scope: fix-web-checkout-session-forwarding
   approved_by: human-requester
@@ -727,8 +731,13 @@ active_changes:
   browser_qc_mode: local-build-against-staging-api
   qc_order_id: order_01M623W6YSVTCMBMS2CWDZAGZ9
   qc_order_group_id: og_01M623W6Z2PPX94861WA9WE0QP
-  staging_deployment_authorized: false
-  staging_deployment_status: not-authorized
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-29'
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_status: authorized-in-progress
+  staging_baseline_release: 23bb1040d
+  staging_baseline_path: /opt/buildkart-releases/release-23bb104
+  staging_baseline_web_image: sha256:fa241201b68e7b2209fc9dcee1bc28ab853ef613cfe4eaf771e8dd99f165bb49
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
