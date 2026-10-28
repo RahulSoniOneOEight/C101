@@ -32,7 +32,9 @@ export function ReturnForm({ orderId, lines }: Props) {
   );
   const [resolution, setResolution] = useState<"refund" | "replacement">("refund");
   const [comment, setComment] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState<"idle" | "uploading" | "creating">("idle");
   const [error, setError] = useState("");
   const attempt = useRef<{ fingerprint: string; key: string } | null>(null);
 
@@ -66,6 +68,75 @@ export function ReturnForm({ orderId, lines }: Props) {
     setQuantities((current) => ({ ...current, [line.lineKey]: quantity }));
   }
 
+  const MAX_FILES = 3;
+  const MAX_BYTES = 5 * 1024 * 1024;
+  const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+
+  function addFiles(selected: FileList | null) {
+    if (!selected || selected.length === 0) return;
+    const incoming = Array.from(selected);
+    for (const file of incoming) {
+      if (!ALLOWED.includes(file.type)) {
+        setError("Evidence must be a JPEG, PNG or WebP image.");
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        setError(`${file.name} is larger than 5 MB.`);
+        return;
+      }
+    }
+    if (files.length + incoming.length > MAX_FILES) {
+      setError(`Attach at most ${MAX_FILES} photos.`);
+      return;
+    }
+    setError("");
+    setFiles((current) => [...current, ...incoming]);
+  }
+
+  async function uploadEvidence(): Promise<
+    Array<{ objectKey: string; contentType: string; sizeBytes: number; sha256: string }>
+  > {
+    const stored: Array<{
+      objectKey: string;
+      contentType: string;
+      sizeBytes: number;
+      sha256: string;
+    }> = [];
+    for (const file of files) {
+      const body = new FormData();
+      body.append("file", file, file.name);
+      const response = await fetch(
+        `/api/returns/evidence?orderId=${encodeURIComponent(orderId)}`,
+        { method: "POST", body },
+      );
+      const data = (await response.json()) as {
+        error?: string;
+        evidence?: {
+          objectKey?: string;
+          contentType?: string;
+          sizeBytes?: number;
+          sha256?: string;
+        };
+      };
+      if (
+        !response.ok ||
+        !data.evidence?.objectKey ||
+        !data.evidence.contentType ||
+        typeof data.evidence.sizeBytes !== "number" ||
+        !data.evidence.sha256
+      ) {
+        throw new Error(data.error ?? `Could not upload ${file.name}.`);
+      }
+      stored.push({
+        objectKey: data.evidence.objectKey,
+        contentType: data.evidence.contentType,
+        sizeBytes: data.evidence.sizeBytes,
+        sha256: data.evidence.sha256,
+      });
+    }
+    return stored;
+  }
+
   const idempotencyKey = () => {
     const fingerprint = JSON.stringify({ resolution, reason, comment, chosen });
     if (!attempt.current || attempt.current.fingerprint !== fingerprint) {
@@ -87,6 +158,9 @@ export function ReturnForm({ orderId, lines }: Props) {
     setBusy(true);
     setError("");
     try {
+      setStage("uploading");
+      const evidence = files.length > 0 ? await uploadEvidence() : [];
+      setStage("creating");
       const response = await fetch("/api/returns", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -97,6 +171,7 @@ export function ReturnForm({ orderId, lines }: Props) {
           reasonCode: reason,
           comment,
           lines: chosen,
+          evidence,
         }),
       });
       const data = (await response.json()) as {
@@ -112,6 +187,7 @@ export function ReturnForm({ orderId, lines }: Props) {
       setError((cause as Error).message);
     } finally {
       setBusy(false);
+      setStage("idle");
     }
   }
 
@@ -191,6 +267,44 @@ export function ReturnForm({ orderId, lines }: Props) {
         />
       </label>
 
+      <fieldset className="evidence-picker">
+        <legend>Photos (optional)</legend>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          disabled={busy}
+          onChange={(event) => {
+            addFiles(event.target.files);
+            event.currentTarget.value = "";
+          }}
+          aria-label="Attach photos of the items"
+        />
+        <span className="field-hint">
+          Up to 3 photos, 5 MB each. JPEG, PNG or WebP. Stored privately and shown to the marketplace
+          team reviewing the request.
+        </span>
+        {files.length > 0 ? (
+          <ul className="file-list">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${index}`}>
+                <span>
+                  {file.name} · {(file.size / 1024).toFixed(0)} KB
+                </span>
+                <button
+                  type="button"
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </fieldset>
+
       {error ? (
         <div className="notice err" role="alert">
           {error}
@@ -199,7 +313,11 @@ export function ReturnForm({ orderId, lines }: Props) {
 
       <div className="form-actions">
         <button className="button" type="submit" disabled={busy || totalUnits === 0}>
-          {busy ? "Requesting…" : `Request return${totalUnits > 0 ? ` (${totalUnits})` : ""}`}
+          {busy
+            ? stage === "uploading"
+              ? "Uploading photos…"
+              : "Requesting…"
+            : `Request return${totalUnits > 0 ? ` (${totalUnits})` : ""}`}
         </button>
         <span className="field-hint">
           {totalUnits === 0

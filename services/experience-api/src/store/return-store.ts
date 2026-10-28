@@ -659,6 +659,27 @@ export class ReturnStore {
     return record && record.userId === userId ? record : null;
   }
 
+  /** Resolves an evidence row for the signed-URL reader; the caller checks the signature. */
+  async getEvidence(id: string): Promise<ReturnEvidence | null> {
+    await this.ready;
+    const result = await this.pool.query<ReturnEvidenceRow>(
+      `SELECT * FROM pilot_return_evidence WHERE id = $1`,
+      [id],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      lineKey: row.line_key,
+      objectKey: row.object_key,
+      contentType: row.content_type,
+      sizeBytes: row.size_bytes,
+      sha256: row.sha256,
+      scanStatus: row.scan_status,
+      createdAt: iso(row.created_at),
+    };
+  }
+
   async listForUser(userId: string, limit = 50): Promise<ReturnCase[]> {
     await this.ready;
     const result = await this.pool.query<ReturnCaseRow>(

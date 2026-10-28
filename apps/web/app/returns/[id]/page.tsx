@@ -92,6 +92,36 @@ export default async function ReturnDetailPage({
         </div>
       </article>
 
+      {returnCase.evidence?.length ? (
+        <article className="detail-card section-card">
+          <div className="card-row">
+            <h2>Photos</h2>
+            <span className="marker">evidence only</span>
+          </div>
+          <div className="evidence-grid">
+            {returnCase.evidence.map((item) => (
+              <a
+                key={item.id}
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+                className="evidence-thumb"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={item.url} alt="Return evidence" loading="lazy" />
+                <span className="muted">
+                  {(item.sizeBytes / 1024).toFixed(0)} KB ·{" "}
+                  {item.contentType.replace("image/", "").toUpperCase()}
+                </span>
+              </a>
+            ))}
+          </div>
+          <p className="field-hint">
+            Private, short-lived links. Photos are evidence for the review; they are not a refund.
+          </p>
+        </article>
+      ) : null}
+
       <article className="refund-card section-card">
         <span className="eyebrow">Admin-recorded projection</span>
         <h2>{simulation ? "Simulated refund recorded" : "Refund simulation pending"}</h2>

@@ -110,6 +110,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: scoped-staging-deployment-and-browser-qc
+- change_id: CHG-092
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: implement-next-in-app-step-return-evidence-capture
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -639,6 +643,34 @@ active_changes:
   staging_release_commit: 92c0c4d9f
   staging_current: release-92c0c4d
   staging_rollback_release: release-bab4e51
+  production_release_authorized: false
+- change_id: CHG-092
+  status: implementation-source-verified
+  approval_required: true
+  approval_scope: implement-next-in-app-step-return-evidence-capture
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  proposal: client-projects/client101/changes/CHG-092.yaml
+  lane: C
+  release_mechanism:
+  - api+ui
+  - image-rebuild
+  - storage-volume
+  - staging-secret
+  scope: return-evidence-capture-and-display
+  implementation_authorized: true
+  local_implementation_status: pass-source
+  experience_api_typecheck: pass
+  admin_typecheck: pass
+  vendor_typecheck: pass
+  web_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  web_build: pass
+  store_unit_checks: pass
+  signing_unit_checks: pass
+  staging_deployment_authorized: false
+  staging_deployment_status: not-authorized
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

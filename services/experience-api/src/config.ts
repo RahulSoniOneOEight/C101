@@ -7,6 +7,7 @@
  */
 
 import { MAX_PILOT_USERS } from "./auth/pilot-users.js";
+import { randomBytes } from "node:crypto";
 
 export type Environment = "development" | "integration" | "staging" | "production";
 export type PaymentAdapterMode = "simulated" | "provider";
@@ -84,6 +85,12 @@ export interface Config {
   adminServiceSecret?: string;
   /** Staging-only Bought Together merchandising surface. */
   boughtTogetherEnabled: boolean;
+  /** Filesystem root for return evidence (staging pilot; production needs object storage). */
+  evidenceDir: string;
+  /** HMAC secret for short-lived evidence URLs. Generated per boot when unset outside production. */
+  evidenceSigningSecret: string;
+  /** Public origin used to build evidence URLs reachable by browsers. */
+  publicApiBaseUrl: string;
 }
 
 function positiveInteger(raw: string | undefined, fallback: number, name: string): number {
@@ -215,6 +222,12 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     throw new Error("BUILDKART_ADMIN_SERVICE_SECRET must be at least 24 characters when configured.");
   }
 
+  const evidenceDir = env.EVIDENCE_DIR?.trim() || "./data/evidence";
+  const publicApiBaseUrl =
+    env.PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "") || "http://localhost:9020";
+  const evidenceSigningSecret =
+    env.EVIDENCE_SIGNING_SECRET?.trim() || randomBytes(32).toString("hex");
+
   return {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
@@ -273,5 +286,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     logisticsWebhookSecret,
     adminServiceSecret,
     boughtTogetherEnabled,
+    evidenceDir,
+    evidenceSigningSecret,
+    publicApiBaseUrl,
   };
 }

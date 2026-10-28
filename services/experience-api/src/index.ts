@@ -67,10 +67,17 @@ import { SimulatedLogisticsProvider } from "./logistics/provider.js";
 import {
   ReturnStore,
   SELLER_RETURN_TRANSITIONS,
+  type ReturnCase,
   type ReturnCondition,
   type ReturnDisposition,
   type ReturnStatus,
 } from "./store/return-store.js";
+import {
+  EVIDENCE_MAX_BYTES,
+  LocalEvidenceStore,
+  isEvidenceContentType,
+} from "./evidence/evidence-store.js";
+import { evidenceUrl, verifyEvidenceSignature } from "./evidence/evidence-url.js";
 import {
   BoughtTogetherStore,
   BoughtTogetherError,
@@ -105,6 +112,13 @@ const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
 const logistics = new SimulatedLogisticsProvider(shipmentStore);
 const returns = new ReturnStore(config.experienceDatabaseUrl);
+const evidenceStore = new LocalEvidenceStore(config.evidenceDir);
+const evidenceUrlFor = (evidenceId: string) =>
+  evidenceUrl(config.publicApiBaseUrl, config.evidenceSigningSecret, evidenceId);
+const withEvidenceUrls = (record: ReturnCase) => ({
+  ...record,
+  evidence: record.evidence.map((item) => ({ ...item, url: evidenceUrlFor(item.id) })),
+});
 const boughtTogether = new BoughtTogetherStore(config.experienceDatabaseUrl);
 const privilegedAudit = new PrivilegedAuditStore(config.experienceDatabaseUrl);
 const cmsContentStore = new CmsContentStore(config.experienceDatabaseUrl);
@@ -1935,7 +1949,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       .find((candidate) => candidate.id === sellerReturn[1]);
     if (!record) return problem(404, "return-not-found");
     return json({
-      return: record,
+      return: withEvidenceUrls(record),
       environment: config.environment,
       test_data: true,
       seller_id: sellerId,
@@ -2714,6 +2728,61 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   }
 
   // Customer creates a Phase 1 return request. Eligibility is server-computed.
+  // Owner-scoped evidence upload for a return request. Images only, 5 MB cap, private storage.
+  const evidenceUpload = url.pathname.match(/^\/v1\/orders\/([^/]+)\/evidence$/);
+  if (evidenceUpload && req.method === "POST") {
+    const orderId = decodeURIComponent(evidenceUpload[1]);
+    const authenticated = await authorizeCheckoutOwner(req, orderId);
+    if ("response" in authenticated) return authenticated.response;
+    const form = await req.formData().catch(() => null);
+    if (!form) {
+      return problem(400, "invalid-multipart", "Expected multipart form data.");
+    }
+    const file = form.get("file");
+    const upload = file as
+      | { type?: unknown; size?: unknown; arrayBuffer?: () => Promise<ArrayBuffer> }
+      | null;
+    if (!upload || typeof upload.arrayBuffer !== "function") {
+      return problem(400, "evidence-file-required", "Attach a file in the 'file' field.");
+    }
+    const contentType = typeof upload.type === "string" ? upload.type : "";
+    if (!isEvidenceContentType(contentType)) {
+      return problem(415, "evidence-type-not-allowed", "Evidence must be a JPEG, PNG or WebP image.");
+    }
+    if (typeof upload.size === "number" && upload.size > EVIDENCE_MAX_BYTES) {
+      return problem(413, "evidence-too-large", "Evidence must be 5 MB or smaller.");
+    }
+    const bytes = new Uint8Array(await upload.arrayBuffer());
+    if (bytes.byteLength < 1 || bytes.byteLength > EVIDENCE_MAX_BYTES) {
+      return problem(413, "evidence-too-large", "Evidence must be between 1 byte and 5 MB.");
+    }
+    try {
+      const stored = await evidenceStore.put({
+        ownerId: authenticated.user.id,
+        contentType,
+        bytes,
+      });
+      return json(
+        {
+          evidence: {
+            line_key: null,
+            object_key: stored.objectKey,
+            content_type: stored.contentType,
+            size_bytes: stored.sizeBytes,
+            sha256: stored.sha256,
+          },
+          environment: config.environment,
+          test_data: true,
+          correlation_id: cid,
+        },
+        201,
+      );
+    } catch (error) {
+      console.error("[experience-api] evidence upload failed:", (error as Error).message);
+      return problem(500, "evidence-store-failed", "The evidence file could not be stored.");
+    }
+  }
+
   const createReturn = url.pathname.match(/^\/v1\/orders\/([^/]+)\/returns$/);
   if (createReturn && req.method === "POST") {
     const orderId = createReturn[1];
@@ -2864,10 +2933,51 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const record = await returns.getForUser(customerReturn[1], authenticated.user.id);
     if (!record) return problem(404, "return-not-found");
     return json({
-      return: record,
+      return: withEvidenceUrls(record),
       environment: config.environment,
       test_data: true,
       correlation_id: cid,
+    });
+  }
+
+  // Signed, short-lived evidence reader. The URL carries an expiry and HMAC, never the object key.
+  const evidenceRead = url.pathname.match(/^\/v1\/evidence\/([^/]+)$/);
+  if (evidenceRead && (req.method === "GET" || req.method === "HEAD")) {
+    const evidenceId = decodeURIComponent(evidenceRead[1]);
+    const expiresAt = Number.parseInt(url.searchParams.get("exp") ?? "0", 10);
+    const signature = url.searchParams.get("sig") ?? "";
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (!Number.isInteger(expiresAt) || expiresAt < nowSeconds) {
+      return problem(410, "evidence-url-expired", "This evidence link has expired.");
+    }
+    if (
+      !verifyEvidenceSignature(
+        config.evidenceSigningSecret,
+        evidenceId,
+        expiresAt,
+        signature,
+      )
+    ) {
+      return problem(403, "evidence-signature-invalid", "This evidence link is not valid.");
+    }
+    const record = await returns.getEvidence(evidenceId);
+    if (!record) return problem(404, "evidence-not-found");
+    if (record.scanStatus === "rejected") {
+      return problem(410, "evidence-rejected", "This evidence file was rejected.");
+    }
+    const bytes = await evidenceStore.get(record.objectKey);
+    if (!bytes) return problem(404, "evidence-object-missing");
+    return new Response(bytes, {
+      status: 200,
+      headers: {
+        "content-type": record.contentType,
+        "content-length": String(bytes.byteLength),
+        "cache-control": "private, max-age=300, no-store",
+        "content-disposition": "inline",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'; sandbox",
+        "x-evidence-scan": record.scanStatus,
+      },
     });
   }
 
@@ -2890,7 +3000,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const record = await returns.get(adminReturnDetail[1]);
     if (!record) return problem(404, "return-not-found");
     return json({
-      return: record,
+      return: withEvidenceUrls(record),
       environment: config.environment,
       test_data: true,
       correlation_id: cid,

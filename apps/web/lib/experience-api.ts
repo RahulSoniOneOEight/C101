@@ -96,7 +96,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       accept: "application/json",
-      ...(init?.body ? { "content-type": "application/json" } : {}),
+      ...(typeof init?.body === "string" ? { "content-type": "application/json" } : {}),
       ...init?.headers,
     },
   });
@@ -245,7 +245,27 @@ export interface CustomerReturn {
   decisionComment: string | null;
   testData: true;
   lines: CustomerReturnLine[];
+  evidence: CustomerReturnEvidence[];
   refundSimulation: CustomerRefundSimulation | null;
+}
+
+export interface CustomerReturnEvidence {
+  id: string;
+  lineKey: string | null;
+  objectKey: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string | null;
+  scanStatus: string;
+  createdAt: string;
+  url: string;
+}
+
+export interface StoredReturnEvidence {
+  objectKey: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string;
 }
 
 export interface CustomerReturnEligibilityLine {
@@ -283,6 +303,7 @@ export interface CreateReturnInput {
   reasonCode: string;
   comment?: string;
   lines: CreateReturnLineInput[];
+  evidence?: StoredReturnEvidence[];
 }
 
 export async function listMyOrders(
@@ -354,10 +375,38 @@ export async function createMyReturn(
           requested_qty: line.requestedQty,
           reason_code: line.reasonCode,
         })),
+        evidence: input.evidence?.length
+          ? input.evidence.map((item) => ({
+              object_key: item.objectKey,
+              content_type: item.contentType,
+              size_bytes: item.sizeBytes,
+              sha256: item.sha256,
+            }))
+          : undefined,
       }),
     },
   );
   return result.return;
+}
+
+/** Owner-scoped evidence upload. The API validates type, size and ownership. */
+export async function uploadReturnEvidence(
+  sessionToken: string,
+  orderId: string,
+  file: Blob,
+  filename: string,
+): Promise<StoredReturnEvidence> {
+  const form = new FormData();
+  form.append("file", file, filename);
+  const result = await call<{ evidence: StoredReturnEvidence }>(
+    `/v1/orders/${encodeURIComponent(orderId)}/evidence`,
+    {
+      method: "POST",
+      headers: authenticatedHeaders(sessionToken),
+      body: form,
+    },
+  );
+  return result.evidence;
 }
 
 export async function listProducts(limit = 24): Promise<ComposedProduct[]> {
