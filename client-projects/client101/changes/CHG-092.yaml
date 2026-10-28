@@ -1,0 +1,204 @@
+change_id: CHG-092
+revision: 1
+status: implementation-source-verified
+request: >-
+  Let a customer attach photos to a return request, store them privately, and show them to the
+  customer, Admin and the allocated Seller through short-lived signed links.
+type: return-evidence-capture
+extends:
+- CHG-087
+- CHG-089
+related:
+- CHG-088
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+drafting_source: chat-next-step
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_scope: implement-next-in-app-step
+implementation_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: C
+release_mechanism:
+- api+ui
+- image-rebuild
+- storage-volume
+- staging-secret
+
+context:
+- >-
+  The return contract already accepts evidence metadata (object key, content type, size, sha256) and
+  the store persists `pilot_return_evidence`, but nothing could upload a file and no surface rendered
+  evidence. The Admin inspection step therefore had no customer photos to review.
+- >-
+  No object-storage credential exists for this project, so the staging pilot uses a local Docker
+  volume behind a small store interface. Production must use S3-compatible storage plus scanning.
+
+outcome: >-
+  A customer can attach up to three JPEG/PNG/WebP photos (5 MB each) to a return request. Files are
+  stored outside any web root, served only through ten-minute HMAC-signed URLs, and rendered on the
+  customer return page and the Admin/Seller return workbenches. No refund, stock or provider call is
+  added.
+
+decisions:
+- id: DEC-092-01
+  area: Storage
+  proposed_default: >-
+    Local disk under a Docker volume (`EVIDENCE_DIR=/var/lib/buildkart/evidence`) for staging. The
+    store is a single class; S3 can replace it without changing the API contract.
+- id: DEC-092-02
+  area: Accepted files
+  proposed_default: >-
+    JPEG, PNG and WebP only; 1 byte to 5 MB; max three per request. No SVG, PDF, archive or video.
+- id: DEC-092-03
+  area: Access
+  proposed_default: >-
+    Upload is owner-scoped. Reads use a ten-minute HMAC-signed URL that carries no owner identity or
+    object key; expired or tampered links are rejected.
+- id: DEC-092-04
+  area: Inspection role
+  proposed_default: >-
+    Photos are evidence only. Admin and the allocated Seller can view them; they cannot change money
+    or stock.
+- id: DEC-092-05
+  area: Malware scanning
+  proposed_default: >-
+    Not implemented. Files are image-only, served with `nosniff` and a sandbox CSP, and never
+    executed. `scan_status` stays `pending` and is disclosed. Production requires scanning.
+
+affected_capabilities:
+- returns
+- customer-post-purchase
+- admin-operations
+- seller-operations
+affected_domains:
+- returns
+- customer-experience
+- operations
+affected_surfaces:
+- customer-web.returns
+- commerce-admin.returns
+- commerce-vendor.returns
+- experience-api.evidence
+
+requirements:
+- id: R1
+  name: Owner-scoped upload
+  outcome: A signed-in owner uploads an image for their own order; other orders are rejected.
+  status: pass
+- id: R2
+  name: File policy
+  outcome: Non-image types, empty files and files over 5 MB are rejected with readable errors.
+  status: pass
+- id: R3
+  name: Private storage
+  outcome: The object key never appears in a URL; files live outside any web root and are not listed.
+  status: pass
+- id: R4
+  name: Signed read
+  outcome: A valid signature serves the image; expired, tampered or unknown IDs are rejected.
+  status: pass
+- id: R5
+  name: Surface display
+  outcome: Customer, Admin and Seller see the attached photos with size/type; Admin and Seller cards state evidence only.
+  status: pass
+- id: R6
+  name: No provider effect
+  outcome: No Medusa refund, Tryton stock, carrier or settlement call is added.
+  status: pass
+- id: R7
+  name: Verification
+  outcome: Typechecks and builds pass; store and signing behaviour is tested; staging upload/read QC is separately gated.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - services/experience-api/src/evidence/**
+  - services/experience-api/src/config.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/store/return-store.ts
+  - services/hosted/docker-compose.hosted.yml
+  - services/backend/packages/api/src/api/admin/buildkart/returns/types.ts
+  - services/backend/apps/admin/src/routes/returns/[id]/page.tsx
+  - services/backend/apps/vendor/src/routes/returns/[id]/page.tsx
+  - apps/web/lib/experience-api.ts
+  - apps/web/app/api/returns/evidence/route.ts
+  - apps/web/app/orders/[id]/returns/new/return-form.tsx
+  - apps/web/app/orders/[id]/returns/new/page.tsx
+  - apps/web/app/returns/[id]/page.tsx
+  - apps/web/app/globals.css
+  - client-projects/client101/changes/CHG-092.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-092/**
+  no_touch:
+  - Medusa payment, refund and order-transaction rows
+  - Tryton stock and movement rows
+  - carrier, PSP, settlement and accounting integrations
+  - production
+  data_records:
+  - one isolated staging return with one attached photo, removed after QC
+  environment: local-source-then-separately-authorized-staging
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: 89dc59d
+  staging_release: 92c0c4d9f
+  staging_current: release-92c0c4d
+
+required_tests:
+- Upload rejects a non-image, an empty file and a file over 5 MB.
+- An owner cannot upload evidence for another owner's order.
+- A valid signed URL serves the image with the stored content type.
+- An expired or tampered signed URL is rejected.
+- The object key never appears in the URL or in UI text.
+- The customer, Admin and Seller return views render the photo.
+- No Medusa/Tryton row changes.
+
+verification:
+  local_completed_at_utc: '2026-10-29'
+  environment: local-source
+  result: pass-source
+  staging_deployed: false
+  production_released: false
+  experience_api_typecheck: pass
+  admin_typecheck: pass
+  vendor_typecheck: pass
+  web_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  web_build: pass
+  store_unit_checks: pass
+  signing_unit_checks: pass
+  bundle_markers:
+  - Customer photos
+  - Uploading photos
+  staging_upload_qc: pending
+  schema_changes: none
+  medusa_rows_changed: false
+  tryton_rows_changed: false
+  evidence_dir: client-projects/client101/evidence/CHG-092
+
+rollback:
+  code: revert the evidence module, routes, UI cards and compose volume
+  data: remove only the CHG-092 staging fixture return, evidence row and stored file
+  staging: not applicable until separately authorized
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Object storage and malware scanning
+  reason: Needs an S3-compatible bucket, credentials, retention policy and scanning before production.
+- id: D2
+  name: Evidence on the order-detail card
+  reason: Photos render on the full return workbench; the compact order card stays summary-only.
+- id: D3
+  name: Production release
+  reason: Legal/tax review and human production authorization remain required.
+
+approval_checkpoint: >-
+  Source implementation and unit verification are complete. Staging deployment (three images, a new
+  volume and a signing secret) requires separate authorization; production remains unauthorized.

@@ -161,6 +161,10 @@ services:
       PORT: "9020"
       CMS_BASE_URL: http://cms:1337
       WORKSPACE_SERVICE_URL: http://workspace:9040
+      EVIDENCE_DIR: /var/lib/buildkart/evidence
+      PUBLIC_API_BASE_URL: https://api-staging.pinakaplay.cloud
+    volumes:
+      - evidence_data:/var/lib/buildkart/evidence
     depends_on:
       postgres: {condition: service_healthy}
       redis: {condition: service_healthy}
@@ -296,6 +300,7 @@ volumes:
   redis_data:
   nats_data:
   medusa_uploads:
+  evidence_data:
 
 networks:
   # Backend services only; no route to the public internet or the host.

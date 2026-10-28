@@ -531,6 +531,42 @@ export default function VendorReturnDetailPage() {
 
         <Container className="p-0">
           <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Customer photos</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Private short-lived links. Evidence only: no money or stock effect.
+            </Text>
+          </div>
+          <div className="flex flex-wrap gap-3 px-6 py-4">
+            {(record?.evidence ?? []).length === 0 ? (
+              <Text size="small" className="text-ui-fg-subtle">
+                No photos were attached to this request.
+              </Text>
+            ) : (
+              (record?.evidence ?? []).map((item) => (
+                <a
+                  key={item.id}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-40 overflow-hidden rounded-lg border border-ui-border-base"
+                >
+                  <img
+                    src={item.url}
+                    alt="Return evidence"
+                    className="h-28 w-full object-cover"
+                  />
+                  <span className="block px-2 py-1 text-xs text-ui-fg-subtle">
+                    {Math.max(1, Math.round(item.sizeBytes / 1024))} KB ·{" "}
+                    {item.contentType.replace("image/", "").toUpperCase()}
+                  </span>
+                </a>
+              ))
+            )}
+          </div>
+        </Container>
+
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
             <Heading level="h2">Audit trail</Heading>
           </div>
           <div className="overflow-x-auto">

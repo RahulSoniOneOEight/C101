@@ -52,6 +52,19 @@ export interface AdminReturnEvent {
   occurredAt: string;
 }
 
+export interface AdminReturnEvidence {
+  id: string;
+  lineKey: string | null;
+  objectKey: string;
+  contentType: string;
+  sizeBytes: number;
+  sha256: string | null;
+  scanStatus: string;
+  createdAt: string;
+  /** Short-lived signed URL served by the Experience API. */
+  url: string;
+}
+
 export interface AdminReturnCase {
   id: string;
   orderId: string;
@@ -70,6 +83,7 @@ export interface AdminReturnCase {
   decidedBy: string | null;
   decisionComment: string | null;
   lines: AdminReturnLine[];
+  evidence: AdminReturnEvidence[];
   events: AdminReturnEvent[];
   refundSimulation: AdminReturnRefundSimulation | null;
 }
