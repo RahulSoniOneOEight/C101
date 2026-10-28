@@ -1,0 +1,245 @@
+{
+  "generated_at": "2026-10-28T18:14:09.123Z",
+  "targets": {
+    "web": "https://app-staging.pinakaplay.cloud",
+    "ops": "https://ops-staging.pinakaplay.cloud"
+  },
+  "fixture": {
+    "order_id": "checkout_chg087_staging_smoke",
+    "return_id": "ret_96ddc7d0643948f5a39beb60519d1904",
+    "refund_simulation_reference": "SIM-REFUND-EC1E8AA9"
+  },
+  "checks": [
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging OTP sign-in",
+      "status": "PASS",
+      "detail": "owner session established"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging order listed",
+      "status": "PASS",
+      "detail": "fixture order visible"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging orders no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging order detail",
+      "status": "PASS",
+      "detail": "items and simulated delivery"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging order detail no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging simulated refund visible",
+      "status": "PASS",
+      "detail": "simulation reference present"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging no-real-money wording",
+      "status": "PASS",
+      "detail": "customer-safe wording"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "staging return no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "staging admin sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "staging admin return visible",
+      "status": "PASS",
+      "detail": "return and refund summary visible"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "staging admin no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "staging seller sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/seller/orders"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "staging seller return visible",
+      "status": "PASS",
+      "detail": "return visible"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "staging seller refund projection redacted",
+      "status": "PASS",
+      "detail": "amount and reference absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "staging seller no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging OTP sign-in",
+      "status": "PASS",
+      "detail": "owner session established"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging order listed",
+      "status": "PASS",
+      "detail": "fixture order visible"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging orders no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging order detail",
+      "status": "PASS",
+      "detail": "items and simulated delivery"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging order detail no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging simulated refund visible",
+      "status": "PASS",
+      "detail": "simulation reference present"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging no-real-money wording",
+      "status": "PASS",
+      "detail": "customer-safe wording"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "staging return no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "staging admin sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "staging admin return visible",
+      "status": "PASS",
+      "detail": "return and refund summary visible"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "staging admin no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "staging seller sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/seller/orders"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "staging seller return visible",
+      "status": "PASS",
+      "detail": "return visible"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "staging seller refund projection redacted",
+      "status": "PASS",
+      "detail": "amount and reference absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "staging seller no overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    }
+  ],
+  "summary": {
+    "total": 30,
+    "passed": 30,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "screenshots": [
+    "staging-screenshots/web/mobile/orders.png",
+    "staging-screenshots/web/mobile/order-detail.png",
+    "staging-screenshots/web/mobile/return-detail.png",
+    "staging-screenshots/admin/mobile/return-closed.png",
+    "staging-screenshots/admin/mobile/return-refund-summary.png",
+    "staging-screenshots/seller/mobile/return-closed.png",
+    "staging-screenshots/web/desktop/orders.png",
+    "staging-screenshots/web/desktop/order-detail.png",
+    "staging-screenshots/web/desktop/return-detail.png",
+    "staging-screenshots/admin/desktop/return-closed.png",
+    "staging-screenshots/admin/desktop/return-refund-summary.png",
+    "staging-screenshots/seller/desktop/return-closed.png"
+  ]
+}

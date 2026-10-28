@@ -427,7 +427,7 @@ active_changes:
   evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
   latest_staging_release: 15c31e4
 - change_id: CHG-087
-  status: authorized-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: return-inspection-and-refund-simulation-local-staging-only
   approved_by: human-requester
@@ -449,6 +449,7 @@ active_changes:
   customer_web_production_build: pass
   flutter_analyze: pass
   flutter_test: pass-286
+  release_commit_flutter_test: pass-288
   flutter_return_status_layout_test: pass-3
   manual_transition_db_test: pass
   manual_transition_http_test: pass
@@ -467,17 +468,39 @@ active_changes:
   - chg087_pg
   - chg087_redis
   - chg087_nats
-  evidence: client-projects/client101/evidence/CHG-087/acceptance.md
+  evidence: client-projects/client101/evidence/CHG-087/staging-deployment.md
   staging_release_plan: client-projects/client101/evidence/CHG-087/staging-release-plan.md
   staging_release_manifest: client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml
-  staging_release_plan_status: authorized-for-execution
+  staging_release_plan_status: executed
   staging_baseline: a13bcb4
   staging_baseline_verified_at_utc: '2026-10-28'
   staging_baseline_path: /opt/buildkart-releases/release-a13bcb4
   staging_deploy_owner: requester-authorized-opencode-agent
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-28'
-  staging_deployment_status: authorized-in-progress
+  staging_release: 0dfdbff7db66761e3bc1a393b3050235e65cb035
+  staging_release_path: /opt/buildkart-releases/release-0dfdbff
+  staging_deployed_at_utc: '2026-10-28'
+  staging_browser_qc: pass-30-of-30
+  staging_console_errors: 0
+  staging_failed_requests: 0
+  staging_smoke: pass
+  staging_events: pass-2-closure-events-2-owner-notifications
+  staging_zero_effect: pass
+  staging_cleanup: pass
+  staging_fcm_delivery_attempts: 0
+  staging_finding: pre-existing-fcm-invalid-credential-backlog
+  staging_event_worker_failed: 40
+  staging_event_worker_dead_lettered: 8
+  staging_last_delivery_attempt_at_utc: '2026-10-28T13:43:48Z'
+  latest_staging_release: 0dfdbff
+  rollback_release: a13bcb4
+  rollback_release_path: /opt/buildkart-releases/release-a13bcb4
+  rollback_tags:
+  - buildkart-hosted-pilot-medusa:rollback-a13bcb4
+  - buildkart-hosted-pilot-experience-api:rollback-a13bcb4
+  - buildkart-hosted-pilot-web:rollback-a13bcb4
+  staging_deployment_status: staging-deployed-verified
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

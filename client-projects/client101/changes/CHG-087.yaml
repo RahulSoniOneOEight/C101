@@ -1,6 +1,6 @@
 change_id: CHG-087
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Close the bounded local/staging return journey after Admin approval by recording Seller-scoped
   receipt and inspection evidence, an Admin-only simulated refund projection, and customer-visible
@@ -26,7 +26,7 @@ staging_deploy_owner: requester-authorized-opencode-agent
 production_release_authorized: false
 local_acceptance_status: pass
 local_acceptance_at_utc: '2026-10-28'
-staging_release_plan_status: authorized-for-execution
+staging_release_plan_status: executed
 staging_release_plan:
   plan: client-projects/client101/evidence/CHG-087/staging-release-plan.md
   manifest: client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml
@@ -38,10 +38,23 @@ staging_release_plan:
     release-a13bcb4 (U-003/U-005 + CHG-086). The release target is based on a13bcb4 and preserves
     that current baseline.
   target_branch: release/chg-087
-  target_sha: pending-scoped-commit
+  target_sha: 0dfdbff7db66761e3bc1a393b3050235e65cb035
   deploy_authorized: true
   production_authorized: false
-staging_deployment_status: authorized-in-progress
+staging_release_sha: 0dfdbff7db66761e3bc1a393b3050235e65cb035
+staging_release_path: /opt/buildkart-releases/release-0dfdbff
+staging_deployed_at_utc: '2026-10-28'
+staging_deployment_status: staging-deployed-verified
+staging_browser_qc: pass-30-of-30
+staging_smoke: pass
+staging_events: pass-2-closure-events-2-owner-notifications
+staging_zero_effect: pass
+staging_cleanup: pass
+staging_fcm_delivery_attempts: 0
+staging_finding: pre-existing-fcm-invalid-credential-backlog
+staging_event_worker_failed: 40
+staging_event_worker_dead_lettered: 8
+staging_last_delivery_attempt_at_utc: '2026-10-28T13:43:48Z'
 
 lane: D
 release_mechanism:
@@ -49,6 +62,7 @@ release_mechanism:
 - event
 - api+ui
 - image-rebuild
+- governed-staging-data
 
 context:
 - >-
@@ -144,50 +158,50 @@ requirements:
   outcome: >-
     Contracts and runtime preserve Medusa/payment ownership of real refunds and Tryton ownership of
     stock; return projections never mutate either system.
-  status: pass-local
+  status: pass
 - id: R2
   name: Versioned inspection
   outcome: >-
     Admin or the owning Seller records complete per-line inspection evidence after receipt with
     optimistic-version protection and immutable audit events.
-  status: pass-local
+  status: pass
 - id: R3
   name: Seller isolation
   outcome: >-
     Cross-seller reads and writes return 404 without mutation; Seller decision, cancellation and
     refund attempts are denied.
-  status: pass-local
+  status: pass
 - id: R4
   name: Explicit simulated refund
   outcome: >-
     Admin records one idempotent simulated refund projection only after inspection, with explicit
     amount/breakdown, simulation status/reference and zero real money effect.
-  status: pass-local
+  status: pass
 - id: R5
   name: Customer visibility
   outcome: >-
     Flutter and secure customer web show inspection and simulated refund status only for the owning
     customer, including clear no-real-money wording.
-  status: pass-local
+  status: pass
 - id: R6
   name: Admin and Seller workbenches
   outcome: >-
     Admin exposes full decision/refund controls; Seller exposes only scoped receipt/inspection
     controls. Both remain responsive, keyboard usable and consistent with registered return-status
     and workflow-action components.
-  status: pass-local
+  status: pass
 - id: R7
   name: Event and notification evidence
   outcome: >-
     Inspection and refund-simulation events publish with dedupe/retry proof and create one owner
     notification each, all carrying test/simulation and zero-effect markers.
-  status: pass-local
+  status: pass
 - id: R8
   name: Local acceptance and cleanup
   outcome: >-
     Isolated PostgreSQL/NATS HTTP and browser acceptance covers success, unauthorized access,
     cross-seller access, stale versions, duplicate replay, console errors and fixture cleanup.
-  status: pass-local
+  status: pass
 
 scope_lock:
   allowed_paths:
@@ -260,19 +274,34 @@ required_tests:
 
 verification:
   completed_at_utc: '2026-10-28'
-  environment: isolated-local-only
-  result: pass-local
-  staging_deployed: false
+  environment: isolated-local-and-hosted-staging
+  result: pass
+  staging_deployed: true
+  staging_release: 0dfdbff7db66761e3bc1a393b3050235e65cb035
+  staging_release_path: /opt/buildkart-releases/release-0dfdbff
+  staging_baseline: a13bcb4
+  staging_browser_qc: pass-30-of-30
+  staging_console_errors: 0
+  staging_failed_requests: 0
+  staging_smoke: pass
+  staging_events: pass-2-closure-events-2-owner-notifications
+  staging_zero_effect: pass
+  staging_cleanup: pass
+  staging_fcm_delivery_attempts: 0
+  staging_finding: pre-existing-fcm-invalid-credential-backlog
+  staging_event_worker_failed: 40
+  staging_event_worker_dead_lettered: 8
+  staging_last_delivery_attempt_at_utc: '2026-10-28T13:43:48Z'
   production_released: false
   requirement_results:
-    R1: pass-local
-    R2: pass-local
-    R3: pass-local
-    R4: pass-local
-    R5: pass-local
-    R6: pass-local
-    R7: pass-local
-    R8: pass-local
+    R1: pass
+    R2: pass
+    R3: pass
+    R4: pass
+    R5: pass
+    R6: pass
+    R7: pass
+    R8: pass
   contract_validation: pass-5-yaml-27-channels-127-refs
   experience_api_typecheck: pass
   admin_build: pass
@@ -281,6 +310,7 @@ verification:
   customer_web_production_build: pass
   flutter_analyze: pass
   flutter_test: pass-286
+  release_commit_flutter_test: pass-288
   flutter_return_status_layout_test: pass-3
   manual_transition_db_test: pass
   manual_transition_http_test: pass
@@ -296,6 +326,7 @@ verification:
   tryton_stock_rows_unchanged: true
   seller_refund_projection_hidden: true
   local_fixture_removed: true
+  staging_fixture_removed: true
   disposable_containers_removed:
   - chg087_pg
   - chg087_redis
@@ -303,11 +334,17 @@ verification:
   evidence_dir: client-projects/client101/evidence/CHG-087
   evidence:
   - client-projects/client101/evidence/CHG-087/acceptance.md
+  - client-projects/client101/evidence/CHG-087/staging-deployment.md
+  - client-projects/client101/evidence/CHG-087/staging-release-plan.md
+  - client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml
+  - client-projects/client101/evidence/CHG-087/staging-browser-qc.json
+  - client-projects/client101/evidence/CHG-087/staging-smoke.json
+  - client-projects/client101/evidence/CHG-087/staging-screenshots
   - client-projects/client101/evidence/CHG-087/browser-qc.json
   - client-projects/client101/evidence/CHG-087/screenshots
   - client-projects/client101/evidence/CHG-087/zero-effect-evidence.json
   - client-projects/client101/evidence/CHG-087/fixtures/lifecycle-snapshots.json
-  staging_deployment_status: authorized-in-progress
+  staging_deployment_status: staging-deployed-verified
 
 policy_and_legal_gates:
 - return-policy-2026-11-01 remains a staging planning policy until legal/tax review.

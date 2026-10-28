@@ -1,0 +1,39 @@
+{
+  "fixture_id": "chg087_staging_smoke",
+  "order_id": "checkout_chg087_staging_smoke",
+  "order_group_id": "og_chg087_staging_smoke",
+  "return_id": "ret_96ddc7d0643948f5a39beb60519d1904",
+  "shipment_id": "ship_040cc063b4b54b9c935865cb676b1795",
+  "seller_id": "sel_01M4EC9C7YNSFGCG6A4B3Q6PG8",
+  "owner_user_id": "pilot_customer_b2c01",
+  "final_status": "closed",
+  "final_version": 5,
+  "refund_simulation_reference": "SIM-REFUND-EC1E8AA9",
+  "refund_amount_minor": 304700,
+  "duplicate_replay": true,
+  "seller_refund_simulation": null,
+  "domain_event_types": [
+    "return.requested",
+    "return.decision",
+    "return.status_changed",
+    "return.inspection_completed",
+    "return.refund_simulation_recorded"
+  ],
+  "notifications": 2,
+  "medusa_unchanged": true,
+  "tryton_unchanged": true,
+  "medusa_before": {
+    "order_transaction": 1,
+    "payment": 20,
+    "payment_collection": 31,
+    "payment_session": 31,
+    "refund": 1
+  },
+  "tryton_before": {
+    "stock_move": 55,
+    "stock_shipment_in": 0,
+    "stock_shipment_out": 0,
+    "stock_shipment_out_return": 0
+  },
+  "test_data": true
+}

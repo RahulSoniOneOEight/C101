@@ -1,13 +1,26 @@
 # CHG-087 — Scoped staging release plan
 
-**Status:** AUTHORIZED — EXECUTION IN PROGRESS
+**Status:** EXECUTED — STAGING VERIFIED
 **Change:** CHG-087 Revision 1 — return inspection and simulated refund closure
 **Lane / release mechanism:** D / `migration + event + api+ui + image-rebuild + governed-staging-data`
 **Plan date:** 2026-10-28
 **Environment:** staging only. Production is forbidden.
 **Deploy owner:** requester-authorized OpenCode agent. The human requester authorized this scoped staging release; production remains forbidden.
 
-> The human requester explicitly authorized this scoped staging deployment on 2026-10-28, including the synthetic Experience-only smoke fixture. Execution still stops at any failed gate below.
+> The human requester explicitly authorized this scoped staging deployment on 2026-10-28, including the synthetic Experience-only smoke fixture. Execution stopped at no gate.
+
+## Execution result — 2026-10-28
+
+- **Release:** `0dfdbff7db66761e3bc1a393b3050235e65cb035` on `release/chg-087`, based on `a13bcb4`.
+- **Current:** `/opt/buildkart-releases/current -> release-0dfdbff`.
+- **Health:** API, ops, Admin, Seller and customer web all 200 after proxy restart.
+- **Browser QC:** 30/30 PASS at 390×844 and 1440×900; 0 console errors; 0 unexpected failed requests.
+- **Smoke:** closed return `ret_96ddc7d0643948f5a39beb60519d1904`; refund `SIM-REFUND-EC1E8AA9`; 2 closure events and 2 owner notifications.
+- **Zero effect:** Medusa and Tryton counts unchanged; no external delivery attempt during the smoke.
+- **Staging finding:** FCM delivery is enabled with a pre-existing invalid-credential/dead-letter backlog; the smoke itself created no delivery attempt.
+- **Cleanup:** smoke fixture removed; zero remaining fixture rows.
+- **Rollback:** `release-a13bcb4` plus `rollback-a13bcb4` image tags.
+- Full record: `client-projects/client101/evidence/CHG-087/staging-deployment.md`.
 
 ---
 
@@ -22,7 +35,7 @@
 | Staging current symlink | `release-a13bcb4` — verified at G5 on 2026-10-28 |
 | Baseline contents | U-003/U-005 + CHG-086; these are preserved, not replaced by this release |
 | Rollback release | `/opt/buildkart-releases/release-a13bcb4` |
-| Release target | A new scoped commit on `release/chg-087`, based on `a13bcb4`; SHA is TBD |
+| Release target | `release/chg-087` at `0dfdbff7db66761e3bc1a393b3050235e65cb035`, based on `a13bcb4` |
 | Deploy from | `/opt/buildkart-releases/release-<CHG087_SHA>` only |
 | Never deploy from | `feat/bt-sku-pairs` HEAD, `/opt/buildkart`, or a mutable working tree |
 | Production | Not authorized, not touched |
@@ -384,12 +397,12 @@ Production remains forbidden even if every staging gate passes.
 
 ---
 
-## 14. Open decisions before execution
+## 14. Execution decisions
 
-1. **Baseline confirmation:** `release-a13bcb4` was verified on 2026-10-28; re-verify immediately before rebuild.
-2. **Deploy owner/window:** who holds the lock, and when is the staging window?
-3. **Smoke data approval:** is one synthetic Experience-only fixture approved, or is read-only verification required?
-4. **Flutter scope:** the plan treats Flutter as source-only. Is a separate Flutter web/Firebase or app-distribution release required? If yes, that is a separate static-UI gate.
-5. **Customer web host:** confirm `PUBLIC_APP_HOSTNAME` from the staging environment; do not infer it from old docs.
+1. **Baseline confirmation:** `release-a13bcb4` was verified and preserved; the release commit is based on it.
+2. **Deploy owner/window:** requester-authorized OpenCode agent; executed on 2026-10-28.
+3. **Smoke data:** one synthetic Experience-only fixture was approved, used and removed.
+4. **Flutter scope:** source-only; no Flutter web/Firebase or app-distribution release was made.
+5. **Customer web host:** `app-staging.pinakaplay.cloud` confirmed and verified.
 
-Until these are answered and the human explicitly authorizes staging, this plan is **not executable**.
+Execution results are recorded in `staging-deployment.md`.

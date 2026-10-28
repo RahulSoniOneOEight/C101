@@ -174,10 +174,10 @@ Policy/legal gates remain open: return-policy-2026-11-01 is planning-only; resto
 
 ## 10. Residual risks and honest limitations
 
-1. **Admin/Seller browser coverage used captured isolated API snapshots**, not a live Medusa-backed dashboard shell. The real route components and their controls were rendered; proxy/auth behavior is covered by the HTTP acceptance tests and production builds, not by a live operator session.
-2. **Customer web was end-to-end**, but only the post-purchase journey was exercised. The catalogue home page depends on catalogue/Medusa data unavailable in the isolated stack and is outside CHG-087.
+1. **Admin/Seller browser coverage was repeated in staging with real staging sessions**; the earlier local run used captured isolated API snapshots because a full local Mercur shell was not booted. Both exercised the real route components.
+2. **Customer web was end-to-end locally and in staging**; the staging release also exercised Admin and Seller with real staging sessions. The catalogue home page remains outside CHG-087.
 3. **The customer return read is owner-scoped but returns more internal fields than the UI renders** (for example policy snapshot, idempotency key and actor IDs). This is not an ownership bypass, but a narrower customer projection would be preferable before production.
-4. **No staging or production behavior was observed.** Staging deployment remains separately gated and is not authorized by this evidence.
+4. **Staging is deployed and verified; production remains unauthorized.** Production still requires legal/tax review, real providers, credentials, governed integrations and human authorization.
 
 ---
 
@@ -185,16 +185,21 @@ Policy/legal gates remain open: return-policy-2026-11-01 is planning-only; resto
 
 - **Local:** containers and fixture are already removed; no rollback action remains.
 - **Code:** revert only the CHG-087 paths in the change contract; preserve CHG-035 history.
-- **Staging:** not applicable — not deployed.
+- **Staging:** restore `release-a13bcb4` and the `rollback-a13bcb4` image tags; remove only the CHG-087 smoke fixture. The additive schema remains.
 - **Production:** not applicable — not released and not authorized.
 
 ---
 
-## 12. Staging release plan
+## 12. Staging deployment
 
-A scoped staging release plan has been prepared but **not executed**:
+The scoped staging release has been **executed and verified**:
 
-- `client-projects/client101/evidence/CHG-087/staging-release-plan.md`
-- `client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml`
+- Release: `0dfdbff7db66761e3bc1a393b3050235e65cb035` on `release/chg-087`, based on `a13bcb4`
+- Current: `/opt/buildkart-releases/current -> release-0dfdbff`
+- Browser QC: 30/30 at 390×844 and 1440×900; 0 console errors; 0 unexpected failed requests
+- Smoke: closed return `ret_96ddc7d0643948f5a39beb60519d1904`, refund `SIM-REFUND-EC1E8AA9`, 2 closure events and 2 owner notifications
+- Zero effect: Medusa and Tryton counts unchanged; no external delivery attempt during the smoke
+- Staging finding: FCM delivery is enabled with a pre-existing invalid-credential/dead-letter backlog; the smoke itself created no delivery attempt
+- Rollback: `release-a13bcb4` plus `rollback-a13bcb4` image tags
 
-The plan targets a scoped `release/chg-087` commit based on the verified staging baseline (last recorded `ecb01e1`), rebuilds the Medusa, Experience API and customer web images, rehearses the additive Experience API schema, deploys with a health/proxy gate, runs a synthetic Experience-only staging fixture, and records rollback. Staging deployment remains unauthorized; the plan's open decisions must be answered and explicitly approved before execution.
+Full staging evidence: `staging-deployment.md`, `staging-browser-qc.json`, `staging-smoke.json`, `staging-screenshots/**`. Production remains unauthorized.

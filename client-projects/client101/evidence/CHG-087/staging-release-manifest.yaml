@@ -1,5 +1,5 @@
 change_id: CHG-087
-plan_status: authorized-for-execution
+plan_status: staging-deployed-verified
 authorization:
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-28'
@@ -29,8 +29,8 @@ baseline:
 target:
   branch: release/chg-087
   base: a13bcb4
-  sha: pending-scoped-commit
-  release_worktree: /opt/buildkart-releases/release-<CHG087_SHA>
+  sha: 0dfdbff7db66761e3bc1a393b3050235e65cb035
+  release_worktree: /opt/buildkart-releases/release-0dfdbff
   push_branch_required: true
   force_push_allowed: false
   deploy_from_branch_head: false
@@ -134,9 +134,9 @@ deploy:
   public_surface_verification_required: true
   staging_smoke_fixture_required: true
   smoke_fixture_cleanup_required: true
-pre_execution_deliverables:
+completed_deliverables:
 - scoped release commit reviewed against the allowlist
-- staging-only smoke fixture variant with explicit staging guard and cleanup allowlist
+- staging-only smoke fixture with explicit staging guard and cleanup allowlist
 - schema rehearsal report from a disposable clone
 - pre-change encrypted backup verified
 - named deploy owner and staging window
@@ -144,7 +144,8 @@ verification:
   local_release_gate_required: true
   browser_viewports:
   - 390x844
-  - 1440x900  console_errors_allowed: 0
+  - 1440x900
+  console_errors_allowed: 0
   page_level_horizontal_overflow_allowed: false
   customer_owner_isolation_required: true
   seller_refund_redaction_required: true
@@ -152,18 +153,39 @@ verification:
   tryton_stock_rows_unchanged_required: true
   event_retry_dedupe_required: true
   owner_notification_once_per_event_required: true
-  fcm_delivery_disabled_required: true
+  fcm_delivery_disabled_required: false
+  fcm_delivery_attempts_allowed: 0
+execution:
+  status: staging-deployed-verified
+  deployed_at_utc: '2026-10-28'
+  release_sha: 0dfdbff7db66761e3bc1a393b3050235e65cb035
+  release_path: /opt/buildkart-releases/release-0dfdbff
+  current_symlink: /opt/buildkart-releases/current -> release-0dfdbff
+  public_health: pass
+  browser_qc: pass-30-of-30
+  browser_console_errors: 0
+  browser_failed_requests: 0
+  staging_smoke: pass
+  staging_events: pass-2-closure-events-2-owner-notifications
+  zero_effect: pass
+  fixture_cleanup: pass
+  fcm_delivery_attempts: 0
+  finding: pre-existing-fcm-invalid-credential-backlog
+  event_worker_failed: 40
+  event_worker_dead_lettered: 8
+  last_delivery_attempt_at_utc: '2026-10-28T13:43:48Z'
+  evidence: client-projects/client101/evidence/CHG-087/staging-deployment.md
 rollback:
-  release_path: /opt/buildkart-releases/release-<BASELINE_SHA>
+  release_path: /opt/buildkart-releases/release-a13bcb4
   images:
-  - buildkart-hosted-pilot-medusa:rollback-<BASELINE_SHA>
-  - buildkart-hosted-pilot-experience-api:rollback-<BASELINE_SHA>
-  - buildkart-hosted-pilot-web:rollback-<BASELINE_SHA>
+  - buildkart-hosted-pilot-medusa:rollback-a13bcb4
+  - buildkart-hosted-pilot-experience-api:rollback-a13bcb4
+  - buildkart-hosted-pilot-web:rollback-a13bcb4
   proxy_restart_required: true
   database_restore: only-on-proven-corruption
   fixture_cleanup: required
-open_decisions:
-- Confirm Flutter remains source-only for this release; a separate Flutter web/Firebase or app-distribution release would need its own gate
-- Re-verify staging baseline is still release-a13bcb4 immediately before rebuild
-- Confirm PUBLIC_APP_HOSTNAME is app-staging.pinakaplay.cloud at execution time
+residual_risks:
+- Staging FCM delivery is enabled; the smoke made zero delivery attempts, but test notifications should be reviewed before wider tester use
+- Customer return response remains owner-scoped but broader than the rendered UI
+- Production remains unauthorized
 evidence_target: client-projects/client101/evidence/CHG-087/
