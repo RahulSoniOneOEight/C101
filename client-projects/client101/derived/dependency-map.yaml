@@ -1,5 +1,9 @@
 client_id: client101
-governance_note: CHG-017 Revision 7 inherits the Revision 6 decision outcomes and adds the CHG-035 delivery/returns contract baseline; runtime phases remain staged and production release is unauthorized.
+governance_note: >-
+  CHG-017 Revision 7 inherits the Revision 6 decision outcomes and adds the CHG-035
+  delivery/returns contract baseline. CHG-087 adds inspection evidence and a non-financial
+  refund simulation without changing payment or inventory ownership; runtime and production remain
+  unauthorized until approval.
 critical_cross_domain_flows:
 - id: editorial-content-to-app-shell
   domains:
@@ -63,6 +67,16 @@ critical_cross_domain_flows:
   - logistics
   - operations
 - id: return-decision-to-notification
+  domains:
+  - experience
+  - notifications
+  - operations
+- id: return-receipt-to-inspection-evidence
+  domains:
+  - experience
+  - marketplace
+  - operations
+- id: return-inspection-to-refund-simulation
   domains:
   - experience
   - notifications

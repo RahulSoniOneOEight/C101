@@ -342,7 +342,7 @@ class ReturnRequestScreen extends ConsumerWidget {
   }
 }
 
-/// Customer-visible return status. Phase 1 is evidence only: no refund or stock movement.
+/// Customer-owned return status, including explicitly simulated refund evidence.
 class ReturnStatusScreen extends ConsumerWidget {
   const ReturnStatusScreen({required this.returnId, super.key});
 
@@ -363,6 +363,12 @@ class ReturnStatusScreen extends ConsumerWidget {
           final lines = (record['lines'] as List? ?? const <dynamic>[])
               .whereType<Map<String, dynamic>>()
               .toList();
+          final refundSimulation =
+              record['refundSimulation'] as Map<String, dynamic>?;
+          final refundAmount = refundSimulation?['amountMinor'] is num
+              ? '₹${((refundSimulation!['amountMinor'] as num) / 100).toStringAsFixed(2)}'
+              : null;
+          final status = record['status'] as String? ?? 'requested';
           return ListView(
             padding: const EdgeInsets.all(AgencySpacing.md),
             children: <Widget>[
@@ -372,7 +378,7 @@ class ReturnStatusScreen extends ConsumerWidget {
               ),
               const SizedBox(height: AgencySpacing.xs),
               Text(
-                'Status: ${record['status'] ?? 'requested'}',
+                'Status: $status',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -383,9 +389,24 @@ class ReturnStatusScreen extends ConsumerWidget {
                 'Resolution: ${record['resolution'] ?? 'refund'}',
                 style: TextStyle(fontSize: 12, color: colors.contentSecondary),
               ),
+              if (refundSimulation != null)
+                Text(
+                  'Refund simulation: ${refundSimulation['status'] ?? 'simulated_pending'}'
+                  '${refundAmount == null ? '' : ' · $refundAmount'}',
+                  style: TextStyle(fontSize: 12, color: colors.contentSecondary),
+                ),
+              if (refundSimulation != null)
+                Text(
+                  'Reference: ${refundSimulation['simulationReference'] ?? 'SIM pending'}',
+                  style: TextStyle(fontSize: 12, color: colors.contentSecondary),
+                ),
               const SizedBox(height: AgencySpacing.sm),
               Text(
-                'This staging case records return evidence only. No refund is issued and no stock is moved.',
+                refundSimulation != null
+                    ? 'This is simulated evidence only. No real money moved and no stock was posted.'
+                    : status == 'inspection_complete'
+                        ? 'Inspection evidence is complete. Admin may now record a simulated refund; no real money or stock moves.'
+                        : 'This case records return evidence. Refund simulation becomes available only after inspection.',
                 style: TextStyle(fontSize: 11, color: colors.feedbackWarning),
               ),
               const SizedBox(height: AgencySpacing.md),
@@ -395,7 +416,9 @@ class ReturnStatusScreen extends ConsumerWidget {
                   title: Text(line['sku'] as String? ?? 'Returned item'),
                   subtitle: Text(
                     'Requested ${line['requestedQty'] ?? line['requested_qty'] ?? 0}'
-                    '${(line['approvedQty'] ?? line['approved_qty']) == null ? '' : ' · Approved ${line['approvedQty'] ?? line['approved_qty']}'}',
+                    '${(line['approvedQty'] ?? line['approved_qty']) == null ? '' : ' · Approved ${line['approvedQty'] ?? line['approved_qty']}'}'
+                    '${line['condition'] == null ? '' : ' · ${line['condition']}'}'
+                    '${line['disposition'] == null ? '' : ' · ${line['disposition']} intent (evidence only)'}',
                   ),
                 ),
             ],

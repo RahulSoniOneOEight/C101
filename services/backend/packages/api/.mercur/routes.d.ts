@@ -549,6 +549,8 @@ export type Routes = {
             returns: typeof import("../src/api/admin/buildkart/returns/route") & {
                 $id: typeof import("../src/api/admin/buildkart/returns/[id]/route") & {
                     approve: typeof import("../src/api/admin/buildkart/returns/[id]/approve/route");
+                    inspection: typeof import("../src/api/admin/buildkart/returns/[id]/inspection/route");
+                    refundSimulation: typeof import("../src/api/admin/buildkart/returns/[id]/refund-simulation/route");
                     reject: typeof import("../src/api/admin/buildkart/returns/[id]/reject/route");
                     status: typeof import("../src/api/admin/buildkart/returns/[id]/status/route");
                 };
@@ -1007,6 +1009,7 @@ export type Routes = {
             };
             returns: typeof import("../src/api/vendor/buildkart/returns/route") & {
                 $id: typeof import("../src/api/vendor/buildkart/returns/[id]/route") & {
+                    inspection: typeof import("../src/api/vendor/buildkart/returns/[id]/inspection/route");
                     status: typeof import("../src/api/vendor/buildkart/returns/[id]/status/route");
                 };
             };

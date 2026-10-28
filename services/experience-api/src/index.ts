@@ -67,6 +67,8 @@ import { SimulatedLogisticsProvider } from "./logistics/provider.js";
 import {
   ReturnStore,
   SELLER_RETURN_TRANSITIONS,
+  type ReturnCondition,
+  type ReturnDisposition,
   type ReturnStatus,
 } from "./store/return-store.js";
 import {
@@ -279,6 +281,9 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
 function serviceOperatorAuthentication(req: Request): AuthenticationResult | null {
   const expected = config.adminServiceSecret;
   if (!expected) return null;
+  // A trusted request carrying a seller scope is a Seller portal identity, never an operator.
+  // This prevents the shared proxy secret from collapsing the Admin/Seller authority boundary.
+  if (req.headers.get("x-buildkart-seller-id")?.trim()) return null;
   const supplied = req.headers.get("x-buildkart-admin-service-secret") ?? "";
   if (
     supplied.length !== expected.length ||
@@ -303,6 +308,12 @@ function serviceOperatorAuthentication(req: Request): AuthenticationResult | nul
 }
 
 async function requireAnyRole(req: Request, roles: readonly PilotRole[]): Promise<AuthenticationResult> {
+  const sellerService = serviceSellerAuthentication(req);
+  if (sellerService && !("response" in sellerService)) {
+    return {
+      response: problem(403, "operator-required", "Seller-scoped service identity cannot access operator routes."),
+    };
+  }
   const service = serviceOperatorAuthentication(req);
   if (service && !("response" in service) && hasAnyRole(service.authorization, roles)) {
     return service;
@@ -960,9 +971,47 @@ async function sellerScopedReturns(sellerId: string, limit = 100) {
     if (lineKeys.size === 0) continue;
     const lines = record.lines.filter((line) => lineKeys.has(line.lineKey));
     if (lines.length === 0) continue;
+    const scopedEvents = record.events.map((event) => {
+      if (event.eventType === "return.refund_simulation_recorded") {
+        return {
+          ...event,
+          detail: {
+            status: event.detail.status,
+            test_data: true,
+            simulated: true,
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        };
+      }
+      const detail = { ...event.detail };
+      if (Array.isArray(detail.lines)) {
+        detail.lines = detail.lines.filter((line) =>
+          Boolean(
+            line &&
+              typeof line === "object" &&
+              lineKeys.has(String((line as { lineKey?: unknown; line_key?: unknown }).lineKey ??
+                (line as { line_key?: unknown }).line_key ?? "")),
+          )
+        );
+      }
+      if (Array.isArray(detail.approved_lines)) {
+        detail.approved_lines = detail.approved_lines.filter((line) =>
+          Boolean(
+            line &&
+              typeof line === "object" &&
+              lineKeys.has(String((line as { lineKey?: unknown; line_key?: unknown }).lineKey ??
+                (line as { line_key?: unknown }).line_key ?? "")),
+          )
+        );
+      }
+      return { ...event, detail };
+    });
     scoped.push({
       ...record,
       lines,
+      events: scopedEvents,
+      refundSimulation: null,
       allowedTransitions: ["requested", "under_review"].includes(record.status)
         ? []
         : record.allowedTransitions.filter((status) =>
@@ -1146,6 +1195,12 @@ async function requireErpOperator(req: Request): Promise<AuthenticationResult> {
 }
 
 async function requireOperator(req: Request): Promise<AuthenticationResult> {
+  const sellerService = serviceSellerAuthentication(req);
+  if (sellerService && !("response" in sellerService)) {
+    return {
+      response: problem(403, "operator-required", "Seller-scoped service identity cannot access operator routes."),
+    };
+  }
   const service = serviceOperatorAuthentication(req);
   if (service && !("response" in service)) return service;
   const authenticated = await authenticate(req);
@@ -2125,6 +2180,116 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
+  const sellerReturnInspection = url.pathname.match(
+    /^\/v1\/seller\/returns\/([^/]+)\/inspection$/,
+  );
+  if (sellerReturnInspection && req.method === "POST") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const scoped = (await sellerScopedReturns(sellerId, 500)).find(
+      (candidate) => candidate.id === sellerReturnInspection[1],
+    );
+    if (!scoped) return problem(404, "return-not-found");
+    let body: {
+      expected_version?: number;
+      lines?: Array<{
+        line_key?: string;
+        received_qty?: number;
+        condition?: string;
+        disposition?: string;
+        note?: string;
+      }>;
+      note?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+      return problem(400, "expected-version-required", "expected_version must be a positive integer.");
+    }
+    if (!Array.isArray(body.lines) || body.lines.length === 0) {
+      return problem(400, "inspection-lines-required", "Inspection lines are required.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: seller.user.id,
+      actorRoles: seller.authorization.roles,
+      sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const updated = await returns.inspect({
+        id: scoped.id,
+        expectedVersion: Number(body.expected_version),
+        actorId: seller.user.id,
+        actorRole: "seller",
+        allowedLineKeys: scoped.lines.map((line) => line.lineKey),
+        note: body.note?.trim() || null,
+        lines: body.lines.map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          receivedQty: Number(line.received_qty ?? 0),
+          condition: String(line.condition ?? "") as ReturnCondition,
+          disposition: String(line.disposition ?? "") as ReturnDisposition,
+          note: line.note?.trim() || body.note?.trim() || null,
+        })),
+      });
+      await events.append({
+        event_type: "return.inspection_completed",
+        aggregate_type: "return",
+        aggregate_id: updated.id,
+        correlation_id: cid,
+        payload: {
+          return_id: updated.id,
+          order_id: updated.orderId,
+          order_group_id: updated.orderGroupId,
+          status: updated.status,
+          version: updated.version,
+          seller_id: sellerId,
+          source: "seller_portal",
+          lines: updated.lines
+            .filter((line) => line.inspectedAt !== null)
+            .map((line) => ({
+              line_key: line.lineKey,
+              approved_qty: line.approvedQty,
+              received_qty: line.receivedQty,
+              condition: line.condition,
+              disposition: line.disposition,
+              note: line.inspectionNote,
+            })),
+          inspected_at: updated.lines.find((line) => line.inspectedAt)?.inspectedAt,
+          inspected_by: seller.user.id,
+          test_data: true,
+          simulated: true,
+          money_effect: "none",
+          stock_effect: "none",
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        return: updated,
+        environment: config.environment,
+        test_data: true,
+        seller_id: sellerId,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "return-not-found"
+        ? 404
+        : code === "return-version-conflict" ||
+            code === "return-not-inspectable" ||
+            code === "inspection-scope-incomplete"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "return-inspection-failed", (error as Error).message);
+    }
+  }
+
   // Combined order-level delivery and return status for the admin console.
   if (url.pathname === "/v1/admin/order-statuses" && req.method === "GET") {
     const operator = await requireOperator(req);
@@ -2669,6 +2834,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!ref) return problem(404, "order-not-found", "No correlated order for this reference.");
     const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
     const eligibilityByLine = new Map(eligibility.map((line) => [line.line_key, line]));
+    const priceByLine = new Map(
+      orderLineSnapshots(ref).map((line) => [line.line_key, line.unit_price]),
+    );
     const lines = [];
     for (const requested of requestedLines) {
       const line = eligibilityByLine.get(String(requested.line_key));
@@ -2698,6 +2866,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         deliveredQty: line.delivered_qty,
         requestedQty: quantity,
         reasonCode: reason,
+        unitPriceMinor: Math.max(0, Math.round(priceByLine.get(line.line_key) ?? 0)),
       });
     }
     const evidence = (body.evidence ?? [])
@@ -3003,6 +3172,258 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           : 400;
       await privilegedAudit.complete(auditId, status);
       return problem(status, code ?? "return-transition-failed", (error as Error).message);
+    }
+  }
+
+  const adminReturnInspection = url.pathname.match(
+    /^\/v1\/admin\/returns\/([^/]+)\/inspection$/,
+  );
+  if (adminReturnInspection && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      expected_version?: number;
+      lines?: Array<{
+        line_key?: string;
+        received_qty?: number;
+        condition?: string;
+        disposition?: string;
+        note?: string;
+      }>;
+      note?: string;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+      return problem(400, "expected-version-required", "expected_version must be a positive integer.");
+    }
+    if (!Array.isArray(body.lines) || body.lines.length === 0) {
+      return problem(400, "inspection-lines-required", "Inspection lines are required.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const updated = await returns.inspect({
+        id: adminReturnInspection[1],
+        expectedVersion: Number(body.expected_version),
+        actorId: operator.user.id,
+        actorRole: "marketplace_operator",
+        note: body.note?.trim() || null,
+        lines: body.lines.map((line) => ({
+          lineKey: String(line.line_key ?? ""),
+          receivedQty: Number(line.received_qty ?? 0),
+          condition: String(line.condition ?? "") as ReturnCondition,
+          disposition: String(line.disposition ?? "") as ReturnDisposition,
+          note: line.note?.trim() || body.note?.trim() || null,
+        })),
+      });
+      await events.append({
+        event_type: "return.inspection_completed",
+        aggregate_type: "return",
+        aggregate_id: updated.id,
+        correlation_id: cid,
+        payload: {
+          return_id: updated.id,
+          order_id: updated.orderId,
+          order_group_id: updated.orderGroupId,
+          status: updated.status,
+          version: updated.version,
+          source: "admin_console",
+          lines: updated.lines
+            .filter((line) => line.inspectedAt !== null)
+            .map((line) => ({
+              line_key: line.lineKey,
+              approved_qty: line.approvedQty,
+              received_qty: line.receivedQty,
+              condition: line.condition,
+              disposition: line.disposition,
+              note: line.inspectionNote,
+            })),
+          inspected_at: updated.lines.find((line) => line.inspectedAt)?.inspectedAt,
+          inspected_by: operator.user.id,
+          test_data: true,
+          simulated: true,
+          money_effect: "none",
+          stock_effect: "none",
+        },
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        return: updated,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "return-not-found"
+        ? 404
+        : code === "return-version-conflict" ||
+            code === "return-not-inspectable"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "return-inspection-failed", (error as Error).message);
+    }
+  }
+
+  const adminReturnRefundSimulation = url.pathname.match(
+    /^\/v1\/admin\/returns\/([^/]+)\/refund-simulation$/,
+  );
+  if (adminReturnRefundSimulation && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: {
+      expected_version?: number;
+      operation_key?: string;
+      method?: string;
+      amount_minor?: number;
+      currency_code?: string;
+      breakdown?: {
+        item_subtotal_minor?: number;
+        tax_minor?: number;
+        shipping_minor?: number;
+        restocking_fee_minor?: number;
+        return_freight_minor?: number;
+      };
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!Number.isInteger(body.expected_version) || Number(body.expected_version) < 1) {
+      return problem(400, "expected-version-required", "expected_version must be a positive integer.");
+    }
+    const operationKey = body.operation_key?.trim() ||
+      req.headers.get("idempotency-key")?.trim() ||
+      "";
+    if (operationKey.length < 8 || operationKey.length > 200) {
+      return problem(400, "operation-key-required", "An operation key between 8 and 200 characters is required.");
+    }
+    if (!Number.isInteger(body.amount_minor) || Number(body.amount_minor) <= 0) {
+      return problem(400, "refund-amount-required", "amount_minor must be a positive integer.");
+    }
+    if (body.currency_code?.trim().toUpperCase() !== "INR") {
+      return problem(400, "unsupported-refund-currency", "currency_code must be INR.");
+    }
+    if (
+      body.method !== "original_method_simulation" &&
+      body.method !== "cod_bank_transfer_simulation"
+    ) {
+      return problem(400, "invalid-refund-method", "A supported simulated refund method is required.");
+    }
+    const breakdown = body.breakdown;
+    const breakdownValues = breakdown
+      ? [
+          breakdown.item_subtotal_minor,
+          breakdown.tax_minor,
+          breakdown.shipping_minor,
+          breakdown.restocking_fee_minor,
+          breakdown.return_freight_minor,
+        ]
+      : [];
+    if (
+      breakdownValues.length !== 5 ||
+      breakdownValues.some((value) => !Number.isInteger(value) || Number(value) < 0)
+    ) {
+      return problem(
+        400,
+        "invalid-refund-breakdown",
+        "Every refund simulation breakdown value must be a non-negative integer.",
+      );
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const result = await returns.recordRefundSimulation({
+        id: adminReturnRefundSimulation[1],
+        expectedVersion: Number(body.expected_version),
+        operationKey,
+        actorId: operator.user.id,
+        actorRole: "marketplace_operator",
+        method: body.method,
+        amountMinor: Number(body.amount_minor),
+        currencyCode: body.currency_code!,
+        breakdown: {
+          itemSubtotalMinor: Number(breakdown!.item_subtotal_minor),
+          taxMinor: Number(breakdown!.tax_minor),
+          shippingMinor: Number(breakdown!.shipping_minor),
+          restockingFeeMinor: Number(breakdown!.restocking_fee_minor),
+          returnFreightMinor: Number(breakdown!.return_freight_minor),
+        },
+      });
+      if (!result.duplicate) {
+        const simulation = result.refundSimulation;
+        await events.append({
+          event_type: "return.refund_simulation_recorded",
+          aggregate_type: "return",
+          aggregate_id: result.returnCase.id,
+          correlation_id: cid,
+          payload: {
+            return_id: result.returnCase.id,
+            order_id: result.returnCase.orderId,
+            order_group_id: result.returnCase.orderGroupId,
+            return_status: result.returnCase.status,
+            refund_simulation_id: simulation.id,
+            status: simulation.status,
+            amount: {
+              amount_minor: simulation.amountMinor,
+              currency_code: simulation.currencyCode,
+            },
+            method: simulation.method,
+            simulation_reference: simulation.simulationReference,
+            breakdown: {
+              item_subtotal_minor: simulation.breakdown.itemSubtotalMinor,
+              tax_minor: simulation.breakdown.taxMinor,
+              shipping_minor: simulation.breakdown.shippingMinor,
+              restocking_fee_minor: simulation.breakdown.restockingFeeMinor,
+              return_freight_minor: simulation.breakdown.returnFreightMinor,
+            },
+            recorded_at: simulation.recordedAt,
+            test_data: true,
+            simulated: true,
+            money_effect: "none",
+            stock_effect: "none",
+          },
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        return: result.returnCase,
+        refund_simulation: result.refundSimulation,
+        duplicate: result.duplicate,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      const status = code === "return-not-found"
+        ? 404
+        : code === "return-version-conflict" ||
+            code === "return-not-refundable" ||
+            code === "refund-simulation-exists" ||
+            code === "idempotency-key-reuse"
+          ? 409
+          : 400;
+      await privilegedAudit.complete(auditId, status);
+      return problem(status, code ?? "return-refund-simulation-failed", (error as Error).message);
     }
   }
 

@@ -1,0 +1,627 @@
+{
+  "generated_at": "2026-10-28T16:51:33.375Z",
+  "targets": {
+    "web": "http://127.0.0.1:3001",
+    "admin": "http://127.0.0.1:7061/index.html",
+    "seller": "http://127.0.0.1:7062/index.html"
+  },
+  "fixture": {
+    "order_id": "checkout_chg087_qc_01",
+    "return_id": "ret_38b875490a284f808956cbaca24e3b98",
+    "order_number": "BK-261028-QC087",
+    "simulation_reference": "SIM-REFUND-1572BC00"
+  },
+  "checks": [
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "sign-in renders",
+      "status": "PASS",
+      "detail": "heading present"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "sign-in no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "OTP challenge advances",
+      "status": "PASS",
+      "detail": "simulated OTP step shown"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "owner sees own order",
+      "status": "PASS",
+      "detail": "order card present"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "orders no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "order detail shows lines and simulated delivery",
+      "status": "PASS",
+      "detail": "items and simulated marker"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "order detail shows closed return",
+      "status": "PASS",
+      "detail": "return row with simulation link"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "order detail no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "return shows simulated refund",
+      "status": "PASS",
+      "detail": "simulation reference present"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "return says no real money or stock moved",
+      "status": "PASS",
+      "detail": "customer-safe wording"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "return no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "return page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 10 controls, 4 unique"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "sign out clears browser session",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "unauthenticated orders redirect",
+      "status": "PASS",
+      "detail": "orders redirects to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "other customer does not list the order",
+      "status": "PASS",
+      "detail": "order absent from list"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "other customer order returns 404",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "other customer return returns 404",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "anonymous order redirects",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "mobile",
+      "name": "anonymous return redirects",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "approved renders expected control",
+      "status": "PASS",
+      "detail": "Approve return"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "approved no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "received renders expected control",
+      "status": "PASS",
+      "detail": "Record inspection as Admin"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "received no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "inspection_complete renders expected control",
+      "status": "PASS",
+      "detail": "Record explicit simulated refund"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "inspection_complete no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "closed renders expected control",
+      "status": "PASS",
+      "detail": "Simulated Completed"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "closed no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "closed shows amount and SIM reference",
+      "status": "PASS",
+      "detail": "amount and reference present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "closed shows zero-effect markers",
+      "status": "PASS",
+      "detail": "zero-effect markers present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 12 controls, 8 unique"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "approved renders expected control",
+      "status": "PASS",
+      "detail": "Mark the return Received"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "approved no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "received renders expected control",
+      "status": "PASS",
+      "detail": "Submit inspection"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "received no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "inspection_complete renders expected control",
+      "status": "PASS",
+      "detail": "Inspection recorded"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "inspection_complete no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "closed renders expected control",
+      "status": "PASS",
+      "detail": "Inspection recorded. Admin controls the refund simulation"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "closed no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller cannot see refund amount or reference",
+      "status": "PASS",
+      "detail": "amount and reference absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller sees refund simulation ownership boundary",
+      "status": "PASS",
+      "detail": "Admin-only refund boundary shown"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 12 controls, 8 unique"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "sign-in renders",
+      "status": "PASS",
+      "detail": "heading present"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "sign-in no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "OTP challenge advances",
+      "status": "PASS",
+      "detail": "simulated OTP step shown"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "owner sees own order",
+      "status": "PASS",
+      "detail": "order card present"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "orders no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "order detail shows lines and simulated delivery",
+      "status": "PASS",
+      "detail": "items and simulated marker"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "order detail shows closed return",
+      "status": "PASS",
+      "detail": "return row with simulation link"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "order detail no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "return shows simulated refund",
+      "status": "PASS",
+      "detail": "simulation reference present"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "return says no real money or stock moved",
+      "status": "PASS",
+      "detail": "customer-safe wording"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "return no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "return page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 10 controls, 4 unique"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "sign out clears browser session",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "unauthenticated orders redirect",
+      "status": "PASS",
+      "detail": "orders redirects to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "other customer does not list the order",
+      "status": "PASS",
+      "detail": "order absent from list"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "other customer order returns 404",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "other customer return returns 404",
+      "status": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "anonymous order redirects",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "web",
+      "viewport": "desktop",
+      "name": "anonymous return redirects",
+      "status": "PASS",
+      "detail": "redirected to sign-in"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "approved renders expected control",
+      "status": "PASS",
+      "detail": "Approve return"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "approved no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "received renders expected control",
+      "status": "PASS",
+      "detail": "Record inspection as Admin"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "received no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "inspection_complete renders expected control",
+      "status": "PASS",
+      "detail": "Record explicit simulated refund"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "inspection_complete no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "closed renders expected control",
+      "status": "PASS",
+      "detail": "Simulated Completed"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "closed no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "closed shows amount and SIM reference",
+      "status": "PASS",
+      "detail": "amount and reference present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "closed shows zero-effect markers",
+      "status": "PASS",
+      "detail": "zero-effect markers present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 12 controls, 7 unique"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "approved renders expected control",
+      "status": "PASS",
+      "detail": "Mark the return Received"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "approved no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "received renders expected control",
+      "status": "PASS",
+      "detail": "Submit inspection"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "received no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "inspection_complete renders expected control",
+      "status": "PASS",
+      "detail": "Inspection recorded"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "inspection_complete no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "closed renders expected control",
+      "status": "PASS",
+      "detail": "Inspection recorded. Admin controls the refund simulation"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "closed no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller cannot see refund amount or reference",
+      "status": "PASS",
+      "detail": "amount and reference absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller sees refund simulation ownership boundary",
+      "status": "PASS",
+      "detail": "Admin-only refund boundary shown"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller page keyboard reachable",
+      "status": "PASS",
+      "detail": "focused 11 controls, 6 unique"
+    }
+  ],
+  "summary": {
+    "total": 82,
+    "passed": 82,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "screenshots": [
+    "screenshots/web/mobile/sign-in.png",
+    "screenshots/web/mobile/otp.png",
+    "screenshots/web/mobile/orders.png",
+    "screenshots/web/mobile/order-detail.png",
+    "screenshots/web/mobile/return-detail.png",
+    "screenshots/web/mobile/owner-denied-order.png",
+    "screenshots/admin/mobile/approved.png",
+    "screenshots/admin/mobile/received.png",
+    "screenshots/admin/mobile/inspection-complete.png",
+    "screenshots/admin/mobile/closed.png",
+    "screenshots/seller/mobile/approved.png",
+    "screenshots/seller/mobile/received.png",
+    "screenshots/seller/mobile/inspection-complete.png",
+    "screenshots/seller/mobile/closed.png",
+    "screenshots/web/desktop/sign-in.png",
+    "screenshots/web/desktop/otp.png",
+    "screenshots/web/desktop/orders.png",
+    "screenshots/web/desktop/order-detail.png",
+    "screenshots/web/desktop/return-detail.png",
+    "screenshots/web/desktop/owner-denied-order.png",
+    "screenshots/admin/desktop/approved.png",
+    "screenshots/admin/desktop/received.png",
+    "screenshots/admin/desktop/inspection-complete.png",
+    "screenshots/admin/desktop/closed.png",
+    "screenshots/seller/desktop/approved.png",
+    "screenshots/seller/desktop/received.png",
+    "screenshots/seller/desktop/inspection-complete.png",
+    "screenshots/seller/desktop/closed.png"
+  ]
+}

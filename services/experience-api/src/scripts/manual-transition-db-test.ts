@@ -25,6 +25,41 @@ const codeOf = async (operation: () => Promise<unknown>): Promise<string | undef
   }
 };
 
+const returnSnapshot = async (returnId: string) => {
+  const [returnCase, lines, events, simulations] = await Promise.all([
+    pool.query<{ status: string; version: number }>(
+      `SELECT status, version FROM pilot_return_case WHERE id = $1`,
+      [returnId],
+    ),
+    pool.query<{
+      line_key: string;
+      received_qty: number | null;
+      condition: string | null;
+      disposition: string | null;
+      inspected_at: Date | null;
+    }>(
+      `SELECT line_key, received_qty, condition, disposition, inspected_at
+         FROM pilot_return_line WHERE return_case_id = $1 ORDER BY line_key`,
+      [returnId],
+    ),
+    pool.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM pilot_return_event WHERE return_case_id = $1`,
+      [returnId],
+    ),
+    pool.query<{ count: number }>(
+      `SELECT count(*)::int AS count
+         FROM pilot_return_refund_simulation WHERE return_case_id = $1`,
+      [returnId],
+    ),
+  ]);
+  return {
+    returnCase: returnCase.rows[0],
+    lines: lines.rows,
+    eventCount: Number(events.rows[0]?.count ?? 0),
+    simulationCount: Number(simulations.rows[0]?.count ?? 0),
+  };
+};
+
 const shipmentId = `ship_manual_${runId}`;
 const orderGroupId = `og_manual_${runId}`;
 const allocationId = `alloc_manual_${runId}`;
@@ -266,6 +301,16 @@ const requested = await returns.request({
       deliveredQty: 2,
       requestedQty: 1,
       reasonCode: "damaged",
+      unitPriceMinor: 2000,
+    },
+    {
+      lineKey: "line_2",
+      sku: "SKU-2",
+      orderedQty: 1,
+      deliveredQty: 1,
+      requestedQty: 1,
+      reasonCode: "damaged",
+      unitPriceMinor: 1000,
     },
   ],
 });
@@ -279,10 +324,66 @@ const approved = await returns.decide({
   actorRole: "marketplace_operator",
   expectedVersion: 1,
   comment: "Approved after evidence review",
-  approvedLines: [{ lineKey: "line_1", approvedQty: 1 }],
+  approvedLines: [
+    { lineKey: "line_1", approvedQty: 1 },
+    { lineKey: "line_2", approvedQty: 1 },
+  ],
 });
 assert.equal(approved.status, "approved");
 assert.equal(approved.version, 2);
+
+const beforeEarlyInspection = await returnSnapshot(approved.id);
+assert.equal(
+  await codeOf(() =>
+    returns.inspect({
+      id: approved.id,
+      expectedVersion: 2,
+      actorId: "seller_manual",
+      actorRole: "seller",
+      note: "Parcel has not been received",
+      lines: [
+        {
+          lineKey: "line_1",
+          receivedQty: 1,
+          condition: "damaged",
+          disposition: "quarantine",
+        },
+        {
+          lineKey: "line_2",
+          receivedQty: 1,
+          condition: "damaged",
+          disposition: "quarantine",
+        },
+      ],
+    }),
+  ),
+  "return-not-inspectable",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeEarlyInspection);
+
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({
+      id: approved.id,
+      expectedVersion: 2,
+      operationKey: `refund-too-early:${runId}`,
+      actorId: "operator_manual",
+      actorRole: "marketplace_operator",
+      method: "original_method_simulation",
+      amountMinor: 3300,
+      currencyCode: "INR",
+      breakdown: {
+        itemSubtotalMinor: 3000,
+        taxMinor: 540,
+        shippingMinor: 100,
+        restockingFeeMinor: 200,
+        returnFreightMinor: 140,
+      },
+    }),
+  ),
+  "return-not-refundable",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeEarlyInspection);
 
 const pickup = await returns.updateStatus({
   id: approved.id,
@@ -351,16 +452,210 @@ const received = await returns.updateStatus({
 assert.equal(received.returnCase.status, "received");
 assert.equal(received.returnCase.version, 4);
 
-const returnEvents = await pool.query<{ detail: Record<string, unknown> }>(
-  `SELECT detail FROM pilot_return_event
-    WHERE return_case_id = $1 AND event_type = 'return.status_changed'`,
+const beforeInvalidInspection = await returnSnapshot(approved.id);
+assert.equal(
+  await codeOf(() =>
+    returns.inspect({
+      id: approved.id,
+      expectedVersion: 3,
+      actorId: "seller_manual",
+      actorRole: "seller",
+      note: "Stale inspection",
+      lines: [
+        { lineKey: "line_1", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+        { lineKey: "line_2", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+      ],
+    }),
+  ),
+  "return-version-conflict",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidInspection);
+
+assert.equal(
+  await codeOf(() =>
+    returns.inspect({
+      id: approved.id,
+      expectedVersion: 4,
+      actorId: "seller_manual",
+      actorRole: "seller",
+      note: "Incomplete line evidence",
+      lines: [
+        { lineKey: "line_1", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+      ],
+    }),
+  ),
+  "inspection-lines-required",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidInspection);
+
+assert.equal(
+  await codeOf(() =>
+    returns.inspect({
+      id: approved.id,
+      expectedVersion: 4,
+      actorId: "seller_manual",
+      actorRole: "seller",
+      note: "Duplicate line evidence",
+      lines: [
+        { lineKey: "line_1", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+        { lineKey: "line_1", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+      ],
+    }),
+  ),
+  "inspection-lines-required",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidInspection);
+
+assert.equal(
+  await codeOf(() =>
+    returns.inspect({
+      id: approved.id,
+      expectedVersion: 4,
+      actorId: "seller_manual",
+      actorRole: "seller",
+      note: "Quantity exceeds approval",
+      lines: [
+        { lineKey: "line_1", receivedQty: 2, condition: "damaged", disposition: "quarantine" },
+        { lineKey: "line_2", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+      ],
+    }),
+  ),
+  "invalid-inspection-quantity",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidInspection);
+
+const inspected = await returns.inspect({
+  id: approved.id,
+  expectedVersion: 4,
+  actorId: "seller_manual",
+  actorRole: "seller",
+  note: "Both approved lines inspected in the received parcel",
+  allowedLineKeys: ["line_1", "line_2"],
+  lines: [
+    { lineKey: "line_1", receivedQty: 1, condition: "damaged", disposition: "quarantine" },
+    { lineKey: "line_2", receivedQty: 1, condition: "incomplete", disposition: "repair" },
+  ],
+});
+assert.equal(inspected.status, "inspection_complete");
+assert.equal(inspected.version, 5);
+assert.ok(inspected.lines.every((line) => line.inspectedAt));
+assert.ok(inspected.lines.every((line) => line.inspectionNote));
+
+const beforeInvalidRefund = await returnSnapshot(approved.id);
+const refundInput = {
+  id: approved.id,
+  expectedVersion: 5,
+  operationKey: `refund-simulation:${runId}`,
+  actorId: "operator_manual",
+  actorRole: "marketplace_operator",
+  method: "original_method_simulation" as const,
+  amountMinor: 3300,
+  currencyCode: "INR",
+  breakdown: {
+    itemSubtotalMinor: 3000,
+    taxMinor: 540,
+    shippingMinor: 100,
+    restockingFeeMinor: 200,
+    returnFreightMinor: 140,
+  },
+};
+
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({ ...refundInput, actorRole: "seller" }),
+  ),
+  "refund-operator-required",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidRefund);
+
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({
+      ...refundInput,
+      amountMinor: 3200,
+      operationKey: `refund-mismatch:${runId}`,
+    }),
+  ),
+  "refund-breakdown-mismatch",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidRefund);
+
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({
+      ...refundInput,
+      expectedVersion: 4,
+      operationKey: `refund-stale:${runId}`,
+    }),
+  ),
+  "return-version-conflict",
+);
+assert.deepEqual(await returnSnapshot(approved.id), beforeInvalidRefund);
+
+const refunded = await returns.recordRefundSimulation(refundInput);
+assert.equal(refunded.duplicate, false);
+assert.equal(refunded.returnCase.status, "closed");
+assert.equal(refunded.returnCase.version, 6);
+assert.equal(refunded.refundSimulation.status, "simulated_completed");
+assert.equal(refunded.refundSimulation.amountMinor, 3300);
+assert.match(refunded.refundSimulation.simulationReference, /^SIM-/);
+assert.equal(refunded.refundSimulation.moneyEffect, "none");
+assert.equal(refunded.refundSimulation.stockEffect, "none");
+
+const refundReplay = await returns.recordRefundSimulation(refundInput);
+assert.equal(refundReplay.duplicate, true);
+assert.equal(refundReplay.refundSimulation.id, refunded.refundSimulation.id);
+assert.equal(refundReplay.returnCase.version, 6);
+
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({
+      ...refundInput,
+      amountMinor: 3400,
+      breakdown: { ...refundInput.breakdown, shippingMinor: 200 },
+    }),
+  ),
+  "idempotency-key-reuse",
+);
+assert.equal(
+  await codeOf(() =>
+    returns.recordRefundSimulation({
+      ...refundInput,
+      operationKey: `second-refund:${runId}`,
+    }),
+  ),
+  "refund-simulation-exists",
+);
+
+const closureEvents = await pool.query<{
+  event_type: string;
+  detail: Record<string, unknown>;
+}>(
+  `SELECT event_type, detail FROM pilot_return_event
+    WHERE return_case_id = $1
+      AND event_type IN ('return.status_changed','return.inspection_completed','return.refund_simulation_recorded')
+    ORDER BY occurred_at`,
   [requested.returnCase.id],
 );
-assert.ok(returnEvents.rows.length >= 2);
-for (const row of returnEvents.rows) {
+assert.equal(
+  closureEvents.rows.filter((row) => row.event_type === "return.inspection_completed").length,
+  1,
+);
+assert.equal(
+  closureEvents.rows.filter((row) => row.event_type === "return.refund_simulation_recorded").length,
+  1,
+);
+for (const row of closureEvents.rows) {
   assert.equal(row.detail.money_effect, "none");
   assert.equal(row.detail.stock_effect, "none");
 }
+const refundEvent = closureEvents.rows.find(
+  (row) => row.event_type === "return.refund_simulation_recorded",
+);
+assert.equal(refundEvent?.detail.test_data, true);
+assert.equal(refundEvent?.detail.simulated, true);
+assert.equal(refundEvent?.detail.status, "simulated_completed");
+assert.match(String(refundEvent?.detail.simulation_reference), /^SIM-/);
 
 await pool.query("DELETE FROM pilot_return_case WHERE id = $1", [requested.returnCase.id]);
 await pool.query("DELETE FROM pilot_shipment WHERE id = ANY($1::text[])", [

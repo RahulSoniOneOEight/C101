@@ -74,6 +74,14 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-27'
   scope: full-product-studio-and-chg049-cutover-staging-only
+- change_id: CHG-087
+  approved_by: human-requester
+  approved_at_utc: '2026-10-28'
+  scope: return-inspection-and-refund-simulation-local-and-staging-implementation-deployment-separately-gated
+- change_id: CHG-087
+  approved_by: human-requester
+  approved_at_utc: '2026-10-28'
+  scope: scoped-staging-deployment-a13bcb4-synthetic-fixture
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -418,6 +426,59 @@ active_changes:
   - human-production-authorization
   evidence: docs/implementation/session-note-2026-10-25-b2b-storefront-price-consumption.md
   latest_staging_release: 15c31e4
+- change_id: CHG-087
+  status: authorized-in-progress
+  approval_required: true
+  approval_scope: return-inspection-and-refund-simulation-local-staging-only
+  approved_by: human-requester
+  approved_at_utc: '2026-10-28'
+  proposal: client-projects/client101/changes/CHG-087.yaml
+  extends:
+  - CHG-017
+  - CHG-035
+  lane: D
+  contract_draft_status: approved
+  runtime_implementation_authorized: true
+  local_acceptance_status: pass
+  local_acceptance_at_utc: '2026-10-28'
+  contract_validation: pass-5-yaml-27-channels-127-refs
+  experience_api_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  customer_web_typecheck: pass
+  customer_web_production_build: pass
+  flutter_analyze: pass
+  flutter_test: pass-286
+  flutter_return_status_layout_test: pass-3
+  manual_transition_db_test: pass
+  manual_transition_http_test: pass
+  return_closure_events_test: pass-2-subjects-2-retries-2-duplicates-2-owner-notifications
+  browser_qc: pass-82-of-82
+  browser_viewports:
+  - 390x844
+  - 1440x900
+  browser_console_errors: 0
+  browser_failed_requests: 0
+  medusa_financial_rows_unchanged: true
+  tryton_stock_rows_unchanged: true
+  seller_refund_projection_hidden: true
+  local_fixture_removed: true
+  disposable_containers_removed:
+  - chg087_pg
+  - chg087_redis
+  - chg087_nats
+  evidence: client-projects/client101/evidence/CHG-087/acceptance.md
+  staging_release_plan: client-projects/client101/evidence/CHG-087/staging-release-plan.md
+  staging_release_manifest: client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml
+  staging_release_plan_status: authorized-for-execution
+  staging_baseline: a13bcb4
+  staging_baseline_verified_at_utc: '2026-10-28'
+  staging_baseline_path: /opt/buildkart-releases/release-a13bcb4
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-28'
+  staging_deployment_status: authorized-in-progress
+  production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
   approval_required: true

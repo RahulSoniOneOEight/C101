@@ -1,0 +1,194 @@
+{
+  "generated_at": "2026-10-28T16:55:34.034Z",
+  "exercise": {
+    "description": "Replayed the existing Admin refund simulation and read the same return as its owner and as the scoped Seller against the isolated Experience API.",
+    "replay_status": 200,
+    "replay_duplicate": true,
+    "replay_return_status": "closed",
+    "replay_simulation_reference": "SIM-REFUND-1572BC00",
+    "owner_read_status": 200,
+    "owner_refund_amount_minor": 304700,
+    "seller_read_status": 200,
+    "seller_refund_simulation": null,
+    "seller_redacted": true
+  },
+  "medusa": {
+    "identity": "buildkart_postgres / buildkart (local integration Medusa schema)",
+    "before": [
+      {
+        "name": "order_transaction",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "payment",
+        "count": 1,
+        "fingerprint": "1b75b3cd222822a8caed768bd6823d3b"
+      },
+      {
+        "name": "payment_collection",
+        "count": 1,
+        "fingerprint": "efa2ea74a6a180c426de51cb23df7ee2"
+      },
+      {
+        "name": "payment_session",
+        "count": 1,
+        "fingerprint": "68a802b215a2e167856bd66a65634f99"
+      },
+      {
+        "name": "refund",
+        "count": 0,
+        "fingerprint": "empty"
+      }
+    ],
+    "after": [
+      {
+        "name": "order_transaction",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "payment",
+        "count": 1,
+        "fingerprint": "1b75b3cd222822a8caed768bd6823d3b"
+      },
+      {
+        "name": "payment_collection",
+        "count": 1,
+        "fingerprint": "efa2ea74a6a180c426de51cb23df7ee2"
+      },
+      {
+        "name": "payment_session",
+        "count": 1,
+        "fingerprint": "68a802b215a2e167856bd66a65634f99"
+      },
+      {
+        "name": "refund",
+        "count": 0,
+        "fingerprint": "empty"
+      }
+    ],
+    "unchanged": true
+  },
+  "tryton": {
+    "identity": "buildkart_postgres / buildkart_tryton (local integration Tryton schema)",
+    "before": [
+      {
+        "name": "stock_move",
+        "count": 80,
+        "fingerprint": "188ed54a16d3d54b903c70c2096bbe71"
+      },
+      {
+        "name": "stock_shipment_in",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_in_return",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_internal",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_out",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_out_return",
+        "count": 0,
+        "fingerprint": "empty"
+      }
+    ],
+    "after": [
+      {
+        "name": "stock_move",
+        "count": 80,
+        "fingerprint": "188ed54a16d3d54b903c70c2096bbe71"
+      },
+      {
+        "name": "stock_shipment_in",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_in_return",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_internal",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_out",
+        "count": 0,
+        "fingerprint": "empty"
+      },
+      {
+        "name": "stock_shipment_out_return",
+        "count": 0,
+        "fingerprint": "empty"
+      }
+    ],
+    "unchanged": true
+  },
+  "isolated_return": {
+    "identity": "chg087_pg / buildkart_experience (disposable CHG-087 database)",
+    "before": [
+      {
+        "name": "domain_events",
+        "count": 0,
+        "fingerprint": ""
+      },
+      {
+        "name": "refund_simulations",
+        "count": 1,
+        "fingerprint": ""
+      },
+      {
+        "name": "return_case",
+        "count": 1,
+        "fingerprint": "closed:5"
+      },
+      {
+        "name": "return_events",
+        "count": 5
+      }
+    ],
+    "after": [
+      {
+        "name": "domain_events",
+        "count": 0,
+        "fingerprint": ""
+      },
+      {
+        "name": "refund_simulations",
+        "count": 1,
+        "fingerprint": ""
+      },
+      {
+        "name": "return_case",
+        "count": 1,
+        "fingerprint": "closed:5"
+      },
+      {
+        "name": "return_events",
+        "count": 5
+      }
+    ],
+    "unchanged": true
+  },
+  "conclusion": {
+    "medusa_financial_rows_unchanged": true,
+    "tryton_stock_rows_unchanged": true,
+    "return_projection_unchanged_by_replay": true,
+    "seller_refund_projection_hidden": true,
+    "pass": true
+  }
+}

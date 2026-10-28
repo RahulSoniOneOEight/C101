@@ -7,6 +7,8 @@ export const PILOT_NOTIFICATION_TEMPLATES = [
   "delivery_exception_v1",
   "return_requested_v1",
   "return_decision_v1",
+  "return_inspection_v1",
+  "return_refund_simulation_v1",
 ] as const;
 
 export type PilotNotificationTemplate = typeof PILOT_NOTIFICATION_TEMPLATES[number];
@@ -120,6 +122,26 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
         body: status === "approved"
           ? "Your return was approved. No refund or stock movement is executed in this phase."
           : "Your return decision was recorded. Open BuildKart for the outcome.",
+        deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
+        imageUrl: IMAGE.order,
+      };
+    }
+    case "return.inspection_completed": {
+      return {
+        templateKey: "return_inspection_v1",
+        audience: "order-owner",
+        title: "Return Inspected",
+        body: "Inspection evidence is recorded. No stock moved; the marketplace can record a simulated refund.",
+        deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
+        imageUrl: IMAGE.order,
+      };
+    }
+    case "return.refund_simulation_recorded": {
+      return {
+        templateKey: "return_refund_simulation_v1",
+        audience: "order-owner",
+        title: "Simulated Refund Recorded",
+        body: "Your refund simulation is recorded. No real money or stock moved.",
         deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
         imageUrl: IMAGE.order,
       };

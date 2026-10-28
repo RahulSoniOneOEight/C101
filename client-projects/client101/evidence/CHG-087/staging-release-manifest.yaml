@@ -1,0 +1,169 @@
+change_id: CHG-087
+plan_status: authorized-for-execution
+authorization:
+  staging_deployment_authorized: true
+  staging_deployment_authorized_at_utc: '2026-10-28'
+  approval_source: chat-authorize-scoped-staging-deployment
+  production_release_authorized: false
+  deploy_owner: requester-authorized-opencode-agent
+  authorization_required_before: every-gate-in-staging-release-plan
+lane: D
+release_mechanism:
+- migration
+- event
+- api+ui
+- image-rebuild
+- governed-staging-data
+baseline:
+  recorded_staging_release: a13bcb4
+  recorded_release_path: /opt/buildkart-releases/release-a13bcb4
+  baseline_verified_at_utc: '2026-10-28'
+  baseline_note: >-
+    Staging current moved from the previously recorded ecb01e1 to release-a13bcb4
+    (U-003/U-005 + CHG-086). The target is based on a13bcb4 and preserves that baseline.
+  local_branch: feat/bt-sku-pairs
+  local_head: bb7d9049230c10f4627d49e9e0f9bacb4fa024b7
+  local_head_contains_baseline: false
+  verify_at_g5: readlink -f /opt/buildkart-releases/current
+  stop_if_baseline_differs: true
+target:
+  branch: release/chg-087
+  base: a13bcb4
+  sha: pending-scoped-commit
+  release_worktree: /opt/buildkart-releases/release-<CHG087_SHA>
+  push_branch_required: true
+  force_push_allowed: false
+  deploy_from_branch_head: false
+  never_deploy_from:
+  - /opt/buildkart
+  - feat/bt-sku-pairs HEAD
+scope_lock:
+  allowed_runtime_paths:
+  - apps/prototype_app/lib/screens/return_flow_screens.dart
+  - apps/prototype_app/test/return_status_layout_test.dart
+  - apps/web/app/globals.css
+  - apps/web/app/layout.tsx
+  - apps/web/app/api/auth/**
+  - apps/web/app/orders/**
+  - apps/web/app/returns/**
+  - apps/web/app/sign-in/**
+  - apps/web/lib/experience-api.ts
+  - services/backend/apps/admin/src/routes/returns/**
+  - services/backend/apps/vendor/src/routes/returns/**
+  - services/backend/packages/api/.mercur/routes.d.ts
+  - services/backend/packages/api/src/api/admin/buildkart/returns/**
+  - services/backend/packages/api/src/api/vendor/buildkart/returns/**
+  - services/backend/packages/api/src/api/middlewares.ts
+  - services/experience-api/src/events/nats-publisher.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/notifications/templates.ts
+  - services/experience-api/src/store/return-store.ts
+  - services/experience-api/src/scripts/manual-transition-*.ts
+  - services/experience-api/src/scripts/chg087-browser-return-fixture.ts
+  - services/experience-api/src/scripts/return-closure-events-test.ts
+  allowed_governance_paths:
+  - client-projects/client101/changes/CHG-087.yaml
+  - client-projects/client101/contracts/data-contract.yaml
+  - client-projects/client101/contracts/asyncapi/buildkart-events-v1.yaml
+  - client-projects/client101/derived/dependency-map.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-087/**
+  no_touch:
+  - production
+  - staging secrets and customer production data
+  - Medusa payment, capture, refund and order-transaction rows
+  - Tryton stock, reservation, shipment and warehouse-movement rows
+  - settlement, commission, invoice, credit-note and accounting rows
+  - Shiprocket, PSP, accounting and carrier integrations
+  - unrelated catalogue, pricing, CMS, checkout, Product Studio and merchandising behavior
+  - services/backend/apps/admin/fulfillment-preview*
+  - staging data outside the single synthetic CHG-087 fixture
+  staging_data_records:
+  - correlation
+  - pilot_shipment
+  - pilot_shipment_line
+  - pilot_shipment_event
+  - pilot_return_case
+  - pilot_return_line
+  - pilot_return_event
+  - pilot_return_refund_simulation
+  - pilot_notification
+  - domain_event
+  - pilot_privileged_audit
+  fixture_id: chg087_staging_smoke
+  fixture_tag: test_data=true
+migration:
+  standalone_file: false
+  mechanism: experience-api-ensure-schema-on-startup
+  additive: true
+  idempotent: true
+  destructive_changes: false
+  rehearsal_required: true
+  backup_required: true
+  medusa_schema_change_expected: false
+  rollback_policy: leave-additive-schema-in-place
+events:
+  subjects:
+  - return.inspection-completed.v1
+  - return.refund-simulation-recorded.v1
+  forbidden_subject: return.refund-paid.v1
+  stream: BUILDKART_EVENTS
+  stream_wildcard_required: return.>
+  notification_worker_subject: ">"
+build:
+  command: docker compose -f docker-compose.hosted.yml build --no-cache medusa-api medusa-worker experience-api event-workers web
+  services:
+  - medusa-api
+  - medusa-worker
+  - experience-api
+  - event-workers
+  - web
+  behavior_markers_required: true
+  rollback_image_tags_required: true
+deploy:
+  standard_migrate_gate: docker compose -f docker-compose.hosted.yml run --rm medusa-migrate
+  service_order:
+  - medusa-api
+  - experience-api
+  - medusa-worker
+  - event-workers
+  - web
+  - proxy-restart
+  proxy_restart: docker restart buildkart-hosted-pilot-proxy-1
+  public_health_required: true
+  public_surface_verification_required: true
+  staging_smoke_fixture_required: true
+  smoke_fixture_cleanup_required: true
+pre_execution_deliverables:
+- scoped release commit reviewed against the allowlist
+- staging-only smoke fixture variant with explicit staging guard and cleanup allowlist
+- schema rehearsal report from a disposable clone
+- pre-change encrypted backup verified
+- named deploy owner and staging window
+verification:
+  local_release_gate_required: true
+  browser_viewports:
+  - 390x844
+  - 1440x900  console_errors_allowed: 0
+  page_level_horizontal_overflow_allowed: false
+  customer_owner_isolation_required: true
+  seller_refund_redaction_required: true
+  medusa_financial_rows_unchanged_required: true
+  tryton_stock_rows_unchanged_required: true
+  event_retry_dedupe_required: true
+  owner_notification_once_per_event_required: true
+  fcm_delivery_disabled_required: true
+rollback:
+  release_path: /opt/buildkart-releases/release-<BASELINE_SHA>
+  images:
+  - buildkart-hosted-pilot-medusa:rollback-<BASELINE_SHA>
+  - buildkart-hosted-pilot-experience-api:rollback-<BASELINE_SHA>
+  - buildkart-hosted-pilot-web:rollback-<BASELINE_SHA>
+  proxy_restart_required: true
+  database_restore: only-on-proven-corruption
+  fixture_cleanup: required
+open_decisions:
+- Confirm Flutter remains source-only for this release; a separate Flutter web/Firebase or app-distribution release would need its own gate
+- Re-verify staging baseline is still release-a13bcb4 immediately before rebuild
+- Confirm PUBLIC_APP_HOSTNAME is app-staging.pinakaplay.cloud at execution time
+evidence_target: client-projects/client101/evidence/CHG-087/

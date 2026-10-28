@@ -18,6 +18,8 @@ const SUBJECT_BY_EVENT: Record<string, string> = {
   "return.requested": "return.requested.v1",
   "return.decision": "return.decision.v1",
   "return.status-changed": "return.status-changed.v1",
+  "return.inspection_completed": "return.inspection-completed.v1",
+  "return.refund_simulation_recorded": "return.refund-simulation-recorded.v1",
 };
 
 export function eventSubject(eventType: string): string {

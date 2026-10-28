@@ -23,6 +23,30 @@ const label = (value: string) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (character) => character.toUpperCase());
 
+type RefundMoneyField =
+  | "amount"
+  | "itemSubtotal"
+  | "tax"
+  | "shipping"
+  | "restockingFee"
+  | "returnFreight";
+
+const emptyRefundValues: Record<RefundMoneyField, string> = {
+  amount: "",
+  itemSubtotal: "",
+  tax: "0",
+  shipping: "0",
+  restockingFee: "0",
+  returnFreight: "0",
+};
+
+const moneyInputToMinor = (value: string): number | null => {
+  const normalized = value.trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const minor = Math.round(Number(normalized) * 100);
+  return Number.isSafeInteger(minor) ? minor : null;
+};
+
 export default function ReturnDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -69,6 +93,115 @@ export default function ReturnDetailPage() {
   const [manualStatus, setManualStatus] = useState("");
   const [manualNote, setManualNote] = useState("");
   const [manualError, setManualError] = useState("");
+  const [inspectionReceived, setInspectionReceived] = useState<
+    Record<string, number>
+  >({});
+  const [inspectionConditions, setInspectionConditions] = useState<
+    Record<string, string>
+  >({});
+  const [inspectionDispositions, setInspectionDispositions] = useState<
+    Record<string, string>
+  >({});
+  const [inspectionNote, setInspectionNote] = useState("");
+  const [inspectionError, setInspectionError] = useState("");
+  const [refundValues, setRefundValues] = useState(emptyRefundValues);
+  const [refundMethod, setRefundMethod] = useState<
+    "original_method_simulation" | "cod_bank_transfer_simulation"
+  >("original_method_simulation");
+  const [refundOperationKey] = useState(() => crypto.randomUUID());
+  const [refundError, setRefundError] = useState("");
+
+  const inspect = useMutation({
+    mutationFn: () => {
+      const current = query.data?.return;
+      if (!current) throw new Error("Return case is not loaded.");
+      if (!inspectionNote.trim())
+        throw new Error("An inspection note is required.");
+      const lines = current.lines.filter((line) => (line.approvedQty ?? 0) > 0);
+      return client.admin.buildkart.returns.$id.inspection.mutate({
+        $id: id!,
+        expected_version: current.version,
+        note: inspectionNote.trim(),
+        lines: lines.map((line) => ({
+          line_key: line.lineKey,
+          received_qty:
+            inspectionReceived[line.lineKey] ??
+            line.approvedQty ??
+            line.requestedQty,
+          condition: inspectionConditions[line.lineKey] ?? "damaged",
+          disposition: inspectionDispositions[line.lineKey] ?? "quarantine",
+          note: inspectionNote.trim(),
+        })),
+      } as never);
+    },
+    onSuccess: async () => {
+      setInspectionError("");
+      setInspectionNote("");
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-return", id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-returns"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
+      });
+    },
+    onError: (cause) => setInspectionError((cause as Error).message),
+  });
+
+  const refundSimulation = useMutation({
+    mutationFn: () => {
+      const current = query.data?.return;
+      if (!current) throw new Error("Return case is not loaded.");
+      const amount = moneyInputToMinor(refundValues.amount);
+      const itemSubtotal = moneyInputToMinor(refundValues.itemSubtotal);
+      const tax = moneyInputToMinor(refundValues.tax);
+      const shipping = moneyInputToMinor(refundValues.shipping);
+      const restockingFee = moneyInputToMinor(refundValues.restockingFee);
+      const returnFreight = moneyInputToMinor(refundValues.returnFreight);
+      if (
+        amount === null ||
+        itemSubtotal === null ||
+        tax === null ||
+        shipping === null ||
+        restockingFee === null ||
+        returnFreight === null
+      ) {
+        throw new Error(
+          "Enter every amount in rupees with no more than two decimals.",
+        );
+      }
+      return client.admin.buildkart.returns.$id.refundSimulation.mutate({
+        $id: id!,
+        expected_version: current.version,
+        operation_key: refundOperationKey,
+        amount_minor: amount,
+        currency_code: "INR",
+        method: refundMethod,
+        breakdown: {
+          item_subtotal_minor: itemSubtotal,
+          tax_minor: tax,
+          shipping_minor: shipping,
+          restocking_fee_minor: restockingFee,
+          return_freight_minor: returnFreight,
+        },
+      } as never);
+    },
+    onSuccess: async () => {
+      setRefundError("");
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-return", id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-returns"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["buildkart", "staging-order-statuses"],
+      });
+    },
+    onError: (cause) => setRefundError((cause as Error).message),
+  });
   const updateStatus = useMutation({
     mutationFn: (status: string) => {
       const current = query.data?.return;
@@ -98,13 +231,43 @@ export default function ReturnDetailPage() {
   });
 
   const record = query.data?.return;
-  const canDecide = ["requested", "under_review"].includes(record?.status ?? "");
+  const canDecide = ["requested", "under_review"].includes(
+    record?.status ?? "",
+  );
   const availableStatuses = (record?.allowedTransitions ?? []).filter(
     (status) => !["approved", "rejected"].includes(status),
   );
   const selectedStatus = availableStatuses.includes(manualStatus)
     ? manualStatus
-    : availableStatuses[0] ?? "";
+    : (availableStatuses[0] ?? "");
+  const refundAmountMinor = moneyInputToMinor(refundValues.amount);
+  const refundItemSubtotalMinor = moneyInputToMinor(refundValues.itemSubtotal);
+  const refundTaxMinor = moneyInputToMinor(refundValues.tax);
+  const refundShippingMinor = moneyInputToMinor(refundValues.shipping);
+  const refundRestockingFeeMinor = moneyInputToMinor(
+    refundValues.restockingFee,
+  );
+  const refundReturnFreightMinor = moneyInputToMinor(
+    refundValues.returnFreight,
+  );
+  const refundBreakdownComplete = [
+    refundItemSubtotalMinor,
+    refundTaxMinor,
+    refundShippingMinor,
+    refundRestockingFeeMinor,
+    refundReturnFreightMinor,
+  ].every((value) => value !== null);
+  const refundCalculatedMinor = refundBreakdownComplete
+    ? refundItemSubtotalMinor! +
+      refundTaxMinor! +
+      refundShippingMinor! -
+      refundRestockingFeeMinor! -
+      refundReturnFreightMinor!
+    : null;
+  const refundAmountsMatch =
+    refundAmountMinor !== null &&
+    refundAmountMinor > 0 &&
+    refundAmountMinor === refundCalculatedMinor;
 
   return (
     <SingleColumnPage>
@@ -113,7 +276,9 @@ export default function ReturnDetailPage() {
           <div className="flex flex-col gap-3 px-6 py-5 md:flex-row md:items-start md:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <Heading level="h1">{record?.id ?? "Return case"}</Heading>
+                <Heading level="h1" className="break-all">
+                  {record?.id ?? "Return case"}
+                </Heading>
                 <StatusBadge color="orange">Simulated staging data</StatusBadge>
                 {record ? (
                   <StatusBadge color={statusColor(record.status)}>
@@ -184,34 +349,50 @@ export default function ReturnDetailPage() {
               Quantities are frozen on the case when the request is created.
             </Text>
           </div>
-          <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>SKU</Table.HeaderCell>
-                <Table.HeaderCell>Line</Table.HeaderCell>
-                <Table.HeaderCell className="text-right">Ordered</Table.HeaderCell>
-                <Table.HeaderCell className="text-right">Delivered</Table.HeaderCell>
-                <Table.HeaderCell className="text-right">Requested</Table.HeaderCell>
-                <Table.HeaderCell className="text-right">Approved</Table.HeaderCell>
-                <Table.HeaderCell>Reason</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {(record?.lines ?? []).map((line) => (
-                <Table.Row key={line.id}>
-                  <Table.Cell>{line.sku}</Table.Cell>
-                  <Table.Cell>{line.lineKey}</Table.Cell>
-                  <Table.Cell className="text-right">{line.orderedQty}</Table.Cell>
-                  <Table.Cell className="text-right">{line.deliveredQty}</Table.Cell>
-                  <Table.Cell className="text-right">{line.requestedQty}</Table.Cell>
-                  <Table.Cell className="text-right">
-                    {line.approvedQty ?? "—"}
-                  </Table.Cell>
-                  <Table.Cell>{label(line.reasonCode)}</Table.Cell>
+          <div className="overflow-x-auto">
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>SKU</Table.HeaderCell>
+                  <Table.HeaderCell>Line</Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Ordered
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Delivered
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Requested
+                  </Table.HeaderCell>
+                  <Table.HeaderCell className="text-right">
+                    Approved
+                  </Table.HeaderCell>
+                  <Table.HeaderCell>Reason</Table.HeaderCell>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
+              </Table.Header>
+              <Table.Body>
+                {(record?.lines ?? []).map((line) => (
+                  <Table.Row key={line.id}>
+                    <Table.Cell>{line.sku}</Table.Cell>
+                    <Table.Cell>{line.lineKey}</Table.Cell>
+                    <Table.Cell className="text-right">
+                      {line.orderedQty}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      {line.deliveredQty}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      {line.requestedQty}
+                    </Table.Cell>
+                    <Table.Cell className="text-right">
+                      {line.approvedQty ?? "—"}
+                    </Table.Cell>
+                    <Table.Cell>{label(line.reasonCode)}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </div>
         </Container>
 
         <Container className="p-0">
@@ -278,7 +459,10 @@ export default function ReturnDetailPage() {
               </Text>
             ) : (
               <>
-                <label className="text-sm font-medium" htmlFor="admin-return-status">
+                <label
+                  className="text-sm font-medium"
+                  htmlFor="admin-return-status"
+                >
                   Next stage
                 </label>
                 <select
@@ -293,7 +477,10 @@ export default function ReturnDetailPage() {
                     </option>
                   ))}
                 </select>
-                <label className="text-sm font-medium" htmlFor="admin-return-note">
+                <label
+                  className="text-sm font-medium"
+                  htmlFor="admin-return-note"
+                >
                   Operating reason
                 </label>
                 <textarea
@@ -319,7 +506,11 @@ export default function ReturnDetailPage() {
                     Update return
                   </Button>
                   {manualError ? (
-                    <Text size="xsmall" className="text-ui-fg-error" role="alert">
+                    <Text
+                      size="xsmall"
+                      className="text-ui-fg-error"
+                      role="alert"
+                    >
                       {manualError}
                     </Text>
                   ) : null}
@@ -331,32 +522,352 @@ export default function ReturnDetailPage() {
 
         <Container className="p-0">
           <div className="border-b border-ui-border-base px-6 py-4">
+            <Heading level="h2">Inspection and refund simulation</Heading>
+            <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+              Inspection is evidence only. Disposition does not post Tryton
+              stock, and the refund simulation does not call a PSP or alter
+              Medusa payment state.
+            </Text>
+          </div>
+          <div className="flex flex-col gap-4 px-6 py-5">
+            {record &&
+            ["received", "inspection_pending"].includes(record.status) ? (
+              <div className="flex flex-col gap-3">
+                <Text size="small" weight="plus">
+                  Record inspection as Admin
+                </Text>
+                {record.lines
+                  .filter((line) => (line.approvedQty ?? 0) > 0)
+                  .map((line) => {
+                    const approved = line.approvedQty ?? line.requestedQty;
+                    const quantity =
+                      inspectionReceived[line.lineKey] ?? approved;
+                    return (
+                      <div
+                        key={line.id}
+                        className="rounded-lg border border-ui-border-base p-3"
+                      >
+                        <Text size="small" weight="plus">
+                          {line.sku} · {line.lineKey}
+                        </Text>
+                        <Text size="xsmall" className="text-ui-fg-subtle">
+                          Approved {approved} · requested {line.requestedQty}
+                        </Text>
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                          <label className="flex flex-col gap-1 text-sm font-medium">
+                            Quantity received
+                            <input
+                              type="number"
+                              min={0}
+                              max={approved}
+                              className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                              value={quantity}
+                              onChange={(event) =>
+                                setInspectionReceived((current) => ({
+                                  ...current,
+                                  [line.lineKey]: Math.max(
+                                    0,
+                                    Math.min(
+                                      approved,
+                                      Number(event.target.value),
+                                    ),
+                                  ),
+                                }))
+                              }
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm font-medium">
+                            Condition
+                            <select
+                              className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                              value={
+                                inspectionConditions[line.lineKey] ?? "damaged"
+                              }
+                              onChange={(event) =>
+                                setInspectionConditions((current) => ({
+                                  ...current,
+                                  [line.lineKey]: event.target.value,
+                                }))
+                              }
+                            >
+                              <option value="sellable">Sellable</option>
+                              <option value="damaged">Damaged</option>
+                              <option value="incomplete">Incomplete</option>
+                              <option value="wrong_item">Wrong item</option>
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm font-medium">
+                            Disposition evidence
+                            <select
+                              className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                              value={
+                                inspectionDispositions[line.lineKey] ??
+                                "quarantine"
+                              }
+                              onChange={(event) =>
+                                setInspectionDispositions((current) => ({
+                                  ...current,
+                                  [line.lineKey]: event.target.value,
+                                }))
+                              }
+                            >
+                              <option value="restock">Restock intent</option>
+                              <option value="repair">Repair intent</option>
+                              <option value="quarantine">
+                                Quarantine intent
+                              </option>
+                              <option value="dispose">Dispose intent</option>
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                <label className="flex flex-col gap-1 text-sm font-medium">
+                  Inspection note
+                  <textarea
+                    className="min-h-20 max-w-xl rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm"
+                    value={inspectionNote}
+                    onChange={(event) => setInspectionNote(event.target.value)}
+                    placeholder="Describe the observed condition and intended handling…"
+                  />
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    size="small"
+                    isLoading={inspect.isPending}
+                    disabled={!inspectionNote.trim()}
+                    onClick={() => inspect.mutate()}
+                  >
+                    Record inspection
+                  </Button>
+                  {inspectionError ? (
+                    <Text
+                      size="xsmall"
+                      className="text-ui-fg-error"
+                      role="alert"
+                    >
+                      {inspectionError}
+                    </Text>
+                  ) : null}
+                </div>
+              </div>
+            ) : record?.lines.some((line) => line.condition) ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <Table.Header>
+                    <Table.Row>
+                      <Table.HeaderCell>SKU</Table.HeaderCell>
+                      <Table.HeaderCell className="text-right">
+                        Received
+                      </Table.HeaderCell>
+                      <Table.HeaderCell>Condition</Table.HeaderCell>
+                      <Table.HeaderCell>Disposition evidence</Table.HeaderCell>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {record.lines.map((line) => (
+                      <Table.Row key={line.id}>
+                        <Table.Cell>{line.sku}</Table.Cell>
+                        <Table.Cell className="text-right">
+                          {line.receivedQty ?? "—"}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {line.condition ? label(line.condition) : "—"}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {line.disposition ? label(line.disposition) : "—"}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table>
+              </div>
+            ) : (
+              <Text size="small" className="text-ui-fg-subtle">
+                Inspection opens after the approved return is received.
+              </Text>
+            )}
+
+            <div className="border-t border-ui-border-base pt-4">
+              {record?.refundSimulation ? (
+                <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+                  <Text size="small" weight="plus">
+                    {label(record.refundSimulation.status)} ·{" "}
+                    {new Intl.NumberFormat("en-IN", {
+                      style: "currency",
+                      currency: record.refundSimulation.currencyCode,
+                    }).format(record.refundSimulation.amountMinor / 100)}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Reference {record.refundSimulation.simulationReference} ·
+                    money effect none · stock effect none.
+                  </Text>
+                </div>
+              ) : record?.status === "inspection_complete" ? (
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <Text size="small" weight="plus">
+                      Record explicit simulated refund
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      Enter the provisional amount and full policy breakdown.
+                      This closes the case with simulated evidence only.
+                    </Text>
+                  </div>
+                  <label className="flex max-w-sm flex-col gap-1 text-sm font-medium">
+                    Simulation method
+                    <select
+                      className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                      value={refundMethod}
+                      onChange={(event) =>
+                        setRefundMethod(
+                          event.target.value as typeof refundMethod,
+                        )
+                      }
+                    >
+                      <option value="original_method_simulation">
+                        Original method simulation
+                      </option>
+                      <option value="cod_bank_transfer_simulation">
+                        COD bank transfer simulation
+                      </option>
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {(
+                      [
+                        ["amount", "Provisional refund"],
+                        ["itemSubtotal", "Item subtotal (+)"],
+                        ["tax", "Tax (+)"],
+                        ["shipping", "Shipping (+)"],
+                        ["restockingFee", "Restocking fee (−)"],
+                        ["returnFreight", "Return freight (−)"],
+                      ] as const
+                    ).map(([field, fieldLabel]) => (
+                      <label
+                        key={field}
+                        className="flex flex-col gap-1 text-sm font-medium"
+                      >
+                        {fieldLabel} (₹)
+                        <input
+                          inputMode="decimal"
+                          className="h-8 rounded-md border border-ui-border-base bg-ui-bg-field px-2 text-sm"
+                          value={refundValues[field]}
+                          onChange={(event) =>
+                            setRefundValues((current) => ({
+                              ...current,
+                              [field]: event.target.value,
+                            }))
+                          }
+                          placeholder="0.00"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <Text
+                    size="xsmall"
+                    className={
+                      refundAmountsMatch
+                        ? "text-ui-fg-subtle"
+                        : "text-ui-fg-error"
+                    }
+                    role={
+                      refundValues.amount && !refundAmountsMatch
+                        ? "alert"
+                        : undefined
+                    }
+                  >
+                    Breakdown total:{" "}
+                    {refundCalculatedMinor === null
+                      ? "complete every field"
+                      : new Intl.NumberFormat("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                        }).format(refundCalculatedMinor / 100)}
+                    {refundValues.amount && !refundAmountsMatch
+                      ? " · must match the provisional refund"
+                      : ""}
+                  </Text>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      size="small"
+                      isLoading={refundSimulation.isPending}
+                      disabled={!refundAmountsMatch}
+                      onClick={() => refundSimulation.mutate()}
+                    >
+                      Record refund simulation
+                    </Button>
+                    <Text size="xsmall" className="text-ui-fg-subtle">
+                      Creates a SIM reference; no PSP, payment, stock or
+                      settlement mutation.
+                    </Text>
+                    {refundError ? (
+                      <Text
+                        size="xsmall"
+                        className="text-ui-fg-error"
+                        role="alert"
+                      >
+                        {refundError}
+                      </Text>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <Text size="small" className="text-ui-fg-subtle">
+                  Refund simulation becomes available only after inspection is
+                  complete.
+                </Text>
+              )}
+            </div>
+          </div>
+        </Container>
+
+        <Container className="p-0">
+          <div className="border-b border-ui-border-base px-6 py-4">
             <Heading level="h2">Audit trail</Heading>
           </div>
-          <Table>
-            <Table.Header>
-              <Table.Row>
-                <Table.HeaderCell>Occurred</Table.HeaderCell>
-                <Table.HeaderCell>Event</Table.HeaderCell>
-                <Table.HeaderCell>Actor</Table.HeaderCell>
-                <Table.HeaderCell>Detail</Table.HeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {(record?.events ?? []).map((event) => (
-                <Table.Row key={event.id}>
-                  <Table.Cell>
-                    {new Date(event.occurredAt).toLocaleString("en-IN")}
-                  </Table.Cell>
-                  <Table.Cell>{label(event.eventType)}</Table.Cell>
-                  <Table.Cell>{event.actorId ?? "system"}</Table.Cell>
-                  <Table.Cell>
-                    {JSON.stringify(event.detail)}
-                  </Table.Cell>
+          <div className="overflow-x-auto">
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell>Occurred</Table.HeaderCell>
+                  <Table.HeaderCell>Event</Table.HeaderCell>
+                  <Table.HeaderCell>Actor</Table.HeaderCell>
+                  <Table.HeaderCell>Detail</Table.HeaderCell>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table>
+              </Table.Header>
+              <Table.Body>
+                {(record?.events ?? []).map((event) => (
+                  <Table.Row key={event.id}>
+                    <Table.Cell>
+                      {new Date(event.occurredAt).toLocaleString("en-IN")}
+                    </Table.Cell>
+                    <Table.Cell>{label(event.eventType)}</Table.Cell>
+                    <Table.Cell>{event.actorId ?? "system"}</Table.Cell>
+                    <Table.Cell className="align-top">
+                      <details>
+                        <summary className="cursor-pointer text-ui-fg-subtle">
+                          View detail
+                        </summary>
+                        <pre
+                          style={{
+                            maxWidth: "26rem",
+                            margin: "0.5rem 0 0",
+                            fontSize: 11,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          {JSON.stringify(event.detail, null, 2)}
+                        </pre>
+                      </details>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </div>
         </Container>
       </div>
     </SingleColumnPage>

@@ -1,0 +1,343 @@
+change_id: CHG-087
+revision: 1
+status: approved-in-progress
+request: >-
+  Close the bounded local/staging return journey after Admin approval by recording Seller-scoped
+  receipt and inspection evidence, an Admin-only simulated refund projection, and customer-visible
+  status across Flutter and secure web surfaces without moving real money, changing payment state,
+  posting inventory, or invoking a carrier.
+type: return-inspection-and-refund-simulation
+extends:
+- CHG-017
+- CHG-035
+requested_by: human-requester
+requested_at_utc: '2026-10-28'
+drafting_source: chat-option-create-chg-087
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-28'
+approval_source: chat-approve-implementation-zero-effect-simulation
+approval_scope: local-and-staging-implementation-deployment-separately-gated
+implementation_authorized: true
+staging_deployment_authorized: true
+staging_deployment_authorized_at_utc: '2026-10-28'
+staging_deployment_approval_source: chat-authorize-scoped-staging-deployment
+staging_deploy_owner: requester-authorized-opencode-agent
+production_release_authorized: false
+local_acceptance_status: pass
+local_acceptance_at_utc: '2026-10-28'
+staging_release_plan_status: authorized-for-execution
+staging_release_plan:
+  plan: client-projects/client101/evidence/CHG-087/staging-release-plan.md
+  manifest: client-projects/client101/evidence/CHG-087/staging-release-manifest.yaml
+  prepared_at_utc: '2026-10-28'
+  baseline_recorded: a13bcb4
+  baseline_verified_at_utc: '2026-10-28'
+  baseline_note: >-
+    G5 re-baseline after staging current moved from the previously recorded ecb01e1 to
+    release-a13bcb4 (U-003/U-005 + CHG-086). The release target is based on a13bcb4 and preserves
+    that current baseline.
+  target_branch: release/chg-087
+  target_sha: pending-scoped-commit
+  deploy_authorized: true
+  production_authorized: false
+staging_deployment_status: authorized-in-progress
+
+lane: D
+release_mechanism:
+- migration
+- event
+- api+ui
+- image-rebuild
+
+context:
+- >-
+  CHG-035 Phase 1 remains historically correct: it stopped at return decisions and prohibited
+  refund and stock effects. CHG-087 extends that baseline for a new bounded staging increment; it
+  does not rewrite or reinterpret prior evidence.
+- >-
+  The requester approved return-policy-2026-11-01 defaults for planning on 2026-10-28. That planning
+  note is not legal/tax approval, production authorization, or permission for a real refund.
+- >-
+  CHG-017 already permits explicitly labelled simulated refund transitions as workflow evidence,
+  distinct from financial refund evidence.
+
+outcome: >-
+  A customer-owned return can progress from Admin approval to Seller receipt and inspection, then
+  to an Admin-recorded simulated refund projection visible to the customer. Every artifact is
+  versioned, auditable and unmistakably test-only. Medusa payment/refund state and Tryton inventory
+  remain unchanged.
+
+decisions:
+- id: DEC-087-01
+  area: Canonical ownership
+  proposed_default: >-
+    Experience API owns only the staging return case, inspection evidence and simulated refund
+    projection. Medusa/payment integration remains the authority for real payment and refund state;
+    Tryton remains the authority for stock and warehouse movement. No canonical owner changes.
+- id: DEC-087-02
+  area: Role boundaries
+  proposed_default: >-
+    Admin may read all cases, approve/reject, record inspection when operationally required, and
+    record the simulated refund projection. A Seller may read and inspect only returns containing
+    lines from that Seller's allocation. A Seller cannot decide, cancel, refund, change payment
+    state, or post inventory. Customers may read only their own case and notification state.
+- id: DEC-087-03
+  area: Inspection evidence
+  proposed_default: >-
+    Inspection records every approved line exactly once with received quantity, condition,
+    disposition intent, note, actor and timestamp. Disposition is evidence only: restock, repair,
+    quarantine or dispose never invokes Tryton and always carries stock_effect=none.
+- id: DEC-087-04
+  area: Simulated refund projection
+  proposed_default: >-
+    The projection uses statuses simulated_pending, simulated_completed or simulated_failed and an
+    SIM-prefixed reference. It must never use a bare paid/completed status that can be mistaken for
+    provider evidence. test_data=true, simulated=true and money_effect=none are mandatory.
+- id: DEC-087-05
+  area: Amount and method
+  proposed_default: >-
+    Admin supplies an explicit provisional amount and breakdown derived from the frozen policy
+    snapshot. The service does not silently infer a final financial refund from item price alone.
+    Supported labels are original_method_simulation and cod_bank_transfer_simulation. No bank
+    details, PSP reference, tax credit note or settlement mutation is created.
+- id: DEC-087-06
+  area: Events and notifications
+  proposed_default: >-
+    Publish return.inspection-completed.v1 and return.refund-simulation-recorded.v1. Do not publish
+    return.refund-paid. Customer copy must say simulated and must not claim that money or stock moved.
+- id: DEC-087-07
+  area: Customer web security
+  proposed_default: >-
+    Customer web post-purchase reads require an authenticated owner session or a separately approved
+    signed lookup contract. Order or return identifiers alone never authorize access.
+- id: DEC-087-08
+  area: Provider boundary
+  proposed_default: >-
+    Carrier and reverse-pickup states remain manual simulated evidence. Shiprocket, PSP, accounting,
+    settlement and inventory integrations remain deferred governed changes.
+
+affected_capabilities:
+- returns
+- return-inspection
+- refund-simulation
+- customer-orders
+- notifications
+- seller-operations
+- admin-operations
+affected_domains:
+- experience
+- marketplace
+- operations
+- notifications
+- integration
+affected_surfaces:
+- experience-api.returns
+- commerce-admin.returns
+- commerce-vendor.returns
+- app.prototype.b2c-storefront
+- customer-web.post-purchase
+
+requirements:
+- id: R1
+  name: Authority separation
+  outcome: >-
+    Contracts and runtime preserve Medusa/payment ownership of real refunds and Tryton ownership of
+    stock; return projections never mutate either system.
+  status: pass-local
+- id: R2
+  name: Versioned inspection
+  outcome: >-
+    Admin or the owning Seller records complete per-line inspection evidence after receipt with
+    optimistic-version protection and immutable audit events.
+  status: pass-local
+- id: R3
+  name: Seller isolation
+  outcome: >-
+    Cross-seller reads and writes return 404 without mutation; Seller decision, cancellation and
+    refund attempts are denied.
+  status: pass-local
+- id: R4
+  name: Explicit simulated refund
+  outcome: >-
+    Admin records one idempotent simulated refund projection only after inspection, with explicit
+    amount/breakdown, simulation status/reference and zero real money effect.
+  status: pass-local
+- id: R5
+  name: Customer visibility
+  outcome: >-
+    Flutter and secure customer web show inspection and simulated refund status only for the owning
+    customer, including clear no-real-money wording.
+  status: pass-local
+- id: R6
+  name: Admin and Seller workbenches
+  outcome: >-
+    Admin exposes full decision/refund controls; Seller exposes only scoped receipt/inspection
+    controls. Both remain responsive, keyboard usable and consistent with registered return-status
+    and workflow-action components.
+  status: pass-local
+- id: R7
+  name: Event and notification evidence
+  outcome: >-
+    Inspection and refund-simulation events publish with dedupe/retry proof and create one owner
+    notification each, all carrying test/simulation and zero-effect markers.
+  status: pass-local
+- id: R8
+  name: Local acceptance and cleanup
+  outcome: >-
+    Isolated PostgreSQL/NATS HTTP and browser acceptance covers success, unauthorized access,
+    cross-seller access, stale versions, duplicate replay, console errors and fixture cleanup.
+  status: pass-local
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-087.yaml
+  - client-projects/client101/contracts/data-contract.yaml
+  - client-projects/client101/contracts/asyncapi/buildkart-events-v1.yaml
+  - client-projects/client101/derived/dependency-map.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-087/**
+  - services/experience-api/src/store/return-store.ts
+  - services/experience-api/src/index.ts
+  - services/experience-api/src/notifications/templates.ts
+  - services/experience-api/src/events/nats-publisher.ts
+  - services/experience-api/src/scripts/*return*.ts
+  - services/experience-api/src/scripts/manual-transition-*.ts
+  - services/backend/packages/api/src/api/admin/buildkart/returns/**
+  - services/backend/packages/api/src/api/vendor/buildkart/returns/**
+  - services/backend/packages/api/src/api/middlewares.ts
+  - services/backend/packages/api/.mercur/routes.d.ts
+  - services/backend/apps/admin/src/routes/returns/**
+  - services/backend/apps/vendor/src/routes/returns/**
+  - apps/prototype_app/lib/screens/return_flow_screens.dart
+  - apps/prototype_app/lib/data/experience_api.dart
+  - apps/prototype_app/lib/domain/models.dart
+  - apps/prototype_app/test/**return**
+  - apps/web/app/orders/**
+  - apps/web/app/returns/**
+  - apps/web/app/sign-in/**
+  - apps/web/app/api/auth/**
+  - apps/web/app/layout.tsx
+  - apps/web/app/globals.css
+  - apps/web/lib/experience-api.ts
+  no_touch:
+  - production
+  - shared staging data before separate deployment approval
+  - Medusa payment, capture and refund records
+  - Tryton stock, reservation and warehouse-movement records
+  - settlement, commission, invoice and accounting records
+  - provider credentials and customer bank details
+  - Shiprocket or any real carrier integration
+  - unrelated catalogue, pricing, CMS and checkout behavior
+  data_records:
+  - isolated local return fixtures tagged test_data=true
+  - isolated local notification and domain-event fixtures
+  environment: local-preview-then-separately-authorized-staging
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: bb7d9049230c10f4627d49e9e0f9bacb4fa024b7
+  git_status: pre-existing-uncommitted-return-lifecycle-and-fulfillment-preview-work
+  docker_engine: 29.6.1
+  local_store_lifecycle: pass-request-to-simulated-refund-before-contract-reconciliation
+  staging_release: unchanged-not-queried-for-this-local-contract-draft
+
+required_tests:
+- Contract validation passes with unique YAML keys and resolved AsyncAPI references.
+- Unauthenticated Admin/Seller/customer calls fail closed.
+- Customer A cannot read Customer B's order, return or refund simulation.
+- Seller A cannot read or inspect Seller B's return; no event is written on denial.
+- Seller cannot approve, reject, cancel or create a refund simulation.
+- Inspection requires receipt, current version and every approved line exactly once.
+- Invalid inspection and stale-version requests leave case, line and event counts unchanged.
+- Refund simulation requires completed inspection, Admin permission, explicit amount/breakdown and an idempotency key.
+- Duplicate refund simulation returns the original projection and emits one event/notification.
+- Medusa payment/refund rows and Tryton stock/movement rows are unchanged.
+- NATS publish/consume and duplicate/retry handling pass for both new subjects.
+- Admin, Seller, Flutter and secure web views render at target widths with zero console/runtime errors.
+- All local fixtures and temporary containers are removed after acceptance.
+
+verification:
+  completed_at_utc: '2026-10-28'
+  environment: isolated-local-only
+  result: pass-local
+  staging_deployed: false
+  production_released: false
+  requirement_results:
+    R1: pass-local
+    R2: pass-local
+    R3: pass-local
+    R4: pass-local
+    R5: pass-local
+    R6: pass-local
+    R7: pass-local
+    R8: pass-local
+  contract_validation: pass-5-yaml-27-channels-127-refs
+  experience_api_typecheck: pass
+  admin_build: pass
+  vendor_build: pass
+  customer_web_typecheck: pass
+  customer_web_production_build: pass
+  flutter_analyze: pass
+  flutter_test: pass-286
+  flutter_return_status_layout_test: pass-3
+  manual_transition_db_test: pass
+  manual_transition_http_test: pass
+  return_closure_events_test: pass-2-subjects-2-retries-2-duplicates-2-owner-notifications
+  browser_qc: pass-82-of-82
+  browser_viewports:
+  - 390x844
+  - 1440x900
+  browser_console_errors: 0
+  browser_failed_requests: 0
+  page_level_horizontal_overflow: none
+  medusa_financial_rows_unchanged: true
+  tryton_stock_rows_unchanged: true
+  seller_refund_projection_hidden: true
+  local_fixture_removed: true
+  disposable_containers_removed:
+  - chg087_pg
+  - chg087_redis
+  - chg087_nats
+  evidence_dir: client-projects/client101/evidence/CHG-087
+  evidence:
+  - client-projects/client101/evidence/CHG-087/acceptance.md
+  - client-projects/client101/evidence/CHG-087/browser-qc.json
+  - client-projects/client101/evidence/CHG-087/screenshots
+  - client-projects/client101/evidence/CHG-087/zero-effect-evidence.json
+  - client-projects/client101/evidence/CHG-087/fixtures/lifecycle-snapshots.json
+  staging_deployment_status: authorized-in-progress
+
+policy_and_legal_gates:
+- return-policy-2026-11-01 remains a staging planning policy until legal/tax review.
+- Restocking fee, refundable tax/shipping and COD bank-transfer behavior require approved breakdown rules before production.
+- Customer-facing production wording requires legal review.
+- Real refund, credit note, settlement reversal and stock disposition each require separate provider/domain authorization.
+
+rollback:
+  contract: remove only the CHG-087 proposal amendments if rejected; preserve CHG-035 history
+  local_data: delete only CHG-087-tagged isolated fixtures and temporary containers
+  staging: restore release-a13bcb4 and remove only the CHG-087 smoke fixture; additive schema remains
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Real refund execution
+  reason: Requires PSP/Medusa payment integration, Finance/Tax approval and production governance.
+- id: D2
+  name: Real inventory disposition
+  reason: Tryton remains authoritative; no stock or movement post is authorized.
+- id: D3
+  name: Shiprocket integration
+  reason: Explicitly deferred by the requester.
+- id: D4
+  name: NDR and auto-RTO implementation
+  reason: Requires a separate delivery-exception contract after the return-closure slice.
+- id: D5
+  name: Exchange, store credit and B2B contract overrides
+  reason: Policy and accounting behavior remain incomplete and require separate approval.
+
+approval_checkpoint: >-
+  The requester approved local/staging implementation on 2026-10-28. Shared staging data writes and
+  deployment remain separately gated; production remains forbidden.

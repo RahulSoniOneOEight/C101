@@ -24,6 +24,10 @@ governed_amendments:
   revision: 1
   status: contracts-drafted-runtime-pending
   scope: delivery-capture-shipment-evidence-and-phase-1-returns
+- change_contract: CHG-087
+  revision: 1
+  status: bounded-local-staging-implementation-approved
+  scope: return-inspection-evidence-and-refund-simulation
 entities:
   - name: order
     canonical_owner: commerce
@@ -112,6 +116,8 @@ entities:
     - Idempotent by (user_id, idempotency_key); replay returns the existing case.
     - Has no Medusa money effect and no Tryton stock or movement effect.
     - Phase 1 decisions stop at approved or rejected; pickup, restock and refund are out of scope.
+    - CHG-087 adds a bounded staging extension for post-decision inspection and simulated
+      refund projection; it does not alter CHG-035 historical evidence or canonical ownership.
   - name: return-line
     canonical_owner: experience-api-staging-only
     consumers: [experience, operations]
@@ -119,6 +125,7 @@ entities:
     notes:
     - Captures ordered, delivered, requested and approved quantity plus its reason code.
     - Eligibility is computed at request time and never re-evaluated against a newer policy.
+    - CHG-087 inspection fields are evidence only and cannot post inventory or warehouse movement.
   - name: return-evidence
     canonical_owner: experience-api-staging-only
     consumers: [experience, operations]
@@ -133,6 +140,22 @@ entities:
     notes:
     - Append-only actor, role, event type, detail and timestamp.
     - Records operator decisions and customer-visible state changes without financial or stock effect.
+  - name: return-inspection-evidence
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations, marketplace]
+    projections: [experience-return-inspection, operator-return-inspection]
+    notes:
+    - Added by CHG-087; records approved-line receipt quantity, condition, disposition intent,
+      note, actor and timestamp.
+    - Disposition intent is not Tryton stock or movement evidence and always has stock_effect none.
+  - name: return-refund-simulation
+    canonical_owner: experience-api-staging-only
+    consumers: [experience, operations, notifications]
+    projections: [experience-return-refund-simulation, operator-return-refund-simulation]
+    notes:
+    - Added by CHG-087; workflow evidence only, never a financial refund or provider result.
+    - Requires test_data and simulated markers, a SIM reference and money_effect none.
+    - Cannot mutate Commerce payment state, Medusa refund records, accounting or settlement.
   - name: invoice
     canonical_owner: erp-accounting
     consumers: [commerce, experience, finance]

@@ -1,0 +1,3043 @@
+{
+  "summary": {
+    "fixture_id": "chg087_qc_01",
+    "order_id": "checkout_chg087_qc_01",
+    "order_group_id": "og_chg087_qc_01",
+    "return_id": "ret_38b875490a284f808956cbaca24e3b98",
+    "shipment_id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+    "seller_id": "seller_qc_01",
+    "owner_user_id": "pilot_01",
+    "policy_version": "return-policy-2026-11-01",
+    "final_status": "closed",
+    "final_version": 5,
+    "refund_simulation_reference": "SIM-REFUND-1572BC00",
+    "refund_amount_minor": 304700,
+    "money_effect": "none",
+    "stock_effect": "none",
+    "captured_stages": [
+      "approved",
+      "received",
+      "inspection_complete",
+      "closed"
+    ],
+    "test_data": true
+  },
+  "snapshots": {
+    "approved": {
+      "admin": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "approved",
+          "version": 2,
+          "allowedTransitions": [
+            "pickup_scheduled",
+            "received",
+            "cancelled"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "seller": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "approved",
+          "version": 2,
+          "allowedTransitions": [
+            "pickup_scheduled",
+            "received"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            }
+          ],
+          "refundSimulation": null,
+          "seller_scope": "seller_qc_01"
+        },
+        "environment": "staging",
+        "test_data": true,
+        "seller_id": "seller_qc_01",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "meOrders": {
+        "items": [
+          {
+            "order_id": "checkout_chg087_qc_01",
+            "medusa_order_group_id": "og_chg087_qc_01",
+            "status": "confirmed",
+            "created_at": "2026-10-28T16:43:18.128Z",
+            "order_number": "BK-261028-QC087",
+            "subtotal_minor": 299800,
+            "shipping_minor": 4900,
+            "discount_minor": 0,
+            "total_minor": 304700,
+            "currency_code": "INR",
+            "lines": [
+              {
+                "line_key": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "title": "Cordless Drill Kit · 18V",
+                "quantity": 1,
+                "unit_price": 219900,
+                "product_id": "prod_qc_drill",
+                "variant_id": "variant_qc_drill",
+                "seller_id": "seller_qc_01"
+              },
+              {
+                "line_key": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "title": "Titanium Drill Bit Set · 18 pc",
+                "quantity": 1,
+                "unit_price": 79900,
+                "product_id": "prod_qc_bits",
+                "variant_id": "variant_qc_bits",
+                "seller_id": "seller_qc_01"
+              }
+            ],
+            "payment_mode": "simulated",
+            "test_data": true
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "order": {
+        "order_id": "checkout_chg087_qc_01",
+        "medusa_order_group_id": "og_chg087_qc_01",
+        "status": "confirmed",
+        "order_number": "BK-261028-QC087",
+        "subtotal_minor": 299800,
+        "shipping_minor": 4900,
+        "discount_minor": 0,
+        "total_minor": 304700,
+        "currency_code": "INR",
+        "payment_mode": "simulated",
+        "environment": "staging",
+        "test_data": true,
+        "reservation_id": "tryton_move_987654",
+        "reservation_status": "committed",
+        "reconciled": true,
+        "lines": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "quantity": 1,
+            "unit_price": 219900,
+            "product_id": "prod_qc_drill",
+            "variant_id": "variant_qc_drill",
+            "seller_id": "seller_qc_01"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "quantity": 1,
+            "unit_price": 79900,
+            "product_id": "prod_qc_bits",
+            "variant_id": "variant_qc_bits",
+            "seller_id": "seller_qc_01"
+          }
+        ],
+        "shipments": [
+          {
+            "id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+            "orderGroupId": "og_chg087_qc_01",
+            "allocationId": "alloc_chg087_qc_01",
+            "sellerId": "seller_qc_01",
+            "provider": "simulated",
+            "trackingNumber": "SIM-737B8FD09017",
+            "status": "delivered",
+            "version": 2,
+            "allowedTransitions": [],
+            "deliveredAt": "2026-10-28T16:43:18.104Z",
+            "proofRef": "POD-CHG087_QC_01",
+            "destinationPostcode": "302001",
+            "environment": "staging",
+            "logisticsMode": "simulated",
+            "testData": true,
+            "createdAt": "2026-10-28T16:43:18.062Z",
+            "updatedAt": "2026-10-28T16:43:18.115Z",
+            "lines": [
+              {
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              },
+              {
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              }
+            ],
+            "events": [
+              {
+                "id": "shev_6da3c10a6c5e4d6d86bb299467d7a7c6",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "booked:alloc_chg087_qc_01",
+                "eventType": "booked",
+                "status": "booked",
+                "occurredAt": "2026-10-28T16:43:18.062Z",
+                "receivedAt": "2026-10-28T16:43:18.062Z",
+                "payload": {
+                  "tracking_number": "SIM-737B8FD09017"
+                },
+                "testData": true
+              },
+              {
+                "id": "shev_a41e1185c8e74ebc8a3bec59f31eeb93",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "delivered:chg087_qc_01",
+                "eventType": "delivered",
+                "status": "delivered",
+                "occurredAt": "2026-10-28T16:43:18.104Z",
+                "receivedAt": "2026-10-28T16:43:18.115Z",
+                "payload": {},
+                "testData": true
+              }
+            ]
+          }
+        ],
+        "return_eligibility": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          }
+        ],
+        "returns": [
+          {
+            "id": "ret_38b875490a284f808956cbaca24e3b98",
+            "orderId": "checkout_chg087_qc_01",
+            "orderGroupId": "og_chg087_qc_01",
+            "userId": "pilot_01",
+            "idempotencyKey": "browser-return:chg087_qc_01",
+            "policyVersion": "return-policy-2026-11-01",
+            "policySnapshot": {
+              "window_days": 7,
+              "planning_only": true,
+              "policy_version": "return-policy-2026-11-01"
+            },
+            "status": "approved",
+            "version": 2,
+            "allowedTransitions": [
+              "pickup_scheduled",
+              "received",
+              "cancelled"
+            ],
+            "resolution": "refund",
+            "reasonCode": "damaged",
+            "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+            "requestedAt": "2026-10-28T16:43:18.147Z",
+            "decidedAt": "2026-10-28T16:43:18.207Z",
+            "decidedBy": "operator_qc",
+            "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+            "environment": "staging",
+            "testData": true,
+            "lines": [
+              {
+                "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 219900,
+                "receivedQty": null,
+                "condition": null,
+                "disposition": null,
+                "inspectionNote": null,
+                "inspectedAt": null,
+                "inspectedBy": null
+              },
+              {
+                "id": "retl_16701f3423214de682650ede1085be7e",
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 79900,
+                "receivedQty": null,
+                "condition": null,
+                "disposition": null,
+                "inspectionNote": null,
+                "inspectedAt": null,
+                "inspectedBy": null
+              }
+            ],
+            "evidence": [],
+            "events": [
+              {
+                "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+                "eventType": "return.requested",
+                "actorId": "pilot_01",
+                "actorRole": "customer",
+                "detail": {
+                  "line_count": 2,
+                  "resolution": "refund",
+                  "reason_code": "damaged",
+                  "policy_version": "return-policy-2026-11-01"
+                },
+                "occurredAt": "2026-10-28T16:43:18.147Z"
+              },
+              {
+                "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+                "eventType": "return.decision",
+                "actorId": "operator_qc",
+                "actorRole": "marketplace_operator",
+                "detail": {
+                  "comment": "Photo evidence reviewed. Both lines approved for return.",
+                  "decision": "approved",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "approved_lines": [
+                    {
+                      "lineKey": "line_qc_1",
+                      "approvedQty": 1
+                    },
+                    {
+                      "lineKey": "line_qc_2",
+                      "approvedQty": 1
+                    }
+                  ]
+                },
+                "occurredAt": "2026-10-28T16:43:18.207Z"
+              }
+            ],
+            "refundSimulation": null
+          }
+        ],
+        "logistics_mode": "simulated",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "customerReturn": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "approved",
+          "version": 2,
+          "allowedTransitions": [
+            "pickup_scheduled",
+            "received",
+            "cancelled"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      }
+    },
+    "received": {
+      "admin": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "received",
+          "version": 3,
+          "allowedTransitions": [
+            "inspection_pending"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "seller": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "received",
+          "version": 3,
+          "allowedTransitions": [
+            "inspection_pending"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            }
+          ],
+          "refundSimulation": null,
+          "seller_scope": "seller_qc_01"
+        },
+        "environment": "staging",
+        "test_data": true,
+        "seller_id": "seller_qc_01",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "meOrders": {
+        "items": [
+          {
+            "order_id": "checkout_chg087_qc_01",
+            "medusa_order_group_id": "og_chg087_qc_01",
+            "status": "confirmed",
+            "created_at": "2026-10-28T16:43:18.128Z",
+            "order_number": "BK-261028-QC087",
+            "subtotal_minor": 299800,
+            "shipping_minor": 4900,
+            "discount_minor": 0,
+            "total_minor": 304700,
+            "currency_code": "INR",
+            "lines": [
+              {
+                "line_key": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "title": "Cordless Drill Kit · 18V",
+                "quantity": 1,
+                "unit_price": 219900,
+                "product_id": "prod_qc_drill",
+                "variant_id": "variant_qc_drill",
+                "seller_id": "seller_qc_01"
+              },
+              {
+                "line_key": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "title": "Titanium Drill Bit Set · 18 pc",
+                "quantity": 1,
+                "unit_price": 79900,
+                "product_id": "prod_qc_bits",
+                "variant_id": "variant_qc_bits",
+                "seller_id": "seller_qc_01"
+              }
+            ],
+            "payment_mode": "simulated",
+            "test_data": true
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "order": {
+        "order_id": "checkout_chg087_qc_01",
+        "medusa_order_group_id": "og_chg087_qc_01",
+        "status": "confirmed",
+        "order_number": "BK-261028-QC087",
+        "subtotal_minor": 299800,
+        "shipping_minor": 4900,
+        "discount_minor": 0,
+        "total_minor": 304700,
+        "currency_code": "INR",
+        "payment_mode": "simulated",
+        "environment": "staging",
+        "test_data": true,
+        "reservation_id": "tryton_move_987654",
+        "reservation_status": "committed",
+        "reconciled": true,
+        "lines": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "quantity": 1,
+            "unit_price": 219900,
+            "product_id": "prod_qc_drill",
+            "variant_id": "variant_qc_drill",
+            "seller_id": "seller_qc_01"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "quantity": 1,
+            "unit_price": 79900,
+            "product_id": "prod_qc_bits",
+            "variant_id": "variant_qc_bits",
+            "seller_id": "seller_qc_01"
+          }
+        ],
+        "shipments": [
+          {
+            "id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+            "orderGroupId": "og_chg087_qc_01",
+            "allocationId": "alloc_chg087_qc_01",
+            "sellerId": "seller_qc_01",
+            "provider": "simulated",
+            "trackingNumber": "SIM-737B8FD09017",
+            "status": "delivered",
+            "version": 2,
+            "allowedTransitions": [],
+            "deliveredAt": "2026-10-28T16:43:18.104Z",
+            "proofRef": "POD-CHG087_QC_01",
+            "destinationPostcode": "302001",
+            "environment": "staging",
+            "logisticsMode": "simulated",
+            "testData": true,
+            "createdAt": "2026-10-28T16:43:18.062Z",
+            "updatedAt": "2026-10-28T16:43:18.115Z",
+            "lines": [
+              {
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              },
+              {
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              }
+            ],
+            "events": [
+              {
+                "id": "shev_6da3c10a6c5e4d6d86bb299467d7a7c6",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "booked:alloc_chg087_qc_01",
+                "eventType": "booked",
+                "status": "booked",
+                "occurredAt": "2026-10-28T16:43:18.062Z",
+                "receivedAt": "2026-10-28T16:43:18.062Z",
+                "payload": {
+                  "tracking_number": "SIM-737B8FD09017"
+                },
+                "testData": true
+              },
+              {
+                "id": "shev_a41e1185c8e74ebc8a3bec59f31eeb93",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "delivered:chg087_qc_01",
+                "eventType": "delivered",
+                "status": "delivered",
+                "occurredAt": "2026-10-28T16:43:18.104Z",
+                "receivedAt": "2026-10-28T16:43:18.115Z",
+                "payload": {},
+                "testData": true
+              }
+            ]
+          }
+        ],
+        "return_eligibility": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          }
+        ],
+        "returns": [
+          {
+            "id": "ret_38b875490a284f808956cbaca24e3b98",
+            "orderId": "checkout_chg087_qc_01",
+            "orderGroupId": "og_chg087_qc_01",
+            "userId": "pilot_01",
+            "idempotencyKey": "browser-return:chg087_qc_01",
+            "policyVersion": "return-policy-2026-11-01",
+            "policySnapshot": {
+              "window_days": 7,
+              "planning_only": true,
+              "policy_version": "return-policy-2026-11-01"
+            },
+            "status": "received",
+            "version": 3,
+            "allowedTransitions": [
+              "inspection_pending"
+            ],
+            "resolution": "refund",
+            "reasonCode": "damaged",
+            "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+            "requestedAt": "2026-10-28T16:43:18.147Z",
+            "decidedAt": "2026-10-28T16:43:18.207Z",
+            "decidedBy": "operator_qc",
+            "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+            "environment": "staging",
+            "testData": true,
+            "lines": [
+              {
+                "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 219900,
+                "receivedQty": null,
+                "condition": null,
+                "disposition": null,
+                "inspectionNote": null,
+                "inspectedAt": null,
+                "inspectedBy": null
+              },
+              {
+                "id": "retl_16701f3423214de682650ede1085be7e",
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 79900,
+                "receivedQty": null,
+                "condition": null,
+                "disposition": null,
+                "inspectionNote": null,
+                "inspectedAt": null,
+                "inspectedBy": null
+              }
+            ],
+            "evidence": [],
+            "events": [
+              {
+                "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+                "eventType": "return.requested",
+                "actorId": "pilot_01",
+                "actorRole": "customer",
+                "detail": {
+                  "line_count": 2,
+                  "resolution": "refund",
+                  "reason_code": "damaged",
+                  "policy_version": "return-policy-2026-11-01"
+                },
+                "occurredAt": "2026-10-28T16:43:18.147Z"
+              },
+              {
+                "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+                "eventType": "return.decision",
+                "actorId": "operator_qc",
+                "actorRole": "marketplace_operator",
+                "detail": {
+                  "comment": "Photo evidence reviewed. Both lines approved for return.",
+                  "decision": "approved",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "approved_lines": [
+                    {
+                      "lineKey": "line_qc_1",
+                      "approvedQty": 1
+                    },
+                    {
+                      "lineKey": "line_qc_2",
+                      "approvedQty": 1
+                    }
+                  ]
+                },
+                "occurredAt": "2026-10-28T16:43:18.207Z"
+              },
+              {
+                "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+                "eventType": "return.status_changed",
+                "actorId": "seller_qc_01",
+                "actorRole": "seller_admin",
+                "detail": {
+                  "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                  "status": "received",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "previous_status": "approved",
+                  "expected_version": 2,
+                  "resulting_version": 3
+                },
+                "occurredAt": "2026-10-28T16:43:18.380Z"
+              }
+            ],
+            "refundSimulation": null
+          }
+        ],
+        "logistics_mode": "simulated",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "customerReturn": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "received",
+          "version": 3,
+          "allowedTransitions": [
+            "inspection_pending"
+          ],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": null,
+              "condition": null,
+              "disposition": null,
+              "inspectionNote": null,
+              "inspectedAt": null,
+              "inspectedBy": null
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      }
+    },
+    "inspection_complete": {
+      "admin": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "inspection_complete",
+          "version": 4,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "seller": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "inspection_complete",
+          "version": 4,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            }
+          ],
+          "refundSimulation": null,
+          "seller_scope": "seller_qc_01"
+        },
+        "environment": "staging",
+        "test_data": true,
+        "seller_id": "seller_qc_01",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "meOrders": {
+        "items": [
+          {
+            "order_id": "checkout_chg087_qc_01",
+            "medusa_order_group_id": "og_chg087_qc_01",
+            "status": "confirmed",
+            "created_at": "2026-10-28T16:43:18.128Z",
+            "order_number": "BK-261028-QC087",
+            "subtotal_minor": 299800,
+            "shipping_minor": 4900,
+            "discount_minor": 0,
+            "total_minor": 304700,
+            "currency_code": "INR",
+            "lines": [
+              {
+                "line_key": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "title": "Cordless Drill Kit · 18V",
+                "quantity": 1,
+                "unit_price": 219900,
+                "product_id": "prod_qc_drill",
+                "variant_id": "variant_qc_drill",
+                "seller_id": "seller_qc_01"
+              },
+              {
+                "line_key": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "title": "Titanium Drill Bit Set · 18 pc",
+                "quantity": 1,
+                "unit_price": 79900,
+                "product_id": "prod_qc_bits",
+                "variant_id": "variant_qc_bits",
+                "seller_id": "seller_qc_01"
+              }
+            ],
+            "payment_mode": "simulated",
+            "test_data": true
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "order": {
+        "order_id": "checkout_chg087_qc_01",
+        "medusa_order_group_id": "og_chg087_qc_01",
+        "status": "confirmed",
+        "order_number": "BK-261028-QC087",
+        "subtotal_minor": 299800,
+        "shipping_minor": 4900,
+        "discount_minor": 0,
+        "total_minor": 304700,
+        "currency_code": "INR",
+        "payment_mode": "simulated",
+        "environment": "staging",
+        "test_data": true,
+        "reservation_id": "tryton_move_987654",
+        "reservation_status": "committed",
+        "reconciled": true,
+        "lines": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "quantity": 1,
+            "unit_price": 219900,
+            "product_id": "prod_qc_drill",
+            "variant_id": "variant_qc_drill",
+            "seller_id": "seller_qc_01"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "quantity": 1,
+            "unit_price": 79900,
+            "product_id": "prod_qc_bits",
+            "variant_id": "variant_qc_bits",
+            "seller_id": "seller_qc_01"
+          }
+        ],
+        "shipments": [
+          {
+            "id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+            "orderGroupId": "og_chg087_qc_01",
+            "allocationId": "alloc_chg087_qc_01",
+            "sellerId": "seller_qc_01",
+            "provider": "simulated",
+            "trackingNumber": "SIM-737B8FD09017",
+            "status": "delivered",
+            "version": 2,
+            "allowedTransitions": [],
+            "deliveredAt": "2026-10-28T16:43:18.104Z",
+            "proofRef": "POD-CHG087_QC_01",
+            "destinationPostcode": "302001",
+            "environment": "staging",
+            "logisticsMode": "simulated",
+            "testData": true,
+            "createdAt": "2026-10-28T16:43:18.062Z",
+            "updatedAt": "2026-10-28T16:43:18.115Z",
+            "lines": [
+              {
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              },
+              {
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              }
+            ],
+            "events": [
+              {
+                "id": "shev_6da3c10a6c5e4d6d86bb299467d7a7c6",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "booked:alloc_chg087_qc_01",
+                "eventType": "booked",
+                "status": "booked",
+                "occurredAt": "2026-10-28T16:43:18.062Z",
+                "receivedAt": "2026-10-28T16:43:18.062Z",
+                "payload": {
+                  "tracking_number": "SIM-737B8FD09017"
+                },
+                "testData": true
+              },
+              {
+                "id": "shev_a41e1185c8e74ebc8a3bec59f31eeb93",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "delivered:chg087_qc_01",
+                "eventType": "delivered",
+                "status": "delivered",
+                "occurredAt": "2026-10-28T16:43:18.104Z",
+                "receivedAt": "2026-10-28T16:43:18.115Z",
+                "payload": {},
+                "testData": true
+              }
+            ]
+          }
+        ],
+        "return_eligibility": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          }
+        ],
+        "returns": [
+          {
+            "id": "ret_38b875490a284f808956cbaca24e3b98",
+            "orderId": "checkout_chg087_qc_01",
+            "orderGroupId": "og_chg087_qc_01",
+            "userId": "pilot_01",
+            "idempotencyKey": "browser-return:chg087_qc_01",
+            "policyVersion": "return-policy-2026-11-01",
+            "policySnapshot": {
+              "window_days": 7,
+              "planning_only": true,
+              "policy_version": "return-policy-2026-11-01"
+            },
+            "status": "inspection_complete",
+            "version": 4,
+            "allowedTransitions": [],
+            "resolution": "refund",
+            "reasonCode": "damaged",
+            "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+            "requestedAt": "2026-10-28T16:43:18.147Z",
+            "decidedAt": "2026-10-28T16:43:18.207Z",
+            "decidedBy": "operator_qc",
+            "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+            "environment": "staging",
+            "testData": true,
+            "lines": [
+              {
+                "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 219900,
+                "receivedQty": 1,
+                "condition": "damaged",
+                "disposition": "quarantine",
+                "inspectionNote": "Housing cracked; packaging crushed in transit.",
+                "inspectedAt": "2026-10-28T16:43:18.450Z",
+                "inspectedBy": "seller_qc_01"
+              },
+              {
+                "id": "retl_16701f3423214de682650ede1085be7e",
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 79900,
+                "receivedQty": 1,
+                "condition": "incomplete",
+                "disposition": "repair",
+                "inspectionNote": "Case hinge broken; bit set complete.",
+                "inspectedAt": "2026-10-28T16:43:18.450Z",
+                "inspectedBy": "seller_qc_01"
+              }
+            ],
+            "evidence": [],
+            "events": [
+              {
+                "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+                "eventType": "return.requested",
+                "actorId": "pilot_01",
+                "actorRole": "customer",
+                "detail": {
+                  "line_count": 2,
+                  "resolution": "refund",
+                  "reason_code": "damaged",
+                  "policy_version": "return-policy-2026-11-01"
+                },
+                "occurredAt": "2026-10-28T16:43:18.147Z"
+              },
+              {
+                "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+                "eventType": "return.decision",
+                "actorId": "operator_qc",
+                "actorRole": "marketplace_operator",
+                "detail": {
+                  "comment": "Photo evidence reviewed. Both lines approved for return.",
+                  "decision": "approved",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "approved_lines": [
+                    {
+                      "lineKey": "line_qc_1",
+                      "approvedQty": 1
+                    },
+                    {
+                      "lineKey": "line_qc_2",
+                      "approvedQty": 1
+                    }
+                  ]
+                },
+                "occurredAt": "2026-10-28T16:43:18.207Z"
+              },
+              {
+                "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+                "eventType": "return.status_changed",
+                "actorId": "seller_qc_01",
+                "actorRole": "seller_admin",
+                "detail": {
+                  "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                  "status": "received",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "previous_status": "approved",
+                  "expected_version": 2,
+                  "resulting_version": 3
+                },
+                "occurredAt": "2026-10-28T16:43:18.380Z"
+              },
+              {
+                "id": "rete_db9e59da494e4784b675f277d969dee0",
+                "eventType": "return.inspection_completed",
+                "actorId": "seller_qc_01",
+                "actorRole": "seller_admin",
+                "detail": {
+                  "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                  "lines": [
+                    {
+                      "note": "Housing cracked; packaging crushed in transit.",
+                      "lineKey": "line_qc_1",
+                      "condition": "damaged",
+                      "disposition": "quarantine",
+                      "receivedQty": 1
+                    },
+                    {
+                      "note": "Case hinge broken; bit set complete.",
+                      "lineKey": "line_qc_2",
+                      "condition": "incomplete",
+                      "disposition": "repair",
+                      "receivedQty": 1
+                    }
+                  ],
+                  "simulated": true,
+                  "test_data": true,
+                  "money_effect": "none",
+                  "stock_effect": "none"
+                },
+                "occurredAt": "2026-10-28T16:43:18.450Z"
+              }
+            ],
+            "refundSimulation": null
+          }
+        ],
+        "logistics_mode": "simulated",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "customerReturn": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "inspection_complete",
+          "version": 4,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            }
+          ],
+          "refundSimulation": null
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      }
+    },
+    "closed": {
+      "admin": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "closed",
+          "version": 5,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            },
+            {
+              "id": "rete_a85718c5e401459f8650d883901faa76",
+              "eventType": "return.refund_simulation_recorded",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "method": "original_method_simulation",
+                "status": "simulated_completed",
+                "breakdown": {
+                  "tax_minor": 0,
+                  "shipping_minor": 4900,
+                  "item_subtotal_minor": 299800,
+                  "restocking_fee_minor": 0,
+                  "return_freight_minor": 0
+                },
+                "simulated": true,
+                "test_data": true,
+                "amount_minor": 304700,
+                "money_effect": "none",
+                "stock_effect": "none",
+                "currency_code": "INR",
+                "refund_simulation_id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+                "simulation_reference": "SIM-REFUND-1572BC00"
+              },
+              "occurredAt": "2026-10-28T16:43:18.524Z"
+            }
+          ],
+          "refundSimulation": {
+            "id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+            "returnCaseId": "ret_38b875490a284f808956cbaca24e3b98",
+            "operationKey": "browser-refund:chg087_qc_01",
+            "amountMinor": 304700,
+            "currencyCode": "INR",
+            "method": "original_method_simulation",
+            "status": "simulated_completed",
+            "simulationReference": "SIM-REFUND-1572BC00",
+            "breakdown": {
+              "itemSubtotalMinor": 299800,
+              "taxMinor": 0,
+              "shippingMinor": 4900,
+              "restockingFeeMinor": 0,
+              "returnFreightMinor": 0
+            },
+            "failureReason": null,
+            "createdAt": "2026-10-28T16:43:18.524Z",
+            "recordedAt": "2026-10-28T16:43:18.524Z",
+            "testData": true,
+            "simulated": true,
+            "moneyEffect": "none",
+            "stockEffect": "none"
+          }
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "seller": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "closed",
+          "version": 5,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            },
+            {
+              "id": "rete_a85718c5e401459f8650d883901faa76",
+              "eventType": "return.refund_simulation_recorded",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "status": "simulated_completed",
+                "test_data": true,
+                "simulated": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.524Z"
+            }
+          ],
+          "refundSimulation": null,
+          "seller_scope": "seller_qc_01"
+        },
+        "environment": "staging",
+        "test_data": true,
+        "seller_id": "seller_qc_01",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "meOrders": {
+        "items": [
+          {
+            "order_id": "checkout_chg087_qc_01",
+            "medusa_order_group_id": "og_chg087_qc_01",
+            "status": "confirmed",
+            "created_at": "2026-10-28T16:43:18.128Z",
+            "order_number": "BK-261028-QC087",
+            "subtotal_minor": 299800,
+            "shipping_minor": 4900,
+            "discount_minor": 0,
+            "total_minor": 304700,
+            "currency_code": "INR",
+            "lines": [
+              {
+                "line_key": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "title": "Cordless Drill Kit · 18V",
+                "quantity": 1,
+                "unit_price": 219900,
+                "product_id": "prod_qc_drill",
+                "variant_id": "variant_qc_drill",
+                "seller_id": "seller_qc_01"
+              },
+              {
+                "line_key": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "title": "Titanium Drill Bit Set · 18 pc",
+                "quantity": 1,
+                "unit_price": 79900,
+                "product_id": "prod_qc_bits",
+                "variant_id": "variant_qc_bits",
+                "seller_id": "seller_qc_01"
+              }
+            ],
+            "payment_mode": "simulated",
+            "test_data": true
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "order": {
+        "order_id": "checkout_chg087_qc_01",
+        "medusa_order_group_id": "og_chg087_qc_01",
+        "status": "confirmed",
+        "order_number": "BK-261028-QC087",
+        "subtotal_minor": 299800,
+        "shipping_minor": 4900,
+        "discount_minor": 0,
+        "total_minor": 304700,
+        "currency_code": "INR",
+        "payment_mode": "simulated",
+        "environment": "staging",
+        "test_data": true,
+        "reservation_id": "tryton_move_987654",
+        "reservation_status": "committed",
+        "reconciled": true,
+        "lines": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "quantity": 1,
+            "unit_price": 219900,
+            "product_id": "prod_qc_drill",
+            "variant_id": "variant_qc_drill",
+            "seller_id": "seller_qc_01"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "quantity": 1,
+            "unit_price": 79900,
+            "product_id": "prod_qc_bits",
+            "variant_id": "variant_qc_bits",
+            "seller_id": "seller_qc_01"
+          }
+        ],
+        "shipments": [
+          {
+            "id": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+            "orderGroupId": "og_chg087_qc_01",
+            "allocationId": "alloc_chg087_qc_01",
+            "sellerId": "seller_qc_01",
+            "provider": "simulated",
+            "trackingNumber": "SIM-737B8FD09017",
+            "status": "delivered",
+            "version": 2,
+            "allowedTransitions": [],
+            "deliveredAt": "2026-10-28T16:43:18.104Z",
+            "proofRef": "POD-CHG087_QC_01",
+            "destinationPostcode": "302001",
+            "environment": "staging",
+            "logisticsMode": "simulated",
+            "testData": true,
+            "createdAt": "2026-10-28T16:43:18.062Z",
+            "updatedAt": "2026-10-28T16:43:18.115Z",
+            "lines": [
+              {
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              },
+              {
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1
+              }
+            ],
+            "events": [
+              {
+                "id": "shev_6da3c10a6c5e4d6d86bb299467d7a7c6",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "booked:alloc_chg087_qc_01",
+                "eventType": "booked",
+                "status": "booked",
+                "occurredAt": "2026-10-28T16:43:18.062Z",
+                "receivedAt": "2026-10-28T16:43:18.062Z",
+                "payload": {
+                  "tracking_number": "SIM-737B8FD09017"
+                },
+                "testData": true
+              },
+              {
+                "id": "shev_a41e1185c8e74ebc8a3bec59f31eeb93",
+                "shipmentId": "ship_0a3ccd4d86ef4b9ea35c48cbc4a9de30",
+                "provider": "simulated",
+                "providerEventId": "delivered:chg087_qc_01",
+                "eventType": "delivered",
+                "status": "delivered",
+                "occurredAt": "2026-10-28T16:43:18.104Z",
+                "receivedAt": "2026-10-28T16:43:18.115Z",
+                "payload": {},
+                "testData": true
+              }
+            ]
+          }
+        ],
+        "return_eligibility": [
+          {
+            "line_key": "line_qc_1",
+            "sku": "BK-QC-DRILL-01",
+            "title": "Cordless Drill Kit · 18V",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          },
+          {
+            "line_key": "line_qc_2",
+            "sku": "BK-QC-BITS-02",
+            "title": "Titanium Drill Bit Set · 18 pc",
+            "ordered_qty": 1,
+            "delivered_qty": 1,
+            "requested_qty": 1,
+            "returnable_qty": 0,
+            "deadline": "2026-11-04T16:43:18.104Z",
+            "allowed_reasons": [],
+            "eligible": false,
+            "ineligible_reason": "fully_returned"
+          }
+        ],
+        "returns": [
+          {
+            "id": "ret_38b875490a284f808956cbaca24e3b98",
+            "orderId": "checkout_chg087_qc_01",
+            "orderGroupId": "og_chg087_qc_01",
+            "userId": "pilot_01",
+            "idempotencyKey": "browser-return:chg087_qc_01",
+            "policyVersion": "return-policy-2026-11-01",
+            "policySnapshot": {
+              "window_days": 7,
+              "planning_only": true,
+              "policy_version": "return-policy-2026-11-01"
+            },
+            "status": "closed",
+            "version": 5,
+            "allowedTransitions": [],
+            "resolution": "refund",
+            "reasonCode": "damaged",
+            "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+            "requestedAt": "2026-10-28T16:43:18.147Z",
+            "decidedAt": "2026-10-28T16:43:18.207Z",
+            "decidedBy": "operator_qc",
+            "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+            "environment": "staging",
+            "testData": true,
+            "lines": [
+              {
+                "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+                "lineKey": "line_qc_1",
+                "sku": "BK-QC-DRILL-01",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 219900,
+                "receivedQty": 1,
+                "condition": "damaged",
+                "disposition": "quarantine",
+                "inspectionNote": "Housing cracked; packaging crushed in transit.",
+                "inspectedAt": "2026-10-28T16:43:18.450Z",
+                "inspectedBy": "seller_qc_01"
+              },
+              {
+                "id": "retl_16701f3423214de682650ede1085be7e",
+                "lineKey": "line_qc_2",
+                "sku": "BK-QC-BITS-02",
+                "orderedQty": 1,
+                "deliveredQty": 1,
+                "requestedQty": 1,
+                "approvedQty": 1,
+                "reasonCode": "damaged",
+                "unitPriceMinor": 79900,
+                "receivedQty": 1,
+                "condition": "incomplete",
+                "disposition": "repair",
+                "inspectionNote": "Case hinge broken; bit set complete.",
+                "inspectedAt": "2026-10-28T16:43:18.450Z",
+                "inspectedBy": "seller_qc_01"
+              }
+            ],
+            "evidence": [],
+            "events": [
+              {
+                "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+                "eventType": "return.requested",
+                "actorId": "pilot_01",
+                "actorRole": "customer",
+                "detail": {
+                  "line_count": 2,
+                  "resolution": "refund",
+                  "reason_code": "damaged",
+                  "policy_version": "return-policy-2026-11-01"
+                },
+                "occurredAt": "2026-10-28T16:43:18.147Z"
+              },
+              {
+                "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+                "eventType": "return.decision",
+                "actorId": "operator_qc",
+                "actorRole": "marketplace_operator",
+                "detail": {
+                  "comment": "Photo evidence reviewed. Both lines approved for return.",
+                  "decision": "approved",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "approved_lines": [
+                    {
+                      "lineKey": "line_qc_1",
+                      "approvedQty": 1
+                    },
+                    {
+                      "lineKey": "line_qc_2",
+                      "approvedQty": 1
+                    }
+                  ]
+                },
+                "occurredAt": "2026-10-28T16:43:18.207Z"
+              },
+              {
+                "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+                "eventType": "return.status_changed",
+                "actorId": "seller_qc_01",
+                "actorRole": "seller_admin",
+                "detail": {
+                  "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                  "status": "received",
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "previous_status": "approved",
+                  "expected_version": 2,
+                  "resulting_version": 3
+                },
+                "occurredAt": "2026-10-28T16:43:18.380Z"
+              },
+              {
+                "id": "rete_db9e59da494e4784b675f277d969dee0",
+                "eventType": "return.inspection_completed",
+                "actorId": "seller_qc_01",
+                "actorRole": "seller_admin",
+                "detail": {
+                  "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                  "lines": [
+                    {
+                      "note": "Housing cracked; packaging crushed in transit.",
+                      "lineKey": "line_qc_1",
+                      "condition": "damaged",
+                      "disposition": "quarantine",
+                      "receivedQty": 1
+                    },
+                    {
+                      "note": "Case hinge broken; bit set complete.",
+                      "lineKey": "line_qc_2",
+                      "condition": "incomplete",
+                      "disposition": "repair",
+                      "receivedQty": 1
+                    }
+                  ],
+                  "simulated": true,
+                  "test_data": true,
+                  "money_effect": "none",
+                  "stock_effect": "none"
+                },
+                "occurredAt": "2026-10-28T16:43:18.450Z"
+              },
+              {
+                "id": "rete_a85718c5e401459f8650d883901faa76",
+                "eventType": "return.refund_simulation_recorded",
+                "actorId": "operator_qc",
+                "actorRole": "marketplace_operator",
+                "detail": {
+                  "method": "original_method_simulation",
+                  "status": "simulated_completed",
+                  "breakdown": {
+                    "tax_minor": 0,
+                    "shipping_minor": 4900,
+                    "item_subtotal_minor": 299800,
+                    "restocking_fee_minor": 0,
+                    "return_freight_minor": 0
+                  },
+                  "simulated": true,
+                  "test_data": true,
+                  "amount_minor": 304700,
+                  "money_effect": "none",
+                  "stock_effect": "none",
+                  "currency_code": "INR",
+                  "refund_simulation_id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+                  "simulation_reference": "SIM-REFUND-1572BC00"
+                },
+                "occurredAt": "2026-10-28T16:43:18.524Z"
+              }
+            ],
+            "refundSimulation": {
+              "id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+              "returnCaseId": "ret_38b875490a284f808956cbaca24e3b98",
+              "operationKey": "browser-refund:chg087_qc_01",
+              "amountMinor": 304700,
+              "currencyCode": "INR",
+              "method": "original_method_simulation",
+              "status": "simulated_completed",
+              "simulationReference": "SIM-REFUND-1572BC00",
+              "breakdown": {
+                "itemSubtotalMinor": 299800,
+                "taxMinor": 0,
+                "shippingMinor": 4900,
+                "restockingFeeMinor": 0,
+                "returnFreightMinor": 0
+              },
+              "failureReason": null,
+              "createdAt": "2026-10-28T16:43:18.524Z",
+              "recordedAt": "2026-10-28T16:43:18.524Z",
+              "testData": true,
+              "simulated": true,
+              "moneyEffect": "none",
+              "stockEffect": "none"
+            }
+          }
+        ],
+        "logistics_mode": "simulated",
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      },
+      "customerReturn": {
+        "return": {
+          "id": "ret_38b875490a284f808956cbaca24e3b98",
+          "orderId": "checkout_chg087_qc_01",
+          "orderGroupId": "og_chg087_qc_01",
+          "userId": "pilot_01",
+          "idempotencyKey": "browser-return:chg087_qc_01",
+          "policyVersion": "return-policy-2026-11-01",
+          "policySnapshot": {
+            "window_days": 7,
+            "planning_only": true,
+            "policy_version": "return-policy-2026-11-01"
+          },
+          "status": "closed",
+          "version": 5,
+          "allowedTransitions": [],
+          "resolution": "refund",
+          "reasonCode": "damaged",
+          "customerComment": "Both items arrived with damaged packaging; the drill housing is cracked.",
+          "requestedAt": "2026-10-28T16:43:18.147Z",
+          "decidedAt": "2026-10-28T16:43:18.207Z",
+          "decidedBy": "operator_qc",
+          "decisionComment": "Photo evidence reviewed. Both lines approved for return.",
+          "environment": "staging",
+          "testData": true,
+          "lines": [
+            {
+              "id": "retl_105bcc0635ff486f849181cf1aca1a60",
+              "lineKey": "line_qc_1",
+              "sku": "BK-QC-DRILL-01",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 219900,
+              "receivedQty": 1,
+              "condition": "damaged",
+              "disposition": "quarantine",
+              "inspectionNote": "Housing cracked; packaging crushed in transit.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            },
+            {
+              "id": "retl_16701f3423214de682650ede1085be7e",
+              "lineKey": "line_qc_2",
+              "sku": "BK-QC-BITS-02",
+              "orderedQty": 1,
+              "deliveredQty": 1,
+              "requestedQty": 1,
+              "approvedQty": 1,
+              "reasonCode": "damaged",
+              "unitPriceMinor": 79900,
+              "receivedQty": 1,
+              "condition": "incomplete",
+              "disposition": "repair",
+              "inspectionNote": "Case hinge broken; bit set complete.",
+              "inspectedAt": "2026-10-28T16:43:18.450Z",
+              "inspectedBy": "seller_qc_01"
+            }
+          ],
+          "evidence": [],
+          "events": [
+            {
+              "id": "rete_7f26400eceb54604966f8dfd1a57eea0",
+              "eventType": "return.requested",
+              "actorId": "pilot_01",
+              "actorRole": "customer",
+              "detail": {
+                "line_count": 2,
+                "resolution": "refund",
+                "reason_code": "damaged",
+                "policy_version": "return-policy-2026-11-01"
+              },
+              "occurredAt": "2026-10-28T16:43:18.147Z"
+            },
+            {
+              "id": "rete_e42eee9c59864cf1b3dad83eed208c8f",
+              "eventType": "return.decision",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "comment": "Photo evidence reviewed. Both lines approved for return.",
+                "decision": "approved",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "approved_lines": [
+                  {
+                    "lineKey": "line_qc_1",
+                    "approvedQty": 1
+                  },
+                  {
+                    "lineKey": "line_qc_2",
+                    "approvedQty": 1
+                  }
+                ]
+              },
+              "occurredAt": "2026-10-28T16:43:18.207Z"
+            },
+            {
+              "id": "rete_bf87be249c2f4d6cb915bc34038290db",
+              "eventType": "return.status_changed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Reverse pickup received at Jaipur DC and logged for inspection.",
+                "status": "received",
+                "money_effect": "none",
+                "stock_effect": "none",
+                "previous_status": "approved",
+                "expected_version": 2,
+                "resulting_version": 3
+              },
+              "occurredAt": "2026-10-28T16:43:18.380Z"
+            },
+            {
+              "id": "rete_db9e59da494e4784b675f277d969dee0",
+              "eventType": "return.inspection_completed",
+              "actorId": "seller_qc_01",
+              "actorRole": "seller_admin",
+              "detail": {
+                "note": "Both approved lines inspected on receipt. Evidence recorded only; no stock movement.",
+                "lines": [
+                  {
+                    "note": "Housing cracked; packaging crushed in transit.",
+                    "lineKey": "line_qc_1",
+                    "condition": "damaged",
+                    "disposition": "quarantine",
+                    "receivedQty": 1
+                  },
+                  {
+                    "note": "Case hinge broken; bit set complete.",
+                    "lineKey": "line_qc_2",
+                    "condition": "incomplete",
+                    "disposition": "repair",
+                    "receivedQty": 1
+                  }
+                ],
+                "simulated": true,
+                "test_data": true,
+                "money_effect": "none",
+                "stock_effect": "none"
+              },
+              "occurredAt": "2026-10-28T16:43:18.450Z"
+            },
+            {
+              "id": "rete_a85718c5e401459f8650d883901faa76",
+              "eventType": "return.refund_simulation_recorded",
+              "actorId": "operator_qc",
+              "actorRole": "marketplace_operator",
+              "detail": {
+                "method": "original_method_simulation",
+                "status": "simulated_completed",
+                "breakdown": {
+                  "tax_minor": 0,
+                  "shipping_minor": 4900,
+                  "item_subtotal_minor": 299800,
+                  "restocking_fee_minor": 0,
+                  "return_freight_minor": 0
+                },
+                "simulated": true,
+                "test_data": true,
+                "amount_minor": 304700,
+                "money_effect": "none",
+                "stock_effect": "none",
+                "currency_code": "INR",
+                "refund_simulation_id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+                "simulation_reference": "SIM-REFUND-1572BC00"
+              },
+              "occurredAt": "2026-10-28T16:43:18.524Z"
+            }
+          ],
+          "refundSimulation": {
+            "id": "refsim_891a0e1d04a144d8b17c11bbd645356a",
+            "returnCaseId": "ret_38b875490a284f808956cbaca24e3b98",
+            "operationKey": "browser-refund:chg087_qc_01",
+            "amountMinor": 304700,
+            "currencyCode": "INR",
+            "method": "original_method_simulation",
+            "status": "simulated_completed",
+            "simulationReference": "SIM-REFUND-1572BC00",
+            "breakdown": {
+              "itemSubtotalMinor": 299800,
+              "taxMinor": 0,
+              "shippingMinor": 4900,
+              "restockingFeeMinor": 0,
+              "returnFreightMinor": 0
+            },
+            "failureReason": null,
+            "createdAt": "2026-10-28T16:43:18.524Z",
+            "recordedAt": "2026-10-28T16:43:18.524Z",
+            "testData": true,
+            "simulated": true,
+            "moneyEffect": "none",
+            "stockEffect": "none"
+          }
+        },
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "chg087-browser-chg087_qc_01"
+      }
+    }
+  }
+}
