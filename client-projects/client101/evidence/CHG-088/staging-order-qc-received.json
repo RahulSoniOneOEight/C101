@@ -1,0 +1,259 @@
+{
+  "generated_at": "2026-10-28T19:09:41.660Z",
+  "phase": "received",
+  "targets": {
+    "ops": "https://ops-staging.pinakaplay.cloud"
+  },
+  "order": {
+    "admin_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+    "seller_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+    "group": "og_01M5Y5K08Z21PYDZY7M8CMS3KD"
+  },
+  "checks": [
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "order page delivery/returns section",
+      "status": "PASS",
+      "detail": "section rendered"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "no premature return-completed label",
+      "status": "PASS",
+      "detail": "legacy label absent"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "return workbench link present",
+      "status": "PASS",
+      "detail": "link to full CHG-087 workbench"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "no update form when no transition remains",
+      "status": "PASS",
+      "detail": "delivered shipments expose no further transition"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "received shows inspection pending",
+      "status": "PASS",
+      "detail": "received is not reported as completed"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "order tile shows inspection state",
+      "status": "PASS",
+      "detail": "operations tile carries inspection context"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin order page no overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "booking order exposes every allowed transition",
+      "status": "PASS",
+      "detail": "options=[\"Ready for pickup\",\"Dispatched\",\"Cancelled\"]"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/seller/orders"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller order page delivery/returns section",
+      "status": "PASS",
+      "detail": "section rendered"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "no premature return-completed label",
+      "status": "PASS",
+      "detail": "legacy label absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller never sees refund reference",
+      "status": "PASS",
+      "detail": "refund simulation redacted"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller has no refund action",
+      "status": "PASS",
+      "detail": "decision/refund actions stay with Admin"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller order page no overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "mobile",
+      "name": "seller transitions exclude admin cancellation",
+      "status": "PASS",
+      "detail": "options=[\"Ready for pickup\",\"Dispatched\"]"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "order page delivery/returns section",
+      "status": "PASS",
+      "detail": "section rendered"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "no premature return-completed label",
+      "status": "PASS",
+      "detail": "legacy label absent"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "return workbench link present",
+      "status": "PASS",
+      "detail": "link to full CHG-087 workbench"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "no update form when no transition remains",
+      "status": "PASS",
+      "detail": "delivered shipments expose no further transition"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "received shows inspection pending",
+      "status": "PASS",
+      "detail": "received is not reported as completed"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "order tile shows inspection state",
+      "status": "PASS",
+      "detail": "operations tile carries inspection context"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin order page no overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "booking order exposes every allowed transition",
+      "status": "PASS",
+      "detail": "options=[\"Ready for pickup\",\"Dispatched\",\"Cancelled\"]"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller sign-in",
+      "status": "PASS",
+      "detail": "https://ops-staging.pinakaplay.cloud/seller/orders"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller order page delivery/returns section",
+      "status": "PASS",
+      "detail": "section rendered"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "no premature return-completed label",
+      "status": "PASS",
+      "detail": "legacy label absent"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller never sees refund reference",
+      "status": "PASS",
+      "detail": "refund simulation redacted"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller has no refund action",
+      "status": "PASS",
+      "detail": "decision/refund actions stay with Admin"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller order page no overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "surface": "seller",
+      "viewport": "desktop",
+      "name": "seller transitions exclude admin cancellation",
+      "status": "PASS",
+      "detail": "options=[\"Ready for pickup\",\"Dispatched\"]"
+    }
+  ],
+  "summary": {
+    "total": 32,
+    "passed": 32,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": [],
+  "screenshots": [
+    "staging-screenshots/admin/mobile/order-received.png",
+    "staging-screenshots/admin/mobile/order-received-returns-card.png",
+    "staging-screenshots/admin/mobile/order-delivery-form.png",
+    "staging-screenshots/seller/mobile/order-received.png",
+    "staging-screenshots/seller/mobile/order-received-returns-card.png",
+    "staging-screenshots/seller/mobile/order-delivery-form.png",
+    "staging-screenshots/admin/desktop/order-received.png",
+    "staging-screenshots/admin/desktop/order-received-returns-card.png",
+    "staging-screenshots/admin/desktop/order-delivery-form.png",
+    "staging-screenshots/seller/desktop/order-received.png",
+    "staging-screenshots/seller/desktop/order-received-returns-card.png",
+    "staging-screenshots/seller/desktop/order-delivery-form.png"
+  ]
+}

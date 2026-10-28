@@ -34,10 +34,8 @@ Status: code complete; staging browser QC pending separate staging authorization
 
 ## Pending before closeout
 
-- Staging image rebuild and deployment (separately authorized).
-- Browser QC at 390×844 and 1440×900 against a staging return at received, inspection-complete and closed states.
-- Prove Seller redaction on the staging order page.
-- Exercise partial delivery/exception controls on the staging order page.
-- Record zero-effect counts and remove the staging fixture.
+Closed on 2026-10-29. See `staging-deployment.md` for the deployed release, 96/96 browser QC,
+zero-effect counts and fixture cleanup. Residual/deferred items are listed in that document and in
+`CHG-088.yaml`.
 
 Provider/legal items remain deferred: real refunds, Tryton stock disposition, Shiprocket/carrier, settlement/accounting, legal/tax wording and production release.

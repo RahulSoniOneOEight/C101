@@ -1,0 +1,18 @@
+{
+  "fixture": "chg088_staging_qc",
+  "correlation_id": "chg088-staging-qc",
+  "order_group_id": "og_01M5Y5K08Z21PYDZY7M8CMS3KD",
+  "admin_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+  "seller_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+  "delivery_order_id": "order_01M5VZ85WVBDPS2PXK0WTWH8X7",
+  "delivery_order_group_id": "og_01M5VZ85XC5VJNFNX5CGDTK281",
+  "delivery_fixture_shipment": "ship_chg088stagingqc",
+  "return_id": "ret_2cfaed38ec284cc6a6bef747e471fa8f",
+  "refund_simulation_reference": "SIM-REFUND-A03BB208",
+  "refund_amount_minor": 399000,
+  "seller": "BuildMaster Supplies",
+  "order_display": "#137",
+  "delivery_order_display": "#128",
+  "states_driven": ["requested", "approved", "received", "inspection_complete", "closed"],
+  "removed_after_qc": true
+}

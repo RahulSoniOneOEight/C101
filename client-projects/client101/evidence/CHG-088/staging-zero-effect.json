@@ -1,0 +1,66 @@
+{
+  "change_id": "CHG-088",
+  "environment": "staging",
+  "measured_at_utc": "2026-10-29T00:00:00Z",
+  "fixture": {
+    "fixture_id": "chg088_staging_qc",
+    "return_id": "ret_2cfaed38ec284cc6a6bef747e471fa8f",
+    "order_group_id": "og_01M5Y5K08Z21PYDZY7M8CMS3KD",
+    "admin_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+    "seller_order_id": "order_01M5Y5K08DDZDPARWB2X73YG6Q",
+    "delivery_order_id": "order_01M5VZ85WVBDPS2PXK0WTWH8X7",
+    "delivery_fixture_shipment": "ship_chg088stagingqc",
+    "refund_simulation_reference": "SIM-REFUND-A03BB208",
+    "refund_amount_minor": 399000,
+    "final_return_status": "closed"
+  },
+  "before": {
+    "medusa": {
+      "payment": 20,
+      "refund": 1,
+      "order_transaction": 1,
+      "payment_collection": 31,
+      "payment_session": 31
+    },
+    "tryton": {
+      "stock_move": 55,
+      "stock_shipment_in": 0,
+      "stock_shipment_out": 0,
+      "stock_shipment_out_return": 0
+    }
+  },
+  "after": {
+    "medusa": {
+      "payment": 20,
+      "refund": 1,
+      "order_transaction": 1,
+      "payment_collection": 31,
+      "payment_session": 31
+    },
+    "tryton": {
+      "stock_move": 55,
+      "stock_shipment_in": 0,
+      "stock_shipment_out": 0,
+      "stock_shipment_out_return": 0
+    }
+  },
+  "effects": {
+    "refund": "none",
+    "payment": "none",
+    "inventory": "none",
+    "accounting": "none",
+    "carrier": "none",
+    "notification_delivery_attempts": 0
+  },
+  "residue_after_cleanup": {
+    "fixture_return_cases": 0,
+    "fixture_return_events": 0,
+    "fixture_refund_simulations": 0,
+    "fixture_shipments": 0,
+    "fixture_domain_events": 0,
+    "fixture_notifications": 0,
+    "return_cases_total": 4,
+    "shipments_total": 35
+  },
+  "assertion": "before == after; fixture script failed closed on any count change"
+}

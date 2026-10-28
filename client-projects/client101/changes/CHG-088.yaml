@@ -1,6 +1,6 @@
 change_id: CHG-088
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Align the native Admin and Seller order-detail operations with the CHG-087 return lifecycle and
   extend order-page fulfillment controls, without replacing native Mercur order management or
@@ -23,7 +23,9 @@ staging_deployment_authorized_at_utc: '2026-10-29'
 staging_deployment_approval_source: chat-authorize-chg088-staging-deployment
 staging_deploy_owner: requester-authorized-opencode-agent
 production_release_authorized: false
-staging_deployment_status: authorized-in-progress
+staging_deployment_status: staging-deployed-verified
+staging_deployed_at_utc: '2026-10-29'
+staging_release_commit: 2bdc55503
 
 lane: B
 release_mechanism:
@@ -108,37 +110,37 @@ requirements:
   outcome: >-
     Admin order detail shows the full CHG-087 return state, inspection evidence status and
     simulated refund projection, with a link to the return workbench.
-  status: pass-code
+  status: pass
 - id: R2
   name: Seller return context
   outcome: >-
     Seller order detail shows scoped return and inspection status but no refund amount, breakdown,
     simulation reference, decision or closure action.
-  status: pass-code
+  status: pass
 - id: R3
   name: No order-page closure bypass
   outcome: >-
     Receipt, inspection, refund simulation and refund-return closure are not available from the
     order page; only the full return workbench can perform them.
-  status: pass-code
+  status: pass
 - id: R4
   name: Fulfillment depth
   outcome: >-
     Admin and Seller order pages expose partial delivery, attempts, buyer action, delay, exceptions,
     proof and per-line quantities through the existing versioned shipment API.
-  status: pass-code
+  status: pass
 - id: R5
   name: Summary accuracy
   outcome: >-
     Order operations tiles reflect inspection pending/complete and simulated refunds without
     claiming that real money or stock moved.
-  status: pass-code
+  status: pass
 - id: R6
   name: Verification and cleanup
   outcome: >-
     Local typecheck/build and browser QC pass at 390x844 and 1440x900, Seller redaction is proven,
     and no staging fixture or provider effect remains.
-  status: pass-code
+  status: pass
 
 scope_lock:
   allowed_paths:
@@ -166,8 +168,10 @@ scope_lock:
 baseline:
   branch: feat/bt-sku-pairs
   head: bf9247e
+  release_commit: 2bdc55503
   staging_release: 0dfdbff
-  staging_current: release-0dfdbff
+  staging_current_before: release-0dfdbff
+  staging_current_after: release-2bdc555
 
 required_tests:
 - Admin order detail shows received/inspection pending, inspection complete and simulated refund states accurately.
@@ -181,9 +185,12 @@ required_tests:
 
 verification:
   local_completed_at_utc: '2026-10-29'
-  environment: local-static
-  result: pass-code
-  staging_deployed: false
+  environment: staging
+  result: pass
+  staging_deployed: true
+  staging_release_commit: 2bdc55503
+  staging_current: release-2bdc555
+  staging_rollback_release: release-0dfdbff
   production_released: false
   admin_typecheck: pass
   vendor_typecheck: pass
@@ -193,17 +200,27 @@ verification:
   - Open return workbench
   - Inspection complete
   - Partially delivered
-  browser_qc: pending-staging-authorization
+  browser_qc: pass-96-of-96
+  browser_qc_viewports:
+  - 390x844
+  - 1440x900
+  browser_qc_console_errors: 0
+  browser_qc_failed_requests: 0
+  delivery_option_derivation: pass-admin-3-seller-2
+  partial_delivery_api_acceptance: pass
+  seller_refund_redaction: pass
   schema_changes: none
   medusa_financial_rows_changed: false
   tryton_stock_rows_changed: false
+  notification_delivery_attempts_during_qc: 0
+  staging_fixture_residue: 0
   evidence_dir: client-projects/client101/evidence/CHG-088
-  staging_deployment_status: not-authorized
+  staging_deployment_status: staging-deployed-verified
 
 rollback:
   code: revert only the four order widget files and CHG-088 governance/evidence additions
-  data: remove only the CHG-088 smoke fixture
-  staging: not applicable until separately authorized
+  data: remove only the CHG-088 QC fixture
+  staging: tag rollback-0dfdbff, point current at release-0dfdbff, recreate medusa-api, restart proxy
   production: not-applicable-not-authorized
 
 deferred:
@@ -222,7 +239,16 @@ deferred:
 - id: D5
   name: Production release
   reason: Legal/tax review and human production authorization remain required.
+- id: D6
+  name: Browser-submitted partial delivery on a disposable order
+  reason: >-
+    The one-shipment-per-seller-per-group constraint and the lack of a disposable Medusa order
+    prevented a safe browser submission against a live order. The payload is proven through the
+    Admin API and the option set through the rendered form.
+- id: D7
+  name: Customer web return initiation and evidence upload
+  reason: Outside CHG-088 scope; owner-scoped return creation exists in the API but has no web surface yet.
 
 approval_checkpoint: >-
-  The requester selected native-page enhancement on 2026-10-29. Local implementation is authorized;
-  staging deployment requires a separate scoped-release authorization.
+  The requester selected native-page enhancement on 2026-10-29 and separately authorized the scoped
+  staging deployment. CHG-088 is deployed at 2bdc555 and verified. Production remains unauthorized.
