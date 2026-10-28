@@ -1,0 +1,111 @@
+{
+  "generated_at": "2026-10-28T20:03:30.694Z",
+  "target": "http://localhost:3100",
+  "api": "https://api-staging.pinakaplay.cloud",
+  "read_only": true,
+  "checks": [
+    {
+      "viewport": "mobile",
+      "name": "returns nav link",
+      "status": "PASS",
+      "detail": "primary navigation"
+    },
+    {
+      "viewport": "mobile",
+      "name": "returns page loads",
+      "status": "PASS",
+      "detail": "http://localhost:3100/returns"
+    },
+    {
+      "viewport": "mobile",
+      "name": "existing return listed",
+      "status": "PASS",
+      "detail": "rows=3"
+    },
+    {
+      "viewport": "mobile",
+      "name": "status vocabulary",
+      "status": "PASS",
+      "detail": "status label rendered"
+    },
+    {
+      "viewport": "mobile",
+      "name": "not-a-refund wording",
+      "status": "PASS",
+      "detail": "boundary wording"
+    },
+    {
+      "viewport": "mobile",
+      "name": "row links to return detail",
+      "status": "PASS",
+      "detail": "/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "mobile",
+      "name": "detail opens from the list",
+      "status": "PASS",
+      "detail": "http://localhost:3100/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    },
+    {
+      "viewport": "desktop",
+      "name": "returns nav link",
+      "status": "PASS",
+      "detail": "primary navigation"
+    },
+    {
+      "viewport": "desktop",
+      "name": "returns page loads",
+      "status": "PASS",
+      "detail": "http://localhost:3100/returns"
+    },
+    {
+      "viewport": "desktop",
+      "name": "existing return listed",
+      "status": "PASS",
+      "detail": "rows=3"
+    },
+    {
+      "viewport": "desktop",
+      "name": "status vocabulary",
+      "status": "PASS",
+      "detail": "status label rendered"
+    },
+    {
+      "viewport": "desktop",
+      "name": "not-a-refund wording",
+      "status": "PASS",
+      "detail": "boundary wording"
+    },
+    {
+      "viewport": "desktop",
+      "name": "row links to return detail",
+      "status": "PASS",
+      "detail": "/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "desktop",
+      "name": "detail opens from the list",
+      "status": "PASS",
+      "detail": "http://localhost:3100/returns/ret_70822cba4baa4d80af8200e5361c7446"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "width within viewport"
+    }
+  ],
+  "summary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": []
+}

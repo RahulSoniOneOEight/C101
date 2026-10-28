@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <nav className="site-nav" aria-label="Primary navigation">
             <Link href="/">Catalogue</Link>
             <Link href="/orders">Orders</Link>
+            <Link href="/returns">Returns</Link>
           </nav>
           <span className="env-badge">staging · simulated</span>
         </header>

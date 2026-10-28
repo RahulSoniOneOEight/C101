@@ -316,6 +316,18 @@ export async function getMyReturn(
   return result.return;
 }
 
+/** Owner-scoped list of the signed-in customer's return requests. */
+export async function listMyReturns(
+  sessionToken: string,
+  limit = 50,
+): Promise<CustomerReturn[]> {
+  const result = await call<{ items: CustomerReturn[] }>(
+    `/v1/me/returns?limit=${Math.max(1, Math.min(limit, 100))}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.items ?? [];
+}
+
 /**
  * Owner-scoped return request. Eligibility, allowed reasons and returnable quantities are
  * server-computed; this client only forwards the customer's choice and the idempotency key.
