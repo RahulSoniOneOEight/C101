@@ -1,0 +1,124 @@
+{
+  "generated_at": "2026-10-28T19:37:32.409Z",
+  "target": "http://localhost:3100",
+  "api": "https://api-staging.pinakaplay.cloud",
+  "read_only": true,
+  "order_id": "cart_01M5Y54HVDTDJ2MTP6X45Q5W9R",
+  "checks": [
+    {
+      "viewport": "mobile",
+      "name": "owner sign-in",
+      "status": "PASS",
+      "detail": "http://localhost:3100/orders"
+    },
+    {
+      "viewport": "mobile",
+      "name": "start-return CTA visible",
+      "status": "PASS",
+      "detail": "order page offers return initiation"
+    },
+    {
+      "viewport": "mobile",
+      "name": "returnable units shown",
+      "status": "PASS",
+      "detail": "per-line returnable quantity"
+    },
+    {
+      "viewport": "mobile",
+      "name": "return form renders lines",
+      "status": "PASS",
+      "detail": "rows=6"
+    },
+    {
+      "viewport": "mobile",
+      "name": "reason options present",
+      "status": "PASS",
+      "detail": "policy reasons rendered"
+    },
+    {
+      "viewport": "mobile",
+      "name": "submit disabled with zero quantity",
+      "status": "PASS",
+      "detail": "no empty request possible"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no money-moves-yet copy",
+      "status": "PASS",
+      "detail": "boundary wording present"
+    },
+    {
+      "viewport": "mobile",
+      "name": "submit enabled after quantity",
+      "status": "PASS",
+      "detail": "quantity unblocks submit"
+    },
+    {
+      "viewport": "mobile",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "viewport": "desktop",
+      "name": "owner sign-in",
+      "status": "PASS",
+      "detail": "http://localhost:3100/orders"
+    },
+    {
+      "viewport": "desktop",
+      "name": "start-return CTA visible",
+      "status": "PASS",
+      "detail": "order page offers return initiation"
+    },
+    {
+      "viewport": "desktop",
+      "name": "returnable units shown",
+      "status": "PASS",
+      "detail": "per-line returnable quantity"
+    },
+    {
+      "viewport": "desktop",
+      "name": "return form renders lines",
+      "status": "PASS",
+      "detail": "rows=6"
+    },
+    {
+      "viewport": "desktop",
+      "name": "reason options present",
+      "status": "PASS",
+      "detail": "policy reasons rendered"
+    },
+    {
+      "viewport": "desktop",
+      "name": "submit disabled with zero quantity",
+      "status": "PASS",
+      "detail": "no empty request possible"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no money-moves-yet copy",
+      "status": "PASS",
+      "detail": "boundary wording present"
+    },
+    {
+      "viewport": "desktop",
+      "name": "submit enabled after quantity",
+      "status": "PASS",
+      "detail": "quantity unblocks submit"
+    },
+    {
+      "viewport": "desktop",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    }
+  ],
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0
+  },
+  "console_errors": [],
+  "failed_requests": []
+}

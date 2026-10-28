@@ -33,6 +33,13 @@ export default async function OrderDetailPage({
     throw error;
   }
 
+  const returnable = (order.return_eligibility ?? []).filter(
+    (line) => line.eligible && line.returnable_qty > 0,
+  );
+  const returnableByLine = new Map(
+    returnable.map((line) => [line.line_key, line.returnable_qty]),
+  );
+
   return (
     <section>
       <Link className="back-link" href="/orders">← All orders</Link>
@@ -53,7 +60,12 @@ export default async function OrderDetailPage({
               <div className="line-row" key={line.line_key}>
                 <div>
                   <strong>{line.title}</strong>
-                  <span className="muted">SKU {line.sku} · Qty {line.quantity}</span>
+                  <span className="muted">
+                    SKU {line.sku} · Qty {line.quantity}
+                    {returnableByLine.get(line.line_key)
+                      ? ` · ${returnableByLine.get(line.line_key)} returnable`
+                      : ""}
+                  </span>
                 </div>
                 <span>{formatMoney(line.unit_price * line.quantity, order.currency_code)}</span>
               </div>
@@ -123,6 +135,20 @@ export default async function OrderDetailPage({
             ))}
           </div>
         )}
+        {returnable.length > 0 ? (
+          <div className="return-cta">
+            <Link
+              className="button"
+              href={`/orders/${encodeURIComponent(order.order_id)}/returns/new`}
+            >
+              Start a return
+            </Link>
+            <span className="field-hint">
+              {returnable.reduce((total, line) => total + line.returnable_qty, 0)} unit(s) across{" "}
+              {returnable.length} item(s) can be returned.
+            </span>
+          </div>
+        ) : null}
       </article>
 
       <div className="boundary-note">
