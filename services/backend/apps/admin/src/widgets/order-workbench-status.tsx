@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Container, Heading } from "@medusajs/ui";
+import { Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
@@ -26,6 +26,7 @@ type OrderContext = {
   payment_status?: string | null;
   currency_code?: string | null;
   total?: number | null;
+  metadata?: Record<string, unknown> | null;
   summary?: {
     total?: number | null;
     refunded_total?: number | null;
@@ -80,6 +81,14 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     : refundedTotal > 0
       ? formatCurrency(refundedTotal, currencyCode)
       : "No refund";
+
+  const channel =
+    typeof order.metadata?.channel === "string" ? order.metadata.channel : null;
+  const isB2B = channel === "b2b";
+  const businessAccountId =
+    typeof order.metadata?.business_account_id === "string"
+      ? order.metadata.business_account_id
+      : null;
 
   const statusItems: StatusStripItem[] = [
     {
@@ -150,6 +159,16 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   }
 
   const reconciliationRows = [
+    ...(isB2B
+      ? [
+          {
+            label: "Channel",
+            status: "B2B trade",
+            tone: "blue" as Tone,
+            detail: businessAccountId ?? "Business buyer",
+          },
+        ]
+      : []),
     {
       label: "Payment",
       status: paymentLabel,
@@ -180,9 +199,20 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     <section aria-labelledby="order-workbench-title">
       <Container className="p-0">
         <div className="px-6 py-4">
-          <Heading id="order-workbench-title" level="h2">
-            Order operations
-          </Heading>
+          <div className="flex flex-wrap items-center gap-2">
+            <Heading id="order-workbench-title" level="h2">
+              Order operations
+            </Heading>
+            {isB2B ? (
+              <StatusBadge color="purple">B2B trade order</StatusBadge>
+            ) : null}
+          </div>
+          {isB2B ? (
+            <Text size="small" className="mt-1 text-ui-fg-subtle">
+              B2B channel · business account{" "}
+              {businessAccountId ?? "business buyer"}
+            </Text>
+          ) : null}
           <StatusStrip items={statusItems} />
           <AttentionStack items={attention} />
           <SectionNav sections={ADMIN_SECTIONS} />
