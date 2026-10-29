@@ -6,13 +6,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { client } from "../lib/client";
+import { PaymentsCard, usePreviewMode } from "../components/order-preview";
 
 type OrderContext = {
   id: string;
   display_id?: number | string | null;
   payment_status?: string | null;
   currency_code?: string | null;
+  total?: number | null;
   summary?: {
+    total?: number | null;
     refunded_total?: number | null;
   } | null;
 };
@@ -506,6 +509,9 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
     onError: (error) => toast.error((error as Error).message || "Return decision failed"),
   });
 
+  const mode = usePreviewMode();
+  const isAdmin = mode === "admin";
+
   if (!order) return null;
   if (orderGroup.isPending || (orderGroupId && lifecycle.isPending)) {
     return (
@@ -569,6 +575,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
 
   return (
     <section className="flex flex-col gap-y-3" aria-label="Delivery and returns">
+      <PaymentsCard order={order} mode={mode} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-3 xl:col-span-2">
           <Container className="divide-y p-0">
@@ -595,6 +602,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                     const ordered = orderedQuantity(shipment);
                     const progress = ordered > 0 ? (delivered / ordered) * 100 : 0;
                     const hasDeliveryOptions =
+                      isAdmin &&
                       capabilities.can_update_delivery &&
                       shipment.allowedTransitions.length > 0;
                     return (
@@ -657,9 +665,11 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
                           <Text size="xsmall" className="mt-3 text-ui-fg-subtle">
                             {shipment.status === "delivered"
                               ? "Completed — no further delivery updates."
-                              : capabilities.can_update_delivery
-                                ? "No further delivery status is available."
-                                : "Delivery updates are not available for this order."}
+                              : !isAdmin
+                                ? "Delivery updates are managed by the marketplace or seller portal."
+                                : capabilities.can_update_delivery
+                                  ? "No further delivery status is available."
+                                  : "Delivery updates are not available for this order."}
                           </Text>
                         )}
                       </article>
@@ -695,7 +705,7 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
               ) : (
                 <div className="flex flex-col gap-3">
                   {data.returns.map((record) => {
-                    const canDecide = ["requested", "under_review"].includes(record.status);
+                    const canDecide = isAdmin && ["requested", "under_review"].includes(record.status);
                     return (
                       <article
                         key={record.id}
