@@ -134,6 +134,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
+- change_id: CHG-096
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: admin-order-detail-remove-role-preview-banner-admin-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -807,22 +811,25 @@ active_changes:
 - change_id: CHG-096
   status: staging-deployed-verified
   approval_required: true
-  approval_scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
+  approval_scope: admin-order-detail-status-strip-payments-card-admin-only-staging-only
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   proposal: client-projects/client101/changes/CHG-096.yaml
+  revision: 2
   lane: B
   release_mechanism:
   - api+ui
   - image-rebuild
-  scope: admin-order-detail-top-chrome-and-role-preview
+  scope: admin-order-detail-top-chrome-admin-only
   release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   implementation_authorized: true
   local_implementation_status: pass-source
   typecheck: pass
   build: pass
-  browser_qc: pass-56-of-56
+  browser_qc: pass-28-of-28
   browser_qc_mode: staging-admin-order-detail
+  admin_only_order_page: true
+  role_preview_banner_removed: true
   staging_data_write_authorized: false
   staging_deployment_authorized: true
   staging_deployment_authorized_at_utc: '2026-10-29'
@@ -830,12 +837,12 @@ active_changes:
   staging_deployment_status: staging-deployed-verified
   staging_baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   staging_baseline_path: /opt/buildkart-releases/release-b7f93b9
-  staging_release_commit: 5f6c90b115d0cd961b2123eb9a79b50a05b42195
-  staging_release_path: /opt/buildkart-releases/release-5f6c90b
-  staging_current: release-5f6c90b
+  staging_release_commit: 6c776fc60223668ab40d07fe93a95658bced5219
+  staging_release_path: /opt/buildkart-releases/release-6c776fc
+  staging_current: release-6c776fc
   staging_rollback_release: release-b7f93b9
-  staging_medusa_image: sha256:eb5e1500cbc0
-  staging_browser_qc: pass-56-of-56
+  staging_medusa_image: sha256:89d711b7801a
+  staging_browser_qc: pass-28-of-28
   staging_public_health: pass-4-of-4
   staging_console_errors: 0
   staging_unexpected_failed_requests: 0
@@ -848,7 +855,7 @@ active_changes:
   requirements:
     R1_status_strip: pass
     R2_payments_card: pass
-    R3_role_mode_switch: pass
+    R3_admin_only_order_page: pass
     R4_mobile_layout: pass
     R5_native_action_parity: pass
     R6_accessibility: pass

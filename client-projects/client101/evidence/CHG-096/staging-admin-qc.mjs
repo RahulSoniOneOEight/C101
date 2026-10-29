@@ -1,5 +1,8 @@
 /* CHG-096 staging Admin order-detail QC.
  * Run: node client-projects/client101/evidence/CHG-096/staging-admin-qc.mjs
+ *
+ * Admin and Seller are separate portals. This QC verifies the Admin order
+ * page is Admin-only and no longer renders the role-preview banner.
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -13,7 +16,7 @@ fs.mkdirSync(shotRoot, { recursive: true });
 const baseAdmin = "https://ops-staging.pinakaplay.cloud/dashboard";
 const orderId = "order_01M633BSHHWEMM9YT6K5S7PVCZ";
 const orderNumber = "BK-261029-WT4R93";
-const release = "5f6c90b";
+const release = "6c776fc";
 
 // Admin credentials are read from the local-only staging access file.
 const accessPath = path.join(process.env.USERPROFILE || "/root", ".buildkart/staging-access.txt");
@@ -94,27 +97,27 @@ const viewports = [
     await page.getByRole("heading", { name: "Payments" }).first().scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
     const bodyText = await page.locator("body").innerText();
+    const bodyTextUpper = bodyText.toUpperCase();
     const orderPresent = bodyText.includes("#151") || bodyText.includes(orderNumber);
     record("admin", viewport.name, "order page loads", orderPresent, `order #151 present`);
     record("admin", viewport.name, "no horizontal overflow", await noOverflow(page), "document width within viewport");
     await shot(page, "admin", viewport.name, "order-admin-default");
 
-    // R1: Status strip
+    // R1: Admin status strip
     record(
       "admin",
       viewport.name,
       "status strip shows Payment",
-      bodyText.includes("Payment") && bodyText.includes("Delivery") && bodyText.includes("Returns") && bodyText.includes("Refund"),
+      bodyTextUpper.includes("PAYMENT") && bodyTextUpper.includes("DELIVERY") && bodyTextUpper.includes("RETURNS") && bodyTextUpper.includes("REFUND"),
       "Payment/Delivery/Returns/Refund tiles present",
     );
 
     // R2: Payments card
-    const bodyTextUpper = bodyText.toUpperCase();
     record(
       "admin",
       viewport.name,
       "Payments card present",
-      bodyTextUpper.includes("PAYMENTS") && bodyTextUpper.includes("AUTHORIZED") && bodyTextUpper.includes("CAPTURED") && bodyTextUpper.includes("REFUNDED") && bodyTextUpper.includes("OUTSTANDING"),
+      bodyTextUpper.includes("AUTHORIZED") && bodyTextUpper.includes("CAPTURED") && bodyTextUpper.includes("REFUNDED") && bodyTextUpper.includes("OUTSTANDING"),
       "payments amounts present",
     );
     record(
@@ -132,35 +135,45 @@ const viewports = [
       "outstanding amount matches order total",
     );
 
-    // R3: Role-mode banner
-    const switchLabels = ["Admin", "Seller", "App", "Web"];
-    for (const label of switchLabels) {
-      record(
-        "admin",
-        viewport.name,
-        `role-mode banner has ${label} link`,
-        (await page.getByRole("link", { name: label, exact: true }).count()) > 0,
-        `${label} link present`,
-      );
-    }
+    // R3: Admin-only page; role-preview banner removed
     record(
       "admin",
       viewport.name,
-      "role-mode banner shows Preview as",
-      bodyTextUpper.includes("PREVIEW AS"),
-      "banner label present",
+      "role preview banner removed",
+      !bodyTextUpper.includes("PREVIEW AS") &&
+        !bodyText.includes("You see payment, delivery and return operations across the marketplace."),
+      "no Preview as / Admin view banner",
+    );
+    record(
+      "admin",
+      viewport.name,
+      "role preview links removed",
+      (await page.getByRole("link", { name: "Seller", exact: true }).count()) === 0 &&
+        (await page.getByRole("link", { name: "App", exact: true }).count()) === 0 &&
+        (await page.getByRole("link", { name: "Web", exact: true }).count()) === 0,
+      "no Seller/App/Web preview links",
     );
 
-    // R4: Reconciliation card (Admin only)
+    // R4: Admin section navigation
+    record(
+      "admin",
+      viewport.name,
+      "Jump to nav present",
+      bodyTextUpper.includes("JUMP TO") && bodyTextUpper.includes("SUMMARY") && bodyTextUpper.includes("PAYMENTS"),
+      "Admin section nav present",
+    );
+
+    // R5: Reconciliation card
     record(
       "admin",
       viewport.name,
       "reconciliation card present",
-      bodyTextUpper.includes("SYSTEM RECONCILIATION") && bodyTextUpper.includes("PAYMENT") && bodyTextUpper.includes("DELIVERY") && bodyTextUpper.includes("RETURNS") && bodyTextUpper.includes("REFUND"),
+      bodyTextUpper.includes("SYSTEM RECONCILIATION") &&
+        bodyTextUpper.includes("ONE FLOW, INDEPENDENTLY VERIFIABLE EFFECTS"),
       "system reconciliation rows present",
     );
 
-    // R5: Attention stack for authorized payment
+    // R6: Attention stack for authorized payment
     record(
       "admin",
       viewport.name,
@@ -169,52 +182,19 @@ const viewports = [
       "capture attention item present",
     );
 
-    // Switch to Seller mode
-    await page.getByRole("link", { name: "Seller", exact: true }).click();
-    await page.waitForURL((url) => url.searchParams.get("previewMode") === "seller", { timeout: 15000 });
-    await page.waitForLoadState("networkidle");
-    const sellerText = await page.locator("body").innerText();
-    record("admin", viewport.name, "seller mode banner shows", sellerText.toUpperCase().includes("SELLER VIEW"), "seller perspective banner");
-    record("admin", viewport.name, "seller mode hides native payment controls", !sellerText.toUpperCase().includes("NATIVE MEDUSA PAYMENT CONTROLS"), "native controls hidden in seller mode");
-    record("admin", viewport.name, "seller mode no horizontal overflow", await noOverflow(page), "document width within viewport");
-    await shot(page, "admin", viewport.name, "order-admin-seller-mode");
-
-    // R6: Seller mode simplified status strip
-    record("admin", viewport.name, "seller mode hides Jump to nav", !sellerText.toUpperCase().includes("JUMP TO"), "section nav hidden in seller mode");
-    record("admin", viewport.name, "seller mode status strip simplified", sellerText.toUpperCase().includes("DELIVERY") && sellerText.toUpperCase().includes("RETURNS"), "delivery + returns tiles present");
-
-    // Switch to App mode
-    await page.getByRole("link", { name: "App", exact: true }).click();
-    await page.waitForURL((url) => url.searchParams.get("previewMode") === "app", { timeout: 15000 });
-    await page.waitForLoadState("networkidle");
-    const appText = await page.locator("body").innerText();
-    record("admin", viewport.name, "app mode banner shows", appText.toUpperCase().includes("CUSTOMER APP VIEW"), "app perspective banner");
-    record("admin", viewport.name, "app mode shows Order status tile", appText.toUpperCase().includes("ORDER STATUS"), "single status tile for app mode");
-    record("admin", viewport.name, "app mode hides Jump to nav", !appText.toUpperCase().includes("JUMP TO"), "section nav hidden in app mode");
-    await shot(page, "admin", viewport.name, "order-admin-app-mode");
-
-    // Switch to Web mode
-    await page.getByRole("link", { name: "Web", exact: true }).click();
-    await page.waitForURL((url) => url.searchParams.get("previewMode") === "web", { timeout: 15000 });
-    await page.waitForLoadState("networkidle");
-    const webText = await page.locator("body").innerText();
-    record("admin", viewport.name, "web mode banner shows", webText.toUpperCase().includes("CUSTOMER WEB VIEW"), "web perspective banner");
-    record("admin", viewport.name, "web mode shows Order status tile", webText.toUpperCase().includes("ORDER STATUS"), "single status tile for web mode");
-    record("admin", viewport.name, "web mode hides Jump to nav", !webText.toUpperCase().includes("JUMP TO"), "section nav hidden in web mode");
-    await shot(page, "admin", viewport.name, "order-admin-web-mode");
-
-    // Back to Admin mode and verify native actions reachable
-    await page.getByRole("link", { name: "Admin", exact: true }).first().click();
-    await page.waitForURL((url) => !url.searchParams.has("previewMode"), { timeout: 15000 });
-    await page.waitForLoadState("networkidle");
-    const adminText = await page.locator("body").innerText();
-    record("admin", viewport.name, "admin mode banner shows", adminText.toUpperCase().includes("ADMIN VIEW"), "admin perspective banner");
-    record("admin", viewport.name, "admin mode shows native payment controls", adminText.toUpperCase().includes("NATIVE MEDUSA PAYMENT CONTROLS"), "native controls present in admin mode");
+    // R7: Native actions remain reachable
+    record(
+      "admin",
+      viewport.name,
+      "admin mode shows native payment controls",
+      bodyTextUpper.includes("NATIVE MEDUSA PAYMENT CONTROLS"),
+      "native controls present",
+    );
     record(
       "admin",
       viewport.name,
       "admin mode delivery update control present",
-      adminText.toUpperCase().includes("UPDATE DELIVERY STATUS") || adminText.toUpperCase().includes("NO FURTHER DELIVERY"),
+      bodyTextUpper.includes("UPDATE DELIVERY STATUS") || bodyTextUpper.includes("NO FURTHER DELIVERY"),
       "delivery section rendered",
     );
     await shot(page, "admin", viewport.name, "order-admin-admin-mode");

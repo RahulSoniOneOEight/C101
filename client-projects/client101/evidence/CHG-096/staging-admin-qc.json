@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-10-29T16:22:34.646Z",
+  "timestamp": "2026-10-29T16:47:00.437Z",
   "orderId": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
   "orderNumber": "BK-261029-WT4R93",
-  "release": "5f6c90b",
+  "release": "6c776fc",
   "checks": [
     {
       "surface": "admin",
@@ -56,37 +56,23 @@
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode banner has Admin link",
+      "name": "role preview banner removed",
       "status": "PASS",
-      "detail": "Admin link present"
+      "detail": "no Preview as / Admin view banner"
     },
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode banner has Seller link",
+      "name": "role preview links removed",
       "status": "PASS",
-      "detail": "Seller link present"
+      "detail": "no Seller/App/Web preview links"
     },
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode banner has App link",
+      "name": "Jump to nav present",
       "status": "PASS",
-      "detail": "App link present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "role-mode banner has Web link",
-      "status": "PASS",
-      "detail": "Web link present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "role-mode banner shows Preview as",
-      "status": "PASS",
-      "detail": "banner label present"
+      "detail": "Admin section nav present"
     },
     {
       "surface": "admin",
@@ -105,93 +91,9 @@
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "seller mode banner shows",
-      "status": "PASS",
-      "detail": "seller perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "seller mode hides native payment controls",
-      "status": "PASS",
-      "detail": "native controls hidden in seller mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "seller mode no horizontal overflow",
-      "status": "PASS",
-      "detail": "document width within viewport"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "seller mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in seller mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "seller mode status strip simplified",
-      "status": "PASS",
-      "detail": "delivery + returns tiles present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "app mode banner shows",
-      "status": "PASS",
-      "detail": "app perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "app mode shows Order status tile",
-      "status": "PASS",
-      "detail": "single status tile for app mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "app mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in app mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "web mode banner shows",
-      "status": "PASS",
-      "detail": "web perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "web mode shows Order status tile",
-      "status": "PASS",
-      "detail": "single status tile for web mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "web mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in web mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
-      "name": "admin mode banner shows",
-      "status": "PASS",
-      "detail": "admin perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "desktop",
       "name": "admin mode shows native payment controls",
       "status": "PASS",
-      "detail": "native controls present in admin mode"
+      "detail": "native controls present"
     },
     {
       "surface": "admin",
@@ -252,37 +154,23 @@
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode banner has Admin link",
+      "name": "role preview banner removed",
       "status": "PASS",
-      "detail": "Admin link present"
+      "detail": "no Preview as / Admin view banner"
     },
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode banner has Seller link",
+      "name": "role preview links removed",
       "status": "PASS",
-      "detail": "Seller link present"
+      "detail": "no Seller/App/Web preview links"
     },
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode banner has App link",
+      "name": "Jump to nav present",
       "status": "PASS",
-      "detail": "App link present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "role-mode banner has Web link",
-      "status": "PASS",
-      "detail": "Web link present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "role-mode banner shows Preview as",
-      "status": "PASS",
-      "detail": "banner label present"
+      "detail": "Admin section nav present"
     },
     {
       "surface": "admin",
@@ -301,93 +189,9 @@
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "seller mode banner shows",
-      "status": "PASS",
-      "detail": "seller perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "seller mode hides native payment controls",
-      "status": "PASS",
-      "detail": "native controls hidden in seller mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "seller mode no horizontal overflow",
-      "status": "PASS",
-      "detail": "document width within viewport"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "seller mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in seller mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "seller mode status strip simplified",
-      "status": "PASS",
-      "detail": "delivery + returns tiles present"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "app mode banner shows",
-      "status": "PASS",
-      "detail": "app perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "app mode shows Order status tile",
-      "status": "PASS",
-      "detail": "single status tile for app mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "app mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in app mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "web mode banner shows",
-      "status": "PASS",
-      "detail": "web perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "web mode shows Order status tile",
-      "status": "PASS",
-      "detail": "single status tile for web mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "web mode hides Jump to nav",
-      "status": "PASS",
-      "detail": "section nav hidden in web mode"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
-      "name": "admin mode banner shows",
-      "status": "PASS",
-      "detail": "admin perspective banner"
-    },
-    {
-      "surface": "admin",
-      "viewport": "mobile",
       "name": "admin mode shows native payment controls",
       "status": "PASS",
-      "detail": "native controls present in admin mode"
+      "detail": "native controls present"
     },
     {
       "surface": "admin",
@@ -398,7 +202,7 @@
     }
   ],
   "summary": {
-    "pass": 56,
+    "pass": 28,
     "fail": 0,
     "consoleErrors": 0,
     "failedRequests": 0
@@ -407,14 +211,8 @@
   "failedRequests": [],
   "screenshots": [
     "screenshots/admin/desktop/order-admin-default.png",
-    "screenshots/admin/desktop/order-admin-seller-mode.png",
-    "screenshots/admin/desktop/order-admin-app-mode.png",
-    "screenshots/admin/desktop/order-admin-web-mode.png",
     "screenshots/admin/desktop/order-admin-admin-mode.png",
     "screenshots/admin/mobile/order-admin-default.png",
-    "screenshots/admin/mobile/order-admin-seller-mode.png",
-    "screenshots/admin/mobile/order-admin-app-mode.png",
-    "screenshots/admin/mobile/order-admin-web-mode.png",
     "screenshots/admin/mobile/order-admin-admin-mode.png"
   ]
 }

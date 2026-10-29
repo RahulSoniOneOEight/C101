@@ -1,9 +1,10 @@
 change_id: CHG-096
-revision: 1
+revision: 2
 status: staging-deployed-verified
 request: >-
   Port the top-level Admin order-detail UX from the local fulfillment-preview harness:
-  unified status strip, Payments card, and Admin/Seller/App/Web role-mode preview switch.
+  unified status strip and Payments card. Revision 2 removes the
+  Admin/Seller/App/Web role-preview banner because Admin and Seller are separate portals.
   This is bundle 1 of 2; delivery/returns redesign will follow as CHG-097.
 type: admin-order-detail-ux-top-chrome
 extends:
@@ -18,7 +19,7 @@ approval_required: true
 approved_by: human-requester
 approved_at_utc: '2026-10-29'
 approval_source: chat-approve-chg-096
-approval_scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
+approval_scope: admin-order-detail-status-strip-payments-card-admin-only-staging-only
 implementation_authorized: true
 staging_data_write_authorized: false
 staging_deployment_authorized: true
@@ -33,8 +34,9 @@ release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
 outcome: >-
   The Admin order-detail page shows a unified Payment/Delivery/Returns/Refund status strip,
   a coherent Payments card with authorized/captured/refunded/outstanding amounts, and a
-  role-mode switch that previews the same order as Admin, Seller, App or Web. The page
-  renders without overlap at 390x844 and preserves all existing native Medusa actions.
+  reconciliation card. The Admin page is Admin-only; the role-preview banner is removed
+  because Admin and Seller are separate portals. The page renders without overlap at 390x844
+  and preserves all existing native Medusa actions.
 
 requirements:
 - id: R1
@@ -46,8 +48,8 @@ requirements:
   outcome: Show authorized/captured/refunded/outstanding amounts, payment method and reference, and native controls in one coherent card.
   status: pass
 - id: R3
-  name: Role-mode switch
-  outcome: Add an Admin/Seller/App/Web segmented control that previews the same order group in each role context.
+  name: Admin-only order page
+  outcome: Remove the Admin/Seller/App/Web role-preview banner; Admin and Seller remain separate portals.
   status: pass
 - id: R4
   name: Mobile layout
@@ -91,7 +93,7 @@ baseline:
   branch: feat/bt-sku-pairs
   head: de7fe89e9125abe23ecb0429b4202177659fd3cb
   staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
-  staging_current: release-5f6c90b
+  staging_current: release-6c776fc
   public_health: pass-4-of-4
   reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
   reference_order_number: BK-261029-WT4R93
@@ -101,17 +103,19 @@ verification:
   environment: staging
   deployment_performed: true
   deployment_date_utc: '2026-10-29'
-  release_commit: 5f6c90b115d0cd961b2123eb9a79b50a05b42195
-  release_branch: release/chg-096-6
-  release_path: /opt/buildkart-releases/release-5f6c90b
+  release_commit: 6c776fc60223668ab40d07fe93a95658bced5219
+  release_branch: release/chg-096-7
+  release_path: /opt/buildkart-releases/release-6c776fc
   baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   baseline_path: /opt/buildkart-releases/release-b7f93b9
   rollback_release: release-b7f93b9
   rollback_image: buildkart-hosted-pilot-medusa:rollback-b7f93b9
-  medusa_image: sha256:eb5e1500cbc0
+  medusa_image: sha256:89d711b7801a
   deploy_owner: requester-authorized-opencode-agent
   evidence_dir: client-projects/client101/evidence/CHG-096
-  browser_qc: pass-56-of-56
+  browser_qc: pass-28-of-28
+  admin_only_order_page: true
+  role_preview_banner_removed: true
   console_errors: 0
   unexpected_failed_requests: 0
   reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
@@ -131,5 +135,6 @@ deferred:
   reason: Part of CHG-093 architecture decisions; CHG-096 only reorganizes existing data display.
 
 approval_checkpoint: >-
-  Human requester must explicitly approve CHG-096 before implementation. No production action
-  is authorized. The local fulfillment-preview harness remains untouched as a reference.
+  Revision 2 removal of the role-preview banner was requested directly by the human requester.
+  No production action is authorized. The local fulfillment-preview harness remains untouched
+  as a reference.
