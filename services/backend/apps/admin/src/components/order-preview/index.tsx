@@ -1,219 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
-import {
-  BuildingStorefront,
-  Globe,
-  Phone,
-  User,
-} from "@medusajs/icons";
 import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
-import { type ReactNode, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
 
-export type PreviewMode = "admin" | "seller" | "app" | "web";
 export type Tone = "green" | "orange" | "blue" | "red" | "grey" | "purple";
-
-export function usePreviewMode(): PreviewMode {
-  const [searchParams] = useSearchParams();
-  const mode = searchParams.get("previewMode");
-  if (mode === "seller" || mode === "app" || mode === "web") return mode;
-  return "admin";
-}
-
-export function usePreviewModeUrl(mode: PreviewMode): string {
-  const [searchParams] = useSearchParams();
-  const next = new URLSearchParams(searchParams);
-  if (mode === "admin") {
-    next.delete("previewMode");
-  } else {
-    next.set("previewMode", mode);
-  }
-  const query = next.toString();
-  return query ? `?${query}` : "?";
-}
-
-const PREVIEW_COPY: Record<
-  PreviewMode,
-  {
-    title: string;
-    body: string;
-    borderTone: Tone;
-    icon: React.ElementType;
-    activeLinkClass: string;
-  }
-> = {
-  admin: {
-    title: "Admin view",
-    body: "You see payment, delivery and return operations across the marketplace.",
-    borderTone: "blue",
-    icon: User,
-    activeLinkClass: "bg-ui-bg-base text-ui-fg-info shadow-sm ring-1 ring-ui-border-info",
-  },
-  seller: {
-    title: "Seller view",
-    body: "Payment and refunds are managed by BuildKart Admin. You see only allocation, packaging and delivery.",
-    borderTone: "orange",
-    icon: BuildingStorefront,
-    activeLinkClass: "bg-ui-bg-base text-ui-fg-warning shadow-sm ring-1 ring-ui-border-warning",
-  },
-  app: {
-    title: "Customer app view",
-    body: "This is the simplified in-app experience the customer sees.",
-    borderTone: "green",
-    icon: Phone,
-    activeLinkClass: "bg-ui-bg-base text-ui-fg-success shadow-sm ring-1 ring-ui-border-success",
-  },
-  web: {
-    title: "Customer web view",
-    body: "This is the owner-scoped web experience the customer sees.",
-    borderTone: "green",
-    icon: Globe,
-    activeLinkClass: "bg-ui-bg-base text-ui-fg-success shadow-sm ring-1 ring-ui-border-success",
-  },
-};
-
-const borderToneClasses: Record<Tone, string> = {
-  blue: "border-l-ui-border-info",
-  orange: "border-l-ui-border-warning",
-  green: "border-l-ui-border-success",
-  red: "border-l-ui-border-error",
-  grey: "border-l-ui-border-base",
-  purple: "border-l-ui-border-base",
-};
-
-function ModeLink({
-  target,
-  children,
-}: {
-  target: PreviewMode;
-  children: ReactNode;
-}) {
-  const mode = usePreviewMode();
-  const href = usePreviewModeUrl(target);
-  const active = mode === target;
-  const copy = PREVIEW_COPY[mode];
-  return (
-    <a
-      href={href}
-      data-discover="true"
-      aria-current={active ? "page" : undefined}
-      className={[
-        "rounded px-1.5 py-0.5 text-xs font-medium transition-colors",
-        active ? copy.activeLinkClass : "text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base",
-      ].join(" ")}
-    >
-      {children}
-    </a>
-  );
-}
-
-export function PreviewModeBanner() {
-  const mode = usePreviewMode();
-  const copy = PREVIEW_COPY[mode];
-  const Icon = copy.icon;
-  const modes: Array<{ id: PreviewMode; label: string }> = [
-    { id: "admin", label: "Admin" },
-    { id: "seller", label: "Seller" },
-    { id: "app", label: "App" },
-    { id: "web", label: "Web" },
-  ];
-
-  return (
-    <div
-      className={[
-        "mb-3 flex items-start gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm",
-        "border-l-4",
-        borderToneClasses[copy.borderTone],
-      ].join(" ")}
-      role="note"
-    >
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ui-fg-subtle" aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <strong className="text-sm font-semibold">{copy.title}</strong>
-          <span className="text-xs text-ui-fg-subtle">{copy.body}</span>
-        </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
-          <span className="text-ui-fg-subtle">Preview as:</span>
-          {modes.map((item) => (
-            <ModeLink key={item.id} target={item.id}>
-              {item.label}
-            </ModeLink>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** @deprecated Use PreviewModeBanner instead. */
-export function PerspectiveBanner({ mode }: { mode: PreviewMode }) {
-  const copy = PREVIEW_COPY[mode];
-  return (
-    <div
-      className={[
-        "mb-4 rounded-lg border px-4 py-3 text-sm",
-        mode === "seller"
-          ? "border-ui-border-warning bg-ui-bg-warning text-ui-fg-warning"
-          : "border-ui-border-base bg-ui-bg-subtle text-ui-fg-base",
-      ].join(" ")}
-      role="note"
-    >
-      <strong className="block text-xs font-semibold uppercase tracking-wide">
-        {copy.title}
-      </strong>
-      <span className="text-ui-fg-subtle">{copy.body}</span>
-    </div>
-  );
-}
-
-/** @deprecated Use PreviewModeBanner instead. */
-export function RoleModeSwitch() {
-  const mode = usePreviewMode();
-  const [searchParams] = useSearchParams();
-
-  const modes: Array<{ id: PreviewMode; label: string }> = [
-    { id: "admin", label: "Admin" },
-    { id: "seller", label: "Seller" },
-    { id: "app", label: "App" },
-    { id: "web", label: "Web" },
-  ];
-
-  return (
-    <div
-      className="flex items-center gap-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-1"
-      role="group"
-      aria-label="Preview mode"
-    >
-      {modes.map((item) => {
-        const next = new URLSearchParams(searchParams);
-        if (item.id === "admin") {
-          next.delete("previewMode");
-        } else {
-          next.set("previewMode", item.id);
-        }
-        const query = next.toString();
-        const href = query ? `?${query}` : "?";
-        const active = mode === item.id;
-        return (
-          <a
-            key={item.id}
-            href={href}
-            data-discover="true"
-            aria-current={active ? "page" : undefined}
-            className={[
-              "rounded-md px-3 py-1 text-xs font-semibold transition-colors",
-              active
-                ? "bg-ui-bg-base text-ui-fg-base shadow-sm"
-                : "text-ui-fg-subtle hover:bg-ui-bg-base hover:text-ui-fg-base",
-            ].join(" ")}
-          >
-            {item.label}
-          </a>
-        );
-      })}
-    </div>
-  );
-}
 
 export type StatusStripItem = {
   label: string;
@@ -376,7 +164,6 @@ export function ReconciliationCard({
 
 export function PaymentsCard({
   order,
-  mode,
 }: {
   order: {
     payment_status?: string | null;
@@ -391,7 +178,6 @@ export function PaymentsCard({
       refunded_total?: number | null;
     } | null;
   };
-  mode: PreviewMode;
 }) {
   const currency = order.currency_code ?? "inr";
   const summary = order.summary ?? {};
@@ -413,8 +199,6 @@ export function PaymentsCard({
     ],
     [authorized, captured, refunded, outstanding, currency],
   );
-
-  const isSeller = mode === "seller";
 
   return (
     <Container className="p-0" id="payments">
@@ -444,26 +228,19 @@ export function PaymentsCard({
           ))}
         </div>
 
-        {isSeller ? (
-          <div className="mt-4 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm text-ui-fg-subtle">
-            Payment capture and refunds are managed by BuildKart Admin. Seller actions are limited to
-            fulfillment and return inspection.
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <Text size="small" weight="plus">
+              Native Medusa payment controls
+            </Text>
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Capture and refund actions continue to use the built-in Medusa controls below.
+            </Text>
           </div>
-        ) : (
-          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
-            <div className="min-w-0 flex-1">
-              <Text size="small" weight="plus">
-                Native Medusa payment controls
-              </Text>
-              <Text size="xsmall" className="text-ui-fg-subtle">
-                Capture and refund actions continue to use the built-in Medusa controls below.
-              </Text>
-            </div>
-            <span className="rounded-full border border-ui-border-base bg-ui-bg-base px-2 py-1 text-xs font-medium text-ui-fg-subtle">
-              Native
-            </span>
-          </div>
-        )}
+          <span className="rounded-full border border-ui-border-base bg-ui-bg-base px-2 py-1 text-xs font-medium text-ui-fg-subtle">
+            Native
+          </span>
+        </div>
       </div>
     </Container>
   );

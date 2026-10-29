@@ -6,11 +6,9 @@ import { client } from "../lib/client";
 import {
   AttentionStack,
   PaymentsCard,
-  PreviewModeBanner,
   ReconciliationCard,
   SectionNav,
   StatusStrip,
-  usePreviewMode,
   type AttentionItem,
   type StatusStripItem,
   type Tone,
@@ -43,8 +41,6 @@ const ADMIN_SECTIONS = [
 ];
 
 const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
-  const mode = usePreviewMode();
-
   const orderGroup = useQuery({
     queryKey: ["buildkart", "native-order-group", order?.id],
     queryFn: () => client.admin.orders.$id.orderGroup.query({ $id: order!.id }),
@@ -85,9 +81,7 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
       ? formatCurrency(refundedTotal, currencyCode)
       : "No refund";
 
-  const isAdmin = mode === "admin";
-
-  const adminStatusItems: StatusStripItem[] = [
+  const statusItems: StatusStripItem[] = [
     {
       label: "Payment",
       value: paymentLabel,
@@ -119,32 +113,6 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     },
   ];
 
-  const sellerStatusItems: StatusStripItem[] = [
-    {
-      label: "Delivery",
-      value: delivery.label,
-      detail: delivery.detail,
-      tone: delivery.color,
-    },
-    {
-      label: "Returns",
-      value: returnState.label,
-      detail: returnState.detail,
-      tone: returnState.color,
-    },
-  ];
-
-  const customerStatusItems: StatusStripItem[] = [
-    {
-      label: "Order status",
-      value: `${paymentLabel} · ${delivery.label}`,
-      detail: returnState.label !== "No return" ? returnState.detail : delivery.detail,
-      tone: delivery.color,
-    },
-  ];
-
-  const statusItems = isAdmin ? adminStatusItems : mode === "seller" ? sellerStatusItems : customerStatusItems;
-
   const attention: AttentionItem[] = [];
   const pendingReturn = data.returns.find((record) =>
     ["requested", "under_review"].includes(record.status),
@@ -153,7 +121,7 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     ["delivery_failed", "buyer_action_required", "damaged", "lost"].includes(shipment.status),
   );
 
-  if (isAdmin && order.payment_status === "authorized") {
+  if (order.payment_status === "authorized") {
     attention.push({
       tone: "blue" as Tone,
       title: "Payment ready to capture",
@@ -171,7 +139,7 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
       href: "#delivery",
     });
   }
-  if (pendingReturn && mode !== "seller") {
+  if (pendingReturn) {
     attention.push({
       tone: "orange" as Tone,
       title: "Return decision required",
@@ -181,34 +149,32 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     });
   }
 
-  const reconciliationRows = isAdmin
-    ? [
-        {
-          label: "Payment",
-          status: paymentLabel,
-          tone: paymentStatusColor(order.payment_status) as Tone,
-          detail: order.payment_status === "authorized" ? "Ready to capture" : undefined,
-        },
-        {
-          label: "Delivery",
-          status: delivery.label,
-          tone: delivery.color as Tone,
-          detail: delivery.detail,
-        },
-        {
-          label: "Returns",
-          status: returnState.label,
-          tone: returnState.color as Tone,
-          detail: returnState.detail,
-        },
-        {
-          label: "Refund",
-          status: refundValue,
-          tone: (simulatedRefund || refundedTotal > 0 ? "orange" : "grey") as Tone,
-          detail: refundedTotal > 0 ? "Issued" : simulatedRefund ? "Simulated" : "Not issued",
-        },
-      ]
-    : [];
+  const reconciliationRows = [
+    {
+      label: "Payment",
+      status: paymentLabel,
+      tone: paymentStatusColor(order.payment_status) as Tone,
+      detail: order.payment_status === "authorized" ? "Ready to capture" : undefined,
+    },
+    {
+      label: "Delivery",
+      status: delivery.label,
+      tone: delivery.color as Tone,
+      detail: delivery.detail,
+    },
+    {
+      label: "Returns",
+      status: returnState.label,
+      tone: returnState.color as Tone,
+      detail: returnState.detail,
+    },
+    {
+      label: "Refund",
+      status: refundValue,
+      tone: (simulatedRefund || refundedTotal > 0 ? "orange" : "grey") as Tone,
+      detail: refundedTotal > 0 ? "Issued" : simulatedRefund ? "Simulated" : "Not issued",
+    },
+  ];
 
   return (
     <section aria-labelledby="order-workbench-title">
@@ -217,18 +183,15 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
           <Heading id="order-workbench-title" level="h2">
             Order operations
           </Heading>
-          <PreviewModeBanner />
           <StatusStrip items={statusItems} />
           <AttentionStack items={attention} />
-          {isAdmin ? <SectionNav sections={ADMIN_SECTIONS} /> : null}
+          <SectionNav sections={ADMIN_SECTIONS} />
         </div>
       </Container>
-      {isAdmin ? (
-        <div className="mt-3 flex flex-col gap-y-3">
-          <PaymentsCard order={order} mode={mode} />
-          <ReconciliationCard rows={reconciliationRows} />
-        </div>
-      ) : null}
+      <div className="mt-3 flex flex-col gap-y-3">
+        <PaymentsCard order={order} />
+        <ReconciliationCard rows={reconciliationRows} />
+      </div>
     </section>
   );
 };
