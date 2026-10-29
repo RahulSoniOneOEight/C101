@@ -24,14 +24,39 @@ void main() {
         previousPriceLabel: '₹1,999',
         state: CommerceFixture.discounted)));
     expect(find.text('Reference Product'), findsOneWidget);
-    // Price and MRP render on one ellipsizing line (compact tile).
+    // Price and MRP are separate lines so the MRP is never ellipsized.
     expect(find.textContaining('₹1,499', findRichText: true), findsOneWidget);
-    expect(find.textContaining('₹1,999', findRichText: true), findsOneWidget);
+    expect(find.text('MRP ₹1,999'), findsOneWidget);
     await tester.pumpWidget(host(const ProductCard(
         title: 'Reference Product',
         priceLabel: '₹1,999',
         state: CommerceFixture.outOfStock)));
-    expect(find.text('Out of stock'), findsOneWidget);
+    // U-007 removes the B2C stock line; the add control carries the state.
+    expect(find.text('Out of stock'), findsNothing);
+    expect(find.text('Reference Product'), findsOneWidget);
+  });
+
+  testWidgets('ProductCard caps badges at two and shows the overflow count',
+      (tester) async {
+    await tester.pumpWidget(host(const ProductCard(
+      title: 'Reference Product',
+      priceLabel: '₹1,499',
+      badges: <String>['Assured', 'Flash Deal', 'New'],
+    )));
+    expect(find.text('Assured'), findsOneWidget);
+    expect(find.text('Flash Deal'), findsOneWidget);
+    expect(find.text('New'), findsNothing);
+    expect(find.text('+1'), findsOneWidget);
+  });
+
+  testWidgets('ProductCard omits MRP and discount when no real list price',
+      (tester) async {
+    await tester.pumpWidget(host(const ProductCard(
+      title: 'Reference Product',
+      priceLabel: '₹1,499',
+      discountLabel: null,
+    )));
+    expect(find.textContaining('MRP', findRichText: true), findsNothing);
   });
 
   testWidgets('ProductCard has no card-level chat action', (tester) async {

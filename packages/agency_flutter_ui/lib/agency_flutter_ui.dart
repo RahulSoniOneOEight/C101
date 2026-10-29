@@ -563,11 +563,12 @@ class ProductCard extends StatelessWidget {
       return _messageCard('Product unavailable');
     }
     final unavailable = state == CommerceFixture.outOfStock;
+    final isLarge = variant == ProductCardVariant.large;
     return Semantics(
       button: onPressed != null && !unavailable,
       label: '$title, $priceLabel',
       child: SizedBox(
-        height: variant == ProductCardVariant.large ? 296 : 248,
+        height: isLarge ? 320 : 260,
         child: Card(
           margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
@@ -579,7 +580,7 @@ class ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Expanded(child: _image(context)),
-                  const SizedBox(height: AgencySpacing.sm),
+                  const SizedBox(height: AgencySpacing.xs),
                   if (brand != null)
                     Text(
                       brand!,
@@ -588,39 +589,19 @@ class ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  SizedBox(
-                    height: variant == ProductCardVariant.large ? 36 : 34,
-                    child: Text(
-                      title,
-                      style: AgencyText.label.copyWith(
-                        color: context.colors.contentPrimary,
-                        fontSize: variant == ProductCardVariant.large ? 14 : 13,
-                        height: 1.3,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    title,
+                    style: AgencyText.label.copyWith(
+                      color: context.colors.contentPrimary,
+                      fontSize: isLarge ? 14 : 13,
+                      height: 1.2,
+                      fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AgencySpacing.xs),
-                  _priceRow(context, unavailable: unavailable),
-                  if (rating != null) ...[
-                    const SizedBox(height: AgencySpacing.xs),
-                    _ratingRow(context),
-                  ],
-                  if (variant == ProductCardVariant.large &&
-                      deliveryNote != null) ...[
-                    const SizedBox(height: AgencySpacing.xs),
-                    Text(
-                      deliveryNote!,
-                      style: AgencyText.label
-                          .copyWith(color: context.colors.contentSecondary),
-                    ),
-                  ],
-                  if (unavailable) ...[
-                    const SizedBox(height: AgencySpacing.xs),
-                    const Text('Out of stock', style: AgencyText.label),
-                  ],
+                  const SizedBox(height: 2),
+                  _priceBlock(context),
                 ],
               ),
             ),
@@ -642,81 +623,103 @@ class ProductCard extends StatelessWidget {
         ? placeholder
         : Image.network(
             imageUrl!,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
+            cacheWidth: variant == ProductCardVariant.large ? 640 : 520,
             errorBuilder: (_, __, ___) => placeholder,
           );
-    return SizedBox(
-      height: variant == ProductCardVariant.large ? 172 : 132,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AgencyRadius.sm),
-        child: Stack(
-          fit: StackFit.expand,
-          children: <Widget>[
-            content,
-            if (badges.isNotEmpty || discountLabel != null)
-              Positioned(
-                top: AgencySpacing.xs,
-                left: AgencySpacing.xs,
-                right: AgencySpacing.xs,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    if (badges.isNotEmpty)
-                      Flexible(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Wrap(
-                            spacing: AgencySpacing.xs,
-                            runSpacing: 2,
-                            children: <Widget>[
-                              for (final badge in badges.take(1))
-                                _pill(
-                                  badge,
-                                  _badgeColor(badge, colors),
-                                  colors.contentInverse,
-                                ),
-                            ],
-                          ),
+    final visibleBadges = badges.take(2).toList();
+    final extraBadges = badges.length - visibleBadges.length;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AgencyRadius.sm),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          ColoredBox(
+            color: colors.surfaceInteractive,
+            child: content,
+          ),
+          Positioned(
+            top: AgencySpacing.xs,
+            left: AgencySpacing.xs,
+            right: AgencySpacing.xs,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Wrap(
+                    spacing: AgencySpacing.xs,
+                    runSpacing: 2,
+                    children: <Widget>[
+                      for (final badge in visibleBadges)
+                        _pill(
+                          badge,
+                          _badgeColor(badge, colors),
+                          colors.contentInverse,
                         ),
-                      ),
-                    if (badges.isNotEmpty && discountLabel != null)
-                      const SizedBox(width: AgencySpacing.xs),
-                    if (badges.isEmpty && discountLabel != null) const Spacer(),
-                    if (discountLabel != null)
-                      _pill(
-                        discountLabel!,
-                        colors.promotion,
-                        colors.promotionInverse,
-                      ),
-                  ],
-                ),
-              ),
-            if (onWishlist != null)
-              Positioned(
-                right: AgencySpacing.xs,
-                bottom: AgencySpacing.xs,
-                child: Material(
-                  color: colors.surfaceRaised.withValues(alpha: 0.92),
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    onTap: onWishlist,
-                    customBorder: const CircleBorder(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      child: Icon(
-                        wishlisted ? Icons.favorite : Icons.favorite_border,
-                        size: 16,
-                        color: wishlisted
-                            ? colors.promotion
-                            : colors.contentSecondary,
-                      ),
-                    ),
+                      if (extraBadges > 0)
+                        _pill(
+                          '+$extraBadges',
+                          colors.surfaceRaised,
+                          colors.contentPrimary,
+                        ),
+                    ],
                   ),
                 ),
-              ),
-          ],
+                if (onWishlist != null) _wishlistButton(colors),
+              ],
+            ),
+          ),
+          Positioned(
+            right: AgencySpacing.xs,
+            bottom: AgencySpacing.xs,
+            child: _addControl(
+              context,
+              unavailable: state == CommerceFixture.outOfStock,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _wishlistButton(AgencyColors colors) {
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Material(
+        color: colors.surfaceRaised.withValues(alpha: 0.92),
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onWishlist,
+          customBorder: const CircleBorder(),
+          child: Center(
+            child: Icon(
+              wishlisted ? Icons.favorite : Icons.favorite_border,
+              size: 20,
+              color: wishlisted ? colors.promotion : colors.contentSecondary,
+            ),
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _addControl(BuildContext context, {required bool unavailable}) {
+    if (quantity != null && quantity! > 0 && onQuantityChanged != null) {
+      return QuantityStepper(
+        value: quantity!,
+        min: 0,
+        compact: true,
+        dense: variant == ProductCardVariant.compact,
+        onChanged: unavailable ? null : onQuantityChanged,
+      );
+    }
+    if (onAddToCart == null) return const SizedBox.shrink();
+    return CartPlusIconButton(
+      size: 44,
+      state: unavailable ? CartPlusState.unavailable : CartPlusState.normal,
+      semanticLabel: 'Add $title to cart',
+      onPressed: unavailable ? null : onAddToCart,
     );
   }
 
@@ -736,76 +739,41 @@ class ProductCard extends StatelessWidget {
     return colors.trust;
   }
 
-  Widget _priceRow(BuildContext context, {required bool unavailable}) {
+  Widget _priceBlock(BuildContext context) {
     final colors = context.colors;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                TextSpan(
-                  text: priceLabel,
-                  style: AgencyText.title.copyWith(
-                    color: colors.contentPrimary,
-                    fontSize: variant == ProductCardVariant.large ? 20 : 18,
-                  ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                priceLabel,
+                style: AgencyText.title.copyWith(
+                  color: colors.contentPrimary,
+                  fontSize: variant == ProductCardVariant.large ? 20 : 18,
                 ),
-                if (previousPriceLabel != null)
-                  TextSpan(
-                    text: ' $previousPriceLabel',
-                    style: AgencyText.label.copyWith(
-                      color: colors.contentSecondary,
-                      decoration: TextDecoration.lineThrough,
-                    ),
-                  ),
-              ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (discountLabel != null) ...<Widget>[
+              const SizedBox(width: AgencySpacing.xs),
+              _pill(discountLabel!, colors.promotion, colors.promotionInverse),
+            ],
+          ],
+        ),
+        if (previousPriceLabel != null)
+          Text(
+            'MRP $previousPriceLabel',
+            style: AgencyText.label.copyWith(
+              color: colors.contentSecondary,
+              decoration: TextDecoration.lineThrough,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-        ),
-        if (onAddToCart != null || quantity != null) ...<Widget>[
-          const SizedBox(width: AgencySpacing.xs),
-          if (quantity != null && quantity! > 0 && onQuantityChanged != null)
-            QuantityStepper(
-              value: quantity!,
-              min: 0,
-              compact: true,
-              dense: variant == ProductCardVariant.compact,
-              onChanged: unavailable ? null : onQuantityChanged,
-            )
-          else
-            CartPlusIconButton(
-              size: variant == ProductCardVariant.large ? 40 : 32,
-              state:
-                  unavailable ? CartPlusState.unavailable : CartPlusState.normal,
-              semanticLabel: 'Add $title to cart',
-              onPressed: unavailable ? null : onAddToCart,
-            ),
-        ],
-      ],
-    );
-  }
-
-  Widget _ratingRow(BuildContext context) {
-    final colors = context.colors;
-    return Row(
-      children: <Widget>[
-        Icon(Icons.star, size: 14, color: colors.feedbackWarning),
-        const SizedBox(width: 2),
-        Text(
-          rating!.toStringAsFixed(1),
-          style: AgencyText.label.copyWith(color: colors.contentSecondary),
-        ),
-        if (reviewCount != null) ...<Widget>[
-          const SizedBox(width: 2),
-          Text(
-            '(${reviewCount!})',
-            style: AgencyText.label.copyWith(color: colors.contentSecondary),
-          ),
-        ],
       ],
     );
   }
