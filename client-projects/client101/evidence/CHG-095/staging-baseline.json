@@ -1,0 +1,58 @@
+{
+  "captured_at_utc": "2026-10-29T05:49:32Z",
+  "release": {
+    "path": "/opt/buildkart-releases/release-b7f93b9",
+    "sha": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+    "web_health": "healthy",
+    "web_image": "sha256:b708b8a9ac295688ac255552552590e68f9b4afacf7c020a9131e1862da48449"
+  },
+  "public_health": {
+    "api": 200,
+    "app": 200,
+    "admin": 200,
+    "seller": 200
+  },
+  "medusa": {
+    "orders": 38,
+    "order_groups": 29,
+    "payment": 23,
+    "refund": 1,
+    "order_transaction": 1,
+    "payment_collection": 34,
+    "payment_session": 34,
+    "order_payment_collection": 1
+  },
+  "experience": {
+    "correlation": 164,
+    "returns": 4,
+    "shipments": 38,
+    "notifications": 98,
+    "delivery_attempts": 29,
+    "domain_events": 210,
+    "latest_delivery_attempt_at": "2026-10-28T13:43:48.574957Z"
+  },
+  "tryton": {
+    "stock_move": 55,
+    "stock_shipment_out": 0,
+    "stock_shipment_out_return": 0
+  },
+  "latest_order": {
+    "id": "order_01M624MKX6SNH9CTJ1RM6TXMAQ",
+    "display_id": 150,
+    "status": "pending",
+    "created_at": "2026-10-28T20:53:45.021Z"
+  },
+  "workers": {
+    "status": "ok",
+    "payment_mode": "simulated",
+    "fcm_delivery": "disabled",
+    "failed": 0,
+    "dead_lettered": 0,
+    "tryton_reservation_processed": 0
+  },
+  "lock": {
+    "path": "/var/lock/buildkart-staging-qc",
+    "owner": "requester-authorized-opencode-agent",
+    "change": "CHG-095"
+  }
+}

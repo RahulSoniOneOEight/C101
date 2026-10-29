@@ -82,10 +82,34 @@ scope_lock:
 baseline:
   branch: feat/bt-sku-pairs
   head: 76cc35b51519b5765cbae02b21426acfc0a31da9
+  governance_head: 8d72dff
   staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   staging_current: release-b7f93b9
   public_health: pass-4-of-4
-  data_counts: pending-capture
+  captured_at_utc: '2026-10-29T05:49:32Z'
+  qc_lock: /var/lock/buildkart-staging-qc
+  data_counts:
+    medusa:
+      orders: 38
+      order_groups: 29
+      payment: 23
+      refund: 1
+      order_transaction: 1
+      payment_collection: 34
+      payment_session: 34
+      order_payment_collection: 1
+    experience:
+      correlation: 164
+      returns: 4
+      shipments: 38
+      notifications: 98
+      delivery_attempts: 29
+      domain_events: 210
+    tryton:
+      stock_move: 55
+      stock_shipment_out: 0
+      stock_shipment_out_return: 0
+  worker_health: ok-simulated-fcm-disabled-zero-current-failures
 
 verification:
   status: pending
