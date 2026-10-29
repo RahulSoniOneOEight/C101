@@ -130,6 +130,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: one-staging-b2c-order-and-cross-surface-qc
+- change_id: CHG-096
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -799,6 +803,23 @@ active_changes:
     R5_operator_visibility: PASS
     R6_provider_boundaries: PASS
     R7_runtime_quality: PASS
+  production_release_authorized: false
+- change_id: CHG-096
+  status: approved-in-progress
+  approval_required: true
+  approval_scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
+  approved_by: human-requester
+  approved_at_utc: '2026-10-29'
+  proposal: client-projects/client101/changes/CHG-096.yaml
+  lane: B
+  release_mechanism:
+  - api+ui
+  - image-rebuild
+  scope: admin-order-detail-top-chrome-and-role-preview
+  release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_data_write_authorized: false
+  staging_deployment_authorized: true
+  staging_qc_status: pending
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

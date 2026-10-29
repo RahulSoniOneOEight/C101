@@ -1,0 +1,120 @@
+change_id: CHG-096
+revision: 1
+status: approved-in-progress
+request: >-
+  Port the top-level Admin order-detail UX from the local fulfillment-preview harness:
+  unified status strip, Payments card, and Admin/Seller/App/Web role-mode preview switch.
+  This is bundle 1 of 2; delivery/returns redesign will follow as CHG-097.
+type: admin-order-detail-ux-top-chrome
+extends:
+- CHG-094
+- CHG-095
+related:
+- CHG-093
+- CHG-097
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-approve-chg-096
+approval_scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
+implementation_authorized: true
+staging_data_write_authorized: false
+staging_deployment_authorized: true
+production_release_authorized: false
+
+lane: B
+release_mechanism:
+- api+ui
+- image-rebuild
+release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+
+outcome: >-
+  The Admin order-detail page shows a unified Payment/Delivery/Returns/Refund status strip,
+  a coherent Payments card with authorized/captured/refunded/outstanding amounts, and a
+  role-mode switch that previews the same order as Admin, Seller, App or Web. The page
+  renders without overlap at 390x844 and preserves all existing native Medusa actions.
+
+requirements:
+- id: R1
+  name: Status strip
+  outcome: Replace the four mixed status tiles with a single Payment/Delivery/Returns/Refund strip.
+  status: pending
+- id: R2
+  name: Payments card
+  outcome: Show authorized/captured/refunded/outstanding amounts, payment method and reference, and native controls in one coherent card.
+  status: pending
+- id: R3
+  name: Role-mode switch
+  outcome: Add an Admin/Seller/App/Web segmented control that previews the same order group in each role context.
+  status: pending
+- id: R4
+  name: Mobile layout
+  outcome: 390x844 view has no blocking overlap, no document overflow, and readable line items.
+  status: pending
+- id: R5
+  name: Native action parity
+  outcome: Existing Capture payment, Update delivery status and Return workbench actions remain reachable.
+  status: pending
+- id: R6
+  name: Accessibility
+  outcome: Icon buttons have labels, product images have alt text, heading order is correct, and touch targets are at least 44x44 dp.
+  status: pending
+- id: R7
+  name: Staging deploy and QC
+  outcome: Deploy to staging, verify against order #151, and record evidence.
+  status: pending
+
+scope_lock:
+  allowed_paths:
+  - services/backend/apps/admin/src/widgets/order-workbench-status.tsx
+  - services/backend/apps/admin/src/widgets/order-delivery-returns.tsx
+  - services/backend/apps/admin/src/components/order-preview/**/*.tsx
+  - client-projects/client101/changes/CHG-096.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-096/**
+  no_touch:
+  - services/backend/apps/admin/fulfillment-preview*
+  - apps/web
+  - services/vendor
+  - services/experience-api
+  - services/backend/packages/api
+  - Medusa database schema and migrations
+  - Tryton stock and shipment records
+  - real PSP, carrier, notification delivery, settlement and accounting
+  - production
+  data_records: []
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: de7fe89e9125abe23ecb0429b4202177659fd3cb
+  staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_current: release-b7f93b9
+  public_health: pass-4-of-4
+  reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
+  reference_order_number: BK-261029-WT4R93
+
+verification:
+  status: pending
+  environment: staging
+  deployment_performed: false
+  evidence_dir: client-projects/client101/evidence/CHG-096
+
+rollback:
+  code: revert changes to the allowed Admin widget paths
+  data: none
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Delivery and returns redesign
+  reason: Following as CHG-097 to keep bundles small and reviewable.
+- id: D2
+  name: Payment rounding fix
+  reason: Part of CHG-093 architecture decisions; CHG-096 only reorganizes existing data display.
+
+approval_checkpoint: >-
+  Human requester must explicitly approve CHG-096 before implementation. No production action
+  is authorized. The local fulfillment-preview harness remains untouched as a reference.
