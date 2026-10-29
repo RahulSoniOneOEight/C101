@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-10-29T12:43:04.825Z",
+  "timestamp": "2026-10-29T16:22:34.646Z",
   "orderId": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
   "orderNumber": "BK-261029-WT4R93",
-  "release": "65b04c6",
+  "release": "5f6c90b",
   "checks": [
     {
       "surface": "admin",
@@ -91,6 +91,20 @@
     {
       "surface": "admin",
       "viewport": "desktop",
+      "name": "reconciliation card present",
+      "status": "PASS",
+      "detail": "system reconciliation rows present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "attention shows payment ready to capture",
+      "status": "PASS",
+      "detail": "capture attention item present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
       "name": "seller mode banner shows",
       "status": "PASS",
       "detail": "seller perspective banner"
@@ -112,6 +126,20 @@
     {
       "surface": "admin",
       "viewport": "desktop",
+      "name": "seller mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in seller mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "seller mode status strip simplified",
+      "status": "PASS",
+      "detail": "delivery + returns tiles present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
       "name": "app mode banner shows",
       "status": "PASS",
       "detail": "app perspective banner"
@@ -119,9 +147,37 @@
     {
       "surface": "admin",
       "viewport": "desktop",
+      "name": "app mode shows Order status tile",
+      "status": "PASS",
+      "detail": "single status tile for app mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "app mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in app mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
       "name": "web mode banner shows",
       "status": "PASS",
       "detail": "web perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "web mode shows Order status tile",
+      "status": "PASS",
+      "detail": "single status tile for web mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "web mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in web mode"
     },
     {
       "surface": "admin",
@@ -231,6 +287,20 @@
     {
       "surface": "admin",
       "viewport": "mobile",
+      "name": "reconciliation card present",
+      "status": "PASS",
+      "detail": "system reconciliation rows present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "attention shows payment ready to capture",
+      "status": "PASS",
+      "detail": "capture attention item present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
       "name": "seller mode banner shows",
       "status": "PASS",
       "detail": "seller perspective banner"
@@ -252,6 +322,20 @@
     {
       "surface": "admin",
       "viewport": "mobile",
+      "name": "seller mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in seller mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "seller mode status strip simplified",
+      "status": "PASS",
+      "detail": "delivery + returns tiles present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
       "name": "app mode banner shows",
       "status": "PASS",
       "detail": "app perspective banner"
@@ -259,9 +343,37 @@
     {
       "surface": "admin",
       "viewport": "mobile",
+      "name": "app mode shows Order status tile",
+      "status": "PASS",
+      "detail": "single status tile for app mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "app mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in app mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
       "name": "web mode banner shows",
       "status": "PASS",
       "detail": "web perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "web mode shows Order status tile",
+      "status": "PASS",
+      "detail": "single status tile for web mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "web mode hides Jump to nav",
+      "status": "PASS",
+      "detail": "section nav hidden in web mode"
     },
     {
       "surface": "admin",
@@ -286,7 +398,7 @@
     }
   ],
   "summary": {
-    "pass": 40,
+    "pass": 56,
     "fail": 0,
     "consoleErrors": 0,
     "failedRequests": 0

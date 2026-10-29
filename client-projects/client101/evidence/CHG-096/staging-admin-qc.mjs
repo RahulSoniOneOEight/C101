@@ -13,7 +13,7 @@ fs.mkdirSync(shotRoot, { recursive: true });
 const baseAdmin = "https://ops-staging.pinakaplay.cloud/dashboard";
 const orderId = "order_01M633BSHHWEMM9YT6K5S7PVCZ";
 const orderNumber = "BK-261029-WT4R93";
-const release = "65b04c6";
+const release = "5f6c90b";
 
 // Admin credentials are read from the local-only staging access file.
 const accessPath = path.join(process.env.USERPROFILE || "/root", ".buildkart/staging-access.txt");
@@ -151,6 +151,24 @@ const viewports = [
       "banner label present",
     );
 
+    // R4: Reconciliation card (Admin only)
+    record(
+      "admin",
+      viewport.name,
+      "reconciliation card present",
+      bodyTextUpper.includes("SYSTEM RECONCILIATION") && bodyTextUpper.includes("PAYMENT") && bodyTextUpper.includes("DELIVERY") && bodyTextUpper.includes("RETURNS") && bodyTextUpper.includes("REFUND"),
+      "system reconciliation rows present",
+    );
+
+    // R5: Attention stack for authorized payment
+    record(
+      "admin",
+      viewport.name,
+      "attention shows payment ready to capture",
+      bodyTextUpper.includes("PAYMENT READY TO CAPTURE"),
+      "capture attention item present",
+    );
+
     // Switch to Seller mode
     await page.getByRole("link", { name: "Seller", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("previewMode") === "seller", { timeout: 15000 });
@@ -161,12 +179,18 @@ const viewports = [
     record("admin", viewport.name, "seller mode no horizontal overflow", await noOverflow(page), "document width within viewport");
     await shot(page, "admin", viewport.name, "order-admin-seller-mode");
 
+    // R6: Seller mode simplified status strip
+    record("admin", viewport.name, "seller mode hides Jump to nav", !sellerText.toUpperCase().includes("JUMP TO"), "section nav hidden in seller mode");
+    record("admin", viewport.name, "seller mode status strip simplified", sellerText.toUpperCase().includes("DELIVERY") && sellerText.toUpperCase().includes("RETURNS"), "delivery + returns tiles present");
+
     // Switch to App mode
     await page.getByRole("link", { name: "App", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("previewMode") === "app", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     const appText = await page.locator("body").innerText();
     record("admin", viewport.name, "app mode banner shows", appText.toUpperCase().includes("CUSTOMER APP VIEW"), "app perspective banner");
+    record("admin", viewport.name, "app mode shows Order status tile", appText.toUpperCase().includes("ORDER STATUS"), "single status tile for app mode");
+    record("admin", viewport.name, "app mode hides Jump to nav", !appText.toUpperCase().includes("JUMP TO"), "section nav hidden in app mode");
     await shot(page, "admin", viewport.name, "order-admin-app-mode");
 
     // Switch to Web mode
@@ -175,6 +199,8 @@ const viewports = [
     await page.waitForLoadState("networkidle");
     const webText = await page.locator("body").innerText();
     record("admin", viewport.name, "web mode banner shows", webText.toUpperCase().includes("CUSTOMER WEB VIEW"), "web perspective banner");
+    record("admin", viewport.name, "web mode shows Order status tile", webText.toUpperCase().includes("ORDER STATUS"), "single status tile for web mode");
+    record("admin", viewport.name, "web mode hides Jump to nav", !webText.toUpperCase().includes("JUMP TO"), "section nav hidden in web mode");
     await shot(page, "admin", viewport.name, "order-admin-web-mode");
 
     // Back to Admin mode and verify native actions reachable

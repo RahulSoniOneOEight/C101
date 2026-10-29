@@ -91,7 +91,7 @@ baseline:
   branch: feat/bt-sku-pairs
   head: de7fe89e9125abe23ecb0429b4202177659fd3cb
   staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
-  staging_current: release-dc38fcc
+  staging_current: release-5f6c90b
   public_health: pass-4-of-4
   reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
   reference_order_number: BK-261029-WT4R93
@@ -101,17 +101,17 @@ verification:
   environment: staging
   deployment_performed: true
   deployment_date_utc: '2026-10-29'
-  release_commit: 65b04c6839728aa64380a2df5980cc539bcd46d0
-  release_branch: release/chg-096-5
-  release_path: /opt/buildkart-releases/release-65b04c6
+  release_commit: 5f6c90b115d0cd961b2123eb9a79b50a05b42195
+  release_branch: release/chg-096-6
+  release_path: /opt/buildkart-releases/release-5f6c90b
   baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   baseline_path: /opt/buildkart-releases/release-b7f93b9
   rollback_release: release-b7f93b9
   rollback_image: buildkart-hosted-pilot-medusa:rollback-b7f93b9
-  medusa_image: sha256:2e64923a4383
+  medusa_image: sha256:eb5e1500cbc0
   deploy_owner: requester-authorized-opencode-agent
   evidence_dir: client-projects/client101/evidence/CHG-096
-  browser_qc: pass-40-of-40
+  browser_qc: pass-56-of-56
   console_errors: 0
   unexpected_failed_requests: 0
   reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
