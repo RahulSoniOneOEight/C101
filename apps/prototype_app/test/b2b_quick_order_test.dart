@@ -1,7 +1,9 @@
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prototype_app/data/experience_api.dart';
 import 'package:prototype_app/data/local_store.dart';
 import 'package:prototype_app/domain/b2b_trade_models.dart';
 import 'package:prototype_app/domain/models.dart';
@@ -166,10 +168,19 @@ void main() {
         order.lines.map((l) => l.sku).toSet());
   });
 
-  test('placing a business order persists it and clears the cart', () async {
-    final container = ProviderContainer();
+  test('placing a business order creates a canonical order and clears the cart',
+      () async {
+    final product = _b2bCheckoutProduct();
+    final container = ProviderContainer(
+      overrides: [
+        experienceApiProvider.overrideWithValue(
+          _FakeB2BApi(expectedSubtotalMinor: product.tradePrice.amount * 3),
+        ),
+        tradeCatalogueViewProvider
+            .overrideWithValue(<TradeProduct>[product]),
+      ],
+    );
     addTearDown(container.dispose);
-    final product = container.read(tradeCatalogueProvider).first;
     container
         .read(b2bQuotationCartProvider.notifier)
         .addTradeProduct(product, quantity: 3);
@@ -193,11 +204,14 @@ void main() {
     expect(order, isNotNull);
     expect(container.read(b2bOrdersProvider).length, before + 1);
     expect(container.read(b2bOrdersProvider).first.reference, order!.reference);
+    expect(order.orderGroupId, 'og_test');
+    expect(order.cartId, 'cart_test');
+    expect(order.total.amount, product.tradePrice.amount * 3);
     expect(order.deliveryLocation, 'Site B — Warehouse (Pune)');
     expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
   });
 
-  test('B2B quotation cart upserts lines and computes GST totals', () {
+  test('B2B quotation cart upserts lines and uses GST-inclusive totals', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final product = container.read(tradeCatalogueProvider).first;
@@ -210,8 +224,7 @@ void main() {
     expect(cart.lines, hasLength(1));
     expect(cart.lines.single.quantity, 15);
     expect(cart.subtotal.amount, cart.lines.single.unitPrice.amount * 15);
-    expect(cart.gst.amount, (cart.subtotal.amount * .18).round());
-    expect(cart.total.amount, cart.subtotal.amount + cart.gst.amount);
+    expect(cart.total.amount, cart.subtotal.amount);
   });
 
   test('selected procurement items persist into the B2B quotation cart', () {
@@ -537,7 +550,7 @@ void main() {
     expect(find.text('Test trade item'), findsOneWidget);
     expect(find.text('Proceed to Checkout'), findsOneWidget);
     expect(find.text('You may also like'), findsOneWidget);
-    expect(find.text('₹472'), findsOneWidget);
+    expect(find.text('₹400'), findsWidgets);
   });
 
   test('saved default quantity updates independently of the cart', () async {
@@ -683,4 +696,72 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+}
+
+TradeProduct _b2bCheckoutProduct() {
+  const variant = ProductVariant(
+    id: 'variant_test',
+    label: 'Test SKU',
+    sku: 'SKU-TEST',
+    price: Money(amount: 10000, currencyCode: 'INR'),
+    offerId: 'offer_test',
+    inStock: true,
+    stockQty: 10,
+  );
+  return const TradeProduct(
+    product: Product(
+      id: 'prod_test',
+      title: 'Test Trade Product',
+      variantId: 'variant_test',
+      offerId: 'offer_test',
+      price: Money(amount: 10000, currencyCode: 'INR'),
+      variants: <ProductVariant>[variant],
+    ),
+    tradePrice: Money(amount: 10000, currencyCode: 'INR'),
+    moq: 1,
+    stockQty: 10,
+    deliveryLocation: 'Test site',
+  );
+}
+
+class _FakeB2BApi extends ExperienceApi {
+  _FakeB2BApi({required this.expectedSubtotalMinor}) : super(Dio());
+
+  final int expectedSubtotalMinor;
+
+  Cart _cart() => Cart(
+        id: 'cart_test',
+        subtotal: Money(amount: expectedSubtotalMinor, currencyCode: 'INR'),
+        total: Money(amount: expectedSubtotalMinor, currencyCode: 'INR'),
+      );
+
+  @override
+  Future<String?> currentSessionEmail() async => 'buyer.b2b01@buildkart.test';
+
+  @override
+  Future<Cart> createCart({String? channel}) async => _cart();
+
+  @override
+  Future<Cart> addLineItem(String cartId, String offerId, int quantity) async =>
+      _cart();
+
+  @override
+  Future<Cart> updateCartCustomerDetails(
+    String cartId, {
+    required String email,
+    required Address shippingAddress,
+  }) async =>
+      _cart();
+
+  @override
+  Future<Cart> selectDeliveryTier(String cartId, String tier) async => _cart();
+
+  @override
+  Future<Map<String, dynamic>> completeCart(String cartId) async =>
+      <String, dynamic>{
+        'type': 'order_group',
+        'order_group': <String, dynamic>{'id': 'og_test'},
+        'payment_mode': 'simulated',
+        'test_data': true,
+      };
 }

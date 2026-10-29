@@ -80,6 +80,13 @@ class B2BOrder {
     required this.total,
     this.lines = const <B2BOrderLine>[],
     this.deliveryLocation,
+    this.cartId,
+    this.orderGroupId,
+    this.paymentMode,
+    this.testData = false,
+    this.subtotal,
+    this.discount,
+    this.shipping,
   });
 
   final String reference;
@@ -89,6 +96,18 @@ class B2BOrder {
   final List<B2BOrderLine> lines;
   final String? deliveryLocation;
 
+  /// Canonical checkout identity. Present for orders created through the API;
+  /// absent for seeded/demo history.
+  final String? cartId;
+  final String? orderGroupId;
+  final String? paymentMode;
+  final bool testData;
+
+  /// Canonical cart amounts in minor units, when the order came from checkout.
+  final Money? subtotal;
+  final Money? discount;
+  final Money? shipping;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'reference': reference,
         'date_label': dateLabel,
@@ -96,6 +115,13 @@ class B2BOrder {
         'total': total.toJson(),
         'lines': lines.map((l) => l.toJson()).toList(),
         if (deliveryLocation != null) 'delivery_location': deliveryLocation,
+        if (cartId != null) 'cart_id': cartId,
+        if (orderGroupId != null) 'order_group_id': orderGroupId,
+        if (paymentMode != null) 'payment_mode': paymentMode,
+        if (testData) 'test_data': true,
+        if (subtotal != null) 'subtotal': subtotal!.toJson(),
+        if (discount != null) 'discount': discount!.toJson(),
+        if (shipping != null) 'shipping': shipping!.toJson(),
       };
 
   factory B2BOrder.fromJson(Map<String, dynamic> j) => B2BOrder(
@@ -108,6 +134,13 @@ class B2BOrder {
             .map(B2BOrderLine.fromJson)
             .toList(),
         deliveryLocation: j['delivery_location'] as String?,
+        cartId: j['cart_id'] as String?,
+        orderGroupId: j['order_group_id'] as String?,
+        paymentMode: j['payment_mode'] as String?,
+        testData: j['test_data'] == true,
+        subtotal: j['subtotal'] == null ? null : _moneyFromJson(j['subtotal']),
+        discount: j['discount'] == null ? null : _moneyFromJson(j['discount']),
+        shipping: j['shipping'] == null ? null : _moneyFromJson(j['shipping']),
       );
 }
 
@@ -530,15 +563,10 @@ class B2BQuotationCart {
             lines.isEmpty ? 'INR' : lines.first.unitPrice.currencyCode,
       );
 
-  Money get gst => Money(
-        amount: (subtotal.amount * 18 / 100).round(),
-        currencyCode: subtotal.currencyCode,
-      );
-
-  Money get total => Money(
-        amount: subtotal.amount + gst.amount,
-        currencyCode: subtotal.currencyCode,
-      );
+  /// B2B trade prices are stored GST-inclusive in the Product Studio snapshot.
+  /// Do not add a second 18% on top; the canonical cart total is the GST-inclusive
+  /// amount returned by the pricing engine.
+  Money get total => subtotal;
 
   /// Best-effort sum of the buyer's target prices across lines that have one.
   Money get estimatedTargetTotal {

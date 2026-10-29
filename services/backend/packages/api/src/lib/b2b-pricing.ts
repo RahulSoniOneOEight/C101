@@ -11,6 +11,17 @@ const B2B_GROUP_NAME = "B2B Trade Customers";
 const TITLE_PREFIX = "BuildKart B2B Studio";
 const CURRENCY = "inr";
 
+/** Medusa price-list amounts are major units; the studio/API contract is minor. */
+function minorToMajor(minor: number): number {
+  return minor / 100;
+}
+
+function majorToMinor(major: number): number {
+  return Math.round(major * 100);
+}
+
+const B2B_GROUP_RULE = "customer.groups.id";
+
 export interface B2bTierInput {
   min_quantity: number;
   max_quantity?: number | null;
@@ -191,7 +202,7 @@ export async function loadB2bPricing(
     .map((price) => ({
       min_quantity: Number(price.min_quantity),
       max_quantity: price.max_quantity == null ? null : Number(price.max_quantity),
-      amount: Number(price.amount),
+      amount: majorToMinor(Number(price.amount)),
     }))
     .sort((a, b) => a.min_quantity - b.min_quantity);
   return {
@@ -200,7 +211,7 @@ export async function loadB2bPricing(
     price_list_id: list.id,
     price_list_title: list.title,
     status: list.status,
-    amount: base ? Number(base.amount) : null,
+    amount: base ? majorToMinor(Number(base.amount)) : null,
     list_price_minor:
       Number.isInteger(Number(list.metadata?.list_price_minor)) &&
       Number(list.metadata?.list_price_minor) > 0
@@ -227,6 +238,7 @@ export async function saveB2bPricing(
   const offer = await offerVariant(scope, offerId);
   const groupId = await b2bGroupId(scope);
   const amount = Number(input.amount);
+  const amountMajor = minorToMajor(amount);
   const listPrice = Number(input.list_price_minor);
   const moq = Number(input.moq ?? 1);
   const starts = iso(input.starts_at);
@@ -239,6 +251,7 @@ export async function saveB2bPricing(
     gst_inclusive: input.gst_inclusive !== false,
     environment: process.env.BUILDKART_ENVIRONMENT ?? "staging",
     test_data: true,
+    b2b_price_units: "major",
   };
   const existing = await findList(scope, offerId);
   let priceListId = existing?.id ?? null;
@@ -254,7 +267,7 @@ export async function saveB2bPricing(
             status: "active",
             starts_at: starts,
             ends_at: ends,
-            rules: [{ attribute: "customer_group_id", value: [groupId] }],
+            rules: [{ attribute: B2B_GROUP_RULE, value: [groupId] }],
             metadata,
           },
         ],
@@ -270,6 +283,7 @@ export async function saveB2bPricing(
             status: "active",
             starts_at: starts,
             ends_at: ends,
+            rules: [{ attribute: B2B_GROUP_RULE, value: [groupId] }],
             metadata,
           },
         ],
@@ -299,7 +313,7 @@ export async function saveB2bPricing(
   const remove: string[] = [];
 
   const basePayload = {
-    amount,
+    amount: amountMajor,
     currency_code: CURRENCY,
     variant_id: offer.variant_id,
     min_quantity: null,
@@ -315,7 +329,7 @@ export async function saveB2bPricing(
       (row) => Number(row.min_quantity) === tier.min_quantity,
     );
     const payload = {
-      amount: tier.amount,
+      amount: minorToMajor(tier.amount),
       currency_code: CURRENCY,
       variant_id: offer.variant_id,
       min_quantity: tier.min_quantity,

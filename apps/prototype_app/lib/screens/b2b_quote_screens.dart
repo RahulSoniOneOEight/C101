@@ -1452,7 +1452,7 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                   for (final line in cart.lines) _cartLine(context, ref, line),
                   const Divider(height: AgencySpacing.xl),
                   _totalLine(context, 'Subtotal', cart.subtotal.formatted),
-                  _totalLine(context, 'GST 18%', cart.gst.formatted),
+                  _totalLine(context, 'GST', 'Included'),
                   _totalLine(context, 'Total', cart.total.formatted,
                       bold: true),
                 ],
@@ -1739,6 +1739,8 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
   static const int _availableCreditMinor = 17200000;
 
   int _payment = 0;
+  bool _placing = false;
+  String? _error;
 
   @override
   Widget build(BuildContext context) {
@@ -1851,7 +1853,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    Text('Total',
+                    Text('Subtotal',
                         style: TextStyle(
                             fontSize: 14, color: colors.contentSecondary)),
                     const Spacer(),
@@ -1862,23 +1864,52 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                             color: colors.contentPrimary)),
                   ],
                 ),
+                const SizedBox(height: AgencySpacing.xs),
+                Text(
+                  'Shipping and the final total are calculated at order placement.',
+                  style: TextStyle(
+                      fontSize: 11, color: colors.contentSecondary),
+                ),
+                if (_error != null) ...<Widget>[
+                  const SizedBox(height: AgencySpacing.sm),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                        fontSize: 12, color: colors.feedbackError),
+                  ),
+                ],
                 const SizedBox(height: AgencySpacing.sm),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: hasDeliverySite
+                    onPressed: hasDeliverySite && !_placing
                         ? () async {
                             final router = GoRouter.of(context);
                             if (overLimit) {
                               await _submitForApproval();
                               return;
                             }
-                            final order = await ref
-                                .read(b2bOrdersProvider.notifier)
-                                .placeOrder(cart);
-                            if (!mounted) return;
-                            if (order != null) {
-                              router.go('/b2b/cart/confirm');
+                            setState(() {
+                              _placing = true;
+                              _error = null;
+                            });
+                            try {
+                              final order = await ref
+                                  .read(b2bOrdersProvider.notifier)
+                                  .placeOrder(cart);
+                              if (!mounted) return;
+                              if (order != null) {
+                                router.go('/b2b/cart/confirm');
+                              }
+                            } catch (error) {
+                              if (!mounted) return;
+                              setState(() => _error = error is StateError
+                                  ? error.message
+                                  : error.toString());
+                            } finally {
+                              if (mounted) {
+                                setState(() => _placing = false);
+                              }
                             }
                           }
                         : null,
@@ -1890,11 +1921,17 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                       disabledForegroundColor: colors.contentSecondary,
                       minimumSize: const Size.fromHeight(48),
                     ),
-                    child: Text(!hasDeliverySite
-                        ? 'Select delivery site to continue'
-                        : overLimit
-                            ? 'Submit for approval'
-                            : 'Place Business Order'),
+                    child: _placing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(!hasDeliverySite
+                            ? 'Select delivery site to continue'
+                            : overLimit
+                                ? 'Submit for approval'
+                                : 'Place Business Order'),
                   ),
                 ),
               ],
@@ -2185,12 +2222,12 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
     final order = ref.watch(b2bOrdersProvider).firstOrNull;
     final lines = order?.lines ?? const <B2BOrderLine>[];
     final subtotalAmount = lines.fold<int>(0, (sum, l) => sum + l.total.amount);
-    final subtotal = Money(amount: subtotalAmount, currencyCode: 'INR');
-    final gst =
-        Money(amount: (subtotalAmount * 18 / 100).round(), currencyCode: 'INR');
-    final total =
-        Money(amount: subtotal.amount + gst.amount, currencyCode: 'INR');
-    final reference =
+    final localSubtotal = Money(amount: subtotalAmount, currencyCode: 'INR');
+    final subtotal = order?.subtotal ?? localSubtotal;
+    final discount = order?.discount;
+    final shipping = order?.shipping;
+    final total = order?.total ?? localSubtotal;
+    final reference = order?.orderGroupId ??
         (order?.reference ?? 'Order #PO-3392').replaceFirst('Order #', '');
     return Scaffold(
       appBar: AppBar(
@@ -2221,9 +2258,26 @@ class B2BConfirmOrderScreen extends ConsumerWidget {
             _confirmLine(context, 'Delivery site', order!.deliveryLocation!),
             const Divider(height: AgencySpacing.lg),
           ],
+          if (order?.orderGroupId != null) ...<Widget>[
+            _confirmLine(context, 'Order group', order!.orderGroupId!),
+            const SizedBox(height: AgencySpacing.xs),
+          ],
           _confirmLine(context, 'Subtotal', subtotal.formatted),
-          _confirmLine(context, 'GST 18%', gst.formatted),
+          if ((discount?.amount ?? 0) > 0)
+            _confirmLine(context, 'Discount', '-${discount!.formatted}'),
+          if ((shipping?.amount ?? 0) > 0)
+            _confirmLine(context, 'Shipping', shipping!.formatted),
+          _confirmLine(context, 'GST', 'Included'),
           _confirmLine(context, 'Total', total.formatted, bold: true),
+          if (order?.paymentMode != null) ...<Widget>[
+            const SizedBox(height: AgencySpacing.xs),
+            Text(
+              'Payment mode: ${order!.paymentMode}'
+              '${order.testData ? ' · test data' : ''}',
+              style: TextStyle(
+                  fontSize: 11, color: colors.contentSecondary),
+            ),
+          ],
           const SizedBox(height: AgencySpacing.lg),
           SizedBox(
             width: double.infinity,

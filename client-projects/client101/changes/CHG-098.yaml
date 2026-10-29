@@ -1,0 +1,111 @@
+change_id: CHG-098
+revision: 1
+status: approved-in-progress
+request: >-
+  Fix the B2B checkout so "Place Business Order" creates a canonical order instead of
+  writing app-local state only, apply the correct B2B trade price through the existing
+  customer-group price list, and verify the same order in Admin.
+type: b2b-order-checkout
+extends:
+- CHG-093
+related:
+- CHG-071
+- CHG-084
+- CHG-096
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-fix-b2b-checkout
+approval_scope: b2b-canonical-checkout-and-price-list-correction-staging-only
+implementation_authorized: true
+staging_data_write_authorized: true
+staging_deployment_authorized: true
+production_release_authorized: false
+
+lane: C
+release_mechanism:
+- api+ui
+- image-rebuild
+- governed-data-update
+release_under_test: 6c776fc60223668ab40d07fe93a95658bced5219
+environment: staging
+
+outcome: >-
+  A B2B buyer can place one canonical order from the B2B app. The cart carries channel=b2b,
+  uses the B2B trade price from the customer-group price list, completes through the
+  simulated payment path, and the resulting order group is visible in Admin with the B2B
+  channel and matching total.
+
+requirements:
+- id: R1
+  name: Canonical B2B order
+  outcome: B2B Place Business Order creates a Medusa cart, completes it, and returns an order group ID.
+  status: pending
+- id: R2
+  name: B2B pricing
+  outcome: B2B cart line uses the saved trade price, not the B2C price, and does not apply B2C-only discounts.
+  status: pending
+- id: R3
+  name: Admin visibility
+  outcome: The same order group is visible in Admin with channel=b2b and the canonical total.
+  status: pending
+- id: R4
+  name: No mispriced order
+  outcome: Checkout aborts before completion if the canonical cart total does not match the app's B2B expected total.
+  status: pending
+- id: R5
+  name: Data safety
+  outcome: Existing B2B Studio price-list rules/amounts are corrected idempotently; no schema or production change.
+  status: pending
+- id: R6
+  name: Verification
+  outcome: Flutter analyze/tests, API probe, browser QC, Admin readback and evidence recorded.
+  status: pending
+
+scope_lock:
+  allowed_paths:
+  - apps/prototype_app/lib/providers/b2b_trade_providers.dart
+  - apps/prototype_app/lib/data/experience_api.dart
+  - apps/prototype_app/lib/domain/b2b_trade_models.dart
+  - apps/prototype_app/lib/screens/b2b_quote_screens.dart
+  - services/backend/packages/api/src/lib/b2b-pricing.ts
+  - client-projects/client101/changes/CHG-098.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-098/**
+  no_touch:
+  - production
+  - Medusa database schema and migrations
+  - real PSP, carrier, notification delivery, settlement and accounting
+  - Tryton stock and shipment records
+  - customer web
+  - seller portal
+  - Admin order-detail widgets
+  - services/backend/apps/admin/fulfillment-preview*
+  data_records:
+  - price_list BuildKart B2B Studio rows and their price_list_rule/price children
+  - one staging B2B order group and its lines
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  staging_release: 6c776fc60223668ab40d07fe93a95658bced5219
+  staging_current: release-6c776fc
+  public_health: pass-4-of-4
+  reference_b2b_buyer: buyer.b2b01@buildkart.test
+  reference_offer: offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M
+
+verification:
+  status: pending
+  environment: staging
+  production_release_authorized: false
+
+rollback:
+  code: revert the allowed app/API paths and redeploy the previous release.
+  data: restore the affected price-list rows from the recorded before-values.
+  production: not-applicable-not-authorized
+
+approval_checkpoint: >-
+  Human requester explicitly asked to fix B2B checkout first rather than create a
+  mispriced order. No production action is authorized.

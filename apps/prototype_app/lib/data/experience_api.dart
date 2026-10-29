@@ -473,9 +473,16 @@ class ExperienceApi {
   }
 
   /// Creates a canonical Medusa cart (Commerce).
-  Future<Cart> createCart() async {
-    final res = await _dio
-        .post<Map<String, dynamic>>('/v1/carts', data: <String, dynamic>{});
+  ///
+  /// B2B callers pass [channel] = `b2b_app` so the cart and resulting order carry
+  /// the B2B sales channel and business-account metadata. Omit it for B2C.
+  Future<Cart> createCart({String? channel}) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/carts',
+      data: <String, dynamic>{
+        if (channel != null && channel.trim().isNotEmpty) 'channel': channel,
+      },
+    );
     return Cart.fromJson(res.data!);
   }
 

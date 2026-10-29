@@ -1517,7 +1517,31 @@ final b2bQuotationCartProvider =
 
 /// The buyer's placed purchase-order history, persisted across sessions and
 /// seeded once from the dashboard's repeat orders.
+/// Staging fixture until B2B delivery sites carry canonical street addresses.
+/// The selected site is preserved in `address_2` so Admin can still see the
+/// buyer's site label; the rest is the shared staging test address.
+Address _b2bCheckoutAddress(String? deliveryLocation) => Address(
+      firstName: 'Arjun Traders',
+      lastName: 'Procurement',
+      address1: '101 Test Yard',
+      address2: deliveryLocation,
+      city: 'Jaipur',
+      province: 'Rajasthan',
+      postalCode: '302001',
+      countryCode: 'in',
+      phone: '+91 98765 43210',
+    );
+
 class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
+  ProductVariant? _variantForSku(String sku) {
+    for (final product in ref.read(tradeCatalogueViewProvider)) {
+      for (final variant in product.product.variants) {
+        if (variant.sku == sku) return variant;
+      }
+    }
+    return null;
+  }
+
   @override
   List<B2BOrder> build() {
     try {
@@ -1542,20 +1566,85 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
     }
   }
 
-  /// Convert the quotation cart into a placed order, prepend it to the history
+  /// Convert the quotation cart into a canonical B2B order through the same
+  /// cart/checkout API the B2C flow uses, then prepend it to the local history
   /// and clear the cart. Returns null for an empty cart or when no delivery
   /// site has been selected.
-  Future<B2BOrder?> placeOrder(B2BQuotationCart cart, {String? poRef}) async {
+  Future<B2BOrder?> placeOrder(B2BQuotationCart cart) async {
     if (cart.isEmpty || cart.deliveryLocation?.trim().isEmpty != false) {
       return null;
     }
-    final reference = poRef ?? 'Order #PO-${3400 + state.length}';
+
+    final api = ref.read(experienceApiProvider);
+    final email = await api.currentSessionEmail();
+    if (email == null || email.trim().isEmpty) {
+      throw StateError('Sign in again before placing a business order.');
+    }
+
+    // Resolve every RFQ SKU to its sellable offer before creating a cart.
+    final offerIds = <String, String>{};
+    final missing = <String>[];
+    for (final line in cart.lines) {
+      final offerId = _variantForSku(line.sku)?.offerId?.trim();
+      if (offerId == null || offerId.isEmpty) {
+        missing.add(line.sku);
+      } else {
+        offerIds[line.sku] = offerId;
+      }
+    }
+    if (missing.isNotEmpty) {
+      throw StateError('No sellable offer for ${missing.join(', ')}.');
+    }
+
+    var canonical = await api.createCart(channel: 'b2b_app');
+    final cartId = canonical.id;
+    for (final line in cart.lines) {
+      canonical =
+          await api.addLineItem(cartId, offerIds[line.sku]!, line.quantity);
+    }
+
+    canonical = await api.updateCartCustomerDetails(
+      cartId,
+      email: email,
+      shippingAddress: _b2bCheckoutAddress(cart.deliveryLocation),
+    );
+    canonical = await api.selectDeliveryTier(cartId, cart.deliveryTier);
+
+    // The app's B2B snapshot is the source of truth for the trade price. If
+    // Medusa resolves the B2C price instead, stop before creating an order.
+    final canonicalSubtotal = canonical.subtotal?.amount;
+    if (canonicalSubtotal == null || canonicalSubtotal != cart.subtotal.amount) {
+      final actual = canonicalSubtotal == null
+          ? 'unknown'
+          : Money(
+              amount: canonicalSubtotal,
+              currencyCode: cart.subtotal.currencyCode,
+            ).formatted;
+      throw StateError(
+        'B2B price check failed: app ${cart.subtotal.formatted} vs checkout '
+        '$actual. Order not placed.',
+      );
+    }
+
+    final completion = await api.completeCart(cartId);
+    final orderGroup = completion['order_group'];
+    final orderGroupId = orderGroup is Map
+        ? (orderGroup['id'] as String?)?.trim()
+        : null;
+    if (orderGroupId == null || !orderGroupId.startsWith('og_')) {
+      throw StateError('Checkout did not return a canonical order group.');
+    }
+
     final order = B2BOrder(
-      reference: reference,
+      reference: orderGroupId,
       dateLabel: 'Today',
       itemSummary:
           '${cart.lines.length} ${cart.lines.length == 1 ? 'item' : 'items'}',
-      total: cart.total,
+      total: canonical.total ??
+          Money(
+            amount: cart.subtotal.amount,
+            currencyCode: cart.subtotal.currencyCode,
+          ),
       deliveryLocation: cart.deliveryLocation,
       lines: <B2BOrderLine>[
         for (final line in cart.lines)
@@ -1566,6 +1655,13 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
             unitPrice: line.unitPrice,
           ),
       ],
+      cartId: cartId,
+      orderGroupId: orderGroupId,
+      paymentMode: completion['payment_mode'] as String?,
+      testData: completion['test_data'] == true,
+      subtotal: canonical.subtotal,
+      discount: canonical.discountTotal,
+      shipping: canonical.shippingTotal,
     );
     await _commit(<B2BOrder>[order, ...state]);
     ref.read(b2bQuotationCartProvider.notifier).clear();
