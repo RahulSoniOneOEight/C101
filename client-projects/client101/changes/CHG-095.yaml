@@ -1,0 +1,113 @@
+change_id: CHG-095
+revision: 1
+status: approved-in-progress
+request: >-
+  Place exactly one B2C order through the live staging customer web and QC the resulting Customer,
+  Admin and owning Seller flows once.
+type: staging-b2c-order-flow-verification
+extends:
+- CHG-094
+related:
+- CHG-093
+requested_by: human-requester
+requested_at_utc: '2026-10-29'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-29'
+approval_source: chat-place-one-b2c-order-and-qc
+approval_scope: one-staging-b2c-order-and-read-only-cross-surface-qc
+implementation_authorized: false
+staging_data_write_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: B
+release_mechanism: verification-only-no-release
+release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+
+outcome: >-
+  One owner-scoped B2C order is created through the live web checkout, confirmed by the canonical
+  server response, visible to the customer, Admin and owning Seller, and proven to have only
+  simulated payment/logistics effects.
+
+requirements:
+- id: R1
+  name: Exactly one web order
+  outcome: Create exactly one B2C order through the deployed customer web checkout.
+  status: pending
+- id: R2
+  name: Owner authentication
+  outcome: Signed-out checkout redirects to sign-in and returns to the exact product/SKU checkout.
+  status: pending
+- id: R3
+  name: Canonical confirmation
+  outcome: Success is shown only for a server-returned order group with simulated test-data payment.
+  status: pending
+- id: R4
+  name: Customer visibility
+  outcome: The new order appears in the owner's list and detail with the expected SKU, total and shipment.
+  status: pending
+- id: R5
+  name: Operator visibility
+  outcome: Admin and the owning Seller can view the order with correct role-scoped operations.
+  status: pending
+- id: R6
+  name: Provider boundaries
+  outcome: No refund, order transaction, Tryton movement, external delivery or production effect occurs.
+  status: pending
+- id: R7
+  name: Runtime quality
+  outcome: Target desktop/mobile views have no new blocking visual defect, console error or unexpected request failure.
+  status: pending
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-095.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-095/**
+  no_touch:
+  - application source
+  - release branches and images
+  - CHG-092 evidence fixtures
+  - B2B ordering
+  - Medusa refunds and order transactions
+  - Tryton stock and shipment records
+  - real PSP, carrier, notification delivery, settlement and accounting
+  - services/backend/apps/admin/fulfillment-preview*
+  - production
+  data_records:
+  - exactly one B2C staging order and its simulated payment/session, shipment, event and notification
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  head: 76cc35b51519b5765cbae02b21426acfc0a31da9
+  staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_current: release-b7f93b9
+  public_health: pass-4-of-4
+  data_counts: pending-capture
+
+verification:
+  status: pending
+  environment: staging
+  order_created: false
+  expected_order_count_delta: 1
+  retained_as_test_data: true
+  evidence_dir: client-projects/client101/evidence/CHG-095
+
+rollback:
+  code: none; no release or source change is authorized
+  data: retain the canonical order as labelled staging test data unless unexpected effects require stop-and-review
+  production: not-applicable-not-authorized
+
+deferred:
+- id: D1
+  name: Payment-order linkage and Tryton reservation
+  reason: Existing CHG-093 product/architecture decisions; not part of this verification.
+- id: D2
+  name: B2B canonical ordering
+  reason: Existing CHG-093 finding; not part of this B2C-only request.
+
+approval_checkpoint: >-
+  Human requester explicitly authorized one staging B2C order and cross-surface QC. No deployment or
+  production action is authorized.
