@@ -12,7 +12,9 @@ type OrderContext = {
   display_id?: number | string | null;
   payment_status?: string | null;
   currency_code?: string | null;
+  total?: number | null;
   summary?: {
+    total?: number | null;
     refunded_total?: number | null;
   } | null;
 };
