@@ -1,0 +1,126 @@
+{
+  "generated_at": "2026-10-29T18:35:37.632Z",
+  "release": "186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5",
+  "b2c": {
+    "orderId": "order_01M64F05SPJ1J1PWC4DM65S355",
+    "display": "157",
+    "total": "514",
+    "seller": "UrbanBuild Supply",
+    "sellerEmail": "urbanbuild@mercur.dev"
+  },
+  "b2b": {
+    "orderId": "order_01M64F1BFS22TM4VKHJ8GZ66GH",
+    "display": "158",
+    "total": "431.50",
+    "seller": "PowerMax Depot",
+    "sellerEmail": "powermax@mercur.dev"
+  },
+  "checks": [
+    {
+      "name": "Admin renders B2C order #157",
+      "status": "PASS",
+      "detail": "#157"
+    },
+    {
+      "name": "Admin B2C total",
+      "status": "PASS",
+      "detail": "₹514.06"
+    },
+    {
+      "name": "Admin B2C payment authorized",
+      "status": "PASS",
+      "detail": "Authorized"
+    },
+    {
+      "name": "Admin B2C delivery booked",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Admin renders B2B order #158",
+      "status": "PASS",
+      "detail": "#158"
+    },
+    {
+      "name": "Admin B2B total",
+      "status": "PASS",
+      "detail": "₹431.50"
+    },
+    {
+      "name": "Admin B2B payment authorized",
+      "status": "PASS",
+      "detail": "Authorized"
+    },
+    {
+      "name": "Admin B2B delivery booked",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Admin B2B badge",
+      "status": "PASS",
+      "detail": "B2B trade order"
+    },
+    {
+      "name": "Admin B2B business account",
+      "status": "PASS",
+      "detail": "business_arjun_traders"
+    },
+    {
+      "name": "UrbanBuild renders B2C order #157",
+      "status": "PASS",
+      "detail": "#157"
+    },
+    {
+      "name": "UrbanBuild sees booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "UrbanBuild sees Admin payment boundary",
+      "status": "PASS",
+      "detail": "boundary copy"
+    },
+    {
+      "name": "UrbanBuild cannot see B2B #158",
+      "status": "PASS",
+      "detail": "status=200"
+    },
+    {
+      "name": "PowerMax renders B2B order #158",
+      "status": "PASS",
+      "detail": "#158"
+    },
+    {
+      "name": "PowerMax sees booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "PowerMax sees Admin payment boundary",
+      "status": "PASS",
+      "detail": "boundary copy"
+    },
+    {
+      "name": "PowerMax cannot see B2C #157",
+      "status": "PASS",
+      "detail": "status=200"
+    }
+  ],
+  "summary": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0
+  },
+  "console_errors": [
+    {
+      "surface": "seller-b2c",
+      "message": "Failed to load resource: the server responded with a status of 404 ()"
+    },
+    {
+      "surface": "seller-b2b",
+      "message": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "page_errors": []
+}

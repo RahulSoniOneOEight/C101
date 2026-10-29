@@ -1,0 +1,127 @@
+change_id: CHG-099
+revision: 1
+status: staging-verified
+request: >-
+  Place one B2C order on the Next.js web store and one B2B order on the deployed B2B web
+  storefront, then QC both orders end to end across customer, Admin and Seller.
+type: order-flow-verification
+extends:
+- CHG-095
+- CHG-098
+related:
+- CHG-093
+- CHG-094
+requested_by: human-requester
+requested_at_utc: '2026-10-30'
+approval_required: true
+approved_by: human-requester
+approved_at_utc: '2026-10-30'
+approval_source: chat-place-b2b-b2c-web-orders
+approval_scope: one-b2c-web-order-and-one-b2b-web-order-staging-only
+implementation_authorized: false
+staging_data_write_authorized: true
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: verification
+environment: staging
+release_under_test: 186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5
+flutter_web_release: 8482e94f797b20e8ca85b9fa33688f97c8ee7b24
+
+outcome: >-
+  One B2C order and one B2B order can be placed on their respective staging web surfaces,
+  and each is visible with correct totals, payment state and fulfillment state in the
+  customer surface, Admin and the owning Seller.
+
+requirements:
+- id: R1
+  name: B2C web order
+  outcome: Place exactly one B2C order through the Next.js web store.
+  status: pass
+- id: R2
+  name: B2B web order
+  outcome: Place exactly one B2B order through the deployed Flutter B2B web storefront.
+  status: pass
+- id: R3
+  name: Customer visibility
+  outcome: Each buyer can read the canonical order and correct total in their customer surface.
+  status: pass
+- id: R4
+  name: Admin visibility
+  outcome: Both orders are visible in Admin with channel, total, payment and delivery state.
+  status: pass
+- id: R5
+  name: Seller visibility
+  outcome: The owning seller sees each order and cannot see the other seller's order.
+  status: pass
+- id: R6
+  name: Money and fulfillment
+  outcome: Totals, discounts, shipping, authorized payment and booked shipment are consistent.
+  status: pass
+- id: R7
+  name: No prohibited effects
+  outcome: No real PSP charge, Tryton stock move, carrier event, production change or schema change.
+  status: pass
+
+scope_lock:
+  allowed_paths:
+  - client-projects/client101/changes/CHG-099.yaml
+  - client-projects/client101/workflow/workflow-state.yaml
+  - client-projects/client101/evidence/CHG-099/**
+  no_touch:
+  - production
+  - Medusa database schema and migrations
+  - real PSP, carrier, notification delivery, settlement and accounting
+  - Tryton stock and shipment records
+  - application source code unless a QC blocker requires a governed fix
+  data_records:
+  - one staging B2C order group and its lines
+  - one staging B2B order group and its lines
+  production: forbidden
+
+baseline:
+  branch: feat/bt-sku-pairs
+  staging_release: 186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5
+  staging_current: release-186a50f
+  flutter_web_release: 8482e94f797b20e8ca85b9fa33688f97c8ee7b24
+  public_health: pass-4-of-4
+  b2c_web_surface: https://app-staging.pinakaplay.cloud
+  b2b_web_surface: https://buildkart-staging.web.app
+  reference_b2c_buyer: nihar1008.nj@gmail.com
+  reference_b2b_buyer: buyer.b2b01@buildkart.test
+
+verification:
+  status: pass
+  environment: staging
+  b2c_web_checkout: pass-24-of-24
+  b2b_web_checkout: pass-10-of-10
+  cross_surface_qc: pass-18-of-18
+  b2b_customer_readback: pass
+  b2c_order_group: og_01M64F05T378NMFSSY60VWNEPG
+  b2c_order_id: order_01M64F05SPJ1J1PWC4DM65S355
+  b2c_order_display_id: 157
+  b2c_cart_id: cart_01M64F014V13X98CX9H4S512JW
+  b2c_total_major: 514.055
+  b2b_order_group: og_01M64F1BG5RJ1WYAEFTZQ8878Z
+  b2b_order_id: order_01M64F1BFS22TM4VKHJ8GZ66GH
+  b2b_order_display_id: 158
+  b2b_cart_id: cart_01M64F18EAP0P0QD1753N50W3E
+  b2b_total_minor: 43150
+  b2b_shipment_status: booked
+  b2b_reservation_status: not_started
+  b2b_reconciled: false
+  payment_linkage: authorized-visible-in-admin-order-payment-collection-link-absent
+  nextjs_b2b_checkout: not-implemented-b2b-uses-flutter-web
+  console_errors: 0
+  unexpected_failed_requests: 0
+  public_health: pass-4-of-4
+  production_release_authorized: false
+
+rollback:
+  code: none planned
+  data: retain the two staging test orders; no destructive cleanup.
+  production: not-applicable-not-authorized
+
+approval_checkpoint: >-
+  Human requester explicitly asked to place one B2C and one B2B web order and QC both.
+  Staging only; no production action is authorized.

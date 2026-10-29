@@ -1,0 +1,791 @@
+{
+  "buyer": "buyer.b2b01@buildkart.test",
+  "productId": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+  "steps": [],
+  "network": {
+    "POST https://api-staging.pinakaplay.cloud/v1/carts": {
+      "status": 201,
+      "body": {
+        "id": "cart_01M64F18EAP0P0QD1753N50W3E",
+        "currency_code": "inr",
+        "email": "buyer.b2b01@buildkart.test",
+        "locale": null,
+        "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+        "created_at": "2026-10-29T18:33:53.867Z",
+        "updated_at": "2026-10-29T18:33:53.867Z",
+        "completed_at": null,
+        "total": 0,
+        "subtotal": 0,
+        "tax_total": 0,
+        "discount_total": 0,
+        "discount_subtotal": 0,
+        "discount_tax_total": 0,
+        "original_total": 0,
+        "original_tax_total": 0,
+        "item_total": 0,
+        "item_subtotal": 0,
+        "item_tax_total": 0,
+        "item_discount_total": 0,
+        "original_item_total": 0,
+        "original_item_subtotal": 0,
+        "original_item_tax_total": 0,
+        "shipping_total": 0,
+        "shipping_subtotal": 0,
+        "shipping_tax_total": 0,
+        "shipping_discount_total": 0,
+        "original_shipping_tax_total": 0,
+        "original_shipping_subtotal": 0,
+        "original_shipping_total": 0,
+        "credit_line_subtotal": 0,
+        "credit_line_tax_total": 0,
+        "credit_line_total": 0,
+        "metadata": {
+          "channel": "b2b",
+          "business_account_id": "business_arjun_traders"
+        },
+        "sales_channel_id": "sc_01M4EC8S2EBB6ZEAMGPGX7MP13",
+        "shipping_address_id": "caaddr_01M64F18EAEYR5MKC3T8M0G5DQ",
+        "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+        "items": [],
+        "shipping_methods": [],
+        "shipping_address": {
+          "id": "caaddr_01M64F18EAEYR5MKC3T8M0G5DQ",
+          "first_name": null,
+          "last_name": null,
+          "company": null,
+          "address_1": null,
+          "address_2": null,
+          "city": null,
+          "postal_code": null,
+          "country_code": "in",
+          "province": null,
+          "phone": null
+        },
+        "billing_address": null,
+        "credit_lines": [],
+        "customer": {
+          "id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+          "email": "buyer.b2b01@buildkart.test",
+          "groups": [
+            {
+              "id": "cusgroup_01M4EN8856WQRCH8XTXTS2GB9E"
+            }
+          ]
+        },
+        "region": {
+          "id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+          "name": "India",
+          "currency_code": "inr",
+          "automatic_taxes": true,
+          "countries": [
+            {
+              "iso_2": "in",
+              "iso_3": "ind",
+              "num_code": "356",
+              "name": "INDIA",
+              "display_name": "India",
+              "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+              "metadata": null,
+              "created_at": "2026-10-08T18:25:23.106Z",
+              "updated_at": "2026-10-08T18:26:54.060Z",
+              "deleted_at": null
+            }
+          ]
+        },
+        "promotions": [],
+        "engine_subtotal": 0,
+        "auto_offer": null,
+        "adjustments": [],
+        "channel": "b2b",
+        "business_account_id": "business_arjun_traders",
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "5e17cf339a3352347d785fc7b08dc03b"
+      }
+    },
+    "POST https://api-staging.pinakaplay.cloud/v1/carts/cart_01M64F18EAP0P0QD1753N50W3E/lines": {
+      "status": 200,
+      "body": {
+        "id": "cart_01M64F18EAP0P0QD1753N50W3E",
+        "currency_code": "inr",
+        "email": "buyer.b2b01@buildkart.test",
+        "locale": null,
+        "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+        "created_at": "2026-10-29T18:33:53.867Z",
+        "updated_at": "2026-10-29T18:33:54.096Z",
+        "completed_at": null,
+        "total": 33250,
+        "subtotal": 35000,
+        "tax_total": 0,
+        "discount_total": 1750,
+        "discount_subtotal": 17.5,
+        "discount_tax_total": 0,
+        "original_total": 350,
+        "original_tax_total": 0,
+        "item_total": 332.5,
+        "item_subtotal": 35000,
+        "item_tax_total": 0,
+        "item_discount_total": 1750,
+        "original_item_total": 350,
+        "original_item_subtotal": 350,
+        "original_item_tax_total": 0,
+        "shipping_total": 0,
+        "shipping_subtotal": 0,
+        "shipping_tax_total": 0,
+        "shipping_discount_total": 0,
+        "original_shipping_tax_total": 0,
+        "original_shipping_subtotal": 0,
+        "original_shipping_total": 0,
+        "credit_line_subtotal": 0,
+        "credit_line_tax_total": 0,
+        "credit_line_total": 0,
+        "metadata": {
+          "channel": "b2b",
+          "business_account_id": "business_arjun_traders",
+          "auto_offer_applied_code": "FLAT5",
+          "auto_offer_opt_out": false
+        },
+        "sales_channel_id": "sc_01M4EC8S2EBB6ZEAMGPGX7MP13",
+        "shipping_address_id": "caaddr_01M64F18EAEYR5MKC3T8M0G5DQ",
+        "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+        "items": [
+          {
+            "id": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+            "thumbnail": "https://ops-staging.pinakaplay.cloud/static/1792856586399-Wonder_Xtreme_1_11.webp",
+            "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+            "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+            "is_giftcard": false,
+            "product_type_id": null,
+            "product_title": "Wonder Cement",
+            "product_description": "The Cement For Contraction of resitential Building And Heavy Building ,Bridges,Commcial Working.",
+            "product_subtitle": "Wonder Cement",
+            "product_type": null,
+            "product_collection": "Flash Deals",
+            "product_handle": "wonder-cement",
+            "variant_sku": "WON-PPC-DAN-01",
+            "variant_barcode": null,
+            "variant_title": "Yellow / Like New",
+            "requires_shipping": true,
+            "metadata": {
+              "offer_id": "offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M"
+            },
+            "created_at": "2026-10-29T18:33:54.444Z",
+            "updated_at": "2026-10-29T18:33:54.444Z",
+            "title": "Wonder Cement",
+            "quantity": 1,
+            "unit_price": 35000,
+            "compare_at_unit_price": 400,
+            "is_tax_inclusive": false,
+            "tax_lines": [],
+            "adjustments": [
+              {
+                "code": "FLAT5",
+                "amount": 1750,
+                "label": "FLAT5"
+              }
+            ],
+            "product": {
+              "id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+              "collection_id": "pcol_01M535V0776WS7MDF0BCVFG9F9",
+              "type_id": null,
+              "categories": [
+                {
+                  "id": "pcat_01M4EC9BNG9AVFBH8RAN8MDP0V"
+                }
+              ],
+              "tags": [
+                {
+                  "id": "ptag_01M5SG5W50YT540ZB7JFACHK50"
+                },
+                {
+                  "id": "ptag_01M5SSRG0BCKQDMSVXRG2EEWNT"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CJR9V2S9JW5VTE6YN"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CDAFRRX2P5YEJA6W8"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CBZFKFBF6N6A0WEDR"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C6JMHT028YJXKHYSE"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C2D9DT0BP0KJVVVRX"
+                }
+              ]
+            },
+            "subtotal": 0,
+            "total": 0
+          }
+        ],
+        "shipping_methods": [],
+        "shipping_address": {
+          "id": "caaddr_01M64F18EAEYR5MKC3T8M0G5DQ",
+          "first_name": null,
+          "last_name": null,
+          "company": null,
+          "address_1": null,
+          "address_2": null,
+          "city": null,
+          "postal_code": null,
+          "country_code": "in",
+          "province": null,
+          "phone": null
+        },
+        "billing_address": null,
+        "credit_lines": [],
+        "customer": {
+          "id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+          "email": "buyer.b2b01@buildkart.test",
+          "groups": [
+            {
+              "id": "cusgroup_01M4EN8856WQRCH8XTXTS2GB9E"
+            }
+          ]
+        },
+        "region": {
+          "id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+          "name": "India",
+          "currency_code": "inr",
+          "automatic_taxes": true,
+          "countries": [
+            {
+              "iso_2": "in",
+              "iso_3": "ind",
+              "num_code": "356",
+              "name": "INDIA",
+              "display_name": "India",
+              "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+              "metadata": null,
+              "created_at": "2026-10-08T18:25:23.106Z",
+              "updated_at": "2026-10-08T18:26:54.060Z",
+              "deleted_at": null
+            }
+          ]
+        },
+        "promotions": [
+          {
+            "code": "FLAT5",
+            "label": "Flat5%",
+            "is_automatic": true
+          }
+        ],
+        "engine_subtotal": 35000,
+        "auto_offer": {
+          "code": "FLAT5",
+          "label": "Flat5%",
+          "removable": true
+        },
+        "adjustments": [
+          {
+            "code": "FLAT5",
+            "amount": 1750,
+            "label": "FLAT5",
+            "target": "item",
+            "line_item_id": "cali_01M64F190B0AQNX9ABVYEBQ55E"
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "3ca5ee4c6fa7e2865f2d4f10638981e1"
+      }
+    },
+    "POST https://api-staging.pinakaplay.cloud/v1/carts/cart_01M64F18EAP0P0QD1753N50W3E/customer-details": {
+      "status": 200,
+      "body": {
+        "id": "cart_01M64F18EAP0P0QD1753N50W3E",
+        "currency_code": "inr",
+        "email": "buyer.b2b01@buildkart.test",
+        "locale": null,
+        "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+        "created_at": "2026-10-29T18:33:53.867Z",
+        "updated_at": "2026-10-29T18:33:55.228Z",
+        "completed_at": null,
+        "total": 33250,
+        "subtotal": 35000,
+        "tax_total": 0,
+        "discount_total": 1750,
+        "discount_subtotal": 17.5,
+        "discount_tax_total": 0,
+        "original_total": 350,
+        "original_tax_total": 0,
+        "item_total": 332.5,
+        "item_subtotal": 35000,
+        "item_tax_total": 0,
+        "item_discount_total": 1750,
+        "original_item_total": 350,
+        "original_item_subtotal": 350,
+        "original_item_tax_total": 0,
+        "shipping_total": 0,
+        "shipping_subtotal": 0,
+        "shipping_tax_total": 0,
+        "shipping_discount_total": 0,
+        "original_shipping_tax_total": 0,
+        "original_shipping_subtotal": 0,
+        "original_shipping_total": 0,
+        "credit_line_subtotal": 0,
+        "credit_line_tax_total": 0,
+        "credit_line_total": 0,
+        "metadata": {
+          "channel": "b2b",
+          "auto_offer_opt_out": false,
+          "business_account_id": "business_arjun_traders",
+          "auto_offer_applied_code": "FLAT5"
+        },
+        "sales_channel_id": "sc_01M4EC8S2EBB6ZEAMGPGX7MP13",
+        "shipping_address_id": "caaddr_01M64F19RV6YDV4V8FXZ3GGVM3",
+        "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+        "items": [
+          {
+            "id": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+            "thumbnail": "https://ops-staging.pinakaplay.cloud/static/1792856586399-Wonder_Xtreme_1_11.webp",
+            "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+            "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+            "is_giftcard": false,
+            "product_type_id": null,
+            "product_title": "Wonder Cement",
+            "product_description": "The Cement For Contraction of resitential Building And Heavy Building ,Bridges,Commcial Working.",
+            "product_subtitle": "Wonder Cement",
+            "product_type": null,
+            "product_collection": "Flash Deals",
+            "product_handle": "wonder-cement",
+            "variant_sku": "WON-PPC-DAN-01",
+            "variant_barcode": null,
+            "variant_title": "Yellow / Like New",
+            "requires_shipping": true,
+            "metadata": {
+              "offer_id": "offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M"
+            },
+            "created_at": "2026-10-29T18:33:54.444Z",
+            "updated_at": "2026-10-29T18:33:54.444Z",
+            "title": "Wonder Cement",
+            "quantity": 1,
+            "unit_price": 35000,
+            "compare_at_unit_price": 400,
+            "is_tax_inclusive": false,
+            "tax_lines": [],
+            "adjustments": [
+              {
+                "code": "FLAT5",
+                "amount": 1750,
+                "label": "FLAT5"
+              }
+            ],
+            "product": {
+              "id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+              "collection_id": "pcol_01M535V0776WS7MDF0BCVFG9F9",
+              "type_id": null,
+              "categories": [
+                {
+                  "id": "pcat_01M4EC9BNG9AVFBH8RAN8MDP0V"
+                }
+              ],
+              "tags": [
+                {
+                  "id": "ptag_01M5SG5W50YT540ZB7JFACHK50"
+                },
+                {
+                  "id": "ptag_01M5SSRG0BCKQDMSVXRG2EEWNT"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CJR9V2S9JW5VTE6YN"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CDAFRRX2P5YEJA6W8"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CBZFKFBF6N6A0WEDR"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C6JMHT028YJXKHYSE"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C2D9DT0BP0KJVVVRX"
+                }
+              ]
+            },
+            "subtotal": 0,
+            "total": 0
+          }
+        ],
+        "shipping_methods": [],
+        "shipping_address": {
+          "id": "caaddr_01M64F19RV6YDV4V8FXZ3GGVM3",
+          "first_name": "Arjun Traders",
+          "last_name": "Procurement",
+          "company": null,
+          "address_1": "101 Test Yard",
+          "address_2": "Site A — Main block (Pune)",
+          "city": "Jaipur",
+          "postal_code": "302001",
+          "country_code": "in",
+          "province": "Rajasthan",
+          "phone": "+91 98765 43210"
+        },
+        "billing_address": null,
+        "credit_lines": [],
+        "customer": {
+          "id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+          "email": "buyer.b2b01@buildkart.test",
+          "groups": [
+            {
+              "id": "cusgroup_01M4EN8856WQRCH8XTXTS2GB9E"
+            }
+          ]
+        },
+        "region": {
+          "id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+          "name": "India",
+          "currency_code": "inr",
+          "automatic_taxes": true,
+          "countries": [
+            {
+              "iso_2": "in",
+              "iso_3": "ind",
+              "num_code": "356",
+              "name": "INDIA",
+              "display_name": "India",
+              "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+              "metadata": null,
+              "created_at": "2026-10-08T18:25:23.106Z",
+              "updated_at": "2026-10-08T18:26:54.060Z",
+              "deleted_at": null
+            }
+          ]
+        },
+        "promotions": [
+          {
+            "code": "FLAT5",
+            "label": "Flat5%",
+            "is_automatic": true
+          }
+        ],
+        "engine_subtotal": 35000,
+        "auto_offer": {
+          "code": "FLAT5",
+          "label": "Flat5%",
+          "removable": true
+        },
+        "adjustments": [
+          {
+            "code": "FLAT5",
+            "amount": 1750,
+            "label": "FLAT5",
+            "target": "item",
+            "line_item_id": "cali_01M64F190B0AQNX9ABVYEBQ55E"
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "8f6daf9b1938cf205b7e4a59a13e7d9e"
+      }
+    },
+    "POST https://api-staging.pinakaplay.cloud/v1/carts/cart_01M64F18EAP0P0QD1753N50W3E/delivery-tier": {
+      "status": 200,
+      "body": {
+        "id": "cart_01M64F18EAP0P0QD1753N50W3E",
+        "currency_code": "inr",
+        "email": "buyer.b2b01@buildkart.test",
+        "locale": null,
+        "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+        "created_at": "2026-10-29T18:33:53.867Z",
+        "updated_at": "2026-10-29T18:33:55.228Z",
+        "completed_at": null,
+        "total": 43150,
+        "subtotal": 35000,
+        "tax_total": 0,
+        "discount_total": 1750,
+        "discount_subtotal": 17.5,
+        "discount_tax_total": 0,
+        "original_total": 449,
+        "original_tax_total": 0,
+        "item_total": 332.5,
+        "item_subtotal": 35000,
+        "item_tax_total": 0,
+        "item_discount_total": 1750,
+        "original_item_total": 350,
+        "original_item_subtotal": 350,
+        "original_item_tax_total": 0,
+        "shipping_total": 9900,
+        "shipping_subtotal": 99,
+        "shipping_tax_total": 0,
+        "shipping_discount_total": 0,
+        "original_shipping_tax_total": 0,
+        "original_shipping_subtotal": 99,
+        "original_shipping_total": 99,
+        "credit_line_subtotal": 0,
+        "credit_line_tax_total": 0,
+        "credit_line_total": 0,
+        "metadata": {
+          "channel": "b2b",
+          "auto_offer_opt_out": false,
+          "business_account_id": "business_arjun_traders",
+          "auto_offer_applied_code": "FLAT5"
+        },
+        "sales_channel_id": "sc_01M4EC8S2EBB6ZEAMGPGX7MP13",
+        "shipping_address_id": "caaddr_01M64F19RV6YDV4V8FXZ3GGVM3",
+        "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+        "items": [
+          {
+            "id": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+            "thumbnail": "https://ops-staging.pinakaplay.cloud/static/1792856586399-Wonder_Xtreme_1_11.webp",
+            "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+            "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+            "is_giftcard": false,
+            "product_type_id": null,
+            "product_title": "Wonder Cement",
+            "product_description": "The Cement For Contraction of resitential Building And Heavy Building ,Bridges,Commcial Working.",
+            "product_subtitle": "Wonder Cement",
+            "product_type": null,
+            "product_collection": "Flash Deals",
+            "product_handle": "wonder-cement",
+            "variant_sku": "WON-PPC-DAN-01",
+            "variant_barcode": null,
+            "variant_title": "Yellow / Like New",
+            "requires_shipping": true,
+            "metadata": {
+              "offer_id": "offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M"
+            },
+            "created_at": "2026-10-29T18:33:54.444Z",
+            "updated_at": "2026-10-29T18:33:54.444Z",
+            "title": "Wonder Cement",
+            "quantity": 1,
+            "unit_price": 35000,
+            "compare_at_unit_price": 400,
+            "is_tax_inclusive": false,
+            "tax_lines": [],
+            "adjustments": [
+              {
+                "code": "FLAT5",
+                "amount": 1750,
+                "label": "FLAT5"
+              }
+            ],
+            "product": {
+              "id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+              "collection_id": "pcol_01M535V0776WS7MDF0BCVFG9F9",
+              "type_id": null,
+              "categories": [
+                {
+                  "id": "pcat_01M4EC9BNG9AVFBH8RAN8MDP0V"
+                }
+              ],
+              "tags": [
+                {
+                  "id": "ptag_01M5SG5W50YT540ZB7JFACHK50"
+                },
+                {
+                  "id": "ptag_01M5SSRG0BCKQDMSVXRG2EEWNT"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CJR9V2S9JW5VTE6YN"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CDAFRRX2P5YEJA6W8"
+                },
+                {
+                  "id": "ptag_01M5SSRG0CBZFKFBF6N6A0WEDR"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C6JMHT028YJXKHYSE"
+                },
+                {
+                  "id": "ptag_01M5SSRG0C2D9DT0BP0KJVVVRX"
+                }
+              ]
+            },
+            "subtotal": 0,
+            "total": 0
+          }
+        ],
+        "shipping_methods": [
+          {
+            "amount": 99,
+            "is_tax_inclusive": false,
+            "shipping_option_id": "so_01M4EC9D0H2A0BWZ5FRN336KE5",
+            "id": "casm_01M64F1AE49QSHZVJC3HR5DMHF",
+            "tax_lines": [],
+            "adjustments": []
+          }
+        ],
+        "shipping_address": {
+          "id": "caaddr_01M64F19RV6YDV4V8FXZ3GGVM3",
+          "first_name": "Arjun Traders",
+          "last_name": "Procurement",
+          "company": null,
+          "address_1": "101 Test Yard",
+          "address_2": "Site A — Main block (Pune)",
+          "city": "Jaipur",
+          "postal_code": "302001",
+          "country_code": "in",
+          "province": "Rajasthan",
+          "phone": "+91 98765 43210"
+        },
+        "billing_address": null,
+        "credit_lines": [],
+        "customer": {
+          "id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+          "email": "buyer.b2b01@buildkart.test",
+          "groups": [
+            {
+              "id": "cusgroup_01M4EN8856WQRCH8XTXTS2GB9E"
+            }
+          ]
+        },
+        "region": {
+          "id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+          "name": "India",
+          "currency_code": "inr",
+          "automatic_taxes": true,
+          "countries": [
+            {
+              "iso_2": "in",
+              "iso_3": "ind",
+              "num_code": "356",
+              "name": "INDIA",
+              "display_name": "India",
+              "region_id": "reg_01M4EC9BEX0WF9392QM0DSRZBN",
+              "metadata": null,
+              "created_at": "2026-10-08T18:25:23.106Z",
+              "updated_at": "2026-10-08T18:26:54.060Z",
+              "deleted_at": null
+            }
+          ]
+        },
+        "promotions": [
+          {
+            "code": "FLAT5",
+            "label": "Flat5%",
+            "is_automatic": true
+          }
+        ],
+        "engine_subtotal": 44900,
+        "auto_offer": {
+          "code": "FLAT5",
+          "label": "Flat5%",
+          "removable": true
+        },
+        "adjustments": [
+          {
+            "code": "FLAT5",
+            "amount": 1750,
+            "label": "FLAT5",
+            "target": "item",
+            "line_item_id": "cali_01M64F190B0AQNX9ABVYEBQ55E"
+          }
+        ],
+        "delivery_tier": "standard",
+        "applied": [
+          {
+            "seller_id": "sel_01M4EC9CVVHG168X1DHHBY29HY",
+            "option_id": "so_01M4EC9D0H2A0BWZ5FRN336KE5",
+            "tier": "standard"
+          }
+        ],
+        "environment": "staging",
+        "test_data": true,
+        "correlation_id": "c3eb04dfe045b859a209fd82fe2784b6"
+      }
+    },
+    "POST https://api-staging.pinakaplay.cloud/v1/checkouts/cart_01M64F18EAP0P0QD1753N50W3E/complete": {
+      "status": 200,
+      "body": {
+        "type": "order_group",
+        "order_group": {
+          "id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+          "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+          "cart_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+          "seller_count": 1,
+          "total": 431.5,
+          "created_at": "2026-10-29T18:33:56.997Z",
+          "updated_at": "2026-10-29T18:33:56.997Z"
+        },
+        "payment": {
+          "payment_collection_id": "pay_col_01M64F1B8W56H224Y885RQ7KVR",
+          "payment_session_id": "payses_01M64F1BAMR5K7NERK3BTPXWR5",
+          "provider_id": "pp_simulated_simulated",
+          "payment_mode": "simulated",
+          "test_data": true
+        },
+        "environment": "staging",
+        "test_data": true,
+        "payment_mode": "simulated",
+        "correlation_id": "21818870a9066aae8e251025b6f269ef"
+      }
+    }
+  },
+  "checks": [
+    {
+      "name": "OTP screen reached",
+      "status": "PASS",
+      "detail": "https://buildkart-staging.web.app/#/otp?mode=b2b"
+    },
+    {
+      "name": "B2B home reached",
+      "status": "PASS",
+      "detail": "https://buildkart-staging.web.app/#/b2b"
+    },
+    {
+      "name": "PDP shows B2B price",
+      "status": "PASS",
+      "detail": "₹350"
+    },
+    {
+      "name": "cart shows B2B subtotal",
+      "status": "PASS",
+      "detail": "₹350"
+    },
+    {
+      "name": "cart shows GST included",
+      "status": "PASS",
+      "detail": "GST Included"
+    },
+    {
+      "name": "delivery site selected",
+      "status": "PASS",
+      "detail": "Place Business Order enabled"
+    },
+    {
+      "name": "order confirmation reached",
+      "status": "PASS",
+      "detail": "https://buildkart-staging.web.app/#/b2b/cart/confirm"
+    },
+    {
+      "name": "confirmation shows delivery site",
+      "status": "PASS",
+      "detail": "Site A — Main block (Pune)"
+    },
+    {
+      "name": "confirmation shows order group",
+      "status": "PASS",
+      "detail": "Back\nOrder Confirmed\nB2B Home\nPurchase order placed\nog_01M64F1BG5RJ1WYAEFTZQ8878Z · GST invoice raised\nDelivery site Site A — Main block (Pune)\nOrder group og_01M64F1BG5RJ1WYAEFTZQ8878Z\nSubtotal ₹350\nDiscount -₹18\nShipping ₹99\nGST Included\nTotal ₹432\nPayment mode: simulated · test data\nView GST Invoice\nTrade\nBrowse\nCredit\nCart\nAccount"
+    },
+    {
+      "name": "canonical order group returned",
+      "status": "PASS",
+      "detail": "og_01M64F1BG5RJ1WYAEFTZQ8878Z"
+    },
+    {
+      "name": "canonical cart returned",
+      "status": "PASS",
+      "detail": "cart_01M64F18EAP0P0QD1753N50W3E"
+    }
+  ],
+  "order": {
+    "cart_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+    "order_group_id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+    "order_group": {
+      "id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+      "customer_id": "cus_01M4EMM2916C9EAAT9DARKRB8P",
+      "cart_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+      "seller_count": 1,
+      "total": 431.5,
+      "created_at": "2026-10-29T18:33:56.997Z",
+      "updated_at": "2026-10-29T18:33:56.997Z"
+    },
+    "confirmation_text": "Back\nOrder Confirmed\nB2B Home\nPurchase order placed\nog_01M64F1BG5RJ1WYAEFTZQ8878Z · GST invoice raised\nDelivery site Site A — Main block (Pune)\nOrder group og_01M64F1BG5RJ1WYAEFTZQ8878Z\nSubtotal ₹350\nDiscount -₹18\nShipping ₹99\nGST Included\nTotal ₹432\nPayment mode: simulated · test data\nView GST Invoice\nTrade\nBrowse\nCredit\nCart\nAccount"
+  }
+}

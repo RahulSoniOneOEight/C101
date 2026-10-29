@@ -142,6 +142,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-29'
   scope: b2b-canonical-checkout-and-price-list-correction-staging-only
+- change_id: CHG-099
+  approved_by: human-requester
+  approved_at_utc: '2026-10-30'
+  scope: one-b2c-web-order-and-one-b2b-web-order-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -936,6 +940,63 @@ active_changes:
   - client-projects/client101/evidence/CHG-098/b2b-admin-qc.json
   - client-projects/client101/evidence/CHG-098/b2b-order-readback.json
   - client-projects/client101/evidence/CHG-098/b2b-price-lists-after.json
+  production_release_authorized: false
+- change_id: CHG-099
+  status: staging-verified
+  approval_required: true
+  approval_scope: one-b2c-web-order-and-one-b2b-web-order-staging-only
+  approved_by: human-requester
+  approved_at_utc: '2026-10-30'
+  proposal: client-projects/client101/changes/CHG-099.yaml
+  lane: verification
+  release_under_test: 186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5
+  flutter_web_release: 8482e94f797b20e8ca85b9fa33688f97c8ee7b24
+  scope: one-b2c-nextjs-web-order-and-one-b2b-flutter-web-order
+  staging_data_write_authorized: true
+  staging_deployment_authorized: false
+  staging_deployment_performed: false
+  b2c_web_checkout: pass-24-of-24
+  b2b_web_checkout: pass-10-of-10
+  cross_surface_qc: pass-18-of-18
+  b2b_customer_readback: pass
+  b2c_order_group: og_01M64F05T378NMFSSY60VWNEPG
+  b2c_order_id: order_01M64F05SPJ1J1PWC4DM65S355
+  b2c_order_display_id: 157
+  b2c_cart_id: cart_01M64F014V13X98CX9H4S512JW
+  b2c_total_major: 514.055
+  b2b_order_group: og_01M64F1BG5RJ1WYAEFTZQ8878Z
+  b2b_order_id: order_01M64F1BFS22TM4VKHJ8GZ66GH
+  b2b_order_display_id: 158
+  b2b_cart_id: cart_01M64F18EAP0P0QD1753N50W3E
+  b2b_total_minor: 43150
+  b2b_shipment_status: booked
+  b2b_reservation_status: not_started
+  b2b_reconciled: false
+  nextjs_b2b_checkout: not-implemented-b2b-uses-flutter-web
+  payment_linkage: authorized-visible-in-admin-order-payment-collection-link-absent
+  staging_console_errors: 0
+  staging_unexpected_failed_requests: 0
+  staging_public_health: pass-4-of-4
+  staging_zero_prohibited_effects: pass
+  requirements:
+    R1_b2c_web_order: pass
+    R2_b2b_web_order: pass
+    R3_customer_visibility: pass
+    R4_admin_visibility: pass
+    R5_seller_visibility: pass
+    R6_money_and_fulfillment: pass
+    R7_no_prohibited_effects: pass
+  deferred:
+  - nextjs-b2b-checkout
+  - order-payment-collection-link
+  - tryton-reservation
+  evidence:
+  - client-projects/client101/evidence/CHG-099/summary.md
+  - client-projects/client101/evidence/CHG-099/b2c-web-checkout-qc.json
+  - client-projects/client101/evidence/CHG-099/b2b-web-order.json
+  - client-projects/client101/evidence/CHG-099/b2b-customer-readback.json
+  - client-projects/client101/evidence/CHG-099/cross-surface-qc.json
+  - client-projects/client101/evidence/CHG-099/orders-readback.json
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

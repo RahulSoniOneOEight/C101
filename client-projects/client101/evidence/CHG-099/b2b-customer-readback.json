@@ -1,0 +1,189 @@
+{
+  "summary": {
+    "buyer": "buyer.b2b01@buildkart.test",
+    "cart_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+    "order_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+    "order_group_id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+    "order_number": "BK-261029-Y1HVZA",
+    "status": "confirmed",
+    "subtotal_minor": 35000,
+    "shipping_minor": 9900,
+    "discount_minor": 1750,
+    "total_minor": 43150,
+    "currency_code": "INR",
+    "payment_mode": "simulated",
+    "shipment_status": "booked",
+    "shipment_tracking": "SIM-59F11E0B7FD2",
+    "reservation_status": "not_started",
+    "reconciled": false,
+    "lines": [
+      {
+        "line_key": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+        "sku": "WON-PPC-DAN-01",
+        "title": "Wonder Cement",
+        "quantity": 1,
+        "unit_price": 35000,
+        "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+        "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+        "seller_id": "sel_01M4EC9CVVHG168X1DHHBY29HY"
+      }
+    ],
+    "history_count": null,
+    "history_contains_order": false
+  },
+  "order": {
+    "order_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+    "medusa_order_group_id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+    "status": "confirmed",
+    "order_number": "BK-261029-Y1HVZA",
+    "subtotal_minor": 35000,
+    "shipping_minor": 9900,
+    "discount_minor": 1750,
+    "total_minor": 43150,
+    "currency_code": "INR",
+    "payment_mode": "simulated",
+    "environment": "staging",
+    "test_data": true,
+    "reservation_id": null,
+    "reservation_status": "not_started",
+    "reconciled": false,
+    "lines": [
+      {
+        "line_key": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+        "sku": "WON-PPC-DAN-01",
+        "title": "Wonder Cement",
+        "quantity": 1,
+        "unit_price": 35000,
+        "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+        "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+        "seller_id": "sel_01M4EC9CVVHG168X1DHHBY29HY"
+      }
+    ],
+    "shipments": [
+      {
+        "id": "ship_0c34733e5bfd400eaceabcd8cd14817a",
+        "orderGroupId": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+        "allocationId": "alloc_01M64F1BFS22TM4VKHJ8GZ66GH",
+        "sellerId": "sel_01M4EC9CVVHG168X1DHHBY29HY",
+        "provider": "simulated",
+        "trackingNumber": "SIM-59F11E0B7FD2",
+        "status": "booked",
+        "version": 1,
+        "allowedTransitions": [
+          "ready_for_pickup",
+          "picked_up",
+          "cancelled"
+        ],
+        "deliveredAt": null,
+        "proofRef": null,
+        "destinationPostcode": "302001",
+        "environment": "staging",
+        "logisticsMode": "simulated",
+        "testData": true,
+        "createdAt": "2026-10-29T18:33:57.500Z",
+        "updatedAt": "2026-10-29T18:33:57.500Z",
+        "lines": [
+          {
+            "lineKey": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+            "sku": "WON-PPC-DAN-01",
+            "orderedQty": 1,
+            "deliveredQty": 0
+          }
+        ],
+        "events": [
+          {
+            "id": "shev_1fec0d0ae5df411794821dcb31884d9d",
+            "shipmentId": "ship_0c34733e5bfd400eaceabcd8cd14817a",
+            "provider": "simulated",
+            "providerEventId": "booked:alloc_01M64F1BFS22TM4VKHJ8GZ66GH",
+            "eventType": "booked",
+            "status": "booked",
+            "occurredAt": "2026-10-29T18:33:57.500Z",
+            "receivedAt": "2026-10-29T18:33:57.500Z",
+            "payload": {
+              "tracking_number": "SIM-59F11E0B7FD2"
+            },
+            "testData": true
+          }
+        ]
+      }
+    ],
+    "return_eligibility": [
+      {
+        "line_key": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+        "sku": "WON-PPC-DAN-01",
+        "title": "Wonder Cement",
+        "ordered_qty": 1,
+        "delivered_qty": 0,
+        "requested_qty": 0,
+        "returnable_qty": 0,
+        "deadline": null,
+        "allowed_reasons": [],
+        "eligible": false,
+        "ineligible_reason": "not_delivered"
+      }
+    ],
+    "returns": [],
+    "logistics_mode": "simulated",
+    "correlation_id": "7db50a99ec092a9e611421a6d26d5be5"
+  },
+  "history": {
+    "items": [
+      {
+        "order_id": "cart_01M64F18EAP0P0QD1753N50W3E",
+        "medusa_order_group_id": "og_01M64F1BG5RJ1WYAEFTZQ8878Z",
+        "status": "confirmed",
+        "created_at": "2026-10-29T18:33:54.239Z",
+        "order_number": "BK-261029-Y1HVZA",
+        "subtotal_minor": 35000,
+        "shipping_minor": 9900,
+        "discount_minor": 1750,
+        "total_minor": 43150,
+        "currency_code": "INR",
+        "lines": [
+          {
+            "line_key": "cali_01M64F190B0AQNX9ABVYEBQ55E",
+            "sku": "WON-PPC-DAN-01",
+            "title": "Wonder Cement",
+            "quantity": 1,
+            "unit_price": 35000,
+            "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+            "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+            "seller_id": "sel_01M4EC9CVVHG168X1DHHBY29HY"
+          }
+        ],
+        "payment_mode": "simulated",
+        "test_data": true
+      },
+      {
+        "order_id": "cart_01M64BZY6APK55P07T3CA342E1",
+        "medusa_order_group_id": "og_01M64C01MVC35YEK45658BERQ2",
+        "status": "confirmed",
+        "created_at": "2026-10-29T17:40:45.275Z",
+        "order_number": "BK-261029-11CVS4",
+        "subtotal_minor": 35000,
+        "shipping_minor": 9900,
+        "discount_minor": 1750,
+        "total_minor": 43150,
+        "currency_code": "INR",
+        "lines": [
+          {
+            "line_key": "cali_01M64BZYRC15VE9ZDNTNHTDJJN",
+            "sku": "WON-PPC-DAN-01",
+            "title": "Wonder Cement",
+            "quantity": 1,
+            "unit_price": 35000,
+            "product_id": "prod_01M5Q98Y7CEHEPKZENTNGF9CVW",
+            "variant_id": "variant_01M5Q98YJZX8G09WT738SG6AGJ",
+            "seller_id": "sel_01M4EC9CVVHG168X1DHHBY29HY"
+          }
+        ],
+        "payment_mode": "simulated",
+        "test_data": true
+      }
+    ],
+    "environment": "staging",
+    "test_data": true,
+    "correlation_id": "55f8c3f2ca691b7b6a26feed591d1c3b"
+  }
+}
