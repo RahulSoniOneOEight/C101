@@ -1,6 +1,6 @@
 change_id: CHG-096
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Port the top-level Admin order-detail UX from the local fulfillment-preview harness:
   unified status strip, Payments card, and Admin/Seller/App/Web role-mode preview switch.
@@ -40,31 +40,31 @@ requirements:
 - id: R1
   name: Status strip
   outcome: Replace the four mixed status tiles with a single Payment/Delivery/Returns/Refund strip.
-  status: pending
+  status: pass
 - id: R2
   name: Payments card
   outcome: Show authorized/captured/refunded/outstanding amounts, payment method and reference, and native controls in one coherent card.
-  status: pending
+  status: pass
 - id: R3
   name: Role-mode switch
   outcome: Add an Admin/Seller/App/Web segmented control that previews the same order group in each role context.
-  status: pending
+  status: pass
 - id: R4
   name: Mobile layout
   outcome: 390x844 view has no blocking overlap, no document overflow, and readable line items.
-  status: pending
+  status: pass
 - id: R5
   name: Native action parity
   outcome: Existing Capture payment, Update delivery status and Return workbench actions remain reachable.
-  status: pending
+  status: pass
 - id: R6
   name: Accessibility
   outcome: Icon buttons have labels, product images have alt text, heading order is correct, and touch targets are at least 44x44 dp.
-  status: pending
+  status: pass
 - id: R7
   name: Staging deploy and QC
   outcome: Deploy to staging, verify against order #151, and record evidence.
-  status: pending
+  status: pass
 
 scope_lock:
   allowed_paths:
@@ -91,16 +91,31 @@ baseline:
   branch: feat/bt-sku-pairs
   head: de7fe89e9125abe23ecb0429b4202177659fd3cb
   staging_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
-  staging_current: release-b7f93b9
+  staging_current: release-dc38fcc
   public_health: pass-4-of-4
   reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
   reference_order_number: BK-261029-WT4R93
 
 verification:
-  status: pending
+  status: pass
   environment: staging
-  deployment_performed: false
+  deployment_performed: true
+  deployment_date_utc: '2026-10-29'
+  release_commit: dc38fcc089c710c3078bad62e0ea09718d343431
+  release_branch: release/chg-096-4
+  release_path: /opt/buildkart-releases/release-dc38fcc
+  baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  baseline_path: /opt/buildkart-releases/release-b7f93b9
+  rollback_release: release-b7f93b9
+  rollback_image: buildkart-hosted-pilot-medusa:rollback-b7f93b9
+  medusa_image: sha256:a288bb00ad66
+  deploy_owner: requester-authorized-opencode-agent
   evidence_dir: client-projects/client101/evidence/CHG-096
+  browser_qc: pass-38-of-38
+  console_errors: 0
+  unexpected_failed_requests: 0
+  reference_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
+  reference_order_number: BK-261029-WT4R93
 
 rollback:
   code: revert changes to the allowed Admin widget paths

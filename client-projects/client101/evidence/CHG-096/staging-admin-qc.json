@@ -1,0 +1,294 @@
+{
+  "timestamp": "2026-10-29T08:29:33.178Z",
+  "orderId": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
+  "orderNumber": "BK-261029-WT4R93",
+  "release": "dc38fcc",
+  "checks": [
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "login succeeds",
+      "status": "PASS",
+      "detail": "url: https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "order page loads",
+      "status": "PASS",
+      "detail": "order #151 present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "status strip shows Payment",
+      "status": "PASS",
+      "detail": "Payment/Delivery/Returns/Refund tiles present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "Payments card present",
+      "status": "PASS",
+      "detail": "payments amounts present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "Payments card shows authorized amount",
+      "status": "PASS",
+      "detail": "authorized amount matches order total"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "Payments card shows outstanding amount",
+      "status": "PASS",
+      "detail": "outstanding amount matches order total"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "role-mode switch has Admin",
+      "status": "PASS",
+      "detail": "Admin control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "role-mode switch has Seller",
+      "status": "PASS",
+      "detail": "Seller control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "role-mode switch has App",
+      "status": "PASS",
+      "detail": "App control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "role-mode switch has Web",
+      "status": "PASS",
+      "detail": "Web control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "seller mode banner shows",
+      "status": "PASS",
+      "detail": "seller perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "seller mode hides native payment controls",
+      "status": "PASS",
+      "detail": "native controls hidden in seller mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "seller mode no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "app mode banner shows",
+      "status": "PASS",
+      "detail": "app perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "web mode banner shows",
+      "status": "PASS",
+      "detail": "web perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin mode banner shows",
+      "status": "PASS",
+      "detail": "admin perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin mode shows native payment controls",
+      "status": "PASS",
+      "detail": "native controls present in admin mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "admin mode delivery update control present",
+      "status": "PASS",
+      "detail": "delivery section rendered"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "login succeeds",
+      "status": "PASS",
+      "detail": "url: https://ops-staging.pinakaplay.cloud/dashboard/orders"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "order page loads",
+      "status": "PASS",
+      "detail": "order #151 present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "status strip shows Payment",
+      "status": "PASS",
+      "detail": "Payment/Delivery/Returns/Refund tiles present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "Payments card present",
+      "status": "PASS",
+      "detail": "payments amounts present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "Payments card shows authorized amount",
+      "status": "PASS",
+      "detail": "authorized amount matches order total"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "Payments card shows outstanding amount",
+      "status": "PASS",
+      "detail": "outstanding amount matches order total"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "role-mode switch has Admin",
+      "status": "PASS",
+      "detail": "Admin control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "role-mode switch has Seller",
+      "status": "PASS",
+      "detail": "Seller control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "role-mode switch has App",
+      "status": "PASS",
+      "detail": "App control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "role-mode switch has Web",
+      "status": "PASS",
+      "detail": "Web control present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "seller mode banner shows",
+      "status": "PASS",
+      "detail": "seller perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "seller mode hides native payment controls",
+      "status": "PASS",
+      "detail": "native controls hidden in seller mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "seller mode no horizontal overflow",
+      "status": "PASS",
+      "detail": "document width within viewport"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "app mode banner shows",
+      "status": "PASS",
+      "detail": "app perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "web mode banner shows",
+      "status": "PASS",
+      "detail": "web perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin mode banner shows",
+      "status": "PASS",
+      "detail": "admin perspective banner"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin mode shows native payment controls",
+      "status": "PASS",
+      "detail": "native controls present in admin mode"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "admin mode delivery update control present",
+      "status": "PASS",
+      "detail": "delivery section rendered"
+    }
+  ],
+  "summary": {
+    "pass": 38,
+    "fail": 0,
+    "consoleErrors": 0,
+    "failedRequests": 0
+  },
+  "consoleErrors": [],
+  "failedRequests": [],
+  "screenshots": [
+    "screenshots/admin/desktop/order-admin-default.png",
+    "screenshots/admin/desktop/order-admin-seller-mode.png",
+    "screenshots/admin/desktop/order-admin-app-mode.png",
+    "screenshots/admin/desktop/order-admin-web-mode.png",
+    "screenshots/admin/desktop/order-admin-admin-mode.png",
+    "screenshots/admin/mobile/order-admin-default.png",
+    "screenshots/admin/mobile/order-admin-seller-mode.png",
+    "screenshots/admin/mobile/order-admin-app-mode.png",
+    "screenshots/admin/mobile/order-admin-web-mode.png",
+    "screenshots/admin/mobile/order-admin-admin-mode.png"
+  ]
+}

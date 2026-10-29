@@ -805,7 +805,7 @@ active_changes:
     R7_runtime_quality: PASS
   production_release_authorized: false
 - change_id: CHG-096
-  status: approved-in-progress
+  status: staging-deployed-verified
   approval_required: true
   approval_scope: admin-order-detail-status-strip-payments-card-role-mode-switch-staging-only
   approved_by: human-requester
@@ -817,9 +817,46 @@ active_changes:
   - image-rebuild
   scope: admin-order-detail-top-chrome-and-role-preview
   release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  implementation_authorized: true
+  local_implementation_status: pass-source
+  typecheck: pass
+  build: pass
+  browser_qc: pass-38-of-38
+  browser_qc_mode: staging-admin-order-detail
   staging_data_write_authorized: false
   staging_deployment_authorized: true
-  staging_qc_status: pending
+  staging_deployment_authorized_at_utc: '2026-10-29'
+  staging_deploy_owner: requester-authorized-opencode-agent
+  staging_deployment_status: staging-deployed-verified
+  staging_baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  staging_baseline_path: /opt/buildkart-releases/release-b7f93b9
+  staging_release_commit: dc38fcc089c710c3078bad62e0ea09718d343431
+  staging_release_path: /opt/buildkart-releases/release-dc38fcc
+  staging_current: release-dc38fcc
+  staging_rollback_release: release-b7f93b9
+  staging_medusa_image: sha256:a288bb00ad66
+  staging_browser_qc: pass-38-of-38
+  staging_public_health: pass-4-of-4
+  staging_console_errors: 0
+  staging_unexpected_failed_requests: 0
+  staging_test_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
+  staging_test_order_display_id: 151
+  staging_test_order_number: BK-261029-WT4R93
+  staging_test_order_group: og_01M633BSJSH4023AHJPCKHNNKA
+  staging_zero_prohibited_effects: pass
+  staging_visual_review: pass
+  requirements:
+    R1_status_strip: pass
+    R2_payments_card: pass
+    R3_role_mode_switch: pass
+    R4_mobile_layout: pass
+    R5_native_action_parity: pass
+    R6_accessibility: pass
+    R7_staging_deploy_and_qc: pass
+  evidence:
+  - client-projects/client101/evidence/CHG-096/staging-deployment.md
+  - client-projects/client101/evidence/CHG-096/staging-admin-qc.json
+  - client-projects/client101/evidence/CHG-096/staging-admin-qc.mjs
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified
