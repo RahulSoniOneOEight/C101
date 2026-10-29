@@ -1,0 +1,190 @@
+{
+  "generated_at": "2026-10-29T05:50:46.638Z",
+  "target": "https://app-staging.pinakaplay.cloud",
+  "release": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+  "owner": "nihar1008.nj@gmail.com",
+  "product_id": "prod_01M59JS4A6QTH32AXVW9P2D3A3",
+  "sku": "XZ5QR",
+  "order_group_id": "og_01M633BSJSH4023AHJPCKHNNKA",
+  "checkout_ref": "cart_01M633BMCPDPEFABNG2W2PQJZ9",
+  "order_number": "BK-261029-WT4R93",
+  "checkout_post_count": 1,
+  "checkout_response": {
+    "status": 200,
+    "type": "order_group",
+    "payment_mode": "simulated",
+    "test_data": true
+  },
+  "checks": [
+    {
+      "name": "signed-out checkout redirects to sign-in",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/sign-in?next=%2Fcheckout%3FproductId%3Dprod_01M59JS4A6QTH32AXVW9P2D3A3%26sku%3DXZ5QR"
+    },
+    {
+      "name": "redirect preserves exact product and SKU checkout",
+      "status": "PASS",
+      "detail": "/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR"
+    },
+    {
+      "name": "OTP returns to exact checkout",
+      "status": "PASS",
+      "detail": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR"
+    },
+    {
+      "name": "owner session is HTTP-only and secure",
+      "status": "PASS",
+      "detail": "httpOnly=true; secure=true; sameSite=Lax"
+    },
+    {
+      "name": "checkout renders selected product",
+      "status": "PASS",
+      "detail": "product"
+    },
+    {
+      "name": "checkout renders selected SKU",
+      "status": "PASS",
+      "detail": "XZ5QR"
+    },
+    {
+      "name": "desktop checkout has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "exactly one checkout POST was sent",
+      "status": "PASS",
+      "detail": "1"
+    },
+    {
+      "name": "checkout returns HTTP 200",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "server returns canonical order group",
+      "status": "PASS",
+      "detail": "og_01M633BSJSH4023AHJPCKHNNKA"
+    },
+    {
+      "name": "payment is explicit simulated test data",
+      "status": "PASS",
+      "detail": "simulated; test_data=true"
+    },
+    {
+      "name": "confirmation displays canonical group",
+      "status": "PASS",
+      "detail": "og_01M633BSJSH4023AHJPCKHNNKA"
+    },
+    {
+      "name": "new order is first in owner list",
+      "status": "PASS",
+      "detail": "cart_01M633BMCPDPEFABNG2W2PQJZ9"
+    },
+    {
+      "name": "owner card has canonical order number",
+      "status": "PASS",
+      "detail": "BK-261029-WT4R93"
+    },
+    {
+      "name": "owner card shows expected total",
+      "status": "PASS",
+      "detail": "₹514.05"
+    },
+    {
+      "name": "customer detail shows order number",
+      "status": "PASS",
+      "detail": "BK-261029-WT4R93"
+    },
+    {
+      "name": "customer detail shows SKU",
+      "status": "PASS",
+      "detail": "XZ5QR"
+    },
+    {
+      "name": "customer detail shows expected total",
+      "status": "PASS",
+      "detail": "₹514.05"
+    },
+    {
+      "name": "customer detail shows booked shipment",
+      "status": "PASS",
+      "detail": "booked"
+    },
+    {
+      "name": "desktop customer detail has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "mobile customer detail has no horizontal overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "customer console has no errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "customer page has no uncaught errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "customer flow has no unexpected failed requests",
+      "status": "PASS",
+      "detail": "0; ignored 10 cancelled Next.js RSC prefetches"
+    }
+  ],
+  "console_errors": [],
+  "page_errors": [],
+  "unexpected_failed_requests": [],
+  "ignored_expected_rsc_aborts": [
+    {
+      "url": "https://app-staging.pinakaplay.cloud/returns?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR&_rsc=wCudfKGETyaWfMGy",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/checkout?productId=prod_01M59JS4A6QTH32AXVW9P2D3A3&sku=XZ5QR&_rsc=WQvJxD8uy0vp3X-P",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623W3B4DM46P9KM11XJXJZ4?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M633BMCPDPEFABNG2W2PQJZ9?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M624MH558QNVK63BJVN0JQ8H?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M623CTCV1FGY33NF4BP8PTCN?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M5Z4SNVA6DR595ASBWW20NK8?_rsc=T1dbrVTdxGViMLj4",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "url": "https://app-staging.pinakaplay.cloud/orders/cart_01M633BMCPDPEFABNG2W2PQJZ9?_rsc=aFIn8pw9xU08cpR9",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "summary": {
+    "total": 24,
+    "passed": 24,
+    "failed": 0
+  }
+}

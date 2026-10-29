@@ -1,0 +1,30 @@
+﻿captured_at
+2026-10-29T06:16:12Z
+medusa_counts
+{"orders" : 39, "order_groups" : 30, "payment" : 24, "refund" : 1, "order_transaction" : 1, "payment_collection" : 35, "payment_session" : 35, "order_payment_collection" : 1}
+experience_counts
+{"correlation" : 165, "returns" : 4, "shipments" : 39, "notifications" : 99, "delivery_attempts" : 29, "domain_events" : 211}
+delivery_attempt_boundary
+29|2026-10-28 13:43:48.574957+00
+tryton_counts
+{"stock_move" : 55, "stock_shipment_out" : 0, "stock_shipment_out_return" : 0}
+target_order
+order_01M633BSHHWEMM9YT6K5S7PVCZ|151|pending|nihar1008.nj@gmail.com|b2c|2026-10-29 05:50:41.749+00
+target_payment_session
+pay_col_01M633BS0R7K0PQ5XWYBX5AMV2|authorized|514.055|payses_01M633BS64P8550FF0SD5P9JB1|authorized|pp_simulated_simulated|514.055
+target_order_payment_links
+0
+target_correlation
+cart_01M633BMCPDPEFABNG2W2PQJZ9|pilot_customer_b2c04|
+target_shipment
+ship_b95869b96fbe49df9a32295d041fb199|booked|sel_01M4EC9DK3DWFSYX18FNDSGYC2|SIM-A8801363DD92|simulated
+target_domain_events
+b9f04dde-3565-41e7-bbf7-ca286c907c10|order.confirmed|64b4c124-85d1-47cd-8898-6e65e00a994c
+target_notifications
+order_confirmed_v1|Your Order Confirmed
+release
+/opt/buildkart-releases/release-b7f93b9
+b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+healthy
+workers_health
+{"status":"ok","environment":"staging","payment_mode":"simulated","fcm_delivery":"disabled","consumers":[{"name":"pilot-notification-dispatch","subject":">","processed":8,"duplicates":0,"failed":0,"deadLettered":0,"lag":0,"lastError":null,"lastActivityAt":"2026-10-29T05:50:45.351Z"},{"name":"marketplace-allocation-shipment-booking","subject":"marketplace-allocation.>","processed":4,"duplicates":0,"failed":0,"deadLettered":0,"lag":0,"lastError":null,"lastActivityAt":"2026-10-29T05:50:45.440Z"},{"name":"tryton-reservation","subject":"inventory.>","processed":0,"duplicates":0,"failed":0,"deadLettered":0,"lag":0,"lastError":null,"lastActivityAt":null},{"name":"reconciliation-tracker","subject":"logistics.>","processed":0,"duplicates":0,"failed":0,"deadLettered":0,"lag":0,"lastError":null,"lastActivityAt":null}]}

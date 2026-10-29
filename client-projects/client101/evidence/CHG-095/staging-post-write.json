@@ -1,0 +1,83 @@
+{
+  "captured_at_utc": "2026-10-29T06:16:12Z",
+  "release": {
+    "path": "/opt/buildkart-releases/release-b7f93b9",
+    "sha": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+    "web_health": "healthy",
+    "unchanged_from_baseline": true,
+    "deployment_performed": false
+  },
+  "medusa": {
+    "orders": 39,
+    "order_groups": 30,
+    "payment": 24,
+    "refund": 1,
+    "order_transaction": 1,
+    "payment_collection": 35,
+    "payment_session": 35,
+    "order_payment_collection": 1
+  },
+  "experience": {
+    "correlation": 165,
+    "returns": 4,
+    "shipments": 39,
+    "notifications": 99,
+    "delivery_attempts": 29,
+    "domain_events": 211,
+    "latest_delivery_attempt_at": "2026-10-28T13:43:48.574957Z"
+  },
+  "tryton": {
+    "stock_move": 55,
+    "stock_shipment_out": 0,
+    "stock_shipment_out_return": 0
+  },
+  "order": {
+    "id": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
+    "display_id": 151,
+    "number": "BK-261029-WT4R93",
+    "group_id": "og_01M633BSJSH4023AHJPCKHNNKA",
+    "checkout_ref": "cart_01M633BMCPDPEFABNG2W2PQJZ9",
+    "owner_user_id": "pilot_customer_b2c04",
+    "channel": "b2c",
+    "status": "pending",
+    "created_at": "2026-10-29T05:50:41.749Z"
+  },
+  "payment": {
+    "collection_id": "pay_col_01M633BS0R7K0PQ5XWYBX5AMV2",
+    "session_id": "payses_01M633BS64P8550FF0SD5P9JB1",
+    "provider": "pp_simulated_simulated",
+    "status": "authorized",
+    "amount": "514.055",
+    "order_payment_links_for_target": 0
+  },
+  "shipment": {
+    "id": "ship_b95869b96fbe49df9a32295d041fb199",
+    "status": "booked",
+    "seller_id": "sel_01M4EC9DK3DWFSYX18FNDSGYC2",
+    "tracking_number": "SIM-A8801363DD92",
+    "provider": "simulated"
+  },
+  "event": {
+    "id": "b9f04dde-3565-41e7-bbf7-ca286c907c10",
+    "type": "order.confirmed",
+    "notification_template": "order_confirmed_v1"
+  },
+  "workers": {
+    "status": "ok",
+    "payment_mode": "simulated",
+    "fcm_delivery": "disabled",
+    "failed": 0,
+    "dead_lettered": 0,
+    "tryton_reservation_processed": 0
+  },
+  "boundaries": {
+    "orders_delta": 1,
+    "refund_delta": 0,
+    "order_transaction_delta": 0,
+    "delivery_attempt_delta": 0,
+    "tryton_stock_move_delta": 0,
+    "tryton_shipment_delta": 0,
+    "real_provider_effects": 0,
+    "production_effects": 0
+  }
+}

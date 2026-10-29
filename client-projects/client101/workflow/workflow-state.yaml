@@ -761,7 +761,7 @@ active_changes:
   staging_visual_review: pass-with-pre-existing-seller-mobile-summary-overlap
   production_release_authorized: false
 - change_id: CHG-095
-  status: approved-in-progress
+  status: qc-complete
   approval_required: true
   approval_scope: one-staging-b2c-order-and-read-only-cross-surface-qc
   approved_by: human-requester
@@ -773,7 +773,32 @@ active_changes:
   release_under_test: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   staging_data_write_authorized: true
   staging_deployment_authorized: false
-  staging_qc_status: pending
+  staging_qc_status: pass
+  staging_release_unchanged: true
+  staging_deployment_performed: false
+  staging_customer_qc: pass-24-of-24
+  staging_cross_surface_qc: pass-15-of-15
+  staging_owner_isolation: pass-404-no-leak
+  staging_public_health: pass-4-of-4
+  staging_console_errors_unexpected: 0
+  staging_page_errors: 0
+  staging_unexpected_failed_requests: 0
+  staging_test_order: order_01M633BSHHWEMM9YT6K5S7PVCZ
+  staging_test_order_display_id: 151
+  staging_test_order_number: BK-261029-WT4R93
+  staging_test_order_group: og_01M633BSJSH4023AHJPCKHNNKA
+  staging_test_checkout_ref: cart_01M633BMCPDPEFABNG2W2PQJZ9
+  staging_order_count_delta: 1
+  staging_zero_prohibited_effects: pass
+  staging_visual_review: pass-with-pre-existing-seller-mobile-summary-overlap
+  requirements:
+    R1_exactly_one_web_order: PASS
+    R2_owner_authentication: PASS
+    R3_canonical_confirmation: PASS
+    R4_customer_visibility: PASS
+    R5_operator_visibility: PASS
+    R6_provider_boundaries: PASS
+    R7_runtime_quality: PASS
   production_release_authorized: false
 - change_id: CHG-079
   status: staging-deployed-verified

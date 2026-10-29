@@ -1,6 +1,6 @@
 change_id: CHG-095
 revision: 1
-status: approved-in-progress
+status: qc-complete
 request: >-
   Place exactly one B2C order through the live staging customer web and QC the resulting Customer,
   Admin and owning Seller flows once.
@@ -34,31 +34,31 @@ requirements:
 - id: R1
   name: Exactly one web order
   outcome: Create exactly one B2C order through the deployed customer web checkout.
-  status: pending
+  status: PASS
 - id: R2
   name: Owner authentication
   outcome: Signed-out checkout redirects to sign-in and returns to the exact product/SKU checkout.
-  status: pending
+  status: PASS
 - id: R3
   name: Canonical confirmation
   outcome: Success is shown only for a server-returned order group with simulated test-data payment.
-  status: pending
+  status: PASS
 - id: R4
   name: Customer visibility
   outcome: The new order appears in the owner's list and detail with the expected SKU, total and shipment.
-  status: pending
+  status: PASS
 - id: R5
   name: Operator visibility
   outcome: Admin and the owning Seller can view the order with correct role-scoped operations.
-  status: pending
+  status: PASS
 - id: R6
   name: Provider boundaries
   outcome: No refund, order transaction, Tryton movement, external delivery or production effect occurs.
-  status: pending
+  status: PASS
 - id: R7
   name: Runtime quality
   outcome: Target desktop/mobile views have no new blocking visual defect, console error or unexpected request failure.
-  status: pending
+  status: PASS
 
 scope_lock:
   allowed_paths:
@@ -112,11 +112,72 @@ baseline:
   worker_health: ok-simulated-fcm-disabled-zero-current-failures
 
 verification:
-  status: pending
+  status: PASS
+  completed_at_utc: '2026-10-29'
   environment: staging
-  order_created: false
+  release_unchanged: true
+  release_commit: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
+  release_path: /opt/buildkart-releases/release-b7f93b9
+  deployment_performed: false
+  order_created: true
   expected_order_count_delta: 1
+  actual_order_count_delta: 1
   retained_as_test_data: true
+  checkout_post_count: 1
+  customer_qc: pass-24-of-24
+  cross_surface_qc: pass-15-of-15
+  owner_isolation: pass-404-no-order-reference-leak
+  unexpected_console_errors: 0
+  expected_owner_denial_console_errors: 1
+  page_errors: 0
+  unexpected_failed_requests: 0
+  visual_review: pass-with-pre-existing-seller-mobile-summary-overlap
+  public_health: pass-4-of-4
+  order:
+    checkout_ref: cart_01M633BMCPDPEFABNG2W2PQJZ9
+    order_group_id: og_01M633BSJSH4023AHJPCKHNNKA
+    order_id: order_01M633BSHHWEMM9YT6K5S7PVCZ
+    display_id: 151
+    order_number: BK-261029-WT4R93
+    owner_user_id: pilot_customer_b2c04
+    channel: b2c
+    sku: XZ5QR
+    customer_total: INR-514.05
+  simulated_payment:
+    collection_id: pay_col_01M633BS0R7K0PQ5XWYBX5AMV2
+    session_id: payses_01M633BS64P8550FF0SD5P9JB1
+    provider: pp_simulated_simulated
+    status: authorized
+    test_data: true
+    order_payment_links: 0
+  simulated_shipment:
+    id: ship_b95869b96fbe49df9a32295d041fb199
+    seller_id: sel_01M4EC9DK3DWFSYX18FNDSGYC2
+    status: booked
+    provider: simulated
+    tracking_number: SIM-A8801363DD92
+  post_counts:
+    medusa:
+      orders: 39
+      order_groups: 30
+      payment: 24
+      refund: 1
+      order_transaction: 1
+      payment_collection: 35
+      payment_session: 35
+      order_payment_collection: 1
+    experience:
+      correlation: 165
+      returns: 4
+      shipments: 39
+      notifications: 99
+      delivery_attempts: 29
+      domain_events: 211
+    tryton:
+      stock_move: 55
+      stock_shipment_out: 0
+      stock_shipment_out_return: 0
+  prohibited_effects: none
   evidence_dir: client-projects/client101/evidence/CHG-095
 
 rollback:
@@ -132,6 +193,21 @@ deferred:
   name: B2B canonical ordering
   reason: Existing CHG-093 finding; not part of this B2C-only request.
 
+residual_findings:
+- id: RF1
+  severity: medium
+  name: Payment and ERP linkage
+  statement: >-
+    The simulated cart payment remains authorized but unlinked to order #151, and no Tryton
+    reservation exists. Native operations therefore show Paid INR 0 and Outstanding INR 514.06
+    while the customer total is INR 514.05. This pre-existing CHG-093 decision is outside CHG-095.
+- id: RF2
+  severity: low
+  name: Seller mobile line-summary overlap
+  statement: >-
+    At 390x844, the line price and Allocated badge overlap. The same defect is visible for order #150
+    in CHG-094; Seller source was a no-touch area and the page has no document overflow.
+
 approval_checkpoint: >-
-  Human requester explicitly authorized one staging B2C order and cross-surface QC. No deployment or
-  production action is authorized.
+  The one authorized staging B2C order and read-only cross-surface QC are complete. No deployment or
+  production action occurred or is authorized.

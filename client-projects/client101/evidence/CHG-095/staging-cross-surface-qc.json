@@ -1,0 +1,128 @@
+{
+  "generated_at": "2026-10-29T06:15:37.317Z",
+  "release": "b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c",
+  "order_id": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
+  "checkout_ref": "cart_01M633BMCPDPEFABNG2W2PQJZ9",
+  "order_number": "BK-261029-WT4R93",
+  "display_id": 151,
+  "owning_seller": "UrbanBuild Supply",
+  "mode": "read-only-after-single-checkout",
+  "checks": [
+    {
+      "name": "Admin renders order #151",
+      "status": "PASS",
+      "detail": "#151"
+    },
+    {
+      "name": "Admin shows authorized payment",
+      "status": "PASS",
+      "detail": "Payment Authorized"
+    },
+    {
+      "name": "Admin shows booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Admin shows no refund",
+      "status": "PASS",
+      "detail": "No refund"
+    },
+    {
+      "name": "Admin desktop has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "owning Seller renders order #151",
+      "status": "PASS",
+      "detail": "#151"
+    },
+    {
+      "name": "Seller shows Delivery and returns",
+      "status": "PASS",
+      "detail": "widget"
+    },
+    {
+      "name": "Seller shows booked delivery",
+      "status": "PASS",
+      "detail": "Booked"
+    },
+    {
+      "name": "Seller keeps payment/refund control with Admin",
+      "status": "PASS",
+      "detail": "boundary copy"
+    },
+    {
+      "name": "Seller desktop has no horizontal overflow",
+      "status": "PASS",
+      "detail": "1440x900"
+    },
+    {
+      "name": "Seller mobile has no document overflow",
+      "status": "PASS",
+      "detail": "390x844"
+    },
+    {
+      "name": "different customer receives owner-scoped not-found",
+      "status": "PASS",
+      "detail": "status=404; leaked=false"
+    },
+    {
+      "name": "cross-surface consoles have no unexpected errors",
+      "status": "PASS",
+      "detail": "0; expected 1 owner-denial 404"
+    },
+    {
+      "name": "cross-surface pages have no uncaught errors",
+      "status": "PASS",
+      "detail": "0"
+    },
+    {
+      "name": "cross-surface flow has no unexpected failed requests",
+      "status": "PASS",
+      "detail": "0; ignored 5 cancelled prefetches"
+    }
+  ],
+  "unexpected_console_errors": [],
+  "expected_owner_denial_console_errors": [
+    {
+      "surface": "cross-owner",
+      "message": "Failed to load resource: the server responded with a status of 404 ()"
+    }
+  ],
+  "page_errors": [],
+  "unexpected_failed_requests": [],
+  "ignored_expected_prefetch_aborts": [
+    {
+      "surface": "cross-owner",
+      "url": "https://app-staging.pinakaplay.cloud/?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "surface": "cross-owner",
+      "url": "https://app-staging.pinakaplay.cloud/returns?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "surface": "cross-owner",
+      "url": "https://app-staging.pinakaplay.cloud/orders?_rsc=zdpjBOVJIHVsb6DB",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "surface": "cross-owner",
+      "url": "https://app-staging.pinakaplay.cloud/orders?_rsc=Gqcty-P9zi8gndek",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "surface": "cross-owner",
+      "url": "https://app-staging.pinakaplay.cloud/returns?_rsc=Gqcty-P9zi8gndek",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "summary": {
+    "total": 15,
+    "passed": 15,
+    "failed": 0
+  }
+}
