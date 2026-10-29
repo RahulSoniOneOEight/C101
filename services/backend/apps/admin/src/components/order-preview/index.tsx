@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 import { useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 
 export type PreviewMode = "admin" | "seller" | "app" | "web";
 export type Tone = "green" | "orange" | "blue" | "red" | "grey" | "purple";
@@ -15,6 +15,7 @@ export function usePreviewMode(): PreviewMode {
 
 export function usePreviewModeUrl(mode: PreviewMode): string {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const next = new URLSearchParams(searchParams);
   if (mode === "admin") {
     next.delete("previewMode");
@@ -22,12 +23,13 @@ export function usePreviewModeUrl(mode: PreviewMode): string {
     next.set("previewMode", mode);
   }
   const query = next.toString();
-  return query ? `?${query}` : "";
+  return query ? `${location.pathname}?${query}` : location.pathname;
 }
 
 export function RoleModeSwitch() {
   const mode = usePreviewMode();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   const modes: Array<{ id: PreviewMode; label: string }> = [
     { id: "admin", label: "Admin" },
@@ -50,7 +52,7 @@ export function RoleModeSwitch() {
           next.set("previewMode", item.id);
         }
         const query = next.toString();
-        const href = query ? `?${query}` : "";
+        const href = query ? `${location.pathname}?${query}` : location.pathname;
         const active = mode === item.id;
         return (
           <a
