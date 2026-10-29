@@ -1,11 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Container, Heading, Text } from "@medusajs/ui";
+import { Container, Heading } from "@medusajs/ui";
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
 import {
   AttentionStack,
+  PaymentsCard,
   PreviewModeBanner,
+  ReconciliationCard,
   SectionNav,
   StatusStrip,
   usePreviewMode,
@@ -83,11 +85,18 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
       ? formatCurrency(refundedTotal, currencyCode)
       : "No refund";
 
-  const statusItems: StatusStripItem[] = [
+  const isAdmin = mode === "admin";
+
+  const adminStatusItems: StatusStripItem[] = [
     {
       label: "Payment",
       value: paymentLabel,
-      detail: "Native payment",
+      detail:
+        order.payment_status === "authorized"
+          ? "Ready to capture"
+          : order.payment_status === "captured"
+            ? "Payment captured"
+            : "Native payment",
       tone: paymentStatusColor(order.payment_status),
     },
     {
@@ -105,10 +114,36 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     {
       label: "Refund",
       value: refundValue,
-      detail: refundedTotal > 0 ? "Native refund" : simulatedRefund ? "No real money" : "No refund",
+      detail: refundedTotal > 0 ? "Native refund issued" : simulatedRefund ? "Simulated refund" : "No refund issued",
       tone: simulatedRefund || refundedTotal > 0 ? "orange" : "grey",
     },
   ];
+
+  const sellerStatusItems: StatusStripItem[] = [
+    {
+      label: "Delivery",
+      value: delivery.label,
+      detail: delivery.detail,
+      tone: delivery.color,
+    },
+    {
+      label: "Returns",
+      value: returnState.label,
+      detail: returnState.detail,
+      tone: returnState.color,
+    },
+  ];
+
+  const customerStatusItems: StatusStripItem[] = [
+    {
+      label: "Order status",
+      value: `${paymentLabel} · ${delivery.label}`,
+      detail: returnState.label !== "No return" ? returnState.detail : delivery.detail,
+      tone: delivery.color,
+    },
+  ];
+
+  const statusItems = isAdmin ? adminStatusItems : mode === "seller" ? sellerStatusItems : customerStatusItems;
 
   const attention: AttentionItem[] = [];
   const pendingReturn = data.returns.find((record) =>
@@ -118,6 +153,15 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     ["delivery_failed", "buyer_action_required", "damaged", "lost"].includes(shipment.status),
   );
 
+  if (isAdmin && order.payment_status === "authorized") {
+    attention.push({
+      tone: "blue" as Tone,
+      title: "Payment ready to capture",
+      detail: "The authorized payment can be captured from the Payments section below.",
+      action: "Capture payment",
+      href: "#payments",
+    });
+  }
   if (exception) {
     attention.push({
       tone: "red" as Tone,
@@ -137,24 +181,54 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     });
   }
 
+  const reconciliationRows = isAdmin
+    ? [
+        {
+          label: "Payment",
+          status: paymentLabel,
+          tone: paymentStatusColor(order.payment_status) as Tone,
+          detail: order.payment_status === "authorized" ? "Ready to capture" : undefined,
+        },
+        {
+          label: "Delivery",
+          status: delivery.label,
+          tone: delivery.color as Tone,
+          detail: delivery.detail,
+        },
+        {
+          label: "Returns",
+          status: returnState.label,
+          tone: returnState.color as Tone,
+          detail: returnState.detail,
+        },
+        {
+          label: "Refund",
+          status: refundValue,
+          tone: (simulatedRefund || refundedTotal > 0 ? "orange" : "grey") as Tone,
+          detail: refundedTotal > 0 ? "Issued" : simulatedRefund ? "Simulated" : "Not issued",
+        },
+      ]
+    : [];
+
   return (
     <section aria-labelledby="order-workbench-title">
       <Container className="p-0">
-        <div className="px-6 py-5">
-          <div>
-            <Heading id="order-workbench-title" level="h2">
-              Order operations
-            </Heading>
-            <Text size="small" className="mt-1 text-ui-fg-subtle">
-              Payment and refund use native Medusa controls. Delivery and returns are seller-scoped.
-            </Text>
-          </div>
+        <div className="px-6 py-4">
+          <Heading id="order-workbench-title" level="h2">
+            Order operations
+          </Heading>
           <PreviewModeBanner />
           <StatusStrip items={statusItems} />
           <AttentionStack items={attention} />
-          {mode === "admin" ? <SectionNav sections={ADMIN_SECTIONS} /> : null}
+          {isAdmin ? <SectionNav sections={ADMIN_SECTIONS} /> : null}
         </div>
       </Container>
+      {isAdmin ? (
+        <div className="mt-3 flex flex-col gap-y-3">
+          <PaymentsCard order={order} mode={mode} />
+          <ReconciliationCard rows={reconciliationRows} />
+        </div>
+      ) : null}
     </section>
   );
 };

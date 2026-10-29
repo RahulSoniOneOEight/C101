@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { client } from "../lib/client";
-import { PaymentsCard, usePreviewMode } from "../components/order-preview";
+import { usePreviewMode } from "../components/order-preview";
 
 type OrderContext = {
   id: string;
@@ -575,7 +575,6 @@ const OrderDeliveryReturns = ({ data: order }: { data?: OrderContext }) => {
 
   return (
     <section className="flex flex-col gap-y-3" aria-label="Delivery and returns">
-      <PaymentsCard order={order} mode={mode} />
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-3 xl:col-span-2">
           <Container className="divide-y p-0">

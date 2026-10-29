@@ -1,5 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
-import { Eye } from "@medusajs/icons";
+import {
+  BuildingStorefront,
+  Globe,
+  Phone,
+  User,
+} from "@medusajs/icons";
 import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 import { type ReactNode, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -28,27 +33,41 @@ export function usePreviewModeUrl(mode: PreviewMode): string {
 
 const PREVIEW_COPY: Record<
   PreviewMode,
-  { title: string; body: string; borderTone: Tone }
+  {
+    title: string;
+    body: string;
+    borderTone: Tone;
+    icon: React.ElementType;
+    activeLinkClass: string;
+  }
 > = {
   admin: {
     title: "Admin view",
     body: "You see payment, delivery and return operations across the marketplace.",
     borderTone: "blue",
+    icon: User,
+    activeLinkClass: "bg-ui-bg-base text-ui-fg-info shadow-sm ring-1 ring-ui-border-info",
   },
   seller: {
     title: "Seller view",
     body: "Payment and refunds are managed by BuildKart Admin. You see only allocation, packaging and delivery.",
     borderTone: "orange",
+    icon: BuildingStorefront,
+    activeLinkClass: "bg-ui-bg-base text-ui-fg-warning shadow-sm ring-1 ring-ui-border-warning",
   },
   app: {
     title: "Customer app view",
     body: "This is the simplified in-app experience the customer sees.",
     borderTone: "green",
+    icon: Phone,
+    activeLinkClass: "bg-ui-bg-base text-ui-fg-success shadow-sm ring-1 ring-ui-border-success",
   },
   web: {
     title: "Customer web view",
     body: "This is the owner-scoped web experience the customer sees.",
     borderTone: "green",
+    icon: Globe,
+    activeLinkClass: "bg-ui-bg-base text-ui-fg-success shadow-sm ring-1 ring-ui-border-success",
   },
 };
 
@@ -71,6 +90,7 @@ function ModeLink({
   const mode = usePreviewMode();
   const href = usePreviewModeUrl(target);
   const active = mode === target;
+  const copy = PREVIEW_COPY[mode];
   return (
     <a
       href={href}
@@ -78,9 +98,7 @@ function ModeLink({
       aria-current={active ? "page" : undefined}
       className={[
         "rounded px-1.5 py-0.5 text-xs font-medium transition-colors",
-        active
-          ? "bg-ui-bg-base text-ui-fg-base shadow-sm"
-          : "text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base",
+        active ? copy.activeLinkClass : "text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base",
       ].join(" ")}
     >
       {children}
@@ -91,6 +109,7 @@ function ModeLink({
 export function PreviewModeBanner() {
   const mode = usePreviewMode();
   const copy = PREVIEW_COPY[mode];
+  const Icon = copy.icon;
   const modes: Array<{ id: PreviewMode; label: string }> = [
     { id: "admin", label: "Admin" },
     { id: "seller", label: "Seller" },
@@ -101,13 +120,13 @@ export function PreviewModeBanner() {
   return (
     <div
       className={[
-        "mb-4 flex items-start gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm",
+        "mb-3 flex items-start gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm",
         "border-l-4",
         borderToneClasses[copy.borderTone],
       ].join(" ")}
       role="note"
     >
-      <Eye className="mt-0.5 h-4 w-4 shrink-0 text-ui-fg-subtle" aria-hidden="true" />
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ui-fg-subtle" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <strong className="text-sm font-semibold">{copy.title}</strong>
@@ -297,21 +316,61 @@ export function SectionNav({ sections }: { sections: Array<{ id: string; label: 
   return (
     <nav
       aria-label="Order sections"
-      className="mb-4 flex items-center gap-2 overflow-x-auto border-b border-ui-border-base pb-2"
+      className="mb-3 flex items-center gap-2 overflow-x-auto border-b border-ui-border-base pb-2 scrollbar-hide"
     >
-      <span className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
         Jump to
       </span>
       {sections.map((section) => (
         <a
           key={section.id}
           href={`#${section.id}`}
-          className="whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+          className="shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
         >
           {section.label}
         </a>
       ))}
     </nav>
+  );
+}
+
+export function ReconciliationCard({
+  rows,
+}: {
+  rows: Array<{ label: string; status: string; tone: Tone; detail?: string }>;
+}) {
+  return (
+    <Container className="p-0" id="reconciliation">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-ui-border-base px-5 py-4">
+        <div>
+          <Heading level="h2">System reconciliation</Heading>
+          <Text size="small" className="text-ui-fg-subtle">
+            One flow, independently verifiable effects
+          </Text>
+        </div>
+      </div>
+      <div className="px-5 py-4">
+        <div className="flex flex-col gap-3">
+          {rows.map((row) => (
+            <div key={row.label} className="flex items-center justify-between gap-3">
+              <div>
+                <Text size="small" className="font-medium">
+                  {row.label}
+                </Text>
+                {row.detail ? (
+                  <Text size="small" className="text-ui-fg-subtle">
+                    {row.detail}
+                  </Text>
+                ) : null}
+              </div>
+              <StatusBadge color={row.tone === "orange" ? "orange" : row.tone === "green" ? "green" : row.tone === "red" ? "red" : row.tone === "blue" ? "blue" : "grey"}>
+                {row.status}
+              </StatusBadge>
+            </div>
+          ))}
+        </div>
+      </div>
+    </Container>
   );
 }
 
