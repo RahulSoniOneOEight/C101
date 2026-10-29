@@ -13,7 +13,7 @@ fs.mkdirSync(shotRoot, { recursive: true });
 const baseAdmin = "https://ops-staging.pinakaplay.cloud/dashboard";
 const orderId = "order_01M633BSHHWEMM9YT6K5S7PVCZ";
 const orderNumber = "BK-261029-WT4R93";
-const release = "dc38fcc";
+const release = "65b04c6";
 
 // Admin credentials are read from the local-only staging access file.
 const accessPath = path.join(process.env.USERPROFILE || "/root", ".buildkart/staging-access.txt");
@@ -132,20 +132,27 @@ const viewports = [
       "outstanding amount matches order total",
     );
 
-    // R3: Role-mode switch
+    // R3: Role-mode banner
     const switchLabels = ["Admin", "Seller", "App", "Web"];
     for (const label of switchLabels) {
       record(
         "admin",
         viewport.name,
-        `role-mode switch has ${label}`,
-        (await page.locator(`[aria-label="Preview mode"] a:has-text("${label}")`).count()) > 0,
-        `${label} control present`,
+        `role-mode banner has ${label} link`,
+        (await page.getByRole("link", { name: label, exact: true }).count()) > 0,
+        `${label} link present`,
       );
     }
+    record(
+      "admin",
+      viewport.name,
+      "role-mode banner shows Preview as",
+      bodyTextUpper.includes("PREVIEW AS"),
+      "banner label present",
+    );
 
     // Switch to Seller mode
-    await page.locator('[aria-label="Preview mode"] a:has-text("Seller")').click();
+    await page.getByRole("link", { name: "Seller", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("previewMode") === "seller", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     const sellerText = await page.locator("body").innerText();
@@ -155,7 +162,7 @@ const viewports = [
     await shot(page, "admin", viewport.name, "order-admin-seller-mode");
 
     // Switch to App mode
-    await page.locator('[aria-label="Preview mode"] a:has-text("App")').click();
+    await page.getByRole("link", { name: "App", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("previewMode") === "app", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     const appText = await page.locator("body").innerText();
@@ -163,7 +170,7 @@ const viewports = [
     await shot(page, "admin", viewport.name, "order-admin-app-mode");
 
     // Switch to Web mode
-    await page.locator('[aria-label="Preview mode"] a:has-text("Web")').click();
+    await page.getByRole("link", { name: "Web", exact: true }).click();
     await page.waitForURL((url) => url.searchParams.get("previewMode") === "web", { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     const webText = await page.locator("body").innerText();
@@ -171,7 +178,7 @@ const viewports = [
     await shot(page, "admin", viewport.name, "order-admin-web-mode");
 
     // Back to Admin mode and verify native actions reachable
-    await page.locator('[aria-label="Preview mode"] a:has-text("Admin")').click();
+    await page.getByRole("link", { name: "Admin", exact: true }).first().click();
     await page.waitForURL((url) => !url.searchParams.has("previewMode"), { timeout: 15000 });
     await page.waitForLoadState("networkidle");
     const adminText = await page.locator("body").innerText();

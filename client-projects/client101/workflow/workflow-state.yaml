@@ -830,12 +830,12 @@ active_changes:
   staging_deployment_status: staging-deployed-verified
   staging_baseline_release: b7f93b9b6e4038d87f42e8f6a0b0fb852b485f5c
   staging_baseline_path: /opt/buildkart-releases/release-b7f93b9
-  staging_release_commit: dc38fcc089c710c3078bad62e0ea09718d343431
-  staging_release_path: /opt/buildkart-releases/release-dc38fcc
-  staging_current: release-dc38fcc
+  staging_release_commit: 65b04c6839728aa64380a2df5980cc539bcd46d0
+  staging_release_path: /opt/buildkart-releases/release-65b04c6
+  staging_current: release-65b04c6
   staging_rollback_release: release-b7f93b9
-  staging_medusa_image: sha256:a288bb00ad66
-  staging_browser_qc: pass-38-of-38
+  staging_medusa_image: sha256:2e64923a4383
+  staging_browser_qc: pass-40-of-40
   staging_public_health: pass-4-of-4
   staging_console_errors: 0
   staging_unexpected_failed_requests: 0

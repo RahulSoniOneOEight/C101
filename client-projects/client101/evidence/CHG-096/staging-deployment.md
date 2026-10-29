@@ -1,7 +1,7 @@
 # CHG-096 — Staging deployment and Admin order-detail QC
 
 **Status:** STAGING DEPLOYED AND VERIFIED
-**Change:** CHG-096 Revision 1 — Admin order-detail top-chrome UX (status strip, Payments card, role-mode switch)
+**Change:** CHG-096 Revision 1 — Admin order-detail top-chrome UX (status strip, Payments card, role-mode banner)
 **Environment:** staging only. Production is not authorized and was not touched.
 **Deploy owner:** requester-authorized OpenCode agent
 **Completed:** 2026-10-29
@@ -13,14 +13,14 @@
 | Item | Value |
 |---|---|
 | Baseline before release | `/opt/buildkart-releases/release-b7f93b9` (`b7f93b9`, CHG-094) |
-| Target branch | `release/chg-096-4` |
-| Release commit | `dc38fcc089c710c3078bad62e0ea09718d343431` |
-| Commit range | `b7f93b9..dc38fcc` — Admin top-chrome changes only |
-| Release worktree | `/opt/buildkart-releases/release-dc38fcc` |
-| Current symlink | `/opt/buildkart-releases/current -> release-dc38fcc` |
+| Target branch | `release/chg-096-5` |
+| Release commit | `65b04c6839728aa64380a2df5980cc539bcd46d0` |
+| Commit range | `b7f93b9..65b04c6` — Admin top-chrome changes only |
+| Release worktree | `/opt/buildkart-releases/release-65b04c6` |
+| Current symlink | `/opt/buildkart-releases/current -> release-65b04c6` |
 | Rollback release | `/opt/buildkart-releases/release-b7f93b9` |
 | Rollback image | `buildkart-hosted-pilot-medusa:rollback-b7f93b9` (`sha256:7db0f1e59c82`) |
-| New image | `buildkart-hosted-pilot-medusa:latest` (`sha256:a288bb00ad66`) |
+| New image | `buildkart-hosted-pilot-medusa:latest` (`sha256:2e64923a4383`) |
 | Production release | Not authorized |
 
 ## 2. What changed
@@ -28,10 +28,9 @@
 - Added `services/backend/apps/admin/src/components/order-preview/index.tsx` with reusable top-chrome components:
   - `StatusStrip` — unified Payment / Delivery / Returns / Refund tiles.
   - `PaymentsCard` — authorized, captured, refunded, outstanding amounts with payment method/reference.
-  - `RoleModeSwitch` — Admin / Seller / App / Web segmented control using `?previewMode=` query param.
-  - `PerspectiveBanner` — boundary notice for each preview mode.
+  - `PreviewModeBanner` — Polaris-style banner that shows the current perspective (Admin/Seller/App/Web) and inline preview links.
   - `AttentionStack`, `SectionNav`, `usePreviewMode`.
-- Refactored `services/backend/apps/admin/src/widgets/order-workbench-status.tsx` to use the new status strip and role-mode switch.
+- Refactored `services/backend/apps/admin/src/widgets/order-workbench-status.tsx` to use the new status strip and `PreviewModeBanner`.
 - Updated `services/backend/apps/admin/src/widgets/order-delivery-returns.tsx` to embed `PaymentsCard` and hide Admin payment/refund/delivery-update controls in Seller/App/Web preview modes.
 
 ## 3. What was NOT changed
@@ -43,9 +42,9 @@
 ## 4. Deployment procedure
 
 1. Acquired `/var/lock/buildkart-staging-deploy` (deploy owner: requester-authorized OpenCode agent).
-2. Created scoped release branch `release/chg-096-4` from baseline `b7f93b9` and cherry-picked the Admin top-chrome commits.
+2. Created scoped release branch `release/chg-096-5` from baseline `b7f93b9` and cherry-picked the Admin top-chrome commits.
 3. Built a fresh Medusa backend image (`medusa-api` + `medusa-worker`) with `--no-cache`.
-4. Switched `/opt/buildkart-releases/current` to `release-dc38fcc`, recreated Medusa containers, and restarted the proxy.
+4. Switched `/opt/buildkart-releases/current` to `release-65b04c6`, recreated Medusa containers, and restarted the proxy.
 5. Verified public health endpoints and admin bundle markers.
 6. Ran automated browser QC against order #151 at desktop (1440×900) and mobile (390×844).
 7. Preserved rollback image `buildkart-hosted-pilot-medusa:rollback-b7f93b9`.
@@ -63,7 +62,7 @@
 
 ### 5.2 Bundle marker check
 
-Main admin bundle `/dashboard/assets/index-PUHS8hXf.js` contains:
+Main admin bundle `/dashboard/assets/index-C7Avb4gI.js` contains:
 
 - `Order operations` ✅
 - `Payments` ✅
@@ -71,6 +70,7 @@ Main admin bundle `/dashboard/assets/index-PUHS8hXf.js` contains:
 - `Captured` ✅
 - `Refunded` ✅
 - `Outstanding` ✅
+- `Preview as` ✅
 - `Admin view` ✅
 - `Seller view` ✅
 - `Customer app view` ✅
@@ -82,7 +82,7 @@ Run: `node client-projects/client101/evidence/CHG-096/staging-admin-qc.mjs`
 
 Reference order: `#151` / `BK-261029-WT4R93` / `order_01M633BSHHWEMM9YT6K5S7PVCZ` / group `og_01M633BSJSH4023AHJPCKHNNKA`.
 
-Summary: **38/38 PASS**; 0 console errors; 0 unexpected failed requests.
+Summary: **40/40 PASS**; 0 console errors; 0 unexpected failed requests.
 
 Checked per viewport (desktop + mobile):
 
@@ -90,7 +90,7 @@ Checked per viewport (desktop + mobile):
 - No horizontal document overflow.
 - Status strip shows Payment / Delivery / Returns / Refund.
 - Payments card shows Authorized, Captured, Refunded, Outstanding amounts (₹514.06 authorized/outstanding).
-- Role-mode switch has Admin, Seller, App, Web controls.
+- Preview-mode banner shows the current perspective and "Preview as" Admin / Seller / App / Web links.
 - Seller mode shows Seller-view banner and hides native Medusa payment controls.
 - App mode shows Customer-app-view banner.
 - Web mode shows Customer-web-view banner.
@@ -112,6 +112,7 @@ docker restart buildkart-hosted-pilot-proxy-1
 
 ## 7. Evidence
 
+- `client-projects/client101/evidence/CHG-096/staging-deployment.md`
 - `client-projects/client101/evidence/CHG-096/staging-admin-qc.json`
 - `client-projects/client101/evidence/CHG-096/staging-admin-qc.mjs`
 - `client-projects/client101/evidence/CHG-096/screenshots/`

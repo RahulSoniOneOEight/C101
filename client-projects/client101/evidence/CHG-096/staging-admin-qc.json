@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-10-29T08:29:33.178Z",
+  "timestamp": "2026-10-29T12:43:04.825Z",
   "orderId": "order_01M633BSHHWEMM9YT6K5S7PVCZ",
   "orderNumber": "BK-261029-WT4R93",
-  "release": "dc38fcc",
+  "release": "65b04c6",
   "checks": [
     {
       "surface": "admin",
@@ -56,30 +56,37 @@
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode switch has Admin",
+      "name": "role-mode banner has Admin link",
       "status": "PASS",
-      "detail": "Admin control present"
+      "detail": "Admin link present"
     },
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode switch has Seller",
+      "name": "role-mode banner has Seller link",
       "status": "PASS",
-      "detail": "Seller control present"
+      "detail": "Seller link present"
     },
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode switch has App",
+      "name": "role-mode banner has App link",
       "status": "PASS",
-      "detail": "App control present"
+      "detail": "App link present"
     },
     {
       "surface": "admin",
       "viewport": "desktop",
-      "name": "role-mode switch has Web",
+      "name": "role-mode banner has Web link",
       "status": "PASS",
-      "detail": "Web control present"
+      "detail": "Web link present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "desktop",
+      "name": "role-mode banner shows Preview as",
+      "status": "PASS",
+      "detail": "banner label present"
     },
     {
       "surface": "admin",
@@ -189,30 +196,37 @@
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode switch has Admin",
+      "name": "role-mode banner has Admin link",
       "status": "PASS",
-      "detail": "Admin control present"
+      "detail": "Admin link present"
     },
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode switch has Seller",
+      "name": "role-mode banner has Seller link",
       "status": "PASS",
-      "detail": "Seller control present"
+      "detail": "Seller link present"
     },
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode switch has App",
+      "name": "role-mode banner has App link",
       "status": "PASS",
-      "detail": "App control present"
+      "detail": "App link present"
     },
     {
       "surface": "admin",
       "viewport": "mobile",
-      "name": "role-mode switch has Web",
+      "name": "role-mode banner has Web link",
       "status": "PASS",
-      "detail": "Web control present"
+      "detail": "Web link present"
+    },
+    {
+      "surface": "admin",
+      "viewport": "mobile",
+      "name": "role-mode banner shows Preview as",
+      "status": "PASS",
+      "detail": "banner label present"
     },
     {
       "surface": "admin",
@@ -272,7 +286,7 @@
     }
   ],
   "summary": {
-    "pass": 38,
+    "pass": 40,
     "fail": 0,
     "consoleErrors": 0,
     "failedRequests": 0
