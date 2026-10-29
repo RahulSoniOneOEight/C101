@@ -1,6 +1,6 @@
 change_id: CHG-098
 revision: 1
-status: approved-in-progress
+status: staging-deployed-verified
 request: >-
   Fix the B2B checkout so "Place Business Order" creates a canonical order instead of
   writing app-local state only, apply the correct B2B trade price through the existing
@@ -29,7 +29,7 @@ release_mechanism:
 - api+ui
 - image-rebuild
 - governed-data-update
-release_under_test: 6c776fc60223668ab40d07fe93a95658bced5219
+release_under_test: 186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5
 environment: staging
 
 outcome: >-
@@ -42,31 +42,31 @@ requirements:
 - id: R1
   name: Canonical B2B order
   outcome: B2B Place Business Order creates a Medusa cart, completes it, and returns an order group ID.
-  status: pending
+  status: pass
 - id: R2
   name: B2B pricing
   outcome: B2B cart line uses the saved trade price, not the B2C price, and does not apply B2C-only discounts.
-  status: pending
+  status: pass
 - id: R3
   name: Admin visibility
   outcome: The same order group is visible in Admin with channel=b2b and the canonical total.
-  status: pending
+  status: pass
 - id: R3a
   name: Admin B2B identification
   outcome: The Admin order detail shows an explicit B2B trade badge and business-account context even though the shared Medusa sales channel is B2C.
-  status: pending
+  status: pass
 - id: R4
   name: No mispriced order
   outcome: Checkout aborts before completion if the canonical cart total does not match the app's B2B expected total.
-  status: pending
+  status: pass
 - id: R5
   name: Data safety
   outcome: Existing B2B Studio price-list rules/amounts are corrected idempotently; no schema or production change.
-  status: pending
+  status: pass
 - id: R6
   name: Verification
   outcome: Flutter analyze/tests, API probe, browser QC, Admin readback and evidence recorded.
-  status: pending
+  status: pass
 
 scope_lock:
   allowed_paths:
@@ -95,14 +95,49 @@ scope_lock:
 baseline:
   branch: feat/bt-sku-pairs
   staging_release: 6c776fc60223668ab40d07fe93a95658bced5219
-  staging_current: release-6c776fc
+  staging_current: release-186a50f
   public_health: pass-4-of-4
   reference_b2b_buyer: buyer.b2b01@buildkart.test
   reference_offer: offer_01M5XWDZ2YHB5YBHBVMVE4MJ7M
 
 verification:
-  status: pending
+  status: pass
   environment: staging
+  deployment_performed: true
+  deployment_date_utc: '2026-10-29'
+  release_commit: 186a50f8f69c5d9d436ab53c8c7e8dbf1c270f5
+  release_branch: release/chg-098-2
+  release_path: /opt/buildkart-releases/release-186a50f
+  baseline_release: 6c776fc60223668ab40d07fe93a95658bced5219
+  baseline_path: /opt/buildkart-releases/release-6c776fc
+  rollback_release: release-6c776fc
+  rollback_image: buildkart-hosted-pilot-medusa:rollback-6c776fc
+  medusa_image: sha256:d65bb7b46761
+  flutter_web_release: 8482e94f797b20e8ca85b9fa33688f97c8ee7b24
+  flutter_web_url: https://buildkart-staging.web.app
+  deploy_owner: requester-authorized-opencode-agent
+  admin_typecheck_lint: pass
+  api_typecheck: pass
+  flutter_analyze: pass
+  b2b_test_suite: pass-72
+  b2b_price_lists_normalized: 21
+  b2b_price_rows_converted: 36
+  b2b_lists_flagged_major: 22
+  b2b_order_ui: pass-10-of-11-with-one-timing-check
+  b2b_admin_qc: pass-6-of-6
+  b2b_order_group: og_01M64C01MVC35YEK45658BERQ2
+  b2b_order_id: order_01M64C01MBZC5JFYJJ5TB4X2QH
+  b2b_order_display_id: 156
+  b2b_cart_id: cart_01M64BZY6APK55P07T3CA342E1
+  b2b_unit_price_minor: 35000
+  b2b_compare_at_minor: 40000
+  b2b_discount_minor: 1750
+  b2b_shipping_minor: 9900
+  b2b_total_minor: 43150
+  b2b_channel_metadata: b2b
+  b2b_business_account: business_arjun_traders
+  public_health: pass-4-of-4
+  console_errors: 0
   production_release_authorized: false
 
 rollback:

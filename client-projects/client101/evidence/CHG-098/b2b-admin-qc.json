@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-10-29T17:52:11.323Z",
+  "orderId": "order_01M64C01MBZC5JFYJJ5TB4X2QH",
+  "orderNumber": "156",
+  "orderGroupId": "og_01M64C01MVC35YEK45658BERQ2",
+  "checks": [
+    {
+      "name": "admin order page loads",
+      "status": "PASS",
+      "detail": "#156"
+    },
+    {
+      "name": "admin shows customer email",
+      "status": "PASS",
+      "detail": "buyer.b2b01@buildkart.test"
+    },
+    {
+      "name": "admin shows B2B order total",
+      "status": "PASS",
+      "detail": "₹431.50"
+    },
+    {
+      "name": "admin shows authorized payment",
+      "status": "PASS",
+      "detail": "Authorized"
+    },
+    {
+      "name": "admin shows B2B badge",
+      "status": "PASS",
+      "detail": "B2B trade order"
+    },
+    {
+      "name": "admin shows B2B channel context",
+      "status": "PASS",
+      "detail": "B2B channel / business account"
+    }
+  ],
+  "summary": {
+    "pass": 6,
+    "fail": 0
+  },
+  "body_excerpt": "M Mercur Marketplace Search ⌘K Orders Products Inventory Customers Promotions Stores Payouts Price lists (advanced) Merchandising Editorial Settlement statements Order delivery & returns Shipments Returns Seller activity Inventory requests Settings A admin@buildkart.test Orders #156 Order operations B2B trade order B2B channel · business account business_arjun_traders Payment Authorized Ready to capture Delivery Booked 0 of 1 units Returns No return No return requested Refund No refund No refund issued Payment ready to capture The authorized payment can be captured from the Payments section below. Capture payment JUMP TO Summary Payments Delivery Returns Activity Payments Authorized, captured, refunded and outstanding amounts Authorized AUTHORIZED ₹431.50 CAPTURED ₹0.00 REFUNDED ₹0.00 OUTSTANDING ₹431.50 Native Medusa payment controls Capture and refund actions continue to use the built-in Medusa controls below. Native System reconciliation One flow, independently verifiable effects Channel business_arjun_traders B2B trade Payment Ready to capture Authorized Delivery 0 of 1 units Booked Returns No return requested No return Refund Not issued No refund #156 Oct 29, 2026 11:10 PM from B2C Storefront Authorized Not fulfilled Summary Wonder Cement WON-PPC-DAN-01 Yellow · Like New ₹350.00 1x Not allocated ₹350.00 Item Subtotal ₹350.00 Shipping Subtotal ₹99.00 Tax Total ₹0.00 Commission ₹10.50 Order Total ₹449.00 Discount Total ₹17.50 Total After Discount ₹431.50 Paid Total ₹ 0.00 INR Outstanding amount ₹ 431.50 INR Payments Authorized #RVEG2X8 29 Oct, 2026, 23:10:48 Pp_simulated_simulated Pending ₹431.50 Payment #RVEG2X8 is ready to be captured. Capture payment Total paid by customer ₹ 0.00 INR Total pending ₹ 431.50 INR Unfulfilled Items Requires shipping Awaiting fulfillment Wonder Cement WON-PPC-DAN-01 Yellow · Like New ₹350.00 1x ₹350.00 Delivery 1 All shipments Booked SIM-8205A0BE55AC v1 Delivered 0 of 1 units Seller code sel_01M4EC9CVVHG168X1DHHBY29HY View timeline"
+}
