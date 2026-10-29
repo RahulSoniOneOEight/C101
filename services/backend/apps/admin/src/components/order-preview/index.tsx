@@ -241,6 +241,7 @@ export function PaymentsCard({
   order: {
     payment_status?: string | null;
     currency_code?: string | null;
+    total?: number | null;
     summary?: {
       subtotal?: number | null;
       shipping_total?: number | null;
@@ -254,7 +255,7 @@ export function PaymentsCard({
 }) {
   const currency = order.currency_code ?? "inr";
   const summary = order.summary ?? {};
-  const total = summary.total ?? 0;
+  const total = summary.total ?? order.total ?? 0;
   const refunded = summary.refunded_total ?? 0;
   const paymentStatus = order.payment_status ?? "pending";
 

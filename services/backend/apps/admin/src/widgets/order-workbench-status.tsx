@@ -26,7 +26,9 @@ type OrderContext = {
   id: string;
   payment_status?: string | null;
   currency_code?: string | null;
+  total?: number | null;
   summary?: {
+    total?: number | null;
     refunded_total?: number | null;
   } | null;
 };
