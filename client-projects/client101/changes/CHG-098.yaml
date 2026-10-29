@@ -51,6 +51,10 @@ requirements:
   name: Admin visibility
   outcome: The same order group is visible in Admin with channel=b2b and the canonical total.
   status: pending
+- id: R3a
+  name: Admin B2B identification
+  outcome: The Admin order detail shows an explicit B2B trade badge and business-account context even though the shared Medusa sales channel is B2C.
+  status: pending
 - id: R4
   name: No mispriced order
   outcome: Checkout aborts before completion if the canonical cart total does not match the app's B2B expected total.
@@ -71,6 +75,7 @@ scope_lock:
   - apps/prototype_app/lib/domain/b2b_trade_models.dart
   - apps/prototype_app/lib/screens/b2b_quote_screens.dart
   - services/backend/packages/api/src/lib/b2b-pricing.ts
+  - services/backend/apps/admin/src/widgets/order-workbench-status.tsx
   - client-projects/client101/changes/CHG-098.yaml
   - client-projects/client101/workflow/workflow-state.yaml
   - client-projects/client101/evidence/CHG-098/**
@@ -81,7 +86,6 @@ scope_lock:
   - Tryton stock and shipment records
   - customer web
   - seller portal
-  - Admin order-detail widgets
   - services/backend/apps/admin/fulfillment-preview*
   data_records:
   - price_list BuildKart B2B Studio rows and their price_list_rule/price children
