@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
+import { Eye } from "@medusajs/icons";
 import { Button, Container, Heading, StatusBadge, Text } from "@medusajs/ui";
-import { useMemo } from "react";
+import { type ReactNode, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export type PreviewMode = "admin" | "seller" | "app" | "web";
@@ -25,6 +26,128 @@ export function usePreviewModeUrl(mode: PreviewMode): string {
   return query ? `?${query}` : "?";
 }
 
+const PREVIEW_COPY: Record<
+  PreviewMode,
+  { title: string; body: string; borderTone: Tone }
+> = {
+  admin: {
+    title: "Admin view",
+    body: "You see payment, delivery and return operations across the marketplace.",
+    borderTone: "blue",
+  },
+  seller: {
+    title: "Seller view",
+    body: "Payment and refunds are managed by BuildKart Admin. You see only allocation, packaging and delivery.",
+    borderTone: "orange",
+  },
+  app: {
+    title: "Customer app view",
+    body: "This is the simplified in-app experience the customer sees.",
+    borderTone: "green",
+  },
+  web: {
+    title: "Customer web view",
+    body: "This is the owner-scoped web experience the customer sees.",
+    borderTone: "green",
+  },
+};
+
+const borderToneClasses: Record<Tone, string> = {
+  blue: "border-l-ui-border-info",
+  orange: "border-l-ui-border-warning",
+  green: "border-l-ui-border-success",
+  red: "border-l-ui-border-error",
+  grey: "border-l-ui-border-base",
+  purple: "border-l-ui-border-base",
+};
+
+function ModeLink({
+  target,
+  children,
+}: {
+  target: PreviewMode;
+  children: ReactNode;
+}) {
+  const mode = usePreviewMode();
+  const href = usePreviewModeUrl(target);
+  const active = mode === target;
+  return (
+    <a
+      href={href}
+      data-discover="true"
+      aria-current={active ? "page" : undefined}
+      className={[
+        "rounded px-1.5 py-0.5 text-xs font-medium transition-colors",
+        active
+          ? "bg-ui-bg-base text-ui-fg-base shadow-sm"
+          : "text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base",
+      ].join(" ")}
+    >
+      {children}
+    </a>
+  );
+}
+
+export function PreviewModeBanner() {
+  const mode = usePreviewMode();
+  const copy = PREVIEW_COPY[mode];
+  const modes: Array<{ id: PreviewMode; label: string }> = [
+    { id: "admin", label: "Admin" },
+    { id: "seller", label: "Seller" },
+    { id: "app", label: "App" },
+    { id: "web", label: "Web" },
+  ];
+
+  return (
+    <div
+      className={[
+        "mb-4 flex items-start gap-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle px-4 py-3 text-sm",
+        "border-l-4",
+        borderToneClasses[copy.borderTone],
+      ].join(" ")}
+      role="note"
+    >
+      <Eye className="mt-0.5 h-4 w-4 shrink-0 text-ui-fg-subtle" aria-hidden="true" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <strong className="text-sm font-semibold">{copy.title}</strong>
+          <span className="text-xs text-ui-fg-subtle">{copy.body}</span>
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-ui-fg-subtle">Preview as:</span>
+          {modes.map((item) => (
+            <ModeLink key={item.id} target={item.id}>
+              {item.label}
+            </ModeLink>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** @deprecated Use PreviewModeBanner instead. */
+export function PerspectiveBanner({ mode }: { mode: PreviewMode }) {
+  const copy = PREVIEW_COPY[mode];
+  return (
+    <div
+      className={[
+        "mb-4 rounded-lg border px-4 py-3 text-sm",
+        mode === "seller"
+          ? "border-ui-border-warning bg-ui-bg-warning text-ui-fg-warning"
+          : "border-ui-border-base bg-ui-bg-subtle text-ui-fg-base",
+      ].join(" ")}
+      role="note"
+    >
+      <strong className="block text-xs font-semibold uppercase tracking-wide">
+        {copy.title}
+      </strong>
+      <span className="text-ui-fg-subtle">{copy.body}</span>
+    </div>
+  );
+}
+
+/** @deprecated Use PreviewModeBanner instead. */
 export function RoleModeSwitch() {
   const mode = usePreviewMode();
   const [searchParams] = useSearchParams();
@@ -69,48 +192,6 @@ export function RoleModeSwitch() {
           </a>
         );
       })}
-    </div>
-  );
-}
-
-export function PerspectiveBanner({ mode }: { mode: PreviewMode }) {
-  const copy: Record<PreviewMode, { title: string; body: string; tone: Tone }> = {
-    admin: {
-      title: "Admin view",
-      body: "You see payment, delivery and return operations across the marketplace.",
-      tone: "blue",
-    },
-    seller: {
-      title: "Seller view",
-      body: "Payment and refunds are managed by BuildKart Admin. You see only allocation, packaging and delivery.",
-      tone: "orange",
-    },
-    app: {
-      title: "Customer app view",
-      body: "This is the simplified in-app experience the customer sees.",
-      tone: "green",
-    },
-    web: {
-      title: "Customer web view",
-      body: "This is the owner-scoped web experience the customer sees.",
-      tone: "green",
-    },
-  };
-  const current = copy[mode];
-  return (
-    <div
-      className={[
-        "mb-4 rounded-lg border px-4 py-3 text-sm",
-        mode === "seller"
-          ? "border-ui-border-warning bg-ui-bg-warning text-ui-fg-warning"
-          : "border-ui-border-base bg-ui-bg-subtle text-ui-fg-base",
-      ].join(" ")}
-      role="note"
-    >
-      <strong className="block text-xs font-semibold uppercase tracking-wide">
-        {current.title}
-      </strong>
-      <span className="text-ui-fg-subtle">{current.body}</span>
     </div>
   );
 }

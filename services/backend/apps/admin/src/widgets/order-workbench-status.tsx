@@ -5,8 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
 import {
   AttentionStack,
-  PerspectiveBanner,
-  RoleModeSwitch,
+  PreviewModeBanner,
   SectionNav,
   StatusStrip,
   usePreviewMode,
@@ -142,20 +141,15 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     <section aria-labelledby="order-workbench-title">
       <Container className="p-0">
         <div className="px-6 py-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <Heading id="order-workbench-title" level="h2">
-                Order operations
-              </Heading>
-              <Text size="small" className="mt-1 text-ui-fg-subtle">
-                Payment and refund use native Medusa controls. Delivery and returns are seller-scoped.
-              </Text>
-            </div>
-            <RoleModeSwitch />
+          <div>
+            <Heading id="order-workbench-title" level="h2">
+              Order operations
+            </Heading>
+            <Text size="small" className="mt-1 text-ui-fg-subtle">
+              Payment and refund use native Medusa controls. Delivery and returns are seller-scoped.
+            </Text>
           </div>
-          <div className="mt-4">
-            <PerspectiveBanner mode={mode} />
-          </div>
+          <PreviewModeBanner />
           <StatusStrip items={statusItems} />
           <AttentionStack items={attention} />
           {mode === "admin" ? <SectionNav sections={ADMIN_SECTIONS} /> : null}
