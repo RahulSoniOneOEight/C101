@@ -1288,6 +1288,54 @@ function findValidSimulatedSession(
   );
 }
 
+/** Cart metadata key holding the per-seller delivery lines applied by this API. */
+const CART_DELIVERY_LINES_KEY = "delivery_lines";
+const CART_DELIVERY_PINCODE_KEY = "delivery_pincode";
+
+export type DeliveryLine = {
+  seller_id: string | null;
+  seller_name?: string | null;
+  option_id: string | null;
+  name: string;
+  amount: number;
+  status: "applied" | "unavailable";
+};
+
+export type CartDelivery = {
+  pincode: string | null;
+  lines: DeliveryLine[];
+  total: number;
+};
+
+/**
+ * One flat Delivery option per seller (U-009 D4). The cart stores the resolved
+ * lines in metadata so every cart response can render the per-seller fee
+ * without a second upstream call.
+ */
+function deliveryFromMetadata(cart: StoreCart): CartDelivery {
+  const raw = cart.metadata?.[CART_DELIVERY_LINES_KEY];
+  const lines: DeliveryLine[] = Array.isArray(raw)
+    ? (raw as DeliveryLine[]).filter(
+        (line) =>
+          line &&
+          typeof line === "object" &&
+          (line.status === "applied" || line.status === "unavailable"),
+      )
+    : [];
+  const pincode =
+    typeof cart.metadata?.[CART_DELIVERY_PINCODE_KEY] === "string"
+      ? (cart.metadata?.[CART_DELIVERY_PINCODE_KEY] as string)
+      : null;
+  return {
+    pincode,
+    lines,
+    total: lines.reduce(
+      (sum, line) => sum + (line.status === "applied" ? line.amount : 0),
+      0,
+    ),
+  };
+}
+
 /**
  * Stable cart view for the storefront.
  *
@@ -1323,6 +1371,7 @@ function composeCartView(cart: StoreCart) {
   return {
     ...cart,
     items,
+    delivery: deliveryFromMetadata(cart),
     total: medusaToMinorOr(cart.total),
     shipping_total: medusaToMinorOr(cart.shipping_total),
     // Stable storefront semantics: "subtotal" is products only. Preserve the
@@ -4160,6 +4209,58 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
+/**
+ * Applies the single Delivery option for every seller in the cart.
+ *
+ * U-009 D4 retired the Standard/Express choice: the cart carries one flat
+ * per-seller fee resolved from the pincode. The resolved lines are stored in
+ * cart metadata so every cart response can render them.
+ */
+async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
+  const options = await medusa.listShippingOptions(cartId);
+  const bySeller = new Map<string, StoreShippingOption[]>();
+  for (const option of options) {
+    const list = bySeller.get(option.seller_id) ?? [];
+    list.push(option);
+    bySeller.set(option.seller_id, list);
+  }
+
+  const lines: DeliveryLine[] = [];
+  const sellerNames = await medusa.listSellerNames();
+  let cart = await medusa.getCart(cartId);
+  for (const [sellerId, sellerOptions] of bySeller) {
+    const option =
+      sellerOptions.find(
+        (candidate) => candidate.provider_id === "pincode_pincode",
+      ) ?? sellerOptions.find((candidate) => /delivery/i.test(candidate.name));
+    if (!option) {
+      lines.push({
+        seller_id: sellerId,
+        seller_name: sellerNames[sellerId] ?? null,
+        option_id: null,
+        name: "Delivery",
+        amount: 0,
+        status: "unavailable",
+      });
+      continue;
+    }
+    cart = await medusa.addShippingMethod(cartId, option.id);
+    lines.push({
+      seller_id: sellerId,
+      seller_name: sellerNames[sellerId] ?? null,
+      option_id: option.id,
+      name: option.name,
+      amount: medusaToMinorOr(option.amount),
+      status: "applied",
+    });
+  }
+
+  return medusa.updateCartMetadata(cartId, {
+    [CART_DELIVERY_LINES_KEY]: lines,
+    [CART_DELIVERY_PINCODE_KEY]: cart.shipping_address?.postal_code ?? null,
+  });
+}
+
   // POST /v1/carts/{cartId}/customer-details — attach checkout contact and delivery address.
   const cartCustomerDetails = url.pathname.match(/^\/v1\/carts\/([^/]+)\/customer-details$/);
   if (cartCustomerDetails && req.method === "POST") {
@@ -4192,7 +4293,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(403, "identity-mismatch", "Checkout email must match the authenticated pilot user.");
     }
     try {
-      const cart = await medusa.updateCartCustomerDetails(cartId, {
+      await medusa.updateCartCustomerDetails(cartId, {
         email: body.email.trim(),
         shipping_address: {
           first_name: address.first_name.trim(),
@@ -4210,6 +4311,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           ...(address.phone?.trim() ? { phone: address.phone.trim() } : {}),
         },
       });
+      // R6: the fee resolves from the home-selected address now, not at
+      // checkout. Applying here keeps the cart total honest before the
+      // customer visits checkout.
+      const cart = await applyDeliveryForCart(cartId);
       return json({
         ...composeCartView(cart),
         environment: config.environment,
@@ -4238,6 +4343,26 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           label: option.type?.label ?? null,
           currency_code: "INR",
         })),
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/carts/{cartId}/delivery — (re)resolve the single Delivery method per seller.
+  // Used after an address/pincode change and whenever the cart page reloads.
+  const cartDelivery = url.pathname.match(/^\/v1\/carts\/([^/]+)\/delivery$/);
+  if (cartDelivery && req.method === "POST") {
+    const cartId = cartDelivery[1];
+    const authenticated = await authorizeCheckoutOwner(req, cartId);
+    if ("response" in authenticated) return authenticated.response;
+    try {
+      const cart = await applyDeliveryForCart(cartId);
+      return json({
+        ...composeCartView(cart),
         environment: config.environment,
         test_data: true,
         correlation_id: cid,

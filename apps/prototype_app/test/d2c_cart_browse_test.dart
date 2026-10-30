@@ -18,7 +18,7 @@ class _UnreachableClient extends ExperienceApi {
   _UnreachableClient() : super(Dio());
 
   @override
-  Future<Cart> createCart() async => throw Exception('offline');
+  Future<Cart> createCart({String? channel}) async => throw Exception('offline');
 }
 
 Future<Widget> _host(Widget child) async {

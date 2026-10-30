@@ -4,7 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/models.dart';
+import '../domain/account_models.dart';
 import '../domain/conversation_models.dart';
+import '../data/experience_api.dart';
+import '../providers/account_providers.dart';
 import '../providers/cart_actions.dart';
 import '../providers/cart_providers.dart';
 import '../providers/catalog_providers.dart';
@@ -63,6 +66,7 @@ class CartScreen extends ConsumerWidget {
                 const SizedBox(height: AgencySpacing.md),
                 PromotionPanel(cart: cart!),
                 if (cart.hasDiscount) _discountRow(context, cart),
+                _deliveryCard(context, ref, cart),
                 CheckoutSummary(
                   subtotal: cart.subtotal?.formatted ?? '—',
                   // One source of truth: the cart payload, never a hardcoded
@@ -71,7 +75,9 @@ class CartScreen extends ConsumerWidget {
                       ? (cart.shippingDiscountTotal?.amount ?? 0) > 0
                           ? '${cart.shippingTotal!.formatted} · offer applied'
                           : cart.shippingTotal!.formatted
-                      : 'Calculated at checkout',
+                      : (cart.delivery?.applied.isNotEmpty ?? false)
+                          ? 'Free'
+                          : 'Set a delivery address',
                   total: cart.total?.formatted ?? '—',
                   onContinue: () => context.push('/checkout'),
                 ),
@@ -85,6 +91,89 @@ class CartScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  /// Per-seller delivery fees resolved from the bound address (U-009).
+  ///
+  /// The fee is shown in the cart as soon as an address is bound; checkout is
+  /// read-only and only requires the address.
+  Widget _deliveryCard(BuildContext context, WidgetRef ref, Cart cart) {
+    final delivery = cart.delivery;
+    final address = ref.watch(checkoutStartAddressProvider);
+    if (delivery != null && delivery.applied.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: AgencySpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text('Delivery', style: AgencyText.title),
+            const SizedBox(height: AgencySpacing.xs),
+            for (final line in delivery.lines)
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.local_shipping_outlined, size: 16),
+                  const SizedBox(width: AgencySpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '${line.label} · ${line.isApplied ? line.amount.formatted : 'unavailable'}',
+                      style: AgencyText.label,
+                    ),
+                  ),
+                ],
+              ),
+            if ((cart.shippingDiscountTotal?.amount ?? 0) > 0)
+              Text(
+                'Delivery offer applied · −${cart.shippingDiscountTotal!.formatted}',
+                style: AgencyText.label,
+              ),
+          ],
+        ),
+      );
+    }
+    if (address == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              'Deliver to ${address.pincode} · ${address.label}',
+              style: AgencyText.label,
+            ),
+          ),
+          TextButton(
+            onPressed: () => _bindDelivery(context, ref, cart, address),
+            child: const Text('Check delivery fee'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _bindDelivery(
+    BuildContext context,
+    WidgetRef ref,
+    Cart cart,
+    SavedAddress address,
+  ) async {
+    try {
+      final api = ref.read(experienceApiProvider);
+      final email = await api.currentSessionEmail() ?? '';
+      if (email.isEmpty) return;
+      final updated = await api.updateCartCustomerDetails(
+        cart.id,
+        email: email,
+        shippingAddress: address.toCheckoutAddress(),
+      );
+      await ref.read(cartProvider.notifier).replaceFromServer(updated);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not resolve delivery for that address.'),
+        ),
+      );
+    }
   }
 
   /// Engine-granted discount rows. Never computed from a code that was only

@@ -587,13 +587,21 @@ class ExperienceApi {
     return Cart.fromJson(res.data!);
   }
 
-  Future<Cart> selectDeliveryTier(String cartId, String tier) async {
+  /// Applies (or refreshes) the single per-seller Delivery method.
+  ///
+  /// U-009 D4 retired the Standard/Express choice: the server resolves one flat
+  /// fee per seller from the cart's pincode and returns the cart with its
+  /// `delivery` block.
+  Future<Cart> applyDelivery(String cartId) async {
     final res = await _dio.post<Map<String, dynamic>>(
-      '/v1/carts/$cartId/delivery-tier',
-      data: {'tier': tier},
+      '/v1/carts/$cartId/delivery',
     );
     return Cart.fromJson(res.data!);
   }
+
+  /// Retained for older call sites; the tier is ignored by the server.
+  Future<Cart> selectDeliveryTier(String cartId, String tier) =>
+      applyDelivery(cartId);
 
   /// Completes the cart only after server-side shipping and simulated payment setup.
   Future<Map<String, dynamic>> completeCart(String cartId) async {

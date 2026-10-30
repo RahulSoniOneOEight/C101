@@ -37,62 +37,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _orderPlaced = false;
   String? _shippingError;
   String? _inlineError;
-  List<ShippingOption> _shippingOptions = const <ShippingOption>[];
-  String? _selectedDeliveryTier;
-
-  List<String> get _sellerIds =>
-      _shippingOptions.map((option) => option.sellerId).toSet().toList();
-
-  List<String> get _availableTiers {
-    final tiers = _shippingOptions
-        .map((option) => option.tier)
-        .whereType<String>()
-        .where((tier) => tier == 'standard' || tier == 'express')
-        .toSet()
-        .toList();
-    tiers.sort((a, b) => a == 'standard' ? -1 : b == 'standard' ? 1 : 0);
-    return tiers;
-  }
-
-  bool _tierAvailable(String tier) {
-    if (_sellerIds.isEmpty) return false;
-    return _sellerIds.every((sellerId) => _shippingOptions.any(
-        (option) => option.sellerId == sellerId && option.tier == tier));
-  }
-
-  Money? _tierTotal(String tier) {
-    final options = <String, ShippingOption>{};
-    for (final option in _shippingOptions) {
-      if (option.tier != tier) continue;
-      final existing = options[option.sellerId];
-      if (existing == null ||
-          option.price.amount < existing.price.amount ||
-          (option.price.amount == existing.price.amount &&
-              option.id.compareTo(existing.id) < 0)) {
-        options[option.sellerId] = option;
-      }
-    }
-    if (options.isEmpty) return null;
-    final values = options.values.toList();
-    return Money(
-      amount: values.fold(0, (sum, option) => sum + option.price.amount),
-      currencyCode: values.first.price.currencyCode,
-    );
-  }
-
-  String? _tierPromise(String tier) {
-    for (final option in _shippingOptions) {
-      if (option.tier == tier && (option.description?.trim().isNotEmpty ?? false)) {
-        return option.description!.trim();
-      }
-    }
-    return null;
-  }
-
-  Money? get _selectedShippingTotal {
-    final tier = _selectedDeliveryTier;
-    return tier == null ? null : _tierTotal(tier);
-  }
 
   @override
   void initState() {
@@ -166,8 +110,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       {bool saveLast = true}) async {
     setState(() {
       _selectedAddressId = address.id;
-      _shippingOptions = const <ShippingOption>[];
-      _selectedDeliveryTier = null;
       _shippingError = null;
       _inlineError = null;
     });
@@ -178,7 +120,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         .read(fulfilmentPreferenceProvider.notifier)
         .selectDelivery(addressId: address.id);
     await _syncCustomerDetails(address);
-    await _loadShippingOptions();
+    await _refreshDelivery();
   }
 
   Future<void> _syncCustomerDetails(SavedAddress? address) async {
@@ -210,7 +152,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  Future<void> _loadShippingOptions() async {
+  /// Resolves the single per-seller Delivery fee for the bound address.
+  ///
+  /// U-009: there is no Standard/Express choice. The server applies one flat
+  /// fee per seller and returns the cart with its `delivery` block.
+  Future<void> _refreshDelivery() async {
     final cart = ref.read(cartProvider).value;
     final address = _resolveAddress(ref.read(addressesProvider));
     if (cart == null || address == null) {
@@ -222,57 +168,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       _shippingError = null;
     });
     try {
-      final options =
-          await ref.read(experienceApiProvider).listShippingOptions(cart.id);
+      final updated =
+          await ref.read(experienceApiProvider).applyDelivery(cart.id);
+      await ref.read(cartProvider.notifier).replaceFromServer(updated);
       if (!mounted) return;
-      final tiers = options
-          .map((option) => option.tier)
-          .whereType<String>()
-          .where((tier) => tier == 'standard' || tier == 'express')
-          .toSet();
-      final preferred = tiers.contains('standard')
-          ? 'standard'
-          : tiers.contains('express')
-              ? 'express'
-              : null;
-      setState(() {
-        _shippingOptions = options;
-        _selectedDeliveryTier = preferred;
-        _loadingShipping = false;
-      });
+      setState(() => _loadingShipping = false);
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _loadingShipping = false;
         _shippingError = error.toString();
       });
-    }
-  }
-
-  Future<void> _selectDeliveryTier(String tier, {bool quiet = false}) async {
-    final cart = ref.read(cartProvider).value;
-    if (cart == null) return;
-    setState(() => _submitting = true);
-    try {
-      final updated = await ref
-          .read(experienceApiProvider)
-          .selectDeliveryTier(cart.id, tier);
-      await ref.read(cartProvider.notifier).replaceFromServer(updated);
-      if (!mounted) return;
-      setState(() {
-        _selectedDeliveryTier = tier;
-        _inlineError = null;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _selectedDeliveryTier = tier == 'express' ? 'standard' : null;
-        if (!quiet) {
-          _inlineError = 'That delivery speed is not available for every seller.';
-        }
-      });
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -340,9 +246,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (_emailController.text.trim().isEmpty) {
       return 'Sign in again to place an order.';
     }
-    if (_selectedDeliveryTier == null ||
-        !_tierAvailable(_selectedDeliveryTier!)) {
-      return 'Select a delivery speed for the cart.';
+    final delivery = ref.read(cartProvider).value?.delivery;
+    if (delivery == null || delivery.applied.isEmpty) {
+      return 'Delivery could not be resolved for this address. Retry to continue.';
+    }
+    if (delivery.hasUnavailable) {
+      return 'Delivery is not available for every seller in this cart.';
     }
     return null;
   }
@@ -370,24 +279,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         email: _emailController.text.trim(),
         shippingAddress: address.toCheckoutAddress(),
       );
+      // customer-details resolves the per-seller fee from the bound pincode.
       await ref.read(cartProvider.notifier).replaceFromServer(updated);
-
-      final eligible = await client.listShippingOptions(cart.id);
-      final tier = _selectedDeliveryTier;
-      if (tier == null) {
-        throw StateError('Select a delivery speed for the cart.');
+      final delivery = updated.delivery;
+      if (delivery == null || delivery.applied.isEmpty) {
+        throw StateError('Delivery could not be resolved for this address.');
       }
-      final sellerIds = eligible.map((option) => option.sellerId).toSet();
-      final missing = sellerIds.where((sellerId) =>
-          !eligible.any((option) =>
-              option.sellerId == sellerId && option.tier == tier));
-      if (missing.isNotEmpty) {
+      if (delivery.hasUnavailable) {
         throw StateError(
-            'The selected delivery speed is no longer available for every seller.');
+            'Delivery is not available for every seller in this cart.');
       }
-
-      final prepared = await client.selectDeliveryTier(cart.id, tier);
-      await ref.read(cartProvider.notifier).replaceFromServer(prepared);
 
       final result = await client.completeCart(cart.id);
       if (result['type'] != 'order_group' ||
@@ -430,8 +331,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     if (mounted) {
       setState(() {
         _inlineError = null;
-        _shippingOptions = const <ShippingOption>[];
-        _selectedDeliveryTier = null;
       });
     }
   }
@@ -448,10 +347,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final effectiveCart = cart;
     final discount = effectiveCart?.discountTotal;
     final cartShipping = effectiveCart?.shippingTotal;
-    final shipping = _selectedShippingTotal?.formatted ??
-        ((cartShipping?.amount ?? 0) > 0
-            ? cartShipping!.formatted
-            : 'Calculated at checkout');
+    final delivery = effectiveCart?.delivery;
+    final shipping = (cartShipping?.amount ?? 0) > 0
+        ? cartShipping!.formatted
+        : (delivery?.applied.isNotEmpty ?? false)
+            ? 'Free'
+            : 'Set a delivery address';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
@@ -467,7 +368,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             const SizedBox(height: AgencySpacing.md),
             _contactCard(address),
             const SizedBox(height: AgencySpacing.lg),
-            Text('Delivery method', style: AgencyText.title),
+            Text('Delivery', style: AgencyText.title),
             const SizedBox(height: AgencySpacing.sm),
             if (address == null)
               const Text('Select an address first.')
@@ -484,42 +385,39 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: _loadShippingOptions,
+                    onPressed: _refreshDelivery,
                     child: const Text('Retry'),
                   ),
                 ],
               )
-            else if (_shippingOptions.isEmpty)
+            else if (delivery == null || delivery.lines.isEmpty)
               const Text('No delivery method is available for this cart.')
             else ...<Widget>[
               Text(
-                'Ships from ${_sellerIds.length} seller${_sellerIds.length == 1 ? '' : 's'}',
+                'One flat fee per seller · pincode ${delivery.pincode ?? '—'}',
                 style: AgencyText.label,
               ),
               const SizedBox(height: AgencySpacing.xs),
-              RadioGroup<String>(
-                groupValue: _selectedDeliveryTier,
-                onChanged: (tier) {
-                  if (tier == null || _submitting || !_tierAvailable(tier)) {
-                    return;
-                  }
-                  _selectDeliveryTier(tier);
-                },
+              Card(
                 child: Column(
                   children: <Widget>[
-                    for (final tier in _availableTiers)
-                      RadioListTile<String>(
-                        value: tier,
-                        title: Text(tier == 'express' ? 'Express' : 'Standard'),
+                    for (final line in delivery.lines)
+                      ListTile(
+                        leading: const Icon(Icons.local_shipping_outlined),
+                        title: Text('Delivery · ${line.label}'),
                         subtitle: Text(
-                          <String>[
-                            _tierTotal(tier)?.formatted ?? '—',
-                            if (_tierPromise(tier) != null) _tierPromise(tier)!,
-                            _tierAvailable(tier)
-                                ? 'Available for every seller'
-                                : 'Not available for every seller',
-                          ].join(' · '),
+                          line.isApplied
+                              ? 'Read-only at checkout'
+                              : 'Not available for this address',
                         ),
+                        trailing: Text(
+                          line.isApplied ? line.amount.formatted : '—',
+                        ),
+                      ),
+                    if ((delivery.total?.amount ?? 0) > 0)
+                      ListTile(
+                        title: const Text('Delivery total'),
+                        trailing: Text(delivery.total!.formatted),
                       ),
                   ],
                 ),

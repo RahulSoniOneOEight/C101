@@ -17,7 +17,7 @@ class _FakeExperienceApi extends ExperienceApi {
   DioException? addError;
 
   @override
-  Future<Cart> createCart() async {
+  Future<Cart> createCart({String? channel}) async {
     createCartCalls += 1;
     return Cart(id: 'cart_test_$createCartCalls');
   }

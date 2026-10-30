@@ -40,7 +40,7 @@ class _FakeExperienceApi extends ExperienceApi {
   }
 
   @override
-  Future<Cart> createCart() async => const Cart(id: 'cart_test');
+  Future<Cart> createCart({String? channel}) async => const Cart(id: 'cart_test');
 }
 
 void main() {

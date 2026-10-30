@@ -402,6 +402,22 @@ export class MedusaStoreClient {
     );
   }
 
+  /** Seller id → display name, for delivery lines and seller grouping. */
+  async listSellerNames(): Promise<Record<string, string>> {
+    try {
+      const data = await this.getJson<{
+        sellers?: Array<{ id?: string; name?: string }>;
+      }>("/store/sellers?limit=100");
+      const names: Record<string, string> = {};
+      for (const seller of data.sellers ?? []) {
+        if (seller?.id && seller.name) names[seller.id] = seller.name;
+      }
+      return names;
+    } catch {
+      return {};
+    }
+  }
+
   async addShippingMethod(cartId: string, optionId: string): Promise<StoreCart> {
     const data = await this.postJson<{ cart: StoreCart }>(
       `/store/carts/${encodeURIComponent(cartId)}/shipping-methods`,
@@ -538,4 +554,14 @@ export interface StoreCart {
   }[];
   subtotal: number;
   total: number;
+  shipping_address?: StoreAddress | null;
+  shipping_methods?: StoreCartShippingMethod[];
+}
+
+export interface StoreCartShippingMethod {
+  id: string;
+  name?: string | null;
+  amount: number;
+  shipping_option_id?: string | null;
+  data?: Record<string, unknown> | null;
 }

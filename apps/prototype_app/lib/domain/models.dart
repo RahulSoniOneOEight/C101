@@ -772,7 +772,8 @@ class Cart {
       this.discountTotal,
       this.shippingDiscountTotal,
       this.promotions = const <AppliedPromotion>[],
-      this.adjustments = const <CartAdjustment>[]});
+      this.adjustments = const <CartAdjustment>[],
+      this.delivery});
 
   factory Cart.fromJson(Map<String, dynamic> json) {
     final items = (json['items'] as List<dynamic>? ?? const <dynamic>[])
@@ -804,6 +805,12 @@ class Cart {
           .whereType<Map<String, dynamic>>()
           .map(CartAdjustment.fromJson)
           .toList(),
+      delivery: json['delivery'] is Map<String, dynamic>
+          ? CartDelivery.fromJson(
+              json['delivery'] as Map<String, dynamic>,
+              currency: currency,
+            )
+          : null,
     );
   }
 
@@ -825,6 +832,9 @@ class Cart {
   /// Flat discount lines for display and checkout summaries.
   final List<CartAdjustment> adjustments;
 
+  /// Per-seller delivery fees resolved from the bound pincode (U-009).
+  final CartDelivery? delivery;
+
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
   bool get hasDiscount => (discountTotal?.amount ?? 0) > 0;
@@ -840,6 +850,103 @@ class Cart {
         'promotions': promotions.map((e) => e.toJson()).toList(),
         'adjustments': adjustments.map((e) => e.toJson()).toList(),
         'currency_code': total?.currencyCode,
+        if (delivery != null) 'delivery': delivery!.toJson(),
+      };
+}
+
+/// One seller's flat delivery fee for the cart's bound pincode.
+class CartDeliveryLine {
+  const CartDeliveryLine({
+    this.sellerId,
+    this.sellerName,
+    this.optionId,
+    this.name = 'Delivery',
+    required this.amount,
+    this.status = 'applied',
+  });
+
+  factory CartDeliveryLine.fromJson(
+    Map<String, dynamic> json, {
+    String currency = 'INR',
+  }) {
+    return CartDeliveryLine(
+      sellerId: json['seller_id'] as String?,
+      sellerName: json['seller_name'] as String?,
+      optionId: json['option_id'] as String?,
+      name: json['name'] as String? ?? 'Delivery',
+      amount: Money(
+        amount: (json['amount'] as num?)?.toInt() ?? 0,
+        currencyCode: currency,
+      ),
+      status: json['status'] as String? ?? 'applied',
+    );
+  }
+
+  final String? sellerId;
+  final String? sellerName;
+  final String? optionId;
+  final String name;
+  final Money amount;
+  final String status;
+
+  bool get isApplied => status == 'applied';
+
+  /// Seller display label; falls back to the delivery name when unknown.
+  String get label =>
+      (sellerName != null && sellerName!.trim().isNotEmpty)
+          ? sellerName!.trim()
+          : name;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'seller_id': sellerId,
+        'seller_name': sellerName,
+        'option_id': optionId,
+        'name': name,
+        'amount': amount.amount,
+        'status': status,
+      };
+}
+
+/// The cart's resolved delivery state: bound pincode, per-seller fees, total.
+class CartDelivery {
+  const CartDelivery({
+    this.pincode,
+    this.lines = const <CartDeliveryLine>[],
+    this.total,
+  });
+
+  factory CartDelivery.fromJson(
+    Map<String, dynamic> json, {
+    String currency = 'INR',
+  }) {
+    final lines = (json['lines'] as List<dynamic>? ?? const <dynamic>[])
+        .whereType<Map<String, dynamic>>()
+        .map((line) => CartDeliveryLine.fromJson(line, currency: currency))
+        .toList();
+    final total = json['total'] as num?;
+    return CartDelivery(
+      pincode: json['pincode'] as String?,
+      lines: lines,
+      total: total == null
+          ? null
+          : Money(amount: total.toInt(), currencyCode: currency),
+    );
+  }
+
+  final String? pincode;
+  final List<CartDeliveryLine> lines;
+  final Money? total;
+
+  List<CartDeliveryLine> get applied =>
+      lines.where((line) => line.isApplied).toList();
+
+  bool get hasUnavailable =>
+      lines.any((line) => !line.isApplied);
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'pincode': pincode,
+        'lines': lines.map((line) => line.toJson()).toList(),
+        'total': total?.amount,
       };
 }
 

@@ -43,7 +43,7 @@ class _FakeExperienceApi extends ExperienceApi {
       const <StorefrontSection>[];
 
   @override
-  Future<Cart> createCart() async => const Cart(id: 'cart_test');
+  Future<Cart> createCart({String? channel}) async => const Cart(id: 'cart_test');
 }
 
 class _EmptyNotifications extends NotificationsNotifier {

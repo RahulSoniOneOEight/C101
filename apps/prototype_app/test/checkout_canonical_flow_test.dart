@@ -36,7 +36,33 @@ class _CheckoutExperienceApi extends ExperienceApi {
     items: [
       CartLineItem(id: 'line_1', title: 'Test cement', quantity: 1),
     ],
+    delivery: CartDelivery(
+      pincode: '302001',
+      total: Money(amount: 1200, currencyCode: 'INR'),
+      lines: [
+        CartDeliveryLine(
+          sellerId: 'seller_1',
+          sellerName: 'Seller One',
+          optionId: 'so_delivery_1',
+          name: 'Delivery',
+          amount: Money(amount: 500, currencyCode: 'INR'),
+        ),
+        CartDeliveryLine(
+          sellerId: 'seller_2',
+          sellerName: 'Seller Two',
+          optionId: 'so_delivery_2',
+          name: 'Delivery',
+          amount: Money(amount: 700, currencyCode: 'INR'),
+        ),
+      ],
+    ),
   );
+
+  @override
+  Future<Cart> applyDelivery(String cartId) async {
+    shippingSelections++;
+    return preparedCart;
+  }
 
   @override
   Future<List<ShippingOption>> listShippingOptions(String cartId) async =>
@@ -160,14 +186,17 @@ void main() {
         findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.text('Standard'),
+      find.textContaining('Delivery · Seller One'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(find.text('Standard'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Express'));
-    await tester.pumpAndSettle();
+
+    // U-009: delivery is read-only — one flat fee per seller, no tier choice.
+    expect(find.textContaining('Delivery · Seller One'), findsOneWidget);
+    expect(find.textContaining('Delivery · Seller Two'), findsOneWidget);
+    expect(find.text('Standard'), findsNothing);
+    expect(find.text('Express'), findsNothing);
 
     final placeOrder = find.widgetWithText(FilledButton, 'Place order');
     await tester.scrollUntilVisible(
@@ -181,7 +210,7 @@ void main() {
     await tester.tap(placeOrder);
     await tester.pumpAndSettle();
 
-    expect(api.shippingSelections, greaterThanOrEqualTo(2));
+    expect(api.shippingSelections, greaterThanOrEqualTo(1));
     expect(api.completeCalls, 1);
     expect(find.text('Canonical order confirmed'), findsOneWidget);
   });
