@@ -80,6 +80,26 @@ module.exports = withMercur({
       resolve: './src/modules/marketplace-settlement',
     },
     {
+      resolve: './src/modules/delivery-rates',
+    },
+    {
+      resolve: '@medusajs/medusa/fulfillment',
+      options: {
+        providers: [
+          {
+            resolve: '@medusajs/medusa/fulfillment-manual',
+            id: 'manual',
+            options: {},
+          },
+          {
+            resolve: './src/modules/delivery-rates/provider',
+            id: 'pincode',
+            options: {},
+          },
+        ],
+      },
+    },
+    {
       resolve: '@mercurjs/core/modules/admin-ui',
       options: {
         appDir: dashboardAppDir('admin'),
