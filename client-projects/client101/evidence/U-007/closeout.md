@@ -87,6 +87,12 @@ The implemented `ProductCard` was rendered at 260×260 with the reference data a
 
 The image area is the placeholder in this component render; product images render in the app.
 
+> **Live-build correction (2026-10-30):** the screenshot from the running D2C app still shows the
+> **pre-U-007** tile — `jaquar · 2 SKUs`, `% off` at the top-right, MRP inline next to the price.
+> The render above is a **component QC**, not the deployed app. The source branch has the stacked
+> price/MRP and the price-adjacent `% off`, but the Firebase web / Android build has not been
+> rebuilt or deployed. Live D2C QC is deferred until that app deploy.
+
 ## Verification
 
 | Check | Result |
@@ -132,6 +138,7 @@ b2b_team.png       7A3F509DBCEBFED2008D3B1B93458FD71B1DCDFDE1647BFBA224D44CF314F
 | Skeleton loading / image fade (P2) | not in the required P0/P1 slice |
 | Ratings/reviews, delivery promise (P2) | blocked on missing data |
 | Device screenshots at 390/1440 | Flutter app is source-only on staging; goldens + web build are the current evidence |
+| Live D2C web/APK build | the running app is pre-U-007; the staging web build is ready but not deployed |
 | Deploy | no deploy requested/authorised; app runtime is not hosted on staging |
 
 ## Residual risks
