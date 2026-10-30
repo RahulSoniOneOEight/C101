@@ -63,48 +63,50 @@ export default async function u009LiveGate({ container }: ExecArgs) {
 
   const existingOptions = await query.graph({
     entity: "shipping_option",
-    fields: ["id", "name"],
-    filters: { name: "U009 Delivery" },
+    fields: ["id", "name", "provider_id", "data"],
+    filters: { provider_id: "pincode_pincode" },
   });
-  if (existingOptions.data.length) {
-    const fulfillment = container.resolve(Modules.FULFILLMENT) as any;
-    for (const option of existingOptions.data) {
-      await fulfillment.deleteShippingOptions(option.id).catch(() => undefined);
-    }
-  }
+  const provisioned = existingOptions.data.find(
+    (option: any) => String(option.data?.seller_id ?? "") === SELLER_ID,
+  );
 
-  // 3. Create one calculated Delivery option for this seller.
+  // 3. Reuse the provisioned Delivery option, or create a temporary one.
   //
   // `shipping_option_type_id` is accepted by the workflow at runtime (the
   // admin route validator includes it) but is missing from the published
   // core-flows input type, hence the cast.
-  const created = await createShippingOptionsWorkflow(container).run({
-    input: [
-      {
-        name: "U009 Delivery",
-        service_zone_id: SERVICE_ZONE_ID,
-        shipping_profile_id: SHIPPING_PROFILE_ID,
-        shipping_option_type_id: SHIPPING_OPTION_TYPE_ID,
-        provider_id: "pincode_pincode",
-        price_type: "calculated",
-        data: { seller_id: SELLER_ID },
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      } as any,
-    ],
-  });
-  const optionId = created.result[0].id;
-  steps.push({ step: "create_calculated_option", status: "created", optionId });
+  let optionId: string;
+  if (provisioned) {
+    optionId = (provisioned as any).id;
+  } else {
+    const created = await createShippingOptionsWorkflow(container).run({
+      input: [
+        {
+          name: "U009 Delivery",
+          service_zone_id: SERVICE_ZONE_ID,
+          shipping_profile_id: SHIPPING_PROFILE_ID,
+          shipping_option_type_id: SHIPPING_OPTION_TYPE_ID,
+          provider_id: "pincode_pincode",
+          price_type: "calculated",
+          data: { seller_id: SELLER_ID },
+          rules: [
+            {
+              attribute: "enabled_in_store",
+              value: "true",
+              operator: "eq",
+            },
+            {
+              attribute: "is_return",
+              value: "false",
+              operator: "eq",
+            },
+          ],
+        } as any,
+      ],
+    });
+    optionId = created.result[0].id;
+  }
+  steps.push({ step: "create_calculated_option", status: provisioned ? "reused" : "created", optionId });
 
   // 4. Seed an exact (seller, pincode) rate.
   const rate = await deliveryRates.createSellerDeliveryRates({
