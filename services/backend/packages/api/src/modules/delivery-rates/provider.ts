@@ -1,5 +1,7 @@
 import {
   AbstractFulfillmentProviderService,
+  ModuleProvider,
+  Modules,
 } from "@medusajs/framework/utils";
 import type {
   CalculatedShippingOptionPrice,
@@ -20,7 +22,7 @@ type InjectedDependencies = {
  * require the seller in optionData so a pincode fee can never be applied to
  * another seller's items.
  */
-class PincodeDeliveryProviderService extends AbstractFulfillmentProviderService {
+export class PincodeDeliveryProviderService extends AbstractFulfillmentProviderService {
   static identifier = "pincode";
 
   protected readonly deliveryRates_: DeliveryRatesModuleService;
@@ -88,4 +90,6 @@ class PincodeDeliveryProviderService extends AbstractFulfillmentProviderService 
   }
 }
 
-export default PincodeDeliveryProviderService;
+export default ModuleProvider(Modules.FULFILLMENT, {
+  services: [PincodeDeliveryProviderService],
+});

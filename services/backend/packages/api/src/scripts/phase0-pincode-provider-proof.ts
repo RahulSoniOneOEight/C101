@@ -7,7 +7,7 @@
  *
  * Run with: bun run src/scripts/phase0-pincode-provider-proof.ts
  */
-import PincodeDeliveryProviderService from "../modules/delivery-rates/provider";
+import { PincodeDeliveryProviderService } from "../modules/delivery-rates/provider";
 
 async function main() {
   const calls: Array<[string, string]> = [];

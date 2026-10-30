@@ -1,4 +1,4 @@
-import PincodeDeliveryProviderService from "../provider";
+import { PincodeDeliveryProviderService } from "../provider";
 
 const providerWith = (resolveFee: jest.Mock) =>
   new PincodeDeliveryProviderService({
