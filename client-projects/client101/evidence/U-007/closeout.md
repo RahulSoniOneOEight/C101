@@ -66,6 +66,27 @@ The B2C goldens use the app's demo catalogue (`₹6,499`, etc.), not this SKU; t
 from the API `Money` value. Because `list_amount_minor` is present, `mrpIsReal` is true and the
 MRP/discount show for this product.
 
+## D2C tile QC (visual)
+
+The implemented `ProductCard` was rendered at 260×260 with the reference data and a readable font:
+`screenshots/tile-qc-260.png`.
+
+| Diagram item | QC result |
+|---|---|
+| Card size | 260×260 |
+| Image share | ≥60% of the card (Expanded image; ~65% at 1.0 text scale) |
+| Badges | `Assured`, `Flash Deal`, `+1` (max 2 + overflow) |
+| Wishlist | 44×44 target, top-right, filled state |
+| Add control | 44×44 `CartPlusIconButton`, image bottom-right |
+| Brand | `ACTION TESA` (no SKU count) |
+| Title | one line, “Action Tesa HDHMR Board” |
+| Price | `₹436.90` + `15% off` chip |
+| MRP | `MRP ₹514.00`, struck, second line |
+| Removed | seller, SKU count, stock line, descriptor |
+| Console/layout errors | none |
+
+The image area is the placeholder in this component render; product images render in the app.
+
 ## Verification
 
 | Check | Result |

@@ -584,8 +584,11 @@ class ProductCard extends StatelessWidget {
                   if (brand != null)
                     Text(
                       brand!,
-                      style: AgencyText.label
-                          .copyWith(color: context.colors.contentSecondary),
+                      style: AgencyText.label.copyWith(
+                        color: context.colors.contentSecondary,
+                        fontSize: 11,
+                        height: 1.2,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -753,6 +756,7 @@ class ProductCard extends StatelessWidget {
                 style: AgencyText.title.copyWith(
                   color: colors.contentPrimary,
                   fontSize: variant == ProductCardVariant.large ? 20 : 18,
+                  height: 1.2,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -769,6 +773,8 @@ class ProductCard extends StatelessWidget {
             'MRP $previousPriceLabel',
             style: AgencyText.label.copyWith(
               color: colors.contentSecondary,
+              fontSize: 11,
+              height: 1.2,
               decoration: TextDecoration.lineThrough,
             ),
             maxLines: 1,
