@@ -51,16 +51,16 @@ The U-007 diagram uses “Action Tesa HDHMR Board” as its example. The live st
 }
 ```
 
-The API amount is **minor units (paise)**, so the tile must render:
+The API amount is **minor units (paise)**. `Money.formatted` rounds **up** to whole rupees
+(`major.ceil()`), so the tile renders:
 
-- selling price **₹436.90** (`43690 / 100`)
-- **MRP ₹514.00** (`51400 / 100`)
+- selling price **₹437** (`43690 / 100 = 436.9`, rounded up)
+- **MRP ₹514** (`51400 / 100`)
 - **15% off**
 
-The plan mock writes `₹43,690` / `₹51,400` — that is the minor-unit value read as rupees, **100×
-too high**. The implementation uses `Money.formatted` / `priceLabel`, so the tile displays
-₹436.90 / ₹514.00, not the mock numbers. No code change is needed for the scale; the mock is the
-incorrect input.
+The plan mock writes `₹43,690` / `₹51,400` — the minor-unit value read as rupees, **100× too
+high**. The live tile shows ₹437 / MRP ₹514 (verified on staging), not the mock numbers. No code
+change was needed for the scale; the mock was the incorrect input.
 
 The B2C goldens use the app's demo catalogue (`₹6,499`, etc.), not this SKU; the real tile formats
 from the API `Money` value. Because `list_amount_minor` is present, `mrpIsReal` is true and the
@@ -80,22 +80,33 @@ The implemented `ProductCard` was rendered at 260×260 with the reference data a
 | Add control | 44×44 `CartPlusIconButton`, image bottom-right |
 | Brand | `ACTION TESA` (no SKU count) |
 | Title | one line, “Action Tesa HDHMR Board” |
-| Price | `₹436.90` + `15% off` chip |
-| MRP | `MRP ₹514.00`, struck, second line |
+| Price | `₹437` + `15% off` chip (live format; the 260 render used the literal `₹436.90`) |
+| MRP | `MRP ₹514`, struck, second line (render literal `₹514.00`) |
 | Removed | seller, SKU count, stock line, descriptor |
 | Console/layout errors | none |
 
 The image area is the placeholder in this component render; product images render in the app.
 
-> **Live-build correction (2026-10-30):** the screenshot from the running D2C app still shows the
-> **pre-U-007** tile — `jaquar · 2 SKUs`, `% off` at the top-right, MRP inline next to the price.
-> The render above is a **component QC**, not the deployed app. The source branch has the stacked
-> price/MRP and the price-adjacent `% off`, but the Firebase web / Android build has not been
-> rebuilt or deployed. Live D2C QC is deferred until that app deploy.
+## Live staging deployment
 
-## Staging build (ready, not yet released)
+- Released **2026-10-30 21:09:19Z** to `https://buildkart-staging.web.app`
+  (`firebase deploy --only hosting`, project `buildkart-staging`; previous release 2026-10-29 23:02:17Z).
+- Live `main.dart.js`: 3,925,894 bytes, SHA-256
+  `0444629AB44920112D06998960DF08F2779FD3B5F29E304B8AEF542A4A64199B`, contains `04422ed`;
+  the staging banner shows `STAGING · 04422ed`.
+- Screenshots: `screenshots/live-browse.png` (desktop top), `live-browse-tiles.png` (desktop grid),
+  `live-browse-mobile.png` (390 px).
+- Observed live: brand-only line (`homerun`), one-line title, `₹437` + `15% off` on line 1,
+  struck `MRP ₹514` on line 2, heart top-right, 44×44 cart-plus overlay on the image, contain image,
+  no seller / SKU count / stock line / descriptor.
+- `Flash Deal` badge appears on a product with a real admin badge.
+- “Recommended for you” carousel cards omit the heart because that call site
+  (`merchandising_sections.dart`) passes no `onWishlist`; grid tiles pass it and show the heart.
+  Optional affordance, unchanged behaviour.
 
-- Branch `feat/u007-product-tile-v2`, rebased onto live staging `8482e94`; head `04422ed`.
+## Build & rebase record (pre-release)
+
+- Branch `feat/u007-product-tile-v2`, rebased onto live staging `8482e94`; build id `04422ed`.
 - `flutter analyze`: no issues. Full suite: **293 passed**.
 - Web release build with staging API:
   `flutter build web --release --dart-define=BUILDKART_ENVIRONMENT=staging`
@@ -104,7 +115,6 @@ The image area is the placeholder in this component render; product images rende
   `--dart-define=BUILD_ID=04422ed`
 - Artifact: `apps/prototype_app/build/web`, `main.dart.js` SHA-256
   `0444629AB44920112D06998960DF08F2779FD3B5F29E304B8AEF542A4A64199B` (contains `04422ed`).
-- Live `buildkart-staging.web.app` still serves the pre-U-007 build (last release 2026-10-29 23:02:17Z, different bundle).
 - Rebase integration: CHG-098 changed `ExperienceApi.createCart({String? channel})`; four test
   fakes updated. `b2b_checkout.png` refreshed because the live base failed it before U-007:
   the regenerated golden is byte-identical to a clean `8482e94` render
