@@ -93,6 +93,24 @@ The image area is the placeholder in this component render; product images rende
 > price/MRP and the price-adjacent `% off`, but the Firebase web / Android build has not been
 > rebuilt or deployed. Live D2C QC is deferred until that app deploy.
 
+## Staging build (ready, not yet released)
+
+- Branch `feat/u007-product-tile-v2`, rebased onto live staging `8482e94`; head `04422ed`.
+- `flutter analyze`: no issues. Full suite: **293 passed**.
+- Web release build with staging API:
+  `flutter build web --release --dart-define=BUILDKART_ENVIRONMENT=staging`
+  `--dart-define=EXPERIENCE_API_BASE_URL=https://api-staging.pinakaplay.cloud`
+  `--dart-define=MEDUSA_BASE_URL=https://api-staging.pinakaplay.cloud`
+  `--dart-define=BUILD_ID=04422ed`
+- Artifact: `apps/prototype_app/build/web`, `main.dart.js` SHA-256
+  `0444629AB44920112D06998960DF08F2779FD3B5F29E304B8AEF542A4A64199B` (contains `04422ed`).
+- Live `buildkart-staging.web.app` still serves the pre-U-007 build (different bundle).
+- Rebase integration: CHG-098 changed `ExperienceApi.createCart({String? channel})`; four test
+  fakes updated. `b2b_checkout.png` refreshed because the live base failed it before U-007:
+  the regenerated golden is byte-identical to a clean `8482e94` render
+  (`D89D7628FDDCB8528C2D57591114DB11B22A3DA29195C008DF8FBC28704B9703`), so U-007 adds no B2B
+  visual change. The other five B2B goldens keep their original hashes.
+
 ## Verification
 
 | Check | Result |
