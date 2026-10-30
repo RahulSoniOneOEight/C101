@@ -37,6 +37,35 @@ their badges; synthetic MRP/tags never reach the B2C tile.
 
 No B2B file was touched: `b2b_v5.dart`, `trade_product_tile.dart`, `b2b_*` screens are unchanged.
 
+## Price input (staging reference)
+
+The U-007 diagram uses “Action Tesa HDHMR Board” as its example. The live staging product
+(`prod_01M59JS4A6QTH32AXVW9P2D3A3`, SKU `XZ5QR`) returns:
+
+```json
+{
+  "unit_amount_minor": 43690,
+  "list_amount_minor": 51400,
+  "discount_percent": 15,
+  "price_source": "price_list"
+}
+```
+
+The API amount is **minor units (paise)**, so the tile must render:
+
+- selling price **₹436.90** (`43690 / 100`)
+- **MRP ₹514.00** (`51400 / 100`)
+- **15% off**
+
+The plan mock writes `₹43,690` / `₹51,400` — that is the minor-unit value read as rupees, **100×
+too high**. The implementation uses `Money.formatted` / `priceLabel`, so the tile displays
+₹436.90 / ₹514.00, not the mock numbers. No code change is needed for the scale; the mock is the
+incorrect input.
+
+The B2C goldens use the app's demo catalogue (`₹6,499`, etc.), not this SKU; the real tile formats
+from the API `Money` value. Because `list_amount_minor` is present, `mrpIsReal` is true and the
+MRP/discount show for this product.
+
 ## Verification
 
 | Check | Result |
