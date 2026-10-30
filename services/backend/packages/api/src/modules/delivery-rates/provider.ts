@@ -8,32 +8,29 @@ import type {
   CreateFulfillmentResult,
   FulfillmentOption,
 } from "@medusajs/framework/types";
-import DeliveryRatesModuleService from "./service";
-
-type InjectedDependencies = {
-  delivery_rates: DeliveryRatesModuleService;
-};
+import {
+  DEFAULT_DELIVERY_FEE_MINOR,
+  PINCODE_DELIVERY_CONTEXT_KEY,
+  type PincodeDeliveryContext,
+} from "./constants";
 
 /**
  * One calculated "Delivery" option per seller.
  *
- * Medusa passes the cart (including shipping_address) as the calculation
- * context and each shipping option's `data` as `optionData`. We deliberately
- * require the seller in optionData so a pincode fee can never be applied to
- * another seller's items.
+ * A fulfillment provider is instantiated inside the fulfillment module's own
+ * container, so it cannot resolve the `delivery_rates` module. The app-side
+ * `setCalculatedShippingPricingContext` hook resolves the cart's pincode fees
+ * and the workflow forwards them to `calculatePrice` under
+ * `PINCODE_DELIVERY_CONTEXT_KEY`.
+ *
+ * The provider fails closed when that context is absent: a missing hook must
+ * never silently charge the default fee for every cart.
  */
 export class PincodeDeliveryProviderService extends AbstractFulfillmentProviderService {
   static identifier = "pincode";
 
-  protected readonly deliveryRates_: DeliveryRatesModuleService;
-
-  constructor({ delivery_rates }: InjectedDependencies) {
-    super();
-    this.deliveryRates_ = delivery_rates;
-  }
-
   async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
-    return [{ id: "pincode-delivery", seller_id_required: true }];
+    return [{ id: "pincode-delivery" }];
   }
 
   async canCalculate(): Promise<boolean> {
@@ -53,26 +50,33 @@ export class PincodeDeliveryProviderService extends AbstractFulfillmentProviderS
 
   async calculatePrice(
     optionData: Record<string, unknown>,
-    data: Record<string, unknown>,
+    _data: Record<string, unknown>,
     context: Record<string, any>,
   ): Promise<CalculatedShippingOptionPrice> {
-    const sellerId = String(
-      optionData?.seller_id ?? data?.seller_id ?? "",
-    ).trim();
+    const sellerId = String(optionData?.seller_id ?? "").trim();
     if (!sellerId) {
       throw new Error(
         "Calculated pincode delivery option is missing its seller_id.",
       );
     }
-    const pincode = String(
-      context?.shipping_address?.postal_code ?? "",
-    ).trim();
-    const calculatedAmount = await this.deliveryRates_.resolveFee(
-      sellerId,
-      pincode,
-    );
+
+    const deliveryContext = context?.[
+      PINCODE_DELIVERY_CONTEXT_KEY
+    ] as PincodeDeliveryContext | undefined;
+    if (!deliveryContext || typeof deliveryContext !== "object") {
+      throw new Error(
+        "Calculated pincode delivery context is missing; the pincode delivery pricing hook is not registered.",
+      );
+    }
+
+    const fee = Number(deliveryContext.fees?.[sellerId]);
     return {
-      calculated_amount: calculatedAmount,
+      calculated_amount:
+        Number.isFinite(fee) && fee >= 0
+          ? Math.trunc(fee)
+          : DEFAULT_DELIVERY_FEE_MINOR,
+      // The store prices tax-exclusively (price_preference.is_tax_inclusive
+      // is false for both regions), so the flat fee follows the same rule.
       is_calculated_price_tax_inclusive: false,
     };
   }
