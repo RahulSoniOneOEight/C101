@@ -4218,8 +4218,21 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
  */
 async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
   const options = await medusa.listShippingOptions(cartId);
+  const current = await medusa.getCart(cartId);
+  // Medusa lists calculated options for every seller in the sales channel, not
+  // only the sellers present in this cart. Applying all of them would charge a
+  // delivery fee for sellers with no items, so scope to the cart's own sellers.
+  const cartSellerIds = new Set(
+    (current.items ?? [])
+      .map((item) => item.seller_id)
+      .filter((sellerId): sellerId is string => Boolean(sellerId)),
+  );
+
   const bySeller = new Map<string, StoreShippingOption[]>();
   for (const option of options) {
+    if (cartSellerIds.size > 0 && !cartSellerIds.has(option.seller_id)) {
+      continue;
+    }
     const list = bySeller.get(option.seller_id) ?? [];
     list.push(option);
     bySeller.set(option.seller_id, list);
@@ -4227,7 +4240,7 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
 
   const lines: DeliveryLine[] = [];
   const sellerNames = await medusa.listSellerNames();
-  let cart = await medusa.getCart(cartId);
+  let cart = current;
   for (const [sellerId, sellerOptions] of bySeller) {
     const option =
       sellerOptions.find(
@@ -4255,9 +4268,22 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     });
   }
 
+  // The Mercur store shipping-options workflow prices flat options from the
+  // Pricing Module and leaves calculated options unpriced, so the applied
+  // method on the cart is the authoritative amount for a calculated fee.
+  const refreshed = await medusa.getCart(cartId);
+  const methods = refreshed.shipping_methods ?? [];
+  for (const line of lines) {
+    if (!line.option_id) continue;
+    const method = methods.find(
+      (candidate) => candidate.shipping_option_id === line.option_id,
+    );
+    if (method) line.amount = medusaToMinorOr(method.amount);
+  }
+
   return medusa.updateCartMetadata(cartId, {
     [CART_DELIVERY_LINES_KEY]: lines,
-    [CART_DELIVERY_PINCODE_KEY]: cart.shipping_address?.postal_code ?? null,
+    [CART_DELIVERY_PINCODE_KEY]: refreshed.shipping_address?.postal_code ?? null,
   });
 }
 
