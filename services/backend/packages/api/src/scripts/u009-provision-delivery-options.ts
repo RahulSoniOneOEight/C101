@@ -12,6 +12,7 @@
  */
 import type { ExecArgs } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
+import { MercurModules } from "@mercurjs/types";
 import { createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows";
 
 type SellerRow = {
@@ -30,6 +31,9 @@ export default async function provisionDeliveryOptions({ container }: ExecArgs) 
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER);
   const query = container.resolve(ContainerRegistrationKeys.QUERY);
   const link = container.resolve(ContainerRegistrationKeys.LINK) as any;
+  const remoteLink = container.resolve(
+    ContainerRegistrationKeys.REMOTE_LINK,
+  ) as any;
   const fulfillment = container.resolve(Modules.FULFILLMENT) as any;
 
   const { data: sellers } = (await query.graph({
@@ -115,6 +119,21 @@ export default async function provisionDeliveryOptions({ container }: ExecArgs) 
               ],
             });
             deliveryOptionId = created.result[0].id;
+          }
+
+          // Mercur's storefront workflow groups shipping options by the
+          // `shipping_option ↔ seller` link. Without it the option is priced
+          // but never returned to the storefront.
+          if (!deliveryOptionId) continue;
+          try {
+            await remoteLink.create({
+              [Modules.FULFILLMENT]: {
+                shipping_option_id: deliveryOptionId,
+              },
+              [MercurModules.SELLER]: { seller_id: seller.id },
+            });
+          } catch {
+            // Already linked.
           }
 
           // Retire Standard/Express for new carts: flip enabled_in_store to false.

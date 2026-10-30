@@ -70,11 +70,13 @@ export class PincodeDeliveryProviderService extends AbstractFulfillmentProviderS
     }
 
     const fee = Number(deliveryContext.fees?.[sellerId]);
+    const minor =
+      Number.isFinite(fee) && fee >= 0
+        ? Math.trunc(fee)
+        : DEFAULT_DELIVERY_FEE_MINOR;
     return {
-      calculated_amount:
-        Number.isFinite(fee) && fee >= 0
-          ? Math.trunc(fee)
-          : DEFAULT_DELIVERY_FEE_MINOR,
+      // Medusa amounts are major units; rates are stored in minor units.
+      calculated_amount: minor / 100,
       // The store prices tax-exclusively (price_preference.is_tax_inclusive
       // is false for both regions), so the flat fee follows the same rule.
       is_calculated_price_tax_inclusive: false,

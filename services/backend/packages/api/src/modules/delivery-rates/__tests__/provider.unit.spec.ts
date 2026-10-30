@@ -18,7 +18,7 @@ describe("Pincode delivery provider", () => {
     );
 
     expect(price).toEqual({
-      calculated_amount: 2900,
+      calculated_amount: 29,
       is_calculated_price_tax_inclusive: false,
     });
   });
@@ -30,7 +30,7 @@ describe("Pincode delivery provider", () => {
       contextWith({ sel_123: 2900 }),
     );
 
-    expect(price.calculated_amount).toBe(9900);
+    expect(price.calculated_amount).toBe(99);
   });
 
   it("fails closed when the shipping option has no seller", async () => {

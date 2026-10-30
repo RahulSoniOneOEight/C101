@@ -225,9 +225,9 @@ export default async function u009LiveGate({ container }: ExecArgs) {
   });
 
   const checks = {
-    seeded_is_2900: seededAmount === 2900,
-    missing_is_9900: missingAmount === 9900,
-    inactive_is_9900: inactiveAmount === 9900,
+    seeded_is_29_major: seededAmount === 29,
+    missing_is_99_major: missingAmount === 99,
+    inactive_is_99_major: inactiveAmount === 99,
   };
   const passed = Object.values(checks).every(Boolean);
 

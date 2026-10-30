@@ -28,8 +28,8 @@ async function main() {
     },
   );
 
-  if (price.calculated_amount !== 2900) {
-    throw new Error(`Expected 2900, received ${price.calculated_amount}`);
+  if (price.calculated_amount !== 29) {
+    throw new Error(`Expected 29, received ${price.calculated_amount}`);
   }
 
   const fallback = await provider.calculatePrice(
@@ -42,8 +42,8 @@ async function main() {
       },
     },
   );
-  if (fallback.calculated_amount !== 9900) {
-    throw new Error(`Expected 9900, received ${fallback.calculated_amount}`);
+  if (fallback.calculated_amount !== 99) {
+    throw new Error(`Expected 99, received ${fallback.calculated_amount}`);
   }
 
   let missingSellerBlocked = false;
