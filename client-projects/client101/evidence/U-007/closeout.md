@@ -104,7 +104,7 @@ The image area is the placeholder in this component render; product images rende
   `--dart-define=BUILD_ID=04422ed`
 - Artifact: `apps/prototype_app/build/web`, `main.dart.js` SHA-256
   `0444629AB44920112D06998960DF08F2779FD3B5F29E304B8AEF542A4A64199B` (contains `04422ed`).
-- Live `buildkart-staging.web.app` still serves the pre-U-007 build (different bundle).
+- Live `buildkart-staging.web.app` still serves the pre-U-007 build (last release 2026-10-29 23:02:17Z, different bundle).
 - Rebase integration: CHG-098 changed `ExperienceApi.createCart({String? channel})`; four test
   fakes updated. `b2b_checkout.png` refreshed because the live base failed it before U-007:
   the regenerated golden is byte-identical to a clean `8482e94` render
