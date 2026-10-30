@@ -1,68 +1,65 @@
 # U-009 / B004 — Phase 0 provider gate
 
 **Date:** 2026-10-30
-**Status:** CODE PROOF PASS — live preview proof pending
-**Release under test:** `186a50f` (not deployed by this change)
+**Status:** PASS (live, isolated preview)
+**Commit:** `6d622aa` on `feat/u009-pincode-delivery`
+**Preview image:** `buildkart-hosted-pilot-medusa:u009-preview` (ID `43715f5957af`)
+**Preview DB:** `buildkart_u009_preview` (clone of staging `buildkart`)
+**Staging:** not switched; `release-186a50f` remains current.
 
-## 1. What was implemented
+## 1. Gate question
 
-- New `delivery-rates` module:
-  - `seller_delivery_rate` model.
-  - Migration `Migration20261030120000` with unique `(seller_id, pincode)`,
-    `(pincode, active)` index, non-negative fee check.
-  - `resolveFee(seller, pincode)` returning the active row or ₹99 (`9900` minor).
-- New calculated fulfillment provider `pincode`:
-  - `canCalculate()` returns true.
-  - `getFulfillmentOptions()` returns one `Delivery` option.
-  - `calculatePrice(optionData, data, context)` reads
-    `optionData.seller_id` and `context.shipping_address.postal_code`, then
-    calls `resolveFee`.
-  - Missing seller fails closed; missing/inactive rate returns ₹99.
-- Registered the module and provider in `medusa-config.ts`.
+Can Medusa's calculated shipping provider read the cart's pincode **and** the
+seller, then return a per-seller fee — without faking a line item?
 
-## 2. Medusa context proof (source inspection)
+**Answer: yes.** The supported chain is:
 
-The deployed Medusa `listShippingOptionsForCartWithPricingWorkflow` builds
-calculated-option inputs as:
+1. One `price_type = calculated` shipping option per seller, with
+   `data.seller_id` (the option is what carries the seller).
+2. Medusa's `listShippingOptionsForCartWithPricingWorkflow` builds
+   `optionData: shipping_option.data` and
+   `context: { ...cart, items, from_location }`, which includes
+   `shipping_address.postal_code`.
+3. A fulfillment provider is instantiated inside the **fulfillment module's**
+   container, so it cannot resolve the app's `delivery_rates` module.
+4. Medusa's `setCalculatedShippingPricingContext` hook result is spread
+   **as-is** into the provider's `calculatePrice` context. The hook runs in the
+   app container, resolves the fee map from `delivery_rates`, and passes it
+   under `u009_delivery_rates`.
 
-```js
-optionData: so.data,
-context: {
-  ...setCalculatedShippingPricingContextResult,
-  ...cart,
-  items: filterCartItemsByShippingProfile(cart.items, so.shipping_profile_id),
-  from_location: fulfillmentSetLocationMap[so.service_zone.fulfillment_set_id],
-},
-data: optionDataMap.get(so.id),
-provider_id: so.provider_id,
-```
+## 2. What was implemented
 
-Source:
-`/app/node_modules/.bun/node_modules/@medusajs/core-flows/dist/cart/workflows/list-shipping-options-for-cart-with-pricing.js`
+- **`delivery-rates` module**
+  - `seller_delivery_rate` model: `seller_id`, `pincode char(6)`,
+    `flat_fee_minor`, `currency_code`, `active`, `updated_by`.
+  - Migration `Migration20261030120000`:
+    - unique `(seller_id, pincode)` where `deleted_at is null`
+    - index `(pincode, active)` where `deleted_at is null`
+    - check `flat_fee_minor >= 0`
+    - check `updated_by in ('admin','seller')`
+  - `resolveFee(seller, pincode)` → active row or ₹99 (`9900` minor).
+  - `listFeesForPincode(pincode)` → `{ [seller_id]: fee_minor }`.
+- **Calculated fulfillment provider `pincode`**
+  - `canCalculate() = true`, one `Delivery` option.
+  - Reads `optionData.seller_id` and `context.u009_delivery_rates`.
+  - Missing fee for a seller → ₹99.
+  - Missing `seller_id` → throws.
+  - Missing hook context → throws (fails closed; never silently charges ₹99).
+  - `is_calculated_price_tax_inclusive: false`, matching the store's
+    `price_preference.is_tax_inclusive = false` for both regions.
+- **Pricing hook** — `src/workflows/hooks/pincode-delivery-pricing.ts`.
+  Registered on `listShippingOptionsForCartWithPricingWorkflow`.
+  > `src/loaders/*` is **not** loaded by Medusa v2.20 (verified in
+  > `@medusajs/medusa/dist/loaders/index.js` and the framework's
+  > `MedusaAppLoader`). The hook must live under `src/workflows`, which the
+  > `WorkflowLoader` imports at boot.
 
-Cart fields explicitly include `shipping_address.*` and `items.*`:
+## 3. Live proof (isolated preview)
 
-```js
-exports.cartFieldsForCalculateShippingOptionsPrices = [
-  "id", "locale", "currency_code", "region_id",
-  "items.*", "items.variant.id", "items.variant.product.id",
-  "items.variant.product.shipping_profile.id", ...,
-  "shipping_address.*",
-];
-```
-
-Source:
-`/app/node_modules/.bun/node_modules/@medusajs/core-flows/dist/cart/utils/fields.js`
-
-Therefore one shipping option per seller can carry `data: { seller_id }`, and
-the provider receives the cart’s `shipping_address.postal_code` unchanged.
-
-## 3. Provider proof output
-
-Command:
+Command inside the preview API container:
 
 ```sh
-bun run src/scripts/phase0-pincode-provider-proof.ts
+./node_modules/.bin/medusa exec ./src/scripts/u009-live-gate.ts
 ```
 
 Output:
@@ -70,45 +67,56 @@ Output:
 ```json
 {
   "status": "PASS",
-  "provider": "pincode",
-  "canCalculate": true,
-  "option": { "id": "pincode-delivery", "seller_id_required": true },
-  "received": { "seller_id": "sel_123", "pincode": "302001" },
-  "calculated_amount": 2900,
-  "missing_seller_blocked": true
+  "checks": {
+    "seeded_is_2900": true,
+    "missing_is_9900": true,
+    "inactive_is_9900": true
+  },
+  "steps": [
+    { "step": "link_provider", "status": "created" },
+    { "step": "create_calculated_option", "status": "created",
+      "optionId": "so_01M66EPQ34KSFQ16ZR0EKK9M9J" },
+    { "step": "seed_rate", "status": "created",
+      "rateId": "sdr_01M66EPQ4ZHGYGR9SM3Q40ZPJX" },
+    { "step": "create_cart", "status": "created",
+      "cartId": "cart_01M66EPQ56FYMX8R6AJSD9R33D" },
+    { "step": "seeded_pincode", "pincode": "302001", "amount": 2900 },
+    { "step": "missing_pincode", "pincode": "999999", "amount": 9900 },
+    { "step": "inactive_pincode", "pincode": "302001", "amount": 9900 }
+  ]
 }
 ```
 
-This exercises the exact input shape Medusa constructs: `optionData.seller_id`
-plus `context.shipping_address.postal_code`.
+What the gate did, against the real Medusa runtime:
+
+1. Linked `pincode_pincode` to PowerMax Depot's stock location.
+2. Created `U009 Delivery` — a **calculated** option in PowerMax's service zone
+   with `data.seller_id = sel_01M4EC9CVVHG168X1DHHBY29HY`.
+3. Seeded `(PowerMax, 302001) → 2900`.
+4. Created a cart with a PowerMax variant and a 302001 address; listed
+   shipping options → **₹29.00**.
+5. Changed the address to `999999`; listed → **₹99.00** (default).
+6. Deactivated the rate row; listed at `302001` → **₹99.00**.
+
+The fee is returned by Medusa's calculated-price pipeline, not inserted as a
+line item.
 
 ## 4. Static checks
 
-- `bunx tsc -b` in `services/backend/packages/api`: **PASS**
-- Jest unit spec at
-  `src/modules/delivery-rates/__tests__/provider.unit.spec.ts`: **3/3 PASS**
-- Migration up/down not yet run on a preview DB.
+- `bunx tsc -b` (`services/backend/packages/api`): **PASS**
+- Jest `provider.unit.spec.ts` inside the preview image: **5/5 PASS**
+  (seeded fee, default, missing seller, missing hook context, option shape).
+- Migration up on `buildkart_u009_preview`: **PASS** (`seller_delivery_rate`,
+  unique index, check constraints, `pincode_pincode` enabled).
+- Migration down: not executed on the preview DB (the table is now used by the
+  gate); `down()` drops the table.
 
-## 5. Why this is not yet a live gate PASS
+## 5. What this gate does not cover
 
-The brief says Phase 0 must prove the calculated provider against a live cart.
-Running that requires building the API image and starting a preview container
-with the new module + migration. The brief does **not** authorize a staging
-deploy, and this worktree has no local Docker/Postgres.
-
-**Gate decision:** code-level context + provider calculation are proven; live
-preview proof is pending human authorization to build and run a preview
-container (no current-symlink switch, no production).
-
-### Proposed preview gate
-
-1. Build the API image from `feat/u009-pincode-delivery`.
-2. Start a temporary Medusa preview against a cloned/staging-preview database.
-3. Run migration up/down.
-4. Create one calculated `Delivery` option for a test seller with
-   `data.seller_id`.
-5. Create a cart with an address pincode and that seller’s item; call
-   `GET /store/shipping-options?cart_id=...`.
-6. Confirm the returned `Delivery` amount equals the seeded rate / ₹99 default.
-
-Only after that should the admin/seller UI and cart/checkout UI proceed.
+- Admin/Seller CRUD and bulk import (next step).
+- Cart binding to the home address, cart/checkout UI.
+- Order-level fee display and the "Shipping Free" lie fix.
+- Free-shipping discount line.
+- Staging deploy (not authorized by the brief; requires a separate release).
+- Cleanup: the preview DB, container and image are still present on the host
+  and can be removed after the feature branch is ready.
