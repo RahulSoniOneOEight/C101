@@ -4,16 +4,19 @@ import urllib.error
 import urllib.request
 
 IP = open("/tmp/u009-exp-ip").read().strip()
+API_IP = open("/tmp/u009-api-ip").read().strip()
 BASE = f"http://{IP}:9020"
+MEDUSA = f"http://{API_IP}:9010"
 OTP = "123456"
 OFFER = "offer_01M637Y25X9AETDR0CPAMVNVAW"  # PowerMax Depot, published, stock 50
+SELLER = "sel_01M4EC9CVVHG168X1DHHBY29HY"  # PowerMax Depot
 
 results = []
 
 
-def call(method, path, token=None, body=None):
+def call_at(base, method, path, token=None, body=None):
     data = None if body is None else json.dumps(body).encode()
-    req = urllib.request.Request(BASE + path, method=method, data=data)
+    req = urllib.request.Request(base + path, method=method, data=data)
     req.add_header("Content-Type", "application/json")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
@@ -28,6 +31,10 @@ def call(method, path, token=None, body=None):
         except Exception:
             parsed = {"raw": payload.decode(errors="replace")}
         return error.code, parsed
+
+
+def call(method, path, token=None, body=None):
+    return call_at(BASE, method, path, token, body)
 
 
 def check(name, ok, detail):
@@ -55,6 +62,28 @@ check("home.presentation", status == 200, {"status": status})
 
 status, collections = call("GET", "/v1/content/curated-collections?locale=en-IN")
 check("home.curated_collections", status == 200, {"status": status})
+
+# Seed the rate through the admin API: a write must affect new carts with no deploy (R10).
+status, admin_login = call_at(
+    MEDUSA,
+    "POST",
+    "/auth/user/emailpass",
+    body={"email": "u009-qc@buildkart.test", "password": "U009-QC-Passw0rd!"},
+)
+admin_token = admin_login.get("token")
+status, seeded = call_at(
+    MEDUSA,
+    "POST",
+    "/admin/buildkart/delivery-rates",
+    admin_token,
+    {"seller_id": SELLER, "pincode": "400001", "fee": 49},
+)
+check(
+    "admin.seed_rate_400001_49",
+    status in (200, 201)
+    and (seeded.get("delivery_rate") or {}).get("flat_fee_minor") == 4900,
+    {"status": status, "rate": (seeded.get("delivery_rate") or {}).get("flat_fee_minor")},
+)
 
 
 def login(email):

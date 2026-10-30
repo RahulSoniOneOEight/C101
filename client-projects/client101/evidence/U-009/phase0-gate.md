@@ -68,9 +68,9 @@ Output:
 {
   "status": "PASS",
   "checks": {
-    "seeded_is_2900": true,
-    "missing_is_9900": true,
-    "inactive_is_9900": true
+    "seeded_is_29_major": true,
+    "missing_is_99_major": true,
+    "inactive_is_99_major": true
   },
   "steps": [
     { "step": "link_provider", "status": "created" },
@@ -80,9 +80,9 @@ Output:
       "rateId": "sdr_01M66EPQ4ZHGYGR9SM3Q40ZPJX" },
     { "step": "create_cart", "status": "created",
       "cartId": "cart_01M66EPQ56FYMX8R6AJSD9R33D" },
-    { "step": "seeded_pincode", "pincode": "302001", "amount": 2900 },
-    { "step": "missing_pincode", "pincode": "999999", "amount": 9900 },
-    { "step": "inactive_pincode", "pincode": "302001", "amount": 9900 }
+    { "step": "seeded_pincode", "pincode": "302001", "amount": 29 },
+    { "step": "missing_pincode", "pincode": "999999", "amount": 99 },
+    { "step": "inactive_pincode", "pincode": "302001", "amount": 99 }
   ]
 }
 ```
