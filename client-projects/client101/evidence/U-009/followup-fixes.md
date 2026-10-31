@@ -90,3 +90,29 @@ Throwaway clone `buildkart_u009_migtest`:
   production session cookie is `Secure`.
 - The release image must be rebuilt from the final commit; the currently
   running preview API contains hot-patched sources from this session.
+
+## 11. Final-image verification (`485be84`)
+
+Rebuilt `buildkart-hosted-pilot-medusa:u009-preview` from the commit and re-ran
+the suites against the clean artifact:
+
+| Suite | Result |
+|---|---|
+| Live calculated-delivery gate | PASS (29/99/99 major) |
+| Product creation + pricing | 14/14 PASS (send 149900 → DB 1499 → API 149900 → cart 149900) |
+| Store pricing route | 5/5 PASS (one seller, amount 49, tax-inclusive true, Experience 4900) |
+| FREESHIP / TRADEVIP | 8/8 PASS (shipping 0, discount 4900, delivery line visible) |
+| B2C + B2B order E2E | 22/22 PASS |
+
+Orders from the final run:
+
+- B2C `BK-261031-6QE6A7`, group `og_01M68E4MXHGPXV53YB9ZKKMX39`,
+  shipping ₹49, total ₹147,299.
+- B2B `BK-261031-170SYT`, group `og_01M68E4VYVXRQQN2ZVQ7Y7HM1Z`,
+  shipping ₹49, total ₹144,449.
+
+The screenshots in §6 came from the UI-specific build (same page source,
+`MERCUR_BACKEND_URL=http://127.0.0.1:19010`). The final preview image was rebuilt
+with the deployment's default backend URL, so the dashboard in that image points
+at staging — the release pipeline must pass the correct URL per environment.
+
