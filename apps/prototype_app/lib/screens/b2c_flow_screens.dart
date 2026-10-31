@@ -995,7 +995,8 @@ class _OrderList extends StatelessWidget {
           PinOrderCard(
             orderRef: o.number.replaceFirst('Order #', ''),
             status: o.stage.label,
-            meta: '${o.dateLabel} · ${o.itemCount} items',
+            meta:
+                '${o.dateLabel} · ${o.itemCount} ${o.itemCount == 1 ? 'item' : 'items'}',
             totalLabel: o.total.formatted,
             tone: switch (o.stage) {
               OrderStage.delivered => PinOrderTone.success,
@@ -1089,7 +1090,8 @@ class TrackPackageScreen extends ConsumerWidget {
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: colors.contentPrimary)),
-                      Text('${order.number} · ${order.itemCount} items',
+                      Text(
+                          '${order.number} · ${order.itemCount} ${order.itemCount == 1 ? 'item' : 'items'}',
                           style: TextStyle(
                               fontSize: 11, color: colors.contentSecondary)),
                       Text(_nextUpdate(order),
@@ -1120,8 +1122,8 @@ class TrackPackageScreen extends ConsumerWidget {
                 const Spacer(),
                 Text(
                   order.shipments.first.trackingNumber,
-                  style: TextStyle(
-                      fontSize: 10, color: colors.contentSecondary),
+                  style:
+                      TextStyle(fontSize: 10, color: colors.contentSecondary),
                 ),
               ],
             ),
@@ -1289,8 +1291,7 @@ class OrderDetailScreen extends ConsumerWidget {
           if (order.returns.isNotEmpty) ...<Widget>[
             const SizedBox(height: AgencySpacing.md),
             _section(context, 'Returns'),
-            for (final record in order.returns)
-              _returnCard(context, record),
+            for (final record in order.returns) _returnCard(context, record),
           ],
           const SizedBox(height: AgencySpacing.md),
           _section(context, 'Delivery address'),
@@ -1472,14 +1473,14 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (line.deliveredQty > 0)
                   Text(
                     'Delivered ${line.deliveredQty} · returnable ${line.returnableQty}',
-                    style: TextStyle(
-                        fontSize: 10, color: colors.contentSecondary),
+                    style:
+                        TextStyle(fontSize: 10, color: colors.contentSecondary),
                   ),
                 if (!line.returnEligible && line.ineligibleReason != null)
                   Text(
                     line.ineligibleReason!.replaceAll('_', ' '),
-                    style: TextStyle(
-                        fontSize: 10, color: colors.feedbackWarning),
+                    style:
+                        TextStyle(fontSize: 10, color: colors.feedbackWarning),
                   ),
               ],
             ),
@@ -1693,7 +1694,19 @@ class _WishlistTile extends ConsumerWidget {
 /// Post-checkout confirmation. Reached after the cart is cleared, so it must
 /// not depend on cart state.
 class OrderConfirmedScreen extends StatelessWidget {
-  const OrderConfirmedScreen({super.key});
+  const OrderConfirmedScreen({
+    this.orderNumber,
+    this.totalMinor,
+    this.currencyCode = 'INR',
+    super.key,
+  });
+
+  /// Buyer-facing order number (BK-…), passed from the completion response.
+  final String? orderNumber;
+
+  /// Paid total in minor units, passed from the completion response.
+  final int? totalMinor;
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
@@ -1726,6 +1739,26 @@ class OrderConfirmedScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style:
                       TextStyle(fontSize: 14, color: colors.contentSecondary)),
+              if (orderNumber != null) ...[
+                const SizedBox(height: AgencySpacing.sm),
+                Text(orderNumber!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: colors.contentPrimary)),
+              ],
+              if (totalMinor != null) ...[
+                const SizedBox(height: AgencySpacing.xs),
+                Text(
+                    Money(amount: totalMinor!, currencyCode: currencyCode)
+                        .formatted,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: colors.contentPrimary)),
+              ],
               const SizedBox(height: AgencySpacing.xs),
               Text('Simulated payment authorized · no real charge',
                   textAlign: TextAlign.center,

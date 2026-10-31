@@ -256,6 +256,71 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return null;
   }
 
+  /// Sticky checkout CTA: keeps the total and the action visible without
+  /// scrolling past the payment and offers sections on a phone.
+  Widget _stickyCheckoutBar(
+    BuildContext context, {
+    required String? totalLabel,
+    required bool isPickup,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
+            AgencySpacing.md, AgencySpacing.sm),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          border: Border(top: BorderSide(color: colors.outlineVariant)),
+        ),
+        child: Row(
+          children: <Widget>[
+            if (totalLabel != null) ...<Widget>[
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text('Total',
+                      style: TextStyle(
+                          fontSize: 11, color: colors.onSurfaceVariant)),
+                  Text(totalLabel,
+                      style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: colors.onSurface)),
+                ],
+              ),
+              const SizedBox(width: AgencySpacing.md),
+            ],
+            Expanded(
+              child: FilledButton(
+                onPressed: _submitting || _orderPlaced
+                    ? null
+                    : isPickup
+                        ? _switchToDelivery
+                        : _placeOrder,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(_orderPlaced
+                        ? 'Order placed'
+                        : isPickup
+                            ? 'Switch to delivery to place order'
+                            : 'Place order'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _placeOrder() async {
     if (_submitting || _orderPlaced) return;
     final error = _validate();
@@ -302,7 +367,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (!mounted) return;
       await ref.read(cartProvider.notifier).clearAfterOrder();
       if (!mounted) return;
-      context.go('/order-confirmed');
+      final number = (result['order_number'] as String?)?.trim();
+      final total = (result['total_minor'] as num?)?.toInt();
+      final confirmation = Uri(
+        path: '/order-confirmed',
+        queryParameters: <String, String>{
+          if (number != null && number.isNotEmpty) 'number': number,
+          if (total != null) 'total': '$total',
+          'currency': 'INR',
+        },
+      );
+      context.go(confirmation.toString());
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -356,6 +431,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
+      bottomNavigationBar: _stickyCheckoutBar(
+        context,
+        totalLabel: effectiveCart?.total?.formatted,
+        isPickup: isPickup,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AgencySpacing.md),
         children: <Widget>[
@@ -458,28 +538,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             ),
           ],
           const SizedBox(height: AgencySpacing.md),
-          FilledButton(
-            onPressed: _submitting || _orderPlaced
-                ? null
-                : isPickup
-                    ? _switchToDelivery
-                    : _placeOrder,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: _submitting
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(_orderPlaced
-                    ? 'Order placed'
-                    : isPickup
-                        ? 'Switch to delivery to place order'
-                        : 'Place order'),
-          ),
-          const SizedBox(height: AgencySpacing.sm),
           Text(
             'Simulated prepaid payment · staging only',
             textAlign: TextAlign.center,

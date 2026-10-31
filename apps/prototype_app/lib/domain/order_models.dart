@@ -203,6 +203,22 @@ class ReturnSummary {
       );
 }
 
+/// Formats the stored delivery address for an order card.
+String _addressLabel(Map<String, dynamic>? address) {
+  if (address == null) return 'Delivery address captured at checkout';
+  final line1 = (address['address_1'] as String?)?.trim() ?? '';
+  final line2 = (address['address_2'] as String?)?.trim() ?? '';
+  final city = (address['city'] as String?)?.trim() ?? '';
+  final province = (address['province'] as String?)?.trim() ?? '';
+  final postal = (address['postal_code'] as String?)?.trim() ?? '';
+  final region = [province, postal].where((part) => part.isNotEmpty).join(' ');
+  final tail = [city, region].where((part) => part.isNotEmpty).join(', ');
+  final parts = [line1, line2, tail].where((part) => part.isNotEmpty).toList();
+  return parts.isEmpty
+      ? 'Delivery address captured at checkout'
+      : parts.join(', ');
+}
+
 /// A consumer order.
 class CustomerOrder {
   const CustomerOrder({
@@ -376,7 +392,8 @@ class CustomerOrder {
           created == null ? 'Staging order' : 'Placed ${_dateLabel(created)}',
       stage: stage,
       lines: lines,
-      addressLabel: 'Delivery address captured at checkout',
+      addressLabel:
+          _addressLabel(json['shipping_address'] as Map<String, dynamic>?),
       timeline: timeline,
       returnEligible: lines.any((line) => line.returnEligible),
       shipments: shipments,

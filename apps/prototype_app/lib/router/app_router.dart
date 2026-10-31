@@ -177,7 +177,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/order-confirmed',
-        builder: (context, state) => const OrderConfirmedScreen(),
+        builder: (context, state) => OrderConfirmedScreen(
+          orderNumber: state.uri.queryParameters['number'],
+          totalMinor: int.tryParse(state.uri.queryParameters['total'] ?? ''),
+          currencyCode: state.uri.queryParameters['currency'] ?? 'INR',
+        ),
       ),
       GoRoute(
         path: '/notifications',

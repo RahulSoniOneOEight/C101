@@ -4607,12 +4607,18 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
         // Stop retries here and return the first persisted canonical completion snapshot.
         const existingCompletion = await correlation.get(cartId);
         if (existingCompletion?.medusa_order_group_id) {
+          const existingGroup = existingCompletion.medusa_order_group as
+            | Record<string, unknown>
+            | null;
+          const existingAmounts = (existingGroup?.amounts ?? {}) as Record<string, unknown>;
           return json({
             type: "order_group",
             order_group: existingCompletion.medusa_order_group ?? {
               id: existingCompletion.medusa_order_group_id,
               cart_id: cartId,
             },
+            order_number: (existingGroup?.customer_reference as string | undefined) ?? null,
+            total_minor: existingAmounts.total ?? null,
             payment: existingCompletion.payment_evidence,
             environment: config.environment,
             test_data: true,
@@ -4675,6 +4681,10 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
             ...(result.order_group ?? {}),
             destination_postcode:
               (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+            // Buyer-visible delivery address, stored once at completion so the
+            // order page can show where the order ships (B2C + B2B).
+            shipping_address:
+              (cart as { shipping_address?: StoreAddress }).shipping_address ?? null,
             // Buyer-visible money, stored once at completion in the API's minor-unit convention.
             // Legacy rows without this block fall back to the group total only.
             currency_code: cart.currency_code ?? "inr",
@@ -4725,6 +4735,8 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
           return json({
             type: "order_group",
             order_group: result.order_group,
+            order_number: orderGroupPayload.customer_reference,
+            total_minor: orderGroupPayload.amounts.total,
             payment: paymentEvidence,
             environment: config.environment,
             test_data: true,
@@ -6592,6 +6604,8 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
         status: ref.medusa_order_group_id ? "confirmed" : "not_started",
         created_at: ref.created_at,
         ...orderMoneySummary(ref),
+        shipping_address:
+          (ref.medusa_order_group as Record<string, unknown> | null)?.shipping_address ?? null,
         lines: orderLineSnapshots(ref),
         payment_mode: config.paymentAdapterMode,
         test_data: true,
@@ -6623,6 +6637,8 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
       medusa_order_group_id: orderGroup,
       status: orderGroup ? "confirmed" : "not_started",
       ...orderMoneySummary(ref),
+      shipping_address:
+        (ref.medusa_order_group as Record<string, unknown> | null)?.shipping_address ?? null,
       payment_mode: config.paymentAdapterMode,
       environment: config.environment,
       test_data: true,

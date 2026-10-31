@@ -214,21 +214,30 @@ class QuantityStepper extends StatelessWidget {
     final canDec = value > min && onChanged != null;
     final canInc = (max == null || value < max!) && onChanged != null;
 
-    Widget step(IconData data, bool enabled, VoidCallback onTap) => InkWell(
-          customBorder: const CircleBorder(),
-          onTap: enabled ? onTap : null,
-          child: SizedBox(
-            width: button,
-            height: height,
-            child: Icon(
-              data,
-              size: icon,
-              color: enabled ? colors.contentPrimary : colors.contentSecondary,
+    Widget step(IconData data, bool enabled, VoidCallback onTap,
+            String semanticLabel) =>
+        Semantics(
+          button: true,
+          enabled: enabled,
+          label: semanticLabel,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: enabled ? onTap : null,
+            child: SizedBox(
+              width: button,
+              height: height,
+              child: Icon(
+                data,
+                size: icon,
+                color:
+                    enabled ? colors.contentPrimary : colors.contentSecondary,
+              ),
             ),
           ),
         );
 
     return Semantics(
+      container: true,
       label: 'Quantity $value',
       child: Container(
         height: height,
@@ -240,20 +249,24 @@ class QuantityStepper extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            step(Icons.remove, canDec, () => onChanged!(value - 1)),
-            SizedBox(
-              width: dense ? 16 : (compact ? 18 : 28),
-              child: Text(
-                '$value',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: dense ? 10 : (compact ? 12 : 14),
-                  fontWeight: FontWeight.w600,
-                  color: colors.contentPrimary,
+            step(Icons.remove, canDec, () => onChanged!(value - 1),
+                'Decrease quantity'),
+            ExcludeSemantics(
+              child: SizedBox(
+                width: dense ? 16 : (compact ? 18 : 28),
+                child: Text(
+                  '$value',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: dense ? 10 : (compact ? 12 : 14),
+                    fontWeight: FontWeight.w600,
+                    color: colors.contentPrimary,
+                  ),
                 ),
               ),
             ),
-            step(Icons.add, canInc, () => onChanged!(value + 1)),
+            step(Icons.add, canInc, () => onChanged!(value + 1),
+                'Increase quantity'),
           ],
         ),
       ),
@@ -430,6 +443,8 @@ class CompactQuickOrderSkuCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             priceLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -712,8 +727,7 @@ class TradeProductCardCompact extends StatelessWidget {
                             max: outOfStock ? quantity : null,
                             compact: true,
                             dense: true,
-                            onChanged:
-                                outOfStock ? null : onQuantityChanged,
+                            onChanged: outOfStock ? null : onQuantityChanged,
                           )
                         else
                           CartPlusIconButton(

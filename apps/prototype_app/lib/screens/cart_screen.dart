@@ -28,67 +28,69 @@ class CartScreen extends ConsumerWidget {
     final cartState = ref.watch(cartProvider);
     final products = ref.watch(productsProvider).value ?? const <Product>[];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Cart'),
-        actions: <Widget>[
-          const ConversationBellButton(
-              audience: ConversationAudience.household),
-          IconButton(
-            tooltip: 'My Orders',
-            onPressed: () => context.push('/orders'),
-            icon: const Icon(Icons.receipt_long_outlined),
-          ),
-        ],
-      ),
-      body: cartState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => ErrorView(error: error),
-        data: (cart) {
-          final items = cart?.items ?? const <CartLineItem>[];
-          final inCart = <String>{
-            for (final item in items) item.id,
-          };
-          final related = products
-              .where((p) =>
-                  !inCart.contains(p.id) && !inCart.contains(p.cartVariantId))
-              .take(8)
-              .toList();
+    return _AutoDeliveryBinder(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Cart'),
+          actions: <Widget>[
+            const ConversationBellButton(
+                audience: ConversationAudience.household),
+            IconButton(
+              tooltip: 'My Orders',
+              onPressed: () => context.push('/orders'),
+              icon: const Icon(Icons.receipt_long_outlined),
+            ),
+          ],
+        ),
+        body: cartState.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => ErrorView(error: error),
+          data: (cart) {
+            final items = cart?.items ?? const <CartLineItem>[];
+            final inCart = <String>{
+              for (final item in items) item.id,
+            };
+            final related = products
+                .where((p) =>
+                    !inCart.contains(p.id) && !inCart.contains(p.cartVariantId))
+                .take(8)
+                .toList();
 
-          return ListView(
-            padding: const EdgeInsets.all(AgencySpacing.md),
-            children: <Widget>[
-              if (items.isEmpty)
-                const EmptyView(message: 'Your cart is empty')
-              else ...<Widget>[
-                for (final item in items)
-                  _CartLineWithDeals(item: item, catalogue: products),
+            return ListView(
+              padding: const EdgeInsets.all(AgencySpacing.md),
+              children: <Widget>[
+                if (items.isEmpty)
+                  const EmptyView(message: 'Your cart is empty')
+                else ...<Widget>[
+                  for (final item in items)
+                    _CartLineWithDeals(item: item, catalogue: products),
+                  const SizedBox(height: AgencySpacing.md),
+                  PromotionPanel(cart: cart!),
+                  if (cart.hasDiscount) _discountRow(context, cart),
+                  _deliveryCard(context, ref, cart),
+                  CheckoutSummary(
+                    subtotal: cart.subtotal?.formatted ?? '—',
+                    // One source of truth: the cart payload, never a hardcoded
+                    // "Free" while checkout may charge a delivery fee.
+                    shipping: (cart.shippingTotal?.amount ?? 0) > 0
+                        ? (cart.shippingDiscountTotal?.amount ?? 0) > 0
+                            ? '${cart.shippingTotal!.formatted} · offer applied'
+                            : cart.shippingTotal!.formatted
+                        : (cart.delivery?.applied.isNotEmpty ?? false)
+                            ? 'Free'
+                            : 'Set a delivery address',
+                    total: cart.total?.formatted ?? '—',
+                    onContinue: () => context.push('/checkout'),
+                  ),
+                ],
+                const SizedBox(height: AgencySpacing.lg),
+                _related(context, ref, related),
                 const SizedBox(height: AgencySpacing.md),
-                PromotionPanel(cart: cart!),
-                if (cart.hasDiscount) _discountRow(context, cart),
-                _deliveryCard(context, ref, cart),
-                CheckoutSummary(
-                  subtotal: cart.subtotal?.formatted ?? '—',
-                  // One source of truth: the cart payload, never a hardcoded
-                  // "Free" while checkout may charge a delivery fee.
-                  shipping: (cart.shippingTotal?.amount ?? 0) > 0
-                      ? (cart.shippingDiscountTotal?.amount ?? 0) > 0
-                          ? '${cart.shippingTotal!.formatted} · offer applied'
-                          : cart.shippingTotal!.formatted
-                      : (cart.delivery?.applied.isNotEmpty ?? false)
-                          ? 'Free'
-                          : 'Set a delivery address',
-                  total: cart.total?.formatted ?? '—',
-                  onContinue: () => context.push('/checkout'),
-                ),
+                _ordersQuickLink(context),
               ],
-              const SizedBox(height: AgencySpacing.lg),
-              _related(context, ref, related),
-              const SizedBox(height: AgencySpacing.md),
-              _ordersQuickLink(context),
-            ],
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -310,6 +312,49 @@ class CartScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Resolves the per-seller delivery fee as soon as the cart opens with a saved
+/// address, so the buyer does not have to tap "Check delivery fee" first.
+class _AutoDeliveryBinder extends ConsumerStatefulWidget {
+  const _AutoDeliveryBinder({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_AutoDeliveryBinder> createState() =>
+      _AutoDeliveryBinderState();
+}
+
+class _AutoDeliveryBinderState extends ConsumerState<_AutoDeliveryBinder> {
+  bool _running = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolve());
+  }
+
+  Future<void> _resolve() async {
+    if (_running) return;
+    final cart = ref.read(cartProvider).value;
+    final address = ref.read(checkoutStartAddressProvider);
+    if (cart == null || cart.items.isEmpty || address == null) return;
+    if (cart.delivery?.applied.isNotEmpty == true) return;
+    _running = true;
+    try {
+      final updated =
+          await ref.read(experienceApiProvider).applyDelivery(cart.id);
+      await ref.read(cartProvider.notifier).replaceFromServer(updated);
+    } catch (_) {
+      // Checkout retries and surfaces a concrete error.
+    } finally {
+      _running = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// A cart line with a per-SKU "Related deals" expander: tapping reveals a

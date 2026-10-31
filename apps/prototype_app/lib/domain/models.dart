@@ -16,13 +16,21 @@ class Money {
   final int amount;
   final String currencyCode;
 
-  /// Formats the amount as a whole currency unit, rounding up.
+  /// Formats the amount for display.
   ///
-  /// Prices are presented as integers across the app; fractional minor units
-  /// are never shown to the buyer. For example, ₹1,000.01 becomes ₹1,001.
+  /// Whole amounts render as grouped integers (Indian grouping for INR:
+  /// ₹1,23,549). When the amount carries paise, exactly two decimals are shown
+  /// (₹509.40) so summary lines always reconcile with the total.
   String get formatted {
-    final major = amount / 100;
-    final text = major.ceil().toString();
+    final negative = amount < 0;
+    final abs = amount.abs();
+    final whole = abs ~/ 100;
+    final minor = abs % 100;
+    final isInr = currencyCode.toUpperCase() == 'INR';
+    final grouped = _group(whole, indian: isInr);
+    final digits =
+        minor == 0 ? grouped : '$grouped.${minor.toString().padLeft(2, '0')}';
+    final text = negative ? '-$digits' : digits;
     switch (currencyCode.toUpperCase()) {
       case 'INR':
         return '₹$text';
@@ -35,6 +43,29 @@ class Money {
       default:
         return '${currencyCode.toUpperCase()} $text';
     }
+  }
+
+  /// Groups digits for display: 1,23,549 for INR, 123,549 otherwise.
+  static String _group(int value, {required bool indian}) {
+    final digits = value.toString();
+    if (digits.length <= 3) return digits;
+    if (!indian) {
+      final buffer = StringBuffer();
+      for (var i = 0; i < digits.length; i++) {
+        if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+        buffer.write(digits[i]);
+      }
+      return buffer.toString();
+    }
+    final last3 = digits.substring(digits.length - 3);
+    var rest = digits.substring(0, digits.length - 3);
+    final parts = <String>[];
+    while (rest.length > 2) {
+      parts.insert(0, rest.substring(rest.length - 2));
+      rest = rest.substring(0, rest.length - 2);
+    }
+    if (rest.isNotEmpty) parts.insert(0, rest);
+    return '${parts.join(',')},$last3';
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -498,8 +529,9 @@ class Product {
       if (match.isNotEmpty && !result.contains(match)) result.add(match);
     }
     result.sort(
-      (left, right) =>
-          b2cBadgeAllowlist.indexOf(left).compareTo(b2cBadgeAllowlist.indexOf(right)),
+      (left, right) => b2cBadgeAllowlist
+          .indexOf(left)
+          .compareTo(b2cBadgeAllowlist.indexOf(right)),
     );
     return result;
   }
@@ -951,10 +983,9 @@ class CartDeliveryLine {
   bool get isApplied => status == 'applied';
 
   /// Seller display label; falls back to the delivery name when unknown.
-  String get label =>
-      (sellerName != null && sellerName!.trim().isNotEmpty)
-          ? sellerName!.trim()
-          : name;
+  String get label => (sellerName != null && sellerName!.trim().isNotEmpty)
+      ? sellerName!.trim()
+      : name;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'seller_id': sellerId,
@@ -999,8 +1030,7 @@ class CartDelivery {
   List<CartDeliveryLine> get applied =>
       lines.where((line) => line.isApplied).toList();
 
-  bool get hasUnavailable =>
-      lines.any((line) => !line.isApplied);
+  bool get hasUnavailable => lines.any((line) => !line.isApplied);
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'pincode': pincode,

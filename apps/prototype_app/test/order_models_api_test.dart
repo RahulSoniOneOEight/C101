@@ -131,9 +131,9 @@ void main() {
     });
 
     expect(order.number, 'BK-261026-0Z4M7Q');
-    expect(order.subtotal?.formatted, '\u20B93990');
+    expect(order.subtotal?.formatted, '\u20B93,990');
     expect(order.shipping?.formatted, '\u20B999');
-    expect(order.total.formatted, '\u20B94089');
+    expect(order.total.formatted, '\u20B94,089');
   });
 
   test('legacy order without a money summary falls back to line totals', () {
@@ -155,6 +155,53 @@ void main() {
     expect(order.number, 'Order #BK-cart_01LEGACY');
     expect(order.subtotal, isNull);
     expect(order.shipping, isNull);
-    expect(order.total.formatted, '\u20B93990');
+    expect(order.total.formatted, '\u20B93,990');
+  });
+
+  test('shows the delivery address captured with the order', () {
+    final order = CustomerOrder.fromApi(<String, dynamic>{
+      'order_id': 'cart_01ADDR',
+      'order_number': 'BK-261031-ADDR01',
+      'medusa_order_group_id': 'og_01ADDR',
+      'status': 'confirmed',
+      'shipping_address': <String, dynamic>{
+        'address_1': '12 Test Lane',
+        'address_2': 'Andheri East',
+        'city': 'Mumbai',
+        'province': 'Maharashtra',
+        'postal_code': '400001',
+      },
+      'lines': <Map<String, dynamic>>[
+        {
+          'line_key': 'cali_addr',
+          'sku': 'SKU-ADDR',
+          'title': 'Tape',
+          'quantity': 1,
+          'unit_price': 43200,
+        },
+      ],
+    });
+
+    expect(order.addressLabel,
+        '12 Test Lane, Andheri East, Mumbai, Maharashtra 400001');
+  });
+
+  test('falls back when the order has no address snapshot', () {
+    final order = CustomerOrder.fromApi(<String, dynamic>{
+      'order_id': 'cart_01NOADDR',
+      'medusa_order_group_id': 'og_01NOADDR',
+      'status': 'confirmed',
+      'lines': <Map<String, dynamic>>[
+        {
+          'line_key': 'cali_no_addr',
+          'sku': 'SKU-NOADDR',
+          'title': 'Tape',
+          'quantity': 1,
+          'unit_price': 43200,
+        },
+      ],
+    });
+
+    expect(order.addressLabel, 'Delivery address captured at checkout');
   });
 }
