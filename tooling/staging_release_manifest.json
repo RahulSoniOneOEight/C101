@@ -20,6 +20,11 @@
       "label": "U-009 pincode delivery fee",
       "commit": "485be84",
       "why": "Tax-inclusive flat fee, minor-unit pricing and priced store shipping options."
+    },
+    {
+      "label": "U-007 translucent tile controls",
+      "commit": "dacc4f9",
+      "why": "Wishlist/add controls keep the product photo visible; B2B stays solid."
     }
   ]
 }

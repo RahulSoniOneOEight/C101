@@ -110,3 +110,15 @@ hash and banner after deploy.** A bundle reading `STAGING dev` was built by hand
 2. Bug bundle 1–5 from the U-009 review is still open (provisioning retire scope, rate-list
    pagination, bulk `rows[]` de-dupe, checkout shipping-discount line, search row + cart line
    MRP/off%). Item 5 must use U-007's `mrpIsReal` / `b2cBadges` gating.
+
+## 8. Translucent tile controls (`dacc4f9`)
+
+- Wishlist disc: 92% white → **55%** with a hairline border so the 44×44 target still reads on
+  white packshots.
+- Cart disc: 100% → **72%** through a new `CartPlusIconButton.backgroundOpacity` parameter
+  (default 1.0, so B2B tiles keep the solid button).
+- Glyphs stay fully opaque; hit targets and positions unchanged.
+- Goldens refreshed (`home.png`, `browse.png`, ~0.9% pixel delta); `flutter test` 293/293.
+- Live bundle: 3,926,936 bytes, SHA-256
+  `a0989a9df942ec27b10c547cdc4beccc0395432ed231001a28083a5aa400df42`, banner `STAGING · dacc4f9`.
+- Screenshots: `screenshots/live-translucent-desktop.png`, `live-translucent-mobile.png`.
