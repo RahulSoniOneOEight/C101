@@ -135,6 +135,22 @@ The image area is the placeholder in this component render; product images rende
   (`D89D7628FDDCB8528C2D57591114DB11B22A3DA29195C008DF8FBC28704B9703`), so U-007 adds no B2B
   visual change. The other five B2B goldens keep their original hashes.
 
+## Combined recovery build (2026-10-31)
+
+- Rebased U-007 onto the live U-009 head `f6a86ab`; combined head `760f081`.
+- Diff vs `f6a86ab` is U-007 only: `models.dart`, four B2C call sites, `ProductCard`, tests/goldens,
+  evidence. No B2B code touched.
+- `flutter analyze` clean; full suite **293 passed**.
+- `b2b_checkout.png` refreshed for the U-009 base; the new hash
+  `41269BE05E84EBD7DF5F854852C4031F911B2EE1907E9B589CF867D0F313871B` is byte-identical to a clean
+  `f6a86ab` render, so U-007 adds no B2B visual change. The other five B2B goldens are unchanged.
+- Web artifact rebuilt with staging APIs and `BUILD_ID=760f081`:
+  3,926,843 bytes, `main.dart.js` SHA-256
+  `2741760E7225935F6B4DFFD9F3CAECF943D9312790F26D180CCE68AE4C6EDA5B`.
+- `firebase deploy --only hosting --project buildkart-staging --dry-run`: PASS.
+- Release is pending the approval line. Deploying this combined build restores the tile **and** keeps
+  U-009 pincode delivery; deploying U-007 alone would revert U-009.
+
 ## Verification
 
 | Check | Result |
