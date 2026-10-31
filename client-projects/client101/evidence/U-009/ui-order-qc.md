@@ -103,3 +103,19 @@ Screenshots: `70-b2b-login.png`, `71-b2b-home.png`, `72-b2b-pdp.png`, `73-b2b-ca
    the buyer must open My Orders. Minor.
 5. B2B checkout still has no address block — only the site label — so admin relies on
    `address_1/2` + city/state from the parsed site text.
+
+## QC re-run — 2026-10-31 20:10 IST (after the D: move)
+
+Live bundle `dacc4f9` (U-007 tile + translucent controls), API/DB unchanged.
+
+| Order | Persona | Number | Delivery | Total |
+|---|---|---|---|---|
+| #170 | B2C (rsoni001) | `BK-261031-7JFXBB` | ₹49 @ 400001 | ₹123,549 |
+| #171 | B2B (buyer.b2b01) | `BK-261031-C3WAJ9` | ₹49 @ 400001 | ₹381.50 |
+
+- B2C cart showed ₹99 at the default 301019, then ₹49 after the Mumbai 400001 address; checkout
+  read-only; order confirmed.
+- B2B “QC Mumbai Site — 12 Test Lane, … 400001” resolved ₹49 and ₹382 (₹381.50 stored).
+- DB: `order_shipping_method` amount 49, `is_tax_inclusive = t`; both addresses
+  `400001 / Mumbai / Maharashtra`.
+- `tooling/check_staging_release_line.py` PASS (all 5 required commits); api/ops/web health 200.
