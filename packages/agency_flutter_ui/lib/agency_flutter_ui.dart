@@ -686,12 +686,19 @@ class ProductCard extends StatelessWidget {
   }
 
   Widget _wishlistButton(AgencyColors colors) {
+    // Translucent so the product photo reads through the control; the border
+    // keeps the 44x44 target visible on white packshots.
     return SizedBox(
       width: 44,
       height: 44,
       child: Material(
-        color: colors.surfaceRaised.withValues(alpha: 0.92),
-        shape: const CircleBorder(),
+        color: colors.surfaceRaised.withValues(alpha: 0.55),
+        shape: CircleBorder(
+          side: BorderSide(
+            color: colors.borderDefault.withValues(alpha: 0.45),
+            width: 0.8,
+          ),
+        ),
         child: InkWell(
           onTap: onWishlist,
           customBorder: const CircleBorder(),
@@ -720,6 +727,9 @@ class ProductCard extends StatelessWidget {
     if (onAddToCart == null) return const SizedBox.shrink();
     return CartPlusIconButton(
       size: 44,
+      // Keep the image visible through the action while the white glyph stays
+      // legible; the B2B tiles keep the solid default.
+      backgroundOpacity: 0.72,
       state: unavailable ? CartPlusState.unavailable : CartPlusState.normal,
       semanticLabel: 'Add $title to cart',
       onPressed: unavailable ? null : onAddToCart,

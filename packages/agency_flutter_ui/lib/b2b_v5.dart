@@ -29,6 +29,7 @@ class CartPlusIconButton extends StatelessWidget {
     this.onPressed,
     this.size = 44,
     this.semanticLabel = 'Add to order',
+    this.backgroundOpacity = 1.0,
     super.key,
   });
 
@@ -36,6 +37,10 @@ class CartPlusIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final double size;
   final String semanticLabel;
+
+  /// Fill opacity for the circular surface. The glyph stays fully opaque so
+  /// the action remains legible over a product photo (1.0 = solid).
+  final double backgroundOpacity;
 
   bool get _enabled =>
       state == CartPlusState.normal || state == CartPlusState.added;
@@ -76,7 +81,9 @@ class CartPlusIconButton extends StatelessWidget {
       child: Opacity(
         opacity: state == CartPlusState.unavailable ? 0.6 : 1,
         child: Material(
-          color: background,
+          color: background.withValues(
+            alpha: backgroundOpacity.clamp(0.0, 1.0),
+          ),
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
