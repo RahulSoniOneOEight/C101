@@ -216,6 +216,22 @@ placeholders — replace with real photography before production. The catalogue 
 - Production OTel traces, central logs, and secret-manager mechanism are deferred (staging uses structured
   JSON logs, `/health`, the durable domain-event log, and correlation ids).
 
+## Release line (web + APK)
+
+The staging web bundle and the APK are built from **one combined release line**, not from a
+feature branch. Every change that must survive belongs in
+`tooling/staging_release_manifest.json`; the build refuses to run when one is missing.
+
+```sh
+python tooling/check_staging_release_line.py --require-clean
+python tooling/build_staging_web.py --require-clean   # bakes BUILD_ID into STAGING <id>
+python tooling/build_staging_apk.py --require-clean  # release APK, needs key.properties
+```
+
+The 2026-10-31 overwrite happened because the web bundle was built from a branch that had the
+U-009 B2B fix but not the U-007 tile. Full rule and recovery notes:
+`docs/implementation/staging-release-line.md`.
+
 ## Safety
 
 - Do not point any client or config at production endpoints.

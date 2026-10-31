@@ -1,0 +1,25 @@
+{
+  "description": "Commits that must be present before publishing the BuildKart staging web bundle or APK. Add an entry whenever a change must survive future feature-branch deploys. Checked by tooling/check_staging_release_line.py.",
+  "required": [
+    {
+      "label": "U-007 product tile v2",
+      "commit": "0afc77c",
+      "why": "B2C product card layout (price + off% + stacked MRP, 44x44 wishlist/add)."
+    },
+    {
+      "label": "U-007 tile tightening",
+      "commit": "4d2d176",
+      "why": "Keeps 65% of the card for the image at 1.0 text scale."
+    },
+    {
+      "label": "U-009 B2B site pincode",
+      "commit": "f6a86ab",
+      "why": "Business checkout prices delivery from the selected site pincode, not a hardcoded 302001."
+    },
+    {
+      "label": "U-009 pincode delivery fee",
+      "commit": "485be84",
+      "why": "Tax-inclusive flat fee, minor-unit pricing and priced store shipping options."
+    }
+  ]
+}
