@@ -39,6 +39,44 @@ Widget _label(BuildContext c, String text) {
   );
 }
 
+Widget _deliveryPolicyCard(AgencyColors colors) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(AgencySpacing.sm),
+    decoration: BoxDecoration(
+      color: colors.surfaceRaised,
+      borderRadius: BorderRadius.circular(AgencyRadius.md),
+      border: Border.all(color: colors.borderDefault),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Icon(Icons.local_shipping_outlined,
+            size: 20, color: colors.actionPrimary),
+        const SizedBox(width: AgencySpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Delivery',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.contentPrimary)),
+              const SizedBox(height: 2),
+              Text(
+                'One flat fee per seller, resolved from the delivery pincode. '
+                'Checkout shows the fee read-only.',
+                style: TextStyle(fontSize: 11, color: colors.contentSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // B2B Trade Price PDP
 // ---------------------------------------------------------------------------
@@ -852,26 +890,8 @@ class _B2BRfqWorkspaceScreenState extends ConsumerState<B2BRfqWorkspaceScreen> {
             onChanged: notifier.setDeliveryLocation,
           ),
           const SizedBox(height: AgencySpacing.md),
-          _fieldLabel(colors, 'Delivery Speed'),
-          SegmentedButton<String>(
-            segments: const <ButtonSegment<String>>[
-              ButtonSegment<String>(
-                  value: 'standard', label: Text('Standard freight')),
-              ButtonSegment<String>(
-                  value: 'express', label: Text('Priority freight')),
-            ],
-            selected: <String>{cart.deliveryTier},
-            onSelectionChanged: (selection) {
-              if (selection.isNotEmpty) {
-                notifier.setDeliveryTier(selection.first);
-              }
-            },
-          ),
-          const SizedBox(height: AgencySpacing.xs),
-          Text(
-            'Priority freight is requested; lead time is confirmed by the seller.',
-            style: TextStyle(fontSize: 11, color: colors.contentSecondary),
-          ),
+          _fieldLabel(colors, 'Delivery'),
+          _deliveryPolicyCard(colors),
           const SizedBox(height: AgencySpacing.md),
           PinDateTimeField(
             label: 'Required By',
@@ -1801,33 +1821,13 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
               children: <Widget>[
                 _deliverySitePicker(context, colors, cart.deliveryLocation),
                 const SizedBox(height: AgencySpacing.md),
-                Text('Delivery speed',
+                Text('Delivery',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: colors.contentPrimary)),
                 const SizedBox(height: AgencySpacing.xs),
-                SegmentedButton<String>(
-                  segments: const <ButtonSegment<String>>[
-                    ButtonSegment<String>(
-                        value: 'standard', label: Text('Standard')),
-                    ButtonSegment<String>(
-                        value: 'express', label: Text('Priority')),
-                  ],
-                  selected: <String>{cart.deliveryTier},
-                  onSelectionChanged: (selection) {
-                    if (selection.isNotEmpty) {
-                      ref
-                          .read(b2bQuotationCartProvider.notifier)
-                          .setDeliveryTier(selection.first);
-                    }
-                  },
-                ),
-                Text(
-                  'Priority is requested; lead time is confirmed by the seller.',
-                  style: TextStyle(
-                      fontSize: 11, color: colors.contentSecondary),
-                ),
+                _deliveryPolicyCard(colors),
                 _field(context, 'PO number', 'PO-3392'),
                 _field(context, 'GST invoice', 'GSTIN 27ABCDE1234F1Z5'),
                 const SizedBox(height: AgencySpacing.sm),

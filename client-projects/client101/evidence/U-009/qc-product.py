@@ -10,10 +10,9 @@ EXPERIENCE = f"http://{EXP_IP}:9020"
 KEY = "pk_fee03ec911b430a1cc44fc4c4915a0154120b982557ad0bdac8000b3a6b87f00"
 SELLER = "sel_01M4EC9CVVHG168X1DHHBY29HY"  # PowerMax Depot
 CHANNEL = "sc_01M4EC8S2EBB6ZEAMGPGX7MP13"  # B2C Storefront
-TITLE = "QC Test Steel Clamp 13mm"
-SKU = "QC-U009-CLAMP-13"
-PRICE_MAJOR = 1499  # Rs 1,499 (Medusa amounts are major units)
-PRICE_MINOR = PRICE_MAJOR * 100
+TITLE = "QC Test Steel Clamp 14mm"
+SKU = "QC-U009-CLAMP-14"
+PRICE_MINOR = 149900  # Rs 1,499 in paise (API boundary)
 
 results = []
 
@@ -53,6 +52,22 @@ status, login = call(
 admin = login.get("token")
 check("admin.login", status == 200 and bool(admin), {"status": status})
 
+# Ensure the delivery rate used by the cart check exists (the live gate clears
+# PowerMax rates when it runs).
+status, seeded_rate = call(
+    MEDUSA,
+    "POST",
+    "/admin/buildkart/delivery-rates",
+    admin,
+    {"seller_id": SELLER, "pincode": "400001", "fee": 49},
+)
+check(
+    "delivery_rate.seeded",
+    status in (200, 201)
+    and (seeded_rate.get("delivery_rate") or {}).get("flat_fee_minor") == 4900,
+    {"status": status},
+)
+
 # 2. A real category
 status, categories = call(MEDUSA, "GET", "/admin/product-categories?limit=1", admin)
 category_id = (categories.get("product_categories") or [{}])[0].get("id")
@@ -60,6 +75,22 @@ check(
     "catalogue.category_available",
     status == 200 and bool(category_id),
     {"status": status, "category_id": category_id},
+)
+
+# Existing rows were written before the minor-unit boundary fix. The read path
+# must now return paise: the 13mm product stored 1499 major and must read 149900.
+status, legacy = call(
+    MEDUSA,
+    "GET",
+    "/admin/buildkart/offers/offer_01M66WZJJ4CGB363B299AADM4X/pricing",
+    admin,
+)
+legacy_prices = (legacy.get("pricing") or {}).get("prices") or []
+check(
+    "pricing.existing_row_reads_minor",
+    status == 200
+    and any(row.get("amount") == 149900 for row in legacy_prices),
+    {"status": status, "prices": legacy_prices},
 )
 
 # 3. Product creation through the Product Studio (admin acting for PowerMax)
@@ -122,7 +153,7 @@ status, priced = call(
     f"/admin/buildkart/offers/{offer['id']}/pricing",
     admin,
     {
-        "prices": [{"currency_code": "inr", "amount": PRICE_MAJOR}],
+        "prices": [{"currency_code": "inr", "amount": PRICE_MINOR}],
         "reason": "QC base price",
     },
 )
@@ -131,7 +162,7 @@ check(
     "offer.price_set",
     status == 200
     and any(
-        row.get("currency_code") == "inr" and row.get("amount") == PRICE_MAJOR
+        row.get("currency_code") == "inr" and row.get("amount") == PRICE_MINOR
         for row in (pricing.get("prices") or [])
     ),
     {"status": status, "prices": pricing.get("prices")},

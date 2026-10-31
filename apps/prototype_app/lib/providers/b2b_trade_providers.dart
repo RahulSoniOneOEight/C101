@@ -1608,7 +1608,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
       email: email,
       shippingAddress: _b2bCheckoutAddress(cart.deliveryLocation),
     );
-    canonical = await api.selectDeliveryTier(cartId, cart.deliveryTier);
+    canonical = await api.applyDelivery(cartId);
 
     // The app's B2B snapshot is the source of truth for the trade price. If
     // Medusa resolves the B2C price instead, stop before creating an order.

@@ -4,11 +4,24 @@ import { updateOffersWorkflow } from "@mercurjs/core/workflows";
 
 export interface OfferPriceInput {
   id?: string;
+  /** Positive amount in minor units (paise). */
   amount: number;
   currency_code: string;
   min_quantity?: number | null;
   max_quantity?: number | null;
   rules?: Record<string, string>;
+}
+
+const MINOR_UNITS_PER_MAJOR = 100;
+
+/** Medusa stores major units; this API speaks minor units at its boundary. */
+export function majorToMinor(amount: number): number {
+  const minor = Math.round(Number(amount) * MINOR_UNITS_PER_MAJOR);
+  return Number.isFinite(minor) ? minor : 0;
+}
+
+export function minorToMajor(amount: number): number {
+  return Number(amount) / MINOR_UNITS_PER_MAJOR;
 }
 
 export interface OfferPriceRow extends OfferPriceInput {
@@ -190,7 +203,7 @@ export async function loadOfferPricing(
       typeof metadata.b2c_ends_at === "string" ? metadata.b2c_ends_at : null,
     prices: (offer.prices ?? []).map((price) => ({
       id: price.id,
-      amount: Number(price.amount),
+      amount: majorToMinor(Number(price.amount)),
       currency_code: price.currency_code,
       min_quantity: price.min_quantity ?? null,
       max_quantity: price.max_quantity ?? null,
@@ -278,7 +291,7 @@ export async function updateOfferPricing(
           id: offerId,
           prices: prices.map((price) => ({
             ...(price.id ? { id: price.id } : {}),
-            amount: price.amount,
+            amount: minorToMajor(price.amount),
             currency_code: price.currency_code,
             min_quantity: price.min_quantity ?? null,
             max_quantity: price.max_quantity ?? null,

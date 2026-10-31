@@ -77,9 +77,9 @@ export class PincodeDeliveryProviderService extends AbstractFulfillmentProviderS
     return {
       // Medusa amounts are major units; rates are stored in minor units.
       calculated_amount: minor / 100,
-      // The store prices tax-exclusively (price_preference.is_tax_inclusive
-      // is false for both regions), so the flat fee follows the same rule.
-      is_calculated_price_tax_inclusive: false,
+      // The flat fee is quoted including GST, so Medusa extracts tax from the
+      // fee instead of adding it on top (the customer pays the quoted amount).
+      is_calculated_price_tax_inclusive: true,
     };
   }
 

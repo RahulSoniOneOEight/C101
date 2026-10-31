@@ -19,7 +19,7 @@ describe("Pincode delivery provider", () => {
 
     expect(price).toEqual({
       calculated_amount: 29,
-      is_calculated_price_tax_inclusive: false,
+      is_calculated_price_tax_inclusive: true,
     });
   });
 

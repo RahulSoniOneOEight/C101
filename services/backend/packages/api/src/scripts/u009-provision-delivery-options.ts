@@ -125,6 +125,16 @@ export default async function provisionDeliveryOptions({ container }: ExecArgs) 
           // `shipping_option ↔ seller` link. Without it the option is priced
           // but never returned to the storefront.
           if (!deliveryOptionId) continue;
+          if (
+            existingDelivery &&
+            (existingDelivery as any).shipping_option_type_id !==
+              deliveryType.id
+          ) {
+            await fulfillment.updateShippingOptions({
+              id: deliveryOptionId,
+              shipping_option_type_id: deliveryType.id,
+            });
+          }
           try {
             await remoteLink.create({
               [Modules.FULFILLMENT]: {

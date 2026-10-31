@@ -754,6 +754,9 @@ class _FakeB2BApi extends ExperienceApi {
       _cart();
 
   @override
+  Future<Cart> applyDelivery(String cartId) async => _cart();
+
+  @override
   Future<Cart> selectDeliveryTier(String cartId, String tier) async => _cart();
 
   @override

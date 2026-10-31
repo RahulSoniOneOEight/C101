@@ -38,10 +38,10 @@ export async function GET(
     res.status(401).json({ message: "Seller authentication required." } as never);
     return;
   }
-  if (!hasPermission(req, "delivery.update")) {
+  if (!hasPermission(req, "delivery.read")) {
     res
       .status(403)
-      .json({ message: permissionDenied("delivery.update") } as never);
+      .json({ message: permissionDenied("delivery.read") } as never);
     return;
   }
 

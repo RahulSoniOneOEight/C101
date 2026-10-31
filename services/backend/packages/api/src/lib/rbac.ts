@@ -85,6 +85,7 @@ const sellerAdmin: BuildkartPermission[] = [
   "order.read",
   "payment.read",
   "order.fulfil",
+  "delivery.read",
   "delivery.update",
   "return.read",
   "return.respond",

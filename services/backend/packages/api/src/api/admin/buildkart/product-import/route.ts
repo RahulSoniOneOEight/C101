@@ -299,9 +299,10 @@ export async function POST(
         );
       }
 
-      // Price rows store major units (Medusa money contract); the list price snapshot is minor.
+      // Price rows store major units (Medusa money contract); this API's boundary
+      // is minor units, so pass the paise value and let updateOfferPricing convert.
       await updateOfferPricing(req.scope, offer.id, [
-        { amount: Number(sellingMajor), currency_code: "inr" },
+        { amount: sellingMinor!, currency_code: "inr" },
       ], {
         list_price_minor: listMinor!,
         gst_inclusive: true,
