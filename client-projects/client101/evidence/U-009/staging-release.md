@@ -3,7 +3,7 @@
 **Date:** 2026-10-31
 **Status:** RELEASED to staging (not production)
 **Release commit:** `e12f6f7`
-**Web bundle:** `f6a86ab` (deployed after the B2B pincode fix; API images unchanged)
+**Web bundle:** `293d75d` (U-007 tile v2 + U-009, merged; API images unchanged)
 **Release directory:** `/opt/buildkart-releases/release-e12f6f7`
 **Previous release / rollback ref:** `release-186a50f` (`186a50f8f`)
 **Production:** untouched; `production_release_authorized: false`
@@ -72,8 +72,10 @@ Full storefront order placement in Edge via the Flutter semantics tree. Evidence
   Shipping ₹49, ₹381.50.
 - Web bundle rebuilt from `f6a86ab` and redeployed to `buildkart-staging`
   (`main.dart.js` contains the PIN validation strings).
-- `flutter analyze` clean; `flutter test` 287 pass, 1 pre-existing golden failure
-  (`b2b checkout`, 23.01% — identical with the fix stashed).
+- Later rebuilt from the U-007 merge `293d75d` (tile v2 restored) with
+  `BUILD_ID=293d75d`; live bundle 3,926,843 bytes, SHA-256
+  `CA026798…4A1156`, banner `STAGING · 293d75d`.
+- `flutter analyze` clean; `flutter test` 293/293 pass on the merged tree.
 - Residuals: B2B shows no fee before placement (quotation cart is local-only), B2B discount
   display rounds −17.50 to −18, admin labels B2B orders “from B2C Storefront”.
 

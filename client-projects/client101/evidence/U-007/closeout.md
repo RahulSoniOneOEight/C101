@@ -208,3 +208,29 @@ b2b_team.png       7A3F509DBCEBFED2008D3B1B93458FD71B1DCDFDE1647BFBA224D44CF314F
 3. **Goldens use the repo's Ahem font.** Layout is verified; real typography is reviewed on device.
 4. **`CompactProductItem`** (merchandising compact rail) is a separate widget; its discount label
    is gated on `mrpIsReal`, but it is not the U-007 ProductCard.
+
+## Recovery (2026-10-31 16:12 IST)
+
+- `feat/u007-product-tile-v2` was already rebased onto the U-009 B2B fix `f6a86ab`, so the
+  recovery is a single merge: `293d75d merge(u007): restore product tile v2 into the U-009
+  release line`. No U-009 commit was reverted.
+- Rebuilt the web bundle **with** `--dart-define=BUILD_ID=293d75d` and redeployed to
+  `buildkart-staging`.
+- Live `main.dart.js`: **3,926,843 bytes**, SHA-256
+  `CA026798BAE99E34FBFF8A05F2589404CA1918951E8B7577E0083691054A1156` (byte-identical to the local
+  build). Banner reads `STAGING · 293d75d`.
+- Verified live: brand-only line, one-line title, price + `% off` on line 1, struck `MRP` on
+  line 2, wishlist 44×44 top-right, cart-plus 44×44 overlay on the image. Screenshots:
+  `screenshots/live-recovered-browse.png`, `live-recovered-recommended.png`.
+- U-009 intact: B2B site pincode fix (`f6a86ab`) is in the merged tree; the browser order QC
+  orders #166/#168/#169 and the 16/16 staging API QC were taken against this same API release.
+- `flutter analyze` clean; `flutter test` **293/293 pass** (the previously stale `b2b checkout`
+  golden is refreshed by `760f081`).
+
+### Brand line clarification
+
+The pre-U-007 tile rendered `brand · N SKU` (`Product.brandLine`). U-007's spec removes the SKU
+count from the card ("Removed: seller, SKU count, stock line, descriptor"), so the restored tile
+shows the brand only. `brandLine` remains in use on the cart rail's "You may also like" cards,
+which is where `homerun · 1 SKU` is still visible.
+
