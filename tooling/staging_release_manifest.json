@@ -35,6 +35,16 @@
       "label": "Android release build config",
       "commit": "c94139f",
       "why": "Kotlin incremental caches disabled so the signed APK builds reproducibly on Windows."
+    },
+    {
+      "label": "B2B chat invite parity",
+      "commit": "7cc48c5",
+      "why": "Business workspaces support invitations (admin/buyer), join-on-accept and a 10-seat capacity."
+    },
+    {
+      "label": "B2B dock parity",
+      "commit": "9003721",
+      "why": "Procurement dock offers the invite-code join state and counts every active seat."
     }
   ]
 }
