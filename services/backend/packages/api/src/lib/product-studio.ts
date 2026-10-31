@@ -421,6 +421,9 @@ async function validateSkuUniqueness(
       // checks already prevent two variants sharing the same SKU.
       continue;
     }
+    // NOTE: soft-deleted products keep their variant and offer inventory item,
+    // so the SKU stays reserved until that data is cleaned up. Reusing it would
+    // fail later at offer provisioning with a duplicate inventory SKU.
     throw new StudioError(422, `SKU "${row.sku}" is already in use.`);
   }
 }
