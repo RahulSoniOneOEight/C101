@@ -45,6 +45,11 @@
       "label": "B2B dock parity",
       "commit": "9003721",
       "why": "Procurement dock offers the invite-code join state and counts every active seat."
+    },
+    {
+      "label": "U-011 browse layout",
+      "commit": "6d1963f",
+      "why": "B2C Browse 0.64 tiles, no duplicate strip, unpinned bar, 8/8/16 rhythm, 64 px rail; Home grids/rails at 0.64."
     }
   ]
 }
