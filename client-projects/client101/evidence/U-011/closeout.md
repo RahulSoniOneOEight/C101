@@ -26,7 +26,14 @@ firebase deploy --only hosting --project buildkart-staging
 
 `7cc48c5`/`9003721` and the U-011 commits touch disjoint files (`services/workspace`,
 `conversation_dock.dart` vs `d2c_shell`, `product_list_screen`, `agency_flutter_ui`), so the merge is
-clean. The U-011 diff itself stays B2C-only.
+clean. Verified:
+
+```
+$ git merge-tree --write-tree feat/u011-browse-spacing origin/feat/u009-pincode-delivery
+37d4736ca74423903670f230100991c18d9df541     # no conflict output
+```
+
+The U-011 diff itself stays B2C-only.
 
 ## 2. What changed
 
