@@ -912,15 +912,45 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
 
   Widget _emptyWorkspace(AgencyColors colors) {
     if (!_isHousehold) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AgencySpacing.lg),
-          child: Text(
-            'No procurement workspace is available for this account.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: colors.contentSecondary),
+      return ListView(
+        padding: const EdgeInsets.all(AgencySpacing.md),
+        children: <Widget>[
+          Icon(Icons.business_outlined, size: 38, color: colors.actionPrimary),
+          const SizedBox(height: AgencySpacing.sm),
+          Text(
+            'Join your procurement workspace',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: colors.contentPrimary,
+            ),
           ),
-        ),
+          const SizedBox(height: AgencySpacing.xs),
+          Text(
+            'Your account admin invites teammates by email. Paste the '
+            'invitation code to join the procurement conversation.',
+            style: TextStyle(
+                fontSize: 12, height: 1.4, color: colors.contentSecondary),
+          ),
+          const SizedBox(height: AgencySpacing.md),
+          TextField(
+            controller: _inviteToken,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _acceptInvitation(),
+            decoration: const InputDecoration(
+              labelText: 'Invitation code',
+              prefixIcon: Icon(Icons.key_outlined),
+            ),
+          ),
+          const SizedBox(height: AgencySpacing.sm),
+          FilledButton.icon(
+            onPressed: _busy ? null : _acceptInvitation,
+            icon: const Icon(Icons.login),
+            label: const Text('Join workspace'),
+            style:
+                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+          ),
+        ],
       );
     }
     return ListView(
@@ -1836,7 +1866,9 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                   shrinkWrap: true,
                   children: <Widget>[
                     Text(
-                      'Project participants',
+                      _isHousehold
+                          ? 'Project participants'
+                          : 'Workspace participants',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,

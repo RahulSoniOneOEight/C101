@@ -20,11 +20,13 @@ class _DockApi extends ExperienceApi {
     this.householdMember = false,
     this.householdRole = 'member',
     this.withAssistant = false,
+    this.scopeType = 'household',
   }) : super(Dio());
 
   final bool householdMember;
   final String householdRole;
   final bool withAssistant;
+  final String scopeType;
   bool draftCreated = false;
   bool proposalCreated = false;
   int shareCalls = 0;
@@ -47,6 +49,13 @@ class _DockApi extends ExperienceApi {
     name: 'BuildKart Cart Assistant',
   );
 
+  static const procurementChannel = WorkspaceChannel(
+    id: 'ch_procurement',
+    workspaceId: 'ws_household',
+    kind: 'procurement',
+    name: 'Procurement conversation',
+  );
+
   static const assistantMessage = WorkspaceMessage(
     id: 'msg_assistant',
     channelId: 'ch_assistant',
@@ -61,7 +70,7 @@ class _DockApi extends ExperienceApi {
         id: 'ws_household',
         name: 'Kitchen renovation',
         role: householdRole,
-        scopeType: 'household',
+        scopeType: scopeType,
       );
 
   WorkspaceDraft get draft => WorkspaceDraft(
@@ -122,7 +131,7 @@ class _DockApi extends ExperienceApi {
   Future<List<WorkspaceChannel>> getWorkspaceChannels(
           String workspaceId) async =>
       <WorkspaceChannel>[
-        channel,
+        if (scopeType == 'business_account') procurementChannel else channel,
         if (withAssistant) assistantChannel,
       ];
 
@@ -556,6 +565,92 @@ void main() {
     expect(find.text('Pending proposals'), findsOneWidget);
     expect(find.text('Accept'), findsNothing);
     expect(find.byTooltip('Project actions'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'business admin gets the same invite actions as a household owner',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    final api = _DockApi(
+      householdMember: true,
+      householdRole: 'admin',
+      scopeType: 'business_account',
+    );
+    final container = ProviderContainer(overrides: _overrides(api));
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: Scaffold(
+            appBar: AppBar(
+              actions: const <Widget>[
+                ConversationBellButton(audience: ConversationAudience.business),
+              ],
+            ),
+            body: const ConversationDockHost(
+              audience: ConversationAudience.business,
+              enabled: true,
+              child: _StateProbe(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Procurement conversation'), findsOneWidget);
+    expect(find.byTooltip('Manage participants'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Project actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Join with code'), findsOneWidget);
+    expect(find.text('New project'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('business member without a workspace joins with an invite code',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    final api = _DockApi(scopeType: 'business_account');
+    final container = ProviderContainer(overrides: _overrides(api));
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: Scaffold(
+            appBar: AppBar(
+              actions: const <Widget>[
+                ConversationBellButton(audience: ConversationAudience.business),
+              ],
+            ),
+            body: const ConversationDockHost(
+              audience: ConversationAudience.business,
+              enabled: true,
+              child: _StateProbe(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Join your procurement workspace'), findsOneWidget);
+    expect(find.text('Join workspace'), findsOneWidget);
+    expect(find.text('Invitation code'), findsOneWidget);
+    expect(find.text('Create project'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

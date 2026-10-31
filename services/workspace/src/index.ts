@@ -434,11 +434,23 @@ async function ownerWorkspace(
   return workspace;
 }
 
-async function activeParticipantCount(workspaceId: string): Promise<number> {
+/**
+ * Households count invited members (the owner is the project itself); a business
+ * workspace counts every active seat, because admin/buyer/approver are real
+ * colleagues already in the conversation.
+ */
+async function activeParticipantCount(
+  workspaceId: string,
+  scopeType?: string,
+): Promise<number> {
+  const roles =
+    scopeType === "business_account"
+      ? ["owner", "admin", "approver", "buyer", "member"]
+      : ["member"];
   const result = await pool.query(
     `select count(*)::int as count from workspace_member
-      where workspace_id = $1 and role = 'member' and status = 'active'`,
-    [workspaceId],
+      where workspace_id = $1 and status = 'active' and role = any($2::text[])`,
+    [workspaceId, roles],
   );
   return result.rows[0].count as number;
 }
@@ -461,7 +473,7 @@ async function inviteParticipant(
     return problem(400, "invalid-invitee-email", "A valid invitee email is required.", actor.correlationId);
   }
   const capacity = participantCapacity(workspace.scope_type);
-  if ((await activeParticipantCount(workspaceId)) >= capacity) {
+  if ((await activeParticipantCount(workspaceId, workspace.scope_type)) >= capacity) {
     return problem(
       409,
       "participant-limit-reached",
@@ -544,7 +556,7 @@ async function listInvitations(
   );
   return json({
     invitations: result.rows,
-    participants: await activeParticipantCount(workspaceId),
+    participants: await activeParticipantCount(workspaceId, workspace.scope_type),
     capacity: participantCapacity(workspace.scope_type),
     correlation_id: actor.correlationId,
   });
