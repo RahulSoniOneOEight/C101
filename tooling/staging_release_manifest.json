@@ -25,6 +25,16 @@
       "label": "U-007 translucent tile controls",
       "commit": "dacc4f9",
       "why": "Wishlist/add controls keep the product photo visible; B2B stays solid."
+    },
+    {
+      "label": "QC 1-8 money/address/confirmation/CTA fixes",
+      "commit": "3d2bdff",
+      "why": "Reconciling money formatting, order address, confirmation number, sticky CTA, auto fee, semantics."
+    },
+    {
+      "label": "Android release build config",
+      "commit": "c94139f",
+      "why": "Kotlin incremental caches disabled so the signed APK builds reproducibly on Windows."
     }
   ]
 }

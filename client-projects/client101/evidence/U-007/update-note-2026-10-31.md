@@ -122,3 +122,27 @@ hash and banner after deploy.** A bundle reading `STAGING dev` was built by hand
 - Live bundle: 3,926,936 bytes, SHA-256
   `a0989a9df942ec27b10c547cdc4beccc0395432ed231001a28083a5aa400df42`, banner `STAGING · dacc4f9`.
 - Screenshots: `screenshots/live-translucent-desktop.png`, `live-translucent-mobile.png`.
+
+## 9. QC fixes 1–8 shipped (`3d2bdff`)
+
+| # | Fix | Verified live |
+|---|---|---|
+| 1 | Summary reconciles | ₹432 + ₹99 − **₹21.60** = **₹509.40** (was ₹509 vs ₹510) |
+| 2 | Order shows the address | “B-24, Shanti Kunj, … Bhiwadi, Rajasthan 301019” |
+| 3 | Confirmation shows number + total | `BK-261031-KRTF7Z` · ₹509.40 |
+| 4 | Pluralisation | “1 item” / “2 items” |
+| 5 | Indian grouping | ₹1,23,549 · ₹1,47,299 |
+| 6 | Sticky checkout CTA | Place order visible without scrolling; bar shows Total ₹509.40 |
+| 7 | Fee resolves on cart open | “Check delivery fee” absent; ₹99 shown automatically |
+| 8 | Quantity semantics | one “Quantity N” + labelled +/- buttons |
+
+- **Experience API:** rebuilt and deployed (`buildkart-hosted-pilot-experience-api:e4145643172a`) — completion now returns `order_number` / `total_minor` and stores `shipping_address`; order reads expose it.
+- **Web:** build `3d2bdff`, 3,930,886 bytes, SHA-256
+  `f1e6aef3a10a72a573df2ae7277ab3edff1ed1c4b9d448c9fb9ebc1774660817`, banner `STAGING · 3d2bdff`.
+- **Signed APK:** `D:\C101-control-room\artifacts\U-007-U-009\app-release-3d2bdff.apk`,
+  62,942,271 bytes, SHA-256
+  `726e4c9c95308a329f69e64900e696e43505deaf073c8d95fef56583d93ecb89`,
+  signer `CN=BuildKart Staging` (cert SHA-256 `921c0e4c…6ef581`).
+- `flutter analyze` clean, `flutter test` **295/295** (two new address tests).
+- Live QC run: order `BK-261031-KRTF7Z`, 0 console errors, 0 page errors, 0 API responses ≥ 400.
+- API rollback: rebuild `release-e12f6f7` (prior image id `94818d572a3d` if still present).
