@@ -31,7 +31,9 @@ class WorkspaceSummary {
   bool get isHousehold => scopeType == 'household';
   bool get isBusinessAccount => scopeType == 'business_account';
   bool get isOwner => role == 'owner';
-  bool get canManageInvitations => isHousehold && isOwner;
+  bool get canManageInvitations =>
+      (isHousehold && isOwner) ||
+      (isBusinessAccount && (role == 'admin' || role == 'buyer'));
   bool get canContributeToSharedList =>
       role == 'owner' || role == 'member' || role == 'buyer' || role == 'admin';
 

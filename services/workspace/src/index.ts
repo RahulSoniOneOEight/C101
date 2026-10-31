@@ -394,19 +394,42 @@ function workspaceView(workspace: WorkspaceRow, actor: Actor): Record<string, un
 }
 
 const MAX_HOUSEHOLD_PARTICIPANTS = 3;
+const MAX_BUSINESS_PARTICIPANTS = 10;
 const INVITATION_TTL_DAYS = 7;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-async function ownerHousehold(
+/// Participant capacity per workspace kind. Households stay at three; a
+/// business workspace can invite the procurement team.
+function participantCapacity(scopeType: string): number {
+  return scopeType === "business_account"
+    ? MAX_BUSINESS_PARTICIPANTS
+    : MAX_HOUSEHOLD_PARTICIPANTS;
+}
+
+async function ownerWorkspace(
   workspaceId: string,
   actor: Actor,
 ): Promise<WorkspaceRow | Response> {
   const workspace = await workspaceForMember(workspaceId, actor);
-  if (!workspace || workspace.scope_type !== "household") {
+  if (!workspace) {
     return problem(404, "workspace-not-found", "Workspace not found.", actor.correlationId);
   }
-  if (workspace.role !== "owner") {
-    return problem(403, "owner-required", "Only the project owner can manage participants.", actor.correlationId);
+  // Households are managed by their owner. Business workspaces are managed by
+  // the account admin (owner_user_id) or a buyer leading procurement.
+  const householdOwner =
+    workspace.scope_type === "household" && workspace.role === "owner";
+  const businessManager =
+    workspace.scope_type === "business_account" &&
+    (workspace.role === "admin" ||
+      workspace.role === "buyer" ||
+      workspace.owner_user_id === actor.userId);
+  if (!householdOwner && !businessManager) {
+    return problem(
+      403,
+      "owner-required",
+      "Only the workspace owner or admin can manage participants.",
+      actor.correlationId,
+    );
   }
   return workspace;
 }
@@ -425,7 +448,7 @@ async function inviteParticipant(
   workspaceId: string,
   actor: Actor,
 ): Promise<Response> {
-  const workspace = await ownerHousehold(workspaceId, actor);
+  const workspace = await ownerWorkspace(workspaceId, actor);
   if (workspace instanceof Response) return workspace;
   let body: { email?: string };
   try {
@@ -437,8 +460,14 @@ async function inviteParticipant(
   if (!EMAIL_PATTERN.test(email) || email.length > 254) {
     return problem(400, "invalid-invitee-email", "A valid invitee email is required.", actor.correlationId);
   }
-  if ((await activeParticipantCount(workspaceId)) >= MAX_HOUSEHOLD_PARTICIPANTS) {
-    return problem(409, "participant-limit-reached", "This project already has three participants.", actor.correlationId);
+  const capacity = participantCapacity(workspace.scope_type);
+  if ((await activeParticipantCount(workspaceId)) >= capacity) {
+    return problem(
+      409,
+      "participant-limit-reached",
+      `This workspace already has ${capacity} participants.`,
+      actor.correlationId,
+    );
   }
   const token = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(token).digest("hex");
@@ -504,7 +533,7 @@ async function listInvitations(
   workspaceId: string,
   actor: Actor,
 ): Promise<Response> {
-  const workspace = await ownerHousehold(workspaceId, actor);
+  const workspace = await ownerWorkspace(workspaceId, actor);
   if (workspace instanceof Response) return workspace;
   const result = await pool.query(
     `select id, invitee_email, status, expires_at, accepted_at, revoked_at, created_at
@@ -516,7 +545,7 @@ async function listInvitations(
   return json({
     invitations: result.rows,
     participants: await activeParticipantCount(workspaceId),
-    capacity: MAX_HOUSEHOLD_PARTICIPANTS,
+    capacity: participantCapacity(workspace.scope_type),
     correlation_id: actor.correlationId,
   });
 }
@@ -526,7 +555,7 @@ async function revokeInvitation(
   invitationId: string,
   actor: Actor,
 ): Promise<Response> {
-  const workspace = await ownerHousehold(workspaceId, actor);
+  const workspace = await ownerWorkspace(workspaceId, actor);
   if (workspace instanceof Response) return workspace;
   const revoked = await pool.query(
     `update workspace_invitation
@@ -567,7 +596,8 @@ async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
   }
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const found = await pool.query(
-    `select i.id, i.workspace_id, i.invitee_email, i.expires_at, w.scope_type, w.status as workspace_status
+    `select i.id, i.workspace_id, i.invitee_email, i.expires_at,
+            w.scope_type, w.scope_id, w.status as workspace_status
        from workspace_invitation i
        join workspace w on w.id = i.workspace_id
       where i.token_hash = $1 and i.status = 'pending'`,
@@ -583,12 +613,24 @@ async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
   }
   if (
     invitation.workspace_status !== "active" ||
-    invitation.scope_type !== "household"
+    (invitation.scope_type !== "household" &&
+      invitation.scope_type !== "business_account")
   ) {
     return problem(404, "invitation-not-found", "This invitation is invalid or already used.", actor.correlationId);
   }
   if (String(invitation.invitee_email).toLowerCase() !== actor.email.toLowerCase()) {
     return problem(403, "invitation-email-mismatch", "This invitation was issued to a different email.", actor.correlationId);
+  }
+  if (
+    invitation.scope_type === "business_account" &&
+    String(invitation.scope_id ?? "") !== String(actor.businessAccountId ?? "")
+  ) {
+    return problem(
+      403,
+      "business-account-mismatch",
+      "This invitation belongs to a different business account.",
+      actor.correlationId,
+    );
   }
   const client = await pool.connect();
   try {
@@ -637,7 +679,7 @@ async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
   } catch (error) {
     await client.query("ROLLBACK");
     if ((error as { code?: string }).code === "23514") {
-      return problem(409, "participant-limit-reached", "This project already has three participants.", actor.correlationId);
+      return problem(409, "participant-limit-reached", "This workspace has reached its participant limit.", actor.correlationId);
     }
     throw error;
   } finally {
@@ -695,7 +737,7 @@ async function assistantReplyText(workspaceId: string, prompt: string): Promise<
     return "There is no shared list in this workspace yet. Open a product and use Discuss to add it to the conversation; I can then summarise the list for everyone.";
   }
   if (!draft.revision_id) {
-    return `The shared list “${draft.name}” has no accepted revision yet. Add a product, then the owner or buyer must accept the change before I can report confirmed quantities. I cannot accept it for them.`;
+    return `The shared list â€œ${draft.name}â€ has no accepted revision yet. Add a product, then the owner or buyer must accept the change before I can report confirmed quantities. I cannot accept it for them.`;
   }
 
   const totals = await pool.query(
@@ -728,11 +770,11 @@ async function assistantReplyText(workspaceId: string, prompt: string): Promise<
   const currency = String(row.currency ?? "INR");
   const topText = top.rows.length
     ? top.rows
-        .map((item) => `${String(item.title || "Catalogue product")} ×${Number(item.quantity)}`)
+        .map((item) => `${String(item.title || "Catalogue product")} Ã—${Number(item.quantity)}`)
         .join(", ")
     : "no lines";
   const summary =
-    `Shared list “${draft.name}” · revision v${draft.current_version} · ${draft.lifecycle_status}. ` +
+    `Shared list â€œ${draft.name}â€ Â· revision v${draft.current_version} Â· ${draft.lifecycle_status}. ` +
     `${lineCount} line${lineCount === 1 ? "" : "s"}, ${units} unit${units === 1 ? "" : "s"}, ` +
     `${moneyLabel(total, currency)} at the accepted snapshot. Top lines: ${topText}. ` +
     `${Number(proposals.rows[0]?.count ?? 0)} pending proposal(s).`;

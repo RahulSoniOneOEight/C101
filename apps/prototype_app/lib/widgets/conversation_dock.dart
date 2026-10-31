@@ -762,7 +762,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                     },
                     icon: const Icon(Icons.open_in_full, size: 19),
                   ),
-                if (_isHousehold && _workspace != null)
+                if (_workspace != null)
                   PopupMenuButton<_HouseholdProjectAction>(
                     tooltip: 'Project actions',
                     icon: const Icon(Icons.more_vert),
@@ -775,12 +775,13 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                       }
                     },
                     itemBuilder: (context) =>
-                        const <PopupMenuEntry<_HouseholdProjectAction>>[
-                      PopupMenuItem<_HouseholdProjectAction>(
-                        value: _HouseholdProjectAction.create,
-                        child: Text('New project'),
-                      ),
-                      PopupMenuItem<_HouseholdProjectAction>(
+                        <PopupMenuEntry<_HouseholdProjectAction>>[
+                      if (_isHousehold)
+                        const PopupMenuItem<_HouseholdProjectAction>(
+                          value: _HouseholdProjectAction.create,
+                          child: Text('New project'),
+                        ),
+                      const PopupMenuItem<_HouseholdProjectAction>(
                         value: _HouseholdProjectAction.join,
                         child: Text('Join with code'),
                       ),
