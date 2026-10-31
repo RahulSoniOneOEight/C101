@@ -104,6 +104,20 @@ The image area is the placeholder in this component render; product images rende
   (`merchandising_sections.dart`) passes no `onWishlist`; grid tiles pass it and show the heart.
   Optional affordance, unchanged behaviour.
 
+## Staging overwrite (2026-10-31 15:09 IST / 09:39Z)
+
+- The hosting site was redeployed by the U-009 session from `feat/u009-pincode-delivery`
+  (`f6a86ab`), built without `BUILD_ID` — the banner reads `STAGING · dev`.
+- That branch includes `8482e94` but **not** U-007 (`d43af6d`), so the live tile reverted to the
+  pre-U-007 layout: `homerun · 1 SKU`, `% off` pill at the image top-right, inline `₹437 ₹514`,
+  heart at the image bottom-right, add button in the price row.
+- Evidence: `screenshots/live-after-overwrite.png`; live `main.dart.js` 3,923,009 bytes,
+  SHA-256 `7E233DB4007D405CD9ED2912678F71BE830C22F630715F41A94528833D890FC4`.
+- U-007 source and artifact are intact (branch `feat/u007-product-tile-v2`, `d43af6d`; artifact hash
+  `0444…4199B`). The fixes are not lost in source — only off the deployed surface.
+- Recovery: rebase U-007 onto `f6a86ab`, rebuild with a real `BUILD_ID`, verify, then a single
+  combined deploy. Do **not** redeploy U-007 alone — it would revert the U-009 pincode work.
+
 ## Build & rebase record (pre-release)
 
 - Branch `feat/u007-product-tile-v2`, rebased onto live staging `8482e94`; build id `04422ed`.
