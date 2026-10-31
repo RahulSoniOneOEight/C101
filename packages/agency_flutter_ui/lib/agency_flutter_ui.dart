@@ -564,52 +564,59 @@ class ProductCard extends StatelessWidget {
     }
     final unavailable = state == CommerceFixture.outOfStock;
     final isLarge = variant == ProductCardVariant.large;
+    // A grid cell hands the card a tight height; a rail/standalone placement
+    // leaves it unbounded. Fill the cell when we have one, and fall back to the
+    // U-007 card height only when the parent does not constrain us (U-011).
+    final fallbackHeight = isLarge ? 320.0 : 260.0;
     return Semantics(
       button: onPressed != null && !unavailable,
       label: '$title, $priceLabel',
-      child: SizedBox(
-        height: isLarge ? 320 : 260,
-        child: Card(
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: unavailable ? null : onPressed,
-            child: Padding(
-              padding: const EdgeInsets.all(AgencySpacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Expanded(child: _image(context)),
-                  const SizedBox(height: AgencySpacing.xs),
-                  if (brand != null)
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final card = Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: unavailable ? null : onPressed,
+              child: Padding(
+                padding: const EdgeInsets.all(AgencySpacing.sm),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(child: _image(context)),
+                    const SizedBox(height: AgencySpacing.xs),
+                    if (brand != null)
+                      Text(
+                        brand!,
+                        style: AgencyText.label.copyWith(
+                          color: context.colors.contentSecondary,
+                          fontSize: 11,
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     Text(
-                      brand!,
+                      title,
                       style: AgencyText.label.copyWith(
-                        color: context.colors.contentSecondary,
-                        fontSize: 11,
+                        color: context.colors.contentPrimary,
+                        fontSize: isLarge ? 14 : 13,
                         height: 1.2,
+                        fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  Text(
-                    title,
-                    style: AgencyText.label.copyWith(
-                      color: context.colors.contentPrimary,
-                      fontSize: isLarge ? 14 : 13,
-                      height: 1.2,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  _priceBlock(context),
-                ],
+                    const SizedBox(height: 2),
+                    _priceBlock(context),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+          if (constraints.hasBoundedHeight) return card;
+          return SizedBox(height: fallbackHeight, child: card);
+        },
       ),
     );
   }
@@ -869,11 +876,19 @@ class Category {
 /// [selected] adds an accent ring + emphasised label for single-select rails.
 class CategoryIconItem extends StatelessWidget {
   const CategoryIconItem(
-      {required this.category, this.onTap, this.selected = false, super.key});
+      {required this.category,
+      this.onTap,
+      this.selected = false,
+      this.width = 72,
+      super.key});
 
   final Category category;
   final VoidCallback? onTap;
   final bool selected;
+
+  /// Item slot width. Browse narrows this to 64 on phones so five fit in one
+  /// row; Home keeps the roomier 72 (U-011 P2-1).
+  final double width;
 
   @override
   Widget build(BuildContext context) {
@@ -883,7 +898,7 @@ class CategoryIconItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AgencyRadius.lg),
       child: SizedBox(
-        width: 72,
+        width: width,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -924,6 +939,8 @@ class CategoryIconRail extends StatelessWidget {
       {required this.categories,
       this.onSelected,
       this.selectedLabel,
+      this.itemWidth = 72,
+      this.gap = AgencySpacing.md,
       super.key});
 
   final List<Category> categories;
@@ -932,6 +949,12 @@ class CategoryIconRail extends StatelessWidget {
   /// Label of the currently selected category (single-select highlight).
   final String? selectedLabel;
 
+  /// Slot width per item. Browse passes 64 on phones; Home keeps 72.
+  final double itemWidth;
+
+  /// Space between items. Browse tightens it to 8 so five 64 px items fit.
+  final double gap;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -939,11 +962,12 @@ class CategoryIconRail extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AgencySpacing.md),
+        separatorBuilder: (_, __) => SizedBox(width: gap),
         itemBuilder: (context, index) {
           final category = categories[index];
           return CategoryIconItem(
             category: category,
+            width: itemWidth,
             selected: selectedLabel != null && category.label == selectedLabel,
             onTap: onSelected == null ? null : () => onSelected!(category),
           );
@@ -1462,14 +1486,17 @@ class ProductCarousel extends StatelessWidget {
   const ProductCarousel({
     required this.children,
     this.itemWidth = 152,
-    this.height = 252,
+    this.height,
     this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> children;
   final double itemWidth;
-  final double height;
+
+  /// Rail height. Null derives it from [itemWidth] at the shared 0.64 card
+  /// proportion so Home rails match the grids (U-011 P1-2).
+  final double? height;
 
   /// Space between tiles. Home passes a slightly wider gap so the rails breathe with the wider
   /// full-bleed banner above them; other screens keep the default.
@@ -1478,7 +1505,7 @@ class ProductCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height,
+      height: height ?? itemWidth / 0.64,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: children.length,
@@ -1549,18 +1576,24 @@ class SplitMerchandisingTile extends StatelessWidget {
 }
 
 /// Two-column grid of product cards (embedded, non-scrolling).
+///
+/// Tiles share the B2C product-card proportion (0.64) so a grid cell is never
+/// taller than the card inside it. Pass [mainAxisExtent] only for a slot that
+/// genuinely needs a fixed height.
 class ProductGrid extends StatelessWidget {
   const ProductGrid({
     required this.children,
     this.crossAxisCount = 2,
-    this.mainAxisExtent = 296,
+    this.childAspectRatio = 0.64,
+    this.mainAxisExtent,
     this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> children;
   final int crossAxisCount;
-  final double mainAxisExtent;
+  final double childAspectRatio;
+  final double? mainAxisExtent;
   final double gap;
 
   @override
@@ -1571,6 +1604,7 @@ class ProductGrid extends StatelessWidget {
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisExtent: mainAxisExtent,
+        childAspectRatio: childAspectRatio,
         mainAxisSpacing: gap,
         crossAxisSpacing: gap,
       ),
@@ -1587,14 +1621,19 @@ class ProductCompositionSection extends StatelessWidget {
   const ProductCompositionSection({
     required this.regularProducts,
     this.specialSlot,
-    this.mainAxisExtent = 312,
+    this.childAspectRatio = 0.64,
+    this.mainAxisExtent,
     this.gap = AgencySpacing.sm,
     super.key,
   });
 
   final List<Widget> regularProducts;
   final Widget? specialSlot;
-  final double mainAxisExtent;
+  final double childAspectRatio;
+
+  /// Fixed row height for a slot that cannot follow the card ratio. Null keeps
+  /// the shared 0.64 aspect (U-011 P1-2).
+  final double? mainAxisExtent;
   final double gap;
 
   @override
@@ -1609,6 +1648,7 @@ class ProductCompositionSection extends StatelessWidget {
                 : 2;
         return ProductGrid(
           crossAxisCount: crossAxisCount,
+          childAspectRatio: childAspectRatio,
           mainAxisExtent: mainAxisExtent,
           gap: gap,
           // A missing split tile must not become an invisible, full-height grid cell. Layout-driven

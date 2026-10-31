@@ -95,8 +95,11 @@ void main() {
     final headers = tester
         .widgetList<SliverPersistentHeader>(find.byType(SliverPersistentHeader))
         .toList();
-    expect(headers, isNotEmpty);
-    expect(headers.every((header) => header.pinned), isTrue);
+    expect(headers, hasLength(2));
+    // U-011 P0-4: the search header stays pinned; the sort/filter bar scrolls
+    // away on B2C Browse instead of permanently eating the viewport.
+    expect(headers.first.pinned, isTrue);
+    expect(headers.last.pinned, isFalse);
     semantics.dispose();
   });
 
