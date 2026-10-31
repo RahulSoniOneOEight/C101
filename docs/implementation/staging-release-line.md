@@ -60,6 +60,10 @@ publish it.
    `Invoke-WebRequest …/main.dart.js` → SHA-256, and confirm the banner shows the expected id.
 5. Add any new must-survive change to the manifest **in the same PR** that introduces it.
 
+**Live state:** what is actually deployed right now — build ids, bundle hashes, image ids and what is
+still pending — is maintained in
+[`staging-release-register.md`](./staging-release-register.md). Read it before planning a deploy.
+
 ## APK state
 
 - The release APK is **policy-gated** (D-018-06): protected keystore, non-debug build, Firebase
