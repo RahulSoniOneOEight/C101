@@ -146,3 +146,65 @@ hash and banner after deploy.** A bundle reading `STAGING dev` was built by hand
 - `flutter analyze` clean, `flutter test` **295/295** (two new address tests).
 - Live QC run: order `BK-261031-KRTF7Z`, 0 console errors, 0 page errors, 0 API responses ≥ 400.
 - API rollback: rebuild `release-e12f6f7` (prior image id `94818d572a3d` if still present).
+
+## 10. B2B chat/discuss parity (`7cc48c5`, `9003721`)
+
+Requirement: the B2C chat/discuss flow is the reference — B2B must be identical (participants,
+invite, join, chat, assistant), not a reduced variant.
+
+### 10.1 What changed
+
+| Area | Before | After |
+|---|---|---|
+| Workspace service authorization | `ownerHousehold` — household owners only | `ownerWorkspace` — household owner **or** business admin/buyer/account owner |
+| Business invitations | `403` (`scope_type !== 'household'`) | allowed; acceptance requires the invitee's business account to match |
+| Seat capacity | 3 for everything | 3 for households, 10 for business; business counts every active seat |
+| B2B dock empty state | “No procurement workspace is available” dead end | “Join your procurement workspace” + invitation code + **Join workspace** |
+| B2B dock menu | hidden | **Project actions → Join with code** (no “New project”: admins create the workspace) |
+| Participants sheet | “Project participants” | “Workspace participants” (household copy unchanged) |
+
+### 10.2 Live verification (browser, staging)
+
+| Check | Result |
+|---|---|
+| Buyer sees **Manage participants** in the B2B dock | PASS |
+| Sheet reads *Workspace participants · 2 of 10 participant places used* | PASS |
+| Buyer invites `approver.b2b01@buildkart.test`, code shown + copy | PASS (43-char code) |
+| Approver (no membership) opens Discuss → **“Join your procurement workspace”** | PASS |
+| Approver joins with code → dock switches to **Arjun Traders Procurement** with Chat / Shared list / Assistant | PASS |
+| Approver sends `Approver chat 1793475734678` | PASS — persisted as sequence **113**, actor `pilot_approver_b2b01` / “Arjun Traders Approver” |
+| Buyer receives it **without reload** (6 s poll) | PASS |
+| Sheet then reads *3 of 10 participant places used*; invitation `accepted` | PASS |
+| Approver still sees the workspace after join; managing participants stays `403` | PASS (approver is not a manager) |
+| B2B Assistant tab: composer + “What can you do?” reply | PASS — “I am a read-only cart assistant”, “Automated · BuildKart Cart Assistant” |
+| B2C regression: Manage participants, composer, *2 of 3 participant places used*, “Project participants” | PASS |
+
+QC data change: the approver's membership row was removed to make the join real, then restored to
+`role = approver` after acceptance. Household data untouched.
+
+### 10.3 Artifacts
+
+| Item | Value |
+|---|---|
+| Workspace image | `buildkart-hosted-pilot-workspace:latest` `5fc663e283dd` (health `{"status":"ok"}`) |
+| Web | build `9003721`, 3,931,739 bytes, SHA-256 `627728b9d82dbccdd7b959cc85dd747ec306112ba0e0d9807f769c7fa7a69b82`, banner `STAGING · 9003721`, local vs live byte-identical |
+| Signed APK | `D:\C101-control-room\artifacts\U-007-U-009\app-release-9003721.apk`, 62,942,271 bytes, SHA-256 `0f5f54b209d96acfd6cc4a618eaa637f3abe2af422357d2524f8cf9c2f3c3226`, signer `CN=BuildKart Staging` (cert SHA-256 `921c0e4c…6ef581`) |
+| Tests | `flutter analyze` clean; `flutter test` **297/297** (two new dock parity tests) |
+| Release line | `staging_release_manifest.json` now requires `7cc48c5` and `9003721` |
+
+### 10.4 Rollback
+
+- Workspace service: rebuild `release-3d2bdff` and `docker compose up -d --no-deps workspace`; the
+  B2B invite routes return `403` again, memberships stay intact.
+- Web: `firebase hosting:rollback --project buildkart-staging` (or redeploy `3d2bdff`).
+- Data: invitation `inv_…approver` is `accepted`; membership `pilot_approver_b2b01` = `approver`,
+  `active`. Nothing else changed.
+
+### 10.5 Known gaps
+
+1. Business seats have no promote/demote UI — a joiner lands as `member`; an admin cannot yet change
+   that role in-app (only seed data).
+2. Chat is 6 s polling in the dock (WebSocket exists only on the full B2B workspace screen).
+3. No email delivery on staging: invitation codes are shared out of band.
+4. `purchase_draft` / channel display names are seeded per account; only Rohan's Home was renamed
+   (`Project chat`, `Home project list`).
