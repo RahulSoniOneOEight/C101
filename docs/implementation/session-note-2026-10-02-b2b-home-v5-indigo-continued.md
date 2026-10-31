@@ -2,7 +2,7 @@
 
 Continues `session-note-2026-10-02-b2b-home-v5-handoff.md`.
 Penpot file `Client101` (`40e06342-8830-80d6-8008-9a92fdfb6804`), page `Screens`.
-Kit: `C:\Users\LENOVO\penpot-ai-kit\AGENTS.md` (routed via `skills/penpot-router` → `penpot-component-factory` + `penpot-build-screen`).
+Kit: `D:\penpot-ai-kit\AGENTS.md` (routed via `skills/penpot-router` → `penpot-component-factory` + `penpot-build-screen`).
 
 ## Decision reversal (human-directed this session)
 The palette was switched BACK from **Stormy Morning** to the app's **indigo theme**.

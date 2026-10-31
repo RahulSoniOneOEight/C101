@@ -739,7 +739,7 @@ active_changes:
   approved_by: human-requester
   approved_at_utc: '2026-10-31'
   approval_scope: b004-pincode-delivery-staging-only
-  proposal: C:/Users/LENOVO/C101-control-room/briefs/B004-pincode-delivery.md
+  proposal: D:/C101-control-room/briefs/B004-pincode-delivery.md
   scope: pincode-seller-flat-delivery-fee-and-admin-seller-rate-management
   lane: C
   release_mechanism:

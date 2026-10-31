@@ -2,7 +2,7 @@
 
 Penpot file `Client101` (id `40e06342-8830-80d6-8008-9a92fdfb6804`), page `Screens`.
 Worked via the Penpot MCP (`high_level_overview` first, then read-only discovery before writes).
-Kit: `C:\Users\LENOVO\penpot-ai-kit\AGENTS.md` (route via `skills/penpot-router`).
+Kit: `D:\penpot-ai-kit\AGENTS.md` (route via `skills/penpot-router`).
 
 ## Objective
 V5 consolidated UX update of the BuildKart B2B Home: simplify product tiles, make Quick Order

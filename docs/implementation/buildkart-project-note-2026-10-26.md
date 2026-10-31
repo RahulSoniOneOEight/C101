@@ -6,7 +6,7 @@
 - **Companion:** Secret *values* are deliberately absent from this file. They live in the local-only
   appendix `buildkart-secrets-appendix-2026-10-26.md` on the Desktop, and on the host under
   `/etc/buildkart/secrets/`.
-- **Repo:** `C:\Users\LENOVO\C101-commission-statements` (a clone of the same origin as
+- **Repo:** `D:\C101-worktrees\C101-commission-statements` (a clone of the same origin as
   `C:\Users\LENOVO\C101`; both carry the same 43 branches).
 
 ---

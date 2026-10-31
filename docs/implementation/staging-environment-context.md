@@ -17,7 +17,7 @@ repo or paste their contents into chat.
 
 ## Repository
 
-- Repo: `C:\Users\LENOVO\C101-commission-statements`
+- Repo: `D:\C101-worktrees\C101-commission-statements`
 - Branch: `feat/order-detail-workbench`
 - Remote: `origin/feat/order-detail-workbench`
 - Runtime release: `/opt/buildkart-releases/release-f59a5f9`

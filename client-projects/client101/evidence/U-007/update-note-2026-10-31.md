@@ -45,7 +45,7 @@ rail's "You may also like" cards, not on the home/browse tile.
 
 | Item | Value |
 |---|---|
-| Path | `C:\Users\LENOVO\C101-control-room\artifacts\U-007-U-009\app-debug-293d75d.apk` |
+| Path | `D:\C101-control-room\artifacts\U-007-U-009\app-debug-293d75d.apk` |
 | Size | 175,873,937 bytes (167.7 MB) |
 | SHA-256 | `990a60ff1091eacd03b90536e24752708a6abe74b35270927ee1183e7a73a0cb` |
 | Signer | `CN=Android Debug` (debug key) |
