@@ -363,7 +363,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                 SliverToBoxAdapter(child: _browseBanner()),
                 SliverToBoxAdapter(child: _categoryFilters(categories)),
                 SliverPersistentHeader(
-                  pinned: true,
+                  // B2C Browse only: the sort/filter bar scrolls away with the
+                  // results instead of eating 102 px forever (U-011 P0-4).
+                  pinned: false,
                   delegate: StorefrontControlHeaderDelegate(
                     sortOptions: <String>[
                       for (final option in BrowseSort.values) option.label,
@@ -386,8 +388,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                     onClearFilters: _clearFilters,
                   ),
                 ),
-                if (results.isNotEmpty)
-                  SliverToBoxAdapter(child: _recommendedStrip(results)),
                 if (results.isEmpty)
                   SliverToBoxAdapter(child: _noResults(products))
                 else
@@ -399,7 +399,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                         crossAxisCount: 2,
                         mainAxisSpacing: AgencySpacing.sm,
                         crossAxisSpacing: AgencySpacing.sm,
-                        mainAxisExtent: 296,
+                        childAspectRatio: 0.64,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, i) => _card(visible[i]),
@@ -491,16 +491,24 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       const Category(label: 'All', icon: Icons.apps_outlined),
       ...categories,
     ];
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AgencySpacing.xs),
-      child: CategoryIconRail(
-        categories: rail,
-        selectedLabel: _category ?? 'All',
-        onSelected: (c) => setState(() {
-          _category = c.label == 'All' ? null : c.label;
-          _resetPaging();
-        }),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Five 64 px items with 8 px gaps fit a phone width; Home keeps 72/16.
+        final compact = constraints.maxWidth <= 390;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AgencySpacing.sm),
+          child: CategoryIconRail(
+            categories: rail,
+            itemWidth: compact ? 64 : 72,
+            gap: compact ? AgencySpacing.sm : AgencySpacing.md,
+            selectedLabel: _category ?? 'All',
+            onSelected: (c) => setState(() {
+              _category = c.label == 'All' ? null : c.label;
+              _resetPaging();
+            }),
+          ),
+        );
+      },
     );
   }
 
@@ -610,7 +618,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   Widget _browseBanner() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, 0),
+          AgencySpacing.md, AgencySpacing.sm, AgencySpacing.md, AgencySpacing.sm),
       child: MerchandisingBanner(
         imageUrl: ref.watch(categoryBannerImageProvider(_category)),
         title: _category ?? 'Browse the catalogue',
@@ -623,58 +631,6 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           _resetPaging();
         }),
       ),
-    );
-  }
-
-  /// "Recommended for you" horizontal rail inside the Browse scroll. It uses
-  /// the same active category, brand and quick filters as the results grid.
-  Widget _recommendedStrip(List<Product> results) {
-    final items = results.take(8).toList();
-    if (items.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(AgencySpacing.md, AgencySpacing.sm,
-              AgencySpacing.md, AgencySpacing.sm),
-          child: SectionHeader(
-            title: 'Recommended for you',
-            tag: _brands.length == 1 ? _brands.first : _category,
-          ),
-        ),
-        SizedBox(
-          height: 252,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AgencySpacing.md),
-            itemCount: items.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: AgencySpacing.sm),
-            itemBuilder: (context, i) {
-              final p = items[i];
-              return SizedBox(
-                width: 160,
-                child: CartProductCard(
-                  product: p,
-                  title: p.title,
-                  priceLabel: p.price?.formatted ?? 'Price on request',
-                  previousPriceLabel: p.mrpIsReal ? p.mrp?.formatted : null,
-                  discountLabel: p.mrpIsReal && p.discountPercent != null
-                      ? '${p.discountPercent}% off'
-                      : null,
-                  imageUrl: p.thumbnail,
-                  brand: p.brand,
-                  badges: p.b2cBadges,
-                  variant: ProductCardVariant.compact,
-                  onPressed: () => context.push('/product/${p.id}'),
-                  onAddToCart: () => _quickAdd(p),
-                  onDiscuss: () => _discuss(p),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 

@@ -483,7 +483,7 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
                 crossAxisCount: 2,
                 mainAxisSpacing: _tileGap,
                 crossAxisSpacing: _tileGap,
-                mainAxisExtent: 296,
+                childAspectRatio: 0.64,
               ),
               itemCount: visible.length,
               itemBuilder: (context, i) => _card(visible[i]),

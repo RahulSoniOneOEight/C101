@@ -81,6 +81,66 @@ void main() {
     expect(find.text('No categories'), findsOneWidget);
   });
 
+  testWidgets('ProductCard fills a bounded cell and keeps the U-007 fallback',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: AgencyTheme.light(),
+      home: Scaffold(
+        body: Center(
+          child: SizedBox(
+            width: 175,
+            height: 273,
+            child: const ProductCard(
+                title: 'Reference Product', priceLabel: '₹1,499'),
+          ),
+        ),
+      ),
+    ));
+    var size = tester.getSize(find.byType(ProductCard));
+    expect(size.width, 175);
+    expect(size.height, 273);
+    expect(tester.takeException(), isNull);
+
+    // Unbounded parent (standalone / scroll view) keeps the 260 compact height.
+    await tester.pumpWidget(
+        host(const ProductCard(title: 'Reference Product', priceLabel: '₹1,499')));
+    size = tester.getSize(find.byType(ProductCard));
+    expect(size.height, 260);
+
+    // The large variant keeps its 320 fallback when unconstrained.
+    await tester.pumpWidget(host(const ProductCard(
+        title: 'Reference Product',
+        priceLabel: '₹1,499',
+        variant: ProductCardVariant.large)));
+    size = tester.getSize(find.byType(ProductCard));
+    expect(size.height, 320);
+  });
+
+  testWidgets('ProductCarousel derives the shared 0.64 rail height',
+      (tester) async {
+    await tester.pumpWidget(host(const ProductCarousel(
+      children: <Widget>[SizedBox(key: Key('rail-item'))],
+    )));
+    final rail = tester.getSize(find.byType(ProductCarousel));
+    expect(rail.height, closeTo(152 / 0.64, 0.01));
+    expect(tester.getSize(find.byKey(const Key('rail-item'))).width, 152);
+  });
+
+  testWidgets('CategoryIconRail honours itemWidth and gap', (tester) async {
+    await tester.pumpWidget(host(const CategoryIconRail(
+      categories: <Category>[
+        Category(label: 'All', icon: Icons.apps_outlined),
+        Category(label: 'Paints', icon: Icons.format_paint_outlined),
+      ],
+      itemWidth: 64,
+      gap: AgencySpacing.sm,
+    )));
+    final first = tester.getRect(find.byType(CategoryIconItem).first);
+    final second = tester.getRect(find.byType(CategoryIconItem).at(1));
+    expect(first.width, 64);
+    expect(second.left - first.right, AgencySpacing.sm);
+  });
+
   testWidgets('B2BQuickOrder renders semantic order table', (tester) async {
     await tester.pumpWidget(host(const B2BQuickOrder(
         lines: [QuickOrderLine(sku: 'SKU-1', name: 'Product', quantity: 2)])));
