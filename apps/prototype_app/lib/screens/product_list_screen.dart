@@ -541,14 +541,13 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       product: product,
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
-      previousPriceLabel: product.mrp?.formatted,
-      discountLabel: product.discountPercent == null
-          ? null
-          : '${product.discountPercent}% off',
+      previousPriceLabel: product.mrpIsReal ? product.mrp?.formatted : null,
+      discountLabel: product.mrpIsReal && product.discountPercent != null
+          ? '${product.discountPercent}% off'
+          : null,
       imageUrl: product.thumbnail,
-      brand: product.brandLine,
-      badges:
-          product.badges.isEmpty ? const <String>['Assured'] : product.badges,
+      brand: product.brand,
+      badges: product.b2cBadges,
       variant: ProductCardVariant.large,
       onPressed: () => _openProduct(product),
       onAddToCart: () => _addToCart(product),

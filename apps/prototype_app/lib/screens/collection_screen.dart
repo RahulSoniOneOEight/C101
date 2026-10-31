@@ -8,6 +8,7 @@ import '../domain/conversation_models.dart';
 import '../domain/storefront_collection.dart';
 import '../providers/collection_providers.dart';
 import '../providers/conversation_dock_provider.dart';
+import '../providers/account_providers.dart';
 
 /// The page behind a collection's customer-facing URL.
 ///
@@ -80,15 +81,18 @@ class _Grid extends ConsumerWidget {
         return ProductCard(
           title: product.title,
           priceLabel: product.price?.formatted ?? 'Price on request',
-          previousPriceLabel: product.mrp?.formatted,
-          discountLabel: product.discountPercent == null
-              ? null
-              : '${product.discountPercent}% off',
+          previousPriceLabel: product.mrpIsReal ? product.mrp?.formatted : null,
+          discountLabel: product.mrpIsReal && product.discountPercent != null
+              ? '${product.discountPercent}% off'
+              : null,
           imageUrl: product.thumbnail,
           brand: product.brand,
-          badges: product.badges.isEmpty ? const <String>[] : product.badges,
+          badges: product.b2cBadges,
           variant: ProductCardVariant.large,
           onPressed: () => context.push('/product/${product.id}'),
+          wishlisted: ref.watch(wishlistProvider).contains(product.id),
+          onWishlist: () =>
+              ref.read(wishlistProvider.notifier).toggle(product.id),
           onDiscuss: () => ref.read(conversationDockProvider.notifier).discuss(
                 ConversationAudience.household,
                 ConversationProductCapture.fromProduct(product),

@@ -165,6 +165,8 @@ class Product {
     this.rating,
     this.reviewCount,
     this.badges = const <String>[],
+    this.mrpIsReal = true,
+    this.badgesAreReal = true,
     this.deliveryNote,
     this.variants = const <ProductVariant>[],
     this.categoryId,
@@ -221,6 +223,9 @@ class Product {
 
     final metadata = json['metadata'] as Map<String, dynamic>?;
     final brand = json['brand'] as String? ?? metadata?['brand'] as String?;
+    final jsonBadges =
+        (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
+            const <String>[];
 
     return Product(
       id: json['id'] as String? ?? '',
@@ -230,12 +235,12 @@ class Product {
       variantId: variantId,
       price: price,
       mrp: mrp,
+      mrpIsReal: mrp != null,
       brand: brand,
       rating: (json['rating'] as num?)?.toDouble(),
       reviewCount: (json['review_count'] as num?)?.toInt(),
-      badges:
-          (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
-              const <String>[],
+      badges: jsonBadges,
+      badgesAreReal: jsonBadges.isNotEmpty,
       deliveryNote: json['delivery_note'] as String?,
     );
   }
@@ -317,10 +322,12 @@ class Product {
           ? null
           : Money(amount: bestAmount.toInt(), currencyCode: currency),
       mrp: mrp,
+      mrpIsReal: hasDiscount,
       brand: metadata?['brand'] as String?,
       badges: jsonBadges.isNotEmpty
           ? jsonBadges
           : (imported ? const <String>[] : reviewTags(id)),
+      badgesAreReal: jsonBadges.isNotEmpty,
       variants: productVariants,
       categoryId: leafCategory?['id'] as String?,
       categoryLabel: metadata?['category_l1'] as String? ??
@@ -339,6 +346,8 @@ class Product {
     Money? price,
     Money? mrp,
     List<String>? badges,
+    bool? mrpIsReal,
+    bool? badgesAreReal,
     List<ProductVariant>? variants,
   }) =>
       Product(
@@ -354,6 +363,8 @@ class Product {
         rating: rating,
         reviewCount: reviewCount,
         badges: badges ?? this.badges,
+        mrpIsReal: mrpIsReal ?? this.mrpIsReal,
+        badgesAreReal: badgesAreReal ?? this.badgesAreReal,
         deliveryNote: deliveryNote,
         variants: variants ?? this.variants,
         categoryId: categoryId,
@@ -369,6 +380,16 @@ class Product {
   final double? rating;
   final int? reviewCount;
   final List<String> badges;
+
+  /// True when [mrp] is a real list price (admin/imported), not the review-catalogue
+  /// synthetic compare-at. B2C gates the struck MRP and discount chip on this;
+  /// B2B ignores the flag (U-007 decision b).
+  final bool mrpIsReal;
+
+  /// True when [badges] are real admin merchandising tags, not review-catalogue
+  /// synthetic tags. B2C gates badges on this; B2B ignores the flag.
+  final bool badgesAreReal;
+
   final String? deliveryNote;
 
   /// Every SKU this grouped product owns. Empty for a product the backend
@@ -449,6 +470,40 @@ class Product {
     return false;
   }
 
+  /// B2C badge allowlist (U-007). Unknown admin tags stay search-only.
+  static const List<String> b2cBadgeAllowlist = <String>[
+    'Assured',
+    'Flash Deal',
+    'Best Deal',
+    'Clearance',
+    'New',
+    'Seasonal',
+    'Premium',
+    'Bestseller',
+  ];
+
+  /// Real merchandising badges allowed on the B2C tile, in priority order.
+  ///
+  /// Synthetic tags and unknown/free-text tags never reach the tile. The 9
+  /// non-imported products with real admin tags keep them because
+  /// [badgesAreReal] is set from the payload.
+  List<String> get b2cBadges {
+    if (!badgesAreReal) return const <String>[];
+    final result = <String>[];
+    for (final badge in badges) {
+      final match = b2cBadgeAllowlist.firstWhere(
+        (allowed) => allowed.toLowerCase() == badge.trim().toLowerCase(),
+        orElse: () => '',
+      );
+      if (match.isNotEmpty && !result.contains(match)) result.add(match);
+    }
+    result.sort(
+      (left, right) =>
+          b2cBadgeAllowlist.indexOf(left).compareTo(b2cBadgeAllowlist.indexOf(right)),
+    );
+    return result;
+  }
+
   /// Discount percentage derived from [mrp] vs [price], or null when there is
   /// no meaningful discount.
   int? get discountPercent {
@@ -472,10 +527,12 @@ class Product {
         'price_amount': price?.amount,
         'price_currency': price?.currencyCode,
         'mrp_amount': mrp?.amount,
+        'mrp_is_real': mrpIsReal,
         'brand': brand,
         'rating': rating,
         'review_count': reviewCount,
         'badges': badges,
+        'badges_are_real': badgesAreReal,
         'delivery_note': deliveryNote,
         'category_id': categoryId,
         'category_label': categoryLabel,
@@ -528,12 +585,14 @@ class Product {
                 amount: (json['mrp_amount'] as num).toInt(),
                 currencyCode: json['price_currency'] as String? ?? 'INR',
               ),
+        mrpIsReal: json['mrp_is_real'] as bool? ?? true,
         brand: json['brand'] as String?,
         rating: (json['rating'] as num?)?.toDouble(),
         reviewCount: (json['review_count'] as num?)?.toInt(),
         badges:
             (json['badges'] as List<dynamic>?)?.whereType<String>().toList() ??
                 const <String>[],
+        badgesAreReal: json['badges_are_real'] as bool? ?? true,
         deliveryNote: json['delivery_note'] as String?,
         categoryId: json['category_id'] as String?,
         categoryLabel: json['category_label'] as String?,

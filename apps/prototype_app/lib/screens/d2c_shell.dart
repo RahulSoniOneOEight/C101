@@ -510,13 +510,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       product: product,
       title: product.title,
       priceLabel: product.price?.formatted ?? 'Price on request',
-      previousPriceLabel: product.mrp?.formatted,
-      discountLabel: product.discountPercent == null
-          ? null
-          : '${product.discountPercent}% off',
+      previousPriceLabel: product.mrpIsReal ? product.mrp?.formatted : null,
+      discountLabel: product.mrpIsReal && product.discountPercent != null
+          ? '${product.discountPercent}% off'
+          : null,
       imageUrl: product.thumbnail,
-      brand: product.brandLine,
-      badges: product.badges,
+      brand: product.brand,
+      badges: product.b2cBadges,
       variant: ProductCardVariant.large,
       onPressed: () => context.push('/product/${product.id}'),
       onAddToCart: () => _quickAdd(product),
@@ -658,13 +658,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                   product: p,
                   title: p.title,
                   priceLabel: p.price?.formatted ?? 'Price on request',
-                  previousPriceLabel: p.mrp?.formatted,
-                  discountLabel: p.discountPercent == null
-                      ? null
-                      : '${p.discountPercent}% off',
+                  previousPriceLabel: p.mrpIsReal ? p.mrp?.formatted : null,
+                  discountLabel: p.mrpIsReal && p.discountPercent != null
+                      ? '${p.discountPercent}% off'
+                      : null,
                   imageUrl: p.thumbnail,
-                  brand: p.brandLine,
-                  badges: p.badges,
+                  brand: p.brand,
+                  badges: p.b2cBadges,
                   variant: ProductCardVariant.compact,
                   onPressed: () => context.push('/product/${p.id}'),
                   onAddToCart: () => _quickAdd(p),
