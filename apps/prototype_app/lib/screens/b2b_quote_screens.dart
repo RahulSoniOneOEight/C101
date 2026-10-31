@@ -2037,15 +2037,17 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
               for (final site in sites)
                 ListTile(
                   leading: Icon(
-                    current == '${site.name} (${site.city})'
+                    current == site.deliveryLocation
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
-                    color: current == '${site.name} (${site.city})'
+                    color: current == site.deliveryLocation
                         ? colors.actionPrimary
                         : colors.contentSecondary,
                   ),
                   title: Text(site.name),
-                  subtitle: Text(site.city),
+                  subtitle: Text(site.pincode.isEmpty
+                      ? site.city
+                      : '${site.city} · ${site.pincode}'),
                   onTap: () => Navigator.of(sheetContext).pop(site),
                 ),
             ],
@@ -2056,7 +2058,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
     if (choice == null || !mounted) return;
     ref
         .read(b2bQuotationCartProvider.notifier)
-        .setDeliveryLocation('${choice.name} (${choice.city})');
+        .setDeliveryLocation(choice.deliveryLocation);
   }
 
   Future<void> _enterNewSite() async {
@@ -2089,11 +2091,16 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                   maxLines: 3,
                   decoration: const InputDecoration(
                       labelText: 'Full delivery address',
-                      hintText: 'Street, city and PIN code'),
+                      hintText: 'Street, city, state and 6-digit PIN code'),
                   onChanged: (value) => deliveryAddress = value,
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Enter the delivery address'
-                      : null,
+                  validator: (value) {
+                    final text = (value ?? '').trim();
+                    if (text.isEmpty) return 'Enter the delivery address';
+                    if (!RegExp(r'\b\d{6}\b').hasMatch(text)) {
+                      return 'Include the 6-digit PIN code';
+                    }
+                    return null;
+                  },
                 ),
               ],
             ),

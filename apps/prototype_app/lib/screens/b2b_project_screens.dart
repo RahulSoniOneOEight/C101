@@ -574,7 +574,7 @@ class _B2BSiteSelectorScreenState extends ConsumerState<B2BSiteSelectorScreen> {
       // Persist the site onto the quotation draft so checkout shows it.
       ref
           .read(b2bQuotationCartProvider.notifier)
-          .setDeliveryLocation('${choice.name} (${choice.city})');
+          .setDeliveryLocation(choice.deliveryLocation);
       context.go('/b2b/cart/checkout');
     }
   }

@@ -1517,20 +1517,150 @@ final b2bQuotationCartProvider =
 
 /// The buyer's placed purchase-order history, persisted across sessions and
 /// seeded once from the dashboard's repeat orders.
-/// Staging fixture until B2B delivery sites carry canonical street addresses.
-/// The selected site is preserved in `address_2` so Admin can still see the
-/// buyer's site label; the rest is the shared staging test address.
-Address _b2bCheckoutAddress(String? deliveryLocation) => Address(
-      firstName: 'Arjun Traders',
-      lastName: 'Procurement',
-      address1: '101 Test Yard',
-      address2: deliveryLocation,
-      city: 'Jaipur',
-      province: 'Rajasthan',
-      postalCode: '302001',
-      countryCode: 'in',
-      phone: '+91 98765 43210',
+/// Resolves the delivery site string into a Medusa address.
+///
+/// U-009: the delivery fee is keyed on `(seller, pincode)`, so the pincode from
+/// the selected site must reach the cart. Previously this builder hardcoded
+/// Jaipur 302001 and pushed the site text into address line 2, which meant every
+/// business order was priced for 302001 no matter where it shipped.
+Address _b2bCheckoutAddress(String? deliveryLocation) {
+  final raw = (deliveryLocation ?? '').trim();
+  final match = RegExp(r'\b(\d{6})\b').firstMatch(raw);
+  final pincode = match?.group(1) ?? '';
+  if (pincode.isEmpty) {
+    throw StateError(
+      'The delivery site has no 6-digit PIN code. Edit the site to include one '
+      '(for example "Mumbai 400001") so the correct delivery fee is applied.',
     );
+  }
+
+  // Drop the PIN before splitting so it never reads as a city or a recipient.
+  final cleaned = raw
+      .replaceFirst(RegExp(r'\s*\b' + RegExp.escape(pincode) + r'\b'), '')
+      .trim();
+  final segments = cleaned
+      .split(',')
+      .map((segment) => segment.trim())
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+
+  String city;
+  String region;
+  List<String> lines;
+  if (segments.length >= 3) {
+    region = segments[segments.length - 1];
+    city = segments[segments.length - 2];
+    lines = segments.sublist(0, segments.length - 2);
+  } else if (segments.length == 2) {
+    region = '';
+    city = segments[1];
+    lines = segments.sublist(0, 1);
+  } else {
+    region = '';
+    city = segments.isEmpty ? raw : segments.first;
+    lines = segments;
+  }
+
+  final province = _knownIndianState(region) ??
+      _b2bStateByPinPrefix[pincode.substring(0, 2)] ??
+      'Rajasthan';
+
+  return Address(
+    firstName: 'Arjun Traders',
+    lastName: 'Procurement',
+    address1: lines.isEmpty ? raw : lines.first,
+    address2: lines.length > 1 ? lines.sublist(1).join(', ') : null,
+    city: city.isEmpty ? 'Mumbai' : city,
+    province: province,
+    postalCode: pincode,
+    countryCode: 'in',
+    phone: '+91 98765 43210',
+  );
+}
+
+/// Returns the canonical state name when [text] names a known Indian state.
+String? _knownIndianState(String text) {
+  final needle = text.toLowerCase().trim();
+  if (needle.isEmpty) return null;
+  for (final state in _b2bStateByPinPrefix.values.toSet()) {
+    final candidate = state.toLowerCase();
+    if (needle == candidate || needle.contains(candidate)) return state;
+  }
+  return null;
+}
+
+/// Indian PIN prefixes mapped to states, used when the site text omits one.
+const _b2bStateByPinPrefix = <String, String>{
+  '11': 'Delhi',
+  '12': 'Haryana',
+  '13': 'Haryana',
+  '14': 'Punjab',
+  '15': 'Punjab',
+  '16': 'Punjab',
+  '17': 'Himachal Pradesh',
+  '18': 'Jammu and Kashmir',
+  '19': 'Jammu and Kashmir',
+  '20': 'Uttar Pradesh',
+  '21': 'Uttar Pradesh',
+  '22': 'Uttar Pradesh',
+  '23': 'Uttar Pradesh',
+  '24': 'Uttar Pradesh',
+  '25': 'Uttar Pradesh',
+  '26': 'Uttar Pradesh',
+  '27': 'Uttar Pradesh',
+  '28': 'Uttar Pradesh',
+  '30': 'Rajasthan',
+  '31': 'Rajasthan',
+  '32': 'Rajasthan',
+  '33': 'Rajasthan',
+  '34': 'Rajasthan',
+  '36': 'Gujarat',
+  '37': 'Gujarat',
+  '38': 'Gujarat',
+  '39': 'Gujarat',
+  '40': 'Maharashtra',
+  '41': 'Maharashtra',
+  '42': 'Maharashtra',
+  '43': 'Maharashtra',
+  '44': 'Maharashtra',
+  '45': 'Madhya Pradesh',
+  '46': 'Madhya Pradesh',
+  '47': 'Madhya Pradesh',
+  '48': 'Madhya Pradesh',
+  '49': 'Chhattisgarh',
+  '50': 'Telangana',
+  '51': 'Andhra Pradesh',
+  '52': 'Andhra Pradesh',
+  '53': 'Andhra Pradesh',
+  '56': 'Karnataka',
+  '57': 'Karnataka',
+  '58': 'Karnataka',
+  '59': 'Karnataka',
+  '60': 'Tamil Nadu',
+  '61': 'Tamil Nadu',
+  '62': 'Tamil Nadu',
+  '63': 'Tamil Nadu',
+  '64': 'Tamil Nadu',
+  '67': 'Kerala',
+  '68': 'Kerala',
+  '69': 'Kerala',
+  '70': 'West Bengal',
+  '71': 'West Bengal',
+  '72': 'West Bengal',
+  '73': 'West Bengal',
+  '74': 'West Bengal',
+  '75': 'Odisha',
+  '76': 'Odisha',
+  '77': 'Odisha',
+  '78': 'Assam',
+  '79': 'North East',
+  '80': 'Bihar',
+  '81': 'Bihar',
+  '82': 'Bihar',
+  '83': 'Jharkhand',
+  '84': 'Bihar',
+  '85': 'Jharkhand',
+};
 
 class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
   ProductVariant? _variantForSku(String sku) {
@@ -1596,6 +1726,10 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
       throw StateError('No sellable offer for ${missing.join(', ')}.');
     }
 
+    // Resolve the site PIN before creating a cart so a site without a pin fails
+    // fast instead of leaving a half-built cart behind.
+    final shippingAddress = _b2bCheckoutAddress(cart.deliveryLocation);
+
     var canonical = await api.createCart(channel: 'b2b_app');
     final cartId = canonical.id;
     for (final line in cart.lines) {
@@ -1606,7 +1740,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
     canonical = await api.updateCartCustomerDetails(
       cartId,
       email: email,
-      shippingAddress: _b2bCheckoutAddress(cart.deliveryLocation),
+      shippingAddress: shippingAddress,
     );
     canonical = await api.applyDelivery(cartId);
 

@@ -146,8 +146,25 @@ class MaterialLine {
 
 /// A delivery site option for a project.
 class SiteOption {
-  const SiteOption({required this.name, required this.city});
+  const SiteOption({
+    required this.name,
+    required this.city,
+    this.province = 'Maharashtra',
+    this.pincode = '',
+  });
 
   final String name;
   final String city;
+
+  /// State / province used on the order address and the GST invoice.
+  final String province;
+
+  /// Six-digit delivery PIN code. Empty only for legacy fixtures.
+  final String pincode;
+
+  /// Canonical location string persisted on the quotation cart. Kept in one
+  /// place so checkout can resolve the real delivery pincode (U-009).
+  String get deliveryLocation => pincode.isEmpty
+      ? '$name, $city'
+      : '$name, $city, $province $pincode';
 }

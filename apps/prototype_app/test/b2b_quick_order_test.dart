@@ -195,7 +195,7 @@ void main() {
 
     container
         .read(b2bQuotationCartProvider.notifier)
-        .setDeliveryLocation('Site B — Warehouse (Pune)');
+        .setDeliveryLocation('Site B — Warehouse, Pune, Maharashtra 411001');
 
     final order = await container
         .read(b2bOrdersProvider.notifier)
@@ -207,7 +207,7 @@ void main() {
     expect(order.orderGroupId, 'og_test');
     expect(order.cartId, 'cart_test');
     expect(order.total.amount, product.tradePrice.amount * 3);
-    expect(order.deliveryLocation, 'Site B — Warehouse (Pune)');
+    expect(order.deliveryLocation, 'Site B — Warehouse, Pune, Maharashtra 411001');
     expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
   });
 
@@ -356,9 +356,10 @@ void main() {
     expect(find.text('Saved delivery sites'), findsOneWidget);
     await tester.tap(find.text('Site B — Warehouse'));
     await tester.pumpAndSettle();
-    expect(find.text('Site B — Warehouse (Pune)'), findsOneWidget);
+    expect(find.text('Site B — Warehouse, Pune, Maharashtra 411001'),
+        findsOneWidget);
     expect(container.read(b2bQuotationCartProvider).deliveryLocation,
-        'Site B — Warehouse (Pune)');
+        'Site B — Warehouse, Pune, Maharashtra 411001');
     expect(find.text('Place Business Order'), findsOneWidget);
 
     await tester.tap(find.text('Enter a new delivery site'));

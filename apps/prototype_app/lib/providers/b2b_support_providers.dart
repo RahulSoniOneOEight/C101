@@ -261,9 +261,25 @@ final materialLinesProvider = Provider<List<MaterialLine>>((ref) {
 /// Delivery site options.
 final sitesProvider = Provider<List<SiteOption>>((ref) {
   return const <SiteOption>[
-    SiteOption(name: 'Site A — Main block', city: 'Pune'),
-    SiteOption(name: 'Site B — Warehouse', city: 'Pune'),
-    SiteOption(name: 'Site C — Annexe', city: 'Pune'),
-    SiteOption(name: 'Project office', city: 'Mumbai'),
+    SiteOption(
+        name: 'Site A — Main block',
+        city: 'Pune',
+        province: 'Maharashtra',
+        pincode: '411001'),
+    SiteOption(
+        name: 'Site B — Warehouse',
+        city: 'Pune',
+        province: 'Maharashtra',
+        pincode: '411001'),
+    SiteOption(
+        name: 'Site C — Annexe',
+        city: 'Pune',
+        province: 'Maharashtra',
+        pincode: '411014'),
+    SiteOption(
+        name: 'Project office',
+        city: 'Mumbai',
+        province: 'Maharashtra',
+        pincode: '400001'),
   ];
 });
