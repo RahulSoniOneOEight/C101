@@ -82,6 +82,10 @@ human_approvals:
   approved_by: human-requester
   approved_at_utc: '2026-10-28'
   scope: scoped-staging-deployment-a13bcb4-synthetic-fixture
+- change_id: U-009
+  approved_by: human-requester
+  approved_at_utc: '2026-10-31'
+  scope: b004-pincode-delivery-staging-only
 active_changes:
 - change_id: CHG-072
   status: approved-in-progress
@@ -727,4 +731,52 @@ active_changes:
   - buildkart-hosted-pilot-medusa:rollback-0e64bd3
   - buildkart-hosted-pilot-experience-api:rollback-0e64bd3
   evidence: client-projects/client101/evidence/CHG-086/product-studio-and-visibility-2026-10-27.md
+  production_release_authorized: false
+
+- change_id: U-009
+  status: staging-applied-verified
+  approval_required: true
+  approved_by: human-requester
+  approved_at_utc: '2026-10-31'
+  approval_scope: b004-pincode-delivery-staging-only
+  proposal: C:/Users/LENOVO/C101-control-room/briefs/B004-pincode-delivery.md
+  scope: pincode-seller-flat-delivery-fee-and-admin-seller-rate-management
+  lane: C
+  release_mechanism:
+  - migration
+  - image-rebuild
+  - static-web
+  - governed-data-update
+  implementation_commit: e12f6f7
+  release:
+    directory: /opt/buildkart-releases/release-e12f6f7
+    previous: /opt/buildkart-releases/release-186a50f
+    medusa_image: c1021b0b0be1
+    experience_api_image: 94818d572a3d
+    web_storefront: buildkart-staging (build ecfa6e1ff34f881e617de8557a21fa94)
+  snapshot: /opt/buildkart-releases/backups/buildkart-20261031T082225Z.dump
+  data_change:
+    table: seller_delivery_rate
+    delivery_options_created: 5
+    legacy_options_disabled: 10
+    test_rate: sdr_u009qcstaging400001 (PowerMax, 400001, 4900 minor)
+  verification:
+    staging_e2e: 16/16 pass
+    default_fee_999999: 9900
+    exact_fee_400001: 4900
+    b2c_order: BK-261031-0FSTTQ (order 164)
+    b2b_order: BK-261031-8X293X (order 165)
+    order_shipping_tax_inclusive: true
+  rollback:
+    release: rebuild release-186a50f (old image not in local store)
+    migration: medusa db:rollback --modules delivery_rates
+    web: firebase hosting:rollback --project buildkart-staging
+  evidence:
+  - client-projects/client101/evidence/U-009/closeout.md
+  - client-projects/client101/evidence/U-009/followup-fixes.md
+  - client-projects/client101/evidence/U-009/staging-release.md
+  residual:
+  - staging-admin-ui-visual-pass
+  - vendor-ui-visual-pass
+  - catalogue-asset-baseline-236-vs-233
   production_release_authorized: false
