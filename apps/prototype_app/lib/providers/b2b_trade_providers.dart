@@ -468,17 +468,6 @@ final tradeDashboardProvider = Provider<TradeDashboard>((ref) {
           _line('prod_tiles', 'Ceramic Floor Tiles 600x600 Matt', 6, 3738),
         ],
       ),
-      B2BOrder(
-        reference: 'Order #PO-3374',
-        dateLabel: '18 Sep',
-        itemSummary: '3 items',
-        total: _inr(18900),
-        lines: <B2BOrderLine>[
-          _line('prod_wire', 'Copper Wire 1.5sqmm', 5, 1240),
-          _line('prod_mcb', 'MCB 32A Single Pole', 10, 214),
-          _line('prod_led', 'LED Bulb 9W Cool White', 20, 68),
-        ],
-      ),
     ],
     quotations: const <QuotationSummary>[
       QuotationSummary(
@@ -1095,7 +1084,17 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
         store.writeB2bOrders(seed); // first-run seed (fire-and-forget)
         return seed;
       }
-      return store.readB2bOrders();
+      final stored = store.readB2bOrders();
+      // Legacy demo seed carried two repeat orders; keep only the active one
+      // on devices that already persisted the pair.
+      if (stored.any((order) => order.reference == 'Order #PO-3374')) {
+        final trimmed = stored
+            .where((order) => order.reference != 'Order #PO-3374')
+            .toList(growable: false);
+        store.writeB2bOrders(trimmed); // fire-and-forget
+        return trimmed;
+      }
+      return stored;
     } catch (_) {
       return ref.read(tradeDashboardProvider).repeatOrders;
     }
