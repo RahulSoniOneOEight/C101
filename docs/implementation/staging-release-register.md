@@ -72,8 +72,8 @@ directly** — it does not contain `7cc48c5`/`9003721`, so the B2B chat parity w
 
 ```sh
 git checkout feat/u009-pincode-delivery        # live release line
-git merge --no-ff feat/u011-browse-spacing     # verified conflict-free:
-                                               # git merge-tree → tree 37d4736c… (no conflicts)
+git merge --no-ff feat/u011-browse-spacing     # verified conflict-free with `git merge-tree`
+                                               # (2026-11-01; the tree hash moves with the head)
 python tooling/check_staging_release_line.py --require-clean
 python tooling/build_staging_web.py --build-id <merge-sha> --require-clean
 firebase deploy --only hosting --project buildkart-staging
