@@ -4,7 +4,8 @@
 - **Lane / release:** A / `static-ui` (Flutter web) + APK artifact — **no image rebuild, no API change**
 - **Base:** `3d2bdff` (staging release, host-verified 2026-10-31T19:34Z)
 - **Branch / worktree:** `feat/u011-browse-spacing` @ `D:\C101-worktrees\bk-u011-browse-spacing`
-- **Status:** implemented and verified locally. **Deploy not run** — the brief reserves it for the human gate.
+- **Status:** **deployed to staging on 2026-11-01** as build `e3cb365` (see §10). Original implementation
+  was verified locally first; the brief's deploy gate was opened by the release owner.
 - **Scope:** B2C only. No B2B file, no `services/**`, no `apps/web/**`, no data record touched.
 
 ## 1. Release-line warning (read before deploying)
@@ -154,3 +155,58 @@ Chromium at 360/390/414, login → Browse (scrolled) → Home (scrolled):
    widget harness; the browser is used for position, screenshots and console health.
 5. Home rails changed height (252 → 237.5) as part of P1-2; the 390×844 Home golden did not change
    because the rails sit below the fold with the fixture data — the tall capture shows them.
+
+## 10. Deploy record — 2026-11-01
+
+Release owner instruction: “repoint release then merge and deploy”.
+
+### 10.1 Release repoint
+
+```
+/opt/buildkart-releases/current  release-3d2bdff  →  release-9003721
+```
+
+Pre-check: `services/hosted/.env` and `docker-compose.hosted.yml` are byte-identical between the two
+release directories; `docker compose config --services` resolves; containers were **not** recreated;
+workspace + API health stayed `ok`.
+
+### 10.2 Merge + build
+
+| Step | Result |
+|---|---|
+| Merge | `6d1963f` — `feat/u011-browse-spacing` → `feat/u009-pincode-delivery` (`--no-ff`, no conflicts) |
+| Tests on the merged tree | `flutter analyze` clean · **307/307** app tests (U-011 + chat-parity suites combined) |
+| Manifest | `e3cb365` adds `U-011 browse layout (6d1963f)`; release-line check PASS on all 10 entries |
+| Build | `--build-id e3cb365`, 3,932,303 bytes, SHA-256 `ad7c7ec1cf924d5cf853cda57ecc18092c997e3cb1f1cf217e14890853f4b161` |
+| Deploy | `firebase deploy --only hosting --project buildkart-staging` |
+
+### 10.3 Live verification (browser, production bundle)
+
+| Width | Strip | First grid tile | Scroll-frame offset | Console errors |
+|---|---|---|---|---|
+| 360 | absent | 160 wide, y 531 | 475 | 0 |
+| 390 | absent | 175 wide, y 545 | **489** | 0 |
+| 414 | absent | 187 wide, y 556 | 500 | 0 |
+
+- Banner: `STAGING · e3cb365`; live `main.dart.js` SHA-256 equals the local build exactly.
+- B2B dock still shows Manage participants, Project actions, composer and the Assistant tab → the
+  chat parity survived the merge (the reason the merge was required).
+- 0 console errors, 0 page errors, 0 HTTP responses ≥ 400 across login → Browse (scrolled) →
+  Home (scrolled) and the B2B dock run.
+
+### 10.4 APK
+
+| Item | Value |
+|---|---|
+| Build | `--build-id e3cb365`, 62,942,271 bytes |
+| SHA-256 | `168effb33ce291ceef0196bcb9006f4e403cfb3889c4f8921023f5f14c4ba23a` |
+| Signer | `CN=BuildKart Staging` (cert SHA-256 `921c0e4c…6ef581`) |
+| Path | `D:\C101-control-room\artifacts\U-007-U-009\app-release-e3cb365.apk` |
+| Distribution | not sent — Firebase App Distribution has no tester group configured |
+
+### 10.5 Rollback
+
+- Web: `firebase hosting:rollback --project buildkart-staging` (previous release `9003721`).
+- Release symlink: `ln -sfn /opt/buildkart-releases/release-3d2bdff /opt/buildkart-releases/current`.
+- APK: re-distribute `app-release-9003721.apk`.
+
