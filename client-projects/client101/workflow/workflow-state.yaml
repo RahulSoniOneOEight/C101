@@ -780,3 +780,21 @@ active_changes:
   - vendor-ui-visual-pass
   - catalogue-asset-baseline-236-vs-233
   production_release_authorized: false
+  ui_order_qc:
+    date: '2026-10-31'
+    web_bundle_commit: f6a86ab
+    b2c_order: BK-261031-M7763P (order 166, shipping 4900, total 123549)
+    b2b_order_new_site: order 168 (shipping 4900, total 381.50)
+    b2b_order_saved_site: order 169 (shipping 4900, total 381.50)
+    defect_found: b2b-address-hardcoded-302001
+    defect_fixed_in: f6a86ab
+    defect_before: order 167 (302001, shipping 9900)
+    admin_order_views: pass
+    vendor_order_view: pass
+    flutter_analyze: clean
+    flutter_test: 287 pass / 1 pre-existing golden (b2b checkout, 23.01% with fix stashed)
+    evidence: client-projects/client101/evidence/U-009/ui-order-qc.md
+    residual:
+    - b2b-checkout-shows-no-fee-before-placement
+    - b2b-discount-display-rounding
+    - admin-labels-b2b-order-as-b2c-storefront

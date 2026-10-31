@@ -3,6 +3,7 @@
 **Date:** 2026-10-31
 **Status:** RELEASED to staging (not production)
 **Release commit:** `e12f6f7`
+**Web bundle:** `f6a86ab` (deployed after the B2B pincode fix; API images unchanged)
 **Release directory:** `/opt/buildkart-releases/release-e12f6f7`
 **Previous release / rollback ref:** `release-186a50f` (`186a50f8f`)
 **Production:** untouched; `production_release_authorized: false`
@@ -56,6 +57,25 @@ requires rebuilding `release-186a50f` rather than re-tagging.
 | B2C order | `BK-261031-0FSTTQ`, #164, shipping ₹49, total ₹147,299 |
 | B2B order (Arjun Traders) | `BK-261031-8X293X`, #165, shipping ₹49, total ₹144,449 |
 | Order records | `order_shipping_method` amount 49, `is_tax_inclusive = t` |
+
+## Browser UI order QC (2026-10-31, later)
+
+Full storefront order placement in Edge via the Flutter semantics tree. Evidence:
+`evidence/U-009/ui-order-qc.md`, screenshots in `screenshots/staging-ui/`.
+
+- **B2C #166** `BK-261031-M7763P`: cart ₹99 @301019 → checkout ₹49 @400001 → order ₹123,549 with
+  Shipping ₹49 (customer, admin and vendor views agree).
+- **B2B #167** (before fix): charged ₹99 for a Mumbai 400001 site — the B2B address builder
+  hardcoded Jaipur 302001.
+- **Fix `f6a86ab`** (web only, no API/image change): site PIN now flows into the cart address.
+- **B2B #168** (new site) and **#169** (saved “Project office”): 400001 Mumbai/Maharashtra,
+  Shipping ₹49, ₹381.50.
+- Web bundle rebuilt from `f6a86ab` and redeployed to `buildkart-staging`
+  (`main.dart.js` contains the PIN validation strings).
+- `flutter analyze` clean; `flutter test` 287 pass, 1 pre-existing golden failure
+  (`b2b checkout`, 23.01% — identical with the fix stashed).
+- Residuals: B2B shows no fee before placement (quotation cart is local-only), B2B discount
+  display rounds −17.50 to −18, admin labels B2B orders “from B2C Storefront”.
 
 ## Rollback
 
