@@ -65,6 +65,11 @@
       "label": "U-014 option integrity",
       "commit": "fa9d0ab",
       "why": "Studio fills variant options from titles instead of deadlocking; hint/message fixed; iPhone and Sumsan options repaired."
+    },
+    {
+      "label": "U-019 browse facets",
+      "commit": "c3ca7bc",
+      "why": "Data-backed sort (Discount), category/brand/seller/availability facets with counts, price range slider, removable chips."
     }
   ]
 }
