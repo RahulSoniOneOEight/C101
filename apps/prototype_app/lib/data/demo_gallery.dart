@@ -29,6 +29,12 @@ const Map<String, List<String>> demoGallery = <String, List<String>>{
     'https://images.pexels.com/photos/25849099/pexels-photo-25849099.png',
     'https://images.pexels.com/photos/15876529/pexels-photo-15876529.jpeg',
   ],
+  // iPhone14 — generic smartphone photos (verified 200 on 2026-11-01).
+  'prod_01M5WHD7PM31ZN6GNAEKQTRZ76': <String>[
+    'https://images.pexels.com/photos/1092644/pexels-photo-1092644.jpeg',
+    'https://images.pexels.com/photos/404280/pexels-photo-404280.jpeg',
+    'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg',
+  ],
   // Action Tesa HDHMR Board — board/timber references.
   'prod_01M59JS4A6QTH32AXVW9P2D3A3': <String>[
     'https://images.pexels.com/photos/7479035/pexels-photo-7479035.jpeg',

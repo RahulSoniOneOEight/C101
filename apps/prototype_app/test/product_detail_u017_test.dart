@@ -53,6 +53,16 @@ void main() {
     expect(images.single.representative, isFalse);
   });
 
+  test('iPhone14 is allowlisted with four slides', () {
+    final images = pdpImages(
+      productId: 'prod_01M5WHD7PM31ZN6GNAEKQTRZ76',
+      thumbnail: 'https://x.test/iphone14.png',
+    );
+    expect(images, hasLength(4));
+    expect(images.first.representative, isFalse);
+    expect(images.skip(1).every((image) => image.representative), isTrue);
+  });
+
   test('a product without a thumbnail only shows its demo slides', () {
     final images = pdpImages(productId: _iphoneId, thumbnail: null);
     expect(images, hasLength(3));
