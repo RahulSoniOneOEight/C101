@@ -876,7 +876,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                         ? Icons.check_circle_outline
                         : Icons.add_shopping_cart,
                     size: 18),
-                label: Text(_justAdded ? 'Added to cart' : 'Add to Cart'),
+                label: Text(_justAdded ? 'Added' : 'Add to Cart'),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   side: BorderSide(color: colors.borderDefault),
