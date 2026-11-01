@@ -12,7 +12,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`df32714`** | `main.dart.js` 3,984,874 bytes · SHA-256 `288edc1be57f77ae771f4bd8de4dd04978e0c9ba8c1a5be6b06de314fabe16cc` · banner `STAGING · df32714` | U-019 browse facets on top of U-011/U-017/PDP fixes |
+| Web (Firebase hosting) | **`ec92f03`** | `main.dart.js` 3,985,130 bytes · SHA-256 `48296a6a2e190eae58701bfd55a76d455bb4c3816942ee3ab86785d387ba9e0f` · banner `STAGING · ec92f03` | U-019 facets + PDP product type + U-011/U-017 fixes |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
@@ -27,6 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
 | 2026-11-01 | **U-019 — Browse facets** | `734ac6f`; merged as `c3ca7bc`; released as `df32714` | **YES** | Data-backed sort (Discount), category/brand/seller/availability counts, price range slider, removable chips, Show N |
 | 2026-11-01 | **PDP add-to-cart fix + benchmark batch** | `59e8796`, `ebf5b92` | **YES** | Add gives visible feedback (toast 1.8 s, “Added” state, cart badge), qty stepper, breadcrumb, share |
 | 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
