@@ -42,3 +42,9 @@ Screenshots: `evidence/qc/screenshots/u019_browse.png`, `u019_filters.png`.
 ## Rollback
 
 Redeploy `71421f2` or `firebase hosting:rollback --project buildkart-staging`. No data change.
+
+## APK
+
+`app-release-df32714.apk` · 63,368,411 bytes · SHA-256
+`72747df57e5f8bff8f16633fdc55660a113b69b329e038412465a6d8b6dafbb2` · `CN=BuildKart Staging`,
+at `D:\C101-control-room\artifacts\U-007-U-009\`. Build id `df32714` verified inside the package.

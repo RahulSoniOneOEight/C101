@@ -18,7 +18,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
 | Postgres | `postgres:16.15-alpine` | unchanged | staging data only |
 | Release dir on host | `current → release-u014-9a3592aea` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
-| Android (pilot artifact) | **`app-release-71421f2.apk`** | 62,975,115 bytes · SHA-256 `d3b419538e328436b448cf863536039813a012f58a5ef997096148f0ef70b0c9` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-71421f2.apk` (matches web `71421f2`) |
+| Android (pilot artifact) | **`app-release-df32714.apk`** | 63,368,411 bytes · SHA-256 `72747df57e5f8bff8f16633fdc55660a113b69b329e038412465a6d8b6dafbb2` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-df32714.apk` (matches web `df32714`) |
 | Production | untouched | — | no production release in this line |
 
 ## 2. Update log
@@ -71,7 +71,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 
 | Item | Status | Blocked on |
 |---|---|---|
-| APK distribution to testers | artifact ready (`app-release-71421f2.apk`) | Firebase App Distribution has no tester group configured |
+| APK distribution to testers | artifact ready (`app-release-df32714.apk`) | Firebase App Distribution has no tester group configured |
 | Four extra Smoke products (707433, 208869, 685854, 712935) | still published | outside the U-015 allowlist — needs a follow-up allowlist |
 | U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |
