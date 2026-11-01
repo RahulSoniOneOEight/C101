@@ -27,7 +27,8 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
-| 2026-11-01 | **B2B image cleanup** | data-only (`u024_backup_*_20261101`) | **YES** | 8 test/QC products archived; B2B catalogue 14 → 6 with 0 missing thumbnails; Sumsan thumbnail URL fixed |`n| 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
+| 2026-11-01 | **B2B image cleanup** | data-only (`u024_backup_*_20261101`) | **YES** | 8 test/QC products archived; B2B catalogue 14 → 6 with 0 missing thumbnails; Sumsan thumbnail URL fixed |
+| 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
 | 2026-11-01 | **U-019 — Browse facets** | `734ac6f`; merged as `c3ca7bc`; released as `df32714` | **YES** | Data-backed sort (Discount), category/brand/seller/availability counts, price range slider, removable chips, Show N |
 | 2026-11-01 | **PDP add-to-cart fix + benchmark batch** | `59e8796`, `ebf5b92` | **YES** | Add gives visible feedback (toast 1.8 s, “Added” state, cart badge), qty stepper, breadcrumb, share |
 | 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
