@@ -17,6 +17,7 @@ Product _product({
   required double rating,
   List<String> badges = const <String>[],
   bool inStock = true,
+  String? seller,
 }) =>
     Product(
       id: id,
@@ -25,7 +26,12 @@ Product _product({
       rating: rating,
       badges: badges,
       variants: <ProductVariant>[
-        ProductVariant(id: '${id}_v', label: 'Default', inStock: inStock),
+        ProductVariant(
+          id: '${id}_v',
+          label: 'Default',
+          inStock: inStock,
+          sellerName: seller,
+        ),
       ],
     );
 
@@ -36,6 +42,7 @@ final _products = <Product>[
     price: 10000,
     rating: 4.6,
     badges: <String>['Limited Deal'],
+    seller: 'BuildMaster Supplies',
   ),
   _product(
     id: 'p_beta',
@@ -75,11 +82,30 @@ Future<void> _pumpBrowse(WidgetTester tester) async {
 }
 
 bool _selected(WidgetTester tester, String label) {
-  final node = tester.getSemantics(find.text(label));
+  final node = tester.getSemantics(find.text(label).first);
   return node.flagsCollection.isSelected == Tristate.isTrue;
 }
 
 void main() {
+  testWidgets('filter sheet exposes category, seller and availability facets',
+      (tester) async {
+    await _pumpBrowse(tester);
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Category'), findsOneWidget);
+    expect(find.textContaining('All categories'), findsOneWidget);
+    expect(find.text('Price'), findsOneWidget);
+    expect(find.text('Availability'), findsOneWidget);
+    expect(find.textContaining('In stock ('), findsOneWidget);
+    expect(find.textContaining('On discount ('), findsOneWidget);
+    expect(find.text('Seller'), findsOneWidget);
+    expect(find.textContaining('BuildMaster Supplies ('), findsOneWidget);
+
+    await tester.tap(find.textContaining('In stock ('));
+    await tester.pumpAndSettle();
+    expect(find.text('Show 2 results'), findsOneWidget);
+  });
   testWidgets('sort chips are always visible with Relevance selected',
       (tester) async {
     final semantics = tester.ensureSemantics();
@@ -88,7 +114,8 @@ void main() {
     expect(find.text('Relevance'), findsOneWidget);
     expect(find.text('Price ↑'), findsOneWidget);
     expect(find.text('Price ↓'), findsOneWidget);
-    expect(find.text('Rating'), findsOneWidget);
+    expect(find.text('Discount'), findsOneWidget);
+    expect(find.text('Rating'), findsNothing);
     expect(_selected(tester, 'Relevance'), isTrue);
     expect(_selected(tester, 'Price ↑'), isFalse);
 
@@ -156,7 +183,7 @@ void main() {
     expect(find.text('Reset'), findsOneWidget);
     expect(find.text('Show 3 results'), findsOneWidget);
 
-    await tester.tap(find.text('4★ & up'));
+    await tester.tap(find.textContaining('In stock ('));
     await tester.pumpAndSettle();
     expect(find.text('Show 2 results'), findsOneWidget);
 

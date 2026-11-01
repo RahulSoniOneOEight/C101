@@ -72,14 +72,18 @@ class D2CShell extends ConsumerWidget {
 }
 
 /// Sort options for the marketplace browse grid.
-enum BrowseSort { relevance, priceLowHigh, priceHighLow, rating }
+///
+/// Only facets backed by real data are offered: Popularity has no order data and
+/// Rating has no reviews, so neither is shown (U-019). Newest needs `created_at`
+/// on the composed product — added when the API exposes it.
+enum BrowseSort { relevance, priceLowHigh, priceHighLow, discount }
 
 extension on BrowseSort {
   String get label => switch (this) {
         BrowseSort.relevance => 'Relevance',
         BrowseSort.priceLowHigh => 'Price ↑',
         BrowseSort.priceHighLow => 'Price ↓',
-        BrowseSort.rating => 'Rating',
+        BrowseSort.discount => 'Discount',
       };
 }
 
@@ -140,11 +144,6 @@ class BrowseScreen extends ConsumerStatefulWidget {
 
 class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const int _pageSize = 6;
-  static const List<String> _priceRanges = <String>[
-    'Under ₹500',
-    '₹500 – ₹5,000',
-    '₹5,000+',
-  ];
   static const List<String> _keyItems = <String>[
     'On discount',
     'Bestseller',
@@ -170,15 +169,20 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   String? _category;
   BrowseSort _sort = BrowseSort.relevance;
   final Set<String> _brands = <String>{};
-  final Set<String> _prices = <String>{};
+  RangeValues? _priceRange;
   final Set<String> _keys = <String>{};
+  final Set<String> _sellers = <String>{};
+  final Set<String> _availability = <String>{};
   double? _minRating;
   int _visible = _pageSize;
 
   int get _activeFilterCount =>
       _brands.length +
-      _prices.length +
+      (_priceRange == null ? 0 : 1) +
       _keys.length +
+      _sellers.length +
+      _availability.length +
+      (_category == null ? 0 : 1) +
       (_minRating == null ? 0 : 1);
 
   @override
@@ -221,8 +225,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   List<Product> _applyFilters(
     List<Product> products, {
     required Set<String> brands,
-    required Set<String> prices,
+    RangeValues? priceRange,
     required Set<String> keys,
+    Set<String> sellers = const <String>{},
+    Set<String> availability = const <String>{},
     required double? minRating,
   }) {
     var list = filterProductsByHomeCategory(products, _category);
@@ -238,18 +244,26 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           .where((p) => normalised.contains((p.brand ?? '').toLowerCase()))
           .toList();
     }
-    if (prices.isNotEmpty) {
+    if (priceRange != null) {
       list = list.where((p) {
         final amount = (p.price?.amount ?? 0) / 100;
-        return prices.any((r) {
-          if (r == 'Under ?500') return amount < 500;
-          if (r == '?500 ? ?5,000') return amount >= 500 && amount <= 5000;
-          return amount > 5000;
-        });
+        return amount >= priceRange.start && amount <= priceRange.end;
       }).toList();
     }
     if (keys.isNotEmpty) {
       list = list.where((p) => keys.every((k) => _matchesKey(p, k))).toList();
+    }
+    if (sellers.isNotEmpty) {
+      list = list.where((p) {
+        final names = p.variants
+            .map((variant) => variant.sellerName ?? '')
+            .where((name) => name.isNotEmpty)
+            .toSet();
+        return names.any(sellers.contains);
+      }).toList();
+    }
+    for (final key in availability) {
+      list = list.where((p) => _matchesKey(p, key)).toList();
     }
     if (minRating != null) {
       list = list.where((p) => (p.rating ?? 0) >= minRating).toList();
@@ -261,8 +275,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final list = _applyFilters(
       products,
       brands: _brands,
-      prices: _prices,
+      priceRange: _priceRange,
       keys: _keys,
+      sellers: _sellers,
+      availability: _availability,
       minRating: _minRating,
     );
     switch (_sort) {
@@ -274,9 +290,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         return List<Product>.of(list)
           ..sort(
               (a, b) => (b.price?.amount ?? 0).compareTo(a.price?.amount ?? 0));
-      case BrowseSort.rating:
+      case BrowseSort.discount:
+        // Real list price only: products without a sourced MRP never rank here.
         return List<Product>.of(list)
-          ..sort((a, b) => (b.rating ?? 0).compareTo(a.rating ?? 0));
+          ..sort((a, b) =>
+              (b.discountPercent ?? 0).compareTo(a.discountPercent ?? 0));
       case BrowseSort.relevance:
         return list;
     }
@@ -285,11 +303,87 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   void _clearFilters() {
     setState(() {
       _brands.clear();
-      _prices.clear();
+      _priceRange = null;
       _keys.clear();
+      _sellers.clear();
+      _availability.clear();
+      _category = null;
       _minRating = null;
       _resetPaging();
     });
+  }
+
+  /// Removable chips for every active facet (U-019).
+  Widget _activeFiltersBar(AgencyColors colors) {
+    final chips = <Widget>[
+      if (_category != null)
+        _activeChip(colors, _category!, () => setState(() {
+              _category = null;
+              _resetPaging();
+            })),
+      for (final value in _brands)
+        _activeChip(colors, value, () => setState(() {
+              _brands.remove(value);
+              _resetPaging();
+            })),
+      if (_priceRange != null)
+        _activeChip(colors, _priceLabel(_priceRange!), () => setState(() {
+              _priceRange = null;
+              _resetPaging();
+            })),
+      for (final value in _sellers)
+        _activeChip(colors, value, () => setState(() {
+              _sellers.remove(value);
+              _resetPaging();
+            })),
+      for (final value in _availability)
+        _activeChip(colors, value, () => setState(() {
+              _availability.remove(value);
+              _resetPaging();
+            })),
+      for (final value in _keys)
+        _activeChip(colors, value, () => setState(() {
+              _keys.remove(value);
+              _resetPaging();
+            })),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AgencySpacing.md, AgencySpacing.xs, AgencySpacing.md, 0),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: chips),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Clear filters',
+            onPressed: _clearFilters,
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.backspace_outlined,
+                size: 16, color: colors.contentSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _activeChip(AgencyColors colors, String label, VoidCallback onRemove) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InputChip(
+        label: Text(label, style: const TextStyle(fontSize: 11)),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+        onDeleted: onRemove,
+        deleteIcon: const Icon(Icons.close, size: 14),
+        deleteIconColor: colors.contentSecondary,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+      ),
+    );
   }
 
   bool _matchesKey(Product p, String key) => switch (key) {
@@ -393,6 +487,8 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                     onClearFilters: _clearFilters,
                   ),
                 ),
+                if (_activeFilterCount > 0)
+                  SliverToBoxAdapter(child: _activeFiltersBar(colors)),
                 if (results.isEmpty)
                   SliverToBoxAdapter(child: _noResults(products))
                 else
@@ -643,11 +739,45 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final products = ref.read(productsProvider).value ?? const <Product>[];
     final brands = brandsOf(products);
     final brandsSel = <String>{..._brands};
-    final pricesSel = <String>{..._prices};
+    RangeValues? rangeSel = _priceRange;
     final keysSel = <String>{..._keys};
+    final sellersSel = <String>{..._sellers};
+    final availabilitySel = <String>{..._availability};
     final ratingSel = <String>{if (_minRating != null) '4★ & up'};
 
     double? ratingValue() => ratingSel.isEmpty ? null : 4.0;
+
+    // Facet counts are computed over the current category + search scope so the
+    // numbers never promise results the sheet cannot show (U-019).
+    final base = _applyFilters(
+      products,
+      brands: const <String>{},
+      priceRange: null,
+      keys: const <String>{},
+      minRating: null,
+    );
+    final railCategories = ref.read(categoriesProvider);
+    final categoryCounts = <String, int>{
+      for (final category in railCategories)
+        category.label:
+            filterProductsByHomeCategory(base, category.label).length,
+      'Uncategorised':
+          base.where((p) => (p.categoryLabel ?? '').trim().isEmpty).length,
+    }..removeWhere((_, count) => count == 0);
+    final sellerCounts = <String, int>{};
+    for (final p in base) {
+      final names = p.variants
+          .map((variant) => variant.sellerName ?? '')
+          .where((name) => name.isNotEmpty)
+          .toSet();
+      for (final name in names) {
+        sellerCounts[name] = (sellerCounts[name] ?? 0) + 1;
+      }
+    }
+    final availabilityCounts = <String, int>{
+      'In stock': base.where((p) => _matchesKey(p, 'In stock')).length,
+      'On discount': base.where((p) => p.discountPercent != null).length,
+    };
 
     await showModalBottomSheet<void>(
       context: context,
@@ -661,8 +791,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             final previewCount = _applyFilters(
               products,
               brands: brandsSel,
-              prices: pricesSel,
+              priceRange: rangeSel,
               keys: keysSel,
+              sellers: sellersSel,
+              availability: availabilitySel,
               minRating: ratingValue(),
             ).length;
             return SafeArea(
@@ -705,31 +837,54 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              _filterGroup(
+                              _categoryGroup(
+                                sheetContext,
+                                categoryCounts,
+                                setSheet,
+                              ),
+                              _priceGroup(
+                                sheetContext,
+                                _priceBounds(base),
+                                rangeSel,
+                                (value) => setSheet(() => rangeSel = value),
+                              ),
+                              _countedGroup(
                                 sheetContext,
                                 'Brand',
-                                brands,
+                                <String, int>{
+                                  for (final brand in brands)
+                                    brand: base
+                                        .where((p) =>
+                                            (p.brand ?? '').toLowerCase() ==
+                                            brand.toLowerCase())
+                                        .length,
+                                }..removeWhere((_, count) => count == 0),
                                 brandsSel,
                                 setSheet,
                               ),
-                              _filterGroup(
+                              if (sellerCounts.isNotEmpty)
+                                _countedGroup(
+                                  sheetContext,
+                                  'Seller',
+                                  sellerCounts,
+                                  sellersSel,
+                                  setSheet,
+                                ),
+                              _countedGroup(
                                 sheetContext,
-                                'Price',
-                                _priceRanges,
-                                pricesSel,
-                                setSheet,
-                              ),
-                              _filterGroup(
-                                sheetContext,
-                                'Rating',
-                                const <String>['4★ & up'],
-                                ratingSel,
+                                'Availability',
+                                availabilityCounts,
+                                availabilitySel,
                                 setSheet,
                               ),
                               _filterGroup(
                                 sheetContext,
                                 'Key items',
-                                _keyItems,
+                                _keyItems
+                                    .where((key) =>
+                                        key != 'In stock' &&
+                                        key != 'On discount')
+                                    .toList(),
                                 keysSel,
                                 setSheet,
                               ),
@@ -745,9 +900,15 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                             TextButton(
                               onPressed: () => setSheet(() {
                                 brandsSel.clear();
-                                pricesSel.clear();
+                                rangeSel = null;
                                 keysSel.clear();
+                                sellersSel.clear();
+                                availabilitySel.clear();
                                 ratingSel.clear();
+                                setState(() {
+                                  _category = null;
+                                  _resetPaging();
+                                });
                               }),
                               style: TextButton.styleFrom(
                                 minimumSize: const Size(44, 48),
@@ -763,12 +924,16 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                     _brands
                                       ..clear()
                                       ..addAll(brandsSel);
-                                    _prices
-                                      ..clear()
-                                      ..addAll(pricesSel);
+                                    _priceRange = rangeSel;
                                     _keys
                                       ..clear()
                                       ..addAll(keysSel);
+                                    _sellers
+                                      ..clear()
+                                      ..addAll(sellersSel);
+                                    _availability
+                                      ..clear()
+                                      ..addAll(availabilitySel);
                                     _minRating = ratingValue();
                                     _resetPaging();
                                   });
@@ -795,6 +960,197 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           },
         );
       },
+    );
+  }
+
+  /// Category facet with live counts; applying is immediate (the rail and the
+  /// list stay in sync) and Reset clears it.
+  Widget _categoryGroup(
+    BuildContext context,
+    Map<String, int> counts,
+    void Function(void Function()) setSheet,
+  ) {
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return _groupShell(
+      context,
+      'Category',
+      <Widget>[
+        StorefrontControlChip(
+          label: 'All categories',
+          selected: _category == null,
+          fill: StorefrontControlTokens.filterFill(context),
+          ink: StorefrontControlTokens.filterInk(context),
+          onTap: () => setSheet(() => setState(() {
+                _category = null;
+                _resetPaging();
+              })),
+        ),
+        for (final entry in entries)
+          StorefrontControlChip(
+            label: '${entry.key} (${entry.value})',
+            selected: _category == entry.key,
+            fill: StorefrontControlTokens.filterFill(context),
+            ink: StorefrontControlTokens.filterInk(context),
+            onTap: () => setSheet(() => setState(() {
+                  _category = entry.key;
+                  _resetPaging();
+                })),
+          ),
+      ],
+    );
+  }
+
+  /// Multi-select facet rendered from a value → count map.
+  Widget _countedGroup(
+    BuildContext context,
+    String title,
+    Map<String, int> counts,
+    Set<String> selected,
+    void Function(void Function()) setSheet,
+  ) {
+    final entries = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return _groupShell(
+      context,
+      title,
+      <Widget>[
+        for (final entry in entries)
+          StorefrontControlChip(
+            label: '${entry.key} (${entry.value})',
+            selected: selected.contains(entry.key),
+            fill: StorefrontControlTokens.filterFill(context),
+            ink: StorefrontControlTokens.filterInk(context),
+            onTap: () => setSheet(() {
+              if (!selected.remove(entry.key)) selected.add(entry.key);
+            }),
+          ),
+      ],
+    );
+  }
+
+  RangeValues _priceBounds(List<Product> products) {
+    var min = double.infinity;
+    var max = 0.0;
+    for (final p in products) {
+      final value = (p.price?.amount ?? 0) / 100;
+      if (value <= 0) continue;
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    if (!min.isFinite || max <= 0) return const RangeValues(0, 100000);
+    if (max <= min) max = min + 100;
+    return RangeValues(min.floorToDouble(), max.ceilToDouble());
+  }
+
+  String _priceLabel(RangeValues range) =>
+      '₹${range.start.round()} – ₹${range.end.round()}';
+
+  Widget _priceGroup(
+    BuildContext context,
+    RangeValues bounds,
+    RangeValues? selected,
+    ValueChanged<RangeValues?> onChanged,
+  ) {
+    final colors = _colors(context);
+    final current = selected == null
+        ? bounds
+        : RangeValues(
+            selected.start.clamp(bounds.start, bounds.end),
+            selected.end.clamp(bounds.start, bounds.end),
+          );
+    final span = bounds.end - bounds.start;
+    final divisions = span <= 0 ? null : (span / 100).clamp(1, 200).round();
+    RangeValues preset(double start, double end) => RangeValues(
+          start.clamp(bounds.start, bounds.end),
+          end.clamp(bounds.start, bounds.end),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Price',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          RangeSlider(
+            values: current,
+            min: bounds.start,
+            max: bounds.end,
+            divisions: divisions,
+            labels: RangeLabels(
+              '₹${current.start.round()}',
+              '₹${current.end.round()}',
+            ),
+            onChanged: (value) => onChanged(value),
+          ),
+          Row(
+            children: <Widget>[
+              Text(_priceLabel(current),
+                  style: TextStyle(
+                      fontSize: 11, color: colors.contentSecondary)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => onChanged(null),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+                child: const Text('Any price'),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.xs,
+            children: <Widget>[
+              for (final presetRange in <(String, RangeValues)>[
+                ('< ₹500', preset(bounds.start, 500)),
+                ('₹500 – ₹5,000', preset(500, 5000)),
+                ('₹5,000+', preset(5000, bounds.end)),
+              ])
+                StorefrontControlChip(
+                  label: presetRange.$1,
+                  selected: selected != null &&
+                      selected.start == presetRange.$2.start &&
+                      selected.end == presetRange.$2.end,
+                  fill: StorefrontControlTokens.filterFill(context),
+                  ink: StorefrontControlTokens.filterInk(context),
+                  onTap: () => onChanged(presetRange.$2),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _groupShell(
+    BuildContext context,
+    String title,
+    List<Widget> chips,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(title,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _colors(context).contentPrimary)),
+          const SizedBox(height: AgencySpacing.xs),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.xs,
+            children: chips,
+          ),
+        ],
+      ),
     );
   }
 
