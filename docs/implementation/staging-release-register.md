@@ -60,6 +60,9 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | Sumsan storefront | 3 variants, ₹1,48,000 / ₹1,50,000 / ₹1,55,000 — unchanged |
 | IPHONE prices | ₹1,85,000 / ₹1,95,000 — unchanged |
 | Product images | `static` 200 after the proxy reload |
+| B2C QC order | **BK-261101-P7Q3WJ** — ₹432 + ₹99 − ₹21.60 = ₹509.40 | PASS |
+| B2B QC order | **og_01M6ASXQ0D0J4AZFR8H4CA36QQ** — ₹350 − ₹17.50 + ₹99 = ₹431.50, GST invoice | PASS |
+| Release note / QC report | `evidence/release-notes/2026-11-01-u013-u017.md`, `evidence/qc/2026-11-01-order-flows.md` | stored |
 | Production | untouched |
 
 ## 4. Not live / open
