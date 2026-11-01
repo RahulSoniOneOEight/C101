@@ -617,6 +617,29 @@ const inrMinor = (minor: number) => inr(minor / 100);
 
 const rupees = (amount: number) => String(amount);
 
+/**
+ * U-013: a selling price below 10% of the list price is almost always a
+ * major/minor unit slip (₹1,850 entered for ₹1,85,000). Returns a confirmation
+ * message, or null when the numbers look sane.
+ */
+export function priceUnitWarning(
+  baseMinor: number,
+  listMinor: number,
+): string | null {
+  if (!Number.isFinite(baseMinor) || !Number.isFinite(listMinor)) return null;
+  if (baseMinor <= 0 || listMinor <= 0) return null;
+  if (baseMinor >= listMinor / 10) return null;
+  const major = (minor: number) =>
+    new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(
+      minor / 100,
+    );
+  return (
+    `Selling price ₹${major(baseMinor)} is under 10% of the list price ` +
+    `₹${major(listMinor)}. This usually means the amount was entered in the ` +
+    `wrong unit (paise instead of rupees). Save anyway?`
+  );
+}
+
 const rupeesFromMinor = (minor: number) => String(minor / 100);
 
 /** Positive B2C base price on the offer, in major units, or null when unpriced. */
@@ -863,12 +886,15 @@ function OfferPricingEditor({
     }
     setErrors([...new Set(nextErrors)]);
     if (nextErrors.length > 0) return false;
+    // U-013: never let a 100× unit slip save silently.
+    const unitWarning = priceUnitWarning(baseMinor, listMinor);
+    if (unitWarning && !window.confirm(unitWarning)) return false;
     setSaving(true);
     try {
       const payload = [
         ...otherPrices.map((price) => ({
           id: price.id,
-          amount: price.amount,
+          amount: Math.round(Number(price.amount) * 100),
           currency_code: price.currency_code,
           min_quantity: price.min_quantity ?? null,
           max_quantity: price.max_quantity ?? null,
@@ -878,14 +904,14 @@ function OfferPricingEditor({
         })),
         {
           ...(baseId ? { id: baseId } : {}),
-          amount: Number(base),
+          amount: baseMinor,
           currency_code: "inr",
           min_quantity: null,
           max_quantity: null,
         },
         ...tiers.map((tier) => ({
           ...(tier.id ? { id: tier.id } : {}),
-          amount: Number(tier.amount),
+          amount: Math.round(Number(tier.amount) * 100),
           currency_code: "inr",
           min_quantity: Number(tier.min),
           max_quantity: tier.max.trim() ? Number(tier.max) : null,
@@ -921,7 +947,12 @@ function OfferPricingEditor({
         sku: result.pricing.sku,
         list_price_minor: listMinor,
         gst_inclusive: gstInclusive,
-        prices: result.pricing.prices,
+        // The pricing endpoint answers in minor units; the editor works in major
+        // units, so convert once here instead of letting the next save ÷100 (U-013).
+        prices: (result.pricing.prices ?? []).map((price) => ({
+          ...price,
+          amount: Number(price.amount) / 100,
+        })),
       };
       onSaved(updated);
       setErrors([]);
@@ -2234,7 +2265,9 @@ export function ProductStudioForm({
           body: JSON.stringify({
             prices: offer.prices.map((price) => ({
               id: price.id,
-              amount: price.amount,
+              // U-013: the pricing endpoint speaks minor units; the offer rows
+              // hold major units.
+              amount: Math.round(Number(price.amount) * 100),
               currency_code: price.currency_code,
               min_quantity: price.min_quantity ?? null,
               max_quantity: price.max_quantity ?? null,
@@ -2256,7 +2289,10 @@ export function ProductStudioForm({
                   sku: result.pricing.sku,
                   list_price_minor: listMinor,
                   gst_inclusive: bulkGstInclusive,
-                  prices: result.pricing.prices,
+                  prices: (result.pricing.prices ?? []).map((price) => ({
+                    ...price,
+                    amount: Number(price.amount) / 100,
+                  })),
                 }
               : row,
           ),
