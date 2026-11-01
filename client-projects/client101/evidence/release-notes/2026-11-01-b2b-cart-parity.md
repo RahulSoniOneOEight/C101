@@ -47,3 +47,9 @@ Screenshots: `evidence/qc/screenshots/b2b_cart_parity.png`, `b2b_checkout_parity
 ## 5. Rollback
 
 Redeploy `ec92f03`. No data change.
+
+## APK
+
+`app-release-3138a00.apk` · 63,368,411 bytes · SHA-256
+`5601908556b4fb07c9f4e1766433a565fe3a317766e816797c60135e1741e1ba` · `CN=BuildKart Staging`,
+at `D:\C101-control-room\artifacts\U-007-U-009\`. Build id `3138a00` verified inside the package.
