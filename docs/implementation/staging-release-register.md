@@ -12,13 +12,13 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`ebf5b92`** | `main.dart.js` 3,942,376 bytes · SHA-256 `95e9ef9582692a9332ccfa6243a929d5e173f86f1559e4a14e1c5b634dca7211` · banner `STAGING · ebf5b92` | U-011 + U-017 + PDP add-to-cart fix + chat parity; local and live byte-identical |
+| Web (Firebase hosting) | **`3daaaff`** | `main.dart.js` 3,942,634 bytes · SHA-256 `9426546dc53fa79829e12f3b9892c8ab918ca87e50f0066eaa7a62199aa07c9a` · banner `STAGING · 3daaaff` | U-011 + U-017 + PDP fix + iPhone14 gallery + chat parity; local and live byte-identical |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
 | Postgres | `postgres:16.15-alpine` | unchanged | staging data only |
 | Release dir on host | `current → release-u014-9a3592aea` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
-| Android (pilot artifact) | **`app-release-78fbb23.apk`** | 62,958,655 bytes · SHA-256 `b33da719d9ea306e9ee6b8283cb9d7ead7d710cb1ccd28eddef2e652e5fbce12` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-78fbb23.apk` (app code = `3e28237`; build id `78fbb23` differs only by docs commits) |
+| Android (pilot artifact) | **`app-release-3daaaff.apk`** | 62,975,115 bytes · SHA-256 `a31778665ca5460c08087256cfb3a27a862fe7ebece85ce1778d8cd6fa332f0c` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-3daaaff.apk` (matches web `3daaaff`) |
 | Production | untouched | — | no production release in this line |
 
 ## 2. Update log
@@ -70,7 +70,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 
 | Item | Status | Blocked on |
 |---|---|---|
-| APK distribution to testers | artifact ready (`app-release-78fbb23.apk`) | Firebase App Distribution has no tester group configured |
+| APK distribution to testers | artifact ready (`app-release-3daaaff.apk`) | Firebase App Distribution has no tester group configured |
 | Four extra Smoke products (707433, 208869, 685854, 712935) | still published | outside the U-015 allowlist — needs a follow-up allowlist |
 | U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |

@@ -63,3 +63,18 @@ Screenshots: `client-projects/client101/evidence/qc/screenshots/pdp_added.png`,
 
 Redeploy `3e28237` (previous bundle) or `firebase hosting:rollback --project buildkart-staging`.
 No data change in this batch.
+
+---
+
+## 6. Follow-up — iPhone14 gallery and rebuilt APK (`3daaaff`)
+
+- **iPhone14** (`prod_01M5WHD7PM31ZN6GNAEKQTRZ76`) joined the demo gallery: 4 slides, first = its own
+  catalogue thumbnail, slides 2–4 = Pexels smartphone references labelled “Representative image”.
+  Verified URLs (200): 1092644, 404280, 699122.
+- **Live web:** `3daaaff` · 3,942,634 bytes · SHA-256 `9426546dc53fa79829e12f3b9892c8ab918ca87e50f0066eaa7a62199aa07c9a`.
+- **APK rebuilt:** `app-release-3daaaff.apk` · 62,975,115 bytes · SHA-256
+  `a31778665ca5460c08087256cfb3a27a862fe7ebece85ce1778d8cd6fa332f0c` · `CN=BuildKart Staging`.
+- 313/313 app tests; `iPhone14 is allowlisted with four slides` added.
+- Note: iPhone14's catalogue thumbnail is a placeholder gradient, so slide 1 shows that placeholder.
+
+Screenshots: `evidence/qc/screenshots/iphone14_slide1.png`, `iphone14_slide3.png`.
