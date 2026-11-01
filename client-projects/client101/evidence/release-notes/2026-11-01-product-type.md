@@ -41,3 +41,9 @@ update product p
   from u022_product_type_backup_20261101 b
  where p.id = b.id;
 ```
+
+## APK
+
+`app-release-ec92f03.apk` · 63,368,411 bytes · SHA-256
+`807f140e0809c39b424ff20c1ddd7d3c962ce05ff9c9740ef583bcc56774bf63` · `CN=BuildKart Staging`,
+at `D:\C101-control-room\artifacts\U-007-U-009\`. Build id `ec92f03` verified inside the package.
