@@ -43,3 +43,41 @@ without a go-ahead.
 Some imported B2C products use `encrypted-tbn*.gstatic.com` (Google Shopping) URLs; those are
 hotlink-protected and fail in the browser. Hosting those images on `ops-staging.pinakaplay.cloud`
 (or replacing them with real photos) fixes that class too.
+
+---
+
+## Resolution (2026-11-01)
+
+The eight test/QC records were archived after an explicit go-ahead:
+
+| Product | Status before → after |
+|---|---|
+| CHG-086 Journey 596300 | published → **draft** |
+| QC Import 113509 / 115833 / 125355 | published → **draft** |
+| Smoke 707433 / 208869 / 685854 / 712935 | published → **draft** |
+
+- Order/cart references: **0 / 0** before the change.
+- Backups: `u024_backup_product_20261101`, `u024_backup_variant_20261101`,
+  `u024_backup_offer_20261101`, `u024_backup_channel_20261101` (8 / 8 / 8 / 10 rows).
+- Channel links removed for the eight; published count **260 → 252**.
+
+### Result
+
+- B2B catalogue: **14 → 6 products**, and **0 of 6 missing a thumbnail**.
+- Sumsan Fold 7 thumbnail fixed from a Pexels page URL to the direct image URL (backup
+  `u023_product_thumb_backup_20261101`).
+- B2B catalogue screenshot: `evidence/qc/screenshots/b2b_catalogue_after.png`.
+
+## Full-flow QC after the change
+
+| Check | Result |
+|---|---|
+| B2C browse: Discount sort, no Rating sort, no Smoke products | PASS |
+| B2C PDP: ₹432, type “Adhesive Tape”, Discuss | PASS |
+| B2C cart: ₹99 delivery, Continue checkout | PASS |
+| B2C checkout: total + Place order | PASS |
+| **B2C order** | **BK-261101-GE0K30** |
+| B2B catalogue: 6 results, no Smoke/QC records, all images | PASS |
+| B2B cart + checkout: ₹350, Place Business Order | PASS |
+| **B2B order** | **og_01M6BPD2Z90N88SKNRNEE8TVJE** · total **₹431.50** |
+| Console/page errors | 0 |

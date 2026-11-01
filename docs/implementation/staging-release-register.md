@@ -27,7 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
-| 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
+| 2026-11-01 | **B2B image cleanup** | data-only (`u024_backup_*_20261101`) | **YES** | 8 test/QC products archived; B2B catalogue 14 → 6 with 0 missing thumbnails; Sumsan thumbnail URL fixed |`n| 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
 | 2026-11-01 | **U-019 — Browse facets** | `734ac6f`; merged as `c3ca7bc`; released as `df32714` | **YES** | Data-backed sort (Discount), category/brand/seller/availability counts, price range slider, removable chips, Show N |
 | 2026-11-01 | **PDP add-to-cart fix + benchmark batch** | `59e8796`, `ebf5b92` | **YES** | Add gives visible feedback (toast 1.8 s, “Added” state, cart badge), qty stepper, breadcrumb, share |
 | 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
@@ -64,6 +64,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | IPHONE prices | ₹1,85,000 / ₹1,95,000 — unchanged |
 | Product images | `static` 200 after the proxy reload |
 | B2C QC order | **BK-261101-P7Q3WJ** — ₹432 + ₹99 − ₹21.60 = ₹509.40 | PASS |
+| Full-flow re-QC | **BK-261101-GE0K30** (B2C) · **og_01M6BPD2Z90N88SKNRNEE8TVJE** (B2B, ₹431.50) | PASS |
 | B2B QC order | **og_01M6ASXQ0D0J4AZFR8H4CA36QQ** — ₹350 − ₹17.50 + ₹99 = ₹431.50, GST invoice | PASS |
 | Release note / QC report | `evidence/release-notes/2026-11-01-u013-u017.md`, `evidence/qc/2026-11-01-order-flows.md` | stored |
 | Production | untouched |
