@@ -46,6 +46,15 @@ void main() {
     expect(images[1].url, contains('pexels.com'));
   });
 
+  test('composed product exposes the studio product type', () {
+    final product = Product.fromComposedJson(<String, dynamic>{
+      'id': 'p_type',
+      'title': '3M Mirror Mount Tape',
+      'metadata': <String, dynamic>{'product_type': 'Adhesive Tape'},
+    });
+    expect(product.productType, 'Adhesive Tape');
+  });
+
   test('products outside the allowlist get no faked slides', () {
     final images =
         pdpImages(productId: _otherId, thumbnail: 'https://x.test/a.png');

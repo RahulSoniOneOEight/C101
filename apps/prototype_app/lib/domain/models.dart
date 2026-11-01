@@ -202,6 +202,7 @@ class Product {
     this.variants = const <ProductVariant>[],
     this.categoryId,
     this.categoryLabel,
+    this.productType,
     this.catalogueImport,
     this.imageQualityScore,
   });
@@ -363,6 +364,7 @@ class Product {
       categoryId: leafCategory?['id'] as String?,
       categoryLabel: metadata?['category_l1'] as String? ??
           leafCategory?['name'] as String?,
+      productType: (metadata?['product_type'] as String?)?.trim(),
       catalogueImport: metadata?['catalogue_import'] as String?,
       imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
     );
@@ -432,6 +434,9 @@ class Product {
 
   /// Human L1 category label supplied by the catalogue import metadata.
   final String? categoryLabel;
+
+  /// Catalogue product type (e.g. "Adhesive Tape", "Cement") from Studio.
+  final String? productType;
 
   /// Staging import marker (`CHG-049` for the 500-SKU source catalogue).
   final String? catalogueImport;
@@ -568,6 +573,7 @@ class Product {
         'delivery_note': deliveryNote,
         'category_id': categoryId,
         'category_label': categoryLabel,
+        'product_type': productType,
         'catalogue_import': catalogueImport,
         'image_quality_score': imageQualityScore,
         'variants': <Map<String, dynamic>>[
@@ -628,6 +634,7 @@ class Product {
         deliveryNote: json['delivery_note'] as String?,
         categoryId: json['category_id'] as String?,
         categoryLabel: json['category_label'] as String?,
+        productType: json['product_type'] as String?,
         catalogueImport: json['catalogue_import'] as String?,
         imageQualityScore: (json['image_quality_score'] as num?)?.toInt(),
         variants: (json['variants'] as List<dynamic>? ?? const <dynamic>[])

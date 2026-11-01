@@ -339,6 +339,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
         Theme.of(context).extension<AgencyColors>() ?? AgencyColors.light;
     final rows = <(String, String)>[
       if (product.brand != null) ('Brand', product.brand!),
+      if (product.productType != null) ('Type', product.productType!),
       if (selectedVariant?.sku != null) ('SKU', selectedVariant!.sku!),
       ('Material', 'Demo value'),
       ('Size', 'Demo value'),
@@ -425,6 +426,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     final rows = <(String, String)>[
       if (product.brand != null) ('Brand', product.brand!),
       if (product.categoryLabel != null) ('Category', product.categoryLabel!),
+      if (product.productType != null) ('Product type', product.productType!),
       if (selectedVariant?.sku != null) ('SKU', selectedVariant!.sku!),
       if (selectedVariant?.sellerName != null)
         ('Seller', selectedVariant!.sellerName!),
