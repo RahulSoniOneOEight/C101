@@ -70,6 +70,11 @@
       "label": "U-019 browse facets",
       "commit": "c3ca7bc",
       "why": "Data-backed sort (Discount), category/brand/seller/availability facets with counts, price range slider, removable chips."
+    },
+    {
+      "label": "B2B delivery fee before placement",
+      "commit": "7595596",
+      "why": "Checkout prepares the canonical B2B cart so the per-seller delivery fee, discount and payable total are shown before placing."
     }
   ]
 }

@@ -72,3 +72,9 @@ archive backup. Recorded in the release register.
 
 Redeploy `3138a00` (`firebase hosting:rollback` or rebuild). No data change in
 this release; the B2B orders placed during QC are ordinary staging orders.
+
+## APK
+
+`app-release-dcfd729.apk` · 63,499,483 bytes · SHA-256
+`64688656de350594d2fbed623317e7c0cc7f5f365c06db93264d2e96d50b7953` · `CN=BuildKart Staging`,
+at `D:\C101-control-room\artifacts\U-007-U-009\`. Build id `dcfd729` verified inside the package.
