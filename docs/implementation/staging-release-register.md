@@ -72,6 +72,10 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | Full-flow re-QC | **BK-261101-GE0K30** (B2C) · **og_01M6BPD2Z90N88SKNRNEE8TVJE** (B2B, ₹431.50) | PASS |
 | B2B delivery fee before placement | checkout shows `₹350 − ₹17.50 + ₹99 = ₹431.50` before placing; qty change drops the stale fee and re-prices to `₹764` | PASS |
 | B2B order QC flow | `tooling/qa/b2b-order-flow.mjs` — **37/37** assertions; order **og_01M6C2YXQVYHKZTCF16GGS7YXG** (₹764, completion `total_minor` 76400); 0 console/HTTP errors | PASS |
+| B2C order flow QC (68f5125) | `tooling/qa/b2c-order-flow.mjs` — **15/15**; order **BK-261101-XYE15Y** ₹479 (₹400 − ₹20 + ₹99), completion `total_minor` 47900 | PASS |
+| B2B order flow QC (68f5125) | `tooling/qa/b2b-order-flow.mjs` — **37/37**; order **og_01M6CBX2G05FPF1WNP042BEYB1** ₹764 | PASS |
+| Admin portal QC | `tooling/qa/portal-qc.mjs` — sign-in, orders (All 79 / B2C 62 / B2B 17, QC orders visible), Product Studio, delivery rates, shipments; 0 errors | PASS |
+| Seller portal QC | store picker → BuildMaster Supplies, orders + order detail, catalogue, delivery rates; 0 errors | PASS |
 | Browse filter sheet (68f5125) | Product type replaces Category; facets fold; type chips wrap; CTA uses the primary colour | PASS |
 | B2B catalogue filters (68f5125) | Product type / Price / Brand / Seller / Availability / Trade; `Cement (1)` → 1 result; banner CTA opens the sheet | PASS |
 | B2B product card (68f5125) | one stepper on every tile; `+` adds the MOQ (5), toast shown, cart line present | PASS |
