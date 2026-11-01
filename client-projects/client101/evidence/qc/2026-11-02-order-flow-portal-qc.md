@@ -78,7 +78,11 @@ Order **`og_01M6CBX2G05FPF1WNP042BEYB1`** · ₹764
    orders; no cleanup was requested.
 4. **Portal credentials** are not stored in this repository; the admin password
    is read from `/etc/buildkart/secrets/admin-console.txt` at run time.
-5. **Localhost, not production**: everything ran against staging; production
+5. **Seeded order #137 shows a payment of ₹157,339.40 against a ₹4,089
+   order** in the seller detail. The QC orders reconcile exactly (payment ₹764
+   and ₹479 vs the same totals), so this is staging seed-data noise, not a
+   live-flow mismatch. Worth cleaning with the seeded order data.
+6. **Staging, not production**: everything ran against staging; production
    remains untouched.
 
 ## 6. Evidence
