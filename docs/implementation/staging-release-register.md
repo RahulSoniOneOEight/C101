@@ -18,7 +18,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
 | Postgres | `postgres:16.15-alpine` | unchanged | staging data only |
 | Release dir on host | `current → release-u014-9a3592aea` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
-| Android (pilot artifact) | **`app-release-dcfd729.apk`** | 63,499,483 bytes · SHA-256 `64688656de350594d2fbed623317e7c0cc7f5f365c06db93264d2e96d50b7953` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-dcfd729.apk` (matches web `dcfd729`) |
+| Android (pilot artifact) | **`app-release-68f5125.apk`** | 63,515,867 bytes · SHA-256 `bd6404bed149feefa56c597b190274bf16a6551635b994f45c47e6cc0b3c4272` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-68f5125.apk` (matches web `68f5125`) |
 | Production | untouched | — | no production release in this line |
 
 ## 2. Update log
@@ -82,7 +82,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 
 | Item | Status | Blocked on |
 |---|---|---|
-| APK distribution to testers | artifact ready (`app-release-dcfd729.apk`) | Firebase App Distribution has no tester group configured |
+| APK distribution to testers | artifact ready (`app-release-68f5125.apk`) | Firebase App Distribution has no tester group configured |
 | Product type coverage | **12 / 244** published products carry `metadata.product_type`, and values are inconsistent (`Phone` / `Mobile` / `MOBILE PHONES`) | Studio backfill needed; the facet only lists real values and does not guess |
 | 6 QC/test products still live in B2C search | **confirmed live** (`QC` search returns them, no images): `QC Auto Publish 2610`, `QC CHG-086 272555`, `QC Import 124539`, `QC Import 124657`, `QC Studio 127088`, `QC CSV 127088` | needs an administrator session + DB backup for the archive; not available in this worker |
 | B2B order history is local-only | `B2BOrdersScreen` (`b2b_shell.dart:673`) reads `b2bOrdersProvider` from the local store; the placed order exists server-side (`og_…`, completion `total_minor`) but a new device/session will not list past business orders | needs a B2B-channel `/v1/me/orders` read and reconciliation |

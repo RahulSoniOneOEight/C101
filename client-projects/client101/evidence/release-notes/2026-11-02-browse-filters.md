@@ -50,7 +50,7 @@ release register.
 | B2C sheet shows Product type, no Category | PASS |
 | B2C type chips wrap (no one-chip-per-row) | PASS — screenshot |
 | B2C folded facets expand in place | PASS — Availability opens with `In stock (244)` / `On discount (243)` |
-| B2C filter apply / reset / live count | PASS — widget tests |
+| B2C filter apply / reset / live count | PASS — widget tests; live: `Pipe (3)` → chip `Pipe ×`, 3 results |
 | B2B sheet shows Product type / Price / Brand / Seller / Availability / Trade | PASS |
 | B2B type chip filters the grid live | PASS — `Cement (1)` → `Show 1 results` |
 | B2B banner Filters CTA opens the sheet | PASS |
@@ -59,10 +59,16 @@ release register.
 | Console / page errors | 0 (B2C and B2B sessions) |
 | Tests | **319** app tests + package suite; new coverage for the type facet, folded sections and the MOQ-first step | PASS |
 
-Screenshots: `b2c_filters_product_type.png`, `b2c_filters_expanded.png`,
+Screenshots: `b2c_filters_product_type.png`, `b2c_filters_expanded.png`, `b2c_filters_applied_pipe.png`,
 `b2b_catalogue_steppers.png`, `b2b_filters.png`, `b2b_filters_applied.png`,
 `b2b_tile_added.png`.
 
 ## 4. Rollback
 
 Redeploy `dcfd729`. No data change.
+
+## 5. APK
+
+`app-release-68f5125.apk` · 63,515,867 bytes · SHA-256
+`bd6404bed149feefa56c597b190274bf16a6551635b994f45c47e6cc0b3c4272` · `CN=BuildKart Staging`,
+at `D:\C101-control-room\artifacts\U-007-U-009\`. Build id `68f5125` verified inside the package.
