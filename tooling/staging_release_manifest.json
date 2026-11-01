@@ -50,6 +50,11 @@
       "label": "U-011 browse layout",
       "commit": "6d1963f",
       "why": "B2C Browse 0.64 tiles, no duplicate strip, unpinned bar, 8/8/16 rhythm, 64 px rail; Home grids/rails at 0.64."
+    },
+    {
+      "label": "U-017 PDP gallery + layout",
+      "commit": "4d82db9",
+      "why": "4:3 image slider with labelled demo slides, secondary Discuss, sticky Add/Buy bar, price comparison below specs."
     }
   ]
 }
