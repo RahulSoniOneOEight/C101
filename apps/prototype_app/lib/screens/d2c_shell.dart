@@ -1030,9 +1030,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                   Navigator.of(sheetContext).pop();
                                 },
                                 style: FilledButton.styleFrom(
-                                  backgroundColor:
-                                      StorefrontControlTokens.filterInk(
-                                          sheetContext),
+                                  backgroundColor: colors.actionPrimary,
                                   foregroundColor: colors.contentInverse,
                                   minimumSize: const Size.fromHeight(48),
                                 ),

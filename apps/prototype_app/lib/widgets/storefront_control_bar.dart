@@ -170,7 +170,13 @@ class StorefrontControlChip extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: radius,
-          child: Center(
+          // Shrink-wrap: the chip is used inside a Wrap in the filter sheets
+          // and inside unbounded horizontal lists, so it must size to its label
+          // rather than fill the available width.
+          child: Align(
+            alignment: Alignment.center,
+            widthFactor: 1,
+            heightFactor: 1,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 120),
               height: 32,
