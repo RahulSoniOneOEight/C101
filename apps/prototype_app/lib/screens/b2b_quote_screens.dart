@@ -1473,6 +1473,7 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                   const Divider(height: AgencySpacing.xl),
                   _totalLine(context, 'Subtotal', cart.subtotal.formatted),
                   _totalLine(context, 'GST', 'Included'),
+                  _totalLine(context, 'Delivery', 'Calculated at checkout'),
                   _totalLine(context, 'Total', cart.total.formatted,
                       bold: true),
                 ],
@@ -1647,15 +1648,21 @@ class B2BQuotationCartScreen extends ConsumerWidget {
       ),
       child: Row(
         children: <Widget>[
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colors.surfacePage,
-              borderRadius: BorderRadius.circular(AgencyRadius.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AgencyRadius.sm),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: catalogueProduct?.product.thumbnail != null
+                  ? Image.network(
+                      catalogueProduct!.product.thumbnail!,
+                      fit: BoxFit.cover,
+                      cacheWidth: 120,
+                      errorBuilder: (_, __, ___) =>
+                          _cartThumbPlaceholder(colors),
+                    )
+                  : _cartThumbPlaceholder(colors),
             ),
-            child: Icon(Icons.image_outlined,
-                size: 22, color: colors.contentSecondary),
           ),
           const SizedBox(width: AgencySpacing.sm),
           Expanded(
@@ -1713,10 +1720,28 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                 notifier.updateQuantity(line.sku, line.quantity + 1),
             icon: const Icon(Icons.add),
           ),
+          IconButton(
+            tooltip: 'Remove ${line.name}',
+            onPressed: () {
+              notifier.remove(line.sku);
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(content: Text('${line.name} removed')),
+                );
+            },
+            icon: const Icon(Icons.delete_outline),
+          ),
         ],
       ),
     );
   }
+
+  Widget _cartThumbPlaceholder(AgencyColors colors) => ColoredBox(
+        color: colors.surfacePage,
+        child: Icon(Icons.image_outlined,
+            size: 22, color: colors.contentSecondary),
+      );
 
   Widget _totalLine(BuildContext context, String label, String amount,
       {bool bold = false}) {
@@ -1851,22 +1876,39 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
             padding: const EdgeInsets.all(AgencySpacing.md),
             child: Column(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Text('Subtotal',
-                        style: TextStyle(
-                            fontSize: 14, color: colors.contentSecondary)),
-                    const Spacer(),
-                    Text(cart.total.formatted,
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: colors.contentPrimary)),
-                  ],
-                ),
+                for (final row in <(String, String, bool)>[
+                  ('Subtotal', cart.subtotal.formatted, false),
+                  ('GST', 'Included', false),
+                  ('Delivery', 'At placement', false),
+                  ('Total', cart.total.formatted, true),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      children: <Widget>[
+                        Text(row.$1,
+                            style: TextStyle(
+                                fontSize: row.$3 ? 14 : 13,
+                                fontWeight:
+                                    row.$3 ? FontWeight.w600 : FontWeight.w400,
+                                color: colors.contentSecondary)),
+                        Expanded(
+                          child: Text(row.$2,
+                              textAlign: TextAlign.end,
+                              maxLines: 2,
+                              style: TextStyle(
+                                  fontSize: row.$3 ? 18 : 13,
+                                  fontWeight: row.$3
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: colors.contentPrimary)),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: AgencySpacing.xs),
                 Text(
-                  'Shipping and the final total are calculated at order placement.',
+                  'Delivery resolves from the selected site pincode and is added to the final total at placement.',
                   style: TextStyle(
                       fontSize: 11, color: colors.contentSecondary),
                 ),
