@@ -1466,6 +1466,7 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                 ? quoted.shipping!.formatted
                 : 'Free')
             : 'Unavailable';
+    final quotedDiscount = quoted?.cart.discountTotal;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quotation Cart'),
@@ -1488,6 +1489,9 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                   for (final line in cart.lines) _cartLine(context, ref, line),
                   const Divider(height: AgencySpacing.xl),
                   _totalLine(context, 'Subtotal', cart.subtotal.formatted),
+                  if ((quotedDiscount?.amount ?? 0) > 0)
+                    _totalLine(context, 'Discount',
+                        '-${quotedDiscount!.formatted}'),
                   _totalLine(context, 'GST', 'Included'),
                   _totalLine(context, 'Delivery', deliveryLabel),
                   _totalLine(context, 'Total',
@@ -1862,6 +1866,8 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
     final deliveryNote = quoted != null
         ? 'Delivery is resolved from the selected site PIN code before you place the order.'
         : 'Delivery resolves from the selected site PIN code and is added to the final total at placement.';
+    final discount = quoted?.cart.discountTotal;
+    final hasDiscount = (discount?.amount ?? 0) > 0;
 
     if (cart.isEmpty) {
       return Scaffold(
@@ -1940,6 +1946,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
               children: <Widget>[
                 for (final row in <(String, String, bool)>[
                   ('Subtotal', cart.subtotal.formatted, false),
+                  if (hasDiscount) ('Discount', '-${discount!.formatted}', false),
                   ('GST', 'Included', false),
                   ('Delivery', deliveryLabel, false),
                   ('Total',
