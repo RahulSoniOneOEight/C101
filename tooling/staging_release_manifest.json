@@ -75,6 +75,11 @@
       "label": "B2B delivery fee before placement",
       "commit": "7595596",
       "why": "Checkout prepares the canonical B2B cart so the per-seller delivery fee, discount and payable total are shown before placing."
+    },
+    {
+      "label": "Browse filters + one B2B tile control",
+      "commit": "68f5125",
+      "why": "Product type replaces the duplicated category facet, filter facets fold, B2B gets the same sheet, and every trade tile uses one stepper."
     }
   ]
 }
