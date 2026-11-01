@@ -75,7 +75,7 @@ Future<void> _pumpBrowse(WidgetTester tester) async {
 }
 
 bool _selected(WidgetTester tester, String label) {
-  final node = tester.getSemantics(find.text(label));
+  final node = tester.getSemantics(find.text(label).first);
   return node.flagsCollection.isSelected == Tristate.isTrue;
 }
 
@@ -88,7 +88,8 @@ void main() {
     expect(find.text('Relevance'), findsOneWidget);
     expect(find.text('Price ↑'), findsOneWidget);
     expect(find.text('Price ↓'), findsOneWidget);
-    expect(find.text('Rating'), findsOneWidget);
+    expect(find.text('Discount'), findsOneWidget);
+    expect(find.text('Rating'), findsNothing);
     expect(_selected(tester, 'Relevance'), isTrue);
     expect(_selected(tester, 'Price ↑'), isFalse);
 
@@ -156,7 +157,7 @@ void main() {
     expect(find.text('Reset'), findsOneWidget);
     expect(find.text('Show 3 results'), findsOneWidget);
 
-    await tester.tap(find.text('4★ & up'));
+    await tester.tap(find.textContaining('In stock ('));
     await tester.pumpAndSettle();
     expect(find.text('Show 2 results'), findsOneWidget);
 
