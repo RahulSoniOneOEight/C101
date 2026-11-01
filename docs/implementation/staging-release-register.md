@@ -12,7 +12,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`3daaaff`** | `main.dart.js` 3,942,634 bytes · SHA-256 `9426546dc53fa79829e12f3b9892c8ab918ca87e50f0066eaa7a62199aa07c9a` · banner `STAGING · 3daaaff` | U-011 + U-017 + PDP fix + iPhone14 gallery + chat parity; local and live byte-identical |
+| Web (Firebase hosting) | **`71421f2`** | `main.dart.js` 3,943,297 bytes · SHA-256 `8ae7f0557378bac214795d5c7b69a4cc3c9417b68c677070a3c44d84b003c670` · banner `STAGING · 71421f2` | U-011 + U-017 + PDP fix + iPhone14 gallery + actionable cart errors |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
