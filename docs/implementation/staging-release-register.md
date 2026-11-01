@@ -27,6 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-02 | **Product-type backfill** | data-only (`u025_product_type_backup_20261102`, 70 rows) | **YES** | 70 products typed from `category_l2` (15 types), 5 legacy values normalised; coverage 12 → 77 of 244 |
 | 2026-11-02 | **Browse filters + B2B tile control** | `68f5125` | **YES** | Product type replaces the duplicated category facet, facets fold into sections, B2B gets the same sheet, every B2B tile uses one stepper |
 | 2026-11-01 | **B2B delivery fee before placement** | `dcfd729` | **YES** | Canonical cart prepared at checkout: fee + discount + payable total shown before placing; credit limit uses the payable total; placement completes the prepared cart |
 | 2026-11-01 | **B2B cart parity** | `3138a00` | **YES** | Cart line images, explicit Remove, Delivery row, B2C-style checkout summary |
@@ -83,7 +84,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | Item | Status | Blocked on |
 |---|---|---|
 | APK distribution to testers | artifact ready (`app-release-68f5125.apk`) | Firebase App Distribution has no tester group configured |
-| Product type coverage | **12 / 244** published products carry `metadata.product_type`, and values are inconsistent (`Phone` / `Mobile` / `MOBILE PHONES`) | Studio backfill needed; the facet only lists real values and does not guess |
+| Product type coverage | **77 / 244** after the U-025 backfill; 167 remain untyped (tools, lighting, seeds) | next batch can reuse `services/hosted/scripts/u025-product-type-backfill.sql`; test products (`Pipe` ×3, `QC auto publish`) still carry junk types |
 | 6 QC/test products still live in B2C search | **confirmed live** (`QC` search returns them, no images): `QC Auto Publish 2610`, `QC CHG-086 272555`, `QC Import 124539`, `QC Import 124657`, `QC Studio 127088`, `QC CSV 127088` | needs an administrator session + DB backup for the archive; not available in this worker |
 | B2B order history is local-only | `B2BOrdersScreen` (`b2b_shell.dart:673`) reads `b2bOrdersProvider` from the local store; the placed order exists server-side (`og_…`, completion `total_minor`) but a new device/session will not list past business orders | needs a B2B-channel `/v1/me/orders` read and reconciliation |
 | U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
