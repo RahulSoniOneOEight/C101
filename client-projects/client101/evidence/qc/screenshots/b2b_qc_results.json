@@ -1,0 +1,196 @@
+{
+  "captured_at": "2026-11-01T17:37:16.074Z",
+  "live_build": null,
+  "account": "buyer.b2b01@buildkart.test",
+  "order_group": "og_01M6C2YXQVYHKZTCF16GGS7YXG",
+  "order_total_minor": 76400,
+  "results": [
+    {
+      "name": "B2B session established",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Trade PDP shows the SKU",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Trade PDP has Add to Cart",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Add lands on the quotation cart",
+      "ok": true,
+      "detail": "Quotation Cart | Conversations 5 | B2B Home | Your order | Discuss | Decrease Wonder Cement · Yellow / Like New | Increase Wonder Cement · Yellow / Like New | R"
+    },
+    {
+      "name": "Cart shows the added line",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Cart line has an explicit Remove",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Cart keeps related products",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Cart subtotal ₹350",
+      "ok": true,
+      "detail": "Subtotal ₹350 | GST Included | Delivery Calculated at checkout | Total ₹350 | See All | 16% off | 1/2in Drive 24 Pcs Socket Set | 5 | 10 | Add to order | 13% off WONDER | Wonder Cement | 1 | 10 | 25 | Decrease quantity |"
+    },
+    {
+      "name": "Delivery is not guessed before a site is chosen",
+      "ok": true,
+      "detail": "Calculated at checkout"
+    },
+    {
+      "name": "Cart total is goods-only ₹350",
+      "ok": true,
+      "detail": "₹350"
+    },
+    {
+      "name": "Checkout blocks without a site",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Place button is disabled without a site",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Summary asks for a site",
+      "ok": true,
+      "detail": "Select site"
+    },
+    {
+      "name": "Priced subtotal ₹350",
+      "ok": true,
+      "detail": "Subtotal | ₹350 | Discount | -₹17.50 | GST | Included | Delivery | ₹99 | Total | ₹431.50 | Delivery is resolved from the selected site PIN code before you place the order. | Place Business Order | Trade | Browse | Credit"
+    },
+    {
+      "name": "Engine discount -₹17.50 shown",
+      "ok": true,
+      "detail": "-₹17.50"
+    },
+    {
+      "name": "Delivery ₹99 resolved before placing",
+      "ok": true,
+      "detail": "₹99"
+    },
+    {
+      "name": "Payable total ₹431.50",
+      "ok": true,
+      "detail": "₹431.50"
+    },
+    {
+      "name": "Place button enabled once priced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Cart re-shows the resolved fee",
+      "ok": true,
+      "detail": "₹99"
+    },
+    {
+      "name": "Cart total includes delivery ₹431.50",
+      "ok": true,
+      "detail": "₹431.50"
+    },
+    {
+      "name": "Quantity change drops the stale fee",
+      "ok": true,
+      "detail": "Calculated at checkout"
+    },
+    {
+      "name": "Bumped cart total is goods-only ₹700",
+      "ok": true,
+      "detail": "₹700"
+    },
+    {
+      "name": "Re-resolved subtotal ₹700",
+      "ok": true,
+      "detail": "Subtotal | ₹700 | Discount | -₹35 | GST | Included | Delivery | ₹99 | Total | ₹764 | Delivery is resolved from the selected site PIN code before you place the order. | Place Business Order | Trade | Browse | Credit | Car"
+    },
+    {
+      "name": "Re-resolved discount -₹35",
+      "ok": true,
+      "detail": "-₹35"
+    },
+    {
+      "name": "Re-resolved delivery ₹99",
+      "ok": true,
+      "detail": "₹99"
+    },
+    {
+      "name": "Re-resolved total ₹764",
+      "ok": true,
+      "detail": "₹764"
+    },
+    {
+      "name": "Order confirmed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Confirmation returns an order group",
+      "ok": true,
+      "detail": "og_01M6C2YXQVYHKZTCF16GGS7YXG"
+    },
+    {
+      "name": "Confirmation shipping ₹99",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Confirmation total ₹764",
+      "ok": true,
+      "detail": "Back | Order Confirmed | B2B Home | Purchase order placed | og_01M6C2YXQVYHKZTCF16GGS7YXG · GST invoice raised | Delivery site Site A — Main block, Pune, Maharashtra 411001 | Order group og_01M6C2YXQVYHKZTCF16GGS7YXG | Subtotal ₹700 | Discount -₹35 | Shipping ₹99 | GST Included | Total ₹764 | Payment mode: simulated · "
+    },
+    {
+      "name": "Payment is the simulated staging mode",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Completion response carries the order group",
+      "ok": true,
+      "detail": "og_01M6C2YXQVYHKZTCF16GGS7YXG"
+    },
+    {
+      "name": "Completion total is 76400 minor (₹764)",
+      "ok": true,
+      "detail": "76400"
+    },
+    {
+      "name": "Order history screen opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Order card is rendered for the new group",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "No console or page errors",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "No HTTP 4xx/5xx responses",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": 37,
+  "failed": 0
+}

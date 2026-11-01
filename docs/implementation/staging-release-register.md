@@ -48,7 +48,7 @@ Evidence: `client-projects/client101/evidence/U-007/update-note-2026-10-31.md` (
 ## 3. Verification performed (2026-11-01, after U-014 + U-015)
 
 ```text
-web main.dart.js   3,939,895 bytes  sha256 d6ec1f19…cc1805   banner STAGING · 3e28237
+web main.dart.js   3,991,623 bytes  sha256 34c3ccff…d296e8661   banner STAGING · dcfd729
 GET /health        {"status":"ok","environment":"staging","pilot_user_count":21}
 medusa-api         f0dc0126f5de   (healthy, built from release-u014-9a3592aea)
 workspace          5fc663e283dd   (unchanged, healthy)
@@ -68,6 +68,8 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | Product images | `static` 200 after the proxy reload |
 | B2C QC order | **BK-261101-P7Q3WJ** — ₹432 + ₹99 − ₹21.60 = ₹509.40 | PASS |
 | Full-flow re-QC | **BK-261101-GE0K30** (B2C) · **og_01M6BPD2Z90N88SKNRNEE8TVJE** (B2B, ₹431.50) | PASS |
+| B2B delivery fee before placement | checkout shows `₹350 − ₹17.50 + ₹99 = ₹431.50` before placing; qty change drops the stale fee and re-prices to `₹764` | PASS |
+| B2B order QC flow | `tooling/qa/b2b-order-flow.mjs` — **37/37** assertions; order **og_01M6C2YXQVYHKZTCF16GGS7YXG** (₹764, completion `total_minor` 76400); 0 console/HTTP errors | PASS |
 | B2B QC order | **og_01M6ASXQ0D0J4AZFR8H4CA36QQ** — ₹350 − ₹17.50 + ₹99 = ₹431.50, GST invoice | PASS |
 | Release note / QC report | `evidence/release-notes/2026-11-01-u013-u017.md`, `evidence/qc/2026-11-01-order-flows.md` | stored |
 | Production | untouched |
@@ -78,6 +80,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 |---|---|---|
 | APK distribution to testers | artifact ready (`app-release-dcfd729.apk`) | Firebase App Distribution has no tester group configured |
 | 6 QC/test products still live in B2C search | **confirmed live** (`QC` search returns them, no images): `QC Auto Publish 2610`, `QC CHG-086 272555`, `QC Import 124539`, `QC Import 124657`, `QC Studio 127088`, `QC CSV 127088` | needs an administrator session + DB backup for the archive; not available in this worker |
+| B2B order history is local-only | `B2BOrdersScreen` (`b2b_shell.dart:673`) reads `b2bOrdersProvider` from the local store; the placed order exists server-side (`og_…`, completion `total_minor`) but a new device/session will not list past business orders | needs a B2B-channel `/v1/me/orders` read and reconciliation |
 | U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |
 | Dock real-time via WebSocket | not built | backlog (dock polls every 6 s) |
