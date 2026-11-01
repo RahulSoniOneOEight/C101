@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../providers/cart_actions.dart';
+
 OverlayEntry? _activeCartToast;
 Timer? _activeCartToastTimer;
 
@@ -31,7 +33,7 @@ void showCartAddedToast(BuildContext context, {String? label}) {
 void showCartErrorToast(BuildContext context, [String? message]) {
   _showCartToast(
     context,
-    message: message ?? 'Could not add to cart. Please retry.',
+    message: message ?? lastCartError ?? 'Could not add to cart. Please retry.',
     icon: Icons.error_outline,
     background: Theme.of(context).colorScheme.error,
     duration: const Duration(milliseconds: 2200),
