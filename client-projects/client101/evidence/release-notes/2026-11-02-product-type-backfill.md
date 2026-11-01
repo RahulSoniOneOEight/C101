@@ -4,9 +4,10 @@ Staging data change. No app or API release; the live web stays `68f5125`.
 
 ## 1. What was written
 
-`product.metadata.product_type` for **70 published products**, derived from the
-governed import taxonomy `metadata.category_l2` — never from titles or guesses.
-Every row also carries `product_type_source = u025_backfill_20261102`.
+`product.metadata.product_type` for **65 previously untyped products**, derived
+from the governed import taxonomy `metadata.category_l2` — never from titles or
+guesses — and **5 legacy values normalised** into the same vocabulary. Every
+touched row carries `product_type_source = u025_backfill_20261102`.
 
 | Product type | Products |
 |---|---|
@@ -25,7 +26,7 @@ Every row also carries `product_type_source = u025_backfill_20261102`.
 | Pipe & Tank | 2 |
 | Wash Basin | 2 |
 | Wall Putty | 1 |
-| **Total** | **70** |
+| **Total written** | **70** (65 newly typed + 5 normalised) |
 
 Five legacy values were normalised into the same vocabulary:
 `Phone` / `Mobile` / `MOBILE PHONES` → **Mobile Phone**; `Basin Mixer` →

@@ -27,7 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
-| 2026-11-02 | **Product-type backfill** | data-only (`u025_product_type_backup_20261102`, 70 rows) | **YES** | 70 products typed from `category_l2` (15 types), 5 legacy values normalised; coverage 12 → 77 of 244 |
+| 2026-11-02 | **Product-type backfill** | data-only (`u025_product_type_backup_20261102`, 70 rows) | **YES** | 65 untyped products typed from `category_l2` + 5 legacy values normalised (15 types); coverage 12 → 77 of 244 |
 | 2026-11-02 | **Browse filters + B2B tile control** | `68f5125` | **YES** | Product type replaces the duplicated category facet, facets fold into sections, B2B gets the same sheet, every B2B tile uses one stepper |
 | 2026-11-01 | **B2B delivery fee before placement** | `dcfd729` | **YES** | Canonical cart prepared at checkout: fee + discount + payable total shown before placing; credit limit uses the payable total; placement completes the prepared cart |
 | 2026-11-01 | **B2B cart parity** | `3138a00` | **YES** | Cart line images, explicit Remove, Delivery row, B2C-style checkout summary |
