@@ -53,3 +53,9 @@ Ask for: the exact toast text, the product, web vs APK, and the account. With th
 now carries the status/detail (e.g. 404 archived product, 401 session). The most likely real-world case
 is a **stale screen for an archived product** (the three Smoke products were unpublished today) — the
 add now says “This product is no longer available.” instead of a generic retry.
+
+## 5. Artifacts
+
+- Web: `71421f2` · 3,943,297 bytes · SHA-256 `8ae7f0557378bac214795d5c7b69a4cc3c9417b68c677070a3c44d84b003c670`.
+- APK: `app-release-71421f2.apk` · 62,975,115 bytes · SHA-256 `d3b419538e328436b448cf863536039813a012f58a5ef997096148f0ef70b0c9` · `CN=BuildKart Staging`.
+- U-019 Browse work parked on `feat/u019-browse-facets`; plan at `docs/implementation/u019-browse-facets-plan.md`.
