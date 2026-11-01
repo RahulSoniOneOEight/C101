@@ -1,4 +1,4 @@
-﻿import {
+import {
   Button,
   Container,
   Heading,
@@ -328,6 +328,53 @@ function normalizeDraftVariants(value: unknown): Variant[] {
         seller_id: draftString(item.seller_id),
       };
     });
+}
+
+/**
+ * U-014 — fill an empty variant option from the variant title when exactly one
+ * option value matches. Studio-created products can carry `__default__` options
+ * with no variant links; the editor must not deadlock behind that state. The
+ * filled values stay local until the operator saves.
+ */
+function fillVariantOptionsFromTitles(
+  options: Option[],
+  variants: Variant[],
+): Variant[] {
+  const usable = options.filter((option) => {
+    const name = (option.name ?? "").trim();
+    return (
+      Boolean(name) &&
+      name !== "__default__" &&
+      (option.values ?? []).some((value) => String(value ?? "").trim())
+    );
+  });
+  if (usable.length === 0) return variants;
+  return variants.map((variant) => {
+    const next = { ...(variant.options ?? {}) };
+    let changed = false;
+    for (const option of usable) {
+      const name = option.name.trim();
+      if ((next[name] ?? "").trim()) continue;
+      const title = variant.title ?? "";
+      const matches = option.values.filter((value) => {
+        const needle = String(value ?? "").trim();
+        if (!needle || needle === "__default__") return false;
+        return new RegExp(
+          `(^|[^a-z0-9])${escapeRegExp(needle)}($|[^a-z0-9])`,
+          "i",
+        ).test(title);
+      });
+      if (matches.length === 1) {
+        next[name] = matches[0];
+        changed = true;
+      }
+    }
+    return changed ? { ...variant, options: next } : variant;
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function combinationKey(options: Option[], values: Record<string, string>): string {
@@ -1737,8 +1784,17 @@ export function ProductStudioForm({
         );
         setTags(product.tags);
         setOptions(product.options ?? []);
+        // U-014: legacy/studio products can carry variants with no option links.
+        // Fill each empty value from the variant title when exactly one option
+        // value matches, so the editor is not deadlocked behind the read-only
+        // guard. Nothing is written until the operator saves.
         setVariants(
-          product.variants?.length ? product.variants : [emptyVariant()],
+          product.variants?.length
+            ? fillVariantOptionsFromTitles(
+                product.options ?? [],
+                product.variants,
+              )
+            : [emptyVariant()],
         );
         setOffers(product.offers ?? []);
         if (
@@ -2433,7 +2489,7 @@ export function ProductStudioForm({
     if (optionsEditable && !optionsMatchVariants) {
       setNotice({
         kind: "error",
-        text: "Option values are read-only. Save the product or contact support.",
+        text: "Option values do not match the variants. Use Fix options to map them from the variant titles, or contact support.",
       });
       return;
     }
@@ -3242,7 +3298,7 @@ export function ProductStudioForm({
                 <div>
                   <Heading level="h2">Variants</Heading>
                   <Text size="small" className="mt-1 text-ui-fg-subtle">
-                    {variants.length} variant{variants.length === 1 ? "" : "s"} · SKUs must be unique
+                    {variants.length} variant{variants.length === 1 ? "" : "s"} · Each variant needs a unique SKU
                   </Text>
                 </div>
                 <div className="flex flex-wrap items-end gap-2">
