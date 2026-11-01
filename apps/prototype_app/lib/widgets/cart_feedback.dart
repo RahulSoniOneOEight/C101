@@ -24,7 +24,7 @@ void showCartAddedToast(BuildContext context, {String? label}) {
     message: label ?? 'Added to cart',
     icon: Icons.check_circle_outline,
     background: const Color(0xFF1F2937),
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 1800),
   );
 }
 

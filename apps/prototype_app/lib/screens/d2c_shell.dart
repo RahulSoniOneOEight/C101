@@ -23,7 +23,7 @@ import '../widgets/quick_add_sheet.dart';
 /// Host scaffold for the D2C (consumer) section: persistent 4-tab bottom
 /// navigation (Home / Browse / Cart / Account). Orders is reached from Account
 /// rather than occupying its own tab.
-class D2CShell extends StatelessWidget {
+class D2CShell extends ConsumerWidget {
   const D2CShell({
     required this.navigationShell,
     required this.currentPath,
@@ -42,7 +42,8 @@ class D2CShell extends StatelessWidget {
       currentPath.startsWith('/product/');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cartCount = ref.watch(cartProvider).value?.itemCount ?? 0;
     return Scaffold(
       body: ConversationDockHost(
         audience: ConversationAudience.household,
@@ -50,11 +51,15 @@ class D2CShell extends StatelessWidget {
         child: navigationShell,
       ),
       bottomNavigationBar: AppBottomNavigation(
-        items: const <BottomNavItem>[
-          BottomNavItem(label: 'Home', icon: Icons.home_outlined),
-          BottomNavItem(label: 'Browse', icon: Icons.grid_view_outlined),
-          BottomNavItem(label: 'Cart', icon: Icons.shopping_cart_outlined),
-          BottomNavItem(label: 'Account', icon: Icons.person_outline),
+        items: <BottomNavItem>[
+          const BottomNavItem(label: 'Home', icon: Icons.home_outlined),
+          const BottomNavItem(label: 'Browse', icon: Icons.grid_view_outlined),
+          BottomNavItem(
+            label: 'Cart',
+            icon: Icons.shopping_cart_outlined,
+            badgeCount: cartCount,
+          ),
+          const BottomNavItem(label: 'Account', icon: Icons.person_outline),
         ],
         currentIndex: navigationShell.currentIndex,
         onSelected: (index) => navigationShell.goBranch(

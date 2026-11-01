@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -47,6 +50,18 @@ class ProductDetailScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         actions: <Widget>[
+          IconButton(
+            tooltip: 'Share',
+            onPressed: () async {
+              final link =
+                  'https://buildkart-staging.web.app/product/$productId';
+              await Clipboard.setData(ClipboardData(text: link));
+              if (context.mounted) {
+                showCartAddedToast(context, label: 'Product link copied');
+              }
+            },
+            icon: const Icon(Icons.ios_share),
+          ),
           const ConversationBellButton(
               audience: ConversationAudience.household),
           Consumer(builder: (context, ref, _) {
@@ -100,6 +115,11 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
   final ScrollController _scroll = ScrollController();
   bool _showSticky = false;
 
+  /// U-017 follow-up: quantity + visible add feedback.
+  int _quantity = 1;
+  bool _justAdded = false;
+  Timer? _addedTimer;
+
   @override
   void initState() {
     super.initState();
@@ -111,6 +131,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
 
   @override
   void dispose() {
+    _addedTimer?.cancel();
     _galleryController.dispose();
     _scroll.dispose();
     super.dispose();
@@ -237,6 +258,13 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        Text(
+          product.categoryLabel == null
+              ? 'Catalogue'
+              : 'Catalogue / ${product.categoryLabel}',
+          style: TextStyle(fontSize: 11, color: colors.contentSecondary),
+        ),
+        const SizedBox(height: 4),
         if (product.brand != null)
           Text(product.brand!,
               style: TextStyle(
@@ -604,12 +632,14 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     required String offerId,
     required String variantId,
     required Money? unitPrice,
+    int quantity = 1,
   }) async {
     final added = await addToCartSafely(
       ref,
       offerId: offerId,
       variantId: variantId,
       unitPrice: unitPrice,
+      quantity: quantity,
     );
     if (!context.mounted) return;
     if (buy) {
@@ -623,7 +653,18 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
       }
       return;
     }
-    added ? showCartAddedToast(context) : showCartErrorToast(context);
+    if (added) {
+      // Unmistakable feedback: the button flips to “Added” and the cart badge
+      // in the shell increments.
+      setState(() => _justAdded = true);
+      _addedTimer?.cancel();
+      _addedTimer = Timer(const Duration(milliseconds: 1600), () {
+        if (mounted) setState(() => _justAdded = false);
+      });
+      showCartAddedToast(context, label: 'Added $quantity to cart');
+    } else {
+      showCartErrorToast(context);
+    }
   }
 
   /// Sticky buy bar: price + Add + Buy only. Discuss never enters this bar.
@@ -668,6 +709,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                             offerId: offerId,
                             variantId: variantId,
                             unitPrice: unitPrice,
+                            quantity: _quantity,
                           )
                       : null,
                   style: OutlinedButton.styleFrom(
@@ -690,6 +732,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                             offerId: offerId,
                             variantId: variantId,
                             unitPrice: unitPrice,
+                            quantity: _quantity,
                           )
                       : null,
                   style: FilledButton.styleFrom(
@@ -753,6 +796,42 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
     );
   }
 
+  Widget _quantityControl(AgencyColors colors) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.borderDefault),
+        borderRadius: BorderRadius.circular(AgencyRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          IconButton(
+            tooltip: 'Decrease quantity',
+            visualDensity: VisualDensity.compact,
+            onPressed:
+                _quantity > 1 ? () => setState(() => _quantity--) : null,
+            icon: const Icon(Icons.remove, size: 18),
+          ),
+          SizedBox(
+            width: 24,
+            child: Text('$_quantity',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: colors.contentPrimary)),
+          ),
+          IconButton(
+            tooltip: 'Increase quantity',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => _quantity++),
+            icon: const Icon(Icons.add, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _actions(
     BuildContext context,
     WidgetRef ref,
@@ -770,17 +849,34 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
       children: <Widget>[
         Row(
           children: <Widget>[
+            Text('Qty',
+                style: TextStyle(
+                    fontSize: 12, color: colors.contentSecondary)),
+            const SizedBox(width: AgencySpacing.sm),
+            _quantityControl(colors),
+            const Spacer(),
+          ],
+        ),
+        const SizedBox(height: AgencySpacing.sm),
+        Row(
+          children: <Widget>[
             Expanded(
               child: OutlinedButton.icon(
+                key: const Key('pdp-add-to-cart'),
                 onPressed: priceAvailable && canAdd
                     ? () => _addToCart(context, ref,
                           buy: false,
                           offerId: offerId,
                           variantId: variantId,
-                          unitPrice: unitPrice)
+                          unitPrice: unitPrice,
+                          quantity: _quantity)
                     : null,
-                icon: const Icon(Icons.add_shopping_cart, size: 18),
-                label: const Text('Add to Cart'),
+                icon: Icon(
+                    _justAdded
+                        ? Icons.check_circle_outline
+                        : Icons.add_shopping_cart,
+                    size: 18),
+                label: Text(_justAdded ? 'Added to cart' : 'Add to Cart'),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   side: BorderSide(color: colors.borderDefault),
@@ -796,7 +892,8 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
                           buy: true,
                           offerId: offerId,
                           variantId: variantId,
-                          unitPrice: unitPrice)
+                          unitPrice: unitPrice,
+                          quantity: _quantity)
                     : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: colors.actionPrimary,

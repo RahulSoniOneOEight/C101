@@ -43,10 +43,13 @@ class TradeTierOption {
 
 /// An item in [AppBottomNavigation].
 class BottomNavItem {
-  const BottomNavItem({required this.label, required this.icon});
+  const BottomNavItem({required this.label, required this.icon, this.badgeCount});
 
   final String label;
   final IconData icon;
+
+  /// Optional counter rendered on the icon (e.g. cart lines).
+  final int? badgeCount;
 }
 
 AgencyColors _colors(BuildContext context) =>
@@ -1460,11 +1463,15 @@ class AppBottomNavigation extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: <Widget>[
-                          Icon(items[i].icon,
-                              size: 22,
-                              color: i == currentIndex
-                                  ? colors.actionPrimary
-                                  : colors.contentSecondary),
+                          Badge(
+                            isLabelVisible: (items[i].badgeCount ?? 0) > 0,
+                            label: Text('${items[i].badgeCount}'),
+                            child: Icon(items[i].icon,
+                                size: 22,
+                                color: i == currentIndex
+                                    ? colors.actionPrimary
+                                    : colors.contentSecondary),
+                          ),
                           const SizedBox(height: 2),
                           Text(items[i].label,
                               style: TextStyle(

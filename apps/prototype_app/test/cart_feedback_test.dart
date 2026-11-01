@@ -21,7 +21,11 @@ void main() {
     await tester.pump();
     expect(find.text('Added to cart'), findsOneWidget);
 
-    await tester.pump(const Duration(milliseconds: 1000));
+    // Still visible at 1.6 s (the 900 ms strip was easy to miss).
+    await tester.pump(const Duration(milliseconds: 1600));
+    expect(find.text('Added to cart'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Added to cart'), findsNothing);
   });
 }
