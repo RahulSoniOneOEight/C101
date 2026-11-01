@@ -65,8 +65,8 @@ Widget _deliveryPolicyCard(AgencyColors colors) {
                       color: colors.contentPrimary)),
               const SizedBox(height: 2),
               Text(
-                'One flat fee per seller, resolved from the delivery pincode. '
-                'Checkout shows the fee read-only.',
+                'One flat fee per seller, resolved from the selected site PIN '
+                'code and added to the total before you place the order.',
                 style: TextStyle(fontSize: 11, color: colors.contentSecondary),
               ),
             ],
