@@ -12,7 +12,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`3138a00`** | `main.dart.js` 3,986,101 bytes · SHA-256 `4345844ae591af46e55ddaba02288976409e7e89f38c79da5e30c6e30e6f3f75` · banner `STAGING · 3138a00` | B2B cart parity + U-019 facets + PDP product type + fixes |
+| Web (Firebase hosting) | **`dcfd729`** | `main.dart.js` 3,991,623 bytes · SHA-256 `34c3ccff419dacc63194f4522893af52fa85df83c299c4f2d2e7353d296e8661` · banner `STAGING · dcfd729` | B2B delivery fee before placement + B2B cart parity + U-019 facets + PDP product type + fixes |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
@@ -27,6 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **B2B delivery fee before placement** | `dcfd729` | **YES** | Canonical cart prepared at checkout: fee + discount + payable total shown before placing; credit limit uses the payable total; placement completes the prepared cart |
 | 2026-11-01 | **B2B cart parity** | `3138a00` | **YES** | Cart line images, explicit Remove, Delivery row, B2C-style checkout summary |
 | 2026-11-01 | **B2B image cleanup** | data-only (`u024_backup_*_20261101`) | **YES** | 8 test/QC products archived; B2B catalogue 14 → 6 with 0 missing thumbnails; Sumsan thumbnail URL fixed |
 | 2026-11-01 | **Product type on the PDP** | `ec92f03` + data (`u022_product_type_backup_20261101`) | **YES** | Studio `product_type` now renders as Type / Product type on the PDP; 5 products populated |
@@ -76,7 +77,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | Item | Status | Blocked on |
 |---|---|---|
 | APK distribution to testers | artifact ready (`app-release-3138a00.apk`) | Firebase App Distribution has no tester group configured |
-| Four extra Smoke products (707433, 208869, 685854, 712935) | still published | outside the U-015 allowlist — needs a follow-up allowlist |
+| 6 QC/test products still live in B2C search | **confirmed live** (`QC` search returns them, no images): `QC Auto Publish 2610`, `QC CHG-086 272555`, `QC Import 124539`, `QC Import 124657`, `QC Studio 127088`, `QC CSV 127088` | needs an administrator session + DB backup for the archive; not available in this worker |
 | U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |
 | Dock real-time via WebSocket | not built | backlog (dock polls every 6 s) |
