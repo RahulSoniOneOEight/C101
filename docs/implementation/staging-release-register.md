@@ -12,7 +12,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`3e28237`** | `main.dart.js` 3,939,895 bytes · SHA-256 `d6ec1f1920fdabec43c7abd8f5a38324258fcda146273b93bd9c09d6bdcc1805` · banner `STAGING · 3e28237` | U-011 + U-017 + chat parity in one bundle; local and live byte-identical |
+| Web (Firebase hosting) | **`ebf5b92`** | `main.dart.js` 3,942,376 bytes · SHA-256 `95e9ef9582692a9332ccfa6243a929d5e173f86f1559e4a14e1c5b634dca7211` · banner `STAGING · ebf5b92` | U-011 + U-017 + PDP add-to-cart fix + chat parity; local and live byte-identical |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
@@ -27,6 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **PDP add-to-cart fix + benchmark batch** | `59e8796`, `ebf5b92` | **YES** | Add gives visible feedback (toast 1.8 s, “Added” state, cart badge), qty stepper, breadcrumb, share |
 | 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
 | 2026-11-01 | **U-014 — option integrity** | `9a3592a`; merged as `fa9d0ab`; image `f0dc0126f5de` | **YES** + data repair | Variant options filled from titles instead of deadlocking; hint/message fixed; IPHONE 17 (Black/White) and Sumsan (Blue/Black/White) options + links + ranks repaired |
 | 2026-11-01 | **U-017 — PDP gallery + layout** | `cf0471a`; merged as `4d82db9`; released as `3e28237` | **YES** | 4:3 image slider with labelled demo slides, secondary Discuss, sticky Add/Buy bar, price comparison below specs |

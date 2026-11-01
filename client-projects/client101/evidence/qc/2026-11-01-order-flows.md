@@ -84,3 +84,24 @@ Screenshots: `qc/qc_iphone.png`, `qc/qc_browse.png`, `qc/qc_smoke_search.png`.
 2. B2B pre-placement fee amount (product decision, currently documented).
 3. Product Studio create→reload UI pass (admin credentials required).
 4. APK distribution (tester group not configured).
+
+---
+
+## 6. Addendum — add-to-cart fix + PDP benchmark batch (`59e8796`, `ebf5b92`)
+
+Reported: “add to cart is not working in products”. Root cause: the write succeeded but the UI gave no
+visible confirmation (900 ms toast, no cart badge).
+
+| Check | Result |
+|---|---|
+| Add button flips to “Added” | PASS (observed ~1.3 s after tap) |
+| Toast “Added 1 to cart” | PASS (visible, 1.8 s) |
+| Bottom-nav cart badge | PASS (`1`) |
+| Qty stepper → add 2 | PASS (cart line quantity 2, FLAT5 −₹43.20) |
+| Breadcrumb | PASS (“Catalogue / Tiles & Building Materials”) |
+| Share action | PASS (copies the product link) |
+| Cart → checkout | PASS (fee ₹99 read-only, total present) |
+| Console / page errors | 0 |
+
+Screenshots: `screenshots/pdp_added.png`, `pdp_added_qty2.png`, `cart_qty2.png`,
+`checkout_after_fix.png`.
