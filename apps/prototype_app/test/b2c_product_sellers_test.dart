@@ -52,6 +52,14 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    // U-017 moved seller identity below specs and price comparison.
+    await tester.scrollUntilVisible(
+      find.textContaining('sellers'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('sellers'), findsOneWidget);
     expect(find.text('Best price'), findsOneWidget);
     // Best-price seller is selected by default (exactly one checked radio).
