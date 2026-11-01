@@ -2,8 +2,9 @@
 
 - **Lane / release:** B / `image-rebuild` (medusa admin + vendor) + data repair
 - **Base:** `3d2bdff` · **Branch:** `fix/u013-price-units` · **Worktree:** `D:\C101-worktrees\bk-u013-price-units`
-- **Status:** code fixed, image built (`679ca5cc5a0c`) — **not deployed**; the iPhone data repair is
-  **waiting for confirmation** of ₹1,85,000 / ₹1,95,000.
+- **Status:** **deployed 2026-11-01** — image built from `release-u013-0be813c47` (container
+  `5126a60f7ebe`), and the iPhone repair applied after the release owner confirmed
+  ₹1,85,000 (black) / ₹1,95,000 (white).
 - **Scope:** admin + vendor studio form, one unit spec, allowlisted data repair. No schema, no API
   contract change, no other product touched.
 
@@ -36,7 +37,7 @@ No change was needed in `offer-pricing.ts` — the API boundary was already corr
 | R5 | <10% guard asks before saving | **PASS-CODE** | `priceUnitWarning()` + `window.confirm`; automated widget test **DEFERRED** (admin/vendor have no test runner) |
 | R6 | Regression test for base + tier + 1/100 | **PASS-CODE** | spec added; locally executed as a dependency-free source/arithmetic check (no `node_modules` in the worktree) |
 | R7 | Vendor has the same fix and tests | **PASS** | files byte-identical; both covered by the spec |
-| R8 | IPHONE 17 repaired | **BLOCKED** | waiting for value confirmation; DB currently 1850 / 1950 major |
+| R8 | IPHONE 17 repaired | **PASS** | DB `amount 185000 / 195000` (raw_amount synced); API `unit_amount_minor 18,500,000 / 19,500,000`; PDP shows ₹1,85,000 / ₹1,95,000 |
 | R9 | No schema; other paths audited | **PASS** | bulk path fixed; B2B already used `* 100`; no migration |
 | R10 | Typecheck, lint, builds | **PASS** | Docker image build compiled admin + vendor + api (`Frontend build completed successfully`, `serves 2 panel(s)`) |
 

@@ -3,7 +3,7 @@
 - **Lane / release:** A / `static-ui` (Flutter web) + APK
 - **Base:** `9e89956` (live release line, includes U-011 + chat parity)
 - **Branch / worktree:** `feat/u017-pdp-gallery` @ `D:\C101-worktrees\bk-u017-pdp-gallery`
-- **Status:** implemented, tested (312/312), web bundle built locally — **not deployed**.
+- **Status:** **deployed 2026-11-01** as build `3e28237` (3,939,895 bytes, SHA-256 `d6ec1f19…cc1805`).
 - **Scope:** B2C PDP only. No API, DB, admin or B2B change.
 
 ## 1. What changed

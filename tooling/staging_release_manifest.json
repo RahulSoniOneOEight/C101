@@ -55,6 +55,11 @@
       "label": "U-017 PDP gallery + layout",
       "commit": "4d82db9",
       "why": "4:3 image slider with labelled demo slides, secondary Discuss, sticky Add/Buy bar, price comparison below specs."
+    },
+    {
+      "label": "U-013 price units",
+      "commit": "08d9e54",
+      "why": "Studio saves B2C prices in minor units, converts the response back and guards a <10% slip."
     }
   ]
 }

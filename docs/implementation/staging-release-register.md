@@ -3,7 +3,7 @@
 **Purpose:** one place that answers “what is actually live on staging right now?” without reading
 chat history or commit logs. Update it after every deploy and after every accepted-change review.
 
-- **Last verified:** 2026-11-01 02:05 IST (`2026-10-31T20:35Z`)
+- **Last verified:** 2026-11-01 10:05 IST (`2026-11-01T04:35Z`)
 - **Verified by:** live bundle hash + browser probes + container image ids
 - **Rule:** the live web build is identified by its banner and `main.dart.js` hash, not by the
   branch head. Branch heads move for docs-only commits; the banner does not.
@@ -12,12 +12,12 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`e3cb365`** | `main.dart.js` 3,932,303 bytes · SHA-256 `ad7c7ec1cf924d5cf853cda57ecc18092c997e3cb1f1cf217e14890853f4b161` · banner `STAGING · e3cb365` | U-011 + chat parity in one bundle; local and live byte-identical |
+| Web (Firebase hosting) | **`3e28237`** | `main.dart.js` 3,939,895 bytes · SHA-256 `d6ec1f1920fdabec43c7abd8f5a38324258fcda146273b93bd9c09d6bdcc1805` · banner `STAGING · 3e28237` | U-011 + U-017 + chat parity in one bundle; local and live byte-identical |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
-| Medusa API + worker | **`c1021b0b0be1`** | unchanged since 2026-10-31T08:32Z | no image rebuild in the recent updates |
+| Medusa API + worker | **`5126a60f7ebe`** | built from `release-u013-0be813c47` | U-013 price-unit fix in admin + vendor panels |
 | Postgres | `postgres:16.15-alpine` | unchanged | staging data only |
-| Release dir on host | `current → release-9003721` | — | repointed 2026-11-01; API still runs the `3d2bdff` image |
+| Release dir on host | `current → release-u013-0be813c47` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
 | Android (pilot artifact) | **`app-release-e3cb365.apk`** | 62,942,271 bytes · SHA-256 `168effb33ce291ceef0196bcb9006f4e403cfb3889c4f8921023f5f14c4ba23a` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-e3cb365.apk`; not yet distributed |
 | Production | untouched | — | no production release in this line |
 
@@ -27,6 +27,8 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **U-017 — PDP gallery + layout** | `cf0471a`; merged as `4d82db9`; released as `3e28237` | **YES** | 4:3 image slider with labelled demo slides, secondary Discuss, sticky Add/Buy bar, price comparison below specs |
+| 2026-11-01 | **U-013 — price units** | `0be813c`, `b4f06f8` (image `679ca5cc5a0c` → container `5126a60f7ebe`) | **YES** + data repair applied | admin/vendor save minor units, response converted back, <10% guard, bulk path fixed; IPHONE 17 repaired to ₹1,85,000 / ₹1,95,000 |
 | 2026-11-01 | **U-011 / B005 — Browse layout** | `259c0ec`, `04176d5`, `a5481b4`; merged as `6d1963f`; released as `e3cb365` | **YES** | Browse tiles 0.64 (160×250 / 175×273 / 187×292), duplicate “Recommended for you” strip removed, B2C control bar unpinned, 8/8/16 rhythm, 64 px category rail at ≤390, Home grids/rails at 0.64 |
 | 2026-11-01 | **B2B chat/discuss parity** | `7cc48c5`, `9003721` | **YES** | Business workspaces get invitations (admin/buyer), join-on-accept, 10 seats, “Join your procurement workspace” dock state, “Workspace participants” sheet |
 | 2026-10-31 | **QC fixes 1–8** | `3d2bdff` | **YES** (web superseded by `9003721`, which contains it; API image is built from it) | money reconciliation, order address, confirmation number/total, pluralisation, Indian grouping, sticky checkout CTA, auto delivery fee, quantity semantics |
@@ -35,36 +37,38 @@ Newest first. “Live” means verified against the surface above, not merely me
 Evidence: `client-projects/client101/evidence/U-007/update-note-2026-10-31.md` (§8–§10) and
 `client-projects/client101/evidence/U-011/closeout.md`.
 
-## 3. Verification performed (2026-11-01, after the U-011 deploy)
+## 3. Verification performed (2026-11-01, after the U-013 + U-017 deploy)
 
 ```text
-web main.dart.js   3,932,303 bytes  sha256 ad7c7ec1…f4b161   banner STAGING · e3cb365
+web main.dart.js   3,939,895 bytes  sha256 d6ec1f19…cc1805   banner STAGING · 3e28237
 GET /health        {"status":"ok","environment":"staging","pilot_user_count":21}
-workspace image    5fc663e283dd   (unchanged, still up)
-experience-api     e4145643172a   (unchanged, still up)
-medusa             c1021b0b0be1   (unchanged, still up)
-current            /opt/buildkart-releases/release-9003721
+medusa-api         5126a60f7ebe   (healthy, image built from release-u013-0be813c47)
+workspace          5fc663e283dd   (unchanged, healthy)
+experience-api     e4145643172a   (unchanged, healthy)
+current            /opt/buildkart-releases/release-u013-0be813c47
 ```
 
 | Check | Live result |
 |---|---|
-| Browse “Recommended for you” strip | **absent** at 360 / 390 / 414 |
-| Browse first grid tile @390 | **y = 545** (scroll-frame **489**) — was 813 before U-011 |
-| Browse tile widths | 160 / 175 / 187 at 360 / 390 / 414 |
-| Browse category rail | 64 px items at 360 & 390 (five fit), 72 px at 414 |
-| Console / page / HTTP errors | **0** across login → Browse → Home and the B2B dock |
-| B2B dock: Manage participants, Project actions, composer, Assistant tab | all present → chat parity survived the merge |
-| B2B workspace participants (API) | **3 of 10** |
-| B2B approver can manage participants | **403** (correct) |
-| B2C household participants (API) | **2 of 3** |
-| `current` symlink | `release-9003721` (was `release-3d2bdff`) |
+| IPHONE 17 WHITE price | **₹1,95,000** vs ₹2,00,000 (3% off) — API `unit_amount_minor 19,500,000` |
+| IPHONE 17 BLACK price | **₹1,85,000** — API `unit_amount_minor 18,500,000` |
+| DB rows after repair | `amount 185000 / 195000`, `raw_amount.value` synced |
+| Price guard | shipped in the admin/vendor bundle (`priceUnitWarning` + confirm) |
+| PDP gallery (IPHONE 17) | 4 slides, counter `3 / 4`, **Representative image** chip, Pexels slide renders |
+| PDP actions | Add to Cart + Buy Now, secondary **Discuss this product**, sticky bar Add/Buy only |
+| PDP sections | price → variants → CTA → trust → specs → description → full specs → price comparison |
+| Console / HTTP errors | 0 after fixing the nginx upstream (see §7) |
+| B2B goldens | unchanged |
+| `current` symlink | `release-u013-0be813c47` |
 | Production | untouched |
 
 ## 4. Not live (pending)
 
 | Item | Status | Blocked on |
 |---|---|---|
-| U-011 signed APK distribution to testers | artifact built and signed for `e3cb365` (`168effb3…4ba23a`) | Firebase App Distribution tester group not defined — hand out via the artifact path until then |
+| U-014 option integrity (B007) | not started | next bundle in the P0→P1→P2 sequence |
+| U-015 smoke cleanup (B008) | not started | data-only, after U-014 |
+| APK for `3e28237` | not built | only the `e3cb365` artifact exists so far |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |
 | Dock real-time via WebSocket | not built | backlog (dock polls every 6 s) |
 
@@ -91,7 +95,9 @@ Post-deploy steps that were completed: banner + hash matched, Browse re-measured
 | Web | `firebase hosting:rollback --project buildkart-staging`, or rebuild/deploy `9003721` |
 | Workspace service | rebuild `release-3d2bdff` and `docker compose up -d --no-deps workspace` (B2B invite routes return 403 again; memberships stay) |
 | Experience API | rebuild `release-e12f6f7` (prior image `94818d572a3d` if still present) |
-| APK | re-distribute `app-release-9003721.apk` |
+| Medusa (U-013) | `docker compose up -d --no-deps medusa-api medusa-worker` from `release-9003721` (image `c1021b0b0be1`) |
+| U-013 price repair | `insert into price select * from u013_price_backup_20261101;` per row (backup table holds the pre-repair rows) |
+| APK | re-distribute `app-release-e3cb365.apk` |
 
 ## 7. Maintenance rules
 
@@ -102,3 +108,7 @@ Post-deploy steps that were completed: banner + hash matched, Browse re-measured
    `BUILD_ID`.
 4. If a surface runs a different commit than `current`, record it (§1 notes do this today for the
    API `3d2bdff` vs workspace `9003721`).
+5. **After recreating any container behind nginx, reload the proxy**
+   (`docker exec buildkart-hosted-pilot-proxy-1 nginx -s reload`). On 2026-11-01 the Medusa recreate
+   left `ops-staging` pointing at the old container IP and every product image returned 502 until the
+   reload.
