@@ -211,6 +211,101 @@ void main() {
     expect(container.read(b2bQuotationCartProvider).isEmpty, isTrue);
   });
 
+  test('checkout prices the delivery fee from the site PIN before placing',
+      () async {
+    final product = _b2bCheckoutProduct();
+    final api = _FakeB2BApi(
+      expectedSubtotalMinor: product.tradePrice.amount * 2,
+      shippingMinor: 9900,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        experienceApiProvider.overrideWithValue(api),
+        tradeCatalogueViewProvider.overrideWithValue(<TradeProduct>[product]),
+      ],
+    );
+    addTearDown(container.dispose);
+    final cart = container.read(b2bQuotationCartProvider.notifier);
+    cart.addTradeProduct(product, quantity: 2);
+
+    // No site yet: nothing to price, and no cart is created.
+    expect(
+      await container
+          .read(b2bOrderDraftProvider.notifier)
+          .ensure(container.read(b2bQuotationCartProvider)),
+      isNull,
+    );
+    expect(api.createdCarts, 0);
+
+    cart.setDeliveryLocation('Site A — Pune, Maharashtra 411001');
+    final first = await container
+        .read(b2bOrderDraftProvider.notifier)
+        .ensure(container.read(b2bQuotationCartProvider));
+    expect(first, isNotNull);
+    expect(first!.shipping?.amount, 9900);
+    expect(first.total?.amount, product.tradePrice.amount * 2 + 9900);
+    expect(first.deliveryAvailable, isTrue);
+    expect(api.createdCarts, 1);
+
+    // A different site re-addresses the same cart instead of leaving another
+    // cart behind.
+    cart.setDeliveryLocation('Site B — Mumbai, Maharashtra 400001');
+    final readdressed = await container
+        .read(b2bOrderDraftProvider.notifier)
+        .ensure(container.read(b2bQuotationCartProvider));
+    expect(readdressed!.cartId, first.cartId);
+    expect(api.createdCarts, 1);
+    expect(api.addressedCarts, 2);
+
+    // A quantity change is a different basket, so the cart is rebuilt.
+    cart.updateQuantity('SKU-TEST', 3);
+    await container
+        .read(b2bOrderDraftProvider.notifier)
+        .ensure(container.read(b2bQuotationCartProvider));
+    expect(api.createdCarts, 2);
+  });
+
+  testWidgets('checkout shows the resolved delivery fee and inclusive total',
+      (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final prefs = await SharedPreferences.getInstance();
+    final product = _b2bCheckoutProduct();
+    final api = _FakeB2BApi(
+      expectedSubtotalMinor: product.tradePrice.amount * 2,
+      shippingMinor: 9900,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        experienceApiProvider.overrideWithValue(api),
+        tradeCatalogueViewProvider.overrideWithValue(<TradeProduct>[product]),
+        b2bDeliveryQuoteEnabledProvider.overrideWithValue(true),
+      ],
+    );
+    addTearDown(container.dispose);
+    final cart = container.read(b2bQuotationCartProvider.notifier);
+    cart.addTradeProduct(product, quantity: 2);
+    cart.setDeliveryLocation('Site A — Pune, Maharashtra 411001');
+    final router = container.read(appRouterProvider);
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          theme: AgencyTheme.light(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    router.go('/b2b/cart/checkout');
+    await tester.pumpAndSettle();
+
+    expect(find.text('₹99'), findsOneWidget);
+    expect(find.text('₹299'), findsOneWidget);
+    expect(find.text('Place Business Order'), findsOneWidget);
+  });
+
   test('B2B quotation cart upserts lines and uses GST-inclusive totals', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -726,21 +821,57 @@ TradeProduct _b2bCheckoutProduct() {
 }
 
 class _FakeB2BApi extends ExperienceApi {
-  _FakeB2BApi({required this.expectedSubtotalMinor}) : super(Dio());
+  _FakeB2BApi({required this.expectedSubtotalMinor, this.shippingMinor = 0})
+      : super(Dio());
 
   final int expectedSubtotalMinor;
 
-  Cart _cart() => Cart(
-        id: 'cart_test',
-        subtotal: Money(amount: expectedSubtotalMinor, currencyCode: 'INR'),
-        total: Money(amount: expectedSubtotalMinor, currencyCode: 'INR'),
-      );
+  /// Per-seller delivery fee the engine resolves from the site PIN, in minor
+  /// units. Mirrors `applyDelivery` returning a priced cart.
+  final int shippingMinor;
+
+  int createdCarts = 0;
+  int addressedCarts = 0;
+
+  Cart _cart() {
+    final subtotal = Money(amount: expectedSubtotalMinor, currencyCode: 'INR');
+    final shipping = shippingMinor > 0
+        ? Money(amount: shippingMinor, currencyCode: 'INR')
+        : null;
+    return Cart(
+      id: 'cart_test',
+      subtotal: subtotal,
+      shippingTotal: shipping,
+      total: Money(
+        amount: expectedSubtotalMinor + shippingMinor,
+        currencyCode: 'INR',
+      ),
+      delivery: shipping == null
+          ? null
+          : CartDelivery(
+              pincode: '411001',
+              total: shipping,
+              lines: <CartDeliveryLine>[
+                CartDeliveryLine(
+                  sellerId: 'sel_test',
+                  sellerName: 'BuildKart Seller',
+                  optionId: 'so_test',
+                  name: 'Delivery',
+                  amount: shipping,
+                ),
+              ],
+            ),
+    );
+  }
 
   @override
   Future<String?> currentSessionEmail() async => 'buyer.b2b01@buildkart.test';
 
   @override
-  Future<Cart> createCart({String? channel}) async => _cart();
+  Future<Cart> createCart({String? channel}) async {
+    createdCarts += 1;
+    return _cart();
+  }
 
   @override
   Future<Cart> addLineItem(String cartId, String offerId, int quantity) async =>
@@ -751,8 +882,10 @@ class _FakeB2BApi extends ExperienceApi {
     String cartId, {
     required String email,
     required Address shippingAddress,
-  }) async =>
-      _cart();
+  }) async {
+    addressedCarts += 1;
+    return _cart();
+  }
 
   @override
   Future<Cart> applyDelivery(String cartId) async => _cart();

@@ -1662,16 +1662,232 @@ const _b2bStateByPinPrefix = <String, String>{
   '85': 'Jharkhand',
 };
 
-class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
-  ProductVariant? _variantForSku(String sku) {
-    for (final product in ref.read(tradeCatalogueViewProvider)) {
-      for (final variant in product.product.variants) {
-        if (variant.sku == sku) return variant;
-      }
+/// Resolves the sellable catalogue variant behind a quotation-cart SKU.
+///
+/// The RFQ line stores the SKU, while placement and delivery pricing need the
+/// seller offer id on the variant.
+ProductVariant? b2bSellableVariantFor(Iterable<TradeProduct> catalogue, String sku) {
+  for (final product in catalogue) {
+    for (final variant in product.product.variants) {
+      if (variant.sku == sku) return variant;
     }
-    return null;
+  }
+  return null;
+}
+
+/// Identity of the goods in a prepared B2B cart.
+///
+/// The canonical cart is reused while this signature and the delivery site are
+/// unchanged; any SKU, quantity or buyer-visible unit price change rebuilds it
+/// so the summary never prices a different basket.
+String b2bOrderLineSignature(B2BQuotationCart cart) {
+  final lines = <String>[
+    for (final line in cart.lines)
+      '${line.sku}x${line.quantity}@${line.unitPrice.amount}',
+  ]..sort();
+  return lines.join('|');
+}
+
+/// A canonical B2B cart built from the quotation cart before placement.
+class B2BOrderDraft {
+  const B2BOrderDraft({
+    required this.cartId,
+    required this.lineSignature,
+    required this.site,
+    required this.cart,
+  });
+
+  final String cartId;
+  final String lineSignature;
+  final String site;
+  final Cart cart;
+
+  Money? get shipping => cart.shippingTotal;
+
+  Money? get total => cart.total;
+
+  bool get deliveryAvailable =>
+      cart.delivery?.applied.isNotEmpty ?? (shipping?.amount ?? 0) > 0;
+}
+
+class B2BOrderDraftState {
+  const B2BOrderDraftState({this.draft, this.loading = false, this.error});
+
+  final B2BOrderDraft? draft;
+
+  /// True while the engine is resolving the fee for a new site or basket.
+  final bool loading;
+
+  /// Buyer-readable reason the fee could not be resolved, if any.
+  final String? error;
+
+  B2BOrderDraftState copyWith({
+    B2BOrderDraft? draft,
+    bool? loading,
+    String? error,
+    bool clearDraft = false,
+    bool clearError = false,
+  }) =>
+      B2BOrderDraftState(
+        draft: clearDraft ? null : (draft ?? this.draft),
+        loading: loading ?? this.loading,
+        error: clearError ? null : (error ?? this.error),
+      );
+}
+
+/// Builds the canonical cart one step before placement so the B2B checkout can
+/// show the same per-seller delivery fee the retail cart resolves from its
+/// address. The buyer's quotation cart stays the local source of truth; this is
+/// only its priced projection and the cart that `placeOrder` completes.
+class B2BOrderDraftNotifier extends Notifier<B2BOrderDraftState> {
+  Future<void>? _pending;
+
+  @override
+  B2BOrderDraftState build() => const B2BOrderDraftState();
+
+  /// Fire-and-forget resolution used by the checkout UI.
+  ///
+  /// Serialised so a site change cannot race the initial build and leave the
+  /// summary showing the previous site's fee.
+  Future<void> refresh(B2BQuotationCart cart) {
+    _pending = (_pending ?? Future<void>.value()).then((_) => _refresh(cart));
+    return _pending!;
   }
 
+  Future<void> _refresh(B2BQuotationCart cart) async {
+    // Widget tests and the offline fixture never create canonical carts.
+    if (!ref.read(b2bDeliveryQuoteEnabledProvider)) return;
+    final site = _siteOf(cart);
+    if (cart.isEmpty || site == null) {
+      state = const B2BOrderDraftState();
+      return;
+    }
+    if (_matches(state.draft, cart, site)) return;
+
+    state = B2BOrderDraftState(draft: state.draft, loading: true);
+    try {
+      await ensure(cart);
+    } catch (error) {
+      state = B2BOrderDraftState(
+        error: error is StateError
+            ? error.message
+            : 'Could not price delivery for this site. Try again.',
+      );
+    }
+  }
+
+  /// Returns the canonical cart for [cart], rebuilding or re-addressing it when
+  /// the basket or site changed. Throws when the engine cannot price it.
+  Future<B2BOrderDraft?> ensure(B2BQuotationCart cart) async {
+    final site = _siteOf(cart);
+    if (cart.isEmpty || site == null) {
+      state = const B2BOrderDraftState();
+      return null;
+    }
+    final current = state.draft;
+    if (_matches(current, cart, site)) return current;
+
+    final lineSignature = b2bOrderLineSignature(cart);
+    final api = ref.read(experienceApiProvider);
+    final email = await api.currentSessionEmail();
+    if (email == null || email.trim().isEmpty) {
+      throw StateError('Sign in again before pricing delivery.');
+    }
+    final address = _b2bCheckoutAddress(site);
+
+    Cart canonical;
+    if (current != null && current.lineSignature == lineSignature) {
+      // Same goods, new site: re-address the cart that already exists instead
+      // of leaving another abandoned cart behind.
+      canonical = await api.updateCartCustomerDetails(
+        current.cartId,
+        email: email,
+        shippingAddress: address,
+      );
+      canonical = await api.applyDelivery(current.cartId);
+    } else {
+      canonical = await _buildCart(api: api, cart: cart, email: email, address: address);
+    }
+
+    final draft = B2BOrderDraft(
+      cartId: canonical.id,
+      lineSignature: lineSignature,
+      site: site,
+      cart: canonical,
+    );
+    state = B2BOrderDraftState(draft: draft);
+    return draft;
+  }
+
+  /// The draft that still prices exactly [cart], or null when it is stale.
+  B2BOrderDraft? currentFor(B2BQuotationCart cart) {
+    final site = _siteOf(cart);
+    if (site == null) return null;
+    final draft = state.draft;
+    return _matches(draft, cart, site) ? draft : null;
+  }
+
+  void clear() => state = const B2BOrderDraftState();
+
+  Future<Cart> _buildCart({
+    required ExperienceApi api,
+    required B2BQuotationCart cart,
+    required String email,
+    required Address address,
+  }) async {
+    final catalogue = ref.read(tradeCatalogueViewProvider);
+    final offerIds = <String, String>{};
+    final missing = <String>[];
+    for (final line in cart.lines) {
+      final offerId = b2bSellableVariantFor(catalogue, line.sku)?.offerId?.trim();
+      if (offerId == null || offerId.isEmpty) {
+        missing.add(line.sku);
+      } else {
+        offerIds[line.sku] = offerId;
+      }
+    }
+    if (missing.isNotEmpty) {
+      throw StateError('No sellable offer for ${missing.join(', ')}.');
+    }
+
+    var canonical = await api.createCart(channel: 'b2b_app');
+    final cartId = canonical.id;
+    for (final line in cart.lines) {
+      canonical = await api.addLineItem(cartId, offerIds[line.sku]!, line.quantity);
+    }
+    canonical = await api.updateCartCustomerDetails(
+      cartId,
+      email: email,
+      shippingAddress: address,
+    );
+    return api.applyDelivery(cartId);
+  }
+
+  String? _siteOf(B2BQuotationCart cart) {
+    final value = cart.deliveryLocation?.trim();
+    return (value == null || value.isEmpty) ? null : value;
+  }
+
+  bool _matches(B2BOrderDraft? draft, B2BQuotationCart cart, String site) =>
+      draft != null &&
+      draft.site == site &&
+      draft.lineSignature == b2bOrderLineSignature(cart);
+}
+
+final b2bOrderDraftProvider =
+    NotifierProvider<B2BOrderDraftNotifier, B2BOrderDraftState>(
+        B2BOrderDraftNotifier.new);
+
+/// Whether the B2B checkout may build a canonical cart to price delivery.
+///
+/// The live app enables it; widget tests and the offline fixture keep it off so
+/// opening checkout never performs a network write. Tests that exercise the
+/// fee override it explicitly.
+final b2bDeliveryQuoteEnabledProvider = Provider<bool>(
+  (ref) => AppConfig.liveCatalogueEnabled,
+);
+
+class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
   @override
   List<B2BOrder> build() {
     try {
@@ -1706,43 +1922,10 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
     }
 
     final api = ref.read(experienceApiProvider);
-    final email = await api.currentSessionEmail();
-    if (email == null || email.trim().isEmpty) {
-      throw StateError('Sign in again before placing a business order.');
-    }
-
-    // Resolve every RFQ SKU to its sellable offer before creating a cart.
-    final offerIds = <String, String>{};
-    final missing = <String>[];
-    for (final line in cart.lines) {
-      final offerId = _variantForSku(line.sku)?.offerId?.trim();
-      if (offerId == null || offerId.isEmpty) {
-        missing.add(line.sku);
-      } else {
-        offerIds[line.sku] = offerId;
-      }
-    }
-    if (missing.isNotEmpty) {
-      throw StateError('No sellable offer for ${missing.join(', ')}.');
-    }
-
-    // Resolve the site PIN before creating a cart so a site without a pin fails
-    // fast instead of leaving a half-built cart behind.
-    final shippingAddress = _b2bCheckoutAddress(cart.deliveryLocation);
-
-    var canonical = await api.createCart(channel: 'b2b_app');
-    final cartId = canonical.id;
-    for (final line in cart.lines) {
-      canonical =
-          await api.addLineItem(cartId, offerIds[line.sku]!, line.quantity);
-    }
-
-    canonical = await api.updateCartCustomerDetails(
-      cartId,
-      email: email,
-      shippingAddress: shippingAddress,
-    );
-    canonical = await api.applyDelivery(cartId);
+    final draftNotifier = ref.read(b2bOrderDraftProvider.notifier);
+    final draft = await draftNotifier.ensure(cart);
+    if (draft == null) return null;
+    final canonical = draft.cart;
 
     // The app's B2B snapshot is the source of truth for the trade price. If
     // Medusa resolves the B2C price instead, stop before creating an order.
@@ -1760,7 +1943,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
       );
     }
 
-    final completion = await api.completeCart(cartId);
+    final completion = await api.completeCart(draft.cartId);
     final orderGroup = completion['order_group'];
     final orderGroupId = orderGroup is Map
         ? (orderGroup['id'] as String?)?.trim()
@@ -1789,7 +1972,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
             unitPrice: line.unitPrice,
           ),
       ],
-      cartId: cartId,
+      cartId: draft.cartId,
       orderGroupId: orderGroupId,
       paymentMode: completion['payment_mode'] as String?,
       testData: completion['test_data'] == true,
@@ -1799,6 +1982,7 @@ class B2BOrdersNotifier extends Notifier<List<B2BOrder>> {
     );
     await _commit(<B2BOrder>[order, ...state]);
     ref.read(b2bQuotationCartProvider.notifier).clear();
+    ref.read(b2bOrderDraftProvider.notifier).clear();
     return order;
   }
 

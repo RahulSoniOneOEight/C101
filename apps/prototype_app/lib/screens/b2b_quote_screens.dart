@@ -1450,6 +1450,22 @@ class B2BQuotationCartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
     final cart = ref.watch(b2bQuotationCartProvider);
+    final quote = ref.watch(b2bOrderDraftProvider);
+    final draft = quote.draft;
+    // Only trust a draft that still prices exactly this basket and site; the
+    // checkout resolves it, so before a site is chosen there is nothing to show.
+    final quoted = draft != null &&
+            draft.site == (cart.deliveryLocation?.trim() ?? '') &&
+            draft.lineSignature == b2bOrderLineSignature(cart)
+        ? draft
+        : null;
+    final deliveryLabel = quoted == null
+        ? 'Calculated at checkout'
+        : quoted.deliveryAvailable
+            ? ((quoted.shipping?.amount ?? 0) > 0
+                ? quoted.shipping!.formatted
+                : 'Free')
+            : 'Unavailable';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quotation Cart'),
@@ -1473,8 +1489,9 @@ class B2BQuotationCartScreen extends ConsumerWidget {
                   const Divider(height: AgencySpacing.xl),
                   _totalLine(context, 'Subtotal', cart.subtotal.formatted),
                   _totalLine(context, 'GST', 'Included'),
-                  _totalLine(context, 'Delivery', 'Calculated at checkout'),
-                  _totalLine(context, 'Total', cart.total.formatted,
+                  _totalLine(context, 'Delivery', deliveryLabel),
+                  _totalLine(context, 'Total',
+                      quoted?.total?.formatted ?? cart.total.formatted,
                       bold: true),
                 ],
                 const SizedBox(height: AgencySpacing.sm),
@@ -1788,9 +1805,39 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    // Price the delivery as soon as checkout opens with a saved site, matching
+    // the retail cart which resolves the fee from its bound address.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(b2bOrderDraftProvider.notifier)
+          .refresh(ref.read(b2bQuotationCartProvider));
+    });
+  }
+
+  /// Re-resolves the fee after the buyer picks a different site.
+  void _refreshDeliveryFee() {
+    ref
+        .read(b2bOrderDraftProvider.notifier)
+        .refresh(ref.read(b2bQuotationCartProvider));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colors = _c(context);
     final cart = ref.watch(b2bQuotationCartProvider);
+    final quote = ref.watch(b2bOrderDraftProvider);
+    final draft = quote.draft;
+    final quoted = draft != null &&
+            draft.site == (cart.deliveryLocation?.trim() ?? '') &&
+            draft.lineSignature == b2bOrderLineSignature(cart)
+        ? draft
+        : null;
+    final shipping = quoted?.shipping;
+    final quotedTotal = quoted?.total;
+
     const payments = <(String, String)>[
       ('On credit (30 days)', 'Available ₹1.72L'),
       ('UPI', 'Pay now'),
@@ -1798,8 +1845,23 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
       ('Cash on delivery', 'Pay on delivery'),
     ];
     final onCredit = _payment == 0;
-    final overLimit = onCredit && cart.total.amount > _availableCreditMinor;
+    // Include the resolved delivery fee: credit covers the payable total, not
+    // just the goods.
+    final payable = quotedTotal ?? cart.total;
+    final overLimit = onCredit && payable.amount > _availableCreditMinor;
     final hasDeliverySite = cart.deliveryLocation?.trim().isNotEmpty ?? false;
+    final deliveryLabel = quoted != null
+        ? (quoted.deliveryAvailable
+            ? ((shipping?.amount ?? 0) > 0 ? shipping!.formatted : 'Free')
+            : 'Unavailable')
+        : quote.loading
+            ? 'Calculating…'
+            : hasDeliverySite
+                ? 'Priced at placement'
+                : 'Select site';
+    final deliveryNote = quoted != null
+        ? 'Delivery is resolved from the selected site PIN code before you place the order.'
+        : 'Delivery resolves from the selected site PIN code and is added to the final total at placement.';
 
     if (cart.isEmpty) {
       return Scaffold(
@@ -1879,8 +1941,9 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                 for (final row in <(String, String, bool)>[
                   ('Subtotal', cart.subtotal.formatted, false),
                   ('GST', 'Included', false),
-                  ('Delivery', 'At placement', false),
-                  ('Total', cart.total.formatted, true),
+                  ('Delivery', deliveryLabel, false),
+                  ('Total',
+                      quotedTotal?.formatted ?? cart.total.formatted, true),
                 ])
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
@@ -1906,12 +1969,49 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                       ],
                     ),
                   ),
+                if (quoted != null &&
+                    (quoted.cart.delivery?.lines.length ?? 0) > 1) ...<Widget>[
+                  const SizedBox(height: AgencySpacing.xs),
+                  for (final line in quoted.cart.delivery!.lines)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: <Widget>[
+                          const Icon(Icons.local_shipping_outlined, size: 14),
+                          const SizedBox(width: AgencySpacing.xs),
+                          Expanded(
+                            child: Text(line.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontSize: 11,
+                                    color: colors.contentSecondary)),
+                          ),
+                          Text(
+                            line.isApplied ? line.amount.formatted : 'Unavailable',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: colors.contentSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
                 const SizedBox(height: AgencySpacing.xs),
                 Text(
-                  'Delivery resolves from the selected site pincode and is added to the final total at placement.',
+                  deliveryNote,
                   style: TextStyle(
                       fontSize: 11, color: colors.contentSecondary),
                 ),
+                if (quote.error != null) ...<Widget>[
+                  const SizedBox(height: AgencySpacing.sm),
+                  Text(
+                    quote.error!,
+                    style: TextStyle(
+                        fontSize: 12, color: colors.feedbackWarning),
+                  ),
+                ],
                 if (_error != null) ...<Widget>[
                   const SizedBox(height: AgencySpacing.sm),
                   Text(
@@ -1924,7 +2024,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: hasDeliverySite && !_placing
+                    onPressed: hasDeliverySite && !_placing && !quote.loading
                         ? () async {
                             final router = GoRouter.of(context);
                             if (overLimit) {
@@ -1963,7 +2063,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
                       disabledForegroundColor: colors.contentSecondary,
                       minimumSize: const Size.fromHeight(48),
                     ),
-                    child: _placing
+                    child: _placing || quote.loading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -2101,6 +2201,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
     ref
         .read(b2bQuotationCartProvider.notifier)
         .setDeliveryLocation(choice.deliveryLocation);
+    _refreshDeliveryFee();
   }
 
   Future<void> _enterNewSite() async {
@@ -2166,6 +2267,7 @@ class _B2BCheckoutScreenState extends ConsumerState<B2BCheckoutScreen> {
     );
     if (location == null || !mounted) return;
     ref.read(b2bQuotationCartProvider.notifier).setDeliveryLocation(location);
+    _refreshDeliveryFee();
   }
 
   Widget _paymentTile(BuildContext context, AgencyColors colors, int index,
