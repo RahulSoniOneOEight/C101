@@ -3,7 +3,7 @@
 **Purpose:** one place that answers “what is actually live on staging right now?” without reading
 chat history or commit logs. Update it after every deploy and after every accepted-change review.
 
-- **Last verified:** 2026-11-01 10:05 IST (`2026-11-01T04:35Z`)
+- **Last verified:** 2026-11-01 10:55 IST (`2026-11-01T05:25Z`)
 - **Verified by:** live bundle hash + browser probes + container image ids
 - **Rule:** the live web build is identified by its banner and `main.dart.js` hash, not by the
   branch head. Branch heads move for docs-only commits; the banner does not.
@@ -15,9 +15,9 @@ chat history or commit logs. Update it after every deploy and after every accept
 | Web (Firebase hosting) | **`3e28237`** | `main.dart.js` 3,939,895 bytes · SHA-256 `d6ec1f1920fdabec43c7abd8f5a38324258fcda146273b93bd9c09d6bdcc1805` · banner `STAGING · 3e28237` | U-011 + U-017 + chat parity in one bundle; local and live byte-identical |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
-| Medusa API + worker | **`5126a60f7ebe`** | built from `release-u013-0be813c47` | U-013 price-unit fix in admin + vendor panels |
+| Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
 | Postgres | `postgres:16.15-alpine` | unchanged | staging data only |
-| Release dir on host | `current → release-u013-0be813c47` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
+| Release dir on host | `current → release-u014-9a3592aea` | — | newest deployed service code; experience-api still runs the `3d2bdff` image |
 | Android (pilot artifact) | **`app-release-e3cb365.apk`** | 62,942,271 bytes · SHA-256 `168effb33ce291ceef0196bcb9006f4e403cfb3889c4f8921023f5f14c4ba23a` · `CN=BuildKart Staging` | `D:\C101-control-room\artifacts\U-007-U-009\app-release-e3cb365.apk`; not yet distributed |
 | Production | untouched | — | no production release in this line |
 
@@ -27,6 +27,8 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
+| 2026-11-01 | **U-014 — option integrity** | `9a3592a`; merged as `fa9d0ab`; image `f0dc0126f5de` | **YES** + data repair | Variant options filled from titles instead of deadlocking; hint/message fixed; IPHONE 17 (Black/White) and Sumsan (Blue/Black/White) options + links + ranks repaired |
 | 2026-11-01 | **U-017 — PDP gallery + layout** | `cf0471a`; merged as `4d82db9`; released as `3e28237` | **YES** | 4:3 image slider with labelled demo slides, secondary Discuss, sticky Add/Buy bar, price comparison below specs |
 | 2026-11-01 | **U-013 — price units** | `0be813c`, `b4f06f8` (image `679ca5cc5a0c` → container `5126a60f7ebe`) | **YES** + data repair applied | admin/vendor save minor units, response converted back, <10% guard, bulk path fixed; IPHONE 17 repaired to ₹1,85,000 / ₹1,95,000 |
 | 2026-11-01 | **U-011 / B005 — Browse layout** | `259c0ec`, `04176d5`, `a5481b4`; merged as `6d1963f`; released as `e3cb365` | **YES** | Browse tiles 0.64 (160×250 / 175×273 / 187×292), duplicate “Recommended for you” strip removed, B2C control bar unpinned, 8/8/16 rhythm, 64 px category rail at ≤390, Home grids/rails at 0.64 |
@@ -37,40 +39,39 @@ Newest first. “Live” means verified against the surface above, not merely me
 Evidence: `client-projects/client101/evidence/U-007/update-note-2026-10-31.md` (§8–§10) and
 `client-projects/client101/evidence/U-011/closeout.md`.
 
-## 3. Verification performed (2026-11-01, after the U-013 + U-017 deploy)
+## 3. Verification performed (2026-11-01, after U-014 + U-015)
 
 ```text
 web main.dart.js   3,939,895 bytes  sha256 d6ec1f19…cc1805   banner STAGING · 3e28237
 GET /health        {"status":"ok","environment":"staging","pilot_user_count":21}
-medusa-api         5126a60f7ebe   (healthy, image built from release-u013-0be813c47)
+medusa-api         f0dc0126f5de   (healthy, built from release-u014-9a3592aea)
 workspace          5fc663e283dd   (unchanged, healthy)
 experience-api     e4145643172a   (unchanged, healthy)
-current            /opt/buildkart-releases/release-u013-0be813c47
+current            /opt/buildkart-releases/release-u014-9a3592aea
 ```
 
 | Check | Live result |
 |---|---|
-| IPHONE 17 WHITE price | **₹1,95,000** vs ₹2,00,000 (3% off) — API `unit_amount_minor 19,500,000` |
-| IPHONE 17 BLACK price | **₹1,85,000** — API `unit_amount_minor 18,500,000` |
-| DB rows after repair | `amount 185000 / 195000`, `raw_amount.value` synced |
-| Price guard | shipped in the admin/vendor bundle (`priceUnitWarning` + confirm) |
-| PDP gallery (IPHONE 17) | 4 slides, counter `3 / 4`, **Representative image** chip, Pexels slide renders |
-| PDP actions | Add to Cart + Buy Now, secondary **Discuss this product**, sticky bar Add/Buy only |
-| PDP sections | price → variants → CTA → trust → specs → description → full specs → price comparison |
-| Console / HTTP errors | 0 after fixing the nginx upstream (see §7) |
-| B2B goldens | unchanged |
-| `current` symlink | `release-u013-0be813c47` |
+| IPHONE 17 options | Color linked; BLACK→Black rank 0, WHITE→White rank 1 |
+| Sumsan Fold 7 options | Color linked; Blue rank 0, Black rank 1, White rank 2 |
+| `product_variant_option` rows | **5** for the two products (was 0) |
+| `__default__` | retired for both multi-variant products; Smoke 134657 keeps its default |
+| Smoke archive | the three IDs return **404** on `/v1/products/{id}`; published count **263 → 260** |
+| Sumsan storefront | 3 variants, ₹1,48,000 / ₹1,50,000 / ₹1,55,000 — unchanged |
+| IPHONE prices | ₹1,85,000 / ₹1,95,000 — unchanged |
+| Product images | `static` 200 after the proxy reload |
 | Production | untouched |
 
-## 4. Not live (pending)
+## 4. Not live / open
 
 | Item | Status | Blocked on |
 |---|---|---|
-| U-014 option integrity (B007) | not started | next bundle in the P0→P1→P2 sequence |
-| U-015 smoke cleanup (B008) | not started | data-only, after U-014 |
-| APK for `3e28237` | not built | only the `e3cb365` artifact exists so far |
+| APK for `3e28237` | building (`--build-id 78fbb23`) | keystore present; artifact lands in `D:\C101-control-room\artifacts` |
+| Four extra Smoke products (707433, 208869, 685854, 712935) | still published | outside the U-015 allowlist — needs a follow-up allowlist |
+| U-014 studio create→reload UI pass | deferred | no admin credentials in the worker session |
 | Seat role promote/demote in-app | not built | backlog (B2B chat parity follow-up) |
 | Dock real-time via WebSocket | not built | backlog (dock polls every 6 s) |
+| Real `images[]` (U-017 phase 2) | not built | API + photo content |
 
 ## 5. How U-011 was shipped (record)
 
@@ -96,7 +97,10 @@ Post-deploy steps that were completed: banner + hash matched, Browse re-measured
 | Workspace service | rebuild `release-3d2bdff` and `docker compose up -d --no-deps workspace` (B2B invite routes return 403 again; memberships stay) |
 | Experience API | rebuild `release-e12f6f7` (prior image `94818d572a3d` if still present) |
 | Medusa (U-013) | `docker compose up -d --no-deps medusa-api medusa-worker` from `release-9003721` (image `c1021b0b0be1`) |
+| Medusa (U-014) | same, from `release-u013-0be813c47` (image `5126a60f7ebe`); reload the proxy |
 | U-013 price repair | `insert into price select * from u013_price_backup_20261101;` per row (backup table holds the pre-repair rows) |
+| U-014 option repair | restore `u014_backup_ppo/ppov/pv/pvo/po/poval_20261101` (six tables) and reapply `variant_rank` from `u014_backup_pv_20261101` |
+| U-015 archive | reinsert `u015_backup_product_20261101` (status) and `u015_backup_channel_20261101` (channel links) |
 | APK | re-distribute `app-release-e3cb365.apk` |
 
 ## 7. Maintenance rules
