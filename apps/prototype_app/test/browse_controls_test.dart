@@ -17,6 +17,7 @@ Product _product({
   required double rating,
   List<String> badges = const <String>[],
   bool inStock = true,
+  String? seller,
 }) =>
     Product(
       id: id,
@@ -25,7 +26,12 @@ Product _product({
       rating: rating,
       badges: badges,
       variants: <ProductVariant>[
-        ProductVariant(id: '${id}_v', label: 'Default', inStock: inStock),
+        ProductVariant(
+          id: '${id}_v',
+          label: 'Default',
+          inStock: inStock,
+          sellerName: seller,
+        ),
       ],
     );
 
@@ -36,6 +42,7 @@ final _products = <Product>[
     price: 10000,
     rating: 4.6,
     badges: <String>['Limited Deal'],
+    seller: 'BuildMaster Supplies',
   ),
   _product(
     id: 'p_beta',
@@ -80,6 +87,25 @@ bool _selected(WidgetTester tester, String label) {
 }
 
 void main() {
+  testWidgets('filter sheet exposes category, seller and availability facets',
+      (tester) async {
+    await _pumpBrowse(tester);
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Category'), findsOneWidget);
+    expect(find.textContaining('All categories'), findsOneWidget);
+    expect(find.text('Price'), findsOneWidget);
+    expect(find.text('Availability'), findsOneWidget);
+    expect(find.textContaining('In stock ('), findsOneWidget);
+    expect(find.textContaining('On discount ('), findsOneWidget);
+    expect(find.text('Seller'), findsOneWidget);
+    expect(find.textContaining('BuildMaster Supplies ('), findsOneWidget);
+
+    await tester.tap(find.textContaining('In stock ('));
+    await tester.pumpAndSettle();
+    expect(find.text('Show 2 results'), findsOneWidget);
+  });
   testWidgets('sort chips are always visible with Relevance selected',
       (tester) async {
     final semantics = tester.ensureSemantics();

@@ -144,11 +144,6 @@ class BrowseScreen extends ConsumerStatefulWidget {
 
 class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   static const int _pageSize = 6;
-  static const List<String> _priceRanges = <String>[
-    'Under ₹500',
-    '₹500 – ₹5,000',
-    '₹5,000+',
-  ];
   static const List<String> _keyItems = <String>[
     'On discount',
     'Bestseller',
@@ -174,7 +169,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   String? _category;
   BrowseSort _sort = BrowseSort.relevance;
   final Set<String> _brands = <String>{};
-  final Set<String> _prices = <String>{};
+  RangeValues? _priceRange;
   final Set<String> _keys = <String>{};
   final Set<String> _sellers = <String>{};
   final Set<String> _availability = <String>{};
@@ -183,7 +178,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
 
   int get _activeFilterCount =>
       _brands.length +
-      _prices.length +
+      (_priceRange == null ? 0 : 1) +
       _keys.length +
       _sellers.length +
       _availability.length +
@@ -230,7 +225,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   List<Product> _applyFilters(
     List<Product> products, {
     required Set<String> brands,
-    required Set<String> prices,
+    RangeValues? priceRange,
     required Set<String> keys,
     Set<String> sellers = const <String>{},
     Set<String> availability = const <String>{},
@@ -249,14 +244,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           .where((p) => normalised.contains((p.brand ?? '').toLowerCase()))
           .toList();
     }
-    if (prices.isNotEmpty) {
+    if (priceRange != null) {
       list = list.where((p) {
         final amount = (p.price?.amount ?? 0) / 100;
-        return prices.any((r) {
-          if (r == 'Under ?500') return amount < 500;
-          if (r == '?500 ? ?5,000') return amount >= 500 && amount <= 5000;
-          return amount > 5000;
-        });
+        return amount >= priceRange.start && amount <= priceRange.end;
       }).toList();
     }
     if (keys.isNotEmpty) {
@@ -284,7 +275,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final list = _applyFilters(
       products,
       brands: _brands,
-      prices: _prices,
+      priceRange: _priceRange,
       keys: _keys,
       sellers: _sellers,
       availability: _availability,
@@ -312,7 +303,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   void _clearFilters() {
     setState(() {
       _brands.clear();
-      _prices.clear();
+      _priceRange = null;
       _keys.clear();
       _sellers.clear();
       _availability.clear();
@@ -335,9 +326,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               _brands.remove(value);
               _resetPaging();
             })),
-      for (final value in _prices)
-        _activeChip(colors, value, () => setState(() {
-              _prices.remove(value);
+      if (_priceRange != null)
+        _activeChip(colors, _priceLabel(_priceRange!), () => setState(() {
+              _priceRange = null;
               _resetPaging();
             })),
       for (final value in _sellers)
@@ -748,7 +739,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final products = ref.read(productsProvider).value ?? const <Product>[];
     final brands = brandsOf(products);
     final brandsSel = <String>{..._brands};
-    final pricesSel = <String>{..._prices};
+    RangeValues? rangeSel = _priceRange;
     final keysSel = <String>{..._keys};
     final sellersSel = <String>{..._sellers};
     final availabilitySel = <String>{..._availability};
@@ -761,7 +752,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final base = _applyFilters(
       products,
       brands: const <String>{},
-      prices: const <String>{},
+      priceRange: null,
       keys: const <String>{},
       minRating: null,
     );
@@ -800,7 +791,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             final previewCount = _applyFilters(
               products,
               brands: brandsSel,
-              prices: pricesSel,
+              priceRange: rangeSel,
               keys: keysSel,
               sellers: sellersSel,
               availability: availabilitySel,
@@ -851,12 +842,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                 categoryCounts,
                                 setSheet,
                               ),
-                              _filterGroup(
+                              _priceGroup(
                                 sheetContext,
-                                'Price',
-                                _priceRanges,
-                                pricesSel,
-                                setSheet,
+                                _priceBounds(base),
+                                rangeSel,
+                                (value) => setSheet(() => rangeSel = value),
                               ),
                               _countedGroup(
                                 sheetContext,
@@ -910,7 +900,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                             TextButton(
                               onPressed: () => setSheet(() {
                                 brandsSel.clear();
-                                pricesSel.clear();
+                                rangeSel = null;
                                 keysSel.clear();
                                 sellersSel.clear();
                                 availabilitySel.clear();
@@ -934,9 +924,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                     _brands
                                       ..clear()
                                       ..addAll(brandsSel);
-                                    _prices
-                                      ..clear()
-                                      ..addAll(pricesSel);
+                                    _priceRange = rangeSel;
                                     _keys
                                       ..clear()
                                       ..addAll(keysSel);
@@ -1038,6 +1026,105 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             }),
           ),
       ],
+    );
+  }
+
+  RangeValues _priceBounds(List<Product> products) {
+    var min = double.infinity;
+    var max = 0.0;
+    for (final p in products) {
+      final value = (p.price?.amount ?? 0) / 100;
+      if (value <= 0) continue;
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    if (!min.isFinite || max <= 0) return const RangeValues(0, 100000);
+    if (max <= min) max = min + 100;
+    return RangeValues(min.floorToDouble(), max.ceilToDouble());
+  }
+
+  String _priceLabel(RangeValues range) =>
+      '₹${range.start.round()} – ₹${range.end.round()}';
+
+  Widget _priceGroup(
+    BuildContext context,
+    RangeValues bounds,
+    RangeValues? selected,
+    ValueChanged<RangeValues?> onChanged,
+  ) {
+    final colors = _colors(context);
+    final current = selected == null
+        ? bounds
+        : RangeValues(
+            selected.start.clamp(bounds.start, bounds.end),
+            selected.end.clamp(bounds.start, bounds.end),
+          );
+    final span = bounds.end - bounds.start;
+    final divisions = span <= 0 ? null : (span / 100).clamp(1, 200).round();
+    RangeValues preset(double start, double end) => RangeValues(
+          start.clamp(bounds.start, bounds.end),
+          end.clamp(bounds.start, bounds.end),
+        );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Price',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.contentPrimary)),
+          RangeSlider(
+            values: current,
+            min: bounds.start,
+            max: bounds.end,
+            divisions: divisions,
+            labels: RangeLabels(
+              '₹${current.start.round()}',
+              '₹${current.end.round()}',
+            ),
+            onChanged: (value) => onChanged(value),
+          ),
+          Row(
+            children: <Widget>[
+              Text(_priceLabel(current),
+                  style: TextStyle(
+                      fontSize: 11, color: colors.contentSecondary)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => onChanged(null),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+                child: const Text('Any price'),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: AgencySpacing.sm,
+            runSpacing: AgencySpacing.xs,
+            children: <Widget>[
+              for (final presetRange in <(String, RangeValues)>[
+                ('< ₹500', preset(bounds.start, 500)),
+                ('₹500 – ₹5,000', preset(500, 5000)),
+                ('₹5,000+', preset(5000, bounds.end)),
+              ])
+                StorefrontControlChip(
+                  label: presetRange.$1,
+                  selected: selected != null &&
+                      selected.start == presetRange.$2.start &&
+                      selected.end == presetRange.$2.end,
+                  fill: StorefrontControlTokens.filterFill(context),
+                  ink: StorefrontControlTokens.filterInk(context),
+                  onTap: () => onChanged(presetRange.$2),
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
