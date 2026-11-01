@@ -60,6 +60,11 @@
       "label": "U-013 price units",
       "commit": "08d9e54",
       "why": "Studio saves B2C prices in minor units, converts the response back and guards a <10% slip."
+    },
+    {
+      "label": "U-014 option integrity",
+      "commit": "fa9d0ab",
+      "why": "Studio fills variant options from titles instead of deadlocking; hint/message fixed; iPhone and Sumsan options repaired."
     }
   ]
 }
