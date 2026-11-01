@@ -56,9 +56,18 @@ Color vocabulary; only the two products are linked.
 | R9 | B2B untouched | **PASS** | no B2B/app file in the diff |
 | R10 | Typecheck/build | **PASS** | Docker image build compiled admin + vendor + api |
 
-## 5. Verification (filled after the repair)
+## 5. Verification after the repair (2026-11-01)
 
-See `after.md` output captured with the repair: options per product, variant links and ranks.
+```text
+IPHONE 17  -> Color option linked; APPLE IPHONE BLACK rank 0 (Black), APPLE IPHONE WHITE rank 1 (White)
+Sumsan     -> Color option linked; Blue rank 0, Black rank 1, White rank 2
+links      -> product_variant_option rows: 5 (2 iPhone + 3 Sumsan); 0 before
+defaults   -> the two __default__ options soft-deleted (Smoke 134657 keeps its harmless default)
+backup     -> 2 product-option links, 2 product-option values, 5 variants, 0 links, 2 options, 2 values
+```
+
+Composed product payload: iPhone still 2 variants (₹1,85,000 / ₹1,95,000), Sumsan 3 variants
+(₹1,48,000 / ₹1,50,000 / ₹1,55,000) — variant identity and prices unchanged.
 
 ## 6. Deferred
 
