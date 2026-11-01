@@ -19,6 +19,7 @@ import '../widgets/home_pinned_bar.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/quick_add_sheet.dart';
+import '../widgets/filter_section.dart';
 
 /// Host scaffold for the D2C (consumer) section: persistent 4-tab bottom
 /// navigation (Home / Browse / Cart / Account). Orders is reached from Account
@@ -173,6 +174,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   final Set<String> _keys = <String>{};
   final Set<String> _sellers = <String>{};
   final Set<String> _availability = <String>{};
+  final Set<String> _productTypes = <String>{};
   double? _minRating;
   int _visible = _pageSize;
 
@@ -182,6 +184,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       _keys.length +
       _sellers.length +
       _availability.length +
+      _productTypes.length +
       (_category == null ? 0 : 1) +
       (_minRating == null ? 0 : 1);
 
@@ -229,6 +232,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     required Set<String> keys,
     Set<String> sellers = const <String>{},
     Set<String> availability = const <String>{},
+    Set<String> productTypes = const <String>{},
     required double? minRating,
   }) {
     var list = filterProductsByHomeCategory(products, _category);
@@ -262,6 +266,13 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
         return names.any(sellers.contains);
       }).toList();
     }
+    if (productTypes.isNotEmpty) {
+      // Studio's `metadata.product_type` only; products without a type are not
+      // guessed from their category.
+      list = list
+          .where((p) => productTypes.contains(p.productType))
+          .toList();
+    }
     for (final key in availability) {
       list = list.where((p) => _matchesKey(p, key)).toList();
     }
@@ -279,6 +290,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       keys: _keys,
       sellers: _sellers,
       availability: _availability,
+      productTypes: _productTypes,
       minRating: _minRating,
     );
     switch (_sort) {
@@ -307,6 +319,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       _keys.clear();
       _sellers.clear();
       _availability.clear();
+      _productTypes.clear();
       _category = null;
       _minRating = null;
       _resetPaging();
@@ -339,6 +352,11 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       for (final value in _availability)
         _activeChip(colors, value, () => setState(() {
               _availability.remove(value);
+              _resetPaging();
+            })),
+      for (final value in _productTypes)
+        _activeChip(colors, value, () => setState(() {
+              _productTypes.remove(value);
               _resetPaging();
             })),
       for (final value in _keys)
@@ -743,6 +761,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final keysSel = <String>{..._keys};
     final sellersSel = <String>{..._sellers};
     final availabilitySel = <String>{..._availability};
+    final productTypesSel = <String>{..._productTypes};
     final ratingSel = <String>{if (_minRating != null) '4★ & up'};
 
     double? ratingValue() => ratingSel.isEmpty ? null : 4.0;
@@ -756,14 +775,14 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
       keys: const <String>{},
       minRating: null,
     );
-    final railCategories = ref.read(categoriesProvider);
-    final categoryCounts = <String, int>{
-      for (final category in railCategories)
-        category.label:
-            filterProductsByHomeCategory(base, category.label).length,
-      'Uncategorised':
-          base.where((p) => (p.categoryLabel ?? '').trim().isEmpty).length,
-    }..removeWhere((_, count) => count == 0);
+    // Product type comes from the catalogue's `metadata.product_type` only.
+    // Products without one are not assigned a type by guesswork.
+    final productTypeCounts = <String, int>{};
+    for (final p in base) {
+      final type = p.productType?.trim();
+      if (type == null || type.isEmpty) continue;
+      productTypeCounts[type] = (productTypeCounts[type] ?? 0) + 1;
+    }
     final sellerCounts = <String, int>{};
     for (final p in base) {
       final names = p.variants
@@ -777,6 +796,18 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     final availabilityCounts = <String, int>{
       'In stock': base.where((p) => _matchesKey(p, 'In stock')).length,
       'On discount': base.where((p) => p.discountPercent != null).length,
+    };
+
+    // Sections open by default only when they already carry a selection, plus
+    // product type — the facet this sheet exists for. Everything else starts
+    // collapsed so the sheet is a short list, not a long scroll.
+    final expanded = <String>{
+      'type',
+      if (rangeSel != null) 'price',
+      if (brandsSel.isNotEmpty) 'brand',
+      if (sellersSel.isNotEmpty) 'seller',
+      if (availabilitySel.isNotEmpty) 'availability',
+      if (keysSel.isNotEmpty) 'keys',
     };
 
     await showModalBottomSheet<void>(
@@ -795,6 +826,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
               keys: keysSel,
               sellers: sellersSel,
               availability: availabilitySel,
+              productTypes: productTypesSel,
               minRating: ratingValue(),
             ).length;
             return SafeArea(
@@ -837,56 +869,110 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              _categoryGroup(
-                                sheetContext,
-                                categoryCounts,
-                                setSheet,
-                              ),
-                              _priceGroup(
-                                sheetContext,
-                                _priceBounds(base),
-                                rangeSel,
-                                (value) => setSheet(() => rangeSel = value),
-                              ),
-                              _countedGroup(
-                                sheetContext,
-                                'Brand',
-                                <String, int>{
-                                  for (final brand in brands)
-                                    brand: base
-                                        .where((p) =>
-                                            (p.brand ?? '').toLowerCase() ==
-                                            brand.toLowerCase())
-                                        .length,
-                                }..removeWhere((_, count) => count == 0),
-                                brandsSel,
-                                setSheet,
-                              ),
-                              if (sellerCounts.isNotEmpty)
-                                _countedGroup(
+                              if (productTypeCounts.isNotEmpty)
+                                _section(
+                                  id: 'type',
+                                  title: 'Product type',
+                                  expanded: expanded,
+                                  setSheet: setSheet,
+                                  summary: productTypesSel.isEmpty
+                                      ? '${productTypeCounts.length}'
+                                      : productTypesSel.length == 1
+                                          ? productTypesSel.first
+                                          : '${productTypesSel.length} selected',
+                                  child: _typeGroup(
+                                    sheetContext,
+                                    productTypeCounts,
+                                    productTypesSel,
+                                    setSheet,
+                                  ),
+                                ),
+                              _section(
+                                id: 'price',
+                                title: 'Price',
+                                expanded: expanded,
+                                setSheet: setSheet,
+                                summary: rangeSel == null
+                                    ? 'Any'
+                                    : _priceLabel(rangeSel!),
+                                child: _priceGroup(
                                   sheetContext,
-                                  'Seller',
-                                  sellerCounts,
-                                  sellersSel,
+                                  _priceBounds(base),
+                                  rangeSel,
+                                  (value) => setSheet(() => rangeSel = value),
+                                ),
+                              ),
+                              _section(
+                                id: 'brand',
+                                title: 'Brand',
+                                expanded: expanded,
+                                setSheet: setSheet,
+                                summary: brandsSel.isEmpty
+                                    ? '${brands.length}'
+                                    : '${brandsSel.length} selected',
+                                child: _countedGroup(
+                                  sheetContext,
+                                  <String, int>{
+                                    for (final brand in brands)
+                                      brand: base
+                                          .where((p) =>
+                                              (p.brand ?? '').toLowerCase() ==
+                                              brand.toLowerCase())
+                                          .length,
+                                  }..removeWhere((_, count) => count == 0),
+                                  brandsSel,
                                   setSheet,
                                 ),
-                              _countedGroup(
-                                sheetContext,
-                                'Availability',
-                                availabilityCounts,
-                                availabilitySel,
-                                setSheet,
                               ),
-                              _filterGroup(
-                                sheetContext,
-                                'Key items',
-                                _keyItems
-                                    .where((key) =>
-                                        key != 'In stock' &&
-                                        key != 'On discount')
-                                    .toList(),
-                                keysSel,
-                                setSheet,
+                              if (sellerCounts.isNotEmpty)
+                                _section(
+                                  id: 'seller',
+                                  title: 'Seller',
+                                  expanded: expanded,
+                                  setSheet: setSheet,
+                                  summary: sellersSel.isEmpty
+                                      ? '${sellerCounts.length}'
+                                      : '${sellersSel.length} selected',
+                                  child: _countedGroup(
+                                    sheetContext,
+                                    sellerCounts,
+                                    sellersSel,
+                                    setSheet,
+                                  ),
+                                ),
+                              _section(
+                                id: 'availability',
+                                title: 'Availability',
+                                expanded: expanded,
+                                setSheet: setSheet,
+                                summary: availabilitySel.isEmpty
+                                    ? null
+                                    : '${availabilitySel.length} selected',
+                                child: _countedGroup(
+                                  sheetContext,
+                                  availabilityCounts,
+                                  availabilitySel,
+                                  setSheet,
+                                ),
+                              ),
+                              _section(
+                                id: 'keys',
+                                title: 'Key items',
+                                expanded: expanded,
+                                setSheet: setSheet,
+                                summary: keysSel.isEmpty
+                                    ? null
+                                    : '${keysSel.length} selected',
+                                child: _filterGroup(
+                                  sheetContext,
+                                  _keyItems
+                                      .where((key) =>
+                                          key != 'In stock' &&
+                                          key != 'On discount')
+                                      .toList(),
+                                  keysSel,
+                                  setSheet,
+                                ),
                               ),
                             ],
                           ),
@@ -904,6 +990,7 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                 keysSel.clear();
                                 sellersSel.clear();
                                 availabilitySel.clear();
+                                productTypesSel.clear();
                                 ratingSel.clear();
                                 setState(() {
                                   _category = null;
@@ -934,6 +1021,9 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
                                     _availability
                                       ..clear()
                                       ..addAll(availabilitySel);
+                                    _productTypes
+                                      ..clear()
+                                      ..addAll(productTypesSel);
                                     _minRating = ratingValue();
                                     _resetPaging();
                                   });
@@ -963,39 +1053,50 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
     );
   }
 
-  /// Category facet with live counts; applying is immediate (the rail and the
-  /// list stay in sync) and Reset clears it.
-  Widget _categoryGroup(
+  /// One collapsible facet. The header carries the section name; the body is
+  /// only built while open, so a folded sheet stays short.
+  Widget _section({
+    required String id,
+    required String title,
+    required Set<String> expanded,
+    required void Function(void Function()) setSheet,
+    required Widget child,
+    String? summary,
+  }) {
+    final open = expanded.contains(id);
+    return FilterSection(
+      title: title,
+      expanded: open,
+      summary: open ? null : summary,
+      onToggle: () => setSheet(() {
+        if (!expanded.remove(id)) expanded.add(id);
+      }),
+      child: child,
+    );
+  }
+
+  /// Product-type facet with live counts (Studio `metadata.product_type`).
+  Widget _typeGroup(
     BuildContext context,
     Map<String, int> counts,
+    Set<String> selected,
     void Function(void Function()) setSheet,
   ) {
     final entries = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return _groupShell(
-      context,
-      'Category',
-      <Widget>[
-        StorefrontControlChip(
-          label: 'All categories',
-          selected: _category == null,
-          fill: StorefrontControlTokens.filterFill(context),
-          ink: StorefrontControlTokens.filterInk(context),
-          onTap: () => setSheet(() => setState(() {
-                _category = null;
-                _resetPaging();
-              })),
-        ),
+    return Wrap(
+      spacing: AgencySpacing.sm,
+      runSpacing: AgencySpacing.xs,
+      children: <Widget>[
         for (final entry in entries)
           StorefrontControlChip(
             label: '${entry.key} (${entry.value})',
-            selected: _category == entry.key,
+            selected: selected.contains(entry.key),
             fill: StorefrontControlTokens.filterFill(context),
             ink: StorefrontControlTokens.filterInk(context),
-            onTap: () => setSheet(() => setState(() {
-                  _category = entry.key;
-                  _resetPaging();
-                })),
+            onTap: () => setSheet(() {
+              if (!selected.remove(entry.key)) selected.add(entry.key);
+            }),
           ),
       ],
     );
@@ -1004,17 +1105,16 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
   /// Multi-select facet rendered from a value → count map.
   Widget _countedGroup(
     BuildContext context,
-    String title,
     Map<String, int> counts,
     Set<String> selected,
     void Function(void Function()) setSheet,
   ) {
     final entries = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return _groupShell(
-      context,
-      title,
-      <Widget>[
+    return Wrap(
+      spacing: AgencySpacing.sm,
+      runSpacing: AgencySpacing.xs,
+      children: <Widget>[
         for (final entry in entries)
           StorefrontControlChip(
             label: '${entry.key} (${entry.value})',
@@ -1065,17 +1165,10 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
           start.clamp(bounds.start, bounds.end),
           end.clamp(bounds.start, bounds.end),
         );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Price',
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: colors.contentPrimary)),
-          RangeSlider(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        RangeSlider(
             values: current,
             min: bounds.start,
             max: bounds.end,
@@ -1124,72 +1217,30 @@ class _BrowseScreenState extends ConsumerState<BrowseScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _groupShell(
-    BuildContext context,
-    String title,
-    List<Widget> chips,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(title,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _colors(context).contentPrimary)),
-          const SizedBox(height: AgencySpacing.xs),
-          Wrap(
-            spacing: AgencySpacing.sm,
-            runSpacing: AgencySpacing.xs,
-            children: chips,
-          ),
-        ],
-      ),
     );
   }
 
   Widget _filterGroup(
     BuildContext context,
-    String title,
     List<String> options,
     Set<String> selected,
     void Function(void Function()) setSheet,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AgencySpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(title,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _colors(context).contentPrimary)),
-          const SizedBox(height: AgencySpacing.xs),
-          Wrap(
-            spacing: AgencySpacing.sm,
-            runSpacing: AgencySpacing.xs,
-            children: <Widget>[
-              for (final o in options)
-                StorefrontControlChip(
-                  label: o,
-                  selected: selected.contains(o),
-                  fill: StorefrontControlTokens.filterFill(context),
-                  ink: StorefrontControlTokens.filterInk(context),
-                  onTap: () => setSheet(() {
-                    if (!selected.remove(o)) selected.add(o);
-                  }),
-                ),
-            ],
+    return Wrap(
+      spacing: AgencySpacing.sm,
+      runSpacing: AgencySpacing.xs,
+      children: <Widget>[
+        for (final o in options)
+          StorefrontControlChip(
+            label: o,
+            selected: selected.contains(o),
+            fill: StorefrontControlTokens.filterFill(context),
+            ink: StorefrontControlTokens.filterInk(context),
+            onTap: () => setSheet(() {
+              if (!selected.remove(o)) selected.add(o);
+            }),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

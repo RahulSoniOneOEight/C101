@@ -18,6 +18,7 @@ Product _product({
   List<String> badges = const <String>[],
   bool inStock = true,
   String? seller,
+  String? productType,
 }) =>
     Product(
       id: id,
@@ -25,6 +26,7 @@ Product _product({
       price: Money(amount: price, currencyCode: 'INR'),
       rating: rating,
       badges: badges,
+      productType: productType,
       variants: <ProductVariant>[
         ProductVariant(
           id: '${id}_v',
@@ -43,6 +45,7 @@ final _products = <Product>[
     rating: 4.6,
     badges: <String>['Limited Deal'],
     seller: 'BuildMaster Supplies',
+    productType: 'Cement',
   ),
   _product(
     id: 'p_beta',
@@ -50,6 +53,7 @@ final _products = <Product>[
     price: 50000,
     rating: 3.2,
     inStock: false,
+    productType: 'Cement',
   ),
   _product(
     id: 'p_gamma',
@@ -57,6 +61,7 @@ final _products = <Product>[
     price: 90000,
     rating: 4.2,
     badges: <String>['Clearance'],
+    productType: 'Plywood',
   ),
 ];
 
@@ -87,22 +92,33 @@ bool _selected(WidgetTester tester, String label) {
 }
 
 void main() {
-  testWidgets('filter sheet exposes category, seller and availability facets',
+  testWidgets('filter sheet offers product type and folds the long facets',
       (tester) async {
     await _pumpBrowse(tester);
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Category'), findsOneWidget);
-    expect(find.textContaining('All categories'), findsOneWidget);
-    expect(find.text('Price'), findsOneWidget);
+    // Category is gone from the sheet (the rail still owns it); product type
+    // replaces it and opens by default.
+    expect(find.text('Category'), findsNothing);
+    expect(find.text('Product type'), findsOneWidget);
+    expect(find.textContaining('Cement ('), findsOneWidget);
+
+    // Long facets start folded, so the sheet is a short list of headers.
     expect(find.text('Availability'), findsOneWidget);
+    expect(find.textContaining('In stock ('), findsNothing);
+    expect(find.textContaining('BuildMaster Supplies ('), findsNothing);
+
+    await tester.tap(find.text('Availability'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('In stock ('), findsOneWidget);
     expect(find.textContaining('On discount ('), findsOneWidget);
-    expect(find.text('Seller'), findsOneWidget);
+
+    await tester.tap(find.text('Seller'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('BuildMaster Supplies ('), findsOneWidget);
 
-    await tester.tap(find.textContaining('In stock ('));
+    await tester.tap(find.textContaining('Cement ('));
     await tester.pumpAndSettle();
     expect(find.text('Show 2 results'), findsOneWidget);
   });
@@ -183,6 +199,9 @@ void main() {
     expect(find.text('Reset'), findsOneWidget);
     expect(find.text('Show 3 results'), findsOneWidget);
 
+    // Availability is folded until its header is tapped.
+    await tester.tap(find.text('Availability'));
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('In stock ('));
     await tester.pumpAndSettle();
     expect(find.text('Show 2 results'), findsOneWidget);

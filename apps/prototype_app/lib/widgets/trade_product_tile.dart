@@ -73,13 +73,28 @@ Widget tradeProductTile(
     mrpLabel: p.product.mrp == null ? null : p.mrp.formatted,
     quantity: quantity,
     onQuantityChanged: (next) {
-      if (next < p.moq) {
-        ref.read(b2bQuotationCartProvider.notifier).remove(sku);
-      } else {
-        ref
-            .read(b2bQuotationCartProvider.notifier)
-            .updateQuantity(sku, next);
+      final notifier = ref.read(b2bQuotationCartProvider.notifier);
+      // A card never holds a quantity below the seller's MOQ: stepping under it
+      // removes the line instead of leaving an unorderable quantity behind.
+      if (next <= 0 || (quantity > 0 && p.moq > 1 && next < p.moq)) {
+        notifier.remove(sku);
+        return;
       }
+      if (quantity == 0) {
+        // First step up from zero honours the MOQ / selected tier quantity
+        // instead of adding a single unit.
+        notifier.addTradeProduct(
+          p,
+          quantity: tierQuantity,
+          variant: selectedVariant,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Added $tierQuantity pcs of ${p.product.title}')),
+        );
+        return;
+      }
+      notifier.updateQuantity(sku, next);
     },
     state: p.stockKnown && p.stockQty <= 0
         ? CommerceFixture.outOfStock

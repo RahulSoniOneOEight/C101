@@ -167,6 +167,7 @@ void main() {
       ],
       selectedTierIndex: 0,
       quantity: 5,
+      onQuantityChanged: (_) {},
     )));
     expect(find.text('Ceramic Floor Tiles'), findsOneWidget);
     expect(find.text('CERAMICA'), findsOneWidget);
@@ -174,6 +175,7 @@ void main() {
     expect(find.text('Save 11%'), findsOneWidget);
     expect(find.text('5'), findsWidgets);
     expect(find.byType(QuantityStepper), findsOneWidget);
-    expect(find.byType(CartPlusIconButton), findsOneWidget);
+    // One control on every card: a cart icon never mixes with the stepper.
+    expect(find.byType(CartPlusIconButton), findsNothing);
   });
 }

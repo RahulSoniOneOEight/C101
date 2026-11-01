@@ -11,6 +11,7 @@ import '../providers/conversation_dock_provider.dart';
 import '../theme/storefront_control_tokens.dart';
 import '../widgets/storefront_control_bar.dart';
 import '../widgets/conversation_bell.dart';
+import '../widgets/filter_section.dart';
 import '../widgets/trade_product_tile.dart';
 
 /// B2B catalogue / category browse. Entry points are the home category rail,
@@ -57,6 +58,10 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
   _CatalogueSort _sort = _CatalogueSort.recommended;
   bool _inStockOnly = false;
   String? _priceBand;
+  final Set<String> _productTypes = <String>{};
+  final Set<String> _brands = <String>{};
+  final Set<String> _sellers = <String>{};
+  final Set<String> _availability = <String>{};
   final TextEditingController _searchController = TextEditingController();
 
   static const List<String> _quickFilters = <String>[
@@ -74,7 +79,11 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
       (_dealsOnly ? 1 : 0) +
       (_seasonalOnly ? 1 : 0) +
       (_inStockOnly ? 1 : 0) +
-      (_priceBand == null ? 0 : 1);
+      (_priceBand == null ? 0 : 1) +
+      _productTypes.length +
+      _brands.length +
+      _sellers.length +
+      _availability.length;
 
   Set<String> get _quickSelected => <String>{
         if (_dealsOnly) 'Best Deals',
@@ -88,6 +97,10 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
       _seasonalOnly = false;
       _inStockOnly = false;
       _priceBand = null;
+      _productTypes.clear();
+      _brands.clear();
+      _sellers.clear();
+      _availability.clear();
       _resetPaging();
     });
   }
@@ -112,11 +125,19 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
     bool? seasonalOnly,
     bool? inStockOnly,
     String? priceBand,
+    Set<String>? productTypes,
+    Set<String>? brands,
+    Set<String>? sellers,
+    Set<String>? availability,
   }) {
     final deals = dealsOnly ?? _dealsOnly;
     final seasonal = seasonalOnly ?? _seasonalOnly;
     final inStock = inStockOnly ?? _inStockOnly;
     final band = priceBand ?? _priceBand;
+    final types = productTypes ?? _productTypes;
+    final brandFilter = brands ?? _brands;
+    final sellerFilter = sellers ?? _sellers;
+    final availabilityFilter = availability ?? _availability;
     return products.where((p) {
       if (_categoryId != null && p.categoryId != _categoryId) return false;
       if (deals && p.savingsPercent == null) return false;
@@ -130,6 +151,26 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
           return false;
         }
         if (band == '\u20b95,000+' && amount <= 5000) return false;
+      }
+      if (types.isNotEmpty && !types.contains(p.product.productType)) {
+        return false;
+      }
+      if (brandFilter.isNotEmpty) {
+        final brand = (p.product.brand ?? '').trim().toLowerCase();
+        if (!brandFilter.any((value) => value.toLowerCase() == brand)) {
+          return false;
+        }
+      }
+      if (sellerFilter.isNotEmpty &&
+          !p.sellers.any((seller) => sellerFilter.contains(seller.name))) {
+        return false;
+      }
+      for (final key in availabilityFilter) {
+        if (key == 'In stock' &&
+            !(p.stockKnown ? p.stockQty > 0 : true)) {
+          return false;
+        }
+        if (key == 'On discount' && p.savingsPercent == null) return false;
       }
       if (!_matchesQuery(p)) return false;
       return true;
@@ -182,6 +223,55 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
     var seasonal = _seasonalOnly;
     var inStock = _inStockOnly;
     String? band = _priceBand;
+    final typesSel = <String>{..._productTypes};
+    final brandsSel = <String>{..._brands};
+    final sellersSel = <String>{..._sellers};
+    final availabilitySel = <String>{..._availability};
+
+    // Counts are computed over the current category + search scope, before this
+    // sheet's own selections, so a chip never promises more than the grid shows.
+    final base = _filtered(
+      products,
+      dealsOnly: false,
+      seasonalOnly: false,
+      inStockOnly: false,
+      priceBand: null,
+      productTypes: const <String>{},
+      brands: const <String>{},
+      sellers: const <String>{},
+      availability: const <String>{},
+    );
+    final typeCounts = <String, int>{};
+    final brandCounts = <String, int>{};
+    final sellerCounts = <String, int>{};
+    for (final p in base) {
+      final type = p.product.productType?.trim();
+      if (type != null && type.isNotEmpty) {
+        typeCounts[type] = (typeCounts[type] ?? 0) + 1;
+      }
+      final brand = p.product.brand?.trim();
+      if (brand != null && brand.isNotEmpty) {
+        brandCounts[brand] = (brandCounts[brand] ?? 0) + 1;
+      }
+      for (final seller in p.sellers.map((s) => s.name).toSet()) {
+        sellerCounts[seller] = (sellerCounts[seller] ?? 0) + 1;
+      }
+    }
+    final availabilityCounts = <String, int>{
+      'In stock': base.where((p) => p.stockKnown && p.stockQty > 0).length,
+      'On discount': base.where((p) => p.savingsPercent != null).length,
+    };
+
+    // Open only the facet that carries state (plus Product type), so the sheet
+    // opens as a short list of section headers rather than a long scroll.
+    final expanded = <String>{
+      if (typeCounts.isNotEmpty) 'type',
+      if (band != null) 'price',
+      if (brandsSel.isNotEmpty) 'brand',
+      if (sellersSel.isNotEmpty) 'seller',
+      if (availabilitySel.isNotEmpty) 'availability',
+      if (deals || seasonal || inStock) 'trade',
+    };
 
     await showModalBottomSheet<void>(
       context: context,
@@ -200,6 +290,10 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
               seasonalOnly: seasonal,
               inStockOnly: inStock,
               priceBand: band,
+              productTypes: typesSel,
+              brands: brandsSel,
+              sellers: sellersSel,
+              availability: availabilitySel,
             ).length;
             Widget toggle(String label, bool selected, VoidCallback onTap) =>
                 StorefrontControlChip(
@@ -209,6 +303,40 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                   ink: ink,
                   onTap: () => setSheet(onTap),
                 );
+            Widget counted(Map<String, int> counts, Set<String> selected) {
+              final entries = counts.entries.toList()
+                ..sort((a, b) => b.value.compareTo(a.value));
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: <Widget>[
+                  for (final entry in entries)
+                    toggle('${entry.key} (${entry.value})',
+                        selected.contains(entry.key), () {
+                      if (!selected.remove(entry.key)) selected.add(entry.key);
+                    }),
+                ],
+              );
+            }
+
+            Widget section({
+              required String id,
+              required String title,
+              required Widget child,
+              String? summary,
+            }) {
+              final open = expanded.contains(id);
+              return FilterSection(
+                title: title,
+                expanded: open,
+                summary: open ? null : summary,
+                onToggle: () => setSheet(() {
+                  if (!expanded.remove(id)) expanded.add(id);
+                }),
+                child: child,
+              );
+            }
+
             return SafeArea(
               child: Padding(
                 padding: EdgeInsets.only(
@@ -240,37 +368,84 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                       ),
                       Flexible(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(top: AgencySpacing.sm),
+                          padding: const EdgeInsets.only(top: AgencySpacing.xs),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
-                              _sheetGroup(sheetContext, 'Price'),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: <Widget>[
-                                  for (final option in _priceBands)
-                                    toggle(
-                                      option,
-                                      band == option,
-                                      () =>
-                                          band = band == option ? null : option,
-                                    ),
-                                ],
+                              if (typeCounts.isNotEmpty)
+                                section(
+                                  id: 'type',
+                                  title: 'Product type',
+                                  summary: typesSel.isEmpty
+                                      ? '${typeCounts.length}'
+                                      : typesSel.length == 1
+                                          ? typesSel.first
+                                          : '${typesSel.length} selected',
+                                  child: counted(typeCounts, typesSel),
+                                ),
+                              section(
+                                id: 'price',
+                                title: 'Price',
+                                summary: band ?? 'Any',
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: <Widget>[
+                                    for (final option in _priceBands)
+                                      toggle(
+                                        option,
+                                        band == option,
+                                        () => band =
+                                            band == option ? null : option,
+                                      ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: AgencySpacing.md),
-                              _sheetGroup(sheetContext, 'Trade filters'),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: <Widget>[
-                                  toggle('Best Deals', deals,
-                                      () => deals = !deals),
-                                  toggle('Seasonal', seasonal,
-                                      () => seasonal = !seasonal),
-                                  toggle('In stock', inStock,
-                                      () => inStock = !inStock),
-                                ],
+                              if (brandCounts.isNotEmpty)
+                                section(
+                                  id: 'brand',
+                                  title: 'Brand',
+                                  summary: brandsSel.isEmpty
+                                      ? '${brandCounts.length}'
+                                      : '${brandsSel.length} selected',
+                                  child: counted(brandCounts, brandsSel),
+                                ),
+                              if (sellerCounts.isNotEmpty)
+                                section(
+                                  id: 'seller',
+                                  title: 'Seller',
+                                  summary: sellersSel.isEmpty
+                                      ? '${sellerCounts.length}'
+                                      : '${sellersSel.length} selected',
+                                  child: counted(sellerCounts, sellersSel),
+                                ),
+                              section(
+                                id: 'availability',
+                                title: 'Availability',
+                                summary: availabilitySel.isEmpty
+                                    ? null
+                                    : '${availabilitySel.length} selected',
+                                child: counted(
+                                    availabilityCounts, availabilitySel),
+                              ),
+                              section(
+                                id: 'trade',
+                                title: 'Trade filters',
+                                summary: deals || seasonal || inStock
+                                    ? 'On'
+                                    : null,
+                                child: Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: <Widget>[
+                                    toggle('Best Deals', deals,
+                                        () => deals = !deals),
+                                    toggle('Seasonal', seasonal,
+                                        () => seasonal = !seasonal),
+                                    toggle('In stock', inStock,
+                                        () => inStock = !inStock),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -287,6 +462,10 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                                 seasonal = false;
                                 inStock = false;
                                 band = null;
+                                typesSel.clear();
+                                brandsSel.clear();
+                                sellersSel.clear();
+                                availabilitySel.clear();
                               }),
                               style: TextButton.styleFrom(
                                 minimumSize: const Size(44, 48),
@@ -303,6 +482,18 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                                     _seasonalOnly = seasonal;
                                     _inStockOnly = inStock;
                                     _priceBand = band;
+                                    _productTypes
+                                      ..clear()
+                                      ..addAll(typesSel);
+                                    _brands
+                                      ..clear()
+                                      ..addAll(brandsSel);
+                                    _sellers
+                                      ..clear()
+                                      ..addAll(sellersSel);
+                                    _availability
+                                      ..clear()
+                                      ..addAll(availabilitySel);
                                     _resetPaging();
                                   });
                                   Navigator.of(sheetContext).pop();
@@ -328,19 +519,6 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
       },
     );
   }
-
-  Widget _sheetGroup(BuildContext context, String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color:
-                Theme.of(context).extension<AgencyColors>()?.contentSecondary,
-          ),
-        ),
-      );
 
   @override
   Widget build(BuildContext context) {
@@ -424,11 +602,7 @@ class _B2BCatalogueScreenState extends ConsumerState<B2BCatalogueScreen> {
                   title: title,
                   subtitle: 'Trade rates · MOQ · GST invoicing',
                   ctaLabel: 'Filters',
-                  onCta: () => setState(() {
-                    _dealsOnly = true;
-                    _seasonalOnly = false;
-                    _resetPaging();
-                  }),
+                  onCta: _openFilters,
                 ),
               ),
             ),

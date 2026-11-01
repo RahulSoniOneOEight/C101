@@ -720,16 +720,20 @@ class TradeProductCardCompact extends StatelessWidget {
                     height: 40,
                     child: Row(
                       children: <Widget>[
-                        if (quantity > 0)
+                        // One control on every card: a quantity stepper that
+                        // starts at 0. Mixing a cart icon (not added) with a
+                        // stepper (added) made the grid look inconsistent.
+                        if (onQuantityChanged != null)
                           QuantityStepper(
                             value: quantity,
                             min: 0,
                             max: outOfStock ? quantity : null,
                             compact: true,
                             dense: true,
-                            onChanged: outOfStock ? null : onQuantityChanged,
+                            onChanged:
+                                outOfStock ? null : onQuantityChanged,
                           )
-                        else
+                        else if (onAdd != null)
                           CartPlusIconButton(
                             size: 40,
                             state: outOfStock

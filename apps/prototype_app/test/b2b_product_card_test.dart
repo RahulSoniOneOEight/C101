@@ -2,6 +2,7 @@ import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prototype_app/providers/b2b_trade_providers.dart';
 import 'package:prototype_app/screens/b2b_browse_screens.dart';
 
 /// Validates the corrected B2B catalogue product tile across the required
@@ -58,13 +59,57 @@ void main() {
     });
 
     testWidgets(
-        'catalogue tile shows Cart-Plus and no RFQ control at ${width.toInt()}px',
+        'catalogue tile uses one stepper and no RFQ control at ${width.toInt()}px',
         (tester) async {
       await _pump(tester, width);
-      expect(find.byType(CartPlusIconButton), findsWidgets);
+      // Every tile carries the same control: a stepper starting at 0. A cart
+      // icon on some tiles and a counter on others was the inconsistency.
+      expect(find.byType(QuantityStepper), findsWidgets);
+      expect(find.byType(CartPlusIconButton), findsNothing);
       // RFQ lives on the PDP and in the standalone Request-Quotation journey,
       // not on the compact product tile.
       expect(find.byType(RFQPlusIconButton), findsNothing);
     });
   }
+
+  testWidgets('first step on a tile adds the MOQ, not one unit',
+      (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    tester.view.physicalSize = const Size(390, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AgencyTheme.light(),
+          home: const B2BCatalogueScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final product = container.read(tradeCatalogueViewProvider).first;
+    final sku = product.selectedVariant?.sku ?? product.product.id;
+    expect(
+      container
+          .read(b2bQuotationCartProvider)
+          .lines
+          .where((line) => line.sku == sku),
+      isEmpty,
+    );
+
+    await tester.tap(find.descendant(
+      of: find.byType(QuantityStepper).first,
+      matching: find.byIcon(Icons.add),
+    ));
+    await tester.pumpAndSettle();
+
+    final line = container
+        .read(b2bQuotationCartProvider)
+        .lines
+        .firstWhere((line) => line.sku == sku);
+    expect(line.quantity, product.moq);
+  });
 }
