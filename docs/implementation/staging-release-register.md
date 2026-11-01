@@ -12,7 +12,7 @@ chat history or commit logs. Update it after every deploy and after every accept
 
 | Surface | Live build | Artifact | Notes |
 |---|---|---|---|
-| Web (Firebase hosting) | **`71421f2`** | `main.dart.js` 3,943,297 bytes · SHA-256 `8ae7f0557378bac214795d5c7b69a4cc3c9417b68c677070a3c44d84b003c670` · banner `STAGING · 71421f2` | U-011 + U-017 + PDP fix + iPhone14 gallery + actionable cart errors |
+| Web (Firebase hosting) | **`df32714`** | `main.dart.js` 3,984,874 bytes · SHA-256 `288edc1be57f77ae771f4bd8de4dd04978e0c9ba8c1a5be6b06de314fabe16cc` · banner `STAGING · df32714` | U-019 browse facets on top of U-011/U-017/PDP fixes |
 | Experience API | **`e4145643172a`** | image built from `3d2bdff` | order address + completion `order_number`/`total_minor` (QC 1–8) |
 | Workspace service | **`5fc663e283dd`** | image built from `9003721` | B2B invitations / join / 10 seats (chat parity) |
 | Medusa API + worker | **`f0dc0126f5de`** | built from `release-u014-9a3592aea` | U-013 price fix + U-014 option integrity in admin + vendor panels |
@@ -27,6 +27,7 @@ Newest first. “Live” means verified against the surface above, not merely me
 
 | Date | Update | Commits | Live? | What it changed |
 |---|---|---|---|---|
+| 2026-11-01 | **U-019 — Browse facets** | `734ac6f`; merged as `c3ca7bc`; released as `df32714` | **YES** | Data-backed sort (Discount), category/brand/seller/availability counts, price range slider, removable chips, Show N |
 | 2026-11-01 | **PDP add-to-cart fix + benchmark batch** | `59e8796`, `ebf5b92` | **YES** | Add gives visible feedback (toast 1.8 s, “Added” state, cart badge), qty stepper, breadcrumb, share |
 | 2026-11-01 | **U-015 — Smoke cleanup** | data-only (backup `u015_backup_*_20261101`) | **YES** | Three allowlisted Smoke products archived (`status=draft`, channels detached); published count 263 → 260 |
 | 2026-11-01 | **U-014 — option integrity** | `9a3592a`; merged as `fa9d0ab`; image `f0dc0126f5de` | **YES** + data repair | Variant options filled from titles instead of deadlocking; hint/message fixed; IPHONE 17 (Black/White) and Sumsan (Blue/Black/White) options + links + ranks repaired |
