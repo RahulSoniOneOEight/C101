@@ -75,6 +75,7 @@ current            /opt/buildkart-releases/release-u014-9a3592aea
 | B2C order flow QC (68f5125) | `tooling/qa/b2c-order-flow.mjs` — **15/15**; order **BK-261101-XYE15Y** ₹479 (₹400 − ₹20 + ₹99), completion `total_minor` 47900 | PASS |
 | B2B order flow QC (68f5125) | `tooling/qa/b2b-order-flow.mjs` — **37/37**; order **og_01M6CBX2G05FPF1WNP042BEYB1** ₹764 | PASS |
 | Admin portal QC | `tooling/qa/portal-qc.mjs` — sign-in, orders (All 79 / B2C 62 / B2B 17, QC orders visible), Product Studio, delivery rates, shipments; 0 errors | PASS |
+| Order page QC (admin + seller) | `tooling/qa/order-page-qc.mjs` — **25/25**; #191 B2C ₹479 and #192 B2B ₹764 reconcile in payments, summary, delivery and customer on both consoles; 0 errors. Findings: B2B orders labelled "from B2C Storefront" (metadata channel), customer ID row shows an initial | PASS (2 display findings) |
 | Seller portal QC | store picker → BuildMaster Supplies, orders + order detail, catalogue, delivery rates; 0 errors | PASS |
 | Browse filter sheet (68f5125) | Product type replaces Category; facets fold; type chips wrap; CTA uses the primary colour | PASS |
 | B2B catalogue filters (68f5125) | Product type / Price / Brand / Seller / Availability / Trade; `Cement (1)` → 1 result; banner CTA opens the sheet | PASS |
