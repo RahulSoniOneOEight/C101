@@ -1,21 +1,20 @@
-# Seller product creation — staging QC and defect fix
+# Seller product creation — staging QC, defect fix and deployment
 
 **Date:** 2026-11-17  
 **Lane:** B (vendor UI + Mercur API, no schema, no migration)  
-**Status:** source-verified locally; staging deployment **authorized but blocked** — the documented
-`buildkart_deploy` SSH key is absent from this workstation.
+**Status:** deployed to staging and verified; production untouched.
 
 ## QC result
 
-Live QC used the seller portal (`/seller/products/new`) as **BuildKart Direct** with a clearly
-marked test product (`QC Add Flow 20261117-0004`, SKU `QC-ADD-20261117-0004`). The form accepted
-title, category (`Hand Tools`), variant name, SKU and variant description, then **Create product**
+The first live QC used the seller portal (`/seller/products/new`) as **BuildKart Direct** with a
+clearly marked test product (`QC Add Flow 20261117-0004`, SKU `QC-ADD-20261117-0004`). The form
+accepted title, category (`Hand Tools`), variant name, SKU and description, then **Create product**
 returned HTTP **422**:
 
 > A reason is required before provisioning seller offers.
 
-No product, offer, inventory item, price or order was created; the validation fails before any
-write. The error is visible in the page but was not announced (`role="alert"` was missing).
+No product, offer, inventory item, price or order was created; validation fails before any write.
+The error was visible but not announced (`role="alert"` was missing).
 
 ## Cause
 
@@ -27,11 +26,11 @@ offer implicitly.
 
 ## Fix
 
-- Move the guard into `product-studio-guard.ts` and require the reason only when
-  `mode === "admin"` and a seller is selected.
-- Vendor variant row: show **“Your seller account”** instead of a false **“⛔ Missing”** seller
-  before the first save.
-- Add `role="alert"` to the save error notice so a blocked seller is notified.
+- `product-studio-guard.ts` requires the reason only when `mode === "admin"` and a seller is
+  selected.
+- Vendor variant row shows **“Your seller account”** instead of a false **“⛔ Missing”** before the
+  first save.
+- Save errors carry `role="alert"` so a blocked seller is notified.
 
 ## Verification
 
@@ -39,24 +38,39 @@ offer implicitly.
 |---|---|
 | Jest unit test (`product-studio-guard.unit.spec.ts`) | 3 passed |
 | `tsc --noEmit` (packages/api) | passed |
-| Vendor production build (staging config, `/seller/` base) | passed in 40.8s |
-| ESLint on `studio-form.tsx` | pre-existing React-hooks errors only; no new finding from this change |
-| Live end-to-end create | **blocked** until this branch is deployed |
+| Vendor production build (staging config, `/seller/` base) | passed |
+| ESLint on `studio-form.tsx` | pre-existing React-hooks errors only; no new finding |
+| Live create after deploy | HTTP **201** — product `prod_01M7JW4PVYF7C8WW0D024RVHPF` |
+| Seller offer | `offer_01M7JW4QKP33N06VNDWJBY6TFZ`, BuildKart Direct |
+| Inventory link and level | `iitem_01M7JW4QE9BNQ5CW8S2512YC6G`, 50 stocked / 0 reserved |
+| Price after create | 0 prices (expected; no customer visibility) |
+| Storefront gates | B2C and B2B **Not live** — Published ✓, Offer ✓, Price ✕, Stock ✕ |
+| Cleanup | Offer, inventory item and product deleted; product 404, 0 offers, item 404 |
+
+The post-create **Stock ✕** gate is expected under the current Product Studio policy: offers are
+created with Mercur `manage_inventory=false` and Tryton remains the stock authority. This is the
+same Mercur/Tryton separation reported for order #196, not a regression from this fix.
 
 ## Deployment
 
-Requires one API image rebuild that also bundles the vendor dashboard, plus a re-run of the same
-live QC (create, verify offer/inventory link, confirm no price and no storefront visibility, then
-remove the test product through the reviewed delete path).
-
-The live staging release is `release-u014-9a3592aea` (commit `9a3592aea`, 2026-11-01), which is a
-descendant of the original CHG-094 base. The fix was rebased onto that exact commit, re-tested, and
-is deployed as a new immutable release rather than from the older base.
+The live staging release was `release-u014-9a3592aea` (commit `9a3592aea`, 2026-11-01), a descendant
+of the original CHG-094 base. The fix was rebased onto that exact commit, re-tested, and deployed as
+a new immutable release:
 
 - Branch: `fix/seller-product-create`
 - Fix commit: `88da982` (rebased onto `9a3592aea`)
-- Deployment target: `/opt/buildkart-releases/release-u014-fix-88da982`
+- Release: `/opt/buildkart-releases/release-u014-fix-88da982`
+- Services rebuilt: `medusa-api`, `medusa-worker`, `experience-api`, `event-workers`
+- Proxy restarted; `api-staging` and `ops-staging` health returned 200; dashboard and seller
+  surfaces returned 200.
 
 The documented deploy key was restored to `C:\Users\LENOVO\.ssh\buildkart_deploy` from the private
 local context file; the key itself is never committed or copied into this repository.
 
+## Residual observations
+
+- The seller review screen correctly reports “Published · Not live” and the exact missing gates.
+- Product images and search tags remain optional warnings, not blockers.
+- The native Mercur mobile order row still crowds the reservation badge (separate upstream layout
+  issue).
+- The earlier seller channel-label UI bundle remains on its own branch, unaffected by this release.
