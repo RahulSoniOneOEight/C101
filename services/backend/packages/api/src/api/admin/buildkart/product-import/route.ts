@@ -12,6 +12,7 @@ import {
 } from "../../../../lib/product-studio";
 import { updateOfferPricing } from "../../../../lib/offer-pricing";
 import { saveB2bPricing } from "../../../../lib/b2b-pricing";
+import { parseImportB2bPricing } from "../../../../lib/product-import-b2b";
 import { hasPermission } from "../../../../lib/rbac";
 
 type ImportRow = {
@@ -61,35 +62,6 @@ const moneyMinor = (value: string) => {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : null;
 };
-
-/** "5:950|10:900" -> [{ min_quantity: 5, amount: 95000 }, ...] (minor units). */
-function parseTiers(raw: string) {
-  return raw
-    .split("|")
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .map((entry) => {
-      const [min, amount] = entry.split(":");
-      return {
-        min_quantity: Number(clean(min)),
-        max_quantity: null,
-        amount: Math.round(Number(clean(amount)) * 100),
-      };
-    })
-    .filter(
-      (tier) =>
-        Number.isInteger(tier.min_quantity) &&
-        tier.min_quantity >= 2 &&
-        Number.isFinite(tier.amount) &&
-        tier.amount > 0,
-    )
-    .sort((left, right) => left.min_quantity - right.min_quantity)
-    .map((tier, index, all) => ({
-      ...tier,
-      max_quantity:
-        index < all.length - 1 ? all[index + 1].min_quantity - 1 : null,
-    }));
-}
 
 function parseSpecs(raw: string) {
   return raw
@@ -214,6 +186,11 @@ export async function POST(
       errors.push("b2c_selling_price cannot exceed b2c_list_price");
     }
 
+    // Validate B2B columns before any write. Apply mode must fail here too, or a bad tier would
+    // throw after the product and B2C price were already created.
+    const b2b = parseImportB2bPricing(row);
+    errors.push(...b2b.errors);
+
     if (sku) {
       const { data: existing } = await query.graph({
         entity: "variant",
@@ -315,21 +292,9 @@ export async function POST(
         ends_at: null,
       });
 
-      const b2bSelling = moneyMinor(clean(row.b2b_selling_price));
-      if (b2bSelling !== null) {
-        const tiers = parseTiers(clean(row.b2b_tiers));
-        for (const tier of tiers) {
-          if (tier.amount > b2bSelling) {
-            errors.push(
-              `b2b tier starting at ${tier.min_quantity} cannot cost more than the B2B selling price`,
-            );
-          }
-        }
+      if (b2b.pricing) {
         await saveB2bPricing(req.scope, offer.id, {
-          amount: b2bSelling,
-          list_price_minor: moneyMinor(clean(row.b2b_list_price)) ?? b2bSelling,
-          moq: Number(clean(row.b2b_moq)) || 1,
-          tiers,
+          ...b2b.pricing,
           starts_at: null,
           ends_at: null,
           gst_inclusive: true,

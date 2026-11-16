@@ -114,10 +114,10 @@ then deleted; product 404, 0 offers.
   B2C and B2B** with 7 Mercur units. Pricing can therefore make a studio product storefront-live on
   Mercur stock; this is the same Mercur/Tryton separation reported for order #196 and needs a policy
   decision, not a display fix.
-- Open risk: invalid B2B tiers are detected after product creation; `saveB2bPricing` then throws, so
-  the row can report failed while a product remains. This was not live-tested but is visible in the
-  route flow; pre-validating B2B tiers or adding compensation is recommended before relying on
-  import for bulk onboarding.
+- B2B tier and price fields are now validated **before any write** (`product-import-b2b.ts`), so an
+  invalid tier fails both validate and apply without creating a product. Unit tests cover selling
+  above list, tier above selling, tier below MOQ, overlapping/malformed tiers and invalid money.
+  Live direct-apply verification is recorded after the next deploy.
 - Product images and search tags remain optional warnings, not blockers.
 - The native Mercur mobile order row still crowds the reservation badge (separate upstream layout
   issue).
