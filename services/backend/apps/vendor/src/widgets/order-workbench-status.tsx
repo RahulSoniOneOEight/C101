@@ -3,11 +3,15 @@ import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
 import { orderChannelLabel } from "../lib/order-channel";
+import { hasUnmanagedInventoryItems } from "../lib/order-inventory";
 import { deliverySummary, returnSummary, StatusTile } from "./order-delivery-returns";
 
 type OrderContext = {
   id: string;
   metadata?: Record<string, unknown> | null;
+  items?: Array<{
+    offer?: { manage_inventory?: boolean | null; inventory_item_link?: unknown[] | null } | null;
+  }> | null;
 };
 
 const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
@@ -28,6 +32,7 @@ const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) =>
   const delivery = deliverySummary(data.shipments);
   const returnState = returnSummary(data.returns);
   const orderType = orderChannelLabel(order.metadata);
+  const unmanagedInventory = hasUnmanagedInventoryItems(order.items);
 
   return (
     <section aria-labelledby="seller-workbench-title">
@@ -45,6 +50,12 @@ const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) =>
             Seller-scoped operations for this order. Payment and refunds are managed by BuildKart
             Admin.
           </Text>
+          {unmanagedInventory ? (
+            <Text size="small" className="mt-2 text-ui-fg-subtle">
+              Mercur inventory management is off for this offer, so it has no Mercur item reservation.
+              Tryton stock reservation is tracked separately.
+            </Text>
+          ) : null}
           <div className="mt-4 grid grid-cols-2 gap-3">
             <StatusTile
               label="Delivery"

@@ -3,7 +3,10 @@
     "domain": "Seller products"
   },
   "orders": {
-    "onDateFromSalesChannel": "{{date}}"
+    "onDateFromSalesChannel": "{{date}}",
+    "reservations": {
+      "notAllocatedLabel": "Unreserved"
+    }
   },
   "customFields": {
     "title": "Custom Fields",
