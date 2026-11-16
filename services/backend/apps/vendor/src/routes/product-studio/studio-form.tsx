@@ -2812,6 +2812,7 @@ export function ProductStudioForm({
 
       {notice ? (
         <div
+          role={notice.kind === "error" ? "alert" : "status"}
           className={`rounded-lg border px-4 py-3 text-sm ${
             notice.kind === "error"
               ? "border-ui-border-error bg-ui-bg-error text-ui-fg-error"
@@ -3399,7 +3400,7 @@ export function ProductStudioForm({
                           <Table.Cell>
                             <span
                               className={
-                                variant.seller_id
+                                variant.seller_id || mode === "vendor"
                                   ? "text-sm text-ui-fg-base"
                                   : "text-sm text-ui-fg-error"
                               }
@@ -3409,7 +3410,9 @@ export function ProductStudioForm({
                                     (seller) =>
                                       seller.id === variant.seller_id,
                                   )?.name ?? variant.seller_id
-                                : "⛔ Missing"}
+                                : mode === "vendor"
+                                  ? "Your seller account"
+                                  : "⛔ Missing"}
                             </span>
                           </Table.Cell>
                           <Table.Cell>

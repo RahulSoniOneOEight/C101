@@ -22,6 +22,7 @@ import {
 import { AttributeType, ProductChangeActionType } from "@mercurjs/types";
 import { experienceAdminFetch } from "./experience-admin";
 import { recordSellerProductActivity } from "./seller-activity";
+import { sellerProvisionReasonRequired } from "./product-studio-guard";
 
 export type StudioMode = "admin" | "vendor";
 
@@ -1511,7 +1512,10 @@ export async function saveStudioProduct(
   await validateSkuUniqueness(scope, productId ?? "", variants);
   const requestedSellerId =
     mode === "admin" ? clean(input.seller_id) ?? null : sellerId;
-  if (requestedSellerId && !clean(input.seller_provision_reason)) {
+  if (
+    sellerProvisionReasonRequired(mode, requestedSellerId) &&
+    !clean(input.seller_provision_reason)
+  ) {
     throw new StudioError(
       422,
       "A reason is required before provisioning seller offers.",

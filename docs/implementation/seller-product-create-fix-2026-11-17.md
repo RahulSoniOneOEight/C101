@@ -1,0 +1,49 @@
+# Seller product creation — staging QC and defect fix
+
+**Date:** 2026-11-17  
+**Lane:** B (vendor UI + Mercur API, no schema, no migration)  
+**Status:** source-verified locally; **not deployed**. Staging still blocks seller product creation.
+
+## QC result
+
+Live QC used the seller portal (`/seller/products/new`) as **BuildKart Direct** with a clearly
+marked test product (`QC Add Flow 20261117-0004`, SKU `QC-ADD-20261117-0004`). The form accepted
+title, category (`Hand Tools`), variant name, SKU and variant description, then **Create product**
+returned HTTP **422**:
+
+> A reason is required before provisioning seller offers.
+
+No product, offer, inventory item, price or order was created; the validation fails before any
+write. The error is visible in the page but was not announced (`role="alert"` was missing).
+
+## Cause
+
+`saveStudioProduct` computed `requestedSellerId` as the acting seller for **both** admin and vendor
+mode, then required `seller_provision_reason` whenever it was set. The vendor form only collects a
+reason in admin mode, so every seller-owned create and edit failed. The reason exists to justify an
+**admin** assigning a product to a seller; a seller saving their own product provisions their own
+offer implicitly.
+
+## Fix
+
+- Move the guard into `product-studio-guard.ts` and require the reason only when
+  `mode === "admin"` and a seller is selected.
+- Vendor variant row: show **“Your seller account”** instead of a false **“⛔ Missing”** seller
+  before the first save.
+- Add `role="alert"` to the save error notice so a blocked seller is notified.
+
+## Verification
+
+| Check | Result |
+|---|---|
+| Jest unit test (`product-studio-guard.unit.spec.ts`) | 3 passed |
+| `tsc --noEmit` (packages/api) | passed |
+| Vendor production build (staging config, `/seller/` base) | passed in 40.8s |
+| ESLint on `studio-form.tsx` | pre-existing React-hooks errors only; no new finding from this change |
+| Live end-to-end create | **blocked** until this branch is deployed |
+
+## Deployment gate
+
+Requires one API image rebuild that also bundles the vendor dashboard, plus a re-run of the same
+live QC (create, verify offer/inventory link, confirm no price and no storefront visibility, then
+remove the test product through the reviewed delete path). Not authorized yet.
