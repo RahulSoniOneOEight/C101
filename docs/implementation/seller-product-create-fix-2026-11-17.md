@@ -73,6 +73,12 @@ The bulk-import seller-assignment fix followed in a second immutable release:
 - Release: `/opt/buildkart-releases/release-u014-fix-981b642`
 - Services rebuilt: `medusa-api`, `medusa-worker`; proxy restarted; admin and seller healthy.
 
+The B2B pre-validation fix followed in a third release:
+
+- B2B fix commit: `674d782`
+- Release: `/opt/buildkart-releases/release-u014-fix-674d782`
+- Services rebuilt: `medusa-api`, `medusa-worker`; proxy restarted; services healthy.
+
 The documented deploy key was restored to `C:\Users\LENOVO\.ssh\buildkart_deploy` from the private
 local context file; the key itself is never committed or copied into this repository.
 
@@ -117,7 +123,11 @@ then deleted; product 404, 0 offers.
 - B2B tier and price fields are now validated **before any write** (`product-import-b2b.ts`), so an
   invalid tier fails both validate and apply without creating a product. Unit tests cover selling
   above list, tier above selling, tier below MOQ, overlapping/malformed tiers and invalid money.
-  Live direct-apply verification is recorded after the next deploy.
+- **Live proof after deploy (`674d782`):** a direct `mode=apply` of a row with B2B selling ₹100 and
+  tier `10:150` returned `created: 0 / failed: 1` with “A higher quantity cannot produce a higher
+  unit price.”, and the catalogue held **0 products and 0 offers** for that SKU. A valid row in the
+  same call shape created normally (both channels, stock 3, B2B ₹110 with MOQ 5 and tiers
+  10→₹105 / 20→₹100), then was deleted; product 404, 0 offers.
 - Product images and search tags remain optional warnings, not blockers.
 - The native Mercur mobile order row still crowds the reservation badge (separate upstream layout
   issue).
