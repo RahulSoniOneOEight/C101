@@ -44,12 +44,15 @@ offer implicitly.
 | Seller offer | `offer_01M7JW4QKP33N06VNDWJBY6TFZ`, BuildKart Direct |
 | Inventory link and level | `iitem_01M7JW4QE9BNQ5CW8S2512YC6G`, 50 stocked / 0 reserved |
 | Price after create | 0 prices (expected; no customer visibility) |
-| Storefront gates | B2C and B2B **Not live** — Published ✓, Offer ✓, Price ✕, Stock ✕ |
+| Unpriced review gates | B2C and B2B **Not live** — Published ✓, Offer ✓, Price ✕, Stock ✕ |
+| B2C pricing save | HTTP **200** — ₹120 list / ₹100 selling |
+| Priced review gates | B2C **Live** — Published ✓, Offer ✓, Price ✓, Stock ✓, 0 blockers |
 | Cleanup | Offer, inventory item and product deleted; product 404, 0 offers, item 404 |
 
-The post-create **Stock ✕** gate is expected under the current Product Studio policy: offers are
-created with Mercur `manage_inventory=false` and Tryton remains the stock authority. This is the
-same Mercur/Tryton separation reported for order #196, not a regression from this fix.
+The unpriced review showed **Stock ✕**; after a B2C price was saved, the same product showed
+**B2C Live** with **Stock ✓**. The storefront therefore treats Mercur stock (50 units) as available
+even though the offer has `manage_inventory=false` and Tryton holds no reservation. This is the same
+Mercur/Tryton separation reported for order #196, not a regression from the add-flow fix.
 
 ## Deployment
 
@@ -63,6 +66,12 @@ a new immutable release:
 - Services rebuilt: `medusa-api`, `medusa-worker`, `experience-api`, `event-workers`
 - Proxy restarted; `api-staging` and `ops-staging` health returned 200; dashboard and seller
   surfaces returned 200.
+
+The bulk-import seller-assignment fix followed in a second immutable release:
+
+- Import fix commit: `981b642`
+- Release: `/opt/buildkart-releases/release-u014-fix-981b642`
+- Services rebuilt: `medusa-api`, `medusa-worker`; proxy restarted; admin and seller healthy.
 
 The documented deploy key was restored to `C:\Users\LENOVO\.ssh\buildkart_deploy` from the private
 local context file; the key itself is never committed or copied into this repository.
@@ -88,15 +97,22 @@ returned 404 because ownership comes from the `product_seller` link (or a seller
 action), and the import passed no product-level seller. The importer therefore reported success for
 a product that the seller could not manage.
 
-Fix applied in source: each imported row now sets `seller_id` and a truthful
+Fix applied and deployed: each imported row now sets `seller_id` and a truthful
 `seller_provision_reason` (`CSV import (<sku>)`), which creates the product–seller link and satisfies
-the admin provisioning audit. Source typecheck passed; not deployed yet.
+the admin provisioning audit.
+
+**Re-QC after deploy (`981b642`):** the mixed CSV again produced `1 created / 2 failed`. The seller
+studio read returned **200** with `owned: true`, the product appeared in seller search and the vendor
+product list, and the seller review page showed **B2C and B2B Live** with 0 blockers (one missing-image
+warning). The imported product (`prod_01M7JXCFQPDJVVTQKCSVBB3H3V`), its offer and inventory item were
+then deleted; product 404, 0 offers.
 
 ## Residual observations
 
 - A priced studio product showed **B2C Live** with 50 Mercur units while `manage_inventory=false`
-  and no Tryton reservation. Pricing can therefore make a studio product storefront-live on Mercur
-  stock; this is the same Mercur/Tryton separation reported for order #196 and needs a policy
+  and no Tryton reservation. The bulk-imported product behaved the same way and was **Live on both
+  B2C and B2B** with 7 Mercur units. Pricing can therefore make a studio product storefront-live on
+  Mercur stock; this is the same Mercur/Tryton separation reported for order #196 and needs a policy
   decision, not a display fix.
 - Open risk: invalid B2B tiers are detected after product creation; `saveB2bPricing` then throws, so
   the row can report failed while a product remains. This was not live-tested but is visible in the
