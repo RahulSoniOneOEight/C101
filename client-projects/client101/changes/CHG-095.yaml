@@ -1,0 +1,105 @@
+change_id: CHG-095
+revision: 1
+status: isolated-preview-source-tested-integration-blocked
+request: >-
+  Prototype checkout-time Tryton reservation for future single-line test
+  checkouts in an isolated preview only, without changing existing orders
+  #195/#196 or publishing to shared staging or production.
+type: checkout-reservation-preview
+extends:
+- CHG-017
+related:
+- CHG-082
+requested_by: human-requester
+requested_at_utc: '2026-11-16'
+approval_required: true
+approval_source: chat-preview-only-selection
+approval_scope: isolated-source-and-preview-prototype-only
+erp_operations_approval: pending
+finance_approval: pending
+staging_deployment_authorized: false
+production_release_authorized: false
+lane: D
+affected_capabilities:
+- checkout
+- inventory-reservation
+- order-reconciliation
+affected_domains:
+- experience-api
+- commerce
+- erp
+- integration
+affected_surfaces:
+- experience-api.checkout
+- tryton.stock-move
+- preview-postgres.reservation-journal
+requirements:
+- id: R1
+  name: Preview-only activation
+  outcome: >-
+    Disabled by default; explicit integration-mode flag and isolation acknowledgement;
+    known shared staging and production endpoints rejected.
+  status: source-tested
+- id: R2
+  name: Single-line validated scope
+  outcome: >-
+    Reject empty, multi-line, mismatched offer/seller/SKU and invalid quantities
+    before any payment or stock write.
+  status: source-tested
+- id: R3
+  name: ERP stock authority
+  outcome: >-
+    Check complete Tryton move history and per-location ATP, journal intent,
+    create exactly one move, assign and verify it before preparing payment.
+  status: unit-tested-integration-pending
+- id: R4
+  name: Safe retry and uncertainty
+  outcome: >-
+    Persist intermediate states and fail closed on uncertain create, assign,
+    payment or Medusa completion. Never repeat a possibly successful remote
+    side effect; operator review is required.
+  status: unit-tested-integration-pending
+- id: R5
+  name: Truthful reconciliation
+  outcome: >-
+    A preview order is not marked reconciled unless the preview journal is
+    confirmed and the matching Tryton move remains assigned.
+  status: source-tested-integration-pending
+scope_lock:
+  environment: separate-integration-stack-only
+  no_touch:
+  - production
+  - shared staging
+  - 'existing orders #195 and #196'
+  - payment capture, fulfillment, returns or historical stock
+  - Mercur offer inventory-management policy
+  allowed_paths:
+  - services/experience-api/src/**
+  - services/experience-api/package.json
+  - services/experience-api/.env.example
+  - docs/implementation/tryton-checkout-preview-contract-2026-11-16.md
+  - client-projects/client101/changes/CHG-095.yaml
+required_tests:
+- One order group and one assigned Tryton move on fresh single-line checkout.
+- A completed checkout replay returns the same group and move.
+- Multi-line and unsupported carts produce no payment session or stock write.
+- Insufficient ATP and incomplete history produce no payment or stock write.
+- Crash and timeout at each remote boundary cannot duplicate a move or order.
+- Preview reconciliation exposes all mismatches and never suggests the disabled manual endpoints.
+verification:
+  unit_test: pass-13-of-13
+  experience_api_typecheck: pass
+  legacy_cart_totals_test: pass
+  isolated_postgres_medusa_tryton_cycle: blocked-local-docker-linux-daemon-unavailable
+  runtime_spending_or_stock_effect: none
+release:
+  shared_staging: forbidden
+  production: forbidden
+  proposal_only: true
+open_gates:
+- Full isolated integration and failure-injection cycle.
+- CHG-017 D-017-08 ERP Operations and Finance conditions.
+- Multi-line reservation policy and cross-warehouse/seller mapping.
+- Global Tryton ATP serialization and interrupted-workflow/operator recovery design.
+- Direct-store Medusa checkout bypass and distributed atomicity.
+evidence: docs/implementation/tryton-checkout-preview-contract-2026-11-16.md

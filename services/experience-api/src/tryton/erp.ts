@@ -159,9 +159,16 @@ export class TrytonErp {
     return products[0];
   }
 
-  async reserve(checkoutRef: string, sku: string, quantity: number): Promise<number> {
+  async reserve(
+    checkoutRef: string,
+    sku: string,
+    quantity: number,
+    fromLocationId?: number,
+  ): Promise<number> {
     const product = await this.findProductBySku(sku);
-    const fromLocation = await this.storageLocationId();
+    // The checkout preview selects a storage location with enough local ATP.
+    // Existing manual staging callers retain their legacy default behavior.
+    const fromLocation = fromLocationId ?? await this.storageLocationId();
     const toLocation = await this.customerLocationId();
     const company = await this.companyId();
     const unit = await this.uomId();
@@ -211,6 +218,7 @@ export class TrytonErp {
 
   async stockSummary(sku: string): Promise<{
     found: boolean;
+    complete: boolean;
     product_id: number | null;
     on_hand: number;
     reserved: number;
@@ -227,6 +235,7 @@ export class TrytonErp {
   }> {
     const empty = {
       found: false,
+      complete: true,
       product_id: null,
       on_hand: 0,
       reserved: 0,
@@ -311,6 +320,8 @@ export class TrytonErp {
 
     return {
       found: true,
+      // A truncated move history cannot establish real ATP. Preview checkout refuses it.
+      complete: moveIds.length < 5000,
       product_id: productId,
       on_hand: round(onHand),
       reserved: round(reserved),

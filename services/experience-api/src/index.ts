@@ -19,6 +19,13 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
+import { PreviewCheckoutStore } from "./store/preview-checkout-store.js";
+import {
+  PreviewCheckoutError,
+  resolvePreviewLine,
+  runPreviewCheckout,
+  verifyPreviewReplay,
+} from "./checkout/preview-reservation.js";
 import { InventoryRequestStore } from "./store/inventory-request-store.js";
 import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
@@ -107,6 +114,9 @@ erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:"
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
+const previewCheckout = config.previewCheckoutTrytonEnabled
+  ? new PreviewCheckoutStore(config.experienceDatabaseUrl)
+  : null;
 const inventoryRequests = new InventoryRequestStore(config.experienceDatabaseUrl);
 const notifications = new NotificationStore(config.experienceDatabaseUrl);
 const shipmentStore = new ShipmentStore(config.experienceDatabaseUrl);
@@ -4456,6 +4466,14 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         // Stop retries here and return the first persisted canonical completion snapshot.
         const existingCompletion = await correlation.get(cartId);
         if (existingCompletion?.medusa_order_group_id) {
+          if (previewCheckout && !await verifyPreviewReplay(
+            cartId, existingCompletion.tryton_move_id, previewCheckout, erp,
+          )) {
+            return problem(
+              409, "preview-checkout-review-required",
+              "The existing order has no verified preview Tryton reservation; operator review is required.",
+            );
+          }
           return json({
             type: "order_group",
             order_group: existingCompletion.medusa_order_group ?? {
@@ -4470,134 +4488,187 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             idempotent_replay: true,
           });
         }
+        if (previewCheckout &&
+            (existingCompletion?.tryton_move_id || existingCompletion?.payment_evidence)) {
+          const previewRecord = await previewCheckout.get(cartId);
+          if (previewRecord && previewRecord.status !== "confirmed") {
+            await previewCheckout.needsReview(cartId);
+          }
+          return problem(
+            409, "preview-checkout-review-required",
+            "This cart already has stock or payment evidence; operator review is required before a preview checkout.",
+          );
+        }
 
         const cart = await medusa.getCart(cartId);
-        if (!cart.completed_at) {
-          await medusa.updateCartMetadata(cartId, {
-            ...(cart.metadata ?? {}),
-            payment_mode: "simulated",
-            test_data: true,
-          });
+        let previewLine: { sku: string; quantity: number } | null = null;
+        if (previewCheckout) {
+          if (cart.completed_at) {
+            return problem(
+              409, "preview-checkout-review-required",
+              "This cart is already complete without a recorded preview order; operator review is required.",
+            );
+          }
+          if (cart.items?.length !== 1) {
+            return problem(
+              409, "preview-cart-unsupported",
+              "This isolated preview supports exactly one cart line; no payment or stock was changed.",
+            );
+          }
+          const productIds = [...new Set(
+            (cart.items ?? []).map((item) => item.product_id).filter((id): id is string => Boolean(id)),
+          )];
+          const offers = await medusa.listOffersByProducts(
+            productIds, regionFor(authenticated.authorization),
+          );
+          previewLine = resolvePreviewLine(cart, offers);
         }
 
-        // Medusa requires a payment collection and initialized session before completion. Reuse an
-        // amount-matched simulated session on retries so an authorization is never replaced.
-        let paymentCollection = await medusa.createPaymentCollection(cartId);
-        let paymentSession = findValidSimulatedSession(paymentCollection);
-        if (!paymentSession) {
-          paymentCollection = await medusa.createPaymentSession(
-            paymentCollection.id,
-            SIMULATED_PAYMENT_PROVIDER_ID,
-          );
-          paymentSession = findValidSimulatedSession(paymentCollection);
-        }
-        if (!paymentSession) {
-          throw new Error(
-            "Simulated payment session was not initialized with required test-only markers.",
-          );
-        }
+        const finishMedusaCheckout = async (): Promise<{ response: Response; confirmed: boolean }> => {
+          if (!cart.completed_at) {
+            await medusa.updateCartMetadata(cartId, {
+              ...(cart.metadata ?? {}),
+              payment_mode: "simulated",
+              test_data: true,
+            });
+          }
 
-        const result = await medusa.completeCart(cartId);
-        if (result.type === "order_group") {
-          const paymentEvidence = {
-            payment_collection_id: paymentCollection.id,
-            payment_session_id: paymentSession.id,
-            provider_id: paymentSession.provider_id,
-            payment_mode: "simulated" as const,
-            test_data: true as const,
-          };
-          const productIds = [
-            ...new Set(
-              (cart.items ?? [])
-                .map((item) => item.product_id)
-                .filter((id): id is string => Boolean(id)),
-            ),
-          ];
-          const completionOffers = await medusa.listOffersByProducts(
-            productIds,
-            regionFor(authenticated.authorization),
-          );
-          const offerById = new Map(
-            completionOffers.map((offer) => [offer.id, offer]),
-          );
-          const orderGroupPayload = {
-            ...(result.order_group ?? {}),
-            destination_postcode:
-              (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
-            // Buyer-visible money, stored once at completion in the API's minor-unit convention.
-            // Legacy rows without this block fall back to the group total only.
-            currency_code: cart.currency_code ?? "inr",
-            amounts: {
-              subtotal: itemSubtotalMinor(cart),
-              shipping: medusaToMinor(cart.shipping_total),
-              discount: medusaToMinorOr(cart.discount_total),
-              total: medusaToMinor(result.order_group?.total ?? cart.total),
-            },
-            customer_reference: customerOrderReference(
-              result.order_group?.id ?? cartId,
-              (result.order_group as { created_at?: string } | undefined)?.created_at ??
-                null,
-            ),
-            lines: (cart.items ?? []).map((item) => {
-              const offer = item.metadata?.offer_id
-                ? offerById.get(item.metadata.offer_id)
-                : undefined;
-              return {
-                line_key: item.id,
-                sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
-                title: item.product_title ?? item.title,
-                quantity: item.quantity,
-                unit_price: medusaToMinorOr(item.unit_price),
-                product_id: item.product_id ?? null,
-                variant_id: item.variant_id ?? null,
-                seller_id: item.seller_id ?? offer?.seller_id ?? null,
-              };
-            }),
-          };
-          await correlation.link(cartId, {
-            orderGroup: result.order_group?.id,
-            orderGroupPayload,
-            paymentEvidence,
-          });
-          await events.appendOrderConfirmed({
-            event_type: "order.confirmed",
-            aggregate_type: "order_group",
-            aggregate_id: result.order_group?.id ?? cartId,
-            correlation_id: cid,
-            payload: {
-              cart_id: cartId,
+          // Medusa requires a payment collection and initialized session before completion. Reuse an
+          // amount-matched simulated session on retries so an authorization is never replaced.
+          let paymentCollection = await medusa.createPaymentCollection(cartId);
+          let paymentSession = findValidSimulatedSession(paymentCollection);
+          if (!paymentSession) {
+            paymentCollection = await medusa.createPaymentSession(
+              paymentCollection.id,
+              SIMULATED_PAYMENT_PROVIDER_ID,
+            );
+            paymentSession = findValidSimulatedSession(paymentCollection);
+          }
+          if (!paymentSession) {
+            throw new Error(
+              "Simulated payment session was not initialized with required test-only markers.",
+            );
+          }
+
+          const result = await medusa.completeCart(cartId);
+          if (result.type === "order_group") {
+            const paymentEvidence = {
+              payment_collection_id: paymentCollection.id,
+              payment_session_id: paymentSession.id,
+              provider_id: paymentSession.provider_id,
+              payment_mode: "simulated" as const,
+              test_data: true as const,
+            };
+            const productIds = [
+              ...new Set(
+                (cart.items ?? [])
+                  .map((item) => item.product_id)
+                  .filter((id): id is string => Boolean(id)),
+              ),
+            ];
+            const completionOffers = await medusa.listOffersByProducts(
+              productIds,
+              regionFor(authenticated.authorization),
+            );
+            const offerById = new Map(
+              completionOffers.map((offer) => [offer.id, offer]),
+            );
+            const orderGroupPayload = {
+              ...(result.order_group ?? {}),
+              destination_postcode:
+                (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+              // Buyer-visible money, stored once at completion in the API's minor-unit convention.
+              // Legacy rows without this block fall back to the group total only.
+              currency_code: cart.currency_code ?? "inr",
+              amounts: {
+                subtotal: itemSubtotalMinor(cart),
+                shipping: medusaToMinor(cart.shipping_total),
+                discount: medusaToMinorOr(cart.discount_total),
+                total: medusaToMinor(result.order_group?.total ?? cart.total),
+              },
+              customer_reference: customerOrderReference(
+                result.order_group?.id ?? cartId,
+                (result.order_group as { created_at?: string } | undefined)?.created_at ??
+                  null,
+              ),
+              lines: (cart.items ?? []).map((item) => {
+                const offer = item.metadata?.offer_id
+                  ? offerById.get(item.metadata.offer_id)
+                  : undefined;
+                return {
+                  line_key: item.id,
+                  sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
+                  title: item.product_title ?? item.title,
+                  quantity: item.quantity,
+                  unit_price: medusaToMinorOr(item.unit_price),
+                  product_id: item.product_id ?? null,
+                  variant_id: item.variant_id ?? null,
+                  seller_id: item.seller_id ?? offer?.seller_id ?? null,
+                };
+              }),
+            };
+            await correlation.link(cartId, {
+              orderGroup: result.order_group?.id,
+              orderGroupPayload,
+              paymentEvidence,
+            });
+            await events.appendOrderConfirmed({
+              event_type: "order.confirmed",
+              aggregate_type: "order_group",
+              aggregate_id: result.order_group?.id ?? cartId,
+              correlation_id: cid,
+              payload: {
+                cart_id: cartId,
+                order_group: result.order_group,
+                lines: orderGroupPayload.lines,
+                payment: paymentEvidence,
+              },
+            });
+            return { confirmed: true, response: json({
+              type: "order_group",
               order_group: result.order_group,
-              lines: orderGroupPayload.lines,
               payment: paymentEvidence,
+              environment: config.environment,
+              test_data: true,
+              payment_mode: config.paymentAdapterMode,
+              correlation_id: cid,
+            }) };
+          }
+          return { confirmed: false, response: json({
+            type: "cart",
+            cart: result.cart,
+            error: result.error,
+            payment: {
+              payment_collection_id: paymentCollection.id,
+              payment_session_id: paymentSession.id,
+              provider_id: paymentSession.provider_id,
+              payment_mode: "simulated",
+              test_data: true,
             },
-          });
-          return json({
-            type: "order_group",
-            order_group: result.order_group,
-            payment: paymentEvidence,
             environment: config.environment,
             test_data: true,
-            payment_mode: config.paymentAdapterMode,
             correlation_id: cid,
+          }) };
+        };
+        if (previewCheckout && previewLine) {
+          return runPreviewCheckout({
+            checkoutRef: cartId,
+            ...previewLine,
+            store: previewCheckout,
+            erp,
+            onCommitted: (moveId) => correlation.link(cartId, { trytonMove: moveId }),
+            complete: async () => {
+              const result = await finishMedusaCheckout();
+              return { confirmed: result.confirmed, value: result.response };
+            },
           });
         }
-        return json({
-          type: "cart",
-          cart: result.cart,
-          error: result.error,
-          payment: {
-            payment_collection_id: paymentCollection.id,
-            payment_session_id: paymentSession.id,
-            provider_id: paymentSession.provider_id,
-            payment_mode: "simulated",
-            test_data: true,
-          },
-          environment: config.environment,
-          test_data: true,
-          correlation_id: cid,
-        });
+        return (await finishMedusaCheckout()).response;
       });
     } catch (error) {
+      if (error instanceof PreviewCheckoutError) {
+        return problem(error.status, error.code, error.message);
+      }
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
@@ -5222,6 +5293,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const checkoutId = reserve[1];
     const authenticated = await authorizeCheckoutOwner(req, checkoutId);
     if ("response" in authenticated) return authenticated.response;
+    if (previewCheckout) {
+      return problem(409, "preview-manual-reservation-disabled", "Manual reserve is disabled in the checkout preview.");
+    }
     let body: { sku?: string; quantity?: number };
     try {
       body = (await req.json()) as { sku?: string; quantity?: number };
@@ -5289,6 +5363,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const checkoutId = commitReservation[1];
     const authenticated = await authorizeCheckoutOwner(req, checkoutId);
     if ("response" in authenticated) return authenticated.response;
+    if (previewCheckout) {
+      return problem(409, "preview-manual-reservation-disabled", "Manual commit is disabled in the checkout preview.");
+    }
     const ref = await correlation.get(checkoutId);
     if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
@@ -5325,6 +5402,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const checkoutId = releaseReservation[1];
     const authenticated = await authorizeCheckoutOwner(req, checkoutId);
     if ("response" in authenticated) return authenticated.response;
+    if (previewCheckout) {
+      return problem(409, "preview-manual-reservation-disabled", "Manual release is disabled in the checkout preview.");
+    }
     const ref = await correlation.get(checkoutId);
     if (!ref?.tryton_move_id) {
       return problem(409, "no-reservation", "No reservation found for this checkout.");
@@ -5882,6 +5962,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const ref = await correlation.get(orderId);
     const trytonMove = ref?.tryton_move_id ?? null;
     const orderGroup = ref?.medusa_order_group_id ?? null;
+    const previewRecord = previewCheckout ? await previewCheckout.get(orderId) : null;
 
     // Reflect the real Tryton reservation/movement state rather than assuming "committed" when a
     // move exists, so a released/expired/draft reservation is visible as a mismatch.
@@ -5909,12 +5990,19 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         }
       }
     }
-    const reconciled = Boolean(orderGroup && reservationStatus === "committed");
+    const previewConfirmed = !previewCheckout || (
+      previewRecord?.status === "confirmed" &&
+      Number(previewRecord.move_id) === Number(trytonMove)
+    );
+    const reconciled = Boolean(orderGroup && reservationStatus === "committed" && previewConfirmed);
     const mismatchCodes: string[] = [];
     if (!orderGroup) mismatchCodes.push("ORDER_OR_ALLOCATION_MISSING");
     if (!trytonMove) mismatchCodes.push("RESERVATION_OR_ORDER_MISSING");
     else if (reservationStatus !== "committed") mismatchCodes.push(`RESERVATION_${reservationStatus.toUpperCase()}`);
-    const recoveryActions = reconciled
+    if (!previewConfirmed) mismatchCodes.push("PREVIEW_CHECKOUT_NEEDS_REVIEW");
+    const recoveryActions = previewCheckout && !reconciled
+      ? ["operator-review-preview-checkout"]
+      : reconciled
       ? []
       : [
           ...(orderGroup ? [] : ["complete-checkout"]),
@@ -5925,15 +6013,15 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json({
       order_id: orderId,
       correlation_id: cid,
-      environment: "staging",
+      environment: config.environment,
       test_data: true,
       payment_mode: "simulated",
-      checkout: { system: "commerce", entity_type: "checkout-attempt", entity_id: orderId, environment: "staging", test_data: true, status: "completed", observed_at: now },
-      order: { system: "medusa", entity_type: "order", entity_id: null, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
-      allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: orderGroup, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
-      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: reservationStatus, observed_at: now },
-      movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: movementStatus, observed_at: now },
-      accounting: { system: "tryton", entity_type: "accounting-projection", entity_id: null, environment: "staging", test_data: true, status: "test-clearing-projected", observed_at: now },
+      checkout: { system: "commerce", entity_type: "checkout-attempt", entity_id: orderId, environment: config.environment, test_data: true, status: orderGroup ? "completed" : previewRecord?.status ?? "not_started", observed_at: now },
+      order: { system: "medusa", entity_type: "order", entity_id: null, environment: config.environment, test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
+      allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: orderGroup, environment: config.environment, test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
+      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: config.environment, test_data: true, status: reservationStatus, observed_at: now },
+      movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: config.environment, test_data: true, status: movementStatus, observed_at: now },
+      accounting: { system: "tryton", entity_type: "accounting-projection", entity_id: null, environment: config.environment, test_data: true, status: "test-clearing-projected", observed_at: now },
       accounting_treatment: "staging_test_clearing",
       bank_receipt_claimed: false,
       reconciled,
@@ -6403,14 +6491,17 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   if (url.pathname === "/v1/admin/orders" && req.method === "GET") {
     const rows = await correlation.list();
     return json({
-      items: rows.map((r) => ({
+      items: await Promise.all(rows.map(async (r) => ({
         order_id: r.checkout_ref,
         medusa_order_group_id: r.medusa_order_group_id,
         reservation_id: r.tryton_move_id ? `tryton_move_${r.tryton_move_id}` : null,
-        reconciled: Boolean(r.medusa_order_group_id && r.tryton_move_id),
+        reconciled: Boolean(r.medusa_order_group_id && r.tryton_move_id &&
+          (!previewCheckout || await verifyPreviewReplay(
+            r.checkout_ref, r.tryton_move_id, previewCheckout, erp,
+          ))),
         created_at: r.created_at,
         updated_at: r.updated_at,
-      })),
+      }))),
       environment: config.environment,
       test_data: true,
       correlation_id: cid,
@@ -6463,6 +6554,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     const trytonMove = ref.tryton_move_id ?? null;
     const orderGroup = ref.medusa_order_group_id ?? null;
+    const previewVerified = !previewCheckout ||
+      await verifyPreviewReplay(orderId, trytonMove, previewCheckout, erp);
     const shipments = orderGroup ? await shipmentsWithEvents(orderGroup) : [];
     const eligibility = await orderEligibility(orderId, authenticated.user.id, ref);
     const relatedReturns = (await returns.listForUser(authenticated.user.id, 50))
@@ -6476,8 +6569,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       environment: config.environment,
       test_data: true,
       reservation_id: trytonMove ? `tryton_move_${trytonMove}` : null,
-      reservation_status: trytonMove ? "committed" : "not_started",
-      reconciled: Boolean(orderGroup && trytonMove),
+      reservation_status: trytonMove
+        ? previewVerified ? "committed" : "needs_review"
+        : "not_started",
+      reconciled: Boolean(orderGroup && trytonMove && previewVerified),
       lines: orderLineSnapshots(ref),
       shipments,
       return_eligibility: eligibility,

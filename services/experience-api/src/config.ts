@@ -39,6 +39,8 @@ export interface Config {
   port: number;
   environment: Environment;
   paymentAdapterMode: PaymentAdapterMode;
+  /** Opt-in checkout prototype, never enabled in staging or production. */
+  previewCheckoutTrytonEnabled: boolean;
   medusaBaseUrl: string;
   medusaPublishableKey: string;
   medusaRegionId: string;
@@ -129,6 +131,19 @@ function parseNats(raw: string | undefined): { url: string; user?: string; passw
 export function loadConfig(env: Record<string, string | undefined>): Config {
   const environment = readEnvironment(env.BUILDKART_ENVIRONMENT);
   const paymentAdapterMode = readAdapterMode(env.PAYMENT_ADAPTER_MODE);
+  const previewCheckoutTrytonEnabled = booleanFlag(env.BUILDKART_PREVIEW_CHECKOUT_TRYTON);
+  if (previewCheckoutTrytonEnabled) {
+    if (environment !== "integration" || env.BUILDKART_PREVIEW_ISOLATION_ACK !== "isolated-preview-only") {
+      throw new Error("Preview Tryton checkout requires the integration environment and explicit isolation acknowledgement.");
+    }
+    for (const address of [
+      env.MEDUSA_BASE_URL, env.TRYTON_BASE_URL, env.EXPERIENCE_DATABASE_URL,
+    ]) {
+      if (!address || /staging|production|pinakaplay\.cloud/i.test(new URL(address).hostname)) {
+        throw new Error("Preview Tryton checkout requires explicit, non-staging service endpoints.");
+      }
+    }
+  }
   const boughtTogetherEnabled = booleanFlag(env.BUILDKART_BOUGHT_TOGETHER_ENABLED);
   if (boughtTogetherEnabled && environment === "production") {
     throw new Error("Bought Together merchandising is staging-only.");
@@ -232,6 +247,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
     paymentAdapterMode,
+    previewCheckoutTrytonEnabled,
     medusaBaseUrl: env.MEDUSA_BASE_URL ?? "http://localhost:9010",
     medusaPublishableKey: env.MEDUSA_PUBLISHABLE_KEY ?? "",
     medusaRegionId: env.MEDUSA_REGION_ID ?? "",

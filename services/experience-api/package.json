@@ -13,6 +13,7 @@
     "test:nats": "bun run src/scripts/nats-check.ts",
     "test:consume": "bun run src/scripts/nats-consume.ts",
     "test:payment-flow": "bun run src/scripts/payment-flow-test.ts",
+    "test:checkout-preview": "bun test src/checkout/preview-reservation.test.ts",
     "test:payment-matrix": "bun run src/scripts/payment-outcome-matrix-test.ts",
     "test:consumers": "bun run src/scripts/consumers-test.ts",
     "test:erp": "bun run src/scripts/erp-movement-test.ts",
