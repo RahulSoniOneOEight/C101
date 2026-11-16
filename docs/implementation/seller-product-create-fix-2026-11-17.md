@@ -67,9 +67,41 @@ a new immutable release:
 The documented deploy key was restored to `C:\Users\LENOVO\.ssh\buildkart_deploy` from the private
 local context file; the key itself is never committed or copied into this repository.
 
+## Bulk import QC
+
+The admin import at `/dashboard/products/import` was tested with a three-row CSV:
+
+- one valid row (B2C + B2B, tiers, stock override, both channels);
+- one row with an unknown category;
+- one row with an existing catalogue SKU.
+
+**Validate** returned `1 ready / 2 failed` with precise messages. **Apply** returned `1 created / 2
+failed`; the failures were skipped, and the created row produced
+`prod_01M7JWR4WTD3KMBW7A0D159K1G` (removed after QC). The UI showed the result table, an
+“Open product” link and an error-download action with no page errors.
+
+Verified on the created row: published, B2C and B2B channels, B2C ₹120 selling / ₹150 list, B2B
+₹110 with MOQ 5 and tiers 10→₹105 / 20→₹100, and stock 7 at the seller warehouse.
+
+**Defect found:** the assigned seller could not see or edit the imported product. The vendor studio
+returned 404 because ownership comes from the `product_seller` link (or a seller-created change
+action), and the import passed no product-level seller. The importer therefore reported success for
+a product that the seller could not manage.
+
+Fix applied in source: each imported row now sets `seller_id` and a truthful
+`seller_provision_reason` (`CSV import (<sku>)`), which creates the product–seller link and satisfies
+the admin provisioning audit. Source typecheck passed; not deployed yet.
+
 ## Residual observations
 
-- The seller review screen correctly reports “Published · Not live” and the exact missing gates.
+- A priced studio product showed **B2C Live** with 50 Mercur units while `manage_inventory=false`
+  and no Tryton reservation. Pricing can therefore make a studio product storefront-live on Mercur
+  stock; this is the same Mercur/Tryton separation reported for order #196 and needs a policy
+  decision, not a display fix.
+- Open risk: invalid B2B tiers are detected after product creation; `saveB2bPricing` then throws, so
+  the row can report failed while a product remains. This was not live-tested but is visible in the
+  route flow; pre-validating B2B tiers or adding compensation is recommended before relying on
+  import for bulk onboarding.
 - Product images and search tags remain optional warnings, not blockers.
 - The native Mercur mobile order row still crowds the reservation badge (separate upstream layout
   issue).

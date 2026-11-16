@@ -248,6 +248,10 @@ export async function POST(
         hsn_code: clean(row.hsn_code) || null,
         unit_of_measure: clean(row.unit_of_measure) || null,
         thumbnail: clean(row.image_url) || null,
+        // A seller-created product is linked at product level, so the seller portal can find it.
+        // CSV import is admin-run and must set the same link explicitly, with an audit reason.
+        seller_id: sellerId,
+        seller_provision_reason: `CSV import (${sku})`,
         tags: clean(row.tags)
           ? clean(row.tags)
               .split(";")
