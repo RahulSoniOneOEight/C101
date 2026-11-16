@@ -43,35 +43,20 @@ offer implicitly.
 | ESLint on `studio-form.tsx` | pre-existing React-hooks errors only; no new finding from this change |
 | Live end-to-end create | **blocked** until this branch is deployed |
 
-## Deployment gate
+## Deployment
 
 Requires one API image rebuild that also bundles the vendor dashboard, plus a re-run of the same
 live QC (create, verify offer/inventory link, confirm no price and no storefront visibility, then
 remove the test product through the reviewed delete path).
 
-Staging deployment was authorized on 2026-11-17. It is blocked on this workstation because
-`C:\Users\LENOVO\.ssh\buildkart_deploy` does not exist (only `known_hosts` is present) and no SSH
-agent holds the key. The fix branch and exact commit are on origin:
+The live staging release is `release-u014-9a3592aea` (commit `9a3592aea`, 2026-11-01), which is a
+descendant of the original CHG-094 base. The fix was rebased onto that exact commit, re-tested, and
+is deployed as a new immutable release rather than from the older base.
 
 - Branch: `fix/seller-product-create`
-- Commit: `840f13628f0071ee5a095153b5c3dd86a6bc5d77`
+- Fix commit: `88da982` (rebased onto `9a3592aea`)
+- Deployment target: `/opt/buildkart-releases/release-u014-fix-88da982`
 
-Documented operator procedure:
-
-```sh
-ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164
-cd /opt/buildkart
-git fetch origin fix/seller-product-create
-git worktree add --detach /opt/buildkart-releases/release-840f136 840f13628f0071ee5a095153b5c3dd86a6bc5d77
-cp /opt/buildkart-releases/current/services/hosted/.env \
-  /opt/buildkart-releases/release-840f136/services/hosted/.env
-cd /opt/buildkart-releases/release-840f136/services/hosted
-docker compose -f docker-compose.hosted.yml build medusa-api medusa-worker experience-api event-workers
-ln -sfn /opt/buildkart-releases/release-840f136 /opt/buildkart-releases/current
-docker compose -f docker-compose.hosted.yml up -d medusa-api medusa-worker experience-api event-workers
-docker restart buildkart-hosted-pilot-proxy-1
-```
-
-No Medusa schema or dependency change is included, so `medusa-migrate` is not required. After the
-deploy, rerun the add-flow QC and confirm health/dashboard/seller endpoints.
+The documented deploy key was restored to `C:\Users\LENOVO\.ssh\buildkart_deploy` from the private
+local context file; the key itself is never committed or copied into this repository.
 
