@@ -2,10 +2,12 @@ import { Container, Heading, Text } from "@medusajs/ui";
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
+import { orderChannelLabel } from "../lib/order-channel";
 import { deliverySummary, returnSummary, StatusTile } from "./order-delivery-returns";
 
 type OrderContext = {
   id: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
@@ -25,6 +27,7 @@ const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) =>
   const data = lifecycle.data;
   const delivery = deliverySummary(data.shipments);
   const returnState = returnSummary(data.returns);
+  const orderType = orderChannelLabel(order.metadata);
 
   return (
     <section aria-labelledby="seller-workbench-title">
@@ -33,6 +36,11 @@ const SellerOrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) =>
           <Heading id="seller-workbench-title" level="h2">
             Delivery and returns
           </Heading>
+          {orderType ? (
+            <Text size="small" weight="plus" className="mt-1">
+              Order type: {orderType}
+            </Text>
+          ) : null}
           <Text size="small" className="mt-1 text-ui-fg-subtle">
             Seller-scoped operations for this order. Payment and refunds are managed by BuildKart
             Admin.
