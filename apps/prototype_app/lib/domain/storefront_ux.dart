@@ -196,7 +196,7 @@ class PickupPoint {
 /// Fixture only: it is intentionally not presented as a real public location.
 const PickupPoint stagingPickupPoint = PickupPoint(
   id: 'pickup_staging_bhiwadi',
-  name: 'BuildKart staging collection desk',
+  name: 'BazarBee staging collection desk',
   location: 'Bhiwadi, Rajasthan 301019',
   hours: 'Mon–Sat · 9:00–18:00',
 );

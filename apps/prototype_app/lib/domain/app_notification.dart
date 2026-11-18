@@ -39,7 +39,7 @@ class AppNotification {
       audience: json['audience'] == 'b2b'
           ? NotificationAudience.b2b
           : NotificationAudience.b2c,
-      title: json['title'] as String? ?? 'BuildKart update',
+      title: json['title'] as String? ?? 'BazarBee update',
       body: json['body'] as String? ?? '',
       timeLabel: _relativeTime(createdAt),
       kind: switch (template) {

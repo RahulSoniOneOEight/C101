@@ -140,15 +140,13 @@ class _TitleRow extends StatelessWidget {
         child: Row(
           children: <Widget>[
             const SizedBox(width: AgencySpacing.sm),
-            const Expanded(
-              child: Text(
-                'BuildKart',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 20,
-                  height: 1.2,
-                  fontWeight: FontWeight.w700,
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Image.asset(
+                  'assets/branding/bazarbee-logo-dark-transparent.png',
+                  height: 28,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),

@@ -931,7 +931,7 @@ class _GstInvoicesScreenState extends ConsumerState<GstInvoicesScreen> {
     String esc(String s) =>
         s.replaceAll('\\', r'\\').replaceAll('(', r'\(').replaceAll(')', r'\)');
     final lines = <String>[
-      'BuildKart Tax Invoice',
+      'BazarBee Tax Invoice',
       'Invoice: ${inv.number}',
       'Order: ${inv.orderRef}',
       'Date: ${inv.dateLabel}',
@@ -1378,7 +1378,7 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             SizedBox(height: AgencySpacing.sm),
             Text(
-              'BuildKart processes your name, contact details and delivery '
+              'BazarBee processes your name, contact details and delivery '
               'address to fulfil orders and issue GST invoices. Payment card '
               'details are tokenised by the payment provider and never stored '
               'in the app. You can request data export or deletion from '

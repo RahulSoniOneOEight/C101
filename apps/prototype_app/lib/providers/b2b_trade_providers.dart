@@ -810,7 +810,7 @@ TradeProduct _withSellers(TradeProduct p) {
   return p.copyWith(sellers: <TradeSupplier>[
     TradeSupplier(
       id: '${p.product.id}_s1',
-      name: p.product.brand ?? 'BuildKart Verified Seller',
+      name: p.product.brand ?? 'BazarBee Verified Seller',
       unitPrice: price(base),
       moq: p.moq,
       stockQty: p.stockQty,
@@ -937,7 +937,7 @@ TradeProduct tradeProductFromCatalogue(Product product, {String? categoryId}) {
             id: variant.offerId!,
             name: variant.sellerName ??
                 product.brand ??
-                'BuildKart Verified Seller',
+                'BazarBee Verified Seller',
             unitPrice: variant.price!,
             moq: variant.b2bMoq ?? 1,
             stockQty: variant.stockQty,

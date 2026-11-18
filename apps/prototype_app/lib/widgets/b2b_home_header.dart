@@ -94,7 +94,7 @@ class B2bHomeHeader extends StatelessWidget {
                             const SizedBox(width: AgencySpacing.md),
                             Expanded(
                               child: Text(
-                                'BuildKart Trade',
+                                'BazarBee Trade',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(

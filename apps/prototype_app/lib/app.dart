@@ -70,7 +70,7 @@ class _PinCommerceAppState extends ConsumerState<PinCommerceApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     return MaterialApp.router(
-      title: 'BuildKart Staging',
+      title: 'BazarBee',
       theme: AgencyTheme.light(),
       routerConfig: router,
       builder: (context, child) {

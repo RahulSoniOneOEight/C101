@@ -61,8 +61,12 @@ class OnboardingScreen extends StatelessWidget {
                   child: Column(
                     children: <Widget>[
                       const SizedBox(height: AgencySpacing.lg),
-                      Icon(Icons.storefront_outlined,
-                          size: 64, color: colors.actionPrimary),
+                      Image.asset(
+                        'assets/branding/bazarbee-app-icon.png',
+                        height: 72,
+                        width: 72,
+                        fit: BoxFit.contain,
+                      ),
                       const SizedBox(height: AgencySpacing.lg),
                       Text('Everything you need, delivered to your site.',
                           textAlign: TextAlign.center,
@@ -216,11 +220,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: <Widget>[
               const SizedBox(height: AgencySpacing.lg),
               Center(
-                child: Text('BuildKart',
-                    style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: colors.actionPrimary)),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AgencyRadius.md),
+                  ),
+                  child: Image.asset(
+                    'assets/branding/bazarbee-logo-light.png',
+                    height: 42,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
               const SizedBox(height: AgencySpacing.xl),
               SegmentedButton<bool>(

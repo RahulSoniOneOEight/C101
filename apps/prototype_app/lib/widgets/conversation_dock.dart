@@ -732,7 +732,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
                     children: <Widget>[
                       Text(
                         dock.tab == ConversationDockTab.assistant
-                            ? 'BuildKart Cart Assistant'
+                            ? 'BazarBee Cart Assistant'
                             : _isHousehold
                                 ? 'Project conversation'
                                 : 'Procurement conversation',

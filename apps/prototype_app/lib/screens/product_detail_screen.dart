@@ -871,7 +871,7 @@ class _ProductDetailState extends ConsumerState<_ProductDetail> {
           _compareRow(context, 'Flipkart', flipkart.formatted),
           _compareRow(context, 'Amazon', amazon.formatted),
           _compareRow(context, 'Market Price', mrp.formatted),
-          _compareRow(context, 'BuildKart', price.formatted, highlight: true),
+          _compareRow(context, 'BazarBee', price.formatted, highlight: true),
           const Divider(height: AgencySpacing.lg),
           Row(
             children: <Widget>[

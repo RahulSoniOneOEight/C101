@@ -384,7 +384,7 @@ final productSellersProvider =
   }
   if (product == null || product.price == null) return const <ProductSeller>[];
   final base = product.price!;
-  final brand = product.brand ?? 'BuildKart Seller';
+  final brand = product.brand ?? 'BazarBee Seller';
   Money bump(int pct) => Money(
         amount: (base.amount * (100 + pct) / 100).round(),
         currencyCode: base.currencyCode,
