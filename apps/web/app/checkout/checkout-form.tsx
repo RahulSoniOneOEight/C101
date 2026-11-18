@@ -25,6 +25,28 @@ type QuoteState =
   | { status: "error"; message: string }
   | { status: "ready"; data: CartQuote };
 
+function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
+  const steps = ["Cart", "Details & payment", "Confirmation"] as const;
+  return (
+    <div className="checkout-steps" aria-label="Checkout progress">
+      {steps.map((label, index) => {
+        const step = (index + 1) as 1 | 2 | 3;
+        const className =
+          step === current
+            ? "checkout-step current"
+            : step < current
+              ? "checkout-step done"
+              : "checkout-step";
+        return (
+          <span className={className} key={label} aria-current={step === current ? "step" : undefined}>
+            {step} · {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
   const [state, setState] = useState<State>({ status: "idle" });
@@ -128,8 +150,10 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
 
   if (state.status === "done") {
     return (
-      <div className="checkout-success">
-        <span className="success-mark" aria-hidden="true">✓</span>
+      <>
+        <CheckoutSteps current={3} />
+        <div className="checkout-success">
+          <span className="success-mark" aria-hidden="true">✓</span>
         <span className="eyebrow">Order confirmed</span>
         <h1>Thanks — your order is in.</h1>
         <p className="muted">
@@ -168,7 +192,8 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
             Continue shopping
           </Link>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -189,7 +214,9 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   }
 
   return (
-    <div className="checkout-layout">
+    <>
+      <CheckoutSteps current={2} />
+      <div className="checkout-layout">
       <form className="checkout-form" onSubmit={onSubmit}>
         <div className="checkout-block">
           <span className="eyebrow">Contact</span>
@@ -353,6 +380,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           ← Edit cart
         </Link>
       </aside>
-    </div>
+      </div>
+    </>
   );
 }

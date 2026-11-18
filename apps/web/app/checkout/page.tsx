@@ -22,11 +22,6 @@ export default async function CheckoutPage() {
 
   return (
     <section className="checkout-page">
-      <div className="checkout-steps" aria-label="Checkout progress">
-        <span className="checkout-step done">1 · Cart</span>
-        <span className="checkout-step current">2 · Details &amp; payment</span>
-        <span className="checkout-step">3 · Confirmation</span>
-      </div>
       <CheckoutForm defaultEmail={defaultEmail} />
     </section>
   );
