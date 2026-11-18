@@ -1,9 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`
+Branch: `feat/bazarbee-branding` at `8860031`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
+Web release: `/opt/buildkart-releases/release-8860031`; Experience API image built from `release-4efabb0`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -18,6 +19,7 @@ checkout QC. It is staging evidence only; production remains unauthorised.
 | Storefront | Responsive shell, hero, category taxonomy, catalogue/search, product detail, multi-item cart, quote-backed checkout, confirmation, orders and returns. |
 | Branding | Logo 74px desktop / 62px mobile (30% larger than the 56px pilot mark), BazarBee colour and type tokens throughout. |
 | Checkout accuracy | `/api/cart/quote` resolves standard delivery for the entered postal code and returns subtotal, automatic offer, shipping and total. The checkout button and confirmation use the server-computed total. |
+| Edge routing | Nginx exact-matches `/auth/email` to the web app before the operator `/auth/*` block; Medusa auth remains operator-only. |
 
 ## 2. Flutter → web feature parity
 
@@ -59,6 +61,7 @@ preview. A production deployment must supply a Resend key; the API fails closed 
 | Email-code UI sign-in → add product → checkout | Session redirect to `/checkout`, cart preserved |
 | Quote for one board (postal code 302001) | Subtotal ₹436.90, automatic offer −₹21.85, delivery ₹99, **total ₹514.05** |
 | Place order | Canonical order `BK-261118-5GXWN0`, simulated payment, **total paid ₹514.05** |
+| Final confirmation-step check | Order `BK-261118-H032DZ`, total ₹514.05, step 3 marked current |
 | Quote vs completion | Exact match |
 | Multi-line API checkout | Two offers in one cart completed as one order group |
 | Delivery resolution | Cart-level Standard tier selected for every seller group |
