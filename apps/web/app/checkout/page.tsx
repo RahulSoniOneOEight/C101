@@ -1,71 +1,33 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  EMAIL_HINT_COOKIE,
   PILOT_SESSION_COOKIE,
-  formatMoney,
-  getProduct,
-  resolveVariant,
 } from "@/lib/experience-api";
 import { CheckoutForm } from "./checkout-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function CheckoutPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ productId?: string; sku?: string }>;
-}) {
-  const { productId, sku } = await searchParams;
-  if (!productId) {
-    return (
-      <section>
-        <h1>Checkout</h1>
-        <p className="muted">Select a product first.</p>
-        <p>
-          <Link className="button" href="/">
-            Back to catalogue
-          </Link>
-        </p>
-      </section>
-    );
-  }
+export const metadata = {
+  title: "Checkout",
+};
 
-  const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+export default async function CheckoutPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(PILOT_SESSION_COOKIE)?.value;
   if (!token) {
-    const query = new URLSearchParams({ productId });
-    if (sku) query.set("sku", sku);
-    redirect(`/sign-in?next=${encodeURIComponent(`/checkout?${query.toString()}`)}`);
+    redirect(`/sign-in?next=${encodeURIComponent("/checkout")}`);
   }
-
-  const product = await getProduct(productId);
-  // Resolve the same variant the product page quoted, so the price shown is the price charged.
-  const { variant, offer } = resolveVariant(product, sku);
-  if (!offer) {
-    return (
-      <section>
-        <h1>Checkout</h1>
-        <p className="muted">
-          {sku
-            ? `No eligible seller offer for SKU ${sku}.`
-            : "No eligible seller offer for this product."}
-        </p>
-        <p>
-          <Link className="button" href={`/products/${encodeURIComponent(product.id)}`}>
-            Back to product
-          </Link>
-        </p>
-      </section>
-    );
-  }
-
-  const price = formatMoney(offer.unit_amount_minor, offer.currency_code);
-  const variantLabel = variant?.sku ? `${product.title} · SKU ${variant.sku} · ${price}` : product.title;
+  const defaultEmail = cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "";
 
   return (
-    <section>
-      <h1>Checkout</h1>
-      <CheckoutForm offerId={offer.id} productTitle={variantLabel} />
+    <section className="checkout-page">
+      <div className="checkout-steps" aria-label="Checkout progress">
+        <span className="checkout-step done">1 · Cart</span>
+        <span className="checkout-step current">2 · Details &amp; payment</span>
+        <span className="checkout-step">3 · Confirmation</span>
+      </div>
+      <CheckoutForm defaultEmail={defaultEmail} />
     </section>
   );
 }

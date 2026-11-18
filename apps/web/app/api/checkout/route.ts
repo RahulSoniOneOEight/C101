@@ -4,6 +4,7 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   completeCheckout,
+  type CheckoutLineInput,
 } from "@/lib/experience-api";
 
 /**
@@ -17,22 +18,52 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sign in to place an order." }, { status: 401 });
   }
 
-  let body: Record<string, string>;
+  let body: {
+    lines?: unknown;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    address1?: string;
+    city?: string;
+    postalCode?: string;
+  };
   try {
-    body = (await request.json()) as Record<string, string>;
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "invalid JSON body" }, { status: 400 });
   }
-  if (!body.offerId || !body.email || !body.postalCode) {
-    return NextResponse.json({ error: "offerId, email and postalCode are required" }, { status: 400 });
+
+  const lines: CheckoutLineInput[] = Array.isArray(body.lines)
+    ? body.lines
+        .map((line) => {
+          if (!line || typeof line !== "object") return null;
+          const candidate = line as { offerId?: unknown; quantity?: unknown };
+          const offerId = typeof candidate.offerId === "string" ? candidate.offerId.trim() : "";
+          const quantity = Number(candidate.quantity);
+          if (!offerId || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) return null;
+          return { offerId, quantity };
+        })
+        .filter((line): line is CheckoutLineInput => line !== null)
+    : [];
+  if (lines.length === 0) {
+    return NextResponse.json({ error: "The cart is empty." }, { status: 400 });
+  }
+  if (lines.length > 30) {
+    return NextResponse.json({ error: "This cart has too many lines." }, { status: 400 });
+  }
+  if (!body.email || !body.postalCode || !body.firstName || !body.address1 || !body.city) {
+    return NextResponse.json(
+      { error: "email, name, address, city and postalCode are required" },
+      { status: 400 },
+    );
   }
   try {
     const result = await completeCheckout(
       {
-        offerId: body.offerId,
+        lines,
         email: body.email,
         firstName: body.firstName,
-        lastName: body.lastName,
+        lastName: body.lastName ?? "",
         address1: body.address1,
         city: body.city,
         postalCode: body.postalCode,

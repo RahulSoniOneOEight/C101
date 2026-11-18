@@ -48,6 +48,8 @@ import {
   type PilotUser,
 } from "./auth/pilot-users.js";
 import { PilotAuthStore } from "./auth/dummy-otp.js";
+import { EmailAuthStore } from "./auth/email-auth.js";
+import { ResendEmailSender, type EmailMessage } from "./email/sender.js";
 import {
   hasAnyRole,
   loadPilotAuthorizations,
@@ -148,6 +150,16 @@ const pilotAuth = new PilotAuthStore(
   config.pilotChallengeTtlSeconds,
   config.pilotSessionTtlSeconds,
 );
+const emailAuth = new EmailAuthStore(
+  config.redisUrl,
+  config.emailCodeTtlSeconds,
+  config.emailMagicTtlSeconds,
+  5,
+  config.emailCooldownSeconds,
+);
+const emailSender = config.resendApiKey
+  ? new ResendEmailSender(config.resendApiKey, config.emailFrom)
+  : null;
 
 // Outbox → NATS drain: publish unpublished cross-system domain events, then mark them published.
 async function drainOutbox(): Promise<void> {
@@ -1758,6 +1770,161 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     return new Response(`${lines.join("\n")}\n`, {
       headers: { "content-type": "text/plain; version=0.0.4" },
+    });
+  }
+
+  // POST /v1/auth/email/code — email a six-digit sign-in code.
+  if (url.pathname === "/v1/auth/email/code" && req.method === "POST") {
+    let body: { email?: string };
+    try {
+      body = (await req.json()) as { email?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = body.email?.trim().toLowerCase() ?? "";
+    if (!email || !email.includes("@")) {
+      return problem(400, "invalid-email", "A valid email address is required.");
+    }
+    if (!emailSender && config.environment === "production") {
+      return problem(503, "email-not-configured", "Email sign-in is not configured.");
+    }
+    const user = pilotDirectory.find(email);
+    if (!user) {
+      return problem(403, "not-pilot-user", "This email is not allowlisted for the pilot.");
+    }
+    if (!(await emailAuth.beginRequest(email))) {
+      return problem(429, "email-cooldown", "Wait a minute before requesting another code.");
+    }
+    try {
+      const issued = await emailAuth.issueCode(user.id);
+      const minutes = Math.max(1, Math.round(issued.expiresInSeconds / 60));
+      const message: EmailMessage = {
+        to: user.email,
+        subject: "Your BazarBee sign-in code",
+        text: `Your BazarBee sign-in code is ${issued.code}. It expires in ${minutes} minutes. If you did not request it, ignore this email.`,
+        html: `<div style="font-family:Inter,Arial,sans-serif;background:#F6F7FE;padding:32px;color:#1C2260"><div style="max-width:520px;margin:auto;background:#fff;border-radius:16px;padding:32px"><h1 style="font-size:22px;margin:0 0 12px">BazarBee</h1><p>Use this code to sign in:</p><div style="font-size:32px;letter-spacing:8px;font-weight:800;color:#5B6EE1;margin:20px 0">${issued.code}</div><p style="color:#5B6478">It expires in ${minutes} minutes. If you did not request it, ignore this email.</p></div></div>`,
+      };
+      if (emailSender) await emailSender.send(message);
+      return json({
+        challenge_id: issued.challengeId,
+        expires_in_seconds: issued.expiresInSeconds,
+        test_data: true,
+        ...(emailSender ? {} : { preview_code: issued.code }),
+        environment: config.environment,
+        correlation_id: cid,
+      }, 201);
+    } catch (error) {
+      console.warn("[experience-api] email code send failed:", (error as Error).message);
+      return problem(502, "email-send-failed", "The sign-in email could not be sent.");
+    }
+  }
+
+  // POST /v1/auth/email/verify — verify an email code and issue a session.
+  if (url.pathname === "/v1/auth/email/verify" && req.method === "POST") {
+    let body: { challenge_id?: string; code?: string };
+    try {
+      body = (await req.json()) as { challenge_id?: string; code?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const challengeId = body.challenge_id?.trim() ?? "";
+    const code = body.code?.trim() ?? "";
+    if (!challengeId || !/^\d{6}$/.test(code)) {
+      return problem(400, "invalid-email-code", "challenge_id and a six-digit code are required.");
+    }
+    const userId = await emailAuth.verifyCode(challengeId, code);
+    if (!userId) {
+      return problem(401, "invalid-email-code", "Invalid or expired email code.");
+    }
+    const user = pilotDirectory.get(userId);
+    if (!user) {
+      return problem(401, "invalid-email-code", "The pilot identity is no longer allowlisted.");
+    }
+    const session = await pilotAuth.issueSession(userId);
+    return json({
+      session_token: session.session_token,
+      expires_in_seconds: session.expires_in_seconds,
+      user,
+      test_data: true,
+      environment: config.environment,
+      correlation_id: cid,
+    });
+  }
+
+  // POST /v1/auth/email/magic-link — email a single-use sign-in link.
+  if (url.pathname === "/v1/auth/email/magic-link" && req.method === "POST") {
+    let body: { email?: string };
+    try {
+      body = (await req.json()) as { email?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = body.email?.trim().toLowerCase() ?? "";
+    if (!email || !email.includes("@")) {
+      return problem(400, "invalid-email", "A valid email address is required.");
+    }
+    if (!emailSender && config.environment === "production") {
+      return problem(503, "email-not-configured", "Email sign-in is not configured.");
+    }
+    const user = pilotDirectory.find(email);
+    if (!user) {
+      return problem(403, "not-pilot-user", "This email is not allowlisted for the pilot.");
+    }
+    if (!(await emailAuth.beginRequest(email))) {
+      return problem(429, "email-cooldown", "Wait a minute before requesting another link.");
+    }
+    try {
+      const issued = await emailAuth.issueMagicToken(user.id);
+      const link = `${config.emailAuthLinkBaseUrl}/auth/email?token=${encodeURIComponent(issued.token)}`;
+      const minutes = Math.max(1, Math.round(issued.expiresInSeconds / 60));
+      const message: EmailMessage = {
+        to: user.email,
+        subject: "Your BazarBee sign-in link",
+        text: `Sign in to BazarBee: ${link}\nThis link expires in ${minutes} minutes and can be used once. If you did not request it, ignore this email.`,
+        html: `<div style="font-family:Inter,Arial,sans-serif;background:#F6F7FE;padding:32px;color:#1C2260"><div style="max-width:520px;margin:auto;background:#fff;border-radius:16px;padding:32px"><h1 style="font-size:22px;margin:0 0 12px">BazarBee</h1><p>Use the button below to sign in. This link can be used once.</p><p style="margin:24px 0"><a href="${link}" style="background:#5B6EE1;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:700">Sign in to BazarBee</a></p><p style="color:#5B6478">The link expires in ${minutes} minutes. If you did not request it, ignore this email.</p></div></div>`,
+      };
+      if (emailSender) await emailSender.send(message);
+      return json({
+        expires_in_seconds: issued.expiresInSeconds,
+        test_data: true,
+        ...(emailSender ? {} : { preview_link: link }),
+        environment: config.environment,
+        correlation_id: cid,
+      }, 201);
+    } catch (error) {
+      console.warn("[experience-api] magic link send failed:", (error as Error).message);
+      return problem(502, "email-send-failed", "The sign-in link could not be sent.");
+    }
+  }
+
+  // POST /v1/auth/email/magic/verify — consume a magic link and issue a session.
+  if (url.pathname === "/v1/auth/email/magic/verify" && req.method === "POST") {
+    let body: { token?: string };
+    try {
+      body = (await req.json()) as { token?: string };
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const token = body.token?.trim() ?? "";
+    if (!token) {
+      return problem(400, "invalid-magic-link", "A magic-link token is required.");
+    }
+    const userId = await emailAuth.consumeMagicToken(token);
+    if (!userId) {
+      return problem(401, "invalid-magic-link", "This sign-in link is invalid or has expired.");
+    }
+    const user = pilotDirectory.get(userId);
+    if (!user) {
+      return problem(401, "invalid-magic-link", "The pilot identity is no longer allowlisted.");
+    }
+    const session = await pilotAuth.issueSession(userId);
+    return json({
+      session_token: session.session_token,
+      expires_in_seconds: session.expires_in_seconds,
+      user,
+      test_data: true,
+      environment: config.environment,
+      correlation_id: cid,
     });
   }
 

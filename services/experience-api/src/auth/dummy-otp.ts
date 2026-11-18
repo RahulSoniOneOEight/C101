@@ -74,11 +74,20 @@ export class PilotAuthStore {
     if (challenge.expiresAt < Date.now() || !safeCodeMatch(challenge.code, code)) {
       return null;
     }
+    const session = await this.issueSession(challenge.userId);
+    return {
+      ...session,
+      user_id: challenge.userId,
+    };
+  }
+
+  /** Mint a Redis-backed session after a verified email code or magic link. */
+  async issueSession(userId: string): Promise<{ session_token: string; expires_in_seconds: number }> {
+    await this.ready;
     const token = randomBytes(32).toString("base64url");
-    await this.redis.set(sessionKey(token), challenge.userId, "EX", this.sessionTtlSeconds);
+    await this.redis.set(sessionKey(token), userId, "EX", this.sessionTtlSeconds);
     return {
       session_token: token,
-      user_id: challenge.userId,
       expires_in_seconds: this.sessionTtlSeconds,
     };
   }

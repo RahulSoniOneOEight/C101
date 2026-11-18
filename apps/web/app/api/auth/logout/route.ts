@@ -1,6 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { PILOT_SESSION_COOKIE, revokePilotSession } from "@/lib/experience-api";
+import {
+  EMAIL_HINT_COOKIE,
+  PILOT_SESSION_COOKIE,
+  revokePilotSession,
+} from "@/lib/experience-api";
 
 const secureCookie = process.env.NODE_ENV === "production";
 
@@ -17,6 +21,13 @@ export async function POST() {
   const response = new NextResponse(null, { status: 204 });
   response.headers.set("cache-control", "no-store");
   response.cookies.set(PILOT_SESSION_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: secureCookie,
+    path: "/",
+    maxAge: 0,
+  });
+  response.cookies.set(EMAIL_HINT_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
     secure: secureCookie,

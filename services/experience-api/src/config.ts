@@ -61,6 +61,14 @@ export interface Config {
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
+  /** Transactional email sender used for email OTP and magic links. */
+  emailFrom: string;
+  resendApiKey?: string;
+  /** Public web origin used in magic links. */
+  emailAuthLinkBaseUrl: string;
+  emailCodeTtlSeconds: number;
+  emailMagicTtlSeconds: number;
+  emailCooldownSeconds: number;
   firebaseProjectId: string;
   fcmDeliveryEnabled: boolean;
   notificationTemplatesApproved: boolean;
@@ -263,6 +271,28 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       env.PILOT_SESSION_TTL_SECONDS,
       60 * 60,
       "PILOT_SESSION_TTL_SECONDS",
+    ),
+    emailFrom:
+      env.EMAIL_FROM?.trim() || "BazarBee <no-reply@send.gobazarbee.com>",
+    resendApiKey: env.RESEND_API_KEY?.trim() || undefined,
+    emailAuthLinkBaseUrl: (
+      env.AUTH_EMAIL_LINK_BASE_URL?.trim() ||
+      "https://app-staging.pinakaplay.cloud"
+    ).replace(/\/$/, ""),
+    emailCodeTtlSeconds: positiveInteger(
+      env.AUTH_EMAIL_CODE_TTL_SECONDS,
+      10 * 60,
+      "AUTH_EMAIL_CODE_TTL_SECONDS",
+    ),
+    emailMagicTtlSeconds: positiveInteger(
+      env.AUTH_EMAIL_MAGIC_TTL_SECONDS,
+      15 * 60,
+      "AUTH_EMAIL_MAGIC_TTL_SECONDS",
+    ),
+    emailCooldownSeconds: positiveInteger(
+      env.AUTH_EMAIL_COOLDOWN_SECONDS,
+      60,
+      "AUTH_EMAIL_COOLDOWN_SECONDS",
     ),
     firebaseProjectId,
     fcmDeliveryEnabled,

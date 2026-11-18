@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
-import Image from "next/image";
-import Link from "next/link";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import { PILOT_SESSION_COOKIE } from "@/lib/experience-api";
+import { SiteFooter, SiteHeader } from "./components/site-chrome";
 import "./globals.css";
 
 const inter = Inter({
@@ -18,40 +19,31 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "BazarBee",
-  description: "BazarBee storefront · staging preview",
+  title: {
+    default: "BazarBee · Everything you need, delivered",
+    template: "%s · BazarBee",
+  },
+  description:
+    "BazarBee is the storefront for home and business buyers — building materials, paint, tools and more, delivered to your doorstep.",
   icons: {
     icon: "/branding/bazarbee-icon-32.png",
     apple: "/branding/bazarbee-icon-192.png",
   },
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const signedIn = Boolean((await cookies()).get(PILOT_SESSION_COOKIE)?.value);
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <body>
-        <header className="site-header">
-          <Link href="/" className="brand" aria-label="BazarBee home">
-            <Image
-              src="/branding/bazarbee-logo-light.png"
-              alt="BazarBee"
-              width={132}
-              height={48}
-              priority
-              className="brand-logo"
-            />
-          </Link>
-          <nav className="site-nav" aria-label="Primary navigation">
-            <Link href="/">Catalogue</Link>
-            <Link href="/orders">Orders</Link>
-            <Link href="/returns">Returns</Link>
-          </nav>
-          <span className="env-badge">staging · simulated</span>
-        </header>
-        <main className="container">{children}</main>
-        <footer className="site-footer">
-          BazarBee staging preview · synthetic data · no production effect
-        </footer>
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <SiteHeader signedIn={signedIn} />
+        <main className="container" id="main">
+          {children}
+        </main>
+        <SiteFooter />
       </body>
     </html>
   );

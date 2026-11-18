@@ -9,6 +9,8 @@ const baseUrl = process.env.EXPERIENCE_API_BASE_URL ?? "http://localhost:9020";
 
 export const PILOT_SESSION_COOKIE = "buildkart_pilot_session";
 export const PILOT_CHALLENGE_COOKIE = "buildkart_pilot_challenge";
+export const EMAIL_CHALLENGE_COOKIE = "bazarbee_email_challenge";
+export const EMAIL_HINT_COOKIE = "bazarbee_email_hint";
 
 export class ExperienceApiError extends Error {
   constructor(
@@ -29,6 +31,9 @@ export interface OfferView {
   variant_id?: string;
   currency_code: string;
   unit_amount_minor: number;
+  list_amount_minor?: number;
+  discount_percent?: number;
+  inventory_quantity?: number;
   in_stock?: boolean;
   stock_badge?: string;
 }
@@ -77,18 +82,7 @@ export function experienceApiBase(): string {
 }
 
 /** Formats a minor-unit amount using the currency code (server-composed prices are authoritative). */
-export function formatMoney(amountMinor: number, currencyCode: string): string {
-  const major = amountMinor / 100;
-  const text = Number.isInteger(major) ? major.toString() : major.toFixed(2);
-  switch (currencyCode.toUpperCase()) {
-    case "INR":
-      return `₹${text}`;
-    case "USD":
-      return `$${text}`;
-    default:
-      return `${currencyCode.toUpperCase()} ${text}`;
-  }
-}
+export { formatMoney } from "./money";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, {
@@ -161,6 +155,56 @@ export async function verifyOtpChallenge(
   return call<OtpVerificationResult>("/v1/auth/otp/verify", {
     method: "POST",
     body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
+
+export interface EmailCodeChallengeResult {
+  challenge_id: string;
+  expires_in_seconds: number;
+  test_data: true;
+  /** Present only when the API has no email sender configured (staging preview). */
+  preview_code?: string;
+  environment?: string;
+}
+
+export interface MagicLinkResult {
+  expires_in_seconds: number;
+  test_data: true;
+  /** Present only when the API has no email sender configured (staging preview). */
+  preview_link?: string;
+  environment?: string;
+}
+
+/** Requests a six-digit email sign-in code. The API decides whether the allowlisted user exists. */
+export async function requestEmailCode(email: string): Promise<EmailCodeChallengeResult> {
+  return call<EmailCodeChallengeResult>("/v1/auth/email/code", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyEmailCode(
+  challengeId: string,
+  code: string,
+): Promise<OtpVerificationResult> {
+  return call<OtpVerificationResult>("/v1/auth/email/verify", {
+    method: "POST",
+    body: JSON.stringify({ challenge_id: challengeId, code }),
+  });
+}
+
+/** Requests a single-use magic link delivered by email. */
+export async function requestMagicLink(email: string): Promise<MagicLinkResult> {
+  return call<MagicLinkResult>("/v1/auth/email/magic-link", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyMagicLink(token: string): Promise<OtpVerificationResult> {
+  return call<OtpVerificationResult>("/v1/auth/email/magic/verify", {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 
@@ -479,8 +523,13 @@ export async function getBoughtTogether(
   }
 }
 
-export interface CheckoutInput {
+export interface CheckoutLineInput {
   offerId: string;
+  quantity: number;
+}
+
+export interface CheckoutInput {
+  lines: CheckoutLineInput[];
   email: string;
   firstName: string;
   lastName: string;
@@ -498,16 +547,19 @@ export async function completeCheckout(
   sessionToken: string,
 ): Promise<CompletionResult> {
   const auth = authenticatedHeaders(sessionToken);
+  if (input.lines.length === 0) throw new Error("The cart is empty.");
   const cart = await call<{ id: string }>("/v1/carts", {
     method: "POST",
     headers: auth,
     body: JSON.stringify({}),
   });
-  await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
-    method: "POST",
-    headers: auth,
-    body: JSON.stringify({ offer_id: input.offerId, quantity: 1 }),
-  });
+  for (const line of input.lines) {
+    await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ offer_id: line.offerId, quantity: line.quantity }),
+    });
+  }
   await call(`/v1/carts/${encodeURIComponent(cart.id)}/customer-details`, {
     method: "POST",
     headers: auth,
@@ -523,17 +575,18 @@ export async function completeCheckout(
       },
     }),
   });
-  const shipping = await call<{ shipping_options: { id: string }[] }>(
-    `/v1/carts/${encodeURIComponent(cart.id)}/shipping-options`,
-    { headers: auth },
-  );
-  const option = shipping.shipping_options[0];
-  if (!option) throw new Error("no eligible shipping option for this cart");
-  await call(`/v1/carts/${encodeURIComponent(cart.id)}/shipping-methods`, {
+  // One cart-level delivery choice resolves a shipping method for every seller group, so a
+  // multi-seller basket cannot be left with a partial selection.
+  const delivery = await call<{
+    unavailable?: { seller_id: string | null; reason: string }[];
+  }>(`/v1/carts/${encodeURIComponent(cart.id)}/delivery-tier`, {
     method: "POST",
     headers: auth,
-    body: JSON.stringify({ option_id: option.id }),
+    body: JSON.stringify({ tier: "standard" }),
   });
+  if (delivery.unavailable?.length) {
+    throw new Error("Standard delivery is not available for every seller in this cart.");
+  }
   return call<CompletionResult>(`/v1/checkouts/${encodeURIComponent(cart.id)}/complete`, {
     method: "POST",
     headers: auth,
