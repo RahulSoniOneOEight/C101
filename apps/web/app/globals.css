@@ -1,19 +1,22 @@
 :root {
   color-scheme: light;
-  --ink: #1c2434;
+  --ink: #1c2260;
   --muted: #5b6478;
-  --line: #e2e5ee;
-  --accent: #4f56d8;
-  --surface: #f3f4fb;
+  --line: #e4e7f5;
+  --accent: #5b6ee1;
+  --surface: #f6f7fe;
+  --honey: #f5a800;
+  --aqua: #1b8bd0;
+  --leaf: #2e9e5b;
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: var(--font-inter), Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--ink);
-  background: #fff;
+  background: var(--surface);
 }
 .site-header {
   display: flex;
@@ -22,17 +25,22 @@ body {
   gap: 20px;
   padding: 14px 24px;
   border-bottom: 1px solid var(--line);
+  background: #fff;
 }
 .brand {
-  font-weight: 700;
-  color: var(--accent);
+  display: flex;
+  align-items: center;
   text-decoration: none;
-  font-size: 20px;
+}
+.brand-logo {
+  display: block;
+  height: 56px;
+  width: auto;
 }
 .env-badge {
   font-size: 12px;
-  color: var(--muted);
-  background: var(--surface);
+  color: #7a5200;
+  background: #fff4d6;
   border-radius: 999px;
   padding: 4px 12px;
 }
@@ -73,16 +81,20 @@ body {
   padding: 16px;
   text-decoration: none;
   color: inherit;
+  background: #fff;
 }
 .card:hover {
   border-color: var(--accent);
 }
 .card-title {
+  font-family: var(--font-outfit), Outfit, system-ui, sans-serif;
   font-weight: 600;
 }
 .price {
+  font-family: var(--font-outfit), Outfit, system-ui, sans-serif;
   font-size: 18px;
   font-weight: 700;
+  color: var(--ink);
 }
 .muted {
   color: var(--muted);
@@ -167,8 +179,8 @@ form.stack input {
   color: #8f2323;
 }
 .notice.simulation-notice {
-  background: #fff7dc;
-  color: #674d00;
+  background: #fff4d6;
+  color: #7a5200;
   margin-bottom: 0;
 }
 .narrow-page,
@@ -435,7 +447,7 @@ form.stack input {
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 3px solid rgb(79 86 216 / 30%);
+  outline: 3px solid rgb(91 110 225 / 30%);
   outline-offset: 2px;
 }
 .site-footer {
@@ -703,4 +715,19 @@ form.stack textarea {
 }
 .evidence-thumb .muted {
   font-size: 12px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-outfit), Outfit, system-ui, sans-serif;
+  color: var(--ink);
+}
+.button:hover {
+  background: #4a5bd6;
+}
+.eyebrow {
+  color: var(--accent);
+}
+.site-footer {
+  color: var(--muted);
 }
