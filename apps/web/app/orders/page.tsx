@@ -12,6 +12,10 @@ import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Your orders",
+};
+
 function dateLabel(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime())

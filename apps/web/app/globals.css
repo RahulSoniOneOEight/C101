@@ -391,6 +391,21 @@ a {
 }
 .mobile-search {
   display: none;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 9px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: #fff;
+}
+.mobile-search input {
+  padding: 10px 0;
+}
+.mobile-search button {
+  width: 40px;
+  height: 40px;
 }
 .header-actions {
   display: flex;
@@ -1225,7 +1240,7 @@ a {
   display: flex;
   align-items: center;
   gap: 7px;
-  color: var(--leaf);
+  color: #1d6b3d; /* darker than the leaf accent: 13px text must clear AA on white */
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 22px;
@@ -1989,6 +2004,9 @@ form.stack textarea:focus {
   max-width: 780px;
   margin: 0 auto;
 }
+.narrow-page.auth-page {
+  max-width: 560px;
+}
 .narrow-page {
   padding: 16px 0 48px;
 }
@@ -2395,8 +2413,6 @@ textarea:focus-visible {
   }
   .mobile-search {
     display: flex;
-    margin: 0 24px 12px;
-    max-width: none;
   }
   .header-inner {
     min-height: 84px;
@@ -2485,7 +2501,7 @@ textarea:focus-visible {
     border-radius: 10px;
     color: var(--muted);
     text-decoration: none;
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 700;
   }
   .tab-item:hover {
@@ -2550,9 +2566,37 @@ textarea:focus-visible {
   }
   .header-action {
     padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
   }
   .mobile-search {
-    margin: 0 16px 10px;
+    padding: 8px 16px;
+  }
+  .quantity-stepper button {
+    width: 44px;
+    height: 44px;
+  }
+  .quantity-stepper input {
+    width: 50px;
+    height: 44px;
+  }
+  .quantity-stepper-sm button {
+    width: 40px;
+    height: 40px;
+  }
+  .quantity-stepper-sm input {
+    width: 44px;
+    height: 40px;
+  }
+  .sort-link {
+    padding: 8px 12px;
+  }
+  .auth-tab {
+    min-height: 44px;
+  }
+  html {
+    scroll-padding-bottom: 90px;
   }
   .hero {
     padding: 32px 24px;
@@ -2708,17 +2752,17 @@ textarea:focus-visible {
     padding: 10px 11px 12px;
   }
   .product-title {
-    font-size: 12.5px;
+    font-size: 13px;
     min-height: 3.4em;
   }
   .product-category {
-    font-size: 9.5px;
-  }
-  .product-seller {
     font-size: 10.5px;
   }
+  .product-seller {
+    font-size: 11.5px;
+  }
   .price {
-    font-size: 16px;
+    font-size: 17px;
   }
   .price-was {
     font-size: 11px;

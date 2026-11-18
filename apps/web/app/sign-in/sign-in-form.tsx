@@ -123,11 +123,14 @@ export function SignInForm({ next }: { next?: string }) {
         {tabs}
         <form className="stack" onSubmit={verifyCode}>
           <p className="muted auth-intro">
-            We emailed a six-digit code to <strong>{email}</strong>. It expires in 10 minutes.
+            {previewCode
+              ? "Staging preview code for "
+              : "We emailed a six-digit code to "}
+            <strong>{email}</strong>. It expires in 10 minutes.
           </p>
           {previewCode ? (
             <div className="notice simulation-notice" role="status">
-              Staging preview only — no email was sent. Your code is <strong>{previewCode}</strong>.
+              No email was sent in staging. Your code is <strong>{previewCode}</strong>.
             </div>
           ) : null}
           <label>

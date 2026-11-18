@@ -38,6 +38,13 @@ http {
       proxy_pass http://experience_api/health;
     }
 
+    # The storefront's magic-link landing page lives at /auth/email. Exact-match it before the
+    # operator /auth/* block so the app host can serve it while Medusa auth stays ops-only.
+    location = /auth/email {
+      if ($host != $PUBLIC_APP_HOSTNAME) { return 404; }
+      proxy_pass http://web_app;
+    }
+
     # MVP admin/operator surfaces (Mercur admin + vendor panels and the Medusa admin/auth/vendor APIs).
     # Reachable ONLY on the operator hostname; the customer hostname 404s them.
     location ~ ^/(dashboard|seller|vendor|admin|auth|static|uploads)(/|$) {

@@ -77,22 +77,22 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
             <CartLink />
           </div>
         </div>
-        <form className="mobile-search" action="/search" role="search">
-          <label className="sr-only" htmlFor="site-search-mobile">
-            Search products
-          </label>
-          <input
-            id="site-search-mobile"
-            name="q"
-            type="search"
-            placeholder="Search the catalogue…"
-            autoComplete="off"
-          />
-          <button type="submit" aria-label="Search">
-            <SearchIcon />
-          </button>
-        </form>
       </header>
+      <form className="mobile-search" action="/search" role="search">
+        <label className="sr-only" htmlFor="site-search-mobile">
+          Search products
+        </label>
+        <input
+          id="site-search-mobile"
+          name="q"
+          type="search"
+          placeholder="Search the catalogue…"
+          autoComplete="off"
+        />
+        <button type="submit" aria-label="Search">
+          <SearchIcon />
+        </button>
+      </form>
       <nav className="mobile-tabbar" aria-label="Mobile navigation">
         <Link className="tab-item" href="/">
           <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22">
