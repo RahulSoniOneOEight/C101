@@ -1,7 +1,7 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding` at `f442a0e` (deployed web code `8860031`)
+Branch: `feat/bazarbee-branding` (deployed web code `8860031`; later commits are documentation only)
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
 Web release: `/opt/buildkart-releases/release-8860031`; Experience API image built from `release-4efabb0`
