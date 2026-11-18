@@ -176,11 +176,14 @@ export function SignInForm({ next }: { next?: string }) {
           <span className="auth-icon" aria-hidden="true">✉</span>
           <h2>Check your inbox</h2>
           <p className="muted">
-            We sent a single-use sign-in link to <strong>{email}</strong>. It expires in 15 minutes.
+            {previewLink
+              ? "A single-use sign-in link was created for "
+              : "We sent a single-use sign-in link to "}
+            <strong>{email}</strong>. It expires in 15 minutes.
           </p>
           {previewLink ? (
             <div className="notice simulation-notice">
-              Staging preview only — no email was sent.{" "}
+              No email was sent in staging.{" "}
               <a href={previewLink}>Open your sign-in link</a>.
             </div>
           ) : null}
