@@ -1,7 +1,7 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding` at `8860031`
+Branch: `feat/bazarbee-branding` at `f442a0e` (deployed web code `8860031`)
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
 Web release: `/opt/buildkart-releases/release-8860031`; Experience API image built from `release-4efabb0`
@@ -92,7 +92,8 @@ Measured with Playwright at 320, 390, 430 and 1440 px.
 
 DeepSeek V4 Pro was requested for the visual pass. In this environment it does not accept image
 input, so it reviewed the measured DOM/contrast/tap-target audit instead (no pixel claims). An
-independent vision pass reviewed the screenshots. Findings and dispositions:
+independent vision pass (Nemotron 3.5 Super VL) reviewed the screenshots; the final pass returned
+**no P0/P1 issues and a "ship" verdict**. Findings and dispositions:
 
 | Finding | Disposition |
 |---|---|
@@ -104,6 +105,9 @@ independent vision pass reviewed the screenshots. Findings and dispositions:
 | Product micro-type 9.5–11px | Floor raised to 12px. |
 | "Warranty badge overlaps the photo" | False positive: the seal is part of the supplier's product image. |
 | Category tiles use different tints | Intentional brand colour coding; kept. |
+
+Final vision pass also confirmed the step-3 confirmation, the ₹514.05 total and the BazarBee
+hierarchy across desktop and mobile.
 
 ## 7. Known limitations
 
