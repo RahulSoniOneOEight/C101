@@ -352,6 +352,46 @@ export interface CreateReturnInput {
   evidence?: StoredReturnEvidence[];
 }
 
+export interface NotificationView {
+  id: string;
+  template_key: string;
+  title: string;
+  body: string;
+  deep_link: string | null;
+  read_at: string | null;
+  created_at: string;
+  test_data: true;
+}
+
+export async function listMyNotifications(
+  sessionToken: string,
+  limit = 50,
+): Promise<NotificationView[]> {
+  const result = await call<{ notifications: NotificationView[] }>(
+    `/v1/me/notifications?limit=${Math.max(1, Math.min(limit, 100))}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.notifications ?? [];
+}
+
+export async function markNotificationRead(
+  sessionToken: string,
+  notificationId: string,
+): Promise<void> {
+  await call<void>(`/v1/me/notifications/${encodeURIComponent(notificationId)}/read`, {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+  });
+}
+
+export async function markAllNotificationsRead(sessionToken: string): Promise<number> {
+  const result = await call<{ updated: number }>("/v1/me/notifications/read-all", {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+  });
+  return result.updated ?? 0;
+}
+
 export async function listMyOrders(
   sessionToken: string,
   limit = 50,

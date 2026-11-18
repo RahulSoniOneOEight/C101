@@ -8,7 +8,7 @@ import {
   listMyOrders,
   type CustomerOrderSummary,
 } from "@/lib/experience-api";
-import { LogoutButton } from "./logout-button";
+import { LogoutButton } from "../components/logout-button";
 
 export const dynamic = "force-dynamic";
 

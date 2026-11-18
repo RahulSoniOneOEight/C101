@@ -2374,6 +2374,422 @@ form.stack textarea:focus {
   font-size: 12px;
 }
 
+/* Wishlist ----------------------------------------------------------------- */
+.product-card-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.product-card-wrap .product-card {
+  flex: 1;
+}
+.wishlist-float {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 96%);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.wishlist-float:hover,
+.wishlist-float.saved {
+  border-color: #f0c6cc;
+  background: #fff5f7;
+  color: #b02a44;
+}
+.wishlist-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 15px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wishlist-pill:hover,
+.wishlist-pill.saved {
+  border-color: #f0c6cc;
+  background: #fff5f7;
+  color: #b02a44;
+}
+.product-save-row {
+  margin-top: 10px;
+}
+.wishlist-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.wishlist-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.wishlist-media {
+  display: block;
+  aspect-ratio: 1 / 1;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.wishlist-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+.wishlist-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px 16px;
+  flex: 1;
+}
+.wishlist-title {
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+}
+.wishlist-title:hover {
+  color: var(--accent-strong);
+}
+.wishlist-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 10px;
+  margin-top: auto;
+}
+.wishlist-actions .button {
+  flex: 1;
+  padding: 10px 14px;
+}
+
+/* Notifications ------------------------------------------------------------ */
+.notifications-page {
+  max-width: 860px;
+  margin: 0 auto;
+}
+.notification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.notification-item:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+.notification-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgb(91 110 225 / 14%);
+}
+.notification-dot.read {
+  background: var(--line-strong);
+  box-shadow: none;
+}
+.notification-body {
+  flex: 1;
+  min-width: 0;
+}
+.notification-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.notification-head strong {
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 15px;
+}
+.notification-head .muted {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+}
+.notification-body p {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+/* Account ------------------------------------------------------------------ */
+.account-page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.account-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(145deg, #303c9e, #5b6ee1);
+  color: #fff;
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+}
+.account-hero-copy {
+  flex: 1;
+  min-width: 0;
+}
+.account-hero-copy h1 {
+  margin: 0 0 4px;
+  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+}
+.account-hero-copy .muted {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+.account-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+.account-card-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 8px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 17px;
+}
+.account-card strong {
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 16px;
+}
+.account-card p {
+  flex: 1;
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.account-trade-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  margin-top: 26px;
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, #171d55, #303c9e);
+  color: #fff;
+}
+.account-trade-band h2 {
+  color: #fff;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  margin-bottom: 8px;
+}
+.account-trade-band p {
+  max-width: 620px;
+  margin: 0;
+  color: #cbd2fa;
+  font-size: 14px;
+}
+.account-trade-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+/* Trade -------------------------------------------------------------------- */
+.trade-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 40px;
+  padding: 52px;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 88% 12%, rgb(245 168 0 / 24%), transparent 32%),
+    linear-gradient(135deg, #171d55, #303c9e 62%, #5b6ee1);
+  color: #fff;
+  overflow: hidden;
+}
+.trade-hero h1 {
+  color: #fff;
+  font-size: clamp(2rem, 3.4vw, 3.2rem);
+  max-width: 660px;
+}
+.trade-hero p {
+  max-width: 620px;
+  color: #d7dcff;
+  font-size: 15px;
+}
+.trade-hero .hero-actions {
+  margin: 22px 0 0;
+}
+.trade-hero-points {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+}
+.trade-hero-points > div {
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 14px;
+  background: rgb(255 255 255 / 7%);
+}
+.trade-hero-points strong {
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #ffc44d;
+  line-height: 1.1;
+}
+.trade-hero-points span {
+  color: #cbd2fa;
+  font-size: 12px;
+}
+.trade-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.trade-capability {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.trade-capability > span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 10px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.trade-capability h3 {
+  margin-bottom: 4px;
+}
+.trade-capability p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.trade-status {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 32px;
+  margin-top: 46px;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+.trade-status h2 {
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+}
+.trade-status p {
+  color: var(--muted);
+  font-size: 14px;
+}
+.trade-status-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.trade-status-lists h3 {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.trade-status-lists ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.trade-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin-top: 20px;
+  padding: 24px 28px;
+  border: 1px solid #cfd6fb;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+}
+.trade-cta h2 {
+  margin-bottom: 2px;
+  font-size: 20px;
+}
+.trade-cta .muted {
+  margin: 0;
+}
+
 /* Focus -------------------------------------------------------------------- */
 .button:focus-visible,
 .text-button:focus-visible,
@@ -2830,5 +3246,87 @@ textarea:focus-visible {
   }
   .product-media {
     aspect-ratio: 4 / 3;
+  }
+}
+
+@media (max-width: 1180px) {
+  .wishlist-link {
+    display: none;
+  }
+  .account-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .trade-capability-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .trade-hero {
+    grid-template-columns: 1fr;
+    padding: 40px;
+  }
+  .trade-status {
+    grid-template-columns: 1fr;
+  }
+  .account-trade-band {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .account-trade-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 900px) {
+  .wishlist-link {
+    display: none;
+  }
+  .header-actions {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 720px) {
+  .account-hero {
+    flex-wrap: wrap;
+    padding: 20px;
+  }
+  .account-hero-copy {
+    flex-basis: calc(100% - 82px);
+  }
+  .account-hero .text-button {
+    margin-left: 82px;
+  }
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+  .notification-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0;
+  }
+  .trade-hero {
+    padding: 28px 22px;
+  }
+  .trade-hero .hero-actions .button {
+    flex: 1 1 100%;
+  }
+  .trade-status {
+    padding: 22px;
+  }
+  .trade-status-lists {
+    grid-template-columns: 1fr;
+  }
+  .trade-capability-grid {
+    grid-template-columns: 1fr;
+  }
+  .trade-cta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .wishlist-actions {
+    flex-wrap: wrap;
   }
 }

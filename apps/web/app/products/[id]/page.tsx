@@ -9,6 +9,7 @@ import {
 } from "@/lib/experience-api";
 import { categoryForProduct } from "@/lib/catalogue";
 import { ProductImage } from "../../components/product-image";
+import { WishlistButton } from "../../components/wishlist-button";
 import { AddToCart } from "./add-to-cart";
 
 export const dynamic = "force-dynamic";
@@ -164,6 +165,21 @@ function ProductView({
                 }}
                 maxQuantity={offer.inventory_quantity ?? 99}
               />
+              <div className="product-save-row">
+                <WishlistButton
+                  variant="pill"
+                  item={{
+                    productId: product.id,
+                    offerId: offer.id,
+                    sku: variant?.sku ?? "",
+                    title: product.title,
+                    seller: offer.seller_name ?? "",
+                    priceMinor: offer.unit_amount_minor,
+                    currency: offer.currency_code,
+                    image: product.thumbnail ?? null,
+                  }}
+                />
+              </div>
             </>
           ) : (
             <div className="notice err">

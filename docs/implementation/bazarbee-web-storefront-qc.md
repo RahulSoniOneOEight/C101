@@ -20,6 +20,8 @@ checkout QC. It is staging evidence only; production remains unauthorised.
 | Branding | Logo 74px desktop / 62px mobile (30% larger than the 56px pilot mark), BazarBee colour and type tokens throughout. |
 | Checkout accuracy | `/api/cart/quote` resolves standard delivery for the entered postal code and returns subtotal, automatic offer, shipping and total. The checkout button and confirmation use the server-computed total. |
 | Edge routing | Nginx exact-matches `/auth/email` to the web app before the operator `/auth/*` block; Medusa auth remains operator-only. |
+| Account & saving | New account hub, device-local wishlist with save-from-card/detail, and a web notifications inbox backed by `/v1/me/notifications` with unread counts and mark-all-read. |
+| Trade entry | New `/trade` page inventories the Flutter trade capability set, states the rollout boundary, and links to the live trade app. |
 
 ## 2. Flutter → web feature parity
 
@@ -33,10 +35,34 @@ The Flutter router is the baseline (`apps/prototype_app/lib/router/app_router.da
 | Search / filter / collections | Partial | Text search, category filters and sort; no discovery hub, AI search mode or collection pages. |
 | Cart / checkout / order confirmation | **Parity** | Multi-item cart, server quote, simulated prepaid completion. |
 | Orders, order detail, tracking events, returns | Implemented | Tracking lives inside order detail; no standalone `/track` page. |
-| Account, profile, addresses, payments, GST invoices, help, settings | Partial | Sign-in, orders and returns only. |
-| Wishlist | Not implemented | Candidate next slice. |
-| Notifications | Not implemented | Existing API inbox is not surfaced on web. |
-| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | Not implemented | The web store covers the D2C journey; B2B remains Flutter-only. This is the largest parity gap. |
+| Account, profile, addresses, payments, GST invoices, help, settings | Partial+ | Account hub, wishlist and notifications added. Addresses, payment methods, GST invoice history, help/settings and team/roles remain Flutter-only. |
+| Wishlist | Implemented | Device-local on web, matching the app's local wishlist provider; badges and save/remove work from cards and product detail. |
+| Notifications | Implemented | Real `/v1/me/notifications` inbox with unread count, mark-all-read and deep links into orders. |
+| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | Explicitly descoped | `/trade` is the web entry point and capability map; the working trade workspace remains the Flutter app. Rationale and evidence below. |
+
+## 2.1 Flutter B2B and account baseline (QC evidence)
+
+Logged into the Flutter app as the allowlisted B2B identity
+`buyer.b2b01@buildkart.test` (pilot OTP `123456`, displayed by the app) and walked the shell:
+
+| Flutter surface | Observed baseline |
+|---|---|
+| B2B home | Conversations 5, Notifications 30, Cart, Account, trade search, deliver-to `Bhiwadi, Rajasthan 301019`, Quick order, category rail, saved list, buy-again |
+| Catalogue | 3 live products, trade rates, MOQ tiers (5/10, 1/10/25, 1/11), Add to order, filters and sort |
+| Credit | Available ₹1.72L, sanctioned ₹2L, utilised ₹28,450, overdue ₹59,700, 14% used, 5 invoices |
+| Quotation cart | Quotation cart with MOQ chips, Start Request Quotation, order history |
+| Account | BuildPro Traders Pvt Ltd, GSTIN 27ABCDE1234F1Z5, Team & Roles, Credit Overview, My Price Advantage, RFQ Basket, Projects & Sites, GST Invoices, Order History, Approvals, Switch to consumer |
+| Trade / Browse tabs | Both resolve to the trade catalogue; Trade carries the conversation dock |
+
+**Web disposition:** the trade workspace is **explicitly descoped** to the Flutter app for this
+slice. Building it on the web requires trade identity/roles, a credit ledger view, quote/RFQ
+state and approval rules — not a UI-only change. `/trade` documents the capability set, the shared
+identity, and the rollout boundary, and links to `https://gobazarbee.com/#/b2b`. This is a stated
+product boundary, not an unfinished mock.
+
+The account gap is closed to the extent the current API supports it: account hub, orders, returns,
+wishlist, notifications, cart and trade entry are implemented. Address book, payment methods, GST
+invoice history, help/settings and team/roles remain app-only.
 
 ## 3. Authentication QC
 
@@ -53,6 +79,19 @@ The Flutter router is the baseline (`apps/prototype_app/lib/router/app_router.da
 
 Staging has no `RESEND_API_KEY`, so the delivered code/link is shown in the UI as a clearly marked
 preview. A production deployment must supply a Resend key; the API fails closed without one.
+
+## 3.1 Account, wishlist and notification QC
+
+| Test | Result |
+|---|---|
+| Signed-out `/account` | Redirects to `/sign-in?next=%2Faccount` |
+| Signed-out `/notifications` | Redirects to `/sign-in?next=%2Fnotifications` |
+| Signed-in account hub | Shows the signed-in email, orders/returns/wishlist/notifications/cart/trade links and sign-out |
+| Notification inbox | 14 items for the D2C test identity and 30 for the B2B test identity; unread count matches the header badge |
+| Notification deep link | Opens the linked owner-scoped order detail |
+| Wishlist save | Heart on a catalogue card stores the product; `/wishlist` shows it with price, seller and Add to cart |
+| Mobile layout | Account, notifications, wishlist and trade pages have no horizontal overflow at 390px |
+| Trade entry | `/trade` renders the capability map and opens the Flutter trade app; no fake credit or RFQ data is shown |
 
 ## 4. Order and checkout QC
 
@@ -116,6 +155,8 @@ hierarchy across desktop and mobile.
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
   should reuse the checkout cart.
 - Catalogue is the staging set (30 products), including test products with unrelated imagery.
-- B2B, wishlist, notifications, profile/address book and GST invoice history remain Flutter-only.
+- The B2B trade workspace remains Flutter-only by explicit descope; `/trade` is the web entry point.
+  Address book, payment methods, GST invoice history, team/roles, help and settings also remain app-only.
+- The web wishlist is device-local (matching the app's local provider), not account-synced.
 - Staging is `noindex, nofollow` and uses synthetic data. Production still requires CHG-020 gates and
   D-020-12 release authorisation.

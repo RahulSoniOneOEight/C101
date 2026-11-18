@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CartLink } from "./cart-link";
+import { NotificationLink } from "./notification-link";
+import { WishlistLink } from "./wishlist-link";
 
 function SearchIcon() {
   return (
@@ -70,9 +72,11 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
           </form>
 
           <div className="header-actions">
-            <Link className="header-action" href={signedIn ? "/orders" : "/sign-in"}>
+            <NotificationLink signedIn={signedIn} />
+            <WishlistLink />
+            <Link className="header-action" href={signedIn ? "/account" : "/sign-in"}>
               <UserIcon />
-              <span>{signedIn ? "Orders" : "Sign in"}</span>
+              <span>{signedIn ? "Account" : "Sign in"}</span>
             </Link>
             <CartLink />
           </div>
@@ -111,9 +115,9 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
           <span>Search</span>
         </Link>
         <CartLink compact />
-        <Link className="tab-item" href={signedIn ? "/orders" : "/sign-in"}>
+        <Link className="tab-item" href={signedIn ? "/account" : "/sign-in"}>
           <UserIcon />
-          <span>{signedIn ? "Orders" : "Account"}</span>
+          <span>Account</span>
         </Link>
       </nav>
     </>
@@ -142,13 +146,16 @@ export function SiteFooter() {
         </div>
         <div className="footer-col">
           <h4>Account</h4>
+          <Link href="/account">Account</Link>
           <Link href="/orders">Orders &amp; tracking</Link>
           <Link href="/returns">Returns</Link>
-          <Link href="/cart">Cart</Link>
+          <Link href="/wishlist">Wishlist</Link>
+          <Link href="/notifications">Notifications</Link>
           <Link href="/sign-in">Sign in</Link>
         </div>
         <div className="footer-col">
           <h4>BazarBee</h4>
+          <Link href="/trade">BazarBee Trade</Link>
           <Link href="/search">Search</Link>
           <span>Staging preview</span>
           <span>Synthetic data</span>
