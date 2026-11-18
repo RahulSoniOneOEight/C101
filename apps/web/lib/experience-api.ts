@@ -71,6 +71,8 @@ export interface ProductDetail extends ComposedProduct {
 export interface CompletionResult {
   type: "order_group" | "cart";
   order_group?: { id: string; total?: number };
+  order_number?: string | null;
+  total_minor?: number | null;
   payment?: { payment_mode?: string; test_data?: boolean; provider_id?: string };
   environment?: string;
   test_data?: boolean;
@@ -542,6 +544,91 @@ export interface CheckoutInput {
  * Performs the canonical checkout server-side against the shared Experience API. Success is the
  * server's canonical order group; the client cannot fabricate it.
  */
+export interface CartQuote {
+  subtotal: number;
+  shipping: number;
+  discount: number;
+  total: number;
+  currency: string;
+  itemCount: number;
+}
+
+interface CartView {
+  items?: unknown[];
+  subtotal?: number;
+  item_subtotal?: number;
+  shipping_total?: number;
+  discount_total?: number;
+  total?: number;
+  currency_code?: string;
+}
+
+/**
+ * Quotes a basket without completing it. The cart API is owner-scoped, so this requires the
+ * signed-in session. Delivery is resolved for the entered postal code so the customer sees the
+ * same subtotal, shipping, automatic discount and total that completion will produce.
+ *
+ * Staging note: this creates a short-lived Medusa cart per quote. A production build should reuse
+ * the checkout cart instead of creating a quote cart.
+ */
+export async function quoteCart(
+  input: { lines: CheckoutLineInput[]; postalCode: string; email: string },
+  sessionToken: string,
+): Promise<CartQuote> {
+  if (input.lines.length === 0) throw new Error("The cart is empty.");
+  const auth = authenticatedHeaders(sessionToken);
+  const cart = await call<{ id: string }>("/v1/carts", {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({}),
+  });
+  for (const line of input.lines) {
+    await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ offer_id: line.offerId, quantity: line.quantity }),
+    });
+  }
+  await call(`/v1/carts/${encodeURIComponent(cart.id)}/customer-details`, {
+    method: "POST",
+    headers: auth,
+    body: JSON.stringify({
+      email: input.email,
+      shipping_address: {
+        first_name: "Quote",
+        last_name: "Buyer",
+        address_1: "Quote address",
+        city: "Jaipur",
+        postal_code: /^\d{6}$/.test(input.postalCode) ? input.postalCode : "302001",
+        country_code: "IN",
+      },
+    }),
+  });
+  const delivery = await call<{ unavailable?: unknown[] }>(
+    `/v1/carts/${encodeURIComponent(cart.id)}/delivery-tier`,
+    {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ tier: "standard" }),
+    },
+  );
+  if (delivery.unavailable?.length) {
+    throw new Error("Standard delivery is not available for this postal code.");
+  }
+  const view = await call<CartView>(`/v1/carts/${encodeURIComponent(cart.id)}`, {
+    headers: auth,
+  });
+  const subtotal = view.item_subtotal ?? view.subtotal ?? 0;
+  return {
+    subtotal,
+    shipping: view.shipping_total ?? 0,
+    discount: view.discount_total ?? 0,
+    total: view.total ?? subtotal,
+    currency: (view.currency_code ?? "inr").toUpperCase(),
+    itemCount: Array.isArray(view.items) ? view.items.length : input.lines.length,
+  };
+}
+
 export async function completeCheckout(
   input: CheckoutInput,
   sessionToken: string,

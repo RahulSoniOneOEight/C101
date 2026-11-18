@@ -1,20 +1,72 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart";
+import type { CartQuote } from "@/lib/experience-api";
 import { ProductImage } from "../components/product-image";
 
 type State =
   | { status: "idle" }
   | { status: "busy" }
   | { status: "error"; message: string; signedOut?: boolean }
-  | { status: "done"; orderGroupId: string; orderType: string };
+  | {
+      status: "done";
+      orderGroupId: string;
+      orderNumber: string | null;
+      orderType: string;
+      totalMinor: number | null;
+    };
+
+type QuoteState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "error"; message: string }
+  | { status: "ready"; data: CartQuote };
 
 export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
   const [state, setState] = useState<State>({ status: "idle" });
+  const [postalCode, setPostalCode] = useState("302001");
+  const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
+  const linesKey = items.map((item) => `${item.offerId}:${item.quantity}`).join("|");
+
+  // Load an authoritative quote (subtotal, automatic discount, delivery, total) from the API.
+  useEffect(() => {
+    if (!ready || items.length === 0) return;
+    // Keep the last valid quote while a six-digit postal code is being typed.
+    if (!/^\d{6}$/.test(postalCode)) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setQuote({ status: "loading" });
+      try {
+        const response = await fetch("/api/cart/quote", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            lines: items.map((item) => ({ offerId: item.offerId, quantity: item.quantity })),
+            postalCode,
+          }),
+        });
+        const data = (await response.json()) as CartQuote & { error?: string };
+        if (!response.ok) throw new Error(data.error ?? "Could not calculate the order total.");
+        setQuote({ status: "ready", data });
+      } catch (error) {
+        if ((error as Error).name === "AbortError") return;
+        setQuote({ status: "error", message: (error as Error).message });
+      }
+    }, 450);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [items, linesKey, postalCode, ready]);
+
+  const quoted = quote.status === "ready" ? quote.data : null;
+  const summarySubtotal = quoted?.subtotal ?? subtotalMinor;
+  const summaryCurrency = quoted?.currency ?? currency;
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,6 +91,8 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         error?: string;
         type?: string;
         order_group?: { id: string };
+        order_number?: string | null;
+        total_minor?: number | null;
         payment?: { payment_mode?: string; test_data?: boolean };
       };
       if (!res.ok) {
@@ -63,7 +117,9 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
       setState({
         status: "done",
         orderGroupId: data.order_group.id,
+        orderNumber: data.order_number ?? null,
         orderType: data.type,
+        totalMinor: data.total_minor ?? quoted?.total ?? null,
       });
     } catch (error) {
       setState({ status: "error", message: (error as Error).message });
@@ -82,9 +138,15 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         </p>
         <div className="order-reference">
           <span>Order reference</span>
-          <code>{state.orderGroupId}</code>
+          <code>{state.orderNumber ?? state.orderGroupId}</code>
         </div>
         <dl className="checkout-receipt">
+          {state.totalMinor !== null ? (
+            <div>
+              <dt>Total paid</dt>
+              <dd>{formatMoney(state.totalMinor, summaryCurrency)}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Payment</dt>
             <dd>Simulated prepaid · test data</dd>
@@ -179,6 +241,10 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
                 pattern="\d{6}"
                 autoComplete="postal-code"
                 placeholder="302001"
+                value={postalCode}
+                onChange={(event) =>
+                  setPostalCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+                }
               />
             </label>
           </div>
@@ -211,7 +277,9 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         <button className="button button-lg button-block" type="submit" disabled={state.status === "busy"}>
           {state.status === "busy"
             ? "Placing your order…"
-            : `Place order · ${formatMoney(subtotalMinor, currency)}`}
+            : quoted
+              ? `Place order · ${formatMoney(quoted.total, summaryCurrency)}`
+              : "Place order"}
         </button>
         <p className="field-hint checkout-terms">
           By placing the order you confirm this is a staging test. Prices are composed by the
@@ -244,17 +312,43 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         <dl className="cart-summary-list">
           <div>
             <dt>Subtotal</dt>
-            <dd>{formatMoney(subtotalMinor, currency)}</dd>
+            <dd>{formatMoney(summarySubtotal, summaryCurrency)}</dd>
           </div>
+          {quoted && quoted.discount > 0 ? (
+            <div className="discount-row">
+              <dt>Automatic offer</dt>
+              <dd>− {formatMoney(quoted.discount, summaryCurrency)}</dd>
+            </div>
+          ) : null}
           <div>
-            <dt>Delivery</dt>
-            <dd>Standard · included</dd>
+            <dt>Standard delivery</dt>
+            <dd>
+              {quoted
+                ? quoted.shipping === 0
+                  ? "Free"
+                  : formatMoney(quoted.shipping, summaryCurrency)
+                : quote.status === "error"
+                  ? "At confirmation"
+                  : "Calculating…"}
+            </dd>
           </div>
           <div className="total-row">
             <dt>Total</dt>
-            <dd>{formatMoney(subtotalMinor, currency)}</dd>
+            <dd>
+              {quoted
+                ? formatMoney(quoted.total, summaryCurrency)
+                : formatMoney(summarySubtotal, summaryCurrency)}
+            </dd>
           </div>
         </dl>
+        {quote.status === "loading" ? (
+          <p className="field-hint">Recalculating delivery for {postalCode || "your address"}…</p>
+        ) : null}
+        {quote.status === "error" ? (
+          <p className="field-hint">
+            Delivery and discounts will be confirmed when you place the order.
+          </p>
+        ) : null}
         <Link className="text-button" href="/cart">
           ← Edit cart
         </Link>

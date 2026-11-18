@@ -125,23 +125,24 @@ export function CartView() {
           <h2>Order summary</h2>
           <dl>
             <div>
-              <dt>Subtotal</dt>
+              <dt>Items subtotal</dt>
               <dd>{formatMoney(subtotalMinor, currency)}</dd>
             </div>
             <div>
               <dt>Delivery</dt>
               <dd>Calculated at checkout</dd>
             </div>
-            <div className="total-row">
-              <dt>Estimated total</dt>
-              <dd>{formatMoney(subtotalMinor, currency)}</dd>
+            <div>
+              <dt>Automatic offer</dt>
+              <dd>Applied at checkout</dd>
             </div>
           </dl>
           <Link className="button button-lg button-block" href="/checkout">
             Proceed to checkout
           </Link>
           <p className="field-hint">
-            You&apos;ll sign in with an email code or magic link before placing the order.
+            Delivery and any automatic discount are confirmed before you place the order. You
+            &apos;ll sign in with an email code or magic link.
           </p>
           <ul className="summary-points">
             <li>GST invoice available</li>

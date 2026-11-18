@@ -10,6 +10,15 @@ const nextConfig = {
   output: "standalone",
   // Pin the file-tracing root to this app so an unrelated lockfile in a parent directory is ignored.
   outputFileTracingRoot: projectRoot,
+  // This deployment is the staging preview: keep it out of search indexes.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

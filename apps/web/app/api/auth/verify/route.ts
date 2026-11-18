@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
+  EMAIL_HINT_COOKIE,
   ExperienceApiError,
   PILOT_CHALLENGE_COOKIE,
   PILOT_SESSION_COOKIE,
@@ -51,6 +52,13 @@ export async function POST(request: Request) {
     });
     response.headers.set("cache-control", "no-store");
     response.cookies.set(PILOT_SESSION_COOKIE, verified.session_token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: secureCookie,
+      path: "/",
+      maxAge,
+    });
+    response.cookies.set(EMAIL_HINT_COOKIE, verified.user.email, {
       httpOnly: true,
       sameSite: "lax",
       secure: secureCookie,

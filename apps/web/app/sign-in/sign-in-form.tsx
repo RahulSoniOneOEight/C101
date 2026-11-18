@@ -144,7 +144,6 @@ export function SignInForm({ next }: { next?: string }) {
               maxLength={6}
               required
               autoFocus
-              placeholder="000000"
               className="otp-input"
             />
           </label>

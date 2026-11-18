@@ -122,15 +122,13 @@ export default async function SearchPage({
         ))}
       </div>
 
-      {q.trim() ? (
-        <form className="inline-search" action="/search" role="search">
-          {category ? <input type="hidden" name="cat" value={category.slug} /> : null}
-          <input name="q" type="search" defaultValue={q} placeholder="Search the catalogue…" />
-          <button className="button" type="submit">
-            Search
-          </button>
-        </form>
-      ) : null}
+      <form className="inline-search catalogue-search" action="/search" role="search">
+        {category ? <input type="hidden" name="cat" value={category.slug} /> : null}
+        <input name="q" type="search" defaultValue={q} placeholder="Search the catalogue…" />
+        <button className="button" type="submit">
+          Search
+        </button>
+      </form>
 
       {loadError ? (
         <div className="notice err" role="alert">
