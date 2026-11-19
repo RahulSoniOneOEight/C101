@@ -167,6 +167,7 @@ type StudioProduct = {
   product_type: string;
   hsn_code: string;
   unit_of_measure: string;
+  metadata?: Record<string, unknown>;
   tags: string[];
   specifications: Spec[];
   options: Option[];
