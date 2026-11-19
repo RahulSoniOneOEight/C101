@@ -30,12 +30,12 @@ record the deviation.
 | Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; CMS-driven trade hero and category banners. |
 | Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
-| Admin Banner Studio | Updated (`5639fe3`) | Responsive mobile/tablet/desktop URL fields, image focal point, B2C/B2B welcome placements, surface CTA (`ctaAppRoute` + `ctaWebPath`), searchable category reference, web copy overrides, full-page preview and placement coverage matrix; existing schedule/publish retained. |
+| Admin Banner Studio | Updated (`6d55d39`) | Responsive mobile/tablet/desktop URL fields, image focal point, B2C/B2B welcome placements, surface CTA (`ctaAppRoute` + `ctaWebPath`), searchable category/product/collection references, web copy overrides, full-page preview and placement coverage matrix; existing schedule/publish retained. |
 | Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
 | Category presentation / collections | Existing | Category editorial and curated collections; live categories now drive web tiles and chips. |
 | Product Studio | Existing | Product, media, tags, offers, B2B price/MOQ/tiers. |
 | CMS-driven web banners/sections | **Implemented (B2C + B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero, category and trade-offer rail. B2B buy-again/quick-order rails remain out of this slice. |
-| Responsive banner variants + CTA mapping | **Implemented** | Desktop/tablet/mobile URL fields, focal point (`imageFocalPoint`), `ctaAppRoute`/`ctaWebPath`, delivery mapping, picture sources, branded assets and validation. Category references are searchable; product/collection references remain manual. |
+| Responsive banner variants + CTA mapping | **Implemented** | Desktop/tablet/mobile URL fields, focal point (`imageFocalPoint`), `ctaAppRoute`/`ctaWebPath`, delivery mapping, picture sources, branded assets and validation. Category, product and collection references are searchable; product/category/collection ids are prefix-validated on publish. |
 | Image focal point | **Implemented (`5639fe3`)** | Nine focal points in CMS/admin, delivered as `image_focal_point`; web applies `object-position` to hero, campaign, welcome and trade images. |
 | Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements, CMS records and web sign-in; Flutter welcome surfaces still pending. |
 | Web copy overrides + attribution | **Implemented** | `webTitle` / `webSubtitle` / `webCtaLabel` override app copy on web; internal campaign links carry `utm_source=web`, `utm_medium=banner`, `utm_campaign=<content key>`. |
@@ -55,14 +55,15 @@ record the deviation.
 | CMS writes | B2C hero “Build more. Buy better.” / monsoon campaign; B2B “Your trade desk, on the web.”; welcome banners |
 | Surface CTA mapping | `ctaAppRoute` / `ctaWebPath` on the CMS banner, admin fields and validation, delivery projection and web resolution; hero CTA renders `/search` with campaign UTM |
 | Focal point + category picker | `imageFocalPoint` CMS/admin field (nine positions), delivery `image_focal_point`, web `object-position`; category destination uses a searchable datalist with 10 commerce categories |
-| Full-page preview + coverage | Admin Banner Studio (`1782cce`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
+| Product + collection pickers | Product destination loads 100 admin products; collection destination loads 5 collections; invalid product ids are rejected with the `prod_` prefix rule |
+| Full-page preview + coverage | Admin Banner Studio (`6d55d39`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
 | B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
 | Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`; each `₹3,889.50` simulated prepaid, 1 item |
-| Releases | Web/CMS/API/admin `release-5639fe3`; latest commit `5639fe3` |
+| Releases | Web/CMS/API `5639fe3`; admin panel `6d55d39`; latest commit `6d55d39` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C: 8 categories, Electrical banner + 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
-| Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route/web-path fields, focal-point select (value `Bottom`) and category datalist (10 options); no page errors |
+| Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route/web-path fields, focal-point select (value `Bottom`), category datalist (10 options), product datalist (100 options), collection datalist (5 options), invalid product id rejected; no page errors |
 
 ---
 
@@ -470,7 +471,7 @@ Experience API endpoints the web should use:
 | Item | Status | Evidence |
 |---|---|---|
 | MERCH-01 Responsive creative | Done | Desktop/tablet/mobile URL fields, image focal point, admin inputs, delivery projection, `<picture>` sources and `object-position`; branded assets published. Media-library crops remain a future editor upgrade. |
-| MERCH-02 Surface-aware CTA | Done | `ctaAppRoute` + `ctaWebPath` fields, publish validation, web resolution; category references are searchable, product/collection references remain manual. |
+| MERCH-02 Surface-aware CTA | Done | `ctaAppRoute` + `ctaWebPath` fields, publish validation, web resolution; category/product/collection references are searchable and prefix-validated. |
 | MERCH-03 Welcome placements | Done | Registry, CMS records, API delivery and admin placement list |
 | MERCH-04 Welcome renderers | Web done; Flutter pending | B2C/B2B welcome banners on web sign-in; Flutter keeps its existing layout |
 | MERCH-05 Web copy overrides | Done | `webTitle` / `webSubtitle` / `webCtaLabel` in CMS, admin, delivery and web |

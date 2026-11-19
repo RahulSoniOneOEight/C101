@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API/admin code is `5639fe3`
+Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API code is `5639fe3`; admin panel `6d55d39`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-5639fe3`; admin panel built from the same release
+Web release: `/opt/buildkart-releases/release-5639fe3`; admin panel `/opt/buildkart-releases/release-6d55d39`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -183,8 +183,8 @@ returned **ship**.
   staging secret store.
 - Banner focal point is supported; media-library crops and focal-point dragging are still a future
   editor upgrade.
-- Banner Studio searches category references. Product and collection references are entered manually
-  until the product/collection picker lands.
+- Banner Studio searches category, product and collection references; product/collection queries load
+  the first 100 products and all collections, so a very large catalogue needs server-side search.
 - hi-IN presentation currently serves English content as the fallback; the web does not expose a
   locale switch yet.
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
@@ -202,7 +202,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web/CMS/API/admin release `5639fe3`. CMS presentation data drives the B2C and B2B surfaces below.
+Web/CMS/API release `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -232,6 +232,9 @@ Admin Banner Studio, signed in as the staging operator:
 | Web overrides | Web heading, supporting text and button-label fields present |
 | Focal point | Select renders with the saved value `Bottom` |
 | Searchable category picker | Switching destination type to Category reference exposes a datalist with 10 commerce categories |
+| Searchable product picker | Product reference loads 100 admin products from `/admin/products?limit=100` |
+| Searchable collection picker | Collection reference loads 5 collections from `/admin/collections` |
+| CTA validation | An invalid product id is rejected with the `prod_` prefix message before publish |
 | Errors | None |
 
 The approved vision pass (Nemotron 3.5 Super VL) reviewed the live B2C home/campaign/category,
