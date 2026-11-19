@@ -2,13 +2,18 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   PILOT_SESSION_COOKIE,
+  formatMoney,
   getMyContexts,
   getStorefrontPresentation,
   hasTradeRole,
+  listTradeProducts,
+  type ComposedProduct,
   type StorefrontBanner,
 } from "@/lib/experience-api";
 import { firstBanner, imageSources, webHrefForAction } from "@/lib/storefront";
 import { readableBusinessName } from "@/lib/trade";
+import { ProductImage } from "../components/product-image";
+import { AddToQuote } from "./add-to-quote";
 import { TradeNav } from "./trade-nav";
 
 export const dynamic = "force-dynamic";
@@ -64,15 +69,21 @@ export default async function TradePage() {
     }
   }
 
-  if (!trade) return <TradeMarketing />;
+  if (!trade || !token) return <TradeMarketing />;
   const businessName = readableBusinessName(businessId);
   let heroBanner: StorefrontBanner | null = null;
+  let tradeProducts: ComposedProduct[] = [];
   try {
-    const presentation = await getStorefrontPresentation("b2b");
+    const [presentation, products] = await Promise.all([
+      getStorefrontPresentation("b2b"),
+      listTradeProducts(token, 100),
+    ]);
     heroBanner = firstBanner(presentation.banners, "b2b.home.hero");
+    tradeProducts = products;
   } catch {
     // The workspace remains usable with the static hero if content is unavailable.
   }
+  const offerProducts = tradeProducts.filter((product) => product.best_price).slice(0, 3);
 
   return (
     <section className="trade-page">
@@ -165,6 +176,56 @@ export default async function TradePage() {
           <span className="card-link">Open quotation cart →</span>
         </Link>
       </div>
+
+      {offerProducts.length > 0 ? (
+        <section className="section trade-home-offers">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Trade offers &amp; deals</span>
+              <h2>Trade rates and bulk tiers</h2>
+            </div>
+            <Link className="section-link" href="/trade/catalogue">
+              See all trade products →
+            </Link>
+          </div>
+          <div className="trade-offer-grid">
+            {offerProducts.map((product) => {
+              const offer = product.best_price!;
+              const moq = Math.max(1, offer.b2b_moq ?? 1);
+              return (
+                <article className="trade-offer-card" key={product.id}>
+                  <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-offer-media">
+                    <ProductImage src={product.thumbnail} alt={product.title} />
+                  </Link>
+                  <div className="trade-offer-body">
+                    <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
+                    <h3>{product.title}</h3>
+                    <p className="muted">MOQ {moq} · SKU {offer.sku}</p>
+                    <div className="trade-offer-price">
+                      <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
+                      <span className="trade-moq">MOQ {moq}</span>
+                    </div>
+                    <AddToQuote
+                      line={{
+                        productId: product.id,
+                        offerId: offer.id,
+                        sku: offer.sku,
+                        title: product.title,
+                        seller: offer.seller_name ?? "",
+                        image: product.thumbnail ?? null,
+                        moq,
+                        basePriceMinor: offer.unit_amount_minor,
+                        currency: offer.currency_code,
+                        tiers: offer.b2b_tiers ?? [],
+                      }}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="notice simulation-notice">
         Staging trade slice: catalogue and tier pricing come from the shared B2B API. The credit
