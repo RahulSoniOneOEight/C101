@@ -9,6 +9,8 @@ import {
 } from "@/lib/experience-api";
 import { categoryForProduct } from "@/lib/catalogue";
 import { ProductImage } from "../../components/product-image";
+import { RecordProductView } from "../../components/record-product-view";
+import { RecentlyViewedRail } from "../../components/recently-viewed-rail";
 import { WishlistButton } from "../../components/wishlist-button";
 import { AddToCart } from "./add-to-cart";
 
@@ -60,6 +62,7 @@ function ProductView({
 
   return (
     <section className="product-page">
+      <RecordProductView productId={product.id} />
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         <span aria-hidden="true">/</span>
@@ -273,6 +276,8 @@ function ProductView({
           </div>
         </section>
       ) : null}
+
+      <RecentlyViewedRail excludeId={product.id} />
 
       <div className="markers product-markers">
         <span className="marker">environment: {product.environment ?? "—"}</span>

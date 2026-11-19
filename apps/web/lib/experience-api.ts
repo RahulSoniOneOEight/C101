@@ -658,6 +658,113 @@ export async function getProduct(id: string): Promise<ProductDetail> {
   return call<ProductDetail>(`/v1/products/${encodeURIComponent(id)}`);
 }
 
+/** A workspace the signed-in buyer can open. Household projects and trade workspaces share this shape. */
+export interface WorkspaceSummary {
+  id: string;
+  scope_type: "household" | "business_account";
+  scope_id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  role: string;
+  unread_count?: number;
+}
+
+export interface WorkspaceChannel {
+  id: string;
+  workspace_id: string;
+  kind: string;
+  name: string;
+  status: string;
+  created_at: string;
+  role?: string;
+  unread_count?: number;
+}
+
+export interface WorkspaceMessage {
+  id: string;
+  workspace_id: string;
+  channel_id: string;
+  actor_id: string;
+  actor_name: string;
+  body: string;
+  message_type: string;
+  sequence: number;
+  created_at: string;
+  edited_at?: string | null;
+}
+
+export interface WorkspaceMessagePage {
+  messages: WorkspaceMessage[];
+  next_cursor: string;
+}
+
+export async function listWorkspaces(sessionToken: string): Promise<WorkspaceSummary[]> {
+  const result = await call<{ workspaces: WorkspaceSummary[] }>("/v1/workspaces", {
+    headers: authenticatedHeaders(sessionToken),
+  });
+  return result.workspaces ?? [];
+}
+
+/** A consumer project powers the household conversation and its read-only assistant channel. */
+export async function createHouseholdProject(
+  sessionToken: string,
+  name: string,
+): Promise<WorkspaceSummary | null> {
+  const result = await call<{ workspace: WorkspaceSummary | null }>("/v1/household-projects", {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+    body: JSON.stringify({ name }),
+  });
+  return result.workspace ?? null;
+}
+
+export async function listWorkspaceChannels(
+  sessionToken: string,
+  workspaceId: string,
+): Promise<WorkspaceChannel[]> {
+  const result = await call<{ channels: WorkspaceChannel[] }>(
+    `/v1/workspaces/${encodeURIComponent(workspaceId)}/channels`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.channels ?? [];
+}
+
+export async function listWorkspaceMessages(
+  sessionToken: string,
+  channelId: string,
+  cursor?: string,
+): Promise<WorkspaceMessagePage> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  const result = await call<{ messages?: WorkspaceMessage[]; next_cursor?: string }>(
+    `/v1/channels/${encodeURIComponent(channelId)}/messages${query}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return {
+    messages: result.messages ?? [],
+    next_cursor: result.next_cursor ?? cursor ?? "0",
+  };
+}
+
+export async function sendWorkspaceMessage(
+  sessionToken: string,
+  channelId: string,
+  body: string,
+): Promise<WorkspaceMessage> {
+  const result = await call<{ message: WorkspaceMessage }>(
+    `/v1/channels/${encodeURIComponent(channelId)}/messages`,
+    {
+      method: "POST",
+      headers: {
+        ...authenticatedHeaders(sessionToken),
+        "idempotency-key": `web_msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+      },
+      body: JSON.stringify({ body, message_type: "text" }),
+    },
+  );
+  return result.message;
+}
+
 export interface PairedProduct extends ComposedProduct {
   best_price?: OfferView | null;
   offer_count?: number;

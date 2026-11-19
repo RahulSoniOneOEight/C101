@@ -81,9 +81,33 @@ export function searchProducts(
     .filter(Boolean);
   if (terms.length === 0) return scope;
   return scope.filter((product) => {
-    const haystack = `${product.title} ${product.description ?? ""} ${product.handle ?? ""}`.toLowerCase();
+    const haystack = productSearchText(product);
     return terms.every((term) => haystack.includes(term));
   });
+}
+
+/**
+ * Searchable projection of a composed product. Seller and category names are included because
+ * shoppers search "UrbanBuild" or "plywood" as often as they search a title.
+ */
+export function productSearchText(product: ComposedProduct): string {
+  const metadata = product.metadata ?? {};
+  const brand = typeof metadata.brand === "string" ? metadata.brand : "";
+  const categoryL1 = typeof metadata.category_l1 === "string" ? metadata.category_l1 : "";
+  const categoryL2 = typeof metadata.category_l2 === "string" ? metadata.category_l2 : "";
+  const categories = (product.categories ?? []).map((category) => category.name).join(" ");
+  return [
+    product.title,
+    product.description ?? "",
+    product.handle ?? "",
+    brand,
+    categoryL1,
+    categoryL2,
+    categories,
+    product.best_price?.seller_name ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
 }
 
 export function categoryForProduct(product: ComposedProduct): CatalogueCategory | undefined {

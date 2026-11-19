@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-142517`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
-Web release: `/opt/buildkart-releases/release-36fae92`; admin panel `/opt/buildkart-releases/release-93eeac1`
+Web release: `/opt/buildkart-releases/release-web-20261119-142517`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -32,13 +32,16 @@ The Flutter router is the baseline (`apps/prototype_app/lib/router/app_router.da
 | Onboarding | Equivalent landing hero | Not a separate flow on web. |
 | Login / OTP | **Parity + improvement** | Email code and magic link replace simulated SMS OTP. |
 | Home, product list, product detail | Implemented | Category taxonomy and search added. |
-| Search / filter / collections | Partial | Text search, category filters and sort; no discovery hub, AI search mode or collection pages. |
-| Cart / checkout / order confirmation | **Parity** | Multi-item cart, server quote, simulated prepaid completion. |
+| Search / filter / collections | Implemented | Text search with category filters, sort, a Discover/“Find the right aisle” hub, guided task prompts and brand search. The app's `/search?mode=ai` prompts map to the closest stocked aisle rather than a generative answer. |
+| Chat / assistant | Implemented | “Ask BazarBee” drawer uses the same workspace assistant channel as the app, for both household and trade workspaces. It is read-only and persists messages server-side. |
+| Cart / checkout / order confirmation | **Parity** | Multi-item cart, server quote, simulated prepaid completion, and a “You may also like” cross-sell rail drawn from the same aisles. |
+| Category presentation | **Parity** | Home/category tiles carry CMS banner imagery and inline category icons; the desktop rail and search chips use the same icon set. |
+| Recently viewed | Implemented | Customer-local history records product views and renders a “Recently viewed” rail on home and product detail. |
 | Orders, order detail, tracking events, returns | Implemented | Tracking lives inside order detail; no standalone `/track` page. |
 | Account, profile, addresses, payments, GST invoices, help, settings | Partial+ | Account hub, wishlist and notifications added. Addresses, payment methods, GST invoice history, help/settings and team/roles remain Flutter-only. |
 | Wishlist | Implemented | Device-local on web, matching the app's local wishlist provider; badges and save/remove work from cards and product detail. |
 | Notifications | Implemented | Real `/v1/me/notifications` inbox with unread count, mark-all-read and deep links into orders. |
-| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | **Partial + explicit descope** | Implemented on web: trade catalogue with MOQ/tier pricing and add-to-quote, credit overview, quotation cart and RFQ draft entry. Remaining app-only: credit payments/limit actions, quote comparison/approvals, projects, procurement lists, team/roles, GST invoice history. |
+| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | **Partial + explicit descope** | Implemented on web: trade catalogue with MOQ/tier pricing, **Buy at trade rate** into a B2B checkout, credit overview, quotation cart and RFQ draft entry. Remaining app-only: credit payments/limit actions, quote comparison/approvals, projects, procurement lists, team/roles, GST invoice history. |
 
 ## 2.1 Flutter B2B and account baseline (QC evidence)
 
@@ -288,3 +291,35 @@ Post-swap evidence:
 
 Earlier sections of this QC record were captured on `app-staging` before the swap; they remain valid
 for the application behavior, while the live hosts are now the ones above.
+
+## 10. App-parity merchandising and assistant QC — 19 Nov 2026
+
+Added `/discover`, category imagery/icons, cart cross-sell, recently viewed, the “Ask BazarBee”
+workspace drawer and B2B trade-rate checkout. Full change record:
+`docs/implementation/webstore-app-parity-2026-11-19.md`.
+
+| Check | Result |
+|---|---|
+| Home categories | 8 CMS tiles; 8 banner images; 8 inline SVG icons; discovery band present |
+| Desktop rail | 12 links (Discover + All products + 10 categories), `scrollWidth = clientWidth = 1360` at 1440px after the icon fit fix |
+| Discover | 8 category cards, 4 guided task cards, 5 seller brands; no overflow at 1440 or 390 |
+| Guided search | “Paint a room” → Paints & Finishes, 6 products, guided panel names the matched aisle |
+| Seller search | “UrbanBuild Supply” → 11 products |
+| Cart cross-sell | 4 “You may also like” products from the cart's aisles |
+| Recently viewed | product view wrote `["prod_01M59JHKBZ41EJTYW3X6MCXZC6"]`; home rendered 1 card |
+| B2C chat | Household project “Rohan's Home”; assistant replied to “What can you do?” |
+| B2B chat | Trade workspace “Arjun Traders Procurement”; assistant replied |
+| Mobile 390 | Home and Discover `scrollWidth = innerWidth = 390`; chat launcher visible |
+| B2C order | `BK-261119-KCQJ60`, `₹3,889.50`, simulated prepaid; cart metadata `channel=b2c` |
+| B2B order | `BK-261119-PTPF1G`, `₹18,576.50`; cart metadata `channel=b2b`, `business_account_id=business_arjun_traders` |
+| B2B line | 5 × ₹3,890 tier price = ₹19,450; automatic offer −₹972.50; delivery ₹99; total ₹18,576.50 |
+
+B2B pricing defect found and corrected during this pass: six `BuildKart B2B Studio` price-list rows
+were stored 100× low, so the first B2B checkout (`BK-261119-MAM41J`) completed at ₹283.77. The rows
+were corrected, the quote and order were re-run, and the corrected order above is the acceptance
+evidence. See `b2b-price-unit-correction-2026-11-19.md`.
+
+ChatGPT-hosted QC was not available: `https://chatgpt.com/` returned a Cloudflare challenge and this
+environment has no OpenAI API key or authenticated ChatGPT browser session. The checks above are a
+scripted Playwright QC instead; this is recorded as a limitation, not a completed ChatGPT review.
+

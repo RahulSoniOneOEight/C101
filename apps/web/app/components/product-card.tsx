@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { formatMoney, type ComposedProduct } from "@/lib/experience-api";
+import { formatMoney } from "@/lib/money";
+import type { ComposedProduct } from "@/lib/experience-api";
 import { categoryForProduct } from "@/lib/catalogue";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { ProductImage } from "./product-image";

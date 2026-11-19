@@ -182,35 +182,6 @@ export function sectionHref(section: StorefrontLayoutSection, channel: "b2c" | "
   return webHrefForAction(section.see_all_uri, channel);
 }
 
-const ICONS: Record<string, string> = {
-  electrical: "⚡",
-  "bathroom-plumbing": "◉",
-  "paints-finishes": "◐",
-  agriculture: "🌱",
-  "pumps-machines": "⚙",
-  construction: "▦",
-  "tiles-plywood": "◫",
-  "tools-hardware": "✦",
-  automotive: "◎",
-  miscellaneous: "◇",
-};
-
-export function categoryIcon(category: StorefrontCategory): string {
-  // Labels are the customer-visible source of truth. CMS icon keys can lag a category relabel.
-  const label = `${category.label} ${category.name}`.toLowerCase();
-  if (label.includes("electric")) return ICONS.electrical;
-  if (label.includes("bath") || label.includes("plumb")) return ICONS["bathroom-plumbing"];
-  if (label.includes("paint")) return ICONS["paints-finishes"];
-  if (label.includes("agric") || label.includes("seed")) return ICONS.agriculture;
-  if (label.includes("pump") || label.includes("machine")) return ICONS["pumps-machines"];
-  if (label.includes("construct")) return ICONS.construction;
-  if (label.includes("tile") || label.includes("plywood")) return ICONS["tiles-plywood"];
-  if (label.includes("tool") || label.includes("hardware")) return ICONS["tools-hardware"];
-  if (label.includes("auto") || label.includes("tyre")) return ICONS.automotive;
-  if (category.icon_key && ICONS[category.icon_key]) return ICONS[category.icon_key];
-  return ICONS.miscellaneous;
-}
-
 const TONES = ["tile-indigo", "tile-aqua", "tile-honey", "tile-leaf", "tile-lavender", "tile-night"];
 
 export function categoryTone(index: number): string {

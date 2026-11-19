@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { StorefrontLocale } from "@/lib/locale-shared";
+import { CategoryIcon } from "./category-icon";
 
 export interface RailCategory {
   id: string;
   label: string;
   slug: string;
+  iconKey?: string;
 }
 
 /**
@@ -40,6 +42,10 @@ export function CategoryRail({
   return (
     <nav className="category-rail" aria-label={locale === "hi-IN" ? "शॉप श्रेणियाँ" : "Shop categories"}>
       <div className="category-rail-inner">
+        <Link className="category-rail-all" href="/discover">
+          <CategoryIcon label="Discover" iconKey="misc" size={15} />
+          {locale === "hi-IN" ? "खोजें" : "Discover"}
+        </Link>
         <Link className="category-rail-all" href="/search">
           {locale === "hi-IN" ? "सभी उत्पाद" : "All products"}
         </Link>
@@ -49,6 +55,11 @@ export function CategoryRail({
             className="category-rail-link"
             href={`/search?cat=${encodeURIComponent(category.slug)}`}
           >
+            <CategoryIcon
+              iconKey={category.iconKey}
+              label={category.label}
+              size={15}
+            />
             {category.label}
           </Link>
         ))}

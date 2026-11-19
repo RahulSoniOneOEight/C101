@@ -165,6 +165,7 @@ export function SiteFooter() {
         <div className="footer-col">
           <h4>Shop</h4>
           <Link href="/">All products</Link>
+          <Link href="/discover">Discover aisles</Link>
           <Link href="/search?cat=building">Building materials</Link>
           <Link href="/search?cat=tools">Tools &amp; hardware</Link>
           <Link href="/search?cat=paint">Paint &amp; finishes</Link>

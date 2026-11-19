@@ -1,12 +1,37 @@
 "use client";
 
 import Link from "next/link";
+import type { ComposedProduct } from "@/lib/experience-api";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart";
+import { ProductCard } from "../components/product-card";
 import { ProductImage } from "../components/product-image";
 
-export function CartView() {
+export function CartView({ catalogue = [] }: { catalogue?: ComposedProduct[] }) {
   const { items, ready, count, subtotalMinor, currency, updateQuantity, remove } = useCart();
+  const inCart = new Set(items.map((item) => item.productId));
+  const cartRoots = new Set<string>();
+  for (const product of catalogue) {
+    if (!inCart.has(product.id)) continue;
+    for (const category of product.categories ?? []) {
+      cartRoots.add(category.parent_category_id ?? category.id);
+    }
+  }
+  const available = catalogue.filter(
+    (product) => product.best_price && !inCart.has(product.id),
+  );
+  const sameAisle = available.filter((product) =>
+    (product.categories ?? []).some((category) =>
+      cartRoots.has(category.parent_category_id ?? category.id),
+    ),
+  );
+  const popular = [...available].sort(
+    (a, b) =>
+      (b.best_price?.discount_percent ?? 0) - (a.best_price?.discount_percent ?? 0),
+  );
+  const related = [...sameAisle, ...popular]
+    .filter((product, index, all) => all.findIndex((item) => item.id === product.id) === index)
+    .slice(0, 4);
 
   if (!ready) {
     return (
@@ -151,6 +176,28 @@ export function CartView() {
           </ul>
         </aside>
       </div>
+
+      {related.length > 0 ? (
+        <section className="section cart-related" aria-labelledby="cart-related-title">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Complete the job</span>
+              <h2 id="cart-related-title">You may also like</h2>
+              <p className="muted">
+                Picked from the same aisles as the items in your cart, then popular deals.
+              </p>
+            </div>
+            <Link className="section-link" href="/search">
+              Browse everything →
+            </Link>
+          </div>
+          <div className="product-grid">
+            {related.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </section>
   );
 }

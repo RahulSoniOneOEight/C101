@@ -6,8 +6,10 @@ import {
   type StorefrontCategory,
 } from "@/lib/experience-api";
 import { CATEGORIES, categoryBySlug, searchProducts } from "@/lib/catalogue";
+import { GUIDED_PROMPTS, guidedSearchHref, resolveGuidedPrompt } from "@/lib/discovery";
 import { getStorefrontLocale } from "@/lib/locale";
 import { imageSources, productsInStorefrontCategory } from "@/lib/storefront";
+import { CategoryIcon } from "../components/category-icon";
 import { ProductCard } from "../components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +42,9 @@ function href(params: { q?: string; cat?: string; sort?: string }): string {
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cat?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string; sort?: string; mode?: string }>;
 }) {
-  const { q = "", cat, sort } = await searchParams;
+  const { q = "", cat, sort, mode } = await searchParams;
   const locale = await getStorefrontLocale();
   let products: ComposedProduct[] = [];
   let cmsCategories: StorefrontCategory[] = [];
@@ -58,10 +60,16 @@ export default async function SearchPage({
   }
   if (productsResult.status === "rejected") loadError = (productsResult.reason as Error).message;
 
-  const cmsCategory = cmsCategories.find((candidate) => candidate.slug === cat);
-  const legacyCategory = cmsCategory ? undefined : categoryBySlug(cat);
+  // Guided search maps a household task to the closest stocked aisle. It is deterministic and
+  // never claims to be a generative answer; the banner says exactly what was matched.
+  const guided = mode === "guided" || mode === "ai" ? resolveGuidedPrompt(q) : null;
+  const requestedCat = cat ?? guided?.categorySlug;
+  const cmsCategory = cmsCategories.find((candidate) => candidate.slug === requestedCat);
+  const legacyCategory = cmsCategory ? undefined : categoryBySlug(requestedCat);
   const categoryLabel = cmsCategory?.label ?? legacyCategory?.name;
   const categorySlug = cmsCategory?.slug ?? legacyCategory?.slug;
+  const effectiveQuery = guided?.query ?? q;
+  const displayQuery = guided ? "" : q;
 
   let scope = products;
   if (cmsCategory) {
@@ -69,11 +77,11 @@ export default async function SearchPage({
   } else if (legacyCategory) {
     scope = products.filter((product) => searchProducts([product], "", legacyCategory).length > 0);
   }
-  const results = sorted(searchProducts(scope, q), sort);
+  const results = sorted(searchProducts(scope, effectiveQuery), sort);
   const heading = categoryLabel
     ? categoryLabel
-    : q.trim()
-      ? (locale === "hi-IN" ? `“${q.trim()}” के नतीजे` : `Results for “${q.trim()}”`)
+    : effectiveQuery.trim()
+      ? (locale === "hi-IN" ? `“${effectiveQuery.trim()}” के नतीजे` : `Results for “${effectiveQuery.trim()}”`)
       : (locale === "hi-IN" ? "सभी उत्पाद" : "All products");
   const bannerImage = imageSources(cmsCategory?.banner_image_uri, 1600);
 
@@ -84,6 +92,33 @@ export default async function SearchPage({
         <span aria-hidden="true">/</span>
         <span>{categoryLabel ?? "Shop"}</span>
       </nav>
+
+      {guided ? (
+        <div className="guided-panel" role="status">
+          <div>
+            <span className="eyebrow">Guided search</span>
+            <strong>{guided.label}</strong>
+            <p>{guided.hint}</p>
+          </div>
+          <div className="guided-panel-side">
+            <span>Closest stocked aisle</span>
+            <Link className="button" href={`/search?cat=${encodeURIComponent(guided.categorySlug)}`}>
+              {categoryLabel ?? "Open aisle"} →
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {!guided ? (
+        <div className="guided-links" aria-label="Guided shopping">
+          <span>Start with a job:</span>
+          {GUIDED_PROMPTS.map((prompt) => (
+            <Link key={prompt.label} className="project-chip project-chip-sm" href={guidedSearchHref(prompt)}>
+              {prompt.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       {cmsCategory && bannerImage.src ? (
         <div className="category-banner">
@@ -110,30 +145,30 @@ export default async function SearchPage({
               ? "The catalogue is temporarily unavailable."
               : `${results.length} ${results.length === 1 ? "product" : "products"}${
                   categoryLabel ? ` in ${categoryLabel.toLowerCase()}` : ""
-                }${q.trim() ? ` matching “${q.trim()}”` : ""}.`}
+                }${effectiveQuery.trim() ? ` matching “${effectiveQuery.trim()}”` : ""}.`}
           </p>
         </div>
         <div className="sort-control">
           <label htmlFor="sort">Sort</label>
           <div className="sort-links">
-            <Link className={!sort ? "sort-link active" : "sort-link"} href={href({ q, cat: categorySlug })}>
+            <Link className={!sort ? "sort-link active" : "sort-link"} href={href({ q: displayQuery, cat: categorySlug })}>
               Featured
             </Link>
             <Link
               className={sort === "price-asc" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat: categorySlug, sort: "price-asc" })}
+              href={href({ q: displayQuery, cat: categorySlug, sort: "price-asc" })}
             >
               Price ↑
             </Link>
             <Link
               className={sort === "price-desc" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat: categorySlug, sort: "price-desc" })}
+              href={href({ q: displayQuery, cat: categorySlug, sort: "price-desc" })}
             >
               Price ↓
             </Link>
             <Link
               className={sort === "name" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat: categorySlug, sort: "name" })}
+              href={href({ q: displayQuery, cat: categorySlug, sort: "name" })}
             >
               A–Z
             </Link>
@@ -142,7 +177,7 @@ export default async function SearchPage({
       </div>
 
       <div className="filter-bar" aria-label="Categories">
-        <Link className={!categoryLabel ? "filter-chip active" : "filter-chip"} href={href({ q })}>
+        <Link className={!categoryLabel ? "filter-chip active" : "filter-chip"} href={href({ q: displayQuery })}>
           All
         </Link>
         {cmsCategories.length > 0
@@ -150,8 +185,13 @@ export default async function SearchPage({
               <Link
                 key={candidate.category_id}
                 className={categorySlug === candidate.slug ? "filter-chip active" : "filter-chip"}
-                href={href({ q, cat: candidate.slug })}
+                href={href({ q: displayQuery, cat: candidate.slug })}
               >
+                <CategoryIcon
+                  iconKey={candidate.icon_key}
+                  label={candidate.label}
+                  size={14}
+                />
                 {candidate.label}
               </Link>
             ))
@@ -159,8 +199,9 @@ export default async function SearchPage({
               <Link
                 key={candidate.slug}
                 className={categorySlug === candidate.slug ? "filter-chip active" : "filter-chip"}
-                href={href({ q, cat: candidate.slug })}
+                href={href({ q: displayQuery, cat: candidate.slug })}
               >
+                <CategoryIcon label={candidate.name} iconKey={candidate.slug} size={14} />
                 {candidate.name}
               </Link>
             ))}
@@ -168,7 +209,7 @@ export default async function SearchPage({
 
       <form className="inline-search catalogue-search" action="/search" role="search">
         {categorySlug ? <input type="hidden" name="cat" value={categorySlug} /> : null}
-        <input name="q" type="search" defaultValue={q} placeholder="Search the catalogue…" />
+        <input name="q" type="search" defaultValue={displayQuery} placeholder="Search the catalogue…" />
         <button className="button" type="submit">
           Search
         </button>

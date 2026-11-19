@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import localFont from "next/font/local";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import {
@@ -9,19 +9,22 @@ import {
   hasTradeRole,
 } from "@/lib/experience-api";
 import { getStorefrontLocale } from "@/lib/locale";
+import { ChatDrawer } from "./components/chat-drawer";
 import { SiteFooter, SiteHeader } from "./components/site-chrome";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: "./fonts/inter-var.woff2",
   variable: "--font-inter",
   display: "swap",
+  weight: "100 900",
 });
 
-const outfit = Outfit({
-  subsets: ["latin"],
+const outfit = localFont({
+  src: "./fonts/outfit-var.woff2",
   variable: "--font-outfit",
   display: "swap",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
@@ -56,6 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       id: category.category_id,
       label: category.label,
       slug: category.slug,
+      iconKey: category.icon_key,
     }));
   } catch {
     // The rail is optional; the rest of the storefront still renders without it.
@@ -70,6 +74,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <main className="container" id="main">
           {children}
         </main>
+        <ChatDrawer signedIn={signedIn} />
         <SiteFooter />
       </body>
     </html>
