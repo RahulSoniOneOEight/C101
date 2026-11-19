@@ -1,6 +1,6 @@
 # Sort/filter placement + B2B tile and flow parity — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-180704`
+Status: **shipped to staging web** · Release `release-web-20261119-180704` · Source `f281680`
 Hosts: `https://gobazarbee.com/search` · `/trade` · `/trade/catalogue` · `/trade/pdp/[id]`
 Branch: `feat/bazarbee-branding`
 
