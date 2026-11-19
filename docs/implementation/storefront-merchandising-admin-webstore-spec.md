@@ -37,7 +37,7 @@ record the deviation.
 | CMS-driven web banners/sections | **Implemented (B2C + B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero, category and trade-offer rail. B2B buy-again/quick-order rails remain out of this slice. |
 | Responsive banner variants + CTA mapping | **Implemented** | Desktop/tablet/mobile URL fields, focal point (`imageFocalPoint`), `ctaAppRoute`/`ctaWebPath`, delivery mapping, picture sources, branded assets and validation. Category, product and collection references are searchable; product/category/collection ids are prefix-validated on publish. |
 | Image focal point | **Implemented (`5639fe3`)** | Nine focal points in CMS/admin, delivered as `image_focal_point`; web applies `object-position` to hero, campaign, welcome and trade images. |
-| Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements, CMS records and web sign-in; Flutter welcome surfaces still pending. |
+| Welcome banners | **Implemented web + Flutter (`bd956e2`)** | `b2c.welcome.banner` / `b2b.welcome.banner` placements drive web sign-in, Flutter onboarding and Flutter login. Flutter web build verified; Firebase hosting release awaits authentication. |
 | Web copy overrides + attribution | **Implemented** | `webTitle` / `webSubtitle` / `webCtaLabel` override app copy on web; internal campaign links carry `utm_source=web`, `utm_medium=banner`, `utm_campaign=<content key>`. |
 | hi-IN locale + content | **Implemented (`d451153`)** | Header `EN / हिं` switch stores `bazarbee_locale`; layout, home, search, sign-in and trade pages pass the locale to CMS. Hindi copy is authored and published through Banner Studio for 24 banners and 22 category records; both B2C/B2B APIs return Hindi. |
 | CMS localized authoring | **Implemented (`ea16cf2`)** | Non-default locale banner/category drafts and publishes use a CMS-internal Knex path; Banner Studio no longer mutates the en-IN draft when saving hi-IN. |
@@ -47,7 +47,7 @@ record the deviation.
 | Desktop category rail | **Implemented (`3ffbefd`, fit fix `304ccab`)** | CMS categories render in a horizontal rail on B2C shopping pages; all 11 links fit at 1440px; hidden on trade, auth, checkout and account pages and below 900px. |
 | Product tile delivery/stock note | **Implemented (`63c9812`)** | Authored `metadata.delivery_note` renders on B2C and trade tiles; real `stock_badge`/`inventory_quantity` renders “Only X left”/“Out of stock”. Action Tesa staging note verified. |
 | B2B quick order + buy again | **Implemented (`a3e5f6e`)** | `/trade/quick-order` with SKU/title search, saved-list chips, MOQ quantity steppers and Add to quote; buy-again lines from owner-scoped orders on `/trade` and quick order. |
-| Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published. |
+| Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published; branded B2C mobile welcome art added with CORS for Flutter web. |
 
 ### Implementation log
 
@@ -67,8 +67,10 @@ record the deviation.
 | Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`; each `₹3,889.50` simulated prepaid, 1 item |
 | hi-IN QC | B2C/B2B APIs return Hindi banners and all 10 category labels; web home/category pages render Hindi; switch back to en-IN works; hi-IN checkout `BK-261119-4S660H`; 390px no overflow |
 | Delivery note + quick order | Action Tesa tile shows “Standard delivery · 1–3 business days”; `/trade/quick-order` shows 4 trade lines, SKU filter returns 1 line, Add to quote wrote `₹350` to the quotation cart; buy-again section renders 1 previous line |
+| Flutter welcome renderer | `bd956e2`: welcome banner model/providers + onboarding/login widgets; `flutter analyze` clean; release web build served locally; B2C branded mobile asset and B2B welcome image loaded (HTTP 200) |
+| Flutter release blocker | Firebase CLI has no authenticated session/token on this machine; hosting deploy requires `firebase login` or `FIREBASE_TOKEN` |
 | CMS localization path | `ea16cf2`: non-default locale drafts/publishes use the query-engine/Knex path so Banner Studio edits do not touch the en-IN draft; verified on a banner and a category; 24 hi-IN banners visible in the admin list |
-| Releases | Web `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; latest commit `63c9812` |
+| Releases | Web `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; Flutter code `bd956e2` (web built locally, hosting release blocked on Firebase auth); latest commit `bd956e2` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
@@ -482,7 +484,7 @@ Experience API endpoints the web should use:
 | MERCH-01 Responsive creative | Done | Desktop/tablet/mobile URL fields, image focal point, admin inputs, delivery projection, `<picture>` sources and `object-position`; branded assets published. Media-library crops remain a future editor upgrade. |
 | MERCH-02 Surface-aware CTA | Done | `ctaAppRoute` + `ctaWebPath` fields, publish validation, web resolution; category/product/collection references are searchable and prefix-validated. |
 | MERCH-03 Welcome placements | Done | Registry, CMS records, API delivery and admin placement list |
-| MERCH-04 Welcome renderers | Web done; Flutter pending | B2C/B2B welcome banners on web sign-in; Flutter keeps its existing layout |
+| MERCH-04 Welcome renderers | Done (web + Flutter build) | B2C/B2B welcome banners on web sign-in, Flutter onboarding and login; Flutter web release awaiting Firebase authentication. |
 | MERCH-05 Web copy overrides | Done | `webTitle` / `webSubtitle` / `webCtaLabel` in CMS, admin, delivery and web |
 | MERCH-06 Full-page preview | Done | Welcome/home/category context at App/Mobile/Desktop in Banner Studio |
 | MERCH-07 Placement coverage | Done | Seven-slot matrix; category counts; missing and multiple-campaign states visible |

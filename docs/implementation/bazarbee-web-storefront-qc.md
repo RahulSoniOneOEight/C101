@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; Flutter code `bd956e2`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-63c9812`; admin panel `/opt/buildkart-releases/release-6d55d39`
+Web release: `/opt/buildkart-releases/release-36fae92`; admin panel `/opt/buildkart-releases/release-6d55d39`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -182,7 +182,9 @@ returned **ship**.
 - Real email delivery needs `RESEND_API_KEY` and a verified `send.gobazarbee.com` sender in the
   staging secret store.
 - Banner focal point is supported; media-library crops and focal-point dragging are still a future
-  editor upgrade.
+  editor upgrade. Responsive per-breakpoint assets are the implemented alternative.
+- The Flutter welcome renderer is built and verified locally; publishing to `gobazarbee.com` is
+  blocked until Firebase CLI authentication is available (`firebase login` or `FIREBASE_TOKEN`).
 - Delivery notes are read from product `metadata.delivery_note`; the staging note was set through the
   Medusa admin API. Product Studio still needs a dedicated delivery-note field for non-technical
   authoring.
@@ -206,7 +208,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web release `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -223,6 +225,9 @@ Web release `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS 
 | Delivery note | Action Tesa search tile shows “Standard delivery · 1–3 business days” from authored product metadata |
 | B2B quick order | `/trade/quick-order`: 4 trade lines, SKU filter “socket” → 1 line, Add to quote → quotation cart ₹350 |
 | B2B buy again | Quick-order and `/trade` show a buy-again section sourced from the buyer's owner-scoped order lines |
+| Flutter B2C welcome | Onboarding renders branded `b2c-welcome-mobile-branded.webp`; presentation API HTTP 200; image HTTP 200 |
+| Flutter B2B welcome | Login B2B tab renders `b2b-welcome-mobile.webp`; presentation API HTTP 200; image HTTP 200 |
+| Flutter build | `flutter analyze` no issues; `flutter build web --release` built `build\web`; local release serve verified |
 | B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
 | B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |
