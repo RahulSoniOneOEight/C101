@@ -243,6 +243,11 @@ export interface BannerForm {
   ctaLabel: string;
   ctaTargetType: string;
   ctaTargetId: string;
+  ctaAppRoute: string;
+  ctaWebPath: string;
+  webTitle: string;
+  webSubtitle: string;
+  webCtaLabel: string;
   externalImageUrl: string;
   imageMobileUrl: string;
   imageTabletUrl: string;
@@ -265,6 +270,11 @@ export const EMPTY_BANNER_FORM: BannerForm = {
   ctaLabel: "",
   ctaTargetType: "route",
   ctaTargetId: "",
+  ctaAppRoute: "",
+  ctaWebPath: "",
+  webTitle: "",
+  webSubtitle: "",
+  webCtaLabel: "",
   externalImageUrl: "",
   imageMobileUrl: "",
   imageTabletUrl: "",
@@ -295,6 +305,11 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     ctaLabel: text(document.ctaLabel),
     ctaTargetType: text(document.ctaTargetType) || "route",
     ctaTargetId: text(document.ctaTargetId),
+    ctaAppRoute: text(document.ctaAppRoute),
+    ctaWebPath: text(document.ctaWebPath),
+    webTitle: text(document.webTitle),
+    webSubtitle: text(document.webSubtitle),
+    webCtaLabel: text(document.webCtaLabel),
     externalImageUrl: text(document.externalImageUrl),
     imageMobileUrl: text(document.imageMobileUrl),
     imageTabletUrl: text(document.imageTabletUrl),
@@ -350,6 +365,25 @@ export function validateBannerForm(
     if (form.ctaTargetType === "route" && !form.ctaTargetId.trim().startsWith("/")) {
       errors.push("An in-app route must start with '/'.");
     }
+  }
+  if (form.ctaAppRoute.trim() && !form.ctaAppRoute.trim().startsWith("/")) {
+    errors.push("The app route must start with '/'.");
+  }
+  if (
+    form.ctaWebPath.trim() &&
+    !form.ctaWebPath.trim().startsWith("/") &&
+    !/^https:\/\//i.test(form.ctaWebPath.trim())
+  ) {
+    errors.push("The web path must start with '/' or be an https URL.");
+  }
+  if (
+    context.requireContent &&
+    form.ctaLabel.trim() &&
+    !form.ctaTargetId.trim() &&
+    !form.ctaAppRoute.trim() &&
+    !form.ctaWebPath.trim()
+  ) {
+    errors.push("Add a destination for the action label before publishing.");
   }
   if (form.startMode === "later") {
     if (!form.startsAt.trim()) {
@@ -408,6 +442,11 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     ctaLabel: form.ctaLabel.trim() || null,
     ctaTargetType: form.ctaTargetType,
     ctaTargetId: form.ctaTargetId.trim() || null,
+    ctaAppRoute: form.ctaAppRoute.trim() || null,
+    ctaWebPath: form.ctaWebPath.trim() || null,
+    webTitle: form.webTitle.trim() || null,
+    webSubtitle: form.webSubtitle.trim() || null,
+    webCtaLabel: form.webCtaLabel.trim() || null,
     externalImageUrl: form.externalImageUrl.trim() || null,
     imageMobileUrl: form.imageMobileUrl.trim() || null,
     imageTabletUrl: form.imageTabletUrl.trim() || null,

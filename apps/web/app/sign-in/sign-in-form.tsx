@@ -228,8 +228,10 @@ export function SignInForm({
             />
           </picture>
           <div>
-            <strong>{welcomeBanner.title}</strong>
-            {welcomeBanner.body ? <span>{welcomeBanner.body}</span> : null}
+            <strong>{welcomeBanner.web_title ?? welcomeBanner.title}</strong>
+            {welcomeBanner.web_subtitle || welcomeBanner.body ? (
+              <span>{welcomeBanner.web_subtitle ?? welcomeBanner.body}</span>
+            ) : null}
           </div>
         </div>
       ) : null}

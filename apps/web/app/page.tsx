@@ -11,6 +11,10 @@ import {
 } from "@/lib/experience-api";
 import { CATEGORIES, productsInCategory } from "@/lib/catalogue";
 import {
+  bannerBody,
+  bannerCtaLabel,
+  bannerHref,
+  bannerTitle,
   categoryCount,
   categoryIcon,
   categoryTone,
@@ -19,7 +23,6 @@ import {
   sectionHref,
   sectionProducts,
   sortedBanners,
-  webHrefForAction,
 } from "@/lib/storefront";
 import { HeroCarousel } from "./components/hero-carousel";
 import { ProductCard } from "./components/product-card";
@@ -100,19 +103,22 @@ function DefaultHero({ featured }: { featured: ComposedProduct | null }) {
 }
 
 function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
-  const href = webHrefForAction(banner.action_uri, "b2c");
-  const image = imageSources(banner.image_uri, 1200);
+  const href = bannerHref(banner, "b2c");
+  const title = bannerTitle(banner);
+  const body = bannerBody(banner);
+  const cta = bannerCtaLabel(banner);
+  const image = imageSources(banner.image_mobile_uri ?? banner.image_uri, 1200);
   return (
     <section className="campaign-strip">
       {image.src ? <img src={image.src} srcSet={image.srcSet} sizes="240px" alt="" /> : null}
       <div>
         <span className="eyebrow">Campaign</span>
-        <h2>{banner.title}</h2>
-        {banner.body ? <p>{banner.body}</p> : null}
+        <h2>{title}</h2>
+        {body ? <p>{body}</p> : null}
       </div>
-      {href && banner.action_label ? (
+      {href && cta ? (
         <Link className="button" href={href}>
-          {banner.action_label}
+          {cta}
         </Link>
       ) : null}
     </section>

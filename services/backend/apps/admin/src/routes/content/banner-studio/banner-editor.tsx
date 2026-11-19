@@ -599,6 +599,40 @@ export function BannerEditor({
                       onChange={(event) => update({ subtitle: event.target.value })}
                     />
                   </Field>
+                  <div className="rounded-lg border border-ui-border-base p-4">
+                    <Heading level="h3" className="mb-1">Web overrides — optional</Heading>
+                    <Text size="xsmall" className="mb-4 text-ui-fg-subtle">
+                      The app keeps the heading and supporting text above. These shorter values are used
+                      only by the web store, so the same campaign fits both surfaces.
+                    </Text>
+                    <div className="flex flex-col gap-y-4">
+                      <Field id="banner-web-title" label="Web heading" description="Up to 80 characters.">
+                        <Input
+                          id="banner-web-title"
+                          maxLength={80}
+                          value={form.webTitle}
+                          onChange={(event) => update({ webTitle: event.target.value })}
+                        />
+                      </Field>
+                      <Field id="banner-web-subtitle" label="Web supporting text" description="Up to 120 characters.">
+                        <Textarea
+                          id="banner-web-subtitle"
+                          rows={2}
+                          maxLength={120}
+                          value={form.webSubtitle}
+                          onChange={(event) => update({ webSubtitle: event.target.value })}
+                        />
+                      </Field>
+                      <Field id="banner-web-cta-label" label="Web button label" description="Up to 25 characters.">
+                        <Input
+                          id="banner-web-cta-label"
+                          maxLength={25}
+                          value={form.webCtaLabel}
+                          onChange={(event) => update({ webCtaLabel: event.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  </div>
                   {requiresCategory ? null : (
                     <Field id="banner-cta-label" label="Button label">
                       <Input
@@ -653,6 +687,32 @@ export function BannerEditor({
                           id="banner-dest-target"
                           value={form.ctaTargetId}
                           onChange={(event) => update({ ctaTargetId: event.target.value })}
+                        />
+                      </Field>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field
+                        id="banner-dest-app-route"
+                        label="App route — optional"
+                        description="In-app destination. Must start with '/'. Defaults to the reference above."
+                      >
+                        <Input
+                          id="banner-dest-app-route"
+                          placeholder="/browse?tag=Flash%20Deals"
+                          value={form.ctaAppRoute}
+                          onChange={(event) => update({ ctaAppRoute: event.target.value })}
+                        />
+                      </Field>
+                      <Field
+                        id="banner-dest-web-path"
+                        label="Web path — optional"
+                        description="Web-store destination. Wins over the app route on the web. Must start with '/' or be an https URL."
+                      >
+                        <Input
+                          id="banner-dest-web-path"
+                          placeholder="/search?cat=tools-%26-hardware"
+                          value={form.ctaWebPath}
+                          onChange={(event) => update({ ctaWebPath: event.target.value })}
                         />
                       </Field>
                     </div>
@@ -766,6 +826,7 @@ export function BannerEditor({
                     <BannerPreview
                       locale={activeLocale}
                       device={device}
+                      placement={form.placement}
                       preview={preview.data}
                       isPending={preview.isPending}
                       isError={preview.isError}

@@ -74,6 +74,11 @@ export interface StorefrontBannerPresentation {
   image_desktop_uri?: string;
   action_label?: string;
   action_uri?: string;
+  action_web_path?: string;
+  action_app_route?: string;
+  web_title?: string;
+  web_subtitle?: string;
+  web_cta_label?: string;
   priority: number;
 }
 
@@ -265,6 +270,11 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
     ...(text(banner.imageAltText) ? { image_alt: text(banner.imageAltText) } : {}),
     ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
     ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
+    ...(text(banner.ctaWebPath) ? { action_web_path: text(banner.ctaWebPath) } : {}),
+    ...(text(banner.ctaAppRoute) ? { action_app_route: text(banner.ctaAppRoute) } : {}),
+    ...(text(banner.webTitle) ? { web_title: text(banner.webTitle) } : {}),
+    ...(text(banner.webSubtitle) ? { web_subtitle: text(banner.webSubtitle) } : {}),
+    ...(text(banner.webCtaLabel) ? { web_cta_label: text(banner.webCtaLabel) } : {}),
     priority: numberValue(banner.priority) ?? 0,
   };
 }

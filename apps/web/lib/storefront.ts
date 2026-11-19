@@ -30,6 +30,43 @@ export function webHrefForAction(
   return value;
 }
 
+/**
+ * A banner's web destination: the authored web path wins, then the canonical action. Campaign
+ * attribution is appended only to web-store links so the app and web remain separable in reporting.
+ */
+export function bannerHref(
+  banner: StorefrontBanner,
+  channel: "b2c" | "b2b",
+): string | null {
+  const href = webHrefForAction(banner.action_web_path ?? banner.action_uri, channel);
+  if (!href) return null;
+  return withAttribution(href, banner.content_key);
+}
+
+export function withAttribution(href: string, campaign: string): string {
+  if (!href.startsWith("/")) return href;
+  const [path, query = ""] = href.split("?");
+  const params = new URLSearchParams(query);
+  if (!params.has("utm_source")) params.set("utm_source", "web");
+  if (!params.has("utm_medium")) params.set("utm_medium", "banner");
+  if (!params.has("utm_campaign")) params.set("utm_campaign", campaign);
+  const next = params.toString();
+  return next ? `${path}?${next}` : path;
+}
+
+/** Web-store copy overrides win; the app copy remains the fallback. */
+export function bannerTitle(banner: StorefrontBanner): string {
+  return banner.web_title?.trim() || banner.title;
+}
+
+export function bannerBody(banner: StorefrontBanner): string | undefined {
+  return banner.web_subtitle?.trim() || banner.body;
+}
+
+export function bannerCtaLabel(banner: StorefrontBanner): string | undefined {
+  return banner.web_cta_label?.trim() || banner.action_label;
+}
+
 export function sortedBanners(
   banners: StorefrontBanner[],
   placement: string,

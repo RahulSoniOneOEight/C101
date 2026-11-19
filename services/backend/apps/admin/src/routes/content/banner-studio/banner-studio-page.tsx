@@ -319,6 +319,20 @@ export function BannerStudioPage() {
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  // One record per placement: the matrix surfaces a missing slot and a duplicated slot without
+  // pretending that channel-wide substitution is allowed.
+  const coverage = SUPPORTED_PLACEMENTS.map((option) => {
+    const rows = documents.filter((document) => document.placement === option.value);
+    const lifecycle = rows.map((document) => bannerLifecycle(document, now));
+    return {
+      ...option,
+      records: rows.length,
+      live: lifecycle.filter((value) => value === "live").length,
+      scheduled: lifecycle.filter((value) => value === "scheduled").length,
+      draft: lifecycle.filter((value) => value === "draft").length,
+    };
+  });
+
   const publicationMutation = useMutation({
     mutationFn: (input: { operation: "publish" | "unpublish"; documentId: string }) =>
       client.admin.buildkart.content.mutate({ kind: "banner", locale, ...input }),
@@ -486,6 +500,47 @@ export function BannerStudioPage() {
                   Clear
                 </Button>
               ) : null}
+            </div>
+          </div>
+
+          <div className="border-t border-ui-border-base px-4 py-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <Heading level="h3">Placement coverage</Heading>
+              <Text size="xsmall" className="text-ui-fg-subtle">
+                One record per placement. An empty slot is a gap, not a channel-wide substitution.
+              </Text>
+            </div>
+            <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+              {coverage.map((item) => {
+                const state = item.live > 0
+                  ? { label: "Live", color: "green" as const }
+                  : item.scheduled > 0
+                    ? { label: "Scheduled", color: "purple" as const }
+                    : item.draft > 0
+                      ? { label: "Draft only", color: "grey" as const }
+                      : { label: "Missing", color: "orange" as const };
+                return (
+                  <div
+                    key={item.value}
+                    className="flex items-center justify-between gap-2 rounded border border-ui-border-base px-2 py-1.5"
+                    data-testid={`coverage-${item.value}`}
+                  >
+                    <div className="min-w-0">
+                      <Text size="xsmall" weight="plus" className="truncate">{item.label}</Text>
+                      <Text size="xsmall" className="truncate text-ui-fg-subtle">
+                        {item.value}
+                        {item.records > 1 ? ` · ${item.records} records` : ""}
+                      </Text>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {item.records > 1 ? (
+                        <StatusBadge color="orange">Duplicate</StatusBadge>
+                      ) : null}
+                      <StatusBadge color={state.color}>{state.label}</StatusBadge>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 

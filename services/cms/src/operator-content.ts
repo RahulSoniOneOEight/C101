@@ -119,6 +119,36 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
       },
       { name: "ctaTargetId", label: "Action target", type: "string" },
       {
+        name: "ctaAppRoute",
+        label: "App route",
+        type: "string",
+        description: "Optional in-app destination, for example /browse?tag=Flash%20Deals. Delivered as the app action.",
+      },
+      {
+        name: "ctaWebPath",
+        label: "Web path",
+        type: "string",
+        description: "Optional web-store destination, for example /search?cat=tools-%26-hardware. Wins over the app route on the web store.",
+      },
+      {
+        name: "webTitle",
+        label: "Web title override",
+        type: "string",
+        description: "Optional shorter heading for the web store. The app keeps the main title.",
+      },
+      {
+        name: "webSubtitle",
+        label: "Web subtitle override",
+        type: "text",
+        description: "Optional supporting copy for the web store. The app keeps the main subtitle.",
+      },
+      {
+        name: "webCtaLabel",
+        label: "Web action label override",
+        type: "string",
+        description: "Optional call-to-action label for the web store. The app keeps the main action label.",
+      },
+      {
         name: "externalImageUrl",
         label: "External image URL",
         type: "url",

@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { StorefrontBanner } from "@/lib/experience-api";
-import { imageSources, webHrefForAction } from "@/lib/storefront";
+import {
+  bannerBody,
+  bannerCtaLabel,
+  bannerHref,
+  bannerTitle,
+  imageSources,
+} from "@/lib/storefront";
 
 export function HeroCarousel({
   banners,
@@ -29,7 +35,10 @@ export function HeroCarousel({
   const desktop = imageSources(banner.image_desktop_uri ?? banner.image_uri, 1600);
   const tablet = imageSources(banner.image_tablet_uri ?? banner.image_desktop_uri ?? banner.image_uri, 1200);
   const mobile = imageSources(banner.image_mobile_uri ?? banner.image_desktop_uri ?? banner.image_uri, 900);
-  const href = webHrefForAction(banner.action_uri, channel);
+  const href = bannerHref(banner, channel);
+  const title = bannerTitle(banner);
+  const body = bannerBody(banner);
+  const cta = bannerCtaLabel(banner);
 
   return (
     <section
@@ -59,11 +68,11 @@ export function HeroCarousel({
           <span className="pulse-dot" aria-hidden="true" />
           BazarBee campaign
         </span>
-        <h1>{banner.title}</h1>
-        {banner.body ? <p>{banner.body}</p> : null}
-        {href && banner.action_label ? (
+        <h1>{title}</h1>
+        {body ? <p>{body}</p> : null}
+        {href && cta ? (
           <Link className="button button-honey button-lg" href={href}>
-            {banner.action_label}
+            {cta}
           </Link>
         ) : null}
       </div>

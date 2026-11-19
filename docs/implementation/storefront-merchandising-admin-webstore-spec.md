@@ -26,18 +26,32 @@ record the deviation.
 
 | Area | Status | Note |
 |---|---|---|
-| Responsive web D2C storefront | Shipped | Static hero and hardcoded category taxonomy; CMS consumption is pending. |
-| Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; trade hero is still static. |
+| Responsive web D2C storefront | Shipped | CMS-driven hero, campaign strip, categories, Flash Deals and Recommended sections; branded desktop/mobile art. |
+| Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; CMS-driven trade hero and category banners. |
 | Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
-| Admin Banner Studio | Existing | Placement-bound banners, schedule, preview, draft/publish. |
+| Admin Banner Studio | Updated (`6e47f10`) | Responsive mobile/tablet/desktop URL fields and B2C/B2B welcome placements; existing preview, schedule and publish retained. |
 | Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
-| Category presentation / collections | Existing | Category editorial and curated collections. |
+| Category presentation / collections | Existing | Category editorial and curated collections; live categories now drive web tiles and chips. |
 | Product Studio | Existing | Product, media, tags, offers, B2B price/MOQ/tiers. |
-| CMS-driven web banners/sections | **Not started** | MERCH-09/10. |
-| Responsive banner variants + CTA mapping | **Not started** | MERCH-01/02. |
-| Welcome banners | **Not started** | MERCH-03/04; placement does not exist. |
+| CMS-driven web banners/sections | **Implemented (B2C) / partial (B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero and category. B2B buy-again/trade-offers rails still pending. |
+| Responsive banner variants + CTA mapping | **Partial** | Desktop/tablet/mobile URL fields, delivery mapping, picture sources and branded assets shipped; admin entity pickers and per-surface CTA fields pending. |
+| Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements and CMS records; Flutter welcome surfaces still pending. |
 | Full-page admin preview | **Not started** | MERCH-06. |
+| Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published. |
+
+### Implementation log
+
+| Change | Evidence |
+|---|---|
+| Web consumes CMS presentation and app-shell | B2C home hero/campaign/categories/Flash/Recommended; B2B hero/category |
+| CMS/admin responsive creative | `imageMobileUrl`, `imageTabletUrl`, `imageDesktopUrl` fields, admin inputs, delivery mapping |
+| Welcome placements | `b2c.welcome.banner` / `b2b.welcome.banner` in registries, CMS records and web sign-in |
+| Branded assets | B2C hero/campaign, B2B hero and welcome art at desktop/mobile sizes |
+| CMS writes | B2C hero “Build more. Buy better.” / monsoon campaign; B2B “Your trade desk, on the web.”; welcome banners |
+| Test orders | `BK-261119-PKWH70` and `BK-261119-EH54M7`, both `₹3,889.50` simulated prepaid, 1 item |
+| Releases | CMS/API/web `6e47f10` → `96e625b`; latest web `release-511ae1b` |
+| Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 
 ---
 
@@ -603,3 +617,17 @@ A merchandising change is releasable only when:
 9. **Channel switch:** anonymous `/` is B2C; only entitled users see Shop/Trade; switching preserves the
    active channel on refresh; retail and quotation carts remain separate.
 10. **Evidence:** publish time, actor, placement, locale and screenshots recorded once per bundle.
+
+## 11. HomeRun benchmark
+
+| HomeRun pattern | BazarBee position |
+|---|---|
+| 60-minute delivery promise and pincode header | Not adopted; BazarBee staging promises 1–3 day delivery. Keep the delivery promise in the tile only when the API carries a real note. |
+| Category collections in the header and a category-first home | Adopted through CMS category tiles and category chips. |
+| “Deals of the week” product rail with discount-led cards | Adopted as CMS Flash Deals + campaign strip. |
+| Product tiles show delivery promise, free-delivery threshold, bulk-price unlock, option count and add | Partially adopted: option count is live; B2B tiers cover bulk pricing; delivery/bulk messaging needs product metadata before display. |
+| Add action visible on the card | Adopted; BazarBee keeps it below the price rather than covering the image. |
+| App-store and wallet/cashback prompts | Not in scope for the storefront pilot. |
+
+**Next benchmark gaps to close:** a delivery/stock note on product tiles when authored, a category
+navigation rail on desktop, and B2B trade-offer/quick-order rails on the trade home.

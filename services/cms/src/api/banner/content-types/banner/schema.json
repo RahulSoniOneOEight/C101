@@ -30,6 +30,11 @@
       "default": "route"
     },
     "ctaTargetId": { "type": "string" },
+    "ctaAppRoute": { "type": "string" },
+    "ctaWebPath": { "type": "string" },
+    "webTitle": { "type": "string" },
+    "webSubtitle": { "type": "string" },
+    "webCtaLabel": { "type": "string" },
     "imageMobile": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
     "imageTablet": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
     "imageDesktop": { "type": "media", "multiple": false, "allowedTypes": ["images"] },

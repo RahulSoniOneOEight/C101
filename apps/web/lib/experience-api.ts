@@ -95,6 +95,11 @@ export interface StorefrontBanner {
   image_alt?: string;
   action_label?: string;
   action_uri?: string;
+  action_web_path?: string;
+  action_app_route?: string;
+  web_title?: string;
+  web_subtitle?: string;
+  web_cta_label?: string;
   priority?: number;
 }
 

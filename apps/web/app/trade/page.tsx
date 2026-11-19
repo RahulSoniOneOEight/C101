@@ -10,7 +10,7 @@ import {
   type ComposedProduct,
   type StorefrontBanner,
 } from "@/lib/experience-api";
-import { firstBanner, imageSources, webHrefForAction } from "@/lib/storefront";
+import { firstBanner, imageSources } from "@/lib/storefront";
 import { readableBusinessName } from "@/lib/trade";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
@@ -126,14 +126,15 @@ export default async function TradePage() {
         ) : null}
         <div className="trade-hero-copy">
           <span className="eyebrow eyebrow-light">Trade workspace</span>
-          <h1>{heroBanner?.title ?? "Your trade desk, on the web."}</h1>
+          <h1>{heroBanner?.web_title ?? heroBanner?.title ?? "Your trade desk, on the web."}</h1>
           <p>
-            {heroBanner?.body ??
+            {heroBanner?.web_subtitle ??
+              heroBanner?.body ??
               "The first web slice of the Flutter trade workspace: B2B catalogue with MOQ and tier pricing, credit overview, quotation cart and RFQ entry — on the same account."}
           </p>
           <div className="hero-actions">
             <Link className="button button-honey button-lg" href="/trade/catalogue">
-              {heroBanner?.action_label ?? "Open trade catalogue"}
+              {heroBanner?.web_cta_label ?? heroBanner?.action_label ?? "Open trade catalogue"}
             </Link>
             <Link className="button button-ghost-light button-lg" href="/trade/quote">
               Quotation cart
