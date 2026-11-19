@@ -27,6 +27,17 @@ const nextConfig = {
       },
     ];
   },
+  // Policy pages read their Markdown at build time. Include the source in the standalone trace
+  // so a future non-static render still has the files available.
+  outputFileTracingIncludes: {
+    "/terms": ["./content/policies/**/*.md"],
+    "/refunds": ["./content/policies/**/*.md"],
+    "/shipping": ["./content/policies/**/*.md"],
+    "/privacy": ["./content/policies/**/*.md"],
+    "/contact": ["./content/policies/**/*.md"],
+    "/about": ["./content/policies/**/*.md"],
+    "/policies": ["./content/policies/**/*.md"],
+  },
 };
 
 export default nextConfig;

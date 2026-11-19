@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; web release `release-web-20261119-142913` (source `15cb8bb`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-145903`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
-Web release: `/opt/buildkart-releases/release-web-20261119-142913`; admin panel `/opt/buildkart-releases/release-93eeac1`
+Web release: `/opt/buildkart-releases/release-web-20261119-145903`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -322,4 +322,35 @@ evidence. See `b2b-price-unit-correction-2026-11-19.md`.
 ChatGPT-hosted QC was not available: `https://chatgpt.com/` returned a Cloudflare challenge and this
 environment has no OpenAI API key or authenticated ChatGPT browser session. The checks above are a
 scripted Playwright QC instead; this is recorded as a limitation, not a completed ChatGPT review.
+
+## 11. Category lanes and policy pages — 19 Nov 2026
+
+### 11.1 Category lanes
+
+| Check | Result |
+|---|---|
+| B2C home | “Shop by category” is one lane: 8 cards, `scrollWidth 2502` / `clientWidth 1232` at 1440px |
+| B2B home | One “Shop by category” lane across the full 10-category catalogue; `scrollWidth 3130` / `clientWidth 1232`; counts show active trade terms |
+| B2B catalogue | Category selector `flex-wrap: nowrap`; `scrollWidth 1497` / `clientWidth 1232` |
+| Mobile | B2C lane `scrollWidth 2660` / `clientWidth 358`; page overflow `390 = 390` |
+
+### 11.2 Policy pages
+
+| Route | Live result |
+|---|---|
+| `/terms` | 200, draft notice, no placeholders |
+| `/refunds` | 200, draft notice, 2 tables, no placeholders |
+| `/shipping` | 200, draft notice, 1 table, no placeholders |
+| `/privacy` | 200, draft notice, 3 tables, no placeholders |
+| `/contact` | 200, draft notice, 3 tables, no placeholders |
+| `/about` | 200, draft notice, no placeholders |
+| `/policies` | 200, 6 policy cards |
+| Footer | 7 policy links (six policies + All policies) |
+| Robots | `X-Robots-Tag: noindex, nofollow` |
+
+The policy pack is still a **draft**. Pages withhold the unverified GSTIN, mark the refund timeline as
+proposed and show a “Draft for review — not yet effective” notice. Publishing as final terms requires
+the legal/GSTIN/support-mailbox gates in `policy-pages-2026-11-19.md` and `POLICIES_APPROVED=true` at
+build time.
+
 

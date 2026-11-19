@@ -11,10 +11,12 @@ import {
   type ComposedProduct,
   type CustomerOrderSummary,
   type StorefrontBanner,
+  type StorefrontCategory,
 } from "@/lib/experience-api";
-import { bannerHref, firstBanner, imageObjectPosition, imageSources, productDeliveryNote, productStockNote } from "@/lib/storefront";
+import { bannerHref, categoryCount, categoryTone, firstBanner, imageObjectPosition, imageSources, productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
 import { buyAgainProducts, readableBusinessName } from "@/lib/trade";
+import { CategoryIcon } from "../components/category-icon";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
 import { TradeNav } from "./trade-nav";
@@ -77,6 +79,7 @@ export default async function TradePage() {
   const businessName = readableBusinessName(businessId);
   let heroBanner: StorefrontBanner | null = null;
   let tradeProducts: ComposedProduct[] = [];
+  let tradeCategories: StorefrontCategory[] = [];
   let recentOrders: CustomerOrderSummary[] = [];
   try {
     const [presentation, products, orders] = await Promise.all([
@@ -85,6 +88,7 @@ export default async function TradePage() {
       listMyOrders(token, 20),
     ]);
     heroBanner = firstBanner(presentation.banners, "b2b.home.hero");
+    tradeCategories = presentation.categories ?? [];
     tradeProducts = products;
     recentOrders = orders;
   } catch {
@@ -93,6 +97,8 @@ export default async function TradePage() {
   const offerProducts = tradeProducts.filter((product) => product.best_price).slice(0, 3);
   const buyAgain = buyAgainProducts(tradeProducts, recentOrders);
   const heroHref = heroBanner ? bannerHref(heroBanner, "b2b") : null;
+  const tradeCategoryCounts = categoryCount(tradeProducts, tradeCategories);
+  const visibleTradeCategories = tradeCategories;
 
   return (
     <section className="trade-page">
@@ -187,6 +193,54 @@ export default async function TradePage() {
           <span className="card-link">Open quotation cart →</span>
         </Link>
       </div>
+
+      {visibleTradeCategories.length > 0 ? (
+        <section className="section trade-home-categories" aria-labelledby="trade-category-title">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Trade range</span>
+              <h2 id="trade-category-title">Shop by category</h2>
+              <p className="muted">One trade lane across the full catalogue; counts show active B2B terms.</p>
+            </div>
+            <Link className="section-link" href="/trade/catalogue">
+              Full trade catalogue →
+            </Link>
+          </div>
+          <div className="category-lane" aria-label="Trade categories">
+            {visibleTradeCategories.map((category, index) => {
+              const count = tradeCategoryCounts.get(category.category_id) ?? 0;
+              const banner = imageSources(category.banner_image_uri, 800);
+              return (
+                <Link
+                  className={`category-tile ${banner.src ? "has-media" : ""} ${categoryTone(index)}`}
+                  key={category.category_id}
+                  href={`/trade/catalogue?cat=${encodeURIComponent(category.slug)}`}
+                >
+                  {banner.src ? (
+                    <span className="category-media">
+                      <img src={banner.src} alt="" loading="lazy" decoding="async" />
+                      <span className="category-icon">
+                        <CategoryIcon iconKey={category.icon_key} label={category.label} />
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="category-icon">
+                      <CategoryIcon iconKey={category.icon_key} label={category.label} />
+                    </span>
+                  )}
+                  <span className="category-name">{category.label}</span>
+                  <span className="category-blurb">{category.short_text ?? category.name}</span>
+                  <span className="category-count">
+                    {count > 0
+                      ? `${count} ${count === 1 ? "product" : "products"} →`
+                      : "No active trade terms"}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       {offerProducts.length > 0 ? (
         <section className="section trade-home-offers">

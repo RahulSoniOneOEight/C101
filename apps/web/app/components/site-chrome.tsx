@@ -187,6 +187,18 @@ export function SiteFooter() {
           <span>Synthetic data</span>
           <span>No production effect</span>
         </div>
+        <div className="footer-col footer-policies">
+          <h4>Policies</h4>
+          <Link href="/terms">Terms of Service</Link>
+          <Link href="/refunds">Refunds &amp; cancellations</Link>
+          <Link href="/shipping">Shipping &amp; delivery</Link>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/contact">Contact &amp; grievance</Link>
+          <Link href="/about">About us</Link>
+          <Link className="footer-all-policies" href="/policies">
+            All policies
+          </Link>
+        </div>
       </div>
       <div className="footer-base">
         <span>© {new Date().getFullYear()} BazarBee</span>

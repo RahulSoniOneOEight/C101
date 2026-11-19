@@ -3,7 +3,7 @@
 This change closes the customer-facing gaps found when the Flutter app was compared with
 `gobazarbee.com`. It is staging evidence only; production remains unauthorised.
 
-Deployed: `release-web-20261119-142913` from source `15cb8bb`; live at `https://gobazarbee.com`.
+Deployed: `release-web-20261119-145903`; live at `https://gobazarbee.com`.
 
 ## 1. Feature parity matrix
 
@@ -99,3 +99,28 @@ npm run build      -> 18 routes, /discover and /api/chat and /api/products prese
 is no OpenAI API key or authenticated browser session available. A ChatGPT-hosted review could not be
 completed; the checks above are a scripted visual/functional QC instead. This is recorded as a
 limitation rather than presented as a completed ChatGPT review.
+
+## 5. Follow-up — 19 Nov 2026 (category lanes + policy pack)
+
+### 5.1 Single category lane
+
+- B2C home “Shop by category” is now one horizontal lane: 8 cards, `scrollWidth 2502` vs
+  `clientWidth 1232` at 1440px, with scroll snap and no page overflow.
+- B2B home has the same “Shop by category” lane across the full 10-category catalogue; counts show
+  active trade terms (currently Construction and Tools & Hardware have stock). The lane is
+  `scrollWidth 3130` vs `clientWidth 1232` at 1440px.
+- B2B `/trade/catalogue` category selector is now a single lane instead of wrapping rows:
+  `scrollWidth 1497` vs `clientWidth 1232`, `flex-wrap: nowrap`; all categories remain in one row.
+- Mobile 390: lane `scrollWidth 2660` vs `clientWidth 358`; page overflow remains 390/390.
+
+### 5.2 Policy pages
+
+Six customer policy routes and a policy index were added from `D:\C101\docs\policies`:
+
+`/terms`, `/refunds`, `/shipping`, `/privacy`, `/contact`, `/about`, `/policies`.
+
+The pages carry a **Draft for review — not yet effective** notice, withhold the unverified GSTIN,
+mark the refund timeline as proposed, and emit `noindex`. See
+`policy-pages-2026-11-19.md` for source mapping and the publish gate. The footer now links to all
+six policies plus the index.
+

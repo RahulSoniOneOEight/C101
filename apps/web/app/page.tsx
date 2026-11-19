@@ -269,7 +269,7 @@ export default async function HomePage() {
           </Link>
         </div>
         {visibleCmsCategories.length > 0 ? (
-          <div className="category-grid">
+          <div className="category-lane" aria-label="Shop by category">
             {visibleCmsCategories.map((category, index) => {
               const count = counts.get(category.category_id) ?? 0;
               const banner = imageSources(category.banner_image_uri, 800);
@@ -314,7 +314,7 @@ export default async function HomePage() {
             })}
           </div>
         ) : (
-          <div className="category-grid">
+          <div className="category-lane" aria-label="Shop by category">
             {CATEGORIES.map((category, index) => {
               const count = productsInCategory(products, category).length;
               return (
