@@ -31,7 +31,7 @@ export function DiscussProductButton(details: DiscussProductDetails) {
         );
       }}
     >
-      Ask about this product
+      Discuss this product
     </button>
   );
 }
