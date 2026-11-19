@@ -72,6 +72,7 @@ export interface StorefrontBannerPresentation {
   image_mobile_uri?: string;
   image_tablet_uri?: string;
   image_desktop_uri?: string;
+  image_focal_point?: string;
   action_label?: string;
   action_uri?: string;
   action_web_path?: string;
@@ -268,6 +269,7 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
     ...(tablet ? { image_tablet_uri: tablet } : {}),
     ...(mobile ? { image_mobile_uri: mobile } : {}),
     ...(text(banner.imageAltText) ? { image_alt: text(banner.imageAltText) } : {}),
+    ...(text(banner.imageFocalPoint) ? { image_focal_point: text(banner.imageFocalPoint) } : {}),
     ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
     ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
     ...(text(banner.ctaWebPath) ? { action_web_path: text(banner.ctaWebPath) } : {}),

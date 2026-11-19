@@ -8,6 +8,7 @@ import {
   bannerCtaLabel,
   bannerHref,
   bannerTitle,
+  imageObjectPosition,
   imageSources,
 } from "@/lib/storefront";
 
@@ -58,6 +59,7 @@ export function HeroCarousel({
             srcSet={desktop.srcSet}
             sizes="(max-width: 720px) 100vw, 1200px"
             alt={banner.image_alt ?? ""}
+            style={{ objectPosition: imageObjectPosition(banner) }}
             fetchPriority="high"
           />
         </picture>

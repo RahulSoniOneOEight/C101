@@ -43,6 +43,11 @@
     "imageTabletUrl": { "type": "string" },
     "imageDesktopUrl": { "type": "string" },
     "imageAltText": { "type": "string" },
+    "imageFocalPoint": {
+      "type": "enumeration",
+      "enum": ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"],
+      "default": "center"
+    },
     "themeKey": {
       "type": "enumeration",
       "enum": ["primary", "trust", "promotion", "neutral"],

@@ -151,6 +151,21 @@ export const CTA_TARGET_LABELS: Record<string, string> = {  route: "In-app route
 
 export const CTA_TARGET_TYPES = ["route", "product", "category", "collection", "url"] as const;
 
+/** CSS object-position values used by the storefront when a creative fills a frame. */
+export const IMAGE_FOCAL_POINTS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "center", label: "Center" },
+  { value: "top", label: "Top" },
+  { value: "bottom", label: "Bottom" },
+  { value: "left", label: "Left" },
+  { value: "right", label: "Right" },
+  { value: "top-left", label: "Top left" },
+  { value: "top-right", label: "Top right" },
+  { value: "bottom-left", label: "Bottom left" },
+  { value: "bottom-right", label: "Bottom right" },
+];
+
+const IMAGE_FOCAL_POINT_VALUES = new Set(IMAGE_FOCAL_POINTS.map((item) => item.value));
+
 export function placementLabel(value: unknown): string {
   if (typeof value !== "string" || !value.trim()) return "No placement";
   const key = value.trim();
@@ -240,6 +255,7 @@ export interface BannerForm {
   title: string;
   subtitle: string;
   imageAltText: string;
+  imageFocalPoint: string;
   ctaLabel: string;
   ctaTargetType: string;
   ctaTargetId: string;
@@ -267,6 +283,7 @@ export const EMPTY_BANNER_FORM: BannerForm = {
   title: "",
   subtitle: "",
   imageAltText: "",
+  imageFocalPoint: "center",
   ctaLabel: "",
   ctaTargetType: "route",
   ctaTargetId: "",
@@ -302,6 +319,7 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     title: text(document.title),
     subtitle: text(document.subtitle),
     imageAltText: text(document.imageAltText),
+    imageFocalPoint: text(document.imageFocalPoint) || "center",
     ctaLabel: text(document.ctaLabel),
     ctaTargetType: text(document.ctaTargetType) || "route",
     ctaTargetId: text(document.ctaTargetId),
@@ -348,6 +366,12 @@ export function validateBannerForm(
     if (value.trim() && !/^https:\/\//i.test(value.trim())) {
       errors.push(`The ${label} image reference must be an https URL.`);
     }
+  }
+  if (
+    form.imageFocalPoint.trim() &&
+    !IMAGE_FOCAL_POINT_VALUES.has(form.imageFocalPoint.trim())
+  ) {
+    errors.push("Choose a valid image focal point.");
   }
   if (
     context.requireContent &&
@@ -439,6 +463,7 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     title: form.title.trim(),
     subtitle: form.subtitle.trim() || null,
     imageAltText: form.imageAltText.trim() || null,
+    imageFocalPoint: form.imageFocalPoint.trim() || "center",
     ctaLabel: form.ctaLabel.trim() || null,
     ctaTargetType: form.ctaTargetType,
     ctaTargetId: form.ctaTargetId.trim() || null,

@@ -31,6 +31,7 @@ import {
   CTA_TARGET_LABELS,
   CTA_TARGET_TYPES,
   EMPTY_BANNER_FORM,
+  IMAGE_FOCAL_POINTS,
   IST_TIMEZONE,
   PREVIEW_DEVICES,
   SUPPORTED_PLACEMENTS,
@@ -132,7 +133,7 @@ export function BannerEditor({
   const categoriesQuery = useQuery({
     queryKey: ["buildkart", "commerce-categories"],
     queryFn: () => client.admin.buildkart.categories.query(),
-    enabled: open && requiresCategory,
+    enabled: open && (requiresCategory || form.ctaTargetType === "category"),
     staleTime: 5 * 60 * 1000,
   });
   const categoryOptions = categoriesQuery.data?.categories ?? [];
@@ -577,8 +578,22 @@ export function BannerEditor({
                       data-testid="banner-image-alt"
                     />
                   </Field>
-                  <Field id="banner-crop" label="Image crop" description="Not supported yet.">
-                    <Input id="banner-crop" value="Fixed by the customer app" disabled readOnly />
+                  <Field
+                    id="banner-focal-point"
+                    label="Image focal point"
+                    description="Controls how the creative is cropped when it fills the frame. Center is the safe default; use top for products or faces near the top."
+                  >
+                    <Select
+                      value={form.imageFocalPoint}
+                      onValueChange={(value) => update({ imageFocalPoint: value })}
+                    >
+                      <Select.Trigger id="banner-focal-point"><Select.Value /></Select.Trigger>
+                      <Select.Content>
+                        {IMAGE_FOCAL_POINTS.map((point) => (
+                          <Select.Item key={point.value} value={point.value}>{point.label}</Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select>
                   </Field>
                   <Field id="banner-heading" label="Heading" description="Customer-facing. Use a line break for a two-line hero.">
                     <Textarea
@@ -659,8 +674,8 @@ export function BannerEditor({
                     <div>
                       <Heading level="h2">03 · Destination</Heading>
                       <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                        Editorial references only. Searchable commerce pickers are not available yet, so
-                        enter the governed reference directly.
+                        Category references are searchable. Product and collection references are
+                        entered directly until the commerce picker ships.
                       </Text>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -681,13 +696,34 @@ export function BannerEditor({
                           ? "Must start with '/', for example /browse?tag=Flash%20Deals."
                           : form.ctaTargetType === "url"
                             ? "Must be an https URL."
-                            : "Enter the governed commerce reference id."}
+                            : form.ctaTargetType === "category"
+                              ? "Start typing a category name. The storefront stores the category id."
+                              : "Enter the governed commerce reference id."}
                       >
-                        <Input
-                          id="banner-dest-target"
-                          value={form.ctaTargetId}
-                          onChange={(event) => update({ ctaTargetId: event.target.value })}
-                        />
+                        {form.ctaTargetType === "category" ? (
+                          <>
+                            <Input
+                              id="banner-dest-target"
+                              list="banner-category-refs"
+                              placeholder="Start typing a category name"
+                              value={form.ctaTargetId}
+                              onChange={(event) => update({ ctaTargetId: event.target.value })}
+                            />
+                            <datalist id="banner-category-refs">
+                              {categoryOptions.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </datalist>
+                          </>
+                        ) : (
+                          <Input
+                            id="banner-dest-target"
+                            value={form.ctaTargetId}
+                            onChange={(event) => update({ ctaTargetId: event.target.value })}
+                          />
+                        )}
                       </Field>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">

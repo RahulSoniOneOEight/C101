@@ -67,6 +67,23 @@ export function bannerCtaLabel(banner: StorefrontBanner): string | undefined {
   return banner.web_cta_label?.trim() || banner.action_label;
 }
 
+const FOCAL_POSITIONS: Record<string, string> = {
+  center: "center center",
+  top: "center top",
+  bottom: "center bottom",
+  left: "left center",
+  right: "right center",
+  "top-left": "left top",
+  "top-right": "right top",
+  "bottom-left": "left bottom",
+  "bottom-right": "right bottom",
+};
+
+/** CSS object-position for a CMS-authored focal point. */
+export function imageObjectPosition(banner?: StorefrontBanner | null): string {
+  return FOCAL_POSITIONS[banner?.image_focal_point ?? "center"] ?? "center center";
+}
+
 export function sortedBanners(
   banners: StorefrontBanner[],
   placement: string,

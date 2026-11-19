@@ -179,6 +179,14 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         description:
           "Accessible description of the creative. Delivered on the category surface as the banner image alt text.",
       },
+      {
+        name: "imageFocalPoint",
+        label: "Image focal point",
+        type: "enum",
+        options: ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"],
+        description:
+          "How the creative is cropped when it fills a frame. Center is the safe default; use top for faces or products near the top.",
+      },
       { name: "startsAt", label: "Starts at", type: "datetime" },
       { name: "endsAt", label: "Ends at", type: "datetime" },
       { name: "timezone", label: "Timezone", type: "string" },

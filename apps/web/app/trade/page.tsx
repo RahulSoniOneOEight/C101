@@ -10,7 +10,7 @@ import {
   type ComposedProduct,
   type StorefrontBanner,
 } from "@/lib/experience-api";
-import { bannerHref, firstBanner, imageSources } from "@/lib/storefront";
+import { bannerHref, firstBanner, imageObjectPosition, imageSources } from "@/lib/storefront";
 import { readableBusinessName } from "@/lib/trade";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
@@ -120,6 +120,7 @@ export default async function TradePage() {
                   imageSources(heroBanner.image_desktop_uri ?? heroBanner.image_uri, 1600).srcSet
                 }
                 alt=""
+                style={{ objectPosition: imageObjectPosition(heroBanner) }}
               />
             </picture>
             <span className="trade-hero-scrim" />

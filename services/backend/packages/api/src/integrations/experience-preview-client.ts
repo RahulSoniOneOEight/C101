@@ -16,6 +16,7 @@ export interface BannerPreviewPresentation {
   body?: string;
   image_uri?: string;
   image_alt: string;
+  image_focal_point?: string;
   action_label?: string;
   action_uri?: string;
   theme_key: "primary" | "trust" | "promotion" | "neutral";

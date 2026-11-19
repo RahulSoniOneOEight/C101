@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { StorefrontBanner } from "@/lib/experience-api";
-import { imageSources } from "@/lib/storefront";
+import { imageObjectPosition, imageSources } from "@/lib/storefront";
 
 type Mode = "code" | "magic";
 type Stage = "identify" | "verify" | "link-sent";
@@ -225,6 +225,7 @@ export function SignInForm({
               srcSet={welcomeDesktop.srcSet}
               sizes="(max-width: 720px) 100vw, 560px"
               alt={welcomeBanner.image_alt ?? ""}
+              style={{ objectPosition: imageObjectPosition(welcomeBanner) }}
             />
           </picture>
           <div>

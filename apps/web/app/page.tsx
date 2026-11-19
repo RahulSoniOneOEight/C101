@@ -19,6 +19,7 @@ import {
   categoryIcon,
   categoryTone,
   firstBanner,
+  imageObjectPosition,
   imageSources,
   sectionHref,
   sectionProducts,
@@ -110,7 +111,7 @@ function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
   const image = imageSources(banner.image_mobile_uri ?? banner.image_uri, 1200);
   return (
     <section className="campaign-strip">
-      {image.src ? <img src={image.src} srcSet={image.srcSet} sizes="240px" alt="" /> : null}
+      {image.src ? <img src={image.src} srcSet={image.srcSet} sizes="240px" alt="" style={{ objectPosition: imageObjectPosition(banner) }} /> : null}
       <div>
         <span className="eyebrow">Campaign</span>
         <h2>{title}</h2>

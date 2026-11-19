@@ -22,6 +22,18 @@ const PAGE_LABEL: Record<PreviewDevice, string> = {
   desktop: "Web · 1440px",
 };
 
+const FOCAL_POSITIONS: Record<string, string> = {
+  center: "center center",
+  top: "center top",
+  bottom: "center bottom",
+  left: "left center",
+  right: "right center",
+  "top-left": "left top",
+  "top-right": "right top",
+  "bottom-left": "left bottom",
+  "bottom-right": "right bottom",
+};
+
 type Surface = "home" | "category" | "welcome";
 
 function surfaceOf(placement?: string): Surface {
@@ -139,6 +151,8 @@ export function BannerPreview({
   const eligibility = preview?.eligibility;
   const imageUri = presentation?.image_uri;
   const imageAlt = presentation?.image_alt;
+  const focalPoint = (presentation as { image_focal_point?: string } | null)?.image_focal_point;
+  const imagePosition = FOCAL_POSITIONS[focalPoint ?? "center"] ?? "center center";
   const showImage = Boolean(imageUri) && !imageFailed;
   const surface = surfaceOf(placement);
   const channel = placement?.startsWith("b2b") ? "b2b" : "b2c";
@@ -151,6 +165,7 @@ export function BannerPreview({
             src={imageUri}
             alt={imageAlt ?? ""}
             className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: imagePosition }}
             onError={() => setImageFailed(true)}
           />
         ) : (

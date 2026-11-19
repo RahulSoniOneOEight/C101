@@ -92,6 +92,7 @@ export interface StorefrontBanner {
   image_mobile_uri?: string;
   image_tablet_uri?: string;
   image_desktop_uri?: string;
+  image_focal_point?: string;
   image_alt?: string;
   action_label?: string;
   action_uri?: string;
