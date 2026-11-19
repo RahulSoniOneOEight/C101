@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `4514e8a`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `5574793`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-4514e8a`; Experience API image built from `release-4efabb0`
+Web release: `/opt/buildkart-releases/release-5574793`; Experience API image built from `release-4efabb0`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -17,11 +17,11 @@ checkout QC. It is staging evidence only; production remains unauthorised.
 | Email delivery | Resend sender behind `RESEND_API_KEY`. Without a key, staging returns a preview code/link and never claims an email was sent; production refuses to issue a challenge. |
 | Web auth UI | `/sign-in` has Email code and Magic link tabs; `/auth/email` consumes a magic link and issues the HTTP-only session. |
 | Storefront | Responsive shell, hero, category taxonomy, catalogue/search, product detail, multi-item cart, quote-backed checkout, confirmation, orders and returns. |
-| Branding | Logo 74px desktop / 62px mobile (30% larger than the 56px pilot mark), BazarBee colour and type tokens throughout. |
+| Branding | Logo 74px desktop / 73px mobile (30.4% larger than the 56px pilot mark), BazarBee colour and type tokens throughout. The 73px lockup also holds at 320px because the mobile header carries only the cart action. |
 | Checkout accuracy | `/api/cart/quote` resolves standard delivery for the entered postal code and returns subtotal, automatic offer, shipping and total. The checkout button and confirmation use the server-computed total. |
 | Edge routing | Nginx exact-matches `/auth/email` to the web app before the operator `/auth/*` block; Medusa auth remains operator-only. |
 | Account & saving | New account hub, device-local wishlist with save-from-card/detail, and a web notifications inbox backed by `/v1/me/notifications` with unread counts and mark-all-read. |
-| Trade entry | New `/trade` page inventories the Flutter trade capability set, states the rollout boundary, and links to the live trade app. |
+| Trade web slice | Signed-in trade buyers get `/trade` workspace, `/trade/catalogue` (B2B API, MOQ + quantity tiers + add-to-quote), `/trade/credit` (staging fixture), and `/trade/quote` (device-local quotation cart + RFQ draft). Consumer identities get the marketing capability page. |
 
 ## 2. Flutter → web feature parity
 
@@ -38,7 +38,7 @@ The Flutter router is the baseline (`apps/prototype_app/lib/router/app_router.da
 | Account, profile, addresses, payments, GST invoices, help, settings | Partial+ | Account hub, wishlist and notifications added. Addresses, payment methods, GST invoice history, help/settings and team/roles remain Flutter-only. |
 | Wishlist | Implemented | Device-local on web, matching the app's local wishlist provider; badges and save/remove work from cards and product detail. |
 | Notifications | Implemented | Real `/v1/me/notifications` inbox with unread count, mark-all-read and deep links into orders. |
-| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | Explicitly descoped | `/trade` is the web entry point and capability map; the working trade workspace remains the Flutter app. Rationale and evidence below. |
+| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | **Partial + explicit descope** | Implemented on web: trade catalogue with MOQ/tier pricing and add-to-quote, credit overview, quotation cart and RFQ draft entry. Remaining app-only: credit payments/limit actions, quote comparison/approvals, projects, procurement lists, team/roles, GST invoice history. |
 
 ## 2.1 Flutter B2B and account baseline (QC evidence)
 
@@ -54,15 +54,20 @@ Logged into the Flutter app as the allowlisted B2B identity
 | Account | BuildPro Traders Pvt Ltd, GSTIN 27ABCDE1234F1Z5, Team & Roles, Credit Overview, My Price Advantage, RFQ Basket, Projects & Sites, GST Invoices, Order History, Approvals, Switch to consumer |
 | Trade / Browse tabs | Both resolve to the trade catalogue; Trade carries the conversation dock |
 
-**Web disposition:** the trade workspace is **explicitly descoped** to the Flutter app for this
-slice. Building it on the web requires trade identity/roles, a credit ledger view, quote/RFQ
-state and approval rules — not a UI-only change. `/trade` documents the capability set, the shared
-identity, and the rollout boundary, and links to `https://gobazarbee.com/#/b2b`. This is a stated
-product boundary, not an unfinished mock.
+**Web disposition:** the first trade slice is implemented against the live B2B API:
 
-The account gap is closed to the extent the current API supports it: account hub, orders, returns,
-wishlist, notifications, cart and trade entry are implemented. Address book, payment methods, GST
-invoice history, help/settings and team/roles remain app-only.
+| Web trade surface | Evidence |
+|---|---|
+| `/trade` workspace | Gated by the server-owned `b2b_buyer` role; shows Arjun Traders, catalogue/credit/quote links and the scope boundary |
+| `/trade/catalogue` | 3 B2B products, MOQ 5/1/1, tiers `5–9 ₹3,890` / `10+ ₹3,790`; add-to-quote defaults to MOQ |
+| `/trade/credit` | Available ₹1,71,550, sanctioned ₹2,00,000, utilised ₹28,450, overdue ₹59,700; explicitly labelled staging fixture |
+| `/trade/quote` | Quantity-tier pricing, MOQ enforcement, delivery/required-by/remarks, RFQ reference; saved on device, no seller message/order/payment |
+| D2C gating | A consumer session sees the capability page and “trade account required” on catalogue/credit, not fake trade data |
+
+Remaining B2B modules are explicitly app-only: credit payments/limit actions, quotation
+comparison/approvals, projects, procurement lists, schemes/price advantage, team/roles and GST
+invoice history. The account hub covers orders, returns, wishlist, notifications and cart; addresses,
+payment methods, GST invoice history, help/settings and team/roles remain app-only.
 
 ## 3. Authentication QC
 
@@ -91,9 +96,21 @@ preview. A production deployment must supply a Resend key; the API fails closed 
 | Notification deep link | Opens the linked owner-scoped order detail |
 | Wishlist save | Heart on a catalogue card stores the product; `/wishlist` shows it with price, seller and Add to cart |
 | Mobile layout | Account, notifications, wishlist and trade pages have no horizontal overflow at 390px |
-| Trade entry | `/trade` renders the capability map and opens the Flutter trade app; no fake credit or RFQ data is shown |
+| Trade entry | `/trade` renders the B2B workspace for a trade role and the capability map for a consumer; no fake credit or RFQ data is shown |
 | Live staging smoke | `/account`, `/notifications`, `/trade`, `/wishlist` all `200` at 1440px with no page errors; wishlist save renders one card |
 | Expired session | Invalid cookie on `/account` and `/notifications` now redirects to `/sign-in?next=…` instead of rendering a signed-in shell with a load error |
+
+## 3.2 Trade slice QC
+
+| Test | Result |
+|---|---|
+| B2B role gate | `b2b_buyer` from `/v1/me/contexts` opens the workspace; a D2C session sees the capability page and “trade account required” |
+| Trade catalogue | 3 products from `/v1/products?channel=b2b`, MOQ 5/1/1, tiers `5–9 ₹3,890`, `10+ ₹3,790`, `1–10 ₹1,45,000`, etc. |
+| Tier application | Default MOQ 5 → ₹3,890/unit, ₹19,450; quantity 10 → ₹3,790/unit, ₹37,900 |
+| Add to quote | Card action stores the line; `/trade/quote` shows MOQ, tier rate, quantity and line total |
+| RFQ entry | Delivery, required-by and remarks; creates `RFQ-####`; status “Saved on this device · not sent to sellers”; no order/payment |
+| Credit overview | ₹1,71,550 available / ₹2,00,000 sanctioned / ₹28,450 utilised / ₹59,700 overdue; 2 of 5 invoices shown; explicit staging-fixture banner |
+| Mobile | 320/390px no horizontal overflow; 73px logo visible with only the cart action in the header |
 
 ## 4. Order and checkout QC
 
@@ -120,8 +137,8 @@ Measured with Playwright at 320, 390, 430 and 1440 px.
 | Check | Result |
 |---|---|
 | Horizontal overflow | None at 320/390/430/1440 |
-| Header logo | 74px desktop, 62px mobile; +30% vs the previous 56px |
-| Mobile sticky header | 81px (was 141px before the search bar was moved out of the sticky area) |
+| Header logo | 74px desktop, 73px mobile; +30.4% vs the previous 56px; 73px still fits at 320px |
+| Mobile sticky header | 92px with the 73px lockup (the search bar sits below the sticky row) |
 | Mobile tab bar | Shop / Search / Cart / Account; 44px minimum tap targets |
 | Contrast | All sampled text ≥ 5.55:1; stock status darkened to 6.1:1 |
 | Checkout CTA vs fixed tab bar | No overlap after `scroll-padding-bottom` |
@@ -155,6 +172,11 @@ After the account, wishlist, notifications and trade screens shipped, the approv
 notifications page could show a signed-in shell and a session error together after expiry. The
 page now redirects on `401/403`, and the re-check returned **no P0/P1 issues and a "ship" verdict**.
 
+The web trade slice then received a dedicated visual pass across desktop and 320/390/430px mobile:
+MOQ/tier tables, 73px mobile logo, RFQ confirmation and the credit overview. The verdict was
+**ship, no P0/P1 issues**. A follow-up pass on the final header (73px at 320px, cart-only) also
+returned **ship**.
+
 ## 7. Known limitations
 
 - Real email delivery needs `RESEND_API_KEY` and a verified `send.gobazarbee.com` sender in the
@@ -162,8 +184,12 @@ page now redirects on `401/403`, and the re-check returned **no P0/P1 issues and
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
   should reuse the checkout cart.
 - Catalogue is the staging set (30 products), including test products with unrelated imagery.
-- The B2B trade workspace remains Flutter-only by explicit descope; `/trade` is the web entry point.
-  Address book, payment methods, GST invoice history, team/roles, help and settings also remain app-only.
+- The web trade slice covers catalogue/MOQ/tier pricing, add-to-quote, credit overview and RFQ draft
+  entry. Credit payments/limit actions, quote comparison/approvals, projects, procurement lists,
+  schemes/price advantage, team/roles and GST invoice history remain Flutter-only.
+- Credit values are a staging fixture mirroring the Flutter demo, not a live ledger. RFQ drafts are
+  device-local and are not sent to sellers.
+- Address book, payment methods, GST invoice history, help and settings remain app-only.
 - The web wishlist is device-local (matching the app's local provider), not account-synced.
 - Staging is `noindex, nofollow` and uses synthetic data. Production still requires CHG-020 gates and
   D-020-12 release authorisation.
