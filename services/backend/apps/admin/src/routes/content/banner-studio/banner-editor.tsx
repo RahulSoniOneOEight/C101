@@ -82,6 +82,91 @@ function Field({
   );
 }
 
+const CROP_POSITION: Record<string, string> = {
+  center: "center center",
+  top: "center top",
+  bottom: "center bottom",
+  left: "left center",
+  right: "right center",
+  "top-left": "left top",
+  "top-right": "right top",
+  "bottom-left": "left bottom",
+  "bottom-right": "right bottom",
+};
+
+const CROP_GRID = [
+  "top-left",
+  "top",
+  "top-right",
+  "left",
+  "center",
+  "right",
+  "bottom-left",
+  "bottom",
+  "bottom-right",
+] as const;
+
+function CropPreview({
+  url,
+  value,
+  onChange,
+  ratio,
+  label,
+}: {
+  url: string;
+  value: string;
+  onChange: (value: string) => void;
+  ratio: string;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Text size="xsmall" weight="plus">{label}</Text>
+      <div
+        className="relative overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-subtle"
+        style={{ aspectRatio: ratio }}
+        data-testid={`banner-crop-${label.toLowerCase().replaceAll(" ", "-")}`}
+      >
+        {url ? (
+          <img
+            src={url}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: CROP_POSITION[value] ?? "center center" }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center px-3 text-center">
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Add a creative URL to preview the crop.
+            </Text>
+          </div>
+        )}
+        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+          {CROP_GRID.map((point) => {
+            const option = IMAGE_FOCAL_POINTS.find((item) => item.value === point);
+            const active = value === point;
+            return (
+              <button
+                key={point}
+                type="button"
+                aria-label={`Set focal point: ${option?.label ?? point}`}
+                aria-pressed={active}
+                title={option?.label ?? point}
+                onClick={() => onChange(point)}
+                className={
+                  active
+                    ? "border border-ui-fg-interactive bg-ui-fg-interactive/20"
+                    : "border border-white/30 hover:bg-white/10"
+                }
+              />
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BannerEditor({
   open,
   onOpenChange,
@@ -615,6 +700,29 @@ export function BannerEditor({
                       </Select.Content>
                     </Select>
                   </Field>
+                  <div className="rounded-lg border border-ui-border-base p-4">
+                    <Heading level="h3" className="mb-1">Media crop editor</Heading>
+                    <Text size="xsmall" className="mb-4 text-ui-fg-subtle">
+                      Click a cell to move the focal point. The previews use the same desktop and mobile
+                      creatives the storefront renders.
+                    </Text>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <CropPreview
+                        url={form.imageDesktopUrl || form.externalImageUrl}
+                        value={form.imageFocalPoint}
+                        onChange={(value) => update({ imageFocalPoint: value })}
+                        ratio="16 / 9"
+                        label="Desktop crop"
+                      />
+                      <CropPreview
+                        url={form.imageMobileUrl || form.imageDesktopUrl || form.externalImageUrl}
+                        value={form.imageFocalPoint}
+                        onChange={(value) => update({ imageFocalPoint: value })}
+                        ratio="4 / 5"
+                        label="Mobile crop"
+                      />
+                    </div>
+                  </div>
                   <Field id="banner-heading" label="Heading" description="Customer-facing. Use a line break for a two-line hero.">
                     <Textarea
                       id="banner-heading"

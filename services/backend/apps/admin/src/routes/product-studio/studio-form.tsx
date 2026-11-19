@@ -193,6 +193,7 @@ type FormState = {
   product_type: string;
   hsn_code: string;
   unit_of_measure: string;
+  delivery_note: string;
   thumbnail: string;
 };
 
@@ -209,6 +210,7 @@ const EMPTY_FORM: FormState = {
   product_type: "",
   hsn_code: "",
   unit_of_measure: "",
+  delivery_note: "",
   thumbnail: "",
 };
 
@@ -246,6 +248,7 @@ function normalizeDraftForm(value: unknown): FormState {
     product_type: draftString(source.product_type),
     hsn_code: draftString(source.hsn_code),
     unit_of_measure: draftString(source.unit_of_measure),
+    delivery_note: draftString(source.delivery_note),
     thumbnail: draftString(source.thumbnail),
   };
 }
@@ -1775,6 +1778,7 @@ export function ProductStudioForm({
           product_type: product.product_type,
           hsn_code: product.hsn_code,
           unit_of_measure: product.unit_of_measure,
+          delivery_note: draftString(product.metadata?.delivery_note),
           thumbnail: product.thumbnail,
         });
         setSpecs(
@@ -3073,6 +3077,20 @@ export function ProductStudioForm({
                       update("unit_of_measure", event.target.value)
                     }
                     placeholder="e.g. piece, metre, box"
+                  />
+                </Field>
+                <Field
+                  label="Delivery note"
+                  hint="Shown on the product tile when present, e.g. “Standard delivery · 1–3 business days”."
+                >
+                  <Input
+                    value={form.delivery_note}
+                    onChange={(event) =>
+                      update("delivery_note", event.target.value)
+                    }
+                    maxLength={120}
+                    placeholder="Standard delivery · 1–3 business days"
+                    data-testid="product-delivery-note"
                   />
                 </Field>
               </div>

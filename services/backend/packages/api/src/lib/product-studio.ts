@@ -61,6 +61,7 @@ export type StudioSaveInput = {
   product_type?: string | null;
   hsn_code?: string | null;
   unit_of_measure?: string | null;
+  delivery_note?: string | null;
   thumbnail?: string | null;
   tags?: string[] | null;
   specifications?: StudioSpecInput[] | null;
@@ -1784,6 +1785,7 @@ export async function saveStudioProduct(
     product_type: clean(input.product_type),
     hsn_code: clean(input.hsn_code),
     unit_of_measure: clean(input.unit_of_measure),
+    delivery_note: clean(input.delivery_note),
   };
 
   await updateProductsWorkflow(scope).run({
