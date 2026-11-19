@@ -1,6 +1,6 @@
 # B2B channel switch and order test — 19 Nov 2026
 
-Status: **passed (order placed)** · Web release `release-web-20261119-181458`
+Status: **passed (order placed)** · Web release `release-web-20261119-181458` · Source `1928f02`
 Order: **`BK-261119-N6H7VJ`** · Staging only · Synthetic data
 
 ## Flow exercised
