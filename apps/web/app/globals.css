@@ -1313,11 +1313,17 @@ a {
 }
 .filter-bar {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 24px 0;
-  overflow-x: auto;
   padding-bottom: 4px;
-  scrollbar-width: thin;
+}
+@media (max-width: 900px) {
+  .filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
 }
 .filter-chip {
   flex: 0 0 auto;
