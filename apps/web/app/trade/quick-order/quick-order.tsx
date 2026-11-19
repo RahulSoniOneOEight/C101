@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { formatMoney, type ComposedProduct } from "@/lib/experience-api";
+import type { ComposedProduct } from "@/lib/experience-api";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { AddToQuote } from "../add-to-quote";
 
@@ -20,10 +20,6 @@ function QuickLine({ product }: { product: ComposedProduct }) {
           SKU {offer.sku} · MOQ {moq}
         </p>
         {note ? <p className="product-note">{note}</p> : null}
-        <div className="trade-price-row">
-          <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
-          <span className="trade-moq">MOQ {moq}</span>
-        </div>
         <AddToQuote
           line={{
             productId: product.id,
