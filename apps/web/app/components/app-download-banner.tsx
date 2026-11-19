@@ -1,64 +1,59 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-const DISMISS_KEY = "bazarbee.appBanner.dismissedAt.v1";
-const DISMISS_DAYS = 7;
-
+/**
+ * Static, non-clickable app preview shown at the end of the B2C home page.
+ *
+ * The banner is intentionally link-free until the store listings exist. The phone screens are real
+ * captures of the Flutter app so the preview matches the product rather than a generic mockup.
+ */
 export function AppDownloadBanner() {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DISMISS_KEY);
-      const dismissedAt = raw ? Number(raw) : 0;
-      if (dismissedAt && Date.now() - dismissedAt < DISMISS_DAYS * 24 * 60 * 60 * 1000) {
-        return;
-      }
-    } catch {
-      // Private browsing: still show the banner.
-    }
-
-    const onScroll = () => {
-      if (window.scrollY > 420) setVisible(true);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  if (!visible) return null;
-
   return (
-    <aside className="app-download-banner" aria-label="Get the BazarBee app" data-testid="app-download-banner">
-      <img src="/branding/bazarbee-app-icon.png" alt="" width={46} height={46} />
-      <div className="app-download-copy">
-        <strong>Take BazarBee with you</strong>
-        <span>Track orders, chat and reorder faster in the app.</span>
+    <section className="app-promo" aria-labelledby="app-promo-title">
+      <div className="app-promo-copy">
+        <span className="app-promo-eyebrow">BazarBee app</span>
+        <h2 id="app-promo-title">Everything you need, in your pocket.</h2>
+        <p>
+          Track orders, chat with the team and reorder faster — from home or the site.
+        </p>
+        <div className="app-store-badges" aria-label="Android and iOS apps coming soon">
+          <span className="app-store-badge">
+            <small>Coming soon on</small>
+            <strong>Google Play</strong>
+          </span>
+          <span className="app-store-badge">
+            <small>Coming soon on</small>
+            <strong>App Store</strong>
+          </span>
+        </div>
+        <p className="app-promo-note">Launching soon on Android and iOS.</p>
       </div>
-      <a
-        className="button button-honey app-download-cta"
-        href="https://app-staging.pinakaplay.cloud"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Open app
-      </a>
-      <button
-        type="button"
-        className="app-download-close"
-        aria-label="Dismiss app banner"
-        onClick={() => {
-          setVisible(false);
-          try {
-            window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
-          } catch {
-            // Dismissal is best-effort; the banner is already hidden for this session.
-          }
-        }}
-      >
-        ✕
-      </button>
-    </aside>
+
+      <div className="app-promo-art" aria-hidden="true">
+        <span className="app-promo-chip app-promo-chip-one">
+          <span className="app-promo-dot" />
+          Order packed
+        </span>
+        <span className="app-promo-chip app-promo-chip-two">
+          <span className="app-promo-dot app-promo-dot-aqua" />
+          Chat with the team
+        </span>
+        <div className="app-phone app-phone-back">
+          <img
+            src="/branding/app/bazarbee-app-browse.webp"
+            alt=""
+            width={390}
+            height={815}
+            loading="lazy"
+          />
+        </div>
+        <div className="app-phone app-phone-front">
+          <img
+            src="/branding/app/bazarbee-app-home.webp"
+            alt=""
+            width={390}
+            height={815}
+            loading="lazy"
+          />
+        </div>
+      </div>
+    </section>
   );
 }

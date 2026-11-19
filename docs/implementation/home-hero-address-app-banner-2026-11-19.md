@@ -1,15 +1,15 @@
 # Home hero rotation, delivery selector and web app banner — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-162411` · Source `6d6a460`
+Status: **shipped to staging web** · Release `release-web-20261119-170224` · Source `pending commit`
 Host: `https://gobazarbee.com` · Branch `feat/bazarbee-branding`
 
 ## Scope
 
 1. Three B2C home hero banners, authored and published through Admin Banner Studio.
-2. A Flutter-style delivery/location selector on the B2C home page, persisted for the browser and
-   used to pre-fill checkout.
-3. A fixed, dismissible web-only app-download banner on the B2C home page.
-4. Visual QC of the home page at desktop, tablet and mobile widths.
+2. A Flutter-style delivery/location selector in the storefront header next to the cart, persisted
+   for the browser and used to pre-fill checkout.
+3. A static, in-page, non-clickable app preview at the bottom of the B2C home page.
+4. Visual QC at desktop, tablet, standard mobile and small-phone widths.
 
 Production was not touched. Staging remains synthetic and noindex.
 
@@ -62,31 +62,41 @@ republished:
 
 Files:
 
-- `apps/web/lib/delivery.ts` — typed address, defaults, suggestions, localStorage read/write.
-- `apps/web/app/components/address-selector.tsx` — location pill and modal.
-- `apps/web/app/page.tsx` — mounts the selector in `.home-delivery-bar` above the hero.
+- `apps/web/lib/delivery.ts` — typed address, pincode directory, defaults, suggestions, localStorage
+  read/write.
+- `apps/web/app/components/address-selector.tsx` — header chip and portaled modal.
+- `apps/web/app/components/site-chrome.tsx` — mounts the selector in the header next to the cart.
 - `apps/web/app/checkout/checkout-form.tsx` — reads the saved address into `postalCode` and `city`.
-- `apps/web/app/globals.css` — selector, modal and app-banner styles.
+- `apps/web/app/globals.css` — header chip, modal/sheet and app-preview styles.
 
 Behaviour:
 
 - Default: Bhiwadi, Rajasthan 301019.
-- Saved under `bazarbee.delivery.v1`; changes emit `bazarbee-delivery-change` and also sync across
-  tabs through the `storage` event.
-- Six-digit pincode validation; city required; state optional.
-- Popular-city shortcuts: Bhiwadi, Jaipur, New Delhi, Mumbai, Bengaluru.
+- Header chip shows `Deliver to · <city> <pincode>` on desktop and a compact pin + pincode on mobile.
+  At 340 px and below it collapses to the pin icon alone so the cart stays visible.
+- Saved under `bazarbee.delivery.v1`; changes emit `bazarbee-delivery-change` and sync across tabs
+  through the `storage` event.
+- The modal opens with the current address, pincode, city and state already filled. A six-digit
+  pincode from the local directory (20 major cities) auto-fills city and state.
+- Popular-city chips apply immediately and close the sheet; the header chip pulses on update.
+- Mobile uses a bottom sheet with a drag handle, scroll lock and `Escape` to close. The modal is
+  rendered through `createPortal(..., document.body)` because the sticky header's `backdrop-filter`
+  otherwise becomes the containing block for fixed positioning.
 - Checkout keeps the address as the source of truth for the browser and still requires the street
   address.
 
-## 4. Web app-download banner
+## 4. Static app preview
 
-`apps/web/app/components/app-download-banner.tsx`, mounted only on the B2C home page.
+`apps/web/app/components/app-download-banner.tsx`, mounted only at the end of the B2C home page.
 
-- Appears after 420 px of scroll; fixed bottom-left on desktop.
-- Dismissal stored in `bazarbee.appBanner.dismissedAt.v1` for seven days.
-- Links to `https://app-staging.pinakaplay.cloud`.
-- On mobile it sits above the tab bar (`bottom: 150px`); measured box `y=622–694` against the chat
-  FAB at `y=713–760`, so they do not overlap.
+- Static server-rendered section; **no links, buttons or dismissal** (`0` interactive elements).
+- Copy: “Everything you need, in your pocket.”, store badges marked “Coming soon”, and a
+  “Launching soon on Android and iOS.” note.
+- Phone screens are real captures of the Flutter app, cropped below the staging bar:
+  - `/branding/app/bazarbee-app-home.webp` — 780×1630, 84,018 bytes.
+  - `/branding/app/bazarbee-app-browse.webp` — 780×1630, 118,924 bytes.
+- The preview is intentionally a web component rather than a CMS banner until store URLs exist.
+  When download links are ready, move it to a dedicated CMS placement so operators can edit it.
 
 ## 5. Verification
 
@@ -98,11 +108,14 @@ Behaviour:
 | Hero CTA destinations | Pass — `/search?q=waterproofing`, `/search?cat=tools-%26-hardware`, `/search?cat=paints-%26-finishes`, all HTTP 200 |
 | Campaign strip CTA | Pass — `/trade`, HTTP 200 |
 | Admin Banner Studio | Pass — `b2c.home.hero · 3 active`; three Live rows |
-| Address modal at 1440 px and 390 px | Pass — opens, validates, popular-city selection updates the pill |
+| Header selector placement | Pass — sits between account and cart; mobile pin + pincode stays beside the cart |
+| Address modal at 1440, 390 and 320 px | Pass — portaled to `body`, desktop dialog and mobile bottom sheet fit the viewport |
+| Pincode auto-fill | Pass — `400001` fills Mumbai/Maharashtra; `560001` fills Bengaluru/Karnataka |
+| Popular-city selection | Pass — applies immediately and updates the header chip |
 | Address persistence | Pass — Jaipur and Mumbai selections retained across navigation |
-| Checkout pre-fill | Pass — Mumbai 400001 selected on home; after simulated-OTP sign-in, checkout showed city `Mumbai` and postal code `400001`; no order placed |
-| App banner appear/dismiss | Pass — appears after scroll, dismiss removes it and writes the timestamp |
-| Horizontal overflow | Pass — 0 px at 1440, 820 and 390 |
+| Checkout pre-fill | Pass — Pune 411001 selected from the header; after simulated-OTP sign-in, checkout showed city `Pune` and postal code `411001`; no order placed |
+| Static app preview | Pass — rendered at the page bottom, two real app screens, `0` links/buttons, both images HTTP 200 |
+| Horizontal overflow | Pass — 0 px at 1440, 820, 390 and 320 |
 | `npm run typecheck` | Pass |
 | `npm run build` | Pass |
 
@@ -116,7 +129,7 @@ covered by `full-store-qc-2026-11-19.md`.
 3. The campaign strip can be returned to its prior copy and `/browse` CTA, but that CTA 404s on web;
    prefer correcting the path instead.
 4. Revert the web commit and redeploy. The previous web release is
-   `release-web-20261119-160503`.
+   `release-web-20261119-162411` (selector above the hero, dismissible fixed app banner).
 
 ## 7. Unchanged risks
 

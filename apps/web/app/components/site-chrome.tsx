@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { StorefrontLocale } from "@/lib/locale-shared";
+import { AddressSelector } from "./address-selector";
 import { CartLink } from "./cart-link";
 import { CategoryRail, type RailCategory } from "./category-rail";
 import { ChannelSwitch } from "./channel-switch";
@@ -102,6 +103,7 @@ export function SiteHeader({
               <UserIcon />
               <span>{accountLabel}</span>
             </Link>
+            <AddressSelector locale={locale} />
             <CartLink locale={locale} />
           </div>
         </div>
