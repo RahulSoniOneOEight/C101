@@ -3537,7 +3537,8 @@ textarea:focus-visible {
   .header-inner {
     min-height: 90px;
   }
-  .notification-link {
+  .notification-link,
+  .account-link {
     display: none;
   }
   .header-action span:last-child {
@@ -3936,11 +3937,8 @@ textarea:focus-visible {
 }
 
 @media (max-width: 360px) {
-  /* Keep the 73px logo on normal phones; 320px needs a slightly smaller lockup to fit the header. */
+  /* The 73px lockup still fits because the mobile header only carries the cart action. */
   .brand-logo {
-    height: 66px;
-  }
-  .header-inner {
-    min-height: 82px;
+    height: 73px;
   }
 }

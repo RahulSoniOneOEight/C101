@@ -74,7 +74,10 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
           <div className="header-actions">
             <NotificationLink signedIn={signedIn} />
             <WishlistLink />
-            <Link className="header-action" href={signedIn ? "/account" : "/sign-in"}>
+            <Link
+              className="header-action account-link"
+              href={signedIn ? "/account" : "/sign-in"}
+            >
               <UserIcon />
               <span>{signedIn ? "Account" : "Sign in"}</span>
             </Link>

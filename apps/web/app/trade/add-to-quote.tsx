@@ -39,7 +39,9 @@ export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> })
             onChange={(event) => {
               const parsed = Number(event.target.value.replace(/\D/g, ""));
               setQuantity(
-                Number.isFinite(parsed) && parsed > 0 ? Math.min(999, parsed) : line.moq,
+                Number.isFinite(parsed) && parsed > 0
+                  ? Math.max(line.moq, Math.min(999, parsed))
+                  : line.moq,
               );
             }}
           />
