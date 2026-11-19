@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `a21ab11`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `4514e8a`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-a21ab11`; Experience API image built from `release-4efabb0`
+Web release: `/opt/buildkart-releases/release-4514e8a`; Experience API image built from `release-4efabb0`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -93,6 +93,7 @@ preview. A production deployment must supply a Resend key; the API fails closed 
 | Mobile layout | Account, notifications, wishlist and trade pages have no horizontal overflow at 390px |
 | Trade entry | `/trade` renders the capability map and opens the Flutter trade app; no fake credit or RFQ data is shown |
 | Live staging smoke | `/account`, `/notifications`, `/trade`, `/wishlist` all `200` at 1440px with no page errors; wishlist save renders one card |
+| Expired session | Invalid cookie on `/account` and `/notifications` now redirects to `/sign-in?next=…` instead of rendering a signed-in shell with a load error |
 
 ## 4. Order and checkout QC
 
@@ -148,6 +149,11 @@ independent vision pass (Nemotron 3.5 Super VL) reviewed the screenshots; the fi
 
 Final vision pass also confirmed the step-3 confirmation, the ₹514.05 total and the BazarBee
 hierarchy across desktop and mobile.
+
+After the account, wishlist, notifications and trade screens shipped, the approved vision pass
+(Nemotron 3.5 Super VL) reviewed eight live desktop/mobile screenshots. It found one P1: the
+notifications page could show a signed-in shell and a session error together after expiry. The
+page now redirects on `401/403`, and the re-check returned **no P0/P1 issues and a "ship" verdict**.
 
 ## 7. Known limitations
 
