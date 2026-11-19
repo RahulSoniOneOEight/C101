@@ -1,8 +1,9 @@
 # Web channel choice, coupons and product chat — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-185334` · Source `1ca3eb7`
+Status: **shipped to staging web** · Release `release-web-20261119-185718` · Source `039e892`
 Host: `https://gobazarbee.com` · Branch: `feat/bazarbee-branding`
-Previous web release: `release-web-20261119-184011` (chat/coupon/product bundle) and
+Previous web release: `release-web-20261119-185334` (first chat/product bundle); earlier
+`release-web-20261119-184011` (sign-in/coupon/product/chat bundle) and
 `release-web-20261119-182252` (trade access path).
 
 ## 1. What changed
@@ -48,8 +49,7 @@ Both product pages now show:
 - richer specs from real catalogue data: brand, category, SKU, seller, offer count, delivery and
   payment terms;
 - the real delivery note / standard 3–5 day promise instead of the old hardcoded 1–3 days;
-- **Ask about this product** (Discuss), which shares the product into the human conversation
-  channel.
+- **Discuss this product**, which shares the product into the human conversation channel.
 
 The B2C page already had the Bought Together pair. The B2B page keeps its trade pricing panel,
 MOQ tiers, add-to-quote and add-to-cart actions.
