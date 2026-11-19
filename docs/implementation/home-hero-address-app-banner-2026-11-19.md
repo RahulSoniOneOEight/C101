@@ -100,16 +100,14 @@ Behaviour:
 | Admin Banner Studio | Pass — `b2c.home.hero · 3 active`; three Live rows |
 | Address modal at 1440 px and 390 px | Pass — opens, validates, popular-city selection updates the pill |
 | Address persistence | Pass — Jaipur and Mumbai selections retained across navigation |
+| Checkout pre-fill | Pass — Mumbai 400001 selected on home; after simulated-OTP sign-in, checkout showed city `Mumbai` and postal code `400001`; no order placed |
 | App banner appear/dismiss | Pass — appears after scroll, dismiss removes it and writes the timestamp |
 | Horizontal overflow | Pass — 0 px at 1440, 820 and 390 |
 | `npm run typecheck` | Pass |
 | `npm run build` | Pass |
 
-### Limitation
-
-Checkout pre-fill is wired and typechecked, but a scripted end-to-end check was blocked by the
-staging OTP sign-in gate (no test credential was available in this pass). The rendered checkout was
-not exercised with a signed-in session, and no new order was placed.
+No new order was placed during this pass. Payment and reservation behaviour is unchanged and remains
+covered by `full-store-qc-2026-11-19.md`.
 
 ## 6. Rollback
 
