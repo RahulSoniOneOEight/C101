@@ -1,6 +1,6 @@
 # Home hero rotation, delivery selector and web app banner — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-170224` · Source `pending commit`
+Status: **shipped to staging web** · Release `release-web-20261119-170224` · Source `da87849`
 Host: `https://gobazarbee.com` · Branch `feat/bazarbee-branding`
 
 ## Scope
