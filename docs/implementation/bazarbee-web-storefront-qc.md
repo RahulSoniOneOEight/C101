@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `243c81e`, admin panel `1782cce`
+Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API/admin code is `5639fe3`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-243c81e`; admin panel `/opt/buildkart-releases/release-1782cce`
+Web release: `/opt/buildkart-releases/release-5639fe3`; admin panel built from the same release
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -181,6 +181,12 @@ returned **ship**.
 
 - Real email delivery needs `RESEND_API_KEY` and a verified `send.gobazarbee.com` sender in the
   staging secret store.
+- Banner focal point is supported; media-library crops and focal-point dragging are still a future
+  editor upgrade.
+- Banner Studio searches category references. Product and collection references are entered manually
+  until the product/collection picker lands.
+- hi-IN presentation currently serves English content as the fallback; the web does not expose a
+  locale switch yet.
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
   should reuse the checkout cart.
 - Catalogue is the staging set (30 products), including test products with unrelated imagery.
@@ -196,21 +202,23 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web/CMS/API release `a1ccdb4`, web CTA follow-up `243c81e`; admin panel rebuilt from `1782cce`. CMS presentation data drives the
-B2C and B2B surfaces below.
+Web/CMS/API/admin release `5639fe3`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
 | B2C home, 1440px | CMS hero “Build more. Buy better.”, campaign strip, 8 populated category tiles, Flash Deals and Recommended rails; hero CTA `/search` with `utm_source=web&utm_medium=banner&utm_campaign=banner-welcome-en-in` |
 | B2C Electrical | Category tile opens `/search?cat=lighting-electrical`; banner 1, products 2 |
 | B2C Tools & Hardware | Banner 1, chips 11, products 4 |
-| B2C checkout | Add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-D35FDW` confirmed as simulated prepaid, 1 item |
-| B2C orders | `/orders` shows 19 cards; latest `BK-261119-D35FDW`, Confirmed, ₹3,889.50 |
+| B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-QFEJWX` confirmed as simulated prepaid, 1 item |
+| B2C order history | Earlier run showed 19 order cards, including `BK-261119-D35FDW` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
-| B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue` |
+| B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in` |
 | B2B quote | Add to quote → 1 line, quantity 5, estimated value ₹19,450 |
 | B2B Tools | Banner 1, products 1 |
 | B2B welcome | `b2b.welcome.banner` renders on `/sign-in?next=/trade` |
+| Focal point | B2B hero saved as `imageFocalPoint=bottom`; API returns `image_focal_point=bottom`; web computed `object-position: 50% 100%` |
+| hi-IN | `/v1/content/presentation?locale=hi-IN` returns 4 B2C / 2 B2B banners and 10 categories; English content is the fallback because no hi-IN records are published |
+| Publish rollback | `hero-monsoon-ready` unpublish `200` → B2C delivery 4→3 banners without the hero; republish `200` → 3→4 banners; `ROLLBACK_OK` |
 | Mobile 390px | B2C home, B2C Tools, B2B home and B2B Tools all report `scrollWidth = innerWidth = 390`; no horizontal overflow |
 | Runtime errors | No page errors on the B2C or B2B runs |
 
@@ -222,9 +230,13 @@ Admin Banner Studio, signed in as the staging operator:
 | Full-page preview | Welcome/home/category context at App, Mobile web and Desktop; current draft banner plus the published page shell |
 | CTA mapping | `App route` and `Web path` fields present; web path wins on the web store |
 | Web overrides | Web heading, supporting text and button-label fields present |
+| Focal point | Select renders with the saved value `Bottom` |
+| Searchable category picker | Switching destination type to Category reference exposes a datalist with 10 commerce categories |
 | Errors | None |
 
 The approved vision pass (Nemotron 3.5 Super VL) reviewed the live B2C home/campaign/category,
 B2B hero/category and 390px captures: **ship, no P0/P1**. Consecutive automated email-code requests
-hit the documented 60-second cooldown during the last scripted pass; the order above was placed from
-a successful code sign-in, and the cooldown is expected staging behaviour.
+hit the documented 60-second cooldown during earlier passes; fresh code sign-in completed both the
+B2C order and the B2B flow. A deliberately expired D2C cookie produced an unquoted fallback cart;
+re-authenticating restored the quote, offer, delivery and order, so the fallback is an auth-expiry
+state rather than a pricing defect.
