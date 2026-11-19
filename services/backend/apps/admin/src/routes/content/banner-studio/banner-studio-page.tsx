@@ -320,15 +320,19 @@ export function BannerStudioPage() {
   const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // One record per placement: the matrix surfaces a missing slot and a duplicated slot without
-  // pretending that channel-wide substitution is allowed.
+  // pretending that channel-wide substitution is allowed. Category banners are one record per
+  // category by design, so their count is coverage rather than duplication.
   const coverage = SUPPORTED_PLACEMENTS.map((option) => {
     const rows = documents.filter((document) => document.placement === option.value);
     const lifecycle = rows.map((document) => bannerLifecycle(document, now));
+    const live = lifecycle.filter((value) => value === "live").length;
+    const scheduled = lifecycle.filter((value) => value === "scheduled").length;
     return {
       ...option,
       records: rows.length,
-      live: lifecycle.filter((value) => value === "live").length,
-      scheduled: lifecycle.filter((value) => value === "scheduled").length,
+      live,
+      scheduled,
+      active: live + scheduled,
       draft: lifecycle.filter((value) => value === "draft").length,
     };
   });
@@ -507,7 +511,8 @@ export function BannerStudioPage() {
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <Heading level="h3">Placement coverage</Heading>
               <Text size="xsmall" className="text-ui-fg-subtle">
-                One record per placement. An empty slot is a gap, not a channel-wide substitution.
+                Category banners are one per category. Other placements should have one active
+                campaign; multiple records are flagged, not silently merged.
               </Text>
             </div>
             <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -529,12 +534,16 @@ export function BannerStudioPage() {
                       <Text size="xsmall" weight="plus" className="truncate">{item.label}</Text>
                       <Text size="xsmall" className="truncate text-ui-fg-subtle">
                         {item.value}
-                        {item.records > 1 ? ` · ${item.records} records` : ""}
+                        {item.requiresCategory
+                          ? ` · ${item.active} categories`
+                          : item.active > 1
+                            ? ` · ${item.active} active`
+                            : ""}
                       </Text>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      {item.records > 1 ? (
-                        <StatusBadge color="orange">Duplicate</StatusBadge>
+                      {!item.requiresCategory && item.active > 1 ? (
+                        <StatusBadge color="orange">Multiple</StatusBadge>
                       ) : null}
                       <StatusBadge color={state.color}>{state.label}</StatusBadge>
                     </div>
