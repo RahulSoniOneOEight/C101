@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CartLink } from "./cart-link";
+import { CategoryRail, type RailCategory } from "./category-rail";
 import { ChannelSwitch } from "./channel-switch";
 import { NotificationLink } from "./notification-link";
 import { WishlistLink } from "./wishlist-link";
@@ -36,9 +37,11 @@ function UserIcon() {
 export function SiteHeader({
   signedIn,
   hasTrade,
+  categories,
 }: {
   signedIn: boolean;
   hasTrade: boolean;
+  categories: RailCategory[];
 }) {
   return (
     <>
@@ -93,6 +96,7 @@ export function SiteHeader({
           </div>
         </div>
       </header>
+      <CategoryRail categories={categories} />
       <form className="mobile-search" action="/search" role="search">
         <label className="sr-only" htmlFor="site-search-mobile">
           Search products

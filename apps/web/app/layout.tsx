@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import {
   PILOT_SESSION_COOKIE,
   getMyContexts,
+  getStorefrontPresentation,
   hasTradeRole,
 } from "@/lib/experience-api";
 import { SiteFooter, SiteHeader } from "./components/site-chrome";
@@ -46,13 +47,24 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       // The header stays usable if the role projection is temporarily unavailable.
     }
   }
+  let categories: Array<{ id: string; label: string; slug: string }> = [];
+  try {
+    const presentation = await getStorefrontPresentation("b2c");
+    categories = presentation.categories.map((category) => ({
+      id: category.category_id,
+      label: category.label,
+      slug: category.slug,
+    }));
+  } catch {
+    // The rail is optional; the rest of the storefront still renders without it.
+  }
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <body>
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <SiteHeader signedIn={signedIn} hasTrade={hasTrade} />
+        <SiteHeader signedIn={signedIn} hasTrade={hasTrade} categories={categories} />
         <main className="container" id="main">
           {children}
         </main>
