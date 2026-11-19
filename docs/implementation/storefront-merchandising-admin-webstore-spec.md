@@ -30,10 +30,10 @@ record the deviation.
 | Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; CMS-driven trade hero and category banners. |
 | Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
-| Admin Banner Studio | Updated (`6d55d39`) | Responsive mobile/tablet/desktop URL fields, image focal point, B2C/B2B welcome placements, surface CTA (`ctaAppRoute` + `ctaWebPath`), searchable category/product/collection references, web copy overrides, full-page preview and placement coverage matrix; existing schedule/publish retained. |
+| Admin Banner Studio | Updated (`93eeac1`) | Responsive mobile/tablet/desktop URL fields, image focal point with visual 3×3 crop editor, B2C/B2B welcome placements, surface CTA, searchable references, web copy overrides, full-page preview and coverage matrix. |
 | Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
 | Category presentation / collections | Existing | Category editorial and curated collections; live categories now drive web tiles and chips. |
-| Product Studio | Existing | Product, media, tags, offers, B2B price/MOQ/tiers. |
+| Product Studio | Updated (`93eeac1`) | Product, media, tags, offers, B2B price/MOQ/tiers and a delivery-note field persisted to product metadata. |
 | CMS-driven web banners/sections | **Implemented (B2C + B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero, category and trade-offer rail. B2B buy-again/quick-order rails remain out of this slice. |
 | Responsive banner variants + CTA mapping | **Implemented** | Desktop/tablet/mobile URL fields, focal point (`imageFocalPoint`), `ctaAppRoute`/`ctaWebPath`, delivery mapping, picture sources, branded assets and validation. Category, product and collection references are searchable; product/category/collection ids are prefix-validated on publish. |
 | Image focal point | **Implemented (`5639fe3`)** | Nine focal points in CMS/admin, delivered as `image_focal_point`; web applies `object-position` to hero, campaign, welcome and trade images. |
@@ -47,6 +47,8 @@ record the deviation.
 | Desktop category rail | **Implemented (`3ffbefd`, fit fix `304ccab`)** | CMS categories render in a horizontal rail on B2C shopping pages; all 11 links fit at 1440px; hidden on trade, auth, checkout and account pages and below 900px. |
 | Product tile delivery/stock note | **Implemented (`63c9812`)** | Authored `metadata.delivery_note` renders on B2C and trade tiles; real `stock_badge`/`inventory_quantity` renders “Only X left”/“Out of stock”. Action Tesa staging note verified. |
 | B2B quick order + buy again | **Implemented (`a3e5f6e`)** | `/trade/quick-order` with SKU/title search, saved-list chips, MOQ quantity steppers and Add to quote; buy-again lines from owner-scoped orders on `/trade` and quick order. |
+| Product Studio delivery note | **Implemented (`93eeac1`)** | `delivery_note` added to the studio save contract and metadata; Product Studio field loads the authored note; storefront tiles render it. |
+| Media-library crop editor | **Implemented (`93eeac1`)** | Banner Studio shows 3×3 focal grid over the desktop and mobile creative with live `object-position` previews; selection updates the focal-point field. |
 | Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published; branded B2C mobile welcome art added with CORS for Flutter web. |
 
 ### Implementation log
@@ -61,19 +63,20 @@ record the deviation.
 | Surface CTA mapping | `ctaAppRoute` / `ctaWebPath` on the CMS banner, admin fields and validation, delivery projection and web resolution; hero CTA renders `/search` with campaign UTM |
 | Focal point + category picker | `imageFocalPoint` CMS/admin field (nine positions), delivery `image_focal_point`, web `object-position`; category destination uses a searchable datalist with 10 commerce categories |
 | Product + collection pickers | Product destination loads 100 admin products; collection destination loads 5 collections; invalid product ids are rejected with the `prod_` prefix rule |
-| Full-page preview + coverage | Admin Banner Studio (`6d55d39`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
+| Full-page preview + coverage | Admin Banner Studio (`93eeac1`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
 | B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
 | Desktop category rail | 11 CMS links (All products + 10 categories) at 1440px; last link visible, rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; hidden on `/trade`, checkout and 390px |
-| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`; each `₹3,889.50` simulated prepaid, 1 item |
+| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`, `BK-261119-ARC9HJ`; each `₹3,889.50` simulated prepaid, 1 item |
 | hi-IN QC | B2C/B2B APIs return Hindi banners and all 10 category labels; web home/category pages render Hindi; switch back to en-IN works; hi-IN checkout `BK-261119-4S660H`; 390px no overflow |
 | Delivery note + quick order | Action Tesa tile shows “Standard delivery · 1–3 business days”; `/trade/quick-order` shows 4 trade lines, SKU filter returns 1 line, Add to quote wrote `₹350` to the quotation cart; buy-again section renders 1 previous line |
+| Product Studio + crop editor | Action Tesa Product Studio shows the saved delivery note; Banner Studio crop editor shows desktop/mobile previews, 9 focal cells, and selecting top-left updates the focal field |
 | Flutter welcome renderer | `bd956e2`: welcome banner model/providers + onboarding/login widgets; `flutter analyze` clean; release web build served locally; B2C branded mobile asset and B2B welcome image loaded (HTTP 200) |
 | Flutter release blocker | Firebase CLI has no authenticated session/token on this machine; hosting deploy requires `firebase login` or `FIREBASE_TOKEN` |
 | CMS localization path | `ea16cf2`: non-default locale drafts/publishes use the query-engine/Knex path so Banner Studio edits do not touch the en-IN draft; verified on a banner and a category; 24 hi-IN banners visible in the admin list |
-| Releases | Web `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; Flutter code `bd956e2` (web built locally, hosting release blocked on Firebase auth); latest commit `bd956e2` |
+| Releases | Web `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2` (built locally, hosting release blocked); latest commit `93eeac1` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
-| Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
-| Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
+| Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout `BK-261119-ARC9HJ` at `₹3,889.50`; B2B: hero, 4 offer cards, Tools banner + 1 product, quick order 4 lines + 1 buy-again line; 390px no overflow |
+| Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B Hindi banners and 10 Hindi categories; campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
 | Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route/web-path fields, focal-point select (value `Bottom`), category datalist (10 options), product datalist (100 options), collection datalist (5 options), invalid product id rejected; no page errors |
 
 ---
@@ -481,7 +484,7 @@ Experience API endpoints the web should use:
 
 | Item | Status | Evidence |
 |---|---|---|
-| MERCH-01 Responsive creative | Done | Desktop/tablet/mobile URL fields, image focal point, admin inputs, delivery projection, `<picture>` sources and `object-position`; branded assets published. Media-library crops remain a future editor upgrade. |
+| MERCH-01 Responsive creative | Done | Desktop/tablet/mobile URL fields, image focal point, visual crop editor, admin inputs, delivery projection, `<picture>` sources and `object-position`; branded assets published. File-level media-library crops remain a future editor upgrade. |
 | MERCH-02 Surface-aware CTA | Done | `ctaAppRoute` + `ctaWebPath` fields, publish validation, web resolution; category/product/collection references are searchable and prefix-validated. |
 | MERCH-03 Welcome placements | Done | Registry, CMS records, API delivery and admin placement list |
 | MERCH-04 Welcome renderers | Done (web + Flutter build) | B2C/B2B welcome banners on web sign-in, Flutter onboarding and login; Flutter web release awaiting Firebase authentication. |
@@ -673,4 +676,4 @@ A merchandising change is releasable only when:
 
 **Benchmark outcome:** the category-first home, desktop category rail, deals rail, card-level options,
 delivery/stock notes, B2B bulk-tier entry, quick-order and buy-again are adopted. The remaining
-spec items (media-library crops and the Flutter welcome surface) are not HomeRun storefront gaps.
+spec items (file-level media-library crops and the Flutter hosting release) are not HomeRun storefront gaps.

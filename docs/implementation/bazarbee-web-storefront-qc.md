@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-36fae92`; admin panel `/opt/buildkart-releases/release-6d55d39`
+Web release: `/opt/buildkart-releases/release-36fae92`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -181,13 +181,10 @@ returned **ship**.
 
 - Real email delivery needs `RESEND_API_KEY` and a verified `send.gobazarbee.com` sender in the
   staging secret store.
-- Banner focal point is supported; media-library crops and focal-point dragging are still a future
-  editor upgrade. Responsive per-breakpoint assets are the implemented alternative.
+- The media crop editor manages focal-point cropping with desktop/mobile previews; file-level
+  media-library crop variants remain a future storage upgrade.
 - The Flutter welcome renderer is built and verified locally; publishing to `gobazarbee.com` is
   blocked until Firebase CLI authentication is available (`firebase login` or `FIREBASE_TOKEN`).
-- Delivery notes are read from product `metadata.delivery_note`; the staging note was set through the
-  Medusa admin API. Product Studio still needs a dedicated delivery-note field for non-technical
-  authoring.
 - Banner Studio searches category, product and collection references; product/collection queries load
   the first 100 products and all collections, so a very large catalogue needs server-side search.
 - hi-IN content is authored and published through Banner Studio (`ea16cf2`). Six legacy category
@@ -208,7 +205,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web release `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -216,11 +213,11 @@ Web release `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS 
 | B2C category rail | 11 links (All products + 10 categories); last link visible; rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; rail remains visible on search and hidden on checkout |
 | B2C Electrical | Category tile opens `/search?cat=lighting-electrical`; banner 1, products 2 |
 | B2C Tools & Hardware | Banner 1, chips 11, products 4 |
-| B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-2ZVH8R` confirmed as simulated prepaid, 1 item |
+| B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; latest order `BK-261119-ARC9HJ`, simulated prepaid, 1 item (earlier `2ZVH8R`, `4S660H`) |
 | hi-IN B2C | `html lang=hi-IN`; hero “ज़्यादा बनाएं। बेहतर खरीदें।”, 10 Hindi categories and rail; section labels “श्रेणी से खरीदें”, “फ्लैश डील्स”, “आपके लिए सुझाए गए”; locale switch returns English |
 | hi-IN category | Electrical rail link → `इलेक्ट्रिकल`, 2 products |
 | hi-IN checkout | Same quote `₹3,889.50`; order `BK-261119-4S660H` simulated prepaid, 1 item |
-| hi-IN B2B | “आपका ट्रेड डेस्क, अब वेब पर।” hero, 3 offers, `औज़ार और हार्डवेयर` category with banner and 1 product |
+| hi-IN B2B | “आपका ट्रेड डेस्क, अब वेब पर।” hero, 4 offer cards, `औज़ार और हार्डवेयर` category with banner and 1 product |
 | CMS hi-IN authoring | Banner Studio hi-IN list shows 24 banners; banner and category draft→publish works without changing the en-IN title; canonical 10 categories localized per channel |
 | Delivery note | Action Tesa search tile shows “Standard delivery · 1–3 business days” from authored product metadata |
 | B2B quick order | `/trade/quick-order`: 4 trade lines, SKU filter “socket” → 1 line, Add to quote → quotation cart ₹350 |
@@ -228,6 +225,8 @@ Web release `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS 
 | Flutter B2C welcome | Onboarding renders branded `b2c-welcome-mobile-branded.webp`; presentation API HTTP 200; image HTTP 200 |
 | Flutter B2B welcome | Login B2B tab renders `b2b-welcome-mobile.webp`; presentation API HTTP 200; image HTTP 200 |
 | Flutter build | `flutter analyze` no issues; `flutter build web --release` built `build\web`; local release serve verified |
+| Product Studio delivery note | Action Tesa Product Studio shows `Standard delivery · 1–3 business days` from product metadata |
+| Media crop editor | Banner Studio shows desktop/mobile previews and 9 focal cells; selecting top-left updates the focal field to `Top left` |
 | B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
 | B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |
