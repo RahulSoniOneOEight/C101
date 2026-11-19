@@ -78,6 +78,7 @@ export interface ComposedProduct {
   handle?: string | null;
   categories?: { id: string; name: string; parent_category_id?: string | null }[];
   badges?: string[];
+  variants?: { id: string; title?: string; sku?: string; in_stock?: boolean }[];
   best_price?: OfferView | null;
   offer_count?: number;
 }

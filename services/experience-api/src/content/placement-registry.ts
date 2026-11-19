@@ -95,6 +95,18 @@ export function homeBannerPlacements(channel: "b2c" | "b2b"): Set<string> {
   );
 }
 
+/**
+ * Banners delivered by the presentation endpoint: home and welcome slots. Category banners are
+ * resolved separately per category and must not leak into the home list.
+ */
+export function presentationBannerPlacements(channel: "b2c" | "b2b"): Set<string> {
+  return new Set(
+    BANNER_TYPES.filter(
+      (type) => type.channel === channel && type.surface !== "category",
+    ).map((type) => type.placement),
+  );
+}
+
 /** A category banner for a channel and category, if the type exists. */
 export function categoryBannerPlacement(channel: "b2c" | "b2b"): string | undefined {
   return BANNER_TYPES.find((type) => type.channel === channel && type.surface === "category")

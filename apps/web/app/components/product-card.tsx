@@ -29,6 +29,9 @@ export function ProductCard({ product }: { product: ComposedProduct }) {
           <p className="product-seller">
             {offer?.seller_name ?? "Multiple sellers"} · {product.offer_count ?? 0}{" "}
             {(product.offer_count ?? 0) === 1 ? "offer" : "offers"}
+            {(product.variants?.length ?? 0) > 1
+              ? ` · ${product.variants!.length} options`
+              : ""}
           </p>
           <div className="product-price-row">
             <span className="price">

@@ -14,7 +14,7 @@ import {
 import type { StoredCmsProjection } from "../store/cms-content-store.js";
 import {
   categoryBannerPlacement,
-  homeBannerPlacements,
+  presentationBannerPlacements,
 } from "./placement-registry.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -262,6 +262,7 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
     ...(desktop ? { image_desktop_uri: desktop } : {}),
     ...(tablet ? { image_tablet_uri: tablet } : {}),
     ...(mobile ? { image_mobile_uri: mobile } : {}),
+    ...(text(banner.imageAltText) ? { image_alt: text(banner.imageAltText) } : {}),
     ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
     ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
     priority: numberValue(banner.priority) ?? 0,
@@ -645,7 +646,7 @@ export class CmsContentAdapter {
   ): Promise<CmsCollectionResolution<StorefrontBannerPresentation>> {
     // Only home-surface types compose the home banner list. Category banners are resolved separately
     // for the category surface, so they cannot leak into the hero or campaign strip.
-    const homePlacements = homeBannerPlacements(channel);
+    const homePlacements = presentationBannerPlacements(channel);
     return this.resolveCollection({
       projectionKey: `banners:${channel}:${locale}`,
       locale,
