@@ -49,6 +49,7 @@ record the deviation.
 | B2B quick order + buy again | **Implemented (`a3e5f6e`)** | `/trade/quick-order` with SKU/title search, saved-list chips, MOQ quantity steppers and Add to quote; buy-again lines from owner-scoped orders on `/trade` and quick order. |
 | Product Studio delivery note | **Implemented (`93eeac1`)** | `delivery_note` added to the studio save contract and metadata; Product Studio field loads the authored note; storefront tiles render it. |
 | Media-library crop editor | **Implemented (`93eeac1`)** | Banner Studio shows 3×3 focal grid over the desktop and mobile creative with live `object-position` previews; selection updates the focal-point field. |
+| Host cutover | **Implemented** | `gobazarbee.com` (and `www` redirect) serves the Next.js B2C/B2B store; `app-staging.pinakaplay.cloud` serves the Flutter Web build from `buildkart-flutter`; `api-staging`/`ops-staging` unchanged. |
 | Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published; branded B2C mobile welcome art added with CORS for Flutter web. |
 
 ### Implementation log
@@ -66,16 +67,17 @@ record the deviation.
 | Full-page preview + coverage | Admin Banner Studio (`93eeac1`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
 | B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
 | Desktop category rail | 11 CMS links (All products + 10 categories) at 1440px; last link visible, rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; hidden on `/trade`, checkout and 390px |
-| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`, `BK-261119-ARC9HJ`; each `₹3,889.50` simulated prepaid, 1 item |
+| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`, `BK-261119-ARC9HJ`, `BK-261119-BSCDR4`; each `₹3,889.50` simulated prepaid, 1 item |
 | hi-IN QC | B2C/B2B APIs return Hindi banners and all 10 category labels; web home/category pages render Hindi; switch back to en-IN works; hi-IN checkout `BK-261119-4S660H`; 390px no overflow |
 | Delivery note + quick order | Action Tesa tile shows “Standard delivery · 1–3 business days”; `/trade/quick-order` shows 4 trade lines, SKU filter returns 1 line, Add to quote wrote `₹350` to the quotation cart; buy-again section renders 1 previous line |
 | Product Studio + crop editor | Action Tesa Product Studio shows the saved delivery note; Banner Studio crop editor shows desktop/mobile previews, 9 focal cells, and selecting top-left updates the focal field |
-| Flutter welcome renderer | `bd956e2`: welcome banner model/providers + onboarding/login widgets; `flutter analyze` clean; release web build served locally; B2C branded mobile asset and B2B welcome image loaded (HTTP 200) |
-| Flutter release blocker | Firebase CLI has no authenticated session/token on this machine; hosting deploy requires `firebase login` or `FIREBASE_TOKEN` |
+| Flutter welcome renderer | `bd956e2`: welcome banner model/providers + onboarding/login widgets; `flutter analyze` clean; build served at `app-staging`; B2C/B2B welcome images load (HTTP 200) |
+| Flutter release blocker | Firebase CLI has no authenticated session/token on this machine; the host cutover bypasses Firebase by serving the built Flutter Web app from `buildkart-flutter` at `app-staging.pinakaplay.cloud`. |
 | CMS localization path | `ea16cf2`: non-default locale drafts/publishes use the query-engine/Knex path so Banner Studio edits do not touch the en-IN draft; verified on a banner and a category; 24 hi-IN banners visible in the admin list |
-| Releases | Web `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2` (built locally, hosting release blocked); latest commit `93eeac1` |
+| Host cutover | `gobazarbee.com` root/www → Next.js; `app-staging.pinakaplay.cloud` → Flutter static container; `PUBLIC_APP_HOSTNAME=gobazarbee.com`; `www` 308 → root; post-swap B2C order `BK-261119-BSCDR4` `₹3,889.50` |
+| Releases | Web `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter build `bd956e2` served at `app-staging`; latest commit `93eeac1` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
-| Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout `BK-261119-ARC9HJ` at `₹3,889.50`; B2B: hero, 4 offer cards, Tools banner + 1 product, quick order 4 lines + 1 buy-again line; 390px no overflow |
+| Final functional QC | B2C at `gobazarbee.com`: rail 11 links, Electrical 2 products, Tools 4 products, checkout `BK-261119-BSCDR4` at `₹3,889.50`; B2B: hero, 4 offer cards, Tools banner + 1 product; Flutter at `app-staging` onboarding/welcome renders; 390px no overflow |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B Hindi banners and 10 Hindi categories; campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
 | Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route/web-path fields, focal-point select (value `Bottom`), category datalist (10 options), product datalist (100 options), collection datalist (5 options), invalid product id rejected; no page errors |
 

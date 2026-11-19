@@ -2,8 +2,8 @@
 
 Date: 2026-11-19
 Branch: `feat/bazarbee-branding`; latest deployed web code is `36fae92`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
-Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
-Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
+Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
+Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
 Web release: `/opt/buildkart-releases/release-36fae92`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
@@ -261,3 +261,30 @@ hit the documented 60-second cooldown during earlier passes; fresh code sign-in 
 B2C order and the B2B flow. A deliberately expired D2C cookie produced an unquoted fallback cart;
 re-authenticating restored the quote, offer, delivery and order, so the fallback is an auth-expiry
 state rather than a pricing defect.
+
+## 9. Host cutover — 19 Nov 2026
+
+The web and Flutter hosts were swapped:
+
+| Host | Before | After |
+|---|---|---|
+| `gobazarbee.com` | Firebase-hosted Flutter Web | Next.js B2C/B2B store (`PUBLIC_APP_HOSTNAME=gobazarbee.com`) |
+| `app-staging.pinakaplay.cloud` | Next.js store | Flutter Web static container `buildkart-flutter` |
+| `www.gobazarbee.com` | Firebase | 308 redirect to `https://gobazarbee.com/` |
+
+Post-swap evidence:
+
+| Check | Result |
+|---|---|
+| Root DNS | `gobazarbee.com` and `www` → `89.116.20.164` |
+| Next.js home | `Build more. Buy better.`, 8 categories, campaign strip; no failed requests; no horizontal overflow |
+| Next.js category | Tools & Hardware, 4 products |
+| Next.js checkout | Quote `₹3,890 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-BSCDR4` confirmed |
+| B2B root domain | Signed in as `buyer.b2b01@buildkart.test`; hero, 4 offers; Tools banner + 1 product |
+| Flutter at app-staging | Onboarding loads, branded welcome image HTTP 200, title `BazarBee` |
+| Flutter `/branding` CORS | `Access-Control-Allow-Origin: *`, `Cross-Origin-Resource-Policy: cross-origin` |
+| `www` | `308 Permanent Redirect` → `https://gobazarbee.com/` |
+| TLS | Both root and app-staging served over HTTPS |
+
+Earlier sections of this QC record were captured on `app-staging` before the swap; they remain valid
+for the application behavior, while the live hosts are now the ones above.
