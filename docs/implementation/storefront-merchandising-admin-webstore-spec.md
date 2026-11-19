@@ -26,7 +26,7 @@ record the deviation.
 
 | Area | Status | Note |
 |---|---|---|
-| Responsive web D2C storefront | Shipped | CMS-driven hero, campaign strip, categories, Flash Deals and Recommended sections; branded desktop/mobile art. |
+| Responsive web D2C storefront | Shipped | CMS-driven hero, campaign strip, category rail, categories, Flash Deals and Recommended sections; branded desktop/mobile art. |
 | Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; CMS-driven trade hero and category banners. |
 | Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
@@ -42,6 +42,7 @@ record the deviation.
 | Placement coverage matrix | **Implemented (`1782cce`)** | Seven placements listed with live/scheduled/draft state; category coverage counts categories; missing/duplicate slots are visible to operators. |
 | Full-page admin preview | **Implemented (`1782cce`)** | Welcome/home/category page context at App / Mobile web / Desktop, with the current draft banner and published page shell. |
 | B2B trade-offer rail | **Implemented (`6e106f6`)** | Three trade cards with MOQ, tier price and add-to-quote on `/trade`. |
+| Desktop category rail | **Implemented (`3ffbefd`, fit fix `304ccab`)** | CMS categories render in a horizontal rail on B2C shopping pages; all 11 links fit at 1440px; hidden on trade, auth, checkout and account pages and below 900px. |
 | Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published. |
 
 ### Implementation log
@@ -58,10 +59,11 @@ record the deviation.
 | Product + collection pickers | Product destination loads 100 admin products; collection destination loads 5 collections; invalid product ids are rejected with the `prod_` prefix rule |
 | Full-page preview + coverage | Admin Banner Studio (`6d55d39`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields; focal-point preview applied |
 | B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
-| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`; each `₹3,889.50` simulated prepaid, 1 item |
-| Releases | Web/CMS/API `5639fe3`; admin panel `6d55d39`; latest commit `6d55d39` |
+| Desktop category rail | 11 CMS links (All products + 10 categories) at 1440px; last link visible, rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; hidden on `/trade`, checkout and 390px |
+| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`; each `₹3,889.50` simulated prepaid, 1 item |
+| Releases | Web `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`; latest commit `304ccab` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
-| Final functional QC | B2C: 8 categories, Electrical banner + 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
+| Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
 | Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route/web-path fields, focal-point select (value `Bottom`), category datalist (10 options), product datalist (100 options), collection datalist (5 options), invalid product id rejected; no page errors |
 
@@ -653,14 +655,13 @@ A merchandising change is releasable only when:
 | HomeRun pattern | BazarBee position |
 |---|---|
 | 60-minute delivery promise and pincode header | Not adopted; BazarBee staging promises 1–3 day delivery. Keep the delivery promise in the tile only when the API carries a real note. |
-| Category collections in the header and a category-first home | Adopted through CMS category tiles and category chips. |
+| Category collections in the header and a category-first home | Adopted through the CMS desktop category rail and category tiles/chips. |
 | “Deals of the week” product rail with discount-led cards | Adopted as CMS Flash Deals + campaign strip. |
 | Product tiles show delivery promise, free-delivery threshold, bulk-price unlock, option count and add | Partially adopted: option count is live; B2B tiers cover bulk pricing; delivery/bulk messaging needs product metadata before display. |
 | Add action visible on the card | Adopted; BazarBee keeps it below the price rather than covering the image. |
 | Trade offers and bulk tiers on the B2B home | Adopted as a three-card trade-offer rail with MOQ, tier price and add-to-quote. |
 | App-store and wallet/cashback prompts | Not in scope for the storefront pilot. |
 
-**Benchmark outcome:** the category-first home, deals rail, card-level options and B2B bulk-tier entry
-are adopted. The remaining gaps are a delivery/stock note on product tiles when the API carries one,
-and a desktop category navigation rail. The B2B quick-order/ buy-again rail stays on the Flutter
-baseline until the trade-order API is exposed.
+**Benchmark outcome:** the category-first home, desktop category rail, deals rail, card-level options and
+B2B bulk-tier entry are adopted. The remaining gaps are a delivery/stock note on product tiles when the
+API carries one, and the B2B quick-order/buy-again rail until the trade-order API is exposed.

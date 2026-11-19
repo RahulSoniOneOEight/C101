@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API code is `5639fe3`; admin panel `6d55d39`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-5639fe3`; admin panel `/opt/buildkart-releases/release-6d55d39`
+Web release: `/opt/buildkart-releases/release-304ccab`; admin panel `/opt/buildkart-releases/release-6d55d39`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -202,20 +202,22 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web/CMS/API release `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
-| B2C home, 1440px | CMS hero “Build more. Buy better.”, campaign strip, 8 populated category tiles, Flash Deals and Recommended rails; hero CTA `/search` with `utm_source=web&utm_medium=banner&utm_campaign=banner-welcome-en-in` |
+| B2C home, 1440px | CMS hero “Build more. Buy better.”, campaign strip, desktop category rail (All products + 10 categories), 8 populated category tiles, Flash Deals and Recommended rails; hero CTA `/search` with `utm_source=web&utm_medium=banner&utm_campaign=banner-welcome-en-in` |
+| B2C category rail | 11 links (All products + 10 categories); last link visible; rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; rail remains visible on search and hidden on checkout |
 | B2C Electrical | Category tile opens `/search?cat=lighting-electrical`; banner 1, products 2 |
 | B2C Tools & Hardware | Banner 1, chips 11, products 4 |
-| B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-QFEJWX` confirmed as simulated prepaid, 1 item |
-| B2C order history | Earlier run showed 19 order cards, including `BK-261119-D35FDW` at ₹3,889.50 |
+| B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-2ZVH8R` confirmed as simulated prepaid, 1 item |
+| B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
-| B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in` |
+| B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |
 | B2B quote | Add to quote → 1 line, quantity 5, estimated value ₹19,450 |
 | B2B Tools | Banner 1, products 1 |
 | B2B welcome | `b2b.welcome.banner` renders on `/sign-in?next=/trade` |
+| Mobile category rail | Hidden at 390px (`count 1`, `visible false`); scroll width remains 390 |
 | Focal point | B2B hero saved as `imageFocalPoint=bottom`; API returns `image_focal_point=bottom`; web computed `object-position: 50% 100%` |
 | hi-IN | `/v1/content/presentation?locale=hi-IN` returns 4 B2C / 2 B2B banners and 10 categories; English content is the fallback because no hi-IN records are published |
 | Publish rollback | `hero-monsoon-ready` unpublish `200` → B2C delivery 4→3 banners without the hero; republish `200` → 3→4 banners; `ROLLBACK_OK` |
