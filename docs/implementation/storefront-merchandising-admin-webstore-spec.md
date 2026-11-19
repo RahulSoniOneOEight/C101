@@ -56,7 +56,7 @@ record the deviation.
 | Full-page preview + coverage | Admin Banner Studio (`1782cce`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields |
 | B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
 | Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`; each `₹3,889.50` simulated prepaid, 1 item |
-| Releases | Web/CMS/API `release-a1ccdb4`; admin panel `release-1782cce`; latest commit `1782cce` |
+| Releases | Web `release-243c81e`; CMS/API `release-a1ccdb4`; admin panel `release-1782cce`; latest commit `243c81e` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C: 8 categories, Electrical banner + 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route and web-path fields all render; no page errors |

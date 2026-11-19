@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API code is `a1ccdb4`, admin panel `1782cce`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `243c81e`, admin panel `1782cce`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-a1ccdb4`; admin panel `/opt/buildkart-releases/release-1782cce`
+Web release: `/opt/buildkart-releases/release-243c81e`; admin panel `/opt/buildkart-releases/release-1782cce`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -196,7 +196,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web/CMS/API release `a1ccdb4`; admin panel rebuilt from `1782cce`. CMS presentation data drives the
+Web/CMS/API release `a1ccdb4`, web CTA follow-up `243c81e`; admin panel rebuilt from `1782cce`. CMS presentation data drives the
 B2C and B2B surfaces below.
 
 | Surface | Result |
