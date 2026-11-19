@@ -5,6 +5,8 @@ import {
   EMAIL_HINT_COOKIE,
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
+  getMyContexts,
+  hasTradeRole,
   listMyNotifications,
 } from "@/lib/experience-api";
 import { LogoutButton } from "../components/logout-button";
@@ -22,6 +24,15 @@ export default async function AccountPage() {
     redirect(`/sign-in?next=${encodeURIComponent("/account")}`);
   }
   const email = cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "Signed-in pilot customer";
+  let hasTrade = false;
+  try {
+    hasTrade = hasTradeRole(await getMyContexts(token));
+  } catch (error) {
+    if (error instanceof ExperienceApiError && [401, 403].includes(error.status)) {
+      redirect(`/sign-in?next=${encodeURIComponent("/account")}`);
+    }
+    // The account hub remains usable if the role projection is temporarily unavailable.
+  }
   let unread = 0;
   try {
     const notifications = await listMyNotifications(token, 50);
@@ -48,6 +59,22 @@ export default async function AccountPage() {
           </p>
         </div>
         <LogoutButton />
+      </div>
+
+      <div className="account-channel-row">
+        <div>
+          <span className="eyebrow">Current channel</span>
+          <strong>Consumer storefront</strong>
+        </div>
+        {hasTrade ? (
+          <Link className="button" href="/trade">
+            Switch to BazarBee Trade
+          </Link>
+        ) : (
+          <Link className="text-button" href="/trade">
+            Explore BazarBee Trade →
+          </Link>
+        )}
       </div>
 
       <div className="account-grid">

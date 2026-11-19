@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
-import { PILOT_SESSION_COOKIE } from "@/lib/experience-api";
+import {
+  PILOT_SESSION_COOKIE,
+  getMyContexts,
+  hasTradeRole,
+} from "@/lib/experience-api";
 import { SiteFooter, SiteHeader } from "./components/site-chrome";
 import "./globals.css";
 
@@ -32,14 +36,23 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const signedIn = Boolean((await cookies()).get(PILOT_SESSION_COOKIE)?.value);
+  const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  const signedIn = Boolean(token);
+  let hasTrade = false;
+  if (token) {
+    try {
+      hasTrade = hasTradeRole(await getMyContexts(token));
+    } catch {
+      // The header stays usable if the role projection is temporarily unavailable.
+    }
+  }
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       <body>
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <SiteHeader signedIn={signedIn} />
+        <SiteHeader signedIn={signedIn} hasTrade={hasTrade} />
         <main className="container" id="main">
           {children}
         </main>

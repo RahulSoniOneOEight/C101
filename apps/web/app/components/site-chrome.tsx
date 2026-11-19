@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CartLink } from "./cart-link";
+import { ChannelSwitch } from "./channel-switch";
 import { NotificationLink } from "./notification-link";
 import { WishlistLink } from "./wishlist-link";
 
@@ -32,7 +33,13 @@ function UserIcon() {
  * Storefront chrome shared by every page. The brand mark is deliberately larger than the earlier
  * pilot header (30% up: 56px → 74px) so BazarBee reads first on desktop and mobile.
  */
-export function SiteHeader({ signedIn }: { signedIn: boolean }) {
+export function SiteHeader({
+  signedIn,
+  hasTrade,
+}: {
+  signedIn: boolean;
+  hasTrade: boolean;
+}) {
   return (
     <>
       <div className="announcement-bar">
@@ -72,6 +79,7 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
           </form>
 
           <div className="header-actions">
+            <ChannelSwitch signedIn={signedIn} hasTrade={hasTrade} />
             <NotificationLink signedIn={signedIn} />
             <WishlistLink />
             <Link

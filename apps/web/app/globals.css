@@ -429,6 +429,63 @@ a {
   background: var(--accent-soft);
   color: var(--accent-strong);
 }
+.channel-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.channel-option {
+  padding: 7px 11px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.channel-option:hover {
+  color: var(--accent-strong);
+}
+.channel-option.active {
+  background: var(--ink);
+  color: #fff;
+}
+.trade-switch {
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.trade-switch:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.account-channel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.account-channel-row > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.account-channel-row strong {
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 16px;
+}
 .cart-icon-wrap {
   position: relative;
   display: inline-flex;
@@ -3538,7 +3595,8 @@ textarea:focus-visible {
     min-height: 90px;
   }
   .notification-link,
-  .account-link {
+  .account-link,
+  .channel-switch {
     display: none;
   }
   .header-action span:last-child {
@@ -3902,6 +3960,10 @@ textarea:focus-visible {
   }
   .wishlist-actions {
     flex-wrap: wrap;
+  }
+  .account-channel-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .trade-nav {
     gap: 8px;

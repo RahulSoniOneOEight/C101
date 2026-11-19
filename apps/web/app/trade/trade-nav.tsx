@@ -25,6 +25,9 @@ export function TradeNav({ active }: { active: "overview" | "catalogue" | "credi
         ))}
       </nav>
       <TradeQuoteLink />
+      <Link className="trade-switch" href="/">
+        Switch to consumer
+      </Link>
     </div>
   );
 }
