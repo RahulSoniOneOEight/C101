@@ -3,7 +3,7 @@
 This change closes the customer-facing gaps found when the Flutter app was compared with
 `gobazarbee.com`. It is staging evidence only; production remains unauthorised.
 
-Deployed: `release-web-20261119-145903`; live at `https://gobazarbee.com`.
+Deployed: `release-web-20261119-145903` from source `25ae3d0`; live at `https://gobazarbee.com`.
 
 ## 1. Feature parity matrix
 

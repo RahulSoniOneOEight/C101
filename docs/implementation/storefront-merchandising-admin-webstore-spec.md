@@ -84,7 +84,7 @@ record the deviation.
 | B2B price-unit correction | Six `BuildKart B2B Studio` rows stored 100× low; corrected ×100; first invalid order `BK-261119-MAM41J` ₹283.77 retired; corrected order above; see `b2b-price-unit-correction-2026-11-19.md` |
 | Category lanes | B2C home lane 2502/1232 with 8 cards; B2B home lane 3130/1232 with all 10 categories and active-term counts; B2B catalogue selector nowrap 1497/1232; mobile 390 no overflow |
 | Policy pages | `/terms`, `/refunds`, `/shipping`, `/privacy`, `/contact`, `/about`, `/policies`; 6 cards on index; 7 footer links; draft notice, GSTIN withheld, no placeholders, `noindex`; see `policy-pages-2026-11-19.md` |
-| Releases | Web `release-web-20261119-145903`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter build `bd956e2` served at `app-staging`; branch `feat/bazarbee-branding` |
+| Releases | Web `release-web-20261119-145903` (source `25ae3d0`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter build `bd956e2` served at `app-staging`; branch `feat/bazarbee-branding` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C at `gobazarbee.com`: rail 11 links, Electrical 2 products, Tools 4 products, checkout `BK-261119-BSCDR4` at `₹3,889.50`; B2B: hero, 4 offer cards, Tools banner + 1 product; Flutter at `app-staging` onboarding/welcome renders; 390px no overflow |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B Hindi banners and 10 Hindi categories; campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
