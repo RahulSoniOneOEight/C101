@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `5574793`
+Branch: `feat/bazarbee-branding`; latest deployed web/CMS/API code is `a1ccdb4`, admin panel `1782cce`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-5574793`; Experience API image built from `release-4efabb0`
+Web release: `/opt/buildkart-releases/release-a1ccdb4`; admin panel `/opt/buildkart-releases/release-1782cce`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -193,3 +193,38 @@ returned **ship**.
 - The web wishlist is device-local (matching the app's local provider), not account-synced.
 - Staging is `noindex, nofollow` and uses synthetic data. Production still requires CHG-020 gates and
   D-020-12 release authorisation.
+
+## 8. Final merchandising and admin QC — 19 Nov 2026
+
+Web/CMS/API release `a1ccdb4`; admin panel rebuilt from `1782cce`. CMS presentation data drives the
+B2C and B2B surfaces below.
+
+| Surface | Result |
+|---|---|
+| B2C home, 1440px | CMS hero “Build more. Buy better.”, campaign strip, 8 populated category tiles, Flash Deals and Recommended rails; hero CTA `/search` with `utm_source=web&utm_medium=banner&utm_campaign=banner-welcome-en-in` |
+| B2C Electrical | Category tile opens `/search?cat=lighting-electrical`; banner 1, products 2 |
+| B2C Tools & Hardware | Banner 1, chips 11, products 4 |
+| B2C checkout | Add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-D35FDW` confirmed as simulated prepaid, 1 item |
+| B2C orders | `/orders` shows 19 cards; latest `BK-261119-D35FDW`, Confirmed, ₹3,889.50 |
+| B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
+| B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue` |
+| B2B quote | Add to quote → 1 line, quantity 5, estimated value ₹19,450 |
+| B2B Tools | Banner 1, products 1 |
+| B2B welcome | `b2b.welcome.banner` renders on `/sign-in?next=/trade` |
+| Mobile 390px | B2C home, B2C Tools, B2B home and B2B Tools all report `scrollWidth = innerWidth = 390`; no horizontal overflow |
+| Runtime errors | No page errors on the B2C or B2B runs |
+
+Admin Banner Studio, signed in as the staging operator:
+
+| Check | Result |
+|---|---|
+| Placement coverage | 7 tiles: B2C/B2B home, campaign, category and welcome; B2C home shows 2 active campaigns, category placements show 9 categories each |
+| Full-page preview | Welcome/home/category context at App, Mobile web and Desktop; current draft banner plus the published page shell |
+| CTA mapping | `App route` and `Web path` fields present; web path wins on the web store |
+| Web overrides | Web heading, supporting text and button-label fields present |
+| Errors | None |
+
+The approved vision pass (Nemotron 3.5 Super VL) reviewed the live B2C home/campaign/category,
+B2B hero/category and 390px captures: **ship, no P0/P1**. Consecutive automated email-code requests
+hit the documented 60-second cooldown during the last scripted pass; the order above was placed from
+a successful code sign-in, and the cooldown is expected staging behaviour.

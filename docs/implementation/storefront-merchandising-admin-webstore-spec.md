@@ -30,14 +30,17 @@ record the deviation.
 | Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; CMS-driven trade hero and category banners. |
 | Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
-| Admin Banner Studio | Updated (`6e47f10`) | Responsive mobile/tablet/desktop URL fields and B2C/B2B welcome placements; existing preview, schedule and publish retained. |
+| Admin Banner Studio | Updated (`1782cce`) | Responsive mobile/tablet/desktop URL fields, B2C/B2B welcome placements, surface CTA (`ctaAppRoute` + `ctaWebPath`), web copy overrides, full-page preview and placement coverage matrix; existing schedule/publish retained. |
 | Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
 | Category presentation / collections | Existing | Category editorial and curated collections; live categories now drive web tiles and chips. |
 | Product Studio | Existing | Product, media, tags, offers, B2B price/MOQ/tiers. |
-| CMS-driven web banners/sections | **Implemented (B2C) / partial (B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero and category. B2B buy-again/trade-offers rails still pending. |
-| Responsive banner variants + CTA mapping | **Partial** | Desktop/tablet/mobile URL fields, delivery mapping, picture sources and branded assets shipped; admin entity pickers and per-surface CTA fields pending. |
-| Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements and CMS records; Flutter welcome surfaces still pending. |
-| Full-page admin preview | **Not started** | MERCH-06. |
+| CMS-driven web banners/sections | **Implemented (B2C + B2B)** | B2C hero, campaign, categories, Flash Deals, Recommended; B2B hero, category and trade-offer rail. B2B buy-again/quick-order rails remain out of this slice. |
+| Responsive banner variants + CTA mapping | **Implemented** | Desktop/tablet/mobile URL fields, `ctaAppRoute`/`ctaWebPath`, delivery mapping, picture sources, branded assets and validation. Searchable commerce pickers are still manual reference entry. |
+| Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements, CMS records and web sign-in; Flutter welcome surfaces still pending. |
+| Web copy overrides + attribution | **Implemented** | `webTitle` / `webSubtitle` / `webCtaLabel` override app copy on web; internal campaign links carry `utm_source=web`, `utm_medium=banner`, `utm_campaign=<content key>`. |
+| Placement coverage matrix | **Implemented (`1782cce`)** | Seven placements listed with live/scheduled/draft state; category coverage counts categories; missing/duplicate slots are visible to operators. |
+| Full-page admin preview | **Implemented (`1782cce`)** | Welcome/home/category page context at App / Mobile web / Desktop, with the current draft banner and published page shell. |
+| B2B trade-offer rail | **Implemented (`6e106f6`)** | Three trade cards with MOQ, tier price and add-to-quote on `/trade`. |
 | Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published. |
 
 ### Implementation log
@@ -49,9 +52,14 @@ record the deviation.
 | Welcome placements | `b2c.welcome.banner` / `b2b.welcome.banner` in registries, CMS records and web sign-in |
 | Branded assets | B2C hero/campaign, B2B hero and welcome art at desktop/mobile sizes |
 | CMS writes | B2C hero “Build more. Buy better.” / monsoon campaign; B2B “Your trade desk, on the web.”; welcome banners |
-| Test orders | `BK-261119-PKWH70` and `BK-261119-EH54M7`, both `₹3,889.50` simulated prepaid, 1 item |
-| Releases | CMS/API/web `6e47f10` → `96e625b`; latest web `release-511ae1b` |
+| Surface CTA mapping | `ctaAppRoute` / `ctaWebPath` on the CMS banner, admin fields and validation, delivery projection and web resolution; hero CTA renders `/search` with campaign UTM |
+| Full-page preview + coverage | Admin Banner Studio (`1782cce`): 7 placement rows, welcome/home/category page context, App/Mobile/Desktop frames, web override and CTA fields |
+| B2B trade offers | `/trade` rail with 3 products, MOQ/tier price and add-to-quote; quote line total `₹19,450` |
+| Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`; each `₹3,889.50` simulated prepaid, 1 item |
+| Releases | Web/CMS/API `release-a1ccdb4`; admin panel `release-1782cce`; latest commit `1782cce` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
+| Final functional QC | B2C: 8 categories, Electrical banner + 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
+| Admin QC | Ops staging: 7 coverage tiles, category counts, full-page preview, web overrides, app-route and web-path fields all render; no page errors |
 
 ---
 
@@ -454,6 +462,24 @@ Experience API endpoints the web should use:
 
 ### 7.3 Delivery work breakdown
 
+#### Delivery status — 19 Nov 2026
+
+| Item | Status | Evidence |
+|---|---|---|
+| MERCH-01 Responsive creative | Done | Desktop/tablet/mobile URL fields, admin inputs, delivery projection, `<picture>` sources; branded assets published |
+| MERCH-02 Surface-aware CTA | Done | `ctaAppRoute` + `ctaWebPath` fields, publish validation, web resolution; searchable entity pickers remain manual entry |
+| MERCH-03 Welcome placements | Done | Registry, CMS records, API delivery and admin placement list |
+| MERCH-04 Welcome renderers | Web done; Flutter pending | B2C/B2B welcome banners on web sign-in; Flutter keeps its existing layout |
+| MERCH-05 Web copy overrides | Done | `webTitle` / `webSubtitle` / `webCtaLabel` in CMS, admin, delivery and web |
+| MERCH-06 Full-page preview | Done | Welcome/home/category context at App/Mobile/Desktop in Banner Studio |
+| MERCH-07 Placement coverage | Done | Seven-slot matrix; category counts; missing and multiple-campaign states visible |
+| MERCH-08 Category copy precedence | Existing | Banner → category editorial → governed seed, with source shown in preview |
+| MERCH-09 Web CMS consumption | Done | B2C/B2B banners, categories and layout sections read from `/v1/content/presentation` and `/v1/content/app-shell` |
+| MERCH-10 Layout sections | Done | Published order, title/badge/limit/See All, Flash Deals and Recommended rails; empty sections are filtered |
+| MERCH-11 Attribution | Done | Internal banner links append `utm_source=web&utm_medium=banner&utm_campaign=<content key>` |
+| MERCH-12 QA matrix | Partial | B2C/B2B, 390/1440 and en-IN verified; hi-IN and rollback rehearsal remain |
+| MERCH-13 Channel switch | Done | B2C default, role-gated Shop/Trade, route-scoped channels and separate carts |
+
 | ID | Owner | Change | Depends on | Done when |
 |---|---|---|---|---|
 | **MERCH-01** | Admin + API | Responsive creative: `imageDesktop`, `imageTablet`, `imageMobile`, `imageAlt`, focal point or media-library crops. Keep one-image fallback. | CMS banner definition | Editor saves all variants; delivery serves them; preview shows the correct crop. |
@@ -504,7 +530,7 @@ intended to serve both the app and the web store, the following applies.
 | Home hero, campaign strip, category banner | Yes | Web can consume `b2c.home.hero`, `b2c.home.campaign-strip`, `b2c.category.banner`, `b2b.home.hero`, `b2b.category.banner`. |
 | Product/category/collection CTA | Yes, if canonical IDs | Both surfaces can resolve the same commerce entity. |
 | Draft/schedule/expiry | Yes | Delivery already gates on publication and time window. |
-| Preview | Partial | Banner Studio has App / Mobile web / Desktop frames, but not the full page context. |
+| Preview | Yes | Banner Studio now renders welcome/home/category page context at App / Mobile web / Desktop. |
 
 ### What needs action before web parity
 
@@ -627,7 +653,10 @@ A merchandising change is releasable only when:
 | “Deals of the week” product rail with discount-led cards | Adopted as CMS Flash Deals + campaign strip. |
 | Product tiles show delivery promise, free-delivery threshold, bulk-price unlock, option count and add | Partially adopted: option count is live; B2B tiers cover bulk pricing; delivery/bulk messaging needs product metadata before display. |
 | Add action visible on the card | Adopted; BazarBee keeps it below the price rather than covering the image. |
+| Trade offers and bulk tiers on the B2B home | Adopted as a three-card trade-offer rail with MOQ, tier price and add-to-quote. |
 | App-store and wallet/cashback prompts | Not in scope for the storefront pilot. |
 
-**Next benchmark gaps to close:** a delivery/stock note on product tiles when authored, a category
-navigation rail on desktop, and B2B trade-offer/quick-order rails on the trade home.
+**Benchmark outcome:** the category-first home, deals rail, card-level options and B2B bulk-tier entry
+are adopted. The remaining gaps are a delivery/stock note on product tiles when the API carries one,
+and a desktop category navigation rail. The B2B quick-order/ buy-again rail stays on the Flutter
+baseline until the trade-order API is exposed.
