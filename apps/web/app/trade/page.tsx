@@ -10,7 +10,7 @@ import {
   type ComposedProduct,
   type StorefrontBanner,
 } from "@/lib/experience-api";
-import { firstBanner, imageSources } from "@/lib/storefront";
+import { bannerHref, firstBanner, imageSources } from "@/lib/storefront";
 import { readableBusinessName } from "@/lib/trade";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
@@ -84,6 +84,7 @@ export default async function TradePage() {
     // The workspace remains usable with the static hero if content is unavailable.
   }
   const offerProducts = tradeProducts.filter((product) => product.best_price).slice(0, 3);
+  const heroHref = heroBanner ? bannerHref(heroBanner, "b2b") : null;
 
   return (
     <section className="trade-page">
@@ -133,7 +134,7 @@ export default async function TradePage() {
               "The first web slice of the Flutter trade workspace: B2B catalogue with MOQ and tier pricing, credit overview, quotation cart and RFQ entry — on the same account."}
           </p>
           <div className="hero-actions">
-            <Link className="button button-honey button-lg" href="/trade/catalogue">
+            <Link className="button button-honey button-lg" href={heroHref ?? "/trade/catalogue"}>
               {heroBanner?.web_cta_label ?? heroBanner?.action_label ?? "Open trade catalogue"}
             </Link>
             <Link className="button button-ghost-light button-lg" href="/trade/quote">
