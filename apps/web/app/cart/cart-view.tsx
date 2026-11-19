@@ -1,11 +1,186 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
 import { formatMoney } from "@/lib/money";
-import { useCart } from "@/lib/cart";
+import { useCart, type CartItem } from "@/lib/cart";
+import { brandOf, discountPercent } from "@/lib/catalogue-filters";
 import { ProductCard } from "../components/product-card";
 import { ProductImage } from "../components/product-image";
+
+function SparkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" width="15" height="15">
+      <path
+        d="M12 3.5 13.8 9l5.5 1.8-5.5 1.8L12 18l-1.8-5.4L4.7 10.8 10.2 9Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      width="15"
+      height="15"
+      className={open ? "related-chevron is-open" : "related-chevron"}
+    >
+      <path d="m8 10 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Same-aisle and same-brand lines first, then the strongest discounts. */
+function relatedForLine(
+  item: CartItem,
+  catalogue: ComposedProduct[],
+  inCart: Set<string>,
+): ComposedProduct[] {
+  const lineProduct = catalogue.find((product) => product.id === item.productId);
+  const lineBrand = lineProduct ? brandOf(lineProduct) : "";
+  const lineRoots = new Set(
+    (lineProduct?.categories ?? []).map((category) => category.parent_category_id ?? category.id),
+  );
+  const scored = catalogue
+    .filter(
+      (product) =>
+        product.best_price && product.id !== item.productId && !inCart.has(product.id),
+    )
+    .map((product) => {
+      const roots = (product.categories ?? []).map(
+        (category) => category.parent_category_id ?? category.id,
+      );
+      const sameAisle = roots.some((root) => lineRoots.has(root));
+      const sameBrand = Boolean(lineBrand) && brandOf(product) === lineBrand;
+      return {
+        product,
+        score: (sameAisle ? 2 : 0) + (sameBrand ? 1 : 0),
+      };
+    })
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        discountPercent(right.product) - discountPercent(left.product),
+    );
+  return scored.slice(0, 6).map((entry) => entry.product);
+}
+
+function CartLine({
+  item,
+  related,
+  onQuantity,
+  onRemove,
+}: {
+  item: CartItem;
+  related: ComposedProduct[];
+  onQuantity: (offerId: string, quantity: number) => void;
+  onRemove: (offerId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const relatedId = `cart-related-${item.offerId}`;
+
+  return (
+    <div className="cart-line-group">
+      <article className="cart-line">
+        <Link
+          href={`/products/${encodeURIComponent(item.productId)}`}
+          className="cart-line-media"
+        >
+          <ProductImage src={item.image} alt={item.title} />
+        </Link>
+        <div className="cart-line-info">
+          <Link
+            href={`/products/${encodeURIComponent(item.productId)}`}
+            className="cart-line-title"
+          >
+            {item.title}
+          </Link>
+          <p className="muted">
+            {item.seller}
+            {item.sku ? ` · SKU ${item.sku}` : ""}
+          </p>
+          <p className="cart-unit-price">
+            {formatMoney(item.priceMinor, item.currency)} each
+          </p>
+          <div className="cart-line-controls">
+            <div className="quantity-stepper quantity-stepper-sm">
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                onClick={() => onQuantity(item.offerId, item.quantity - 1)}
+              >
+                −
+              </button>
+              <input
+                aria-label={`Quantity for ${item.title}`}
+                inputMode="numeric"
+                value={item.quantity}
+                onChange={(event) => {
+                  const parsed = Number(event.target.value.replace(/\D/g, ""));
+                  onQuantity(item.offerId, Number.isFinite(parsed) ? parsed : 1);
+                }}
+              />
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                onClick={() => onQuantity(item.offerId, item.quantity + 1)}
+              >
+                +
+              </button>
+            </div>
+            <button
+              className="text-button remove-button"
+              type="button"
+              onClick={() => onRemove(item.offerId)}
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+        <div className="cart-line-total">
+          {formatMoney(item.priceMinor * item.quantity, item.currency)}
+        </div>
+      </article>
+
+      {related.length > 0 ? (
+        <div className="cart-line-related">
+          <button
+            type="button"
+            className="related-toggle"
+            aria-expanded={open}
+            aria-controls={relatedId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <span className="related-toggle-label">
+              <SparkIcon />
+              Related deals
+            </span>
+            <span className="related-toggle-action">
+              {open ? "Hide" : `Show ${related.length}`}
+              <ChevronIcon open={open} />
+            </span>
+          </button>
+          {open ? (
+            <div className="related-rail" id={relatedId}>
+              {related.map((product) => (
+                <div className="related-rail-card" key={product.id}>
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function CartView({ catalogue = [] }: { catalogue?: ComposedProduct[] }) {
   const { items, ready, count, subtotalMinor, currency, updateQuantity, remove } = useCart();
@@ -83,66 +258,13 @@ export function CartView({ catalogue = [] }: { catalogue?: ComposedProduct[] }) 
       <div className="cart-layout">
         <div className="cart-lines">
           {items.map((item) => (
-            <article className="cart-line" key={item.offerId}>
-              <Link
-                href={`/products/${encodeURIComponent(item.productId)}`}
-                className="cart-line-media"
-              >
-                <ProductImage src={item.image} alt={item.title} />
-              </Link>
-              <div className="cart-line-info">
-                <Link
-                  href={`/products/${encodeURIComponent(item.productId)}`}
-                  className="cart-line-title"
-                >
-                  {item.title}
-                </Link>
-                <p className="muted">
-                  {item.seller}
-                  {item.sku ? ` · SKU ${item.sku}` : ""}
-                </p>
-                <p className="cart-unit-price">
-                  {formatMoney(item.priceMinor, item.currency)} each
-                </p>
-                <div className="cart-line-controls">
-                  <div className="quantity-stepper quantity-stepper-sm">
-                    <button
-                      type="button"
-                      aria-label="Decrease quantity"
-                      onClick={() => updateQuantity(item.offerId, item.quantity - 1)}
-                    >
-                      −
-                    </button>
-                    <input
-                      aria-label={`Quantity for ${item.title}`}
-                      inputMode="numeric"
-                      value={item.quantity}
-                      onChange={(event) => {
-                        const parsed = Number(event.target.value.replace(/\D/g, ""));
-                        updateQuantity(item.offerId, Number.isFinite(parsed) ? parsed : 1);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Increase quantity"
-                      onClick={() => updateQuantity(item.offerId, item.quantity + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button
-                    className="text-button remove-button"
-                    type="button"
-                    onClick={() => remove(item.offerId)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-              <div className="cart-line-total">
-                {formatMoney(item.priceMinor * item.quantity, item.currency)}
-              </div>
-            </article>
+            <CartLine
+              key={item.offerId}
+              item={item}
+              related={relatedForLine(item, catalogue, inCart)}
+              onQuantity={updateQuantity}
+              onRemove={remove}
+            />
           ))}
         </div>
 

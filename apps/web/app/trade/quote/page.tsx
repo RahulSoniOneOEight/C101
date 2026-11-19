@@ -6,6 +6,8 @@ import {
   PILOT_SESSION_COOKIE,
   getMyContexts,
   hasTradeRole,
+  listTradeProducts,
+  type ComposedProduct,
 } from "@/lib/experience-api";
 import { readableBusinessName } from "@/lib/trade";
 import { TradeNav } from "../trade-nav";
@@ -53,6 +55,13 @@ export default async function TradeQuotePage() {
     );
   }
 
+  let catalogue: ComposedProduct[] = [];
+  try {
+    catalogue = await listTradeProducts(token, 100);
+  } catch {
+    // The quotation still works; the related-lines rail is simply hidden.
+  }
+
   return (
     <section className="trade-page">
       <TradeNav active="quote" />
@@ -75,7 +84,10 @@ export default async function TradeQuotePage() {
           Add more products →
         </Link>
       </div>
-      <TradeQuoteView businessName={readableBusinessName(businessAccountId)} />
+      <TradeQuoteView
+        businessName={readableBusinessName(businessAccountId)}
+        catalogue={catalogue}
+      />
     </section>
   );
 }

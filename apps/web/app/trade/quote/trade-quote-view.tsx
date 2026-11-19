@@ -2,21 +2,150 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { ComposedProduct } from "@/lib/experience-api";
+import { brandOf, discountPercent } from "@/lib/catalogue-filters";
 import { formatMoney } from "@/lib/money";
 import {
+  addToTradeQuote,
   lineTotal,
   readLatestRfq,
   saveSubmittedRfq,
   tierUnitPrice,
   useTradeQuote,
   type SubmittedRfq,
+  type TradeQuoteLine,
 } from "@/lib/trade-quote";
+import { ProductImage } from "../../components/product-image";
 
 function newReference(): string {
   return `RFQ-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
-export function TradeQuoteView({ businessName }: { businessName: string }) {
+function RelatedTradeCard({ product }: { product: ComposedProduct }) {
+  const [added, setAdded] = useState(false);
+  const offer = product.best_price;
+  if (!offer) return null;
+  const moq = Math.max(1, offer.b2b_moq ?? 1);
+
+  return (
+    <article className="trade-related-card">
+      <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-related-media">
+        <ProductImage src={product.thumbnail} alt={product.title} />
+      </Link>
+      <div className="trade-related-body">
+        <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
+        <h4>{product.title}</h4>
+        <p className="muted">
+          MOQ {moq} · {formatMoney(offer.unit_amount_minor, offer.currency_code)} / unit
+        </p>
+        <button
+          className="button button-ghost"
+          type="button"
+          disabled={added}
+          onClick={() => {
+            addToTradeQuote({
+              productId: product.id,
+              offerId: offer.id,
+              sku: offer.sku,
+              title: product.title,
+              seller: offer.seller_name ?? "",
+              image: product.thumbnail ?? null,
+              moq,
+              basePriceMinor: offer.unit_amount_minor,
+              currency: offer.currency_code,
+              tiers: offer.b2b_tiers ?? [],
+            });
+            setAdded(true);
+          }}
+        >
+          {added ? "Added" : "Add to quote"}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function RelatedTradeRail({
+  lines,
+  catalogue,
+}: {
+  lines: TradeQuoteLine[];
+  catalogue: ComposedProduct[];
+}) {
+  const [open, setOpen] = useState(false);
+  const inQuote = new Set(lines.map((line) => line.productId));
+  const quotedProducts = catalogue.filter((product) => inQuote.has(product.id));
+  const quoteRoots = new Set(
+    quotedProducts.flatMap((product) =>
+      (product.categories ?? []).map((category) => category.parent_category_id ?? category.id),
+    ),
+  );
+  const quoteBrands = new Set(quotedProducts.map((product) => brandOf(product)).filter(Boolean));
+  const related = catalogue
+    .filter((product) => product.best_price && !inQuote.has(product.id))
+    .map((product) => {
+      const roots = (product.categories ?? []).map(
+        (category) => category.parent_category_id ?? category.id,
+      );
+      const sameAisle = roots.some((root) => quoteRoots.has(root));
+      const sameBrand = quoteBrands.has(brandOf(product));
+      return { product, score: (sameAisle ? 2 : 0) + (sameBrand ? 1 : 0) };
+    })
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        discountPercent(right.product) - discountPercent(left.product),
+    )
+    .slice(0, 6)
+    .map((entry) => entry.product);
+
+  if (related.length === 0) return null;
+
+  return (
+    <section className="trade-related" aria-labelledby="trade-related-title">
+      <div className="trade-related-head">
+        <div>
+          <span className="eyebrow">Merchandising</span>
+          <h3 id="trade-related-title">You may also like</h3>
+          <p>More trade lines from the same aisles and brands.</p>
+        </div>
+        <button
+          type="button"
+          className="trade-related-toggle"
+          aria-expanded={open}
+          aria-controls="trade-related-rail"
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "Hide" : `Show ${related.length}`}
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            width="15"
+            height="15"
+            className={open ? "trade-related-chevron is-open" : "trade-related-chevron"}
+          >
+            <path d="m8 10 4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
+      {open ? (
+        <div className="trade-related-rail" id="trade-related-rail">
+          {related.map((product) => (
+            <RelatedTradeCard key={product.id} product={product} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+export function TradeQuoteView({
+  businessName,
+  catalogue = [],
+}: {
+  businessName: string;
+  catalogue?: ComposedProduct[];
+}) {
   const { lines, ready, count, quantityTotal, estimatedTotalMinor, currency, updateQuantity, remove, clear } =
     useTradeQuote();
   const [deliveryLocation, setDeliveryLocation] = useState("Bhiwadi, Rajasthan 301019");
@@ -188,6 +317,7 @@ export function TradeQuoteView({ businessName }: { businessName: string }) {
             </article>
           );
         })}
+        <RelatedTradeRail lines={lines} catalogue={catalogue} />
       </div>
 
       <aside className="quote-summary">

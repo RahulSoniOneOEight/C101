@@ -6661,3 +6661,237 @@ textarea:focus-visible {
     }
   }
 }
+
+/* Cart related deals ------------------------------------------------------ */
+.cart-line-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.cart-line-group .cart-line {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.cart-line-related {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.related-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.related-toggle:hover {
+  color: var(--ink);
+}
+.related-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.related-toggle-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.related-chevron {
+  transition: transform 180ms ease;
+}
+.related-chevron.is-open {
+  transform: rotate(180deg);
+}
+.related-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.related-rail-card {
+  flex: 0 0 236px;
+  scroll-snap-align: start;
+}
+.related-rail-card .product-card {
+  height: 100%;
+}
+
+/* B2B related trade lines ------------------------------------------------ */
+.trade-related {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+.trade-related-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trade-related-head h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+}
+.trade-related-head p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.trade-related-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.trade-related-toggle:hover {
+  border-color: var(--accent);
+}
+.trade-related-chevron {
+  transition: transform 180ms ease;
+}
+.trade-related-chevron.is-open {
+  transform: rotate(180deg);
+}
+.trade-related-rail {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-top: 12px;
+  scrollbar-width: thin;
+}
+.trade-related-card {
+  display: flex;
+  flex: 0 0 230px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+.trade-related-media {
+  display: block;
+  aspect-ratio: 4 / 3;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.trade-related-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+.trade-related-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+}
+.trade-related-body h4 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.3;
+}
+.trade-related-body .muted {
+  margin: 0;
+  font-size: 11.5px;
+}
+.trade-related-body .button {
+  margin-top: auto;
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+}
+
+@media (max-width: 720px) {
+  .cart-line-related {
+    padding: 0 10px 10px;
+  }
+  .related-rail-card {
+    flex-basis: 210px;
+  }
+  .related-toggle-action {
+    font-size: 11px;
+  }
+  .trade-related {
+    padding: 12px;
+  }
+  .trade-related-head {
+    flex-direction: column;
+  }
+  .trade-related-toggle {
+    align-self: flex-start;
+  }
+  .trade-related-card {
+    flex-basis: 210px;
+  }
+}
+
+.cart-line-info .muted,
+.cart-line-title,
+.trade-related-body h4 {
+  overflow-wrap: anywhere;
+}
+
+.cart-line-group,
+.cart-line-related,
+.related-rail,
+.quote-lines,
+.trade-related,
+.trade-related-rail {
+  min-width: 0;
+  max-width: 100%;
+}
+.cart-line-group,
+.related-rail,
+.trade-related-rail {
+  width: 100%;
+}
+
+.cart-layout,
+.cart-lines,
+.quote-layout,
+.quote-lines,
+.cart-line-group,
+.related-rail {
+  min-width: 0;
+}
+.cart-lines,
+.quote-lines {
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .cart-layout,
+  .quote-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
