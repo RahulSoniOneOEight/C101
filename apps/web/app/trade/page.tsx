@@ -17,6 +17,7 @@ import { bannerHref, categoryCount, categoryTone, firstBanner, imageObjectPositi
 import { getStorefrontLocale } from "@/lib/locale";
 import { buyAgainProducts, readableBusinessName } from "@/lib/trade";
 import { CategoryIcon } from "../components/category-icon";
+import { DragScroll } from "../components/drag-scroll";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
 import { TradeNav } from "./trade-nav";
@@ -206,7 +207,7 @@ export default async function TradePage() {
               Full trade catalogue →
             </Link>
           </div>
-          <div className="category-lane" aria-label="Trade categories">
+          <DragScroll className="category-lane" ariaLabel="Trade categories">
             {visibleTradeCategories.map((category, index) => {
               const count = tradeCategoryCounts.get(category.category_id) ?? 0;
               const banner = imageSources(category.banner_image_uri, 800);
@@ -238,7 +239,7 @@ export default async function TradePage() {
                 </Link>
               );
             })}
-          </div>
+          </DragScroll>
         </section>
       ) : null}
 

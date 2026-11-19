@@ -27,6 +27,7 @@ import {
   sortedBanners,
 } from "@/lib/storefront";
 import { CategoryIcon } from "./components/category-icon";
+import { DragScroll } from "./components/drag-scroll";
 import { HeroCarousel } from "./components/hero-carousel";
 import { ProductCard } from "./components/product-card";
 import { RecentlyViewedRail } from "./components/recently-viewed-rail";
@@ -269,7 +270,7 @@ export default async function HomePage() {
           </Link>
         </div>
         {visibleCmsCategories.length > 0 ? (
-          <div className="category-lane" aria-label="Shop by category">
+          <DragScroll className="category-lane" ariaLabel="Shop by category">
             {visibleCmsCategories.map((category, index) => {
               const count = counts.get(category.category_id) ?? 0;
               const banner = imageSources(category.banner_image_uri, 800);
@@ -312,9 +313,9 @@ export default async function HomePage() {
                 </Link>
               );
             })}
-          </div>
+          </DragScroll>
         ) : (
-          <div className="category-lane" aria-label="Shop by category">
+          <DragScroll className="category-lane" ariaLabel="Shop by category">
             {CATEGORIES.map((category, index) => {
               const count = productsInCategory(products, category).length;
               return (
@@ -334,7 +335,7 @@ export default async function HomePage() {
                 </Link>
               );
             })}
-          </div>
+          </DragScroll>
         )}
       </section>
 

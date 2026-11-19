@@ -10,6 +10,7 @@ import { GUIDED_PROMPTS, guidedSearchHref, resolveGuidedPrompt } from "@/lib/dis
 import { getStorefrontLocale } from "@/lib/locale";
 import { imageSources, productsInStorefrontCategory } from "@/lib/storefront";
 import { CategoryIcon } from "../components/category-icon";
+import { DragScroll } from "../components/drag-scroll";
 import { ProductCard } from "../components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -176,7 +177,7 @@ export default async function SearchPage({
         </div>
       </div>
 
-      <div className="filter-bar" aria-label="Categories">
+      <DragScroll className="filter-bar" ariaLabel="Categories">
         <Link className={!categoryLabel ? "filter-chip active" : "filter-chip"} href={href({ q: displayQuery })}>
           All
         </Link>
@@ -205,7 +206,7 @@ export default async function SearchPage({
                 {candidate.name}
               </Link>
             ))}
-      </div>
+      </DragScroll>
 
       <form className="inline-search catalogue-search" action="/search" role="search">
         {categorySlug ? <input type="hidden" name="cat" value={categorySlug} /> : null}

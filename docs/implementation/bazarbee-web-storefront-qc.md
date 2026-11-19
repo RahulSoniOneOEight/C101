@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; web release `release-web-20261119-145903` (source `25ae3d0`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-151906`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
-Web release: `/opt/buildkart-releases/release-web-20261119-145903`; admin panel `/opt/buildkart-releases/release-93eeac1`
+Web release: `/opt/buildkart-releases/release-web-20261119-151906`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -41,7 +41,7 @@ The Flutter router is the baseline (`apps/prototype_app/lib/router/app_router.da
 | Account, profile, addresses, payments, GST invoices, help, settings | Partial+ | Account hub, wishlist and notifications added. Addresses, payment methods, GST invoice history, help/settings and team/roles remain Flutter-only. |
 | Wishlist | Implemented | Device-local on web, matching the app's local wishlist provider; badges and save/remove work from cards and product detail. |
 | Notifications | Implemented | Real `/v1/me/notifications` inbox with unread count, mark-all-read and deep links into orders. |
-| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | **Partial + explicit descope** | Implemented on web: trade catalogue with MOQ/tier pricing, **Buy at trade rate** into a B2B checkout, credit overview, quotation cart and RFQ draft entry. Remaining app-only: credit payments/limit actions, quote comparison/approvals, projects, procurement lists, team/roles, GST invoice history. |
+| B2B shell: catalogue, credit, quotation cart, quotes, quick order, procurement lists, schemes, price advantage, RFQ | **Partial + explicit descope** | Implemented on web: trade catalogue with MOQ/tier pricing, **Add to cart at MOQ** and **Add to quote**, credit overview, quotation cart and RFQ draft entry. Remaining app-only: credit payments/limit actions, quote comparison/approvals, projects, procurement lists, team/roles, GST invoice history. |
 
 ## 2.1 Flutter B2B and account baseline (QC evidence)
 
@@ -352,5 +352,32 @@ The policy pack is still a **draft**. Pages withhold the unverified GSTIN, mark 
 proposed and show a “Draft for review — not yet effective” notice. Publishing as final terms requires
 the legal/GSTIN/support-mailbox gates in `policy-pages-2026-11-19.md` and `POLICIES_APPROVED=true` at
 build time.
+
+## 12. Drag-scroll and product tiles — 19 Nov 2026
+
+### 12.1 Drag-scroll
+
+| Check | Result |
+|---|---|
+| Visible scrollbar | `scrollbarWidth: none` on category lanes and filter bars |
+| Desktop drag | B2C lane `scrollLeft 2 → 316`; filter bar `0 → 220`; URL stayed on `/` during the drag |
+| Click after drag | A normal click after dragging opened `/search?cat=paints-&-finishes` |
+| Touch | Native horizontal scrolling retained; mobile page overflow `390 = 390` |
+| Coverage | B2C/B2B category lanes, category rail, search/trade/quick-order filter bars and recently viewed rail |
+
+### 12.2 Product tiles
+
+| Surface | Result |
+|---|---|
+| B2C tile | Image, discount/low-stock flags, wishlist, category, title, seller/offers, delivery/stock note, price + MRP, **Add to cart** |
+| B2C quick add | Tools page 4 buttons; click changed cart count `0 → 1` without leaving the page |
+| B2B tile | Seller, SKU, price/MRP, MOQ, tier table, selected unit price/line total, **Add to cart** + **Add to quote** |
+| B2B quick add | Cart count `0 → 5` (MOQ); cart line ₹3,890 × 5 = ₹19,450 |
+| B2B checkout quote | Subtotal ₹19,450, automatic offer −₹972.50, delivery ₹99, total ₹18,576.50 |
+| B2B home/buy-again | 5 Add to cart buttons across offer and buy-again tiles |
+
+Benchmark: HomeRun collection tiles (price/MRP, bulk/tier price, delivery proof, compact Add action)
+and the L&T-SuFin trade tile pattern. Full record: `product-tiles-drag-scroll-2026-11-19.md`.
+
 
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { addToCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import {
   addToTradeQuote,
@@ -12,6 +13,7 @@ import {
 export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> }) {
   const [quantity, setQuantity] = useState(line.moq);
   const [added, setAdded] = useState(false);
+  const [cartAdded, setCartAdded] = useState(false);
   const unit = tierUnitPrice({ ...line, quantity }, quantity);
 
   return (
@@ -55,16 +57,45 @@ export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> })
         </div>
         <span className="moq-note">MOQ {line.moq}</span>
       </div>
-      <button
-        className="button button-block"
-        type="button"
-        onClick={() => {
-          addToTradeQuote(line, quantity);
-          setAdded(true);
-        }}
-      >
-        Add to quote
-      </button>
+      <div className="trade-action-row">
+        <button
+          className="button button-ghost"
+          type="button"
+          onClick={() => {
+            addToCart(
+              {
+                productId: line.productId,
+                offerId: line.offerId,
+                sku: line.sku,
+                title: line.title,
+                seller: line.seller,
+                priceMinor: unit,
+                currency: line.currency,
+                image: line.image ?? null,
+              },
+              quantity,
+            );
+            setCartAdded(true);
+          }}
+        >
+          Add to cart
+        </button>
+        <button
+          className="button"
+          type="button"
+          onClick={() => {
+            addToTradeQuote(line, quantity);
+            setAdded(true);
+          }}
+        >
+          Add to quote
+        </button>
+      </div>
+      {cartAdded ? (
+        <p className="quote-added" role="status">
+          Added to cart. <Link href="/cart">View cart →</Link>
+        </p>
+      ) : null}
       {added ? (
         <p className="quote-added" role="status">
           Added to quotation cart. <Link href="/trade/quote">Review quote →</Link>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
+import { DragScroll } from "../../components/drag-scroll";
 import { AddToQuote } from "../add-to-quote";
 
 function QuickLine({ product }: { product: ComposedProduct }) {
@@ -92,7 +93,7 @@ export function QuickOrder({
       </div>
 
       {lists.length > 0 ? (
-        <div className="filter-bar quick-order-lists" aria-label="Saved trade lists">
+        <DragScroll className="filter-bar quick-order-lists" ariaLabel="Saved trade lists">
           <button
             type="button"
             className={list === "all" ? "filter-chip active" : "filter-chip"}
@@ -110,7 +111,7 @@ export function QuickOrder({
               {name}
             </button>
           ))}
-        </div>
+        </DragScroll>
       ) : null}
 
       {buyAgain.length > 0 ? (

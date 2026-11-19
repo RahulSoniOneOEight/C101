@@ -16,9 +16,9 @@ import {
 } from "@/lib/experience-api";
 import { imageSources, productDeliveryNote, productRootCategoryId, productStockNote } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
+import { DragScroll } from "../../components/drag-scroll";
 import { ProductImage } from "../../components/product-image";
 import { AddToQuote } from "../add-to-quote";
-import { TradeBuyNow } from "../buy-now";
 import { TradeNav } from "../trade-nav";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +30,6 @@ export const metadata = {
 function TradeCard({ product, offer }: { product: ComposedProduct; offer: OfferView }) {
   const tiers = offer.b2b_tiers ?? [];
   const moq = Math.max(1, offer.b2b_moq ?? 1);
-  const moqUnit =
-    [...tiers]
-      .filter((tier) => tier.min_quantity <= moq)
-      .sort((a, b) => b.min_quantity - a.min_quantity)[0]?.amount ?? offer.unit_amount_minor;
   const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
   return (
     <article className="trade-product">
@@ -95,19 +91,6 @@ function TradeCard({ product, offer }: { product: ComposedProduct; offer: OfferV
             basePriceMinor: offer.unit_amount_minor,
             currency: offer.currency_code,
             tiers,
-          }}
-        />
-        <TradeBuyNow
-          quantity={moq}
-          item={{
-            productId: product.id,
-            offerId: offer.id,
-            sku: offer.sku,
-            title: product.title,
-            seller: offer.seller_name ?? "",
-            priceMinor: moqUnit,
-            currency: offer.currency_code,
-            image: product.thumbnail ?? null,
           }}
         />
       </div>
@@ -230,7 +213,7 @@ export default async function TradeCataloguePage({
         </Link>
       </div>
 
-      <div className="filter-bar" aria-label="Trade categories">
+      <DragScroll className="filter-bar" ariaLabel="Trade categories">
         <Link className={!selectedCategory ? "filter-chip active" : "filter-chip"} href="/trade/catalogue">
           All
         </Link>
@@ -247,7 +230,7 @@ export default async function TradeCataloguePage({
             {candidate.label}
           </Link>
         ))}
-      </div>
+      </DragScroll>
 
       {loadError ? (
         <div className="notice err" role="alert">

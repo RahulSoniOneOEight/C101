@@ -3,7 +3,7 @@
 This change closes the customer-facing gaps found when the Flutter app was compared with
 `gobazarbee.com`. It is staging evidence only; production remains unauthorised.
 
-Deployed: `release-web-20261119-145903` from source `25ae3d0`; live at `https://gobazarbee.com`.
+Deployed: `release-web-20261119-151906`; live at `https://gobazarbee.com`.
 
 ## 1. Feature parity matrix
 
@@ -16,7 +16,7 @@ Deployed: `release-web-20261119-145903` from source `25ae3d0`; live at `https://
 | Workspace chat / assistant | None | “Ask BazarBee” drawer on every page, signed-in only. It uses the same Experience API workspace proxy as the app and exposes both the human workspace thread (Project chat for B2C, Procurement for B2B) and the read-only assistant channel. |
 | Related products on cart | None | “You may also like” on `/cart`, drawn first from the cart's aisles and then from current deals |
 | Recently viewed merchandising | None | Product views are recorded in the browser; a “Recently viewed” rail appears on home and product detail without inventing items |
-| B2B order entry | Trade catalogue could only add to a quotation/RFQ | “Buy at trade rate” adds the B2B offer at its MOQ to the order cart and opens checkout; a trade buyer's cart is created as a B2B order by the API |
+| B2B order entry | Trade catalogue could only add to a quotation/RFQ | **Add to cart** adds the B2B offer at the selected quantity/MOQ into the order cart; **Add to quote** stays alongside it. A trade buyer's cart is created as a B2B order by the API |
 
 ## 2. Benchmark: L&T-SuFin (high level)
 
@@ -45,7 +45,9 @@ multi-city location picker — they need services or content that do not exist i
 | Chat / assistant | `apps/web/app/components/chat-drawer.tsx`, `apps/web/app/api/chat/route.ts`, workspace functions in `apps/web/lib/experience-api.ts` |
 | Recently viewed | `apps/web/lib/recently-viewed.ts`, `apps/web/app/components/record-product-view.tsx`, `apps/web/app/components/recently-viewed-rail.tsx`, `apps/web/app/api/products/route.ts` |
 | Cart cross-sell | `apps/web/app/cart/page.tsx`, `apps/web/app/cart/cart-view.tsx` |
-| B2B order entry | `apps/web/app/trade/catalogue/page.tsx`, `apps/web/app/trade/buy-now.tsx` |
+| B2B order entry | `apps/web/app/trade/add-to-quote.tsx` (+ Add to cart), `apps/web/app/trade/buy-now.tsx` removed |
+| Drag-scroll | `apps/web/app/components/drag-scroll.tsx` |
+| B2C quick add | `apps/web/app/components/quick-add.tsx`, `apps/web/app/components/product-card.tsx` |
 
 Search now also matches seller, brand metadata and category names, so the Discover seller index and
 ordinary brand searches return the expected catalogue.
@@ -123,4 +125,11 @@ The pages carry a **Draft for review — not yet effective** notice, withhold th
 mark the refund timeline as proposed, and emit `noindex`. See
 `policy-pages-2026-11-19.md` for source mapping and the publish gate. The footer now links to all
 six policies plus the index.
+
+### 5.3 Drag-scroll and product tiles
+
+The category lanes and filter rows no longer show a scrollbar; desktop users drag them horizontally,
+touch users keep native momentum. Product tiles were rebuilt against the HomeRun/L&T-SuFin tile
+hierarchy: B2C has a compact **Add to cart**; B2B has **Add to cart** at MOQ/tier price plus
+**Add to quote**. See `product-tiles-drag-scroll-2026-11-19.md` for the benchmark and live evidence.
 

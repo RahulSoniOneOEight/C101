@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
 import { readRecentlyViewed, recentlyViewedEventName } from "@/lib/recently-viewed";
+import { DragScroll } from "./drag-scroll";
 import { ProductCard } from "./product-card";
 
 /**
@@ -68,11 +69,11 @@ export function RecentlyViewedRail({
           {hindi ? "आपके ब्राउज़र में सहेजा गया" : "Saved in this browser"}
         </span>
       </div>
-      <div className="recently-rail">
+      <DragScroll className="recently-rail" ariaLabel={title ?? "Recently viewed"}>
         {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
-      </div>
+      </DragScroll>
     </section>
   );
 }

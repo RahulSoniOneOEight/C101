@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { StorefrontLocale } from "@/lib/locale-shared";
 import { CategoryIcon } from "./category-icon";
+import { DragScroll } from "./drag-scroll";
 
 export interface RailCategory {
   id: string;
@@ -41,7 +42,7 @@ export function CategoryRail({
 
   return (
     <nav className="category-rail" aria-label={locale === "hi-IN" ? "शॉप श्रेणियाँ" : "Shop categories"}>
-      <div className="category-rail-inner">
+      <DragScroll className="category-rail-inner">
         <Link className="category-rail-all" href="/discover">
           <CategoryIcon label="Discover" iconKey="misc" size={15} />
           {locale === "hi-IN" ? "खोजें" : "Discover"}
@@ -63,7 +64,7 @@ export function CategoryRail({
             {category.label}
           </Link>
         ))}
-      </div>
+      </DragScroll>
     </nav>
   );
 }
