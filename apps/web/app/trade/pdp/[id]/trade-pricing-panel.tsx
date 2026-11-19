@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
+import { addToCart } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import {
   addToTradeQuote,
@@ -43,6 +44,17 @@ export function TradePricingPanel({ product }: { product: ComposedProduct }) {
     basePriceMinor: offer.unit_amount_minor,
     currency: offer.currency_code,
     tiers,
+  };
+  const cartQuantity = quantity > 0 ? quantity : tierQuantity;
+  const cartItem = {
+    productId: product.id,
+    offerId: offer.id,
+    sku: offer.sku,
+    title: product.title,
+    seller: offer.seller_name ?? "",
+    priceMinor: unitPrice,
+    currency: offer.currency_code,
+    image: product.thumbnail ?? null,
   };
 
   const selectTier = (index: number) => {
@@ -135,6 +147,13 @@ export function TradePricingPanel({ product }: { product: ComposedProduct }) {
             Add to quote
           </button>
         )}
+        <button
+          className="button button-ghost"
+          type="button"
+          onClick={() => addToCart(cartItem, cartQuantity)}
+        >
+          Add to cart
+        </button>
       </div>
 
       <p className="field-hint">

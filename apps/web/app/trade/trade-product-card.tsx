@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
+import { addToCart } from "@/lib/cart";
 import { deliveryPromise } from "@/lib/delivery-promise";
 import { formatMoney } from "@/lib/money";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
@@ -65,6 +66,17 @@ export function TradeProductCard({
     basePriceMinor: offer.unit_amount_minor,
     currency: offer.currency_code,
     tiers,
+  };
+  const cartQuantity = quantity > 0 ? quantity : tierQuantity;
+  const cartItem = {
+    productId: product.id,
+    offerId: offer.id,
+    sku: offer.sku,
+    title: product.title,
+    seller: offer.seller_name ?? "",
+    priceMinor: unitPrice,
+    currency: offer.currency_code,
+    image: product.thumbnail ?? null,
   };
 
   const selectTier = (index: number) => {
@@ -170,6 +182,14 @@ export function TradeProductCard({
               {outOfStock ? "Unavailable" : "Add to quote"}
             </button>
           )}
+          <button
+            className="button button-ghost trade-card-cart"
+            type="button"
+            disabled={outOfStock}
+            onClick={() => addToCart(cartItem, cartQuantity)}
+          >
+            Add to cart
+          </button>
         </div>
       </div>
     </article>

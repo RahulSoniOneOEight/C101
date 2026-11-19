@@ -7164,3 +7164,17 @@ textarea:focus-visible {
     max-width: 100%;
   }
 }
+
+.trade-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trade-card-cart {
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 11.5px;
+}
+.trade-pricing-actions {
+  flex-wrap: wrap;
+}

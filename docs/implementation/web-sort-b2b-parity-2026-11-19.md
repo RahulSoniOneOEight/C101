@@ -114,3 +114,10 @@ tiles linked to the consumer PDP, losing MOQ and tier pricing on click.
 
 Revert the web commit and redeploy. The previous web release is
 `release-web-20261119-174302` (cart related merchandising, before the sort/B2B parity pass).
+
+## 7. Follow-up
+
+Release `release-web-20261119-181458` restores a secondary **Add to cart** action on the shared B2B
+tile and trade PDP so the standard cart/checkout path can place a B2B order. Verified with order
+`BK-261119-N6H7VJ` (5 × ₹3,890, total ₹18,576.50). See
+`b2b-order-test-2026-11-19.md`; payment capture and the order/payment link remain open.
