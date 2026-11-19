@@ -39,7 +39,8 @@ record the deviation.
 | Image focal point | **Implemented (`5639fe3`)** | Nine focal points in CMS/admin, delivered as `image_focal_point`; web applies `object-position` to hero, campaign, welcome and trade images. |
 | Welcome banners | **Implemented on web sign-in** | `b2c.welcome.banner` / `b2b.welcome.banner` placements, CMS records and web sign-in; Flutter welcome surfaces still pending. |
 | Web copy overrides + attribution | **Implemented** | `webTitle` / `webSubtitle` / `webCtaLabel` override app copy on web; internal campaign links carry `utm_source=web`, `utm_medium=banner`, `utm_campaign=<content key>`. |
-| hi-IN locale + content | **Implemented (`d451153`)** | Header `EN / हिं` switch stores `bazarbee_locale`; layout, home, search, sign-in and trade pages pass the locale to CMS. Hindi copy published for 6 banners, 18 category banners and 28 category editorials; both B2C/B2B APIs return Hindi. |
+| hi-IN locale + content | **Implemented (`d451153`)** | Header `EN / हिं` switch stores `bazarbee_locale`; layout, home, search, sign-in and trade pages pass the locale to CMS. Hindi copy is authored and published through Banner Studio for 24 banners and 22 category records; both B2C/B2B APIs return Hindi. |
+| CMS localized authoring | **Implemented (`ea16cf2`)** | Non-default locale banner/category drafts and publishes use a CMS-internal Knex path; Banner Studio no longer mutates the en-IN draft when saving hi-IN. |
 | Placement coverage matrix | **Implemented (`1782cce`)** | Seven placements listed with live/scheduled/draft state; category coverage counts categories; missing/duplicate slots are visible to operators. |
 | Full-page admin preview | **Implemented (`1782cce`)** | Welcome/home/category page context at App / Mobile web / Desktop, with the current draft banner and published page shell. |
 | B2B trade-offer rail | **Implemented (`6e106f6`)** | Three trade cards with MOQ, tier price and add-to-quote on `/trade`. |
@@ -63,7 +64,8 @@ record the deviation.
 | Desktop category rail | 11 CMS links (All products + 10 categories) at 1440px; last link visible, rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; hidden on `/trade`, checkout and 390px |
 | Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`; each `₹3,889.50` simulated prepaid, 1 item |
 | hi-IN QC | B2C/B2B APIs return Hindi banners and all 10 category labels; web home/category pages render Hindi; switch back to en-IN works; hi-IN checkout `BK-261119-4S660H`; 390px no overflow |
-| Releases | Web `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`; latest commit `d451153` |
+| CMS localization path | `ea16cf2`: non-default locale drafts/publishes use the query-engine/Knex path so Banner Studio edits do not touch the en-IN draft; verified on a banner and a category; 24 hi-IN banners visible in the admin list |
+| Releases | Web `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; latest commit `ea16cf2` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |

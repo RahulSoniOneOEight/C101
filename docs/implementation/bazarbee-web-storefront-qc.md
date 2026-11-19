@@ -1,7 +1,7 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
 Web release: `/opt/buildkart-releases/release-d451153`; admin panel `/opt/buildkart-releases/release-6d55d39`
@@ -185,9 +185,9 @@ returned **ship**.
   editor upgrade.
 - Banner Studio searches category, product and collection references; product/collection queries load
   the first 100 products and all collections, so a very large catalogue needs server-side search.
-- hi-IN content is seeded and the web switch works. The CMS operator localization publish path currently
-  duplicates the default-locale draft/published row, so self-serve localization needs a CMS fix; the
-  seeded records are visible in the CMS admin. Some static B2B nav/footer strings remain English.
+- hi-IN content is authored and published through Banner Studio (`ea16cf2`). Six legacy category
+  editorials keyed by a category label were skipped by the `pcat_` validator; the canonical
+  category records are localized. Some static B2B nav/footer strings remain English.
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
   should reuse the checkout cart.
 - Catalogue is the staging set (30 products), including test products with unrelated imagery.
@@ -203,7 +203,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web release `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -216,6 +216,7 @@ Web release `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentatio
 | hi-IN category | Electrical rail link → `इलेक्ट्रिकल`, 2 products |
 | hi-IN checkout | Same quote `₹3,889.50`; order `BK-261119-4S660H` simulated prepaid, 1 item |
 | hi-IN B2B | “आपका ट्रेड डेस्क, अब वेब पर।” hero, 3 offers, `औज़ार और हार्डवेयर` category with banner and 1 product |
+| CMS hi-IN authoring | Banner Studio hi-IN list shows 24 banners; banner and category draft→publish works without changing the en-IN title; canonical 10 categories localized per channel |
 | B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
 | B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |
