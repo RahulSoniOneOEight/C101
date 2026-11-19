@@ -167,13 +167,13 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         <dl className="checkout-receipt">
           {state.totalMinor !== null ? (
             <div>
-              <dt>Total paid</dt>
+              <dt>Order total</dt>
               <dd>{formatMoney(state.totalMinor, summaryCurrency)}</dd>
             </div>
           ) : null}
           <div>
             <dt>Payment</dt>
-            <dd>Simulated prepaid · test data</dd>
+            <dd>Simulated payment · test data</dd>
           </div>
           <div>
             <dt>Delivery</dt>

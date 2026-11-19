@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; web release `release-web-20261119-151906` (source `181f35f`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-160503`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
-Web release: `/opt/buildkart-releases/release-web-20261119-151906`; admin panel `/opt/buildkart-releases/release-93eeac1`
+Web release: `/opt/buildkart-releases/release-web-20261119-160503`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -378,6 +378,27 @@ build time.
 
 Benchmark: HomeRun collection tiles (price/MRP, bulk/tier price, delivery proof, compact Add action)
 and the L&T-SuFin trade tile pattern. Full record: `product-tiles-drag-scroll-2026-11-19.md`.
+
+## 13. Full B2C/B2B order QC — 19 Nov 2026
+
+| Check | Result |
+|---|---|
+| B2C order | `BK-261119-PECZY3`; 2 lines; ₹568.95 − ₹28.45 + ₹99 = ₹639.50 |
+| B2B order | `BK-261119-0W0KCD`; 5 × ₹3,890; ₹19,450 − ₹972.50 + ₹99 = ₹18,576.50 |
+| Orders pages | Both new orders appear at the top of the owner-scoped list |
+| B2C order detail | Lines, totals, tracking `SIM-DF4333F1647C`, shipment `booked` |
+| Notifications | `order_confirmed_v1` for both owners; B2C inbox 24 items / 10 unread |
+| Domain events | `order.confirmed` present and published for both order groups |
+| Admin queue | Both orders listed; reconciliation `reconciled: false` |
+| Payment state | Collections `authorized`; captured ₹0; Medusa orders `pending` |
+| Reservation | No reservation row / Tryton move; mismatch `RESERVATION_OR_ORDER_MISSING` |
+| Order-payment link | `order_payment_collection` has zero rows for both checkout orders |
+| Error scan | No web/API/event-worker error lines in 45 minutes |
+
+The web journeys pass. The backend is **not financially settled or inventory-reconciled**:
+payment is authorized-only, Tryton reservation is not started, and the native
+order→payment-collection link is still missing. These are recorded as pre-existing staging gaps in
+`full-store-qc-2026-11-19.md`; they block a production-shaped release.
 
 
 
