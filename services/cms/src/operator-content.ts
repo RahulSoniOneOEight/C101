@@ -635,8 +635,12 @@ const DEFAULT_CMS_LOCALE = "en-IN";
 const LOCALIZED_DB_KINDS = new Set(["banner", "category-editorial"]);
 
 function localizedTable(strapi: Core.Strapi, definition: ContentKindDefinition): string {
-  const metadata = (strapi.db.metadata as any).get(definition.uid as never) as any;
-  return String(metadata.collectionName);
+  const model = strapi.getModel(definition.uid as never) as any;
+  return String(model.collectionName);
+}
+
+function localizedColumn(key: string): string {
+  return key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 }
 
 function localizedPayload(
@@ -644,14 +648,13 @@ function localizedPayload(
   definition: ContentKindDefinition,
   data: JsonRecord,
 ): JsonRecord {
-  const metadata = (strapi.db.metadata as any).get(definition.uid as never) as any;
+  const model = strapi.getModel(definition.uid as never) as any;
   const payload: JsonRecord = {};
   for (const [key, value] of Object.entries(data)) {
-    const attribute = metadata.attributes?.[key];
+    const attribute = model.attributes?.[key];
     if (!attribute) continue;
     if (["media", "relation", "component", "dynamiczone"].includes(attribute.type)) continue;
-    const column = attribute.columnName
-      ?? key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+    const column = attribute.columnName ?? localizedColumn(key);
     payload[column] = attribute.type === "json" && value !== null
       ? JSON.stringify(value)
       : value;
