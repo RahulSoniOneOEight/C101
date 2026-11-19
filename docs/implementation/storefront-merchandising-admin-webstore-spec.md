@@ -28,6 +28,7 @@ record the deviation.
 |---|---|---|
 | Responsive web D2C storefront | Shipped | Static hero and hardcoded category taxonomy; CMS consumption is pending. |
 | Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; trade hero is still static. |
+| Web channel switch | Shipped (`570bbb6`) | Default B2C; signed-in trade users can switch Shop ↔ Trade; mobile switch via trade nav/account. |
 | Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
 | Admin Banner Studio | Existing | Placement-bound banners, schedule, preview, draft/publish. |
 | Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
@@ -52,6 +53,32 @@ record the deviation.
 
 The **published** record is authoritative. The web store must never hardcode banner copy, category
 labels, section order or product badges that the CMS owns.
+
+### 1.1 Channel switching and B2C default
+
+The web store mirrors the Flutter app’s channel model:
+
+| Rule | Behaviour |
+|---|---|
+| Default | Anonymous and B2C-only users land on `/` (Shop, B2C). |
+| B2B route | `/trade`, `/trade/catalogue`, `/trade/credit`, `/trade/quote` are the B2B workspace. |
+| Route is the channel | No `?channel=` flag; the path determines the active channel, so refresh/deep links preserve it. |
+| Entitlement | `b2b_buyer` from `/v1/me/contexts` enables the Trade channel. |
+| Switch UI | Signed-in trade users see a **Shop / Trade** switch in the desktop header. |
+| Mobile switch | Trade pages expose “Switch to consumer”; account shows “Switch to BazarBee Trade” when entitled. |
+| B2C-only user | No Trade switch; `/trade` remains the marketing/apply entry, and `/trade/catalogue` shows “trade account required”. |
+| Carts | B2C cart (`bazarbee.cart.v1`) and B2B quotation cart (`bazarbee.trade.quote.v1`) are separate; switching never moves lines between them. |
+| Content | Each channel consumes its own banners/layouts/categories; B2C seed content never appears in B2B. |
+| Session | One login/session; the role projection decides whether the switch is shown. |
+
+Acceptance:
+
+1. Anonymous `/` renders B2C; `/trade` renders the trade marketing/workspace entry.
+2. A signed-in `b2b_buyer` sees Shop/Trade; switching goes to `/` or `/trade` without a 404.
+3. A B2C-only user never sees the switch and cannot open the trade catalogue.
+4. Switching does not mix the retail cart with the quotation cart.
+5. The active channel remains correct after refresh and on mobile.
+6. `Switch to consumer` on the trade nav and the account channel row work.
 
 ---
 
@@ -391,6 +418,7 @@ Experience API endpoints the web should use:
 1. A published banner appears only on its channel/placement/locale and within its schedule.
 2. Priority order is respected; expired/scheduled banners are not shown.
 3. B2C seed/fallback content never appears on a B2B surface.
+4. The default `/` is B2C; signed-in trade users can switch Shop ↔ Trade; B2C-only users cannot enter the trade catalogue.
 4. Storefront layout order, visibility, title, badge, limit and See All match the admin record.
 5. Category banner copy/image follows the documented precedence and falls back safely.
 6. Product tiles render the authored title, image, price, MRP, discount, badge, stock and B2B
@@ -426,6 +454,7 @@ Experience API endpoints the web should use:
 | **MERCH-10** | Web | Render layout sections in published order with title/badge/limit/See All/banner and empty-collection states. | MERCH-09 | Published order/visibility/limits match; empty collections explain themselves. |
 | **MERCH-11** | Web + Ops | Per-surface attribution: UTM or click event distinguishing app vs web. | MERCH-02 | Dashboard can separate app and web clicks for the same campaign. |
 | **MERCH-12** | QA | Channel/locale/schedule/expiry/CTA/responsive matrix; publish/rollback rehearsal. | All | Evidence recorded for B2C/B2B, 390/1440, en-IN/hi-IN. |
+| **MERCH-13** | Web | B2C-default role-gated Shop/Trade switch; route-based channel, mobile switch, channel-scoped carts/content. | Auth contexts | Trade user switches; B2C-only sees no switch; carts stay isolated; refresh preserves the channel. |
 
 ### 7.4 Sequencing
 
@@ -571,4 +600,6 @@ A merchandising change is releasable only when:
    fallback only where documented; no B2C fallback on B2B.
 7. **Admin preview:** preview matches the published page, including the real header/pinned-bar safe area.
 8. **Rollback:** unpublishing restores the previous published state and leaves drafts untouched.
-9. **Evidence:** publish time, actor, placement, locale and screenshots recorded once per bundle.
+9. **Channel switch:** anonymous `/` is B2C; only entitled users see Shop/Trade; switching preserves the
+   active channel on refresh; retail and quotation carts remain separate.
+10. **Evidence:** publish time, actor, placement, locale and screenshots recorded once per bundle.
