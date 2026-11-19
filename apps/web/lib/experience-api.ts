@@ -76,6 +76,7 @@ export interface ComposedProduct {
   thumbnail?: string | null;
   description?: string | null;
   handle?: string | null;
+  metadata?: Record<string, unknown> | null;
   categories?: { id: string; name: string; parent_category_id?: string | null }[];
   badges?: string[];
   variants?: VariantView[];

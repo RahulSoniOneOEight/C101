@@ -6,13 +6,15 @@ import {
   getMyContexts,
   getStorefrontPresentation,
   hasTradeRole,
+  listMyOrders,
   listTradeProducts,
   type ComposedProduct,
+  type CustomerOrderSummary,
   type StorefrontBanner,
 } from "@/lib/experience-api";
-import { bannerHref, firstBanner, imageObjectPosition, imageSources } from "@/lib/storefront";
+import { bannerHref, firstBanner, imageObjectPosition, imageSources, productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
-import { readableBusinessName } from "@/lib/trade";
+import { buyAgainProducts, readableBusinessName } from "@/lib/trade";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
 import { TradeNav } from "./trade-nav";
@@ -75,17 +77,21 @@ export default async function TradePage() {
   const businessName = readableBusinessName(businessId);
   let heroBanner: StorefrontBanner | null = null;
   let tradeProducts: ComposedProduct[] = [];
+  let recentOrders: CustomerOrderSummary[] = [];
   try {
-    const [presentation, products] = await Promise.all([
+    const [presentation, products, orders] = await Promise.all([
       getStorefrontPresentation("b2b", locale),
       listTradeProducts(token, 100),
+      listMyOrders(token, 20),
     ]);
     heroBanner = firstBanner(presentation.banners, "b2b.home.hero");
     tradeProducts = products;
+    recentOrders = orders;
   } catch {
     // The workspace remains usable with the static hero if content is unavailable.
   }
   const offerProducts = tradeProducts.filter((product) => product.best_price).slice(0, 3);
+  const buyAgain = buyAgainProducts(tradeProducts, recentOrders);
   const heroHref = heroBanner ? bannerHref(heroBanner, "b2b") : null;
 
   return (
@@ -197,6 +203,7 @@ export default async function TradePage() {
             {offerProducts.map((product) => {
               const offer = product.best_price!;
               const moq = Math.max(1, offer.b2b_moq ?? 1);
+              const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
               return (
                 <article className="trade-offer-card" key={product.id}>
                   <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-offer-media">
@@ -206,6 +213,59 @@ export default async function TradePage() {
                     <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
                     <h3>{product.title}</h3>
                     <p className="muted">MOQ {moq} · SKU {offer.sku}</p>
+                    {note ? <p className="product-note">{note}</p> : null}
+                    <div className="trade-offer-price">
+                      <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
+                      <span className="trade-moq">MOQ {moq}</span>
+                    </div>
+                    <AddToQuote
+                      line={{
+                        productId: product.id,
+                        offerId: offer.id,
+                        sku: offer.sku,
+                        title: product.title,
+                        seller: offer.seller_name ?? "",
+                        image: product.thumbnail ?? null,
+                        moq,
+                        basePriceMinor: offer.unit_amount_minor,
+                        currency: offer.currency_code,
+                        tiers: offer.b2b_tiers ?? [],
+                      }}
+                    />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {buyAgain.length > 0 ? (
+        <section className="section trade-home-offers">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Buy again</span>
+              <h2>Reorder recent lines</h2>
+            </div>
+            <Link className="section-link" href="/trade/quick-order#buy-again">
+              Open quick order →
+            </Link>
+          </div>
+          <div className="trade-offer-grid">
+            {buyAgain.map((product) => {
+              const offer = product.best_price!;
+              const moq = Math.max(1, offer.b2b_moq ?? 1);
+              const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
+              return (
+                <article className="trade-offer-card" key={`buy-again-${product.id}`}>
+                  <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-offer-media">
+                    <ProductImage src={product.thumbnail} alt={product.title} />
+                  </Link>
+                  <div className="trade-offer-body">
+                    <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
+                    <h3>{product.title}</h3>
+                    <p className="muted">MOQ {moq} · SKU {offer.sku}</p>
+                    {note ? <p className="product-note">{note}</p> : null}
                     <div className="trade-offer-price">
                       <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
                       <span className="trade-moq">MOQ {moq}</span>

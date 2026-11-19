@@ -1142,6 +1142,13 @@ a {
   color: var(--muted);
   font-size: 12px;
 }
+.product-note {
+  margin: 0;
+  color: var(--success, #1f7a4d);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
 .product-price-row {
   display: flex;
   align-items: baseline;
@@ -3360,6 +3367,40 @@ form.stack textarea:focus {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+.quick-order {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.quick-order-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.quick-order-search {
+  flex: 1;
+  min-width: 240px;
+}
+.quick-order-search input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.quick-order-lists {
+  margin: 0;
+}
+.quick-order-section {
+  margin-top: 16px;
+}
+.quick-order-line .add-to-quote {
+  margin-top: auto;
+  padding-top: 8px;
 }
 .trade-product {
   display: flex;

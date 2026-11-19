@@ -1,5 +1,6 @@
 import type {
   ComposedProduct,
+  OfferView,
   StorefrontBanner,
   StorefrontCategory,
   StorefrontLayoutSection,
@@ -214,4 +215,22 @@ const TONES = ["tile-indigo", "tile-aqua", "tile-honey", "tile-leaf", "tile-lave
 
 export function categoryTone(index: number): string {
   return TONES[index % TONES.length];
+}
+
+/** Optional delivery note authored on the product (Product Studio metadata). */
+export function productDeliveryNote(product: ComposedProduct): string | null {
+  const raw = product.metadata?.delivery_note ?? product.metadata?.delivery_estimate;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+/** Real offer stock state, used on catalogue and trade tiles. */
+export function productStockNote(offer?: OfferView | null): string | null {
+  if (!offer) return null;
+  if (offer.in_stock === false || offer.stock_badge === "out_of_stock") return "Out of stock";
+  if (offer.stock_badge === "low_stock") {
+    return typeof offer.inventory_quantity === "number"
+      ? `Only ${offer.inventory_quantity} left`
+      : "Low stock";
+  }
+  return null;
 }

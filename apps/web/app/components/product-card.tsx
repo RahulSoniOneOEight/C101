@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatMoney, type ComposedProduct } from "@/lib/experience-api";
 import { categoryForProduct } from "@/lib/catalogue";
+import { productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { ProductImage } from "./product-image";
 import { WishlistButton } from "./wishlist-button";
 
@@ -8,6 +9,7 @@ import { WishlistButton } from "./wishlist-button";
 export function ProductCard({ product }: { product: ComposedProduct }) {
   const offer = product.best_price;
   const category = categoryForProduct(product);
+  const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
   const discount =
     offer?.discount_percent ??
     (offer?.list_amount_minor && offer.list_amount_minor > offer.unit_amount_minor
@@ -33,6 +35,7 @@ export function ProductCard({ product }: { product: ComposedProduct }) {
               ? ` · ${product.variants!.length} options`
               : ""}
           </p>
+          {note ? <p className="product-note">{note}</p> : null}
           <div className="product-price-row">
             <span className="price">
               {offer

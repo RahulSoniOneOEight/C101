@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { TradeQuoteLink } from "./quote-link";
 
-export function TradeNav({ active }: { active: "overview" | "catalogue" | "credit" | "quote" }) {
+export function TradeNav({ active }: { active: "overview" | "catalogue" | "credit" | "quote" | "quick-order" }) {
   const links = [
     { key: "overview", href: "/trade", label: "Overview" },
     { key: "catalogue", href: "/trade/catalogue", label: "Catalogue" },
+    { key: "quick-order", href: "/trade/quick-order", label: "Quick order" },
     { key: "credit", href: "/trade/credit", label: "Credit" },
     { key: "quote", href: "/trade/quote", label: "Quote / RFQ" },
   ] as const;

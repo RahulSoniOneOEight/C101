@@ -14,7 +14,7 @@ import {
   type OfferView,
   type StorefrontCategory,
 } from "@/lib/experience-api";
-import { imageSources, productRootCategoryId } from "@/lib/storefront";
+import { imageSources, productDeliveryNote, productRootCategoryId, productStockNote } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
 import { ProductImage } from "../../components/product-image";
 import { AddToQuote } from "../add-to-quote";
@@ -29,6 +29,7 @@ export const metadata = {
 function TradeCard({ product, offer }: { product: ComposedProduct; offer: OfferView }) {
   const tiers = offer.b2b_tiers ?? [];
   const moq = Math.max(1, offer.b2b_moq ?? 1);
+  const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
   return (
     <article className="trade-product">
       <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-product-media">
@@ -44,6 +45,7 @@ function TradeCard({ product, offer }: { product: ComposedProduct; offer: OfferV
           SKU {offer.sku}
           {offer.b2b_ends_at ? ` · terms end ${new Date(offer.b2b_ends_at).toLocaleDateString("en-IN")}` : ""}
         </p>
+        {note ? <p className="product-note">{note}</p> : null}
         <div className="trade-price-row">
           <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
           {offer.list_amount_minor && offer.list_amount_minor > offer.unit_amount_minor ? (
