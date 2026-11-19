@@ -1,6 +1,6 @@
 # Cart related-item merchandising — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-174302`
+Status: **shipped to staging web** · Release `release-web-20261119-174302` · Source `3a691ea`
 Hosts: `https://gobazarbee.com/cart` (B2C) · `https://gobazarbee.com/trade/quote` (B2B)
 Branch: `feat/bazarbee-branding`
 
