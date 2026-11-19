@@ -104,7 +104,13 @@ function DefaultHero({ featured }: { featured: ComposedProduct | null }) {
   );
 }
 
-function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
+function CampaignStrip({
+  banner,
+  locale,
+}: {
+  banner: StorefrontBanner;
+  locale: "en-IN" | "hi-IN";
+}) {
   const href = bannerHref(banner, "b2c");
   const title = bannerTitle(banner);
   const body = bannerBody(banner);
@@ -114,7 +120,7 @@ function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
     <section className="campaign-strip">
       {image.src ? <img src={image.src} srcSet={image.srcSet} sizes="240px" alt="" style={{ objectPosition: imageObjectPosition(banner) }} /> : null}
       <div>
-        <span className="eyebrow">Campaign</span>
+        <span className="eyebrow">{locale === "hi-IN" ? "कैंपेन" : "Campaign"}</span>
         <h2>{title}</h2>
         {body ? <p>{body}</p> : null}
       </div>
@@ -163,6 +169,17 @@ export default async function HomePage() {
     }))
     .filter((section) => section.resolved.length > 0);
   const hasCmsSections = sections.length > 0;
+  const hindi = locale === "hi-IN";
+  const sectionCopy: Record<string, string> = {
+    "Flash Deals": "फ्लैश डील्स",
+    "Best Sellers": "बेस्ट सेलर्स",
+    "Recommended for You": "आपके लिए सुझाए गए",
+    "Buy Again": "फिर से खरीदें",
+    "Up to 60% OFF": "60% तक छूट",
+    "See all deals": "सभी डील्स देखें",
+  };
+  const localizeSection = (value: string | undefined) =>
+    hindi && value ? sectionCopy[value] ?? value : value;
 
   return (
     <>
@@ -172,7 +189,7 @@ export default async function HomePage() {
         <DefaultHero featured={featured} />
       )}
 
-      {campaign ? <CampaignStrip banner={campaign} /> : null}
+      {campaign ? <CampaignStrip banner={campaign} locale={locale} /> : null}
 
       {loadError ? (
         <div className="notice err" role="alert">
@@ -183,11 +200,11 @@ export default async function HomePage() {
       <section className="section">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">Browse the range</span>
-            <h2>Shop by category</h2>
+            <span className="eyebrow">{hindi ? "रेंज देखें" : "Browse the range"}</span>
+            <h2>{hindi ? "श्रेणी से खरीदें" : "Shop by category"}</h2>
           </div>
           <Link className="section-link" href="/search">
-            View everything →
+            {hindi ? "सब देखें" : "View everything"} →
           </Link>
         </div>
         {visibleCmsCategories.length > 0 ? (
@@ -208,7 +225,7 @@ export default async function HomePage() {
                     {category.short_text ?? category.name}
                   </span>
                   <span className="category-count">
-                    {count} {count === 1 ? "product" : "products"} →
+                    {count} {hindi ? "उत्पाद" : count === 1 ? "product" : "products"} →
                   </span>
                 </Link>
               );
@@ -230,7 +247,7 @@ export default async function HomePage() {
                   <span className="category-name">{category.name}</span>
                   <span className="category-blurb">{category.blurb}</span>
                   <span className="category-count">
-                    {count} {count === 1 ? "product" : "products"} →
+                    {count} {hindi ? "उत्पाद" : count === 1 ? "product" : "products"} →
                   </span>
                 </Link>
               );
@@ -246,15 +263,15 @@ export default async function HomePage() {
               <section className="section" key={section.placement}>
                 <div className="section-heading">
                   <div>
-                    <span className="eyebrow">{section.label ?? "Merchandising"}</span>
+                    <span className="eyebrow">{section.label ?? (hindi ? "मर्चेंडाइज़िंग" : "Merchandising")}</span>
                     <h2>
-                      {section.title ?? section.label ?? section.placement}{" "}
-                      {section.badge ? <span className="section-badge">{section.badge}</span> : null}
+                      {localizeSection(section.title) ?? section.label ?? section.placement}{" "}
+                      {section.badge ? <span className="section-badge">{localizeSection(section.badge)}</span> : null}
                     </h2>
                   </div>
                   {href && (section.see_all_label ?? "See all") ? (
                     <Link className="section-link" href={href}>
-                      {section.see_all_label ?? "See all"} →
+                      {localizeSection(section.see_all_label) ?? (hindi ? "सभी देखें" : "See all")} →
                     </Link>
                   ) : null}
                 </div>
@@ -270,11 +287,11 @@ export default async function HomePage() {
           <section className="section">
             <div className="section-heading">
               <div>
-                <span className="eyebrow">Popular right now</span>
-                <h2>Buyer favourites</h2>
+                <span className="eyebrow">{hindi ? "अभी लोकप्रिय" : "Popular right now"}</span>
+                <h2>{hindi ? "खरीदारों की पसंद" : "Buyer favourites"}</h2>
               </div>
               <Link className="section-link" href="/search">
-                See all products →
+                {hindi ? "सभी उत्पाद देखें" : "See all products"} →
               </Link>
             </div>
             {popular.length > 0 ? (
