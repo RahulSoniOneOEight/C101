@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 
 export function ChannelSwitch({
   signedIn,
   hasTrade,
+  locale = "en-IN",
 }: {
   signedIn: boolean;
   hasTrade: boolean;
+  locale?: StorefrontLocale;
 }) {
   const pathname = usePathname();
   if (!signedIn || !hasTrade) return null;
@@ -21,14 +24,14 @@ export function ChannelSwitch({
         className={inTrade ? "channel-option" : "channel-option active"}
         aria-current={inTrade ? undefined : "page"}
       >
-        Shop
+        {locale === "hi-IN" ? "शॉप" : "Shop"}
       </Link>
       <Link
         href="/trade"
         className={inTrade ? "channel-option active" : "channel-option"}
         aria-current={inTrade ? "page" : undefined}
       >
-        Trade
+        {locale === "hi-IN" ? "ट्रेड" : "Trade"}
       </Link>
     </nav>
   );

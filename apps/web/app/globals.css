@@ -491,6 +491,29 @@ a {
   background: var(--ink);
   color: #fff;
 }
+.locale-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.locale-switch:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.locale-switch:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
 .trade-switch {
   padding: 8px 12px;
   border: 1px solid var(--line-strong);

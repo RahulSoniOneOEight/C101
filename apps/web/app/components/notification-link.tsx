@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 
 function BellIcon() {
   return (
@@ -18,7 +19,13 @@ function BellIcon() {
   );
 }
 
-export function NotificationLink({ signedIn }: { signedIn: boolean }) {
+export function NotificationLink({
+  signedIn,
+  locale = "en-IN",
+}: {
+  signedIn: boolean;
+  locale?: StorefrontLocale;
+}) {
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
@@ -55,7 +62,7 @@ export function NotificationLink({ signedIn }: { signedIn: boolean }) {
           </span>
         ) : null}
       </span>
-      <span>Alerts</span>
+      <span>{locale === "hi-IN" ? "अलर्ट" : "Alerts"}</span>
     </Link>
   );
 }

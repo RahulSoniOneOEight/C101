@@ -10,6 +10,7 @@ import {
   type StorefrontPresentation,
 } from "@/lib/experience-api";
 import { CATEGORIES, productsInCategory } from "@/lib/catalogue";
+import { getStorefrontLocale } from "@/lib/locale";
 import {
   bannerBody,
   bannerCtaLabel,
@@ -127,6 +128,7 @@ function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
 }
 
 export default async function HomePage() {
+  const locale = await getStorefrontLocale();
   let products: ComposedProduct[] = [];
   let presentation: StorefrontPresentation | null = null;
   let layoutSections: Awaited<ReturnType<typeof getStorefrontAppShell>>["layout"] | undefined;
@@ -134,8 +136,8 @@ export default async function HomePage() {
 
   const [productsResult, presentationResult, shellResult] = await Promise.allSettled([
     listProducts(60),
-    getStorefrontPresentation("b2c"),
-    getStorefrontAppShell("b2c"),
+    getStorefrontPresentation("b2c", locale),
+    getStorefrontAppShell("b2c", locale),
   ]);
   if (productsResult.status === "fulfilled") products = productsResult.value;
   if (presentationResult.status === "fulfilled") presentation = presentationResult.value;

@@ -11,6 +11,7 @@ import {
   type StorefrontBanner,
 } from "@/lib/experience-api";
 import { bannerHref, firstBanner, imageObjectPosition, imageSources } from "@/lib/storefront";
+import { getStorefrontLocale } from "@/lib/locale";
 import { readableBusinessName } from "@/lib/trade";
 import { ProductImage } from "../components/product-image";
 import { AddToQuote } from "./add-to-quote";
@@ -57,6 +58,7 @@ const CAPABILITIES = [
 
 export default async function TradePage() {
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  const locale = await getStorefrontLocale();
   let trade = false;
   let businessId = "";
   if (token) {
@@ -75,7 +77,7 @@ export default async function TradePage() {
   let tradeProducts: ComposedProduct[] = [];
   try {
     const [presentation, products] = await Promise.all([
-      getStorefrontPresentation("b2b"),
+      getStorefrontPresentation("b2b", locale),
       listTradeProducts(token, 100),
     ]);
     heroBanner = firstBanner(presentation.banners, "b2b.home.hero");

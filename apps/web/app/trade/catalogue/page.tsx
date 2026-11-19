@@ -15,6 +15,7 @@ import {
   type StorefrontCategory,
 } from "@/lib/experience-api";
 import { imageSources, productRootCategoryId } from "@/lib/storefront";
+import { getStorefrontLocale } from "@/lib/locale";
 import { ProductImage } from "../../components/product-image";
 import { AddToQuote } from "../add-to-quote";
 import { TradeNav } from "../trade-nav";
@@ -101,6 +102,7 @@ export default async function TradeCataloguePage({
 }) {
   const { cat } = await searchParams;
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  const locale = await getStorefrontLocale();
   if (!token) {
     redirect(`/sign-in?next=${encodeURIComponent("/trade/catalogue")}`);
   }
@@ -144,7 +146,7 @@ export default async function TradeCataloguePage({
   let loadError = "";
   const [productsResult, presentationResult] = await Promise.allSettled([
     listTradeProducts(token, 100),
-    getStorefrontPresentation("b2b"),
+    getStorefrontPresentation("b2b", locale),
   ]);
   if (productsResult.status === "fulfilled") products = productsResult.value;
   if (productsResult.status === "rejected") {

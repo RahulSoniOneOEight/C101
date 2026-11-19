@@ -6,6 +6,7 @@ import {
   type StorefrontCategory,
 } from "@/lib/experience-api";
 import { CATEGORIES, categoryBySlug, searchProducts } from "@/lib/catalogue";
+import { getStorefrontLocale } from "@/lib/locale";
 import { imageSources, productsInStorefrontCategory } from "@/lib/storefront";
 import { ProductCard } from "../components/product-card";
 
@@ -42,13 +43,14 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string; cat?: string; sort?: string }>;
 }) {
   const { q = "", cat, sort } = await searchParams;
+  const locale = await getStorefrontLocale();
   let products: ComposedProduct[] = [];
   let cmsCategories: StorefrontCategory[] = [];
   let loadError = "";
 
   const [productsResult, presentationResult] = await Promise.allSettled([
     listProducts(60),
-    getStorefrontPresentation("b2c"),
+    getStorefrontPresentation("b2c", locale),
   ]);
   if (productsResult.status === "fulfilled") products = productsResult.value;
   if (presentationResult.status === "fulfilled") {
@@ -71,8 +73,8 @@ export default async function SearchPage({
   const heading = categoryLabel
     ? categoryLabel
     : q.trim()
-      ? `Results for “${q.trim()}”`
-      : "All products";
+      ? (locale === "hi-IN" ? `“${q.trim()}” के नतीजे` : `Results for “${q.trim()}”`)
+      : (locale === "hi-IN" ? "सभी उत्पाद" : "All products");
   const bannerImage = imageSources(cmsCategory?.banner_image_uri, 1600);
 
   return (

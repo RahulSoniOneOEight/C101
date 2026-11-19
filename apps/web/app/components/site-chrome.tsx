@@ -1,8 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 import { CartLink } from "./cart-link";
 import { CategoryRail, type RailCategory } from "./category-rail";
 import { ChannelSwitch } from "./channel-switch";
+import { LocaleSwitch } from "./locale-switch";
 import { NotificationLink } from "./notification-link";
 import { WishlistLink } from "./wishlist-link";
 
@@ -38,11 +40,18 @@ export function SiteHeader({
   signedIn,
   hasTrade,
   categories,
+  locale,
 }: {
   signedIn: boolean;
   hasTrade: boolean;
   categories: RailCategory[];
+  locale: StorefrontLocale;
 }) {
+  const hindi = locale === "hi-IN";
+  const searchPlaceholder = hindi
+    ? "सीमेंट, औज़ार, पेंट खोजें…"
+    : "Search cement, tools, paint…";
+  const accountLabel = signedIn ? (hindi ? "अकाउंट" : "Account") : (hindi ? "साइन इन" : "Sign in");
   return (
     <>
       <div className="announcement-bar">
@@ -73,30 +82,31 @@ export function SiteHeader({
               id="site-search"
               name="q"
               type="search"
-              placeholder="Search cement, tools, paint…"
+              placeholder={searchPlaceholder}
               autoComplete="off"
             />
-            <button type="submit" aria-label="Search">
+            <button type="submit" aria-label={hindi ? "खोजें" : "Search"}>
               <SearchIcon />
             </button>
           </form>
 
           <div className="header-actions">
-            <ChannelSwitch signedIn={signedIn} hasTrade={hasTrade} />
-            <NotificationLink signedIn={signedIn} />
-            <WishlistLink />
+            <LocaleSwitch locale={locale} />
+            <ChannelSwitch signedIn={signedIn} hasTrade={hasTrade} locale={locale} />
+            <NotificationLink signedIn={signedIn} locale={locale} />
+            <WishlistLink locale={locale} />
             <Link
               className="header-action account-link"
               href={signedIn ? "/account" : "/sign-in"}
             >
               <UserIcon />
-              <span>{signedIn ? "Account" : "Sign in"}</span>
+              <span>{accountLabel}</span>
             </Link>
-            <CartLink />
+            <CartLink locale={locale} />
           </div>
         </div>
       </header>
-      <CategoryRail categories={categories} />
+      <CategoryRail categories={categories} locale={locale} />
       <form className="mobile-search" action="/search" role="search">
         <label className="sr-only" htmlFor="site-search-mobile">
           Search products
@@ -105,14 +115,14 @@ export function SiteHeader({
           id="site-search-mobile"
           name="q"
           type="search"
-          placeholder="Search the catalogue…"
+          placeholder={hindi ? "कैटलॉग में खोजें…" : "Search the catalogue…"}
           autoComplete="off"
         />
-        <button type="submit" aria-label="Search">
+        <button type="submit" aria-label={hindi ? "खोजें" : "Search"}>
           <SearchIcon />
         </button>
       </form>
-      <nav className="mobile-tabbar" aria-label="Mobile navigation">
+      <nav className="mobile-tabbar" aria-label={hindi ? "मोबाइल नेविगेशन" : "Mobile navigation"}>
         <Link className="tab-item" href="/">
           <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22">
             <path
@@ -123,16 +133,16 @@ export function SiteHeader({
               strokeLinejoin="round"
             />
           </svg>
-          <span>Shop</span>
+          <span>{hindi ? "शॉप" : "Shop"}</span>
         </Link>
         <Link className="tab-item" href="/search">
           <SearchIcon />
-          <span>Search</span>
+          <span>{hindi ? "खोजें" : "Search"}</span>
         </Link>
-        <CartLink compact />
+        <CartLink compact locale={locale} />
         <Link className="tab-item" href={signedIn ? "/account" : "/sign-in"}>
           <UserIcon />
-          <span>Account</span>
+          <span>{hindi ? "अकाउंट" : "Account"}</span>
         </Link>
       </nav>
     </>

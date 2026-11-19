@@ -8,6 +8,7 @@ import {
   getStorefrontPresentation,
   hasTradeRole,
 } from "@/lib/experience-api";
+import { getStorefrontLocale } from "@/lib/locale";
 import { SiteFooter, SiteHeader } from "./components/site-chrome";
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  const locale = await getStorefrontLocale();
   const signedIn = Boolean(token);
   let hasTrade = false;
   if (token) {
@@ -49,7 +51,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   }
   let categories: Array<{ id: string; label: string; slug: string }> = [];
   try {
-    const presentation = await getStorefrontPresentation("b2c");
+    const presentation = await getStorefrontPresentation("b2c", locale);
     categories = presentation.categories.map((category) => ({
       id: category.category_id,
       label: category.label,
@@ -59,12 +61,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     // The rail is optional; the rest of the storefront still renders without it.
   }
   return (
-    <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${outfit.variable}`}>
       <body>
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <SiteHeader signedIn={signedIn} hasTrade={hasTrade} categories={categories} />
+        <SiteHeader signedIn={signedIn} hasTrade={hasTrade} categories={categories} locale={locale} />
         <main className="container" id="main">
           {children}
         </main>

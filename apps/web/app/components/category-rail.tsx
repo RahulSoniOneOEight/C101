@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 
 export interface RailCategory {
   id: string;
@@ -14,7 +15,13 @@ export interface RailCategory {
  * category tiles on the home page, and it is hidden on trade, auth, checkout and account pages
  * where a retail category strip would compete with the task at hand.
  */
-export function CategoryRail({ categories }: { categories: RailCategory[] }) {
+export function CategoryRail({
+  categories,
+  locale,
+}: {
+  categories: RailCategory[];
+  locale: StorefrontLocale;
+}) {
   const pathname = usePathname();
   if (categories.length === 0) return null;
   if (
@@ -31,10 +38,10 @@ export function CategoryRail({ categories }: { categories: RailCategory[] }) {
   }
 
   return (
-    <nav className="category-rail" aria-label="Shop categories">
+    <nav className="category-rail" aria-label={locale === "hi-IN" ? "शॉप श्रेणियाँ" : "Shop categories"}>
       <div className="category-rail-inner">
         <Link className="category-rail-all" href="/search">
-          All products
+          {locale === "hi-IN" ? "सभी उत्पाद" : "All products"}
         </Link>
         {categories.map((category) => (
           <Link

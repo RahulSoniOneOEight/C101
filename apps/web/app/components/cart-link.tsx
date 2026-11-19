@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 import { useCart } from "@/lib/cart";
 
 function CartIcon() {
@@ -20,7 +21,13 @@ function CartIcon() {
   );
 }
 
-export function CartLink({ compact = false }: { compact?: boolean }) {
+export function CartLink({
+  compact = false,
+  locale = "en-IN",
+}: {
+  compact?: boolean;
+  locale?: StorefrontLocale;
+}) {
   const { count, ready } = useCart();
   return (
     <Link className={compact ? "tab-item" : "header-action cart-link"} href="/cart">
@@ -32,7 +39,7 @@ export function CartLink({ compact = false }: { compact?: boolean }) {
           </span>
         ) : null}
       </span>
-      <span>Cart</span>
+      <span>{locale === "hi-IN" ? "कार्ट" : "Cart"}</span>
     </Link>
   );
 }

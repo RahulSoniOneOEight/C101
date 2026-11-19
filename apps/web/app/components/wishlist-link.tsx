@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { StorefrontLocale } from "@/lib/locale-shared";
 import { useWishlist } from "@/lib/wishlist";
 
 function HeartIcon() {
@@ -17,7 +18,7 @@ function HeartIcon() {
   );
 }
 
-export function WishlistLink() {
+export function WishlistLink({ locale = "en-IN" }: { locale?: StorefrontLocale }) {
   const { count, ready } = useWishlist();
   return (
     <Link className="header-action wishlist-link" href="/wishlist">
@@ -29,7 +30,7 @@ export function WishlistLink() {
           </span>
         ) : null}
       </span>
-      <span>Wishlist</span>
+      <span>{locale === "hi-IN" ? "पसंदीदा" : "Wishlist"}</span>
     </Link>
   );
 }
