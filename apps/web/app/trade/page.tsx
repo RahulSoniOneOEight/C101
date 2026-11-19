@@ -1,4 +1,14 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import {
+  PILOT_SESSION_COOKIE,
+  getMyContexts,
+  hasTradeRole,
+} from "@/lib/experience-api";
+import { readableBusinessName } from "@/lib/trade";
+import { TradeNav } from "./trade-nav";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "BazarBee Trade",
@@ -37,7 +47,137 @@ const CAPABILITIES = [
   },
 ];
 
-export default function TradePage() {
+export default async function TradePage() {
+  const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
+  let trade = false;
+  let businessId = "";
+  if (token) {
+    try {
+      const contexts = await getMyContexts(token);
+      trade = hasTradeRole(contexts);
+      businessId = contexts.find((context) => context.business_account_id)?.business_account_id ?? "";
+    } catch {
+      // The marketing page remains available when the session or role projection is unavailable.
+    }
+  }
+
+  if (!trade) return <TradeMarketing />;
+  const businessName = readableBusinessName(businessId);
+
+  return (
+    <section className="trade-page">
+      <TradeNav active="overview" />
+      <nav className="breadcrumb" aria-label="Breadcrumb">
+        <Link href="/">Home</Link>
+        <span aria-hidden="true">/</span>
+        <span>BazarBee Trade</span>
+      </nav>
+
+      <div className="trade-hero trade-hero-workspace">
+        <div>
+          <span className="eyebrow eyebrow-light">Trade workspace</span>
+          <h1>Your trade desk, on the web.</h1>
+          <p>
+            The first web slice of the Flutter trade workspace: B2B catalogue with MOQ and tier
+            pricing, credit overview, quotation cart and RFQ entry — on the same account.
+          </p>
+          <div className="hero-actions">
+            <Link className="button button-honey button-lg" href="/trade/catalogue">
+              Open trade catalogue
+            </Link>
+            <Link className="button button-ghost-light button-lg" href="/trade/quote">
+              Quotation cart
+            </Link>
+          </div>
+        </div>
+        <div className="trade-hero-points">
+          <div>
+            <strong>{businessName}</strong>
+            <span>signed-in trade buyer</span>
+          </div>
+          <div>
+            <strong>B2B</strong>
+            <span>terms composed by the shared API</span>
+          </div>
+          <div>
+            <strong>₹1.72L</strong>
+            <span>credit available · staging fixture</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="trade-console">
+        <Link className="trade-console-card" href="/trade/catalogue">
+          <span className="account-card-icon" aria-hidden="true">▦</span>
+          <strong>Trade catalogue</strong>
+          <p>MOQ, quantity tiers and add-to-quote on every B2B offer.</p>
+          <span className="card-link">Browse catalogue →</span>
+        </Link>
+        <Link className="trade-console-card" href="/trade/credit">
+          <span className="account-card-icon" aria-hidden="true">◔</span>
+          <strong>Credit overview</strong>
+          <p>Available limit, utilisation, overdue invoices and next due.</p>
+          <span className="card-link">View credit →</span>
+        </Link>
+        <Link className="trade-console-card" href="/trade/quote">
+          <span className="account-card-icon" aria-hidden="true">▤</span>
+          <strong>Quotation cart / RFQ</strong>
+          <p>Review tier pricing and submit a request for quotation.</p>
+          <span className="card-link">Open quotation cart →</span>
+        </Link>
+      </div>
+
+      <div className="notice simulation-notice">
+        Staging trade slice: catalogue and tier pricing come from the shared B2B API. The credit
+        snapshot mirrors the Flutter demo fixture, and RFQ drafts stay on this device. No order,
+        reservation or payment is created by the RFQ.
+      </div>
+
+      <section className="trade-status">
+        <div>
+          <span className="eyebrow">Scope of this slice</span>
+          <h2>What moved to the web</h2>
+          <p>
+            Catalogue, MOQ/tier pricing, add-to-quote, credit overview and RFQ entry. Credit-ledger
+            actions and the full trade account stay in the Flutter app for now.
+          </p>
+        </div>
+        <div className="trade-status-lists">
+          <div>
+            <h3>Web trade slice</h3>
+            <ul>
+              <li>B2B catalogue from the shared API</li>
+              <li>MOQ and quantity-tier pricing</li>
+              <li>Quotation cart with RFQ submission</li>
+              <li>Credit overview and invoice ledger</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Still in the trade app</h3>
+            <ul>
+              <li>Credit payments and limit actions</li>
+              <li>Quote comparison and approvals</li>
+              <li>Projects and procurement lists</li>
+              <li>Team, roles and GST invoice history</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <div className="trade-cta">
+        <div>
+          <h2>Continue in the trade app</h2>
+          <p className="muted">Same BazarBee account, full trade workflow.</p>
+        </div>
+        <a className="button button-lg" href="https://gobazarbee.com/#/b2b">
+          Open BazarBee Trade
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function TradeMarketing() {
   return (
     <section className="trade-page">
       <nav className="breadcrumb" aria-label="Breadcrumb">

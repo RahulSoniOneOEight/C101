@@ -1,13 +1,18 @@
 /** Formats a minor-unit amount. Server-composed prices remain authoritative. */
 export function formatMoney(amountMinor: number, currencyCode: string): string {
   const major = amountMinor / 100;
-  const text = Number.isInteger(major) ? major.toString() : major.toFixed(2);
   switch (currencyCode.toUpperCase()) {
     case "INR":
-      return `₹${text}`;
+      return `₹${new Intl.NumberFormat("en-IN", {
+        minimumFractionDigits: Number.isInteger(major) ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(major)}`;
     case "USD":
-      return `$${text}`;
+      return `$${new Intl.NumberFormat("en-US", {
+        minimumFractionDigits: Number.isInteger(major) ? 0 : 2,
+        maximumFractionDigits: 2,
+      }).format(major)}`;
     default:
-      return `${currencyCode.toUpperCase()} ${text}`;
+      return `${currencyCode.toUpperCase()} ${major.toFixed(Number.isInteger(major) ? 0 : 2)}`;
   }
 }

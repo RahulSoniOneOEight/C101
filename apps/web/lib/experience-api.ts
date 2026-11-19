@@ -23,6 +23,12 @@ export class ExperienceApiError extends Error {
   }
 }
 
+export interface B2bTier {
+  min_quantity: number;
+  max_quantity: number | null;
+  amount: number;
+}
+
 export interface OfferView {
   id: string;
   seller_id: string;
@@ -36,6 +42,32 @@ export interface OfferView {
   inventory_quantity?: number;
   in_stock?: boolean;
   stock_badge?: string;
+  b2b_configured?: boolean;
+  b2b_moq?: number | null;
+  b2b_tiers?: B2bTier[];
+  b2b_starts_at?: string | null;
+  b2b_ends_at?: string | null;
+}
+
+export interface BuyerContext {
+  user_id: string;
+  roles: string[];
+  business_account_id: string | null;
+  seller_id: string | null;
+}
+
+/** Server-owned role/context projection for the signed-in buyer. */
+export async function getMyContexts(sessionToken: string): Promise<BuyerContext[]> {
+  const result = await call<{ contexts: BuyerContext[] }>("/v1/me/contexts", {
+    headers: authenticatedHeaders(sessionToken),
+  });
+  return result.contexts ?? [];
+}
+
+export function hasTradeRole(contexts: BuyerContext[]): boolean {
+  return contexts.some((context) =>
+    context.roles.some((role) => role === "b2b_buyer" || role.startsWith("b2b_")),
+  );
 }
 
 export interface ComposedProduct {
@@ -497,6 +529,21 @@ export async function uploadReturnEvidence(
 
 export async function listProducts(limit = 24): Promise<ComposedProduct[]> {
   const data = await call<{ products: ComposedProduct[] }>(`/v1/products?limit=${limit}`);
+  return data.products ?? [];
+}
+
+/**
+ * Trade catalogue. The Experience API composes the same product/variant/offer path but reads the
+ * `b2b` sales channel and only returns offers with active B2B terms (MOQ + quantity tiers).
+ */
+export async function listTradeProducts(
+  sessionToken: string,
+  limit = 100,
+): Promise<ComposedProduct[]> {
+  const data = await call<{ products: ComposedProduct[] }>(
+    `/v1/products?channel=b2b&limit=${Math.max(1, Math.min(limit, 250))}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
   return data.products ?? [];
 }
 
