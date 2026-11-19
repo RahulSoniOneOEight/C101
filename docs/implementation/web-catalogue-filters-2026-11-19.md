@@ -1,6 +1,6 @@
 # Web catalogue filters — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-172446`
+Status: **shipped to staging web** · Release `release-web-20261119-172446` · Source `79b23fe`
 Host: `https://gobazarbee.com/search` · Branch `feat/bazarbee-branding`
 
 Lane: **B** — UI plus query-string API, no schema or service changes.
