@@ -686,7 +686,7 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
               throw new EditConflictError();
             }
           }
-          return service.update({ documentId, locale, status: "draft", data });
+          return service.update({ documentId, locale, data });
         }
         if (operation === "duplicate-draft") {
           const source = await service.findOne({
