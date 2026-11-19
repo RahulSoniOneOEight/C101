@@ -17,6 +17,9 @@ class StorefrontBanner {
     required this.themeKey,
     this.body,
     this.imageUrl,
+    this.imageMobileUrl,
+    this.imageTabletUrl,
+    this.imageDesktopUrl,
     this.imageAlt,
     this.actionLabel,
     this.actionUri,
@@ -29,12 +32,22 @@ class StorefrontBanner {
   final String themeKey;
   final String? body;
   final String? imageUrl;
+  final String? imageMobileUrl;
+  final String? imageTabletUrl;
+  final String? imageDesktopUrl;
 
   /// CMS alternative text for the creative. Delivered as `image_alt`; required on published banners.
   final String? imageAlt;
   final String? actionLabel;
   final String? actionUri;
   final int priority;
+
+  bool get hasCreative => <String?>[
+        imageUrl,
+        imageMobileUrl,
+        imageTabletUrl,
+        imageDesktopUrl,
+      ].any((value) => value != null && value.trim().isNotEmpty);
 
   factory StorefrontBanner.fromJson(Map<String, dynamic> json) {
     return StorefrontBanner(
@@ -47,6 +60,9 @@ class StorefrontBanner {
       themeKey: json['theme_key'] as String? ?? 'primary',
       body: json['body'] as String?,
       imageUrl: json['image_uri'] as String?,
+      imageMobileUrl: json['image_mobile_uri'] as String?,
+      imageTabletUrl: json['image_tablet_uri'] as String?,
+      imageDesktopUrl: json['image_desktop_uri'] as String?,
       imageAlt: json['image_alt'] as String?,
       actionLabel: json['action_label'] as String?,
       actionUri: json['action_uri'] as String?,

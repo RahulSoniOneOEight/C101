@@ -54,6 +54,24 @@ final heroBannersProvider = Provider<List<StorefrontBanner>>((ref) {
   return ref.watch(presentationProvider).bannersFor('home.hero');
 });
 
+/// Optional B2C welcome banner rendered above onboarding/login. Absence keeps the existing layout.
+final b2cWelcomeBannerProvider = Provider<StorefrontBanner?>((ref) {
+  final banners = ref.watch(presentationProvider).bannersFor('welcome.banner');
+  return banners.isEmpty ? null : banners.first;
+});
+
+/// Optional B2B welcome banner. The B2B presentation is fetched separately from the B2C provider.
+final b2bWelcomeBannerProvider = FutureProvider<StorefrontBanner?>((ref) async {
+  try {
+    final presentation =
+        await ref.watch(experienceApiProvider).getPresentation(channel: 'b2b');
+    final banners = presentation.bannersFor('welcome.banner');
+    return banners.isEmpty ? null : banners.first;
+  } catch (_) {
+    return null;
+  }
+});
+
 /// Offline demo catalog used when the Medusa backend is unreachable and there
 /// is no cached catalog. Mirrors the reference BuildKart profile so the
 /// storefront is testable without a running backend.

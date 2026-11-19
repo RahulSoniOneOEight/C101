@@ -14,6 +14,7 @@ import '../providers/orders_providers.dart';
 import '../providers/account_providers.dart';
 import '../providers/pilot_providers.dart';
 import '../widgets/status_views.dart';
+import '../widgets/welcome_banner.dart';
 import '../widgets/conversation_bell.dart';
 import '../widgets/order_progress_timeline.dart';
 import 'return_flow_screens.dart';
@@ -25,7 +26,7 @@ AgencyColors _c(BuildContext c) =>
 // Onboarding
 // ---------------------------------------------------------------------------
 
-class OnboardingScreen extends StatelessWidget {
+class OnboardingScreen extends ConsumerWidget {
   const OnboardingScreen({super.key});
 
   static const List<(IconData, String, String)> _benefits =
@@ -48,8 +49,14 @@ class OnboardingScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = _c(context);
+    final banner = ref.watch(b2cWelcomeBannerProvider);
+    final title =
+        banner?.title.trim().isNotEmpty == true ? banner!.title : 'Everything you need, delivered to your site.';
+    final subtitle = banner?.body?.trim().isNotEmpty == true
+        ? banner!.body!
+        : 'Shop for your home or business—from everyday essentials to bulk building supplies.';
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -61,14 +68,16 @@ class OnboardingScreen extends StatelessWidget {
                   child: Column(
                     children: <Widget>[
                       const SizedBox(height: AgencySpacing.lg),
-                      Image.asset(
-                        'assets/branding/bazarbee-app-icon.png',
-                        height: 72,
-                        width: 72,
-                        fit: BoxFit.contain,
-                      ),
+                      if (banner != null) WelcomeBanner(banner: banner),
+                      if (banner?.hasCreative != true)
+                        Image.asset(
+                          'assets/branding/bazarbee-app-icon.png',
+                          height: 72,
+                          width: 72,
+                          fit: BoxFit.contain,
+                        ),
                       const SizedBox(height: AgencySpacing.lg),
-                      Text('Everything you need, delivered to your site.',
+                      Text(title,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 24,
@@ -77,8 +86,7 @@ class OnboardingScreen extends StatelessWidget {
                               color: colors.contentPrimary)),
                       const SizedBox(height: AgencySpacing.sm),
                       Text(
-                          'Shop for your home or business—from everyday '
-                          'essentials to bulk building supplies.',
+                          subtitle,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                               fontSize: 14,
@@ -211,6 +219,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
+    final banner = _isB2B
+        ? ref.watch(b2bWelcomeBannerProvider).value
+        : ref.watch(b2cWelcomeBannerProvider);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -219,6 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const SizedBox(height: AgencySpacing.lg),
+              if (banner != null) WelcomeBanner(banner: banner),
               Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
