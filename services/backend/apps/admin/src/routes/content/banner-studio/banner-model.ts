@@ -393,6 +393,21 @@ export function validateBannerForm(
   if (form.ctaAppRoute.trim() && !form.ctaAppRoute.trim().startsWith("/")) {
     errors.push("The app route must start with '/'.");
   }
+  const referencePrefix =
+    form.ctaTargetType === "product"
+      ? "prod_"
+      : form.ctaTargetType === "category"
+        ? "pcat_"
+        : form.ctaTargetType === "collection"
+          ? "pcol_"
+          : "";
+  if (
+    referencePrefix &&
+    form.ctaTargetId.trim() &&
+    !form.ctaTargetId.trim().startsWith(referencePrefix)
+  ) {
+    errors.push(`The ${CTA_TARGET_LABELS[form.ctaTargetType]} must start with '${referencePrefix}'.`);
+  }
   if (
     form.ctaWebPath.trim() &&
     !form.ctaWebPath.trim().startsWith("/") &&

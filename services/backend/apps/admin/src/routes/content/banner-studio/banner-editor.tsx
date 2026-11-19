@@ -139,6 +139,26 @@ export function BannerEditor({
   const categoryOptions = categoriesQuery.data?.categories ?? [];
   const categoryName = categoryOptions.find((category) => category.id === form.categoryId)?.name;
 
+  const productsQuery = useQuery({
+    queryKey: ["buildkart", "commerce-products-picker"],
+    queryFn: () => client.admin.products.query(),
+    enabled: open && form.ctaTargetType === "product",
+    staleTime: 5 * 60 * 1000,
+  });
+  const productOptions =
+    (productsQuery.data as { products?: Array<{ id: string; title?: string }> } | undefined)
+      ?.products ?? [];
+
+  const collectionsQuery = useQuery({
+    queryKey: ["buildkart", "commerce-collections-picker"],
+    queryFn: () => client.admin.collections.query(),
+    enabled: open && form.ctaTargetType === "collection",
+    staleTime: 5 * 60 * 1000,
+  });
+  const collectionOptions =
+    (collectionsQuery.data as { collections?: Array<{ id: string; title?: string }> } | undefined)
+      ?.collections ?? [];
+
   // Delivery resolves a category's copy from the banner first, then the published category
   // editorial. The preview reads the same two records so it cannot show a heading delivery ignores.
   const editorialsQuery = useQuery({
@@ -698,7 +718,11 @@ export function BannerEditor({
                             ? "Must be an https URL."
                             : form.ctaTargetType === "category"
                               ? "Start typing a category name. The storefront stores the category id."
-                              : "Enter the governed commerce reference id."}
+                              : form.ctaTargetType === "product"
+                                ? "Start typing a product title. The storefront stores the product id."
+                                : form.ctaTargetType === "collection"
+                                  ? "Start typing a collection title. The storefront stores the collection id."
+                                  : "Enter the governed commerce reference id."}
                       >
                         {form.ctaTargetType === "category" ? (
                           <>
@@ -713,6 +737,40 @@ export function BannerEditor({
                               {categoryOptions.map((category) => (
                                 <option key={category.id} value={category.id}>
                                   {category.name}
+                                </option>
+                              ))}
+                            </datalist>
+                          </>
+                        ) : form.ctaTargetType === "product" ? (
+                          <>
+                            <Input
+                              id="banner-dest-target"
+                              list="banner-product-refs"
+                              placeholder="Start typing a product title"
+                              value={form.ctaTargetId}
+                              onChange={(event) => update({ ctaTargetId: event.target.value })}
+                            />
+                            <datalist id="banner-product-refs">
+                              {productOptions.map((product) => (
+                                <option key={product.id} value={product.id}>
+                                  {product.title ?? product.id}
+                                </option>
+                              ))}
+                            </datalist>
+                          </>
+                        ) : form.ctaTargetType === "collection" ? (
+                          <>
+                            <Input
+                              id="banner-dest-target"
+                              list="banner-collection-refs"
+                              placeholder="Start typing a collection title"
+                              value={form.ctaTargetId}
+                              onChange={(event) => update({ ctaTargetId: event.target.value })}
+                            />
+                            <datalist id="banner-collection-refs">
+                              {collectionOptions.map((collection) => (
+                                <option key={collection.id} value={collection.id}>
+                                  {collection.title ?? collection.id}
                                 </option>
                               ))}
                             </datalist>
