@@ -70,6 +70,19 @@ export function hasTradeRole(contexts: BuyerContext[]): boolean {
   );
 }
 
+export interface Serviceability {
+  serviceable: boolean;
+  eta_days: number;
+  reason: string | null;
+}
+
+/** Staging logistics promise for a postal code (same endpoint as the Flutter fulfilment card). */
+export async function checkServiceability(postcode: string): Promise<Serviceability> {
+  return call<Serviceability>(
+    `/v1/logistics/serviceability?postcode=${encodeURIComponent(postcode)}`,
+  );
+}
+
 export interface ComposedProduct {
   id: string;
   title: string;
@@ -693,6 +706,22 @@ export interface WorkspaceChannel {
   unread_count?: number;
 }
 
+export interface WorkspaceMessageReference {
+  reference_type: string;
+  reference_id: string;
+  display_snapshot?: {
+    product_id?: string | null;
+    variant_id?: string | null;
+    product_title?: string | null;
+    sku?: string | null;
+    seller_name?: string | null;
+    seller_id?: string | null;
+    quantity?: number | null;
+    unit_price_minor?: number | null;
+    currency_code?: string | null;
+  } | null;
+}
+
 export interface WorkspaceMessage {
   id: string;
   workspace_id: string;
@@ -704,6 +733,7 @@ export interface WorkspaceMessage {
   sequence: number;
   created_at: string;
   edited_at?: string | null;
+  references?: WorkspaceMessageReference[];
 }
 
 export interface WorkspaceMessagePage {
@@ -775,6 +805,54 @@ export async function sendWorkspaceMessage(
     },
   );
   return result.message;
+}
+
+export interface WorkspaceProductShare {
+  productId: string;
+  variantId: string;
+  offerId: string;
+  sellerId?: string | null;
+  quantity: number;
+  productTitle: string;
+  sku?: string | null;
+  unitPriceMinor?: number | null;
+  currency?: string | null;
+  sellerName?: string | null;
+}
+
+/**
+ * Product "Discuss" capture: writes the product into the shared conversation as a product
+ * reference. The workspace service de-duplicates a repeat share of the same variant.
+ */
+export async function shareWorkspaceProduct(
+  sessionToken: string,
+  channelId: string,
+  input: WorkspaceProductShare,
+): Promise<WorkspaceMessage> {
+  return call<WorkspaceMessage>(`/v1/channels/${encodeURIComponent(channelId)}/shares`, {
+    method: "POST",
+    headers: {
+      ...authenticatedHeaders(sessionToken),
+      "idempotency-key": `web_share_${input.variantId}`,
+    },
+    body: JSON.stringify({
+      product_id: input.productId,
+      variant_id: input.variantId,
+      offer_id: input.offerId,
+      seller_id: input.sellerId ?? null,
+      quantity: input.quantity,
+      product_title: input.productTitle,
+      body: `Shared ${input.productTitle} for discussion.`,
+      commercial_snapshot: {
+        product_id: input.productId,
+        variant_id: input.variantId,
+        sku: input.sku ?? null,
+        unit_price_minor: input.unitPriceMinor ?? null,
+        currency_code: input.currency ?? null,
+        seller_name: input.sellerName ?? null,
+      },
+    }),
+  });
 }
 
 export interface PairedProduct extends ComposedProduct {
@@ -851,6 +929,7 @@ export interface CheckoutInput {
   address1: string;
   city: string;
   postalCode: string;
+  promoCode?: string;
 }
 
 /**
@@ -864,6 +943,8 @@ export interface CartQuote {
   total: number;
   currency: string;
   itemCount: number;
+  promotions?: { code: string; label: string; isAutomatic: boolean }[];
+  autoOffer?: { code: string; label: string } | null;
 }
 
 interface CartView {
@@ -874,6 +955,8 @@ interface CartView {
   discount_total?: number;
   total?: number;
   currency_code?: string;
+  promotions?: { code?: unknown; label?: unknown; is_automatic?: unknown }[];
+  auto_offer?: { code?: unknown; label?: unknown } | null;
 }
 
 /**
@@ -885,7 +968,7 @@ interface CartView {
  * the checkout cart instead of creating a quote cart.
  */
 export async function quoteCart(
-  input: { lines: CheckoutLineInput[]; postalCode: string; email: string },
+  input: { lines: CheckoutLineInput[]; postalCode: string; email: string; promoCode?: string },
   sessionToken: string,
 ): Promise<CartQuote> {
   if (input.lines.length === 0) throw new Error("The cart is empty.");
@@ -917,6 +1000,14 @@ export async function quoteCart(
       },
     }),
   });
+  const promoCode = input.promoCode?.trim();
+  if (promoCode) {
+    await call(`/v1/carts/${encodeURIComponent(cart.id)}/promotions`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ code: promoCode }),
+    });
+  }
   const delivery = await call<{ unavailable?: unknown[] }>(
     `/v1/carts/${encodeURIComponent(cart.id)}/delivery-tier`,
     {
@@ -932,6 +1023,32 @@ export async function quoteCart(
     headers: auth,
   });
   const subtotal = view.item_subtotal ?? view.subtotal ?? 0;
+  const promotions = Array.isArray(view.promotions)
+    ? view.promotions
+        .map((promotion) => ({
+          code: typeof promotion.code === "string" ? promotion.code : "",
+          label:
+            typeof promotion.label === "string" && promotion.label.trim()
+              ? promotion.label
+              : typeof promotion.code === "string"
+                ? promotion.code
+                : "",
+          isAutomatic: Boolean(promotion.is_automatic),
+        }))
+        .filter((promotion) => promotion.code)
+    : [];
+  const autoOffer =
+    view.auto_offer &&
+    typeof view.auto_offer.code === "string" &&
+    view.auto_offer.code.trim()
+      ? {
+          code: view.auto_offer.code,
+          label:
+            typeof view.auto_offer.label === "string" && view.auto_offer.label.trim()
+              ? view.auto_offer.label
+              : view.auto_offer.code,
+        }
+      : null;
   return {
     subtotal,
     shipping: view.shipping_total ?? 0,
@@ -939,6 +1056,8 @@ export async function quoteCart(
     total: view.total ?? subtotal,
     currency: (view.currency_code ?? "inr").toUpperCase(),
     itemCount: Array.isArray(view.items) ? view.items.length : input.lines.length,
+    promotions,
+    autoOffer,
   };
 }
 
@@ -975,6 +1094,14 @@ export async function completeCheckout(
       },
     }),
   });
+  const promoCode = input.promoCode?.trim();
+  if (promoCode) {
+    await call(`/v1/carts/${encodeURIComponent(cart.id)}/promotions`, {
+      method: "POST",
+      headers: auth,
+      body: JSON.stringify({ code: promoCode }),
+    });
+  }
   // One cart-level delivery choice resolves a shipping method for every seller group, so a
   // multi-seller basket cannot be left with a partial selection.
   const delivery = await call<{

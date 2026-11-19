@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart";
 import { deliveryChangeEventName, readDeliveryAddress } from "@/lib/delivery";
+import { readPromoCode, writePromoCode } from "@/lib/promo-code";
 import type { CartQuote } from "@/lib/experience-api";
 import { ProductImage } from "../components/product-image";
 
@@ -54,6 +55,9 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const [postalCode, setPostalCode] = useState("302001");
   const [city, setCity] = useState("Jaipur");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
+  const [promoDraft, setPromoDraft] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState("");
+  const [promoError, setPromoError] = useState("");
   const linesKey = items.map((item) => `${item.offerId}:${item.quantity}`).join("|");
 
   // The home delivery selector is the source of truth for this browser. It pre-fills the quote
@@ -74,6 +78,11 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
     };
   }, []);
 
+  useEffect(() => {
+    const saved = readPromoCode();
+    if (saved) setAppliedPromo(saved);
+  }, []);
+
   // Load an authoritative quote (subtotal, automatic discount, delivery, total) from the API.
   useEffect(() => {
     if (!ready || items.length === 0) return;
@@ -90,25 +99,68 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           body: JSON.stringify({
             lines: items.map((item) => ({ offerId: item.offerId, quantity: item.quantity })),
             postalCode,
+            promoCode: appliedPromo || undefined,
           }),
         });
         const data = (await response.json()) as CartQuote & { error?: string };
-        if (!response.ok) throw new Error(data.error ?? "Could not calculate the order total.");
+        if (!response.ok) {
+          const failure = new Error(data.error ?? "Could not calculate the order total.") as Error & {
+            status?: number;
+          };
+          failure.status = response.status;
+          throw failure;
+        }
         setQuote({ status: "ready", data });
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
-        setQuote({ status: "error", message: (error as Error).message });
+        const message = (error as Error).message;
+        const status = (error as Error & { status?: number }).status;
+        if (appliedPromo && status === 400) {
+          // The server rejected the code and kept the existing offer. Surface the reason and
+          // re-quote without the rejected code. A transport/service failure must not be blamed
+          // on the code, so only a 400 rejection clears it.
+          setPromoError(message);
+          writePromoCode("");
+          setAppliedPromo("");
+          setQuote({ status: "loading" });
+          return;
+        }
+        setQuote({ status: "error", message });
       }
     }, 450);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [items, linesKey, postalCode, ready]);
+  }, [items, linesKey, postalCode, ready, appliedPromo]);
 
   const quoted = quote.status === "ready" ? quote.data : null;
   const summarySubtotal = quoted?.subtotal ?? subtotalMinor;
   const summaryCurrency = quoted?.currency ?? currency;
+  const autoPromotion =
+    quoted?.autoOffer ??
+    quoted?.promotions?.find((promotion) => promotion.isAutomatic) ??
+    null;
+  const selectedPromotion =
+    quoted?.promotions?.find((promotion) => !promotion.isAutomatic) ?? null;
+  const applyingPromo = quote.status === "loading" && Boolean(appliedPromo);
+
+  function applyPromo(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    const code = promoDraft.trim().toUpperCase();
+    if (!code) return;
+    setPromoError("");
+    setAppliedPromo(code);
+    writePromoCode(code);
+    setPromoDraft("");
+  }
+
+  function clearPromo() {
+    setPromoError("");
+    setAppliedPromo("");
+    writePromoCode("");
+    setPromoDraft("");
+  }
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,6 +179,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           address1: form.get("address1"),
           city: form.get("city"),
           postalCode: form.get("postalCode"),
+          promoCode: appliedPromo || undefined,
         }),
       });
       const data = (await res.json()) as {
@@ -197,7 +250,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           </div>
           <div>
             <dt>Delivery</dt>
-            <dd>Standard · 1–3 business days</dd>
+            <dd>Standard · 3–5 business days</dd>
           </div>
           <div>
             <dt>Invoice</dt>
@@ -305,6 +358,72 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         </div>
 
         <div className="checkout-block">
+          <span className="eyebrow">Offers &amp; promo codes</span>
+          <h2>Save on this order</h2>
+          <div className="promo-status">
+            {selectedPromotion ? (
+              <span className="promo-chip">
+                <span>Applied code</span>
+                <strong>{selectedPromotion.label}</strong>
+                <small>{selectedPromotion.code}</small>
+              </span>
+            ) : autoPromotion ? (
+              <span className="promo-chip auto">
+                <span>Auto applied</span>
+                <strong>{autoPromotion.label}</strong>
+                <small>{autoPromotion.code}</small>
+              </span>
+            ) : (
+              <span className="muted">No offer applied yet.</span>
+            )}
+          </div>
+          <div className="promo-form">
+            <label className="sr-only" htmlFor="promo-code">
+              Promo code
+            </label>
+            <input
+              id="promo-code"
+              value={promoDraft}
+              onChange={(event) => setPromoDraft(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applyPromo();
+                }
+              }}
+              placeholder="Enter promo code"
+              autoComplete="off"
+              maxLength={40}
+            />
+            <button
+              className="button"
+              type="button"
+              disabled={applyingPromo || !promoDraft.trim()}
+              onClick={() => applyPromo()}
+            >
+              {applyingPromo ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {appliedPromo ? (
+            <p className="promo-applied">
+              {applyingPromo ? `Checking ${appliedPromo}…` : `Code ${appliedPromo} applied.`}{" "}
+              <button type="button" className="text-button" onClick={clearPromo}>
+                Use automatic offer
+              </button>
+            </p>
+          ) : null}
+          {promoError ? (
+            <p className="promo-error" role="alert">
+              {promoError}
+            </p>
+          ) : null}
+          <p className="field-hint">
+            The store applies the best automatic offer by default. Applying a code replaces it;
+            only one offer applies at a time.
+          </p>
+        </div>
+
+        <div className="checkout-block">
           <span className="eyebrow">Payment</span>
           <h2>Simulated prepaid payment</h2>
           <p className="muted">
@@ -370,7 +489,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           </div>
           {quoted && quoted.discount > 0 ? (
             <div className="discount-row">
-              <dt>Automatic offer</dt>
+              <dt>{selectedPromotion ? `Promo ${selectedPromotion.code}` : "Automatic offer"}</dt>
               <dd>− {formatMoney(quoted.discount, summaryCurrency)}</dd>
             </div>
           ) : null}

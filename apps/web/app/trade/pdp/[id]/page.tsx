@@ -16,6 +16,8 @@ import { deliveryPromise } from "@/lib/delivery-promise";
 import { formatMoney } from "@/lib/money";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { ProductImage } from "../../../components/product-image";
+import { ProductFulfilment } from "../../../components/product-fulfilment";
+import { DiscussProductButton } from "../../../components/discuss-product-button";
 import { TradeNav } from "../../trade-nav";
 import { TradeProductCard } from "../../trade-product-card";
 import { TradePricingPanel } from "./trade-pricing-panel";
@@ -114,6 +116,10 @@ export default async function TradePdpPage({
   const stock = productStockNote(offer);
   const delivery = productDeliveryNote(product) ?? `Standard delivery · ${deliveryPromise(product).label}`;
   const category = product.categories?.[0]?.name;
+  const brand =
+    typeof product.metadata?.brand === "string" && product.metadata.brand.trim()
+      ? product.metadata.brand.trim()
+      : null;
   const related = catalogue
     .filter((candidate) => candidate.id !== product.id && candidate.best_price)
     .slice(0, 3);
@@ -160,8 +166,31 @@ export default async function TradePdpPage({
           <p className="trade-card-delivery">{delivery}</p>
 
           <TradePricingPanel product={pricedProduct} />
+          <ProductFulfilment />
+          <div className="trade-pdp-actions">
+            <DiscussProductButton
+              title={product.title}
+              sku={offer?.sku}
+              productId={product.id}
+              variantId={offer?.variant_id}
+              offerId={offer?.id}
+              sellerId={offer?.seller_id}
+              sellerName={offer?.seller_name}
+              quantity={Math.max(1, offer?.b2b_moq ?? 1)}
+              unitPriceMinor={offer?.unit_amount_minor}
+              currency={offer?.currency_code}
+            />
+          </div>
 
           <dl className="product-specs trade-pdp-specs">
+            <div>
+              <dt>Brand</dt>
+              <dd>{brand ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>Category</dt>
+              <dd>{category ?? "—"}</dd>
+            </div>
             <div>
               <dt>MOQ</dt>
               <dd>{Math.max(1, offer?.b2b_moq ?? 1)} pcs</dd>
@@ -179,6 +208,31 @@ export default async function TradePdpPage({
               <dd>{delivery}</dd>
             </div>
           </dl>
+
+          {product.offers && product.offers.length > 1 ? (
+            <div className="seller-offers">
+              <span className="eyebrow">Seller offers</span>
+              <h2>Compare trade sellers</h2>
+              <div className="seller-offer-list">
+                {product.offers.map((candidate) => (
+                  <div
+                    className={candidate.id === offer?.id ? "seller-offer selected" : "seller-offer"}
+                    key={candidate.id}
+                  >
+                    <div>
+                      <strong>{candidate.seller_name ?? candidate.seller_id}</strong>
+                      <small>
+                        MOQ {candidate.b2b_moq ?? 1} ·{" "}
+                        {candidate.in_stock === false ? "Out of stock" : "In stock"}
+                      </small>
+                    </div>
+                    <span>{formatMoney(candidate.unit_amount_minor, candidate.currency_code)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="field-hint">Best trade offer is selected for this page.</p>
+            </div>
+          ) : null}
         </div>
       </div>
 

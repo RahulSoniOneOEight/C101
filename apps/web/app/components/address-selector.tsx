@@ -103,6 +103,18 @@ export function AddressSelector({ locale = "en-IN" }: { locale?: "en-IN" | "hi-I
     };
   }, [open]);
 
+  useEffect(() => {
+    const openFromPage = () => {
+      setPincode(address.pincode);
+      setCity(address.city);
+      setState(address.state);
+      setError("");
+      setOpen(true);
+    };
+    window.addEventListener("bazarbee:open-address", openFromPage);
+    return () => window.removeEventListener("bazarbee:open-address", openFromPage);
+  }, [address]);
+
   const openSelector = () => {
     setPincode(address.pincode);
     setCity(address.city);

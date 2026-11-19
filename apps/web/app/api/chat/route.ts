@@ -8,6 +8,7 @@ import {
   listWorkspaceMessages,
   listWorkspaces,
   sendWorkspaceMessage,
+  shareWorkspaceProduct,
 } from "@/lib/experience-api";
 
 /** Session-authenticated proxy for the workspace conversation used by the "Ask BazarBee" drawer. */
@@ -53,7 +54,22 @@ export async function POST(request: Request) {
   if (!token) {
     return NextResponse.json({ error: "Sign in to chat with BazarBee." }, { status: 401 });
   }
-  let body: { action?: unknown; channelId?: unknown; body?: unknown; name?: unknown } = {};
+  let body: {
+    action?: unknown;
+    channelId?: unknown;
+    body?: unknown;
+    name?: unknown;
+    productId?: unknown;
+    variantId?: unknown;
+    offerId?: unknown;
+    sellerId?: unknown;
+    quantity?: unknown;
+    productTitle?: unknown;
+    sku?: unknown;
+    unitPriceMinor?: unknown;
+    currency?: unknown;
+    sellerName?: unknown;
+  } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -78,6 +94,45 @@ export async function POST(request: Request) {
         );
       }
       const message = await sendWorkspaceMessage(token, channelId, text.slice(0, 4000));
+      return NextResponse.json({ message }, { headers: { "cache-control": "no-store" } });
+    }
+    if (body.action === "share-product") {
+      const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
+      const productId = typeof body.productId === "string" ? body.productId.trim() : "";
+      const variantId = typeof body.variantId === "string" ? body.variantId.trim() : "";
+      const offerId = typeof body.offerId === "string" ? body.offerId.trim() : "";
+      const productTitle =
+        typeof body.productTitle === "string" ? body.productTitle.trim().slice(0, 240) : "";
+      const quantity = Number(body.quantity);
+      if (
+        !channelId ||
+        !productId ||
+        !variantId ||
+        !offerId ||
+        !productTitle ||
+        !Number.isInteger(quantity) ||
+        quantity < 1
+      ) {
+        return NextResponse.json(
+          { error: "A channel, product, variant, offer and quantity are required." },
+          { status: 400 },
+        );
+      }
+      const message = await shareWorkspaceProduct(token, channelId, {
+        productId,
+        variantId,
+        offerId,
+        sellerId: typeof body.sellerId === "string" ? body.sellerId : null,
+        quantity,
+        productTitle,
+        sku: typeof body.sku === "string" ? body.sku : null,
+        unitPriceMinor:
+          typeof body.unitPriceMinor === "number" && Number.isFinite(body.unitPriceMinor)
+            ? body.unitPriceMinor
+            : null,
+        currency: typeof body.currency === "string" ? body.currency : null,
+        sellerName: typeof body.sellerName === "string" ? body.sellerName : null,
+      });
       return NextResponse.json({ message }, { headers: { "cache-control": "no-store" } });
     }
     return NextResponse.json({ error: "Unknown chat action." }, { status: 400 });

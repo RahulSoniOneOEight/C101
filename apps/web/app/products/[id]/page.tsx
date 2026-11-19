@@ -8,7 +8,11 @@ import {
   type ProductDetail,
 } from "@/lib/experience-api";
 import { categoryForProduct } from "@/lib/catalogue";
+import { deliveryPromise } from "@/lib/delivery-promise";
+import { productDeliveryNote } from "@/lib/storefront";
 import { ProductImage } from "../../components/product-image";
+import { ProductFulfilment } from "../../components/product-fulfilment";
+import { DiscussProductButton } from "../../components/discuss-product-button";
 import { RecordProductView } from "../../components/record-product-view";
 import { RecentlyViewedRail } from "../../components/recently-viewed-rail";
 import { WishlistButton } from "../../components/wishlist-button";
@@ -55,6 +59,12 @@ function ProductView({
   const paired = pair?.paired ?? null;
   const pairedOffer = paired?.best_price ?? null;
   const pairedOutOfStock = pair?.paired_availability === "out_of_stock";
+  const deliveryText =
+    productDeliveryNote(product) ?? `Standard · ${deliveryPromise(product).label}`;
+  const brand =
+    typeof product.metadata?.brand === "string" && product.metadata.brand.trim()
+      ? product.metadata.brand.trim()
+      : null;
   // The detail endpoint does not repeat `offer_count`; derive it from priced variants.
   const offerCount =
     product.offer_count ??
@@ -182,7 +192,20 @@ function ProductView({
                     image: product.thumbnail ?? null,
                   }}
                 />
+                <DiscussProductButton
+                  title={product.title}
+                  sku={variant?.sku}
+                  productId={product.id}
+                  variantId={variant?.id}
+                  offerId={offer.id}
+                  sellerId={offer.seller_id}
+                  sellerName={offer.seller_name}
+                  quantity={1}
+                  unitPriceMinor={offer.unit_amount_minor}
+                  currency={offer.currency_code}
+                />
               </div>
+              <ProductFulfilment />
             </>
           ) : (
             <div className="notice err">
@@ -199,24 +222,56 @@ function ProductView({
             </div>
             <div>
               <span className="seller-label">Delivery</span>
-              <strong>1–3 business days</strong>
+              <strong>{deliveryText}</strong>
             </div>
             <div>
               <span className="seller-label">Returns</span>
               <strong>Owner-scoped, simple</strong>
             </div>
           </div>
+          {product.offers && product.offers.length > 1 ? (
+            <div className="seller-offers">
+              <span className="eyebrow">Seller offers</span>
+              <h2>Compare sellers</h2>
+              <div className="seller-offer-list">
+                {product.offers.map((candidate) => (
+                  <div
+                    className={candidate.id === offer?.id ? "seller-offer selected" : "seller-offer"}
+                    key={candidate.id}
+                  >
+                    <div>
+                      <strong>{candidate.seller_name ?? candidate.seller_id}</strong>
+                      <small>{candidate.in_stock === false ? "Out of stock" : "In stock"}</small>
+                    </div>
+                    <span>{formatMoney(candidate.unit_amount_minor, candidate.currency_code)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="field-hint">Best-price offer is selected for this page.</p>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {product.description ? (
-        <section className="product-about">
-          <div>
-            <span className="eyebrow">Product details</span>
-            <h2>About this product</h2>
+      <section className="product-about">
+        <div>
+          <span className="eyebrow">Product details</span>
+          <h2>About this product</h2>
+          {product.description ? (
             <p>{product.description}</p>
-          </div>
-          <dl className="product-specs">
+          ) : (
+            <p className="muted">Full catalogue copy is being prepared for this line.</p>
+          )}
+        </div>
+        <dl className="product-specs">
+            <div>
+              <dt>Brand</dt>
+              <dd>{brand ?? "—"}</dd>
+            </div>
+            <div>
+              <dt>Category</dt>
+              <dd>{category?.name ?? "—"}</dd>
+            </div>
             <div>
               <dt>SKU</dt>
               <dd>{variant?.sku ?? "—"}</dd>
@@ -230,12 +285,15 @@ function ProductView({
               <dd>{offerCount}</dd>
             </div>
             <div>
+              <dt>Delivery</dt>
+              <dd>{deliveryText}</dd>
+            </div>
+            <div>
               <dt>Payment</dt>
               <dd>{(product.commercial?.payment_eligibility ?? []).join(", ") || "Simulated prepaid"}</dd>
             </div>
           </dl>
         </section>
-      ) : null}
 
       {paired ? (
         <section className="pair-block">

@@ -17,15 +17,23 @@ export default async function SignInPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  const channel = next?.startsWith("/trade") ? "b2b" : "b2c";
+  const initialChannel = next?.startsWith("/trade") ? "b2b" : "b2c";
   const locale = await getStorefrontLocale();
   const hindi = locale === "hi-IN";
-  let welcomeBanner: StorefrontBanner | null = null;
+  let b2cWelcomeBanner: StorefrontBanner | null = null;
+  let b2bWelcomeBanner: StorefrontBanner | null = null;
   try {
-    const presentation = await getStorefrontPresentation(channel, locale);
-    welcomeBanner =
-      presentation.banners.find(
-        (banner) => banner.placement === `${channel}.welcome.banner`,
+    const [b2cPresentation, b2bPresentation] = await Promise.all([
+      getStorefrontPresentation("b2c", locale),
+      getStorefrontPresentation("b2b", locale),
+    ]);
+    b2cWelcomeBanner =
+      b2cPresentation.banners.find(
+        (banner) => banner.placement === "b2c.welcome.banner",
+      ) ?? null;
+    b2bWelcomeBanner =
+      b2bPresentation.banners.find(
+        (banner) => banner.placement === "b2b.welcome.banner",
       ) ?? null;
   } catch {
     // The sign-in form remains usable if CMS content is unavailable.
@@ -41,7 +49,12 @@ export default async function SignInPage({
             : "Use a one-time email code or a magic link. Orders, tracking and returns stay owner-scoped — an order number alone never grants access."}
         </p>
       </div>
-      <SignInForm next={next} welcomeBanner={welcomeBanner} />
+      <SignInForm
+        next={next}
+        initialChannel={initialChannel}
+        b2cWelcomeBanner={b2cWelcomeBanner}
+        b2bWelcomeBanner={b2bWelcomeBanner}
+      />
       <p className="boundary-note">
         {hindi
           ? "सीमित स्टेजिंग पायलट · अनुमत पहचान · सिंगल-यूज़ कोड और लिंक · HTTP-only ब्राउज़र सेशन"

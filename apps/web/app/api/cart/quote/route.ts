@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { lines?: unknown; postalCode?: string };
+  let body: { lines?: unknown; postalCode?: string; promoCode?: string };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -55,6 +55,10 @@ export async function POST(request: Request) {
         lines,
         postalCode: typeof body.postalCode === "string" ? body.postalCode : "",
         email,
+        promoCode:
+          typeof body.promoCode === "string"
+            ? body.promoCode.trim().slice(0, 40) || undefined
+            : undefined,
       },
       token,
     );
@@ -62,6 +66,23 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ExperienceApiError && error.status === 401) {
       return NextResponse.json({ error: "Your session expired. Sign in again." }, { status: 401 });
+    }
+    if (
+      error instanceof ExperienceApiError &&
+      (error.problemType === "promotion-rejected" ||
+        error.problemType === "promotion-not-found" ||
+        error.problemType === "promotion-usage-limit" ||
+        error.problemType === "promotion-unavailable")
+    ) {
+      const message =
+        error.problemType === "promotion-not-found"
+          ? "That promo code was not found."
+          : error.problemType === "promotion-usage-limit"
+            ? "That offer has reached its usage limit."
+            : error.problemType === "promotion-unavailable"
+              ? "Promotions are unavailable right now. Please retry."
+              : "That code is not eligible for this cart.";
+      return NextResponse.json({ error: message }, { status: 400 });
     }
     if (error instanceof ExperienceApiError && [400, 404, 409].includes(error.status)) {
       return NextResponse.json({ error: error.message }, { status: error.status });

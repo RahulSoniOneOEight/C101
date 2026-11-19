@@ -8,6 +8,7 @@ import type {
   WorkspaceMessage,
   WorkspaceSummary,
 } from "@/lib/experience-api";
+import { formatMoney } from "@/lib/money";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -16,6 +17,21 @@ const SUGGESTIONS = [
   "Summarise my shared list",
   "How do I move this list into a cart?",
 ];
+
+const CHANNEL_KEY = "bazarbee.chat.channel.v1";
+
+interface PendingShare {
+  productId: string;
+  variantId: string;
+  offerId: string;
+  sellerId?: string;
+  sellerName?: string;
+  quantity: number;
+  productTitle: string;
+  sku?: string;
+  unitPriceMinor?: number;
+  currency?: string;
+}
 
 function SparkIcon() {
   return (
@@ -73,6 +89,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
@@ -156,8 +173,16 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
           Boolean(candidate) && list.findIndex((item) => item?.id === candidate?.id) === index,
       );
       setChannels(visible);
-      setChannel(assistant);
-      await loadMessages(assistant);
+      let savedChannel = "";
+      try {
+        savedChannel = window.localStorage.getItem(CHANNEL_KEY) ?? "";
+      } catch {
+        // Storage is optional; fall back to the assistant channel.
+      }
+      const initialChannel =
+        visible.find((candidate) => candidate.id === savedChannel) ?? assistant;
+      setChannel(initialChannel);
+      await loadMessages(initialChannel);
       setState("ready");
       setAuthRequired(false);
     } catch (cause) {
@@ -182,12 +207,77 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   }, [open]);
 
   useEffect(() => {
+    const productContext = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          title?: string;
+          sku?: string;
+          productId?: string;
+          variantId?: string;
+          offerId?: string;
+          sellerId?: string;
+          sellerName?: string;
+          quantity?: number;
+          unitPriceMinor?: number;
+          currency?: string;
+        }>
+      ).detail;
+      if (!detail?.title) return;
+      setOpen(true);
+      if (
+        detail.productId &&
+        detail.variantId &&
+        detail.offerId &&
+        Number.isInteger(detail.quantity) &&
+        (detail.quantity ?? 0) > 0
+      ) {
+        setDraft("");
+        setPendingShare({
+          productId: detail.productId,
+          variantId: detail.variantId,
+          offerId: detail.offerId,
+          sellerId: detail.sellerId,
+          sellerName: detail.sellerName,
+          quantity: detail.quantity as number,
+          productTitle: detail.title,
+          sku: detail.sku,
+          unitPriceMinor: detail.unitPriceMinor,
+          currency: detail.currency,
+        });
+        return;
+      }
+      setDraft(
+        `Tell me about ${detail.title}${detail.sku ? ` (SKU ${detail.sku})` : ""}. Is it suitable for my project?`,
+      );
+    };
+    window.addEventListener("bazarbee:chat-product", productContext);
+    return () => window.removeEventListener("bazarbee:chat-product", productContext);
+  }, []);
+
+  useEffect(() => {
     const node = scrollRef.current;
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages, state]);
 
+  useEffect(() => {
+    if (open && state === "ready" && channel) void loadMessages(channel);
+  }, [open, state, channel, loadMessages]);
+
+  useEffect(() => {
+    if (!open || !channel || state !== "ready" || sending) return;
+    const timer = window.setInterval(() => {
+      void loadMessages(channel);
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [open, channel, state, sending, loadMessages]);
+
   const selectChannel = async (next: WorkspaceChannel) => {
     if (sending || next.id === channel?.id) return;
+    try {
+      window.localStorage.setItem(CHANNEL_KEY, next.id);
+    } catch {
+      // Selection still works for this open drawer.
+    }
     setChannel(next);
     setMessages([]);
     setState("loading");
@@ -201,8 +291,61 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     }
   };
 
+  // "Discuss" on a product writes a product reference into the human channel. Sharing is
+  // set-like in the workspace service, so a repeated Discuss returns the first message.
+  useEffect(() => {
+    if (!pendingShare || !signedIn || state !== "ready") return;
+    const target = channels.find(
+      (candidate) => candidate.kind === "project" || candidate.kind === "procurement",
+    );
+    const share = pendingShare;
+    setPendingShare(null);
+    setDraft("");
+    setError("");
+    if (!target) {
+      setDraft(
+        `Tell me about ${share.productTitle}${share.sku ? ` (SKU ${share.sku})` : ""}. Is it suitable for my project?`,
+      );
+      return;
+    }
+    void (async () => {
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "share-product",
+            channelId: target.id,
+            productId: share.productId,
+            variantId: share.variantId,
+            offerId: share.offerId,
+            sellerId: share.sellerId,
+            sellerName: share.sellerName,
+            quantity: share.quantity,
+            productTitle: share.productTitle,
+            sku: share.sku,
+            unitPriceMinor: share.unitPriceMinor,
+            currency: share.currency,
+          }),
+        });
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string };
+          throw new Error(payload.error ?? "The product could not be shared.");
+        }
+        if (target.id === channel?.id) await loadMessages(target);
+        else await selectChannel(target);
+      } catch (cause) {
+        setError((cause as Error).message);
+        setDraft(
+          `Tell me about ${share.productTitle}${share.sku ? ` (SKU ${share.sku})` : ""}. Is it suitable for my project?`,
+        );
+      }
+    })();
+  }, [pendingShare, signedIn, state, channels, channel, selectChannel, loadMessages]);
+
   const send = async (text: string) => {
-    if (!channel || sending) return;    const value = text.trim();
+    if (!channel || sending) return;
+    const value = text.trim();
     if (!value) return;
     setSending(true);
     setError("");
@@ -294,7 +437,9 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                 <strong>Ask BazarBee</strong>
                 <span>
                   {workspace?.name ?? "Workspace assistant"} ·{" "}
-                  {isTrade ? "trade workspace" : "household project"}
+                  {workspace?.scope_type === "business_account"
+                    ? "trade workspace"
+                    : "household project"}
                 </span>
               </div>
               <button
@@ -385,6 +530,10 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               ) : (
                 messages.map((message) => {
                   const assistant = isAssistantMessage(message);
+                  const productReferences = (message.references ?? []).filter(
+                    (reference) =>
+                      reference.reference_type === "product" && reference.display_snapshot,
+                  );
                   return (
                     <article
                       key={message.id}
@@ -394,6 +543,39 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                         {assistant ? "BazarBee assistant" : message.actor_name || "You"}
                       </span>
                       <p>{message.body}</p>
+                      {productReferences.map((reference) => {
+                        const snapshot = reference.display_snapshot!;
+                        const meta = [
+                          snapshot.sku ? `SKU ${snapshot.sku}` : null,
+                          snapshot.seller_name ?? null,
+                          typeof snapshot.quantity === "number" && snapshot.quantity > 0
+                            ? `Qty ${snapshot.quantity}`
+                            : null,
+                          typeof snapshot.unit_price_minor === "number"
+                            ? formatMoney(
+                                snapshot.unit_price_minor,
+                                snapshot.currency_code ?? "INR",
+                              )
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ");
+                        const href = snapshot.product_id
+                          ? workspace?.scope_type === "business_account"
+                            ? `/trade/pdp/${encodeURIComponent(snapshot.product_id)}`
+                            : `/products/${encodeURIComponent(snapshot.product_id)}`
+                          : null;
+                        return (
+                          <div
+                            className="chat-product-reference"
+                            key={`${reference.reference_type}:${reference.reference_id}`}
+                          >
+                            <strong>{snapshot.product_title ?? "Shared product"}</strong>
+                            {meta ? <small>{meta}</small> : null}
+                            {href ? <Link href={href}>View product</Link> : null}
+                          </div>
+                        );
+                      })}
                     </article>
                   );
                 })

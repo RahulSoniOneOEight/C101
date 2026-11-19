@@ -8,6 +8,7 @@ import { useCart, type CartItem } from "@/lib/cart";
 import { brandOf, discountPercent } from "@/lib/catalogue-filters";
 import { ProductCard } from "../components/product-card";
 import { ProductImage } from "../components/product-image";
+import { PromoCodeEntry } from "./promo-code-entry";
 
 function SparkIcon() {
   return (
@@ -298,6 +299,8 @@ export function CartView({ catalogue = [] }: { catalogue?: ComposedProduct[] }) 
           </ul>
         </aside>
       </div>
+
+      <PromoCodeEntry />
 
       {related.length > 0 ? (
         <section className="section cart-related" aria-labelledby="cart-related-title">

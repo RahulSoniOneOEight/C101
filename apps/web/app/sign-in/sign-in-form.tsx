@@ -11,14 +11,20 @@ type Stage = "identify" | "verify" | "link-sent";
 
 export function SignInForm({
   next,
-  welcomeBanner,
+  initialChannel = "b2c",
+  b2cWelcomeBanner,
+  b2bWelcomeBanner,
 }: {
   next?: string;
-  welcomeBanner?: StorefrontBanner | null;
+  initialChannel?: "b2c" | "b2b";
+  b2cWelcomeBanner?: StorefrontBanner | null;
+  b2bWelcomeBanner?: StorefrontBanner | null;
 }) {
+  const router = useRouter();
+  const [channel, setChannel] = useState<"b2c" | "b2b">(initialChannel);
+  const welcomeBanner = channel === "b2b" ? b2bWelcomeBanner : b2cWelcomeBanner;
   const welcomeDesktop = imageSources(welcomeBanner?.image_desktop_uri ?? welcomeBanner?.image_uri, 1200);
   const welcomeMobile = imageSources(welcomeBanner?.image_mobile_uri ?? welcomeBanner?.image_desktop_uri ?? welcomeBanner?.image_uri, 720);
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>("code");
   const [stage, setStage] = useState<Stage>("identify");
   const [email, setEmail] = useState("");
@@ -27,10 +33,24 @@ export function SignInForm({
   const [previewCode, setPreviewCode] = useState("");
   const [previewLink, setPreviewLink] = useState("");
 
+  const safeNext =
+    next && next.startsWith("/") && !next.startsWith("//") ? next : "";
   const destination =
-    next && next.startsWith("/") && !next.startsWith("//") ? next : "/orders";
-  const signInHref =
-    destination === "/orders" ? "/sign-in" : `/sign-in?next=${encodeURIComponent(destination)}`;
+    channel === "b2b"
+      ? safeNext.startsWith("/trade")
+        ? safeNext
+        : "/trade"
+      : safeNext && !safeNext.startsWith("/trade")
+        ? safeNext
+        : "/orders";
+
+  function switchChannel(nextChannel: "b2c" | "b2b") {
+    setChannel(nextChannel);
+    setError("");
+    setPreviewCode("");
+    setPreviewLink("");
+    setStage("identify");
+  }
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
@@ -103,6 +123,29 @@ export function SignInForm({
       setBusy(false);
     }
   }
+
+  const channelTabs = (
+    <div className="auth-channels" role="tablist" aria-label="Shopping channel">
+      <button
+        type="button"
+        role="tab"
+        aria-selected={channel === "b2c"}
+        className={channel === "b2c" ? "auth-channel active" : "auth-channel"}
+        onClick={() => switchChannel("b2c")}
+      >
+        Consumer D2C
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={channel === "b2b"}
+        className={channel === "b2b" ? "auth-channel active" : "auth-channel"}
+        onClick={() => switchChannel("b2b")}
+      >
+        B2B Trade
+      </button>
+    </div>
+  );
 
   const tabs = (
     <div className="auth-tabs" role="tablist" aria-label="Sign-in method">
@@ -236,11 +279,14 @@ export function SignInForm({
           </div>
         </div>
       ) : null}
+      {channelTabs}
       {tabs}
       {mode === "code" ? (
         <form className="stack" onSubmit={requestCode}>
           <p className="muted auth-intro">
-            Enter your email and we&apos;ll send a six-digit code. No password to remember.
+            {channel === "b2b"
+              ? "Enter your trade account email. You will open the B2B workspace after verification."
+              : "Enter your email and we&apos;ll send a six-digit code. No password to remember."}
           </p>
           <label>
             Email address
