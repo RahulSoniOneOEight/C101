@@ -379,7 +379,76 @@ Experience API endpoints the web should use:
 
 ---
 
-## 8. Decisions needed
+## 8. Single-banner model — web compatibility assessment
+
+The current admin exposes one banner record per placement, with **one creative URL** (`externalImageUrl`)
+and one copy/CTA set. A record is already scoped by channel, placement and locale. If the same record is
+intended to serve both the app and the web store, the following applies.
+
+### What works for the web store as-is
+
+| Area | Works? | Notes |
+|---|---|---|
+| Copy, CTA label, schedule, priority, locale, publish state | Yes | One record can drive both surfaces. |
+| B2C vs B2B separation | Yes | Placements carry the channel; B2C seed banners never fall back to B2B. |
+| Home hero, campaign strip, category banner | Yes | Web can consume `b2c.home.hero`, `b2c.home.campaign-strip`, `b2c.category.banner`, `b2b.home.hero`, `b2b.category.banner`. |
+| Product/category/collection CTA | Yes, if canonical IDs | Both surfaces can resolve the same commerce entity. |
+| Draft/schedule/expiry | Yes | Delivery already gates on publication and time window. |
+| Preview | Partial | Banner Studio has App / Mobile web / Desktop frames, but not the full page context. |
+
+### What needs action before web parity
+
+| Area | Why it breaks | Action |
+|---|---|---|
+| **Responsive creative** | One image cannot be right for a phone hero, a tablet, and a 1440px web hero. Admin currently accepts one HTTPS URL; crop/upload is deferred. | Add `imageDesktop`, `imageTablet`, `imageMobile` (or a media-library crop set) with a fallback chain. Web picks by viewport; app keeps using its current crop. |
+| **CTA route mismatch** | An app route such as `/browse?tag=Flash%20Deals` or `/b2b/catalogue` is not a valid web path. A single raw route will 404 on web. | Prefer canonical `product` / `category` / `collection` targets. For custom routes, store `appRoute` and `webPath` separately (or a route resolver) and validate both. |
+| **Copy length** | App hero copy is short; web has more room. One heading may truncate in the app or look sparse on web. | Add optional `webTitle` / `webSubtitle` overrides, or enforce a cross-surface character budget. Do not duplicate the whole record. |
+| **Placement coverage** | One banner per channel is not enough: web needs hero, campaign strip, welcome and category slots. | Manage one record **per placement**. Do not use one channel-wide banner as a substitute for placement records. |
+| **Welcome banner** | No welcome placement exists today. | Add `b2c.welcome.banner` / `b2b.welcome.banner` to admin, delivery registry and validator. |
+| **Safe area / overlay** | App hero sits under a pinned bar and status area; web sits under a sticky header. Text can collide with chrome. | Preview with the actual chrome (app bar, web header) and keep a safe text zone; or supply separate crops. |
+| **Analytics/attribution** | One CTA cannot distinguish app vs web clicks. | Add optional per-surface UTM parameters or a `webPath`/`appRoute` pair with tracking. |
+| **Full-page preview** | Admin preview shows the banner in a frame, not the welcome/home/category page. | Add full-page previews for app, mobile web and desktop before publish. |
+| **Category copy precedence** | Category copy can be set in Banner Studio and Category presentation. | Surface the precedence in the editor: banner title/subtitle → category editorial → seed. |
+
+### Recommended approach
+
+Keep **one campaign/banner record per placement** and make the record surface-aware rather than creating
+separate app and web banners:
+
+```
+contentKey, placement, channel, locale
+title, subtitle, ctaLabel
+imageDesktop, imageTablet, imageMobile, imageAlt
+ctaTargetType, ctaTargetId
+appRoute?, webPath?          // only for custom routes
+startsAt, endsAt, priority, segments
+```
+
+Rules:
+
+1. **Canonical commerce targets win.** Product/category/collection IDs resolve on both surfaces; only
+   custom editorial routes need `appRoute` + `webPath`.
+2. **One copy set by default.** Add web overrides only where the app copy actually cannot fit.
+3. **One record per placement.** The channel-wide “single banner” is not enough for home + welcome +
+   category; those are different placements with different jobs.
+4. **No duplicate app/web records for the same campaign.** Duplicates drift and break scheduling.
+5. **Validation must check both surfaces.** A banner cannot publish if its CTA has no valid web path or
+   its required image set is missing.
+
+### Web implementation consequence
+
+The web renderer should:
+
+- Select `imageDesktop` / `imageTablet` / `imageMobile` with `object-fit: cover` and a governed focal
+  point fallback.
+- Resolve CTA by type, never by copying an app route into an `<a href>`.
+- Map placements to components: `b2c.home.hero` → home hero, `b2c.home.campaign-strip` → campaign band,
+  `b2c.category.banner` → category hero, `b2b.home.hero` → trade hero, `b2b.category.banner` → trade
+  catalogue hero, `b2c/b2b.welcome.banner` → welcome screen.
+- Use the Experience API `source`/`freshness` fields and a short revalidation window so a publish is
+  visible without a full rebuild.
+
+## 9. Decisions needed
 
 1. Is the welcome banner a **single optional hero** or a carousel? Recommend single banner + the
    existing value-prop stack; carousel only if operators need multiple.
