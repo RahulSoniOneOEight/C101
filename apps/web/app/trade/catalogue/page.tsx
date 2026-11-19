@@ -4,22 +4,38 @@ import { redirect } from "next/navigation";
 import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
-  formatMoney,
   getMyContexts,
   getStorefrontPresentation,
   hasTradeRole,
   listTradeProducts,
   type BuyerContext,
   type ComposedProduct,
-  type OfferView,
   type StorefrontCategory,
 } from "@/lib/experience-api";
-import { imageSources, productDeliveryNote, productRootCategoryId, productStockNote } from "@/lib/storefront";
+import {
+  DISCOUNT_BANDS,
+  FLAG_OPTIONS,
+  PRICE_BANDS,
+  brandLabel,
+  brandOf,
+  catalogueHref,
+  discountInBand,
+  discountPercent,
+  matchesCatalogueFilters,
+  matchesFlag,
+  parseList,
+  priceInBand,
+  type CatalogueFilterState,
+  type CatalogueHrefState,
+  type FilterOption,
+} from "@/lib/catalogue-filters";
+import { deliveryRank } from "@/lib/delivery-promise";
+import { imageSources, productRootCategoryId } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
+import { CatalogueFilters } from "../../components/catalogue-filters";
 import { DragScroll } from "../../components/drag-scroll";
-import { ProductImage } from "../../components/product-image";
-import { AddToQuote } from "../add-to-quote";
 import { TradeNav } from "../trade-nav";
+import { TradeProductCard } from "../trade-product-card";
 
 export const dynamic = "force-dynamic";
 
@@ -27,83 +43,60 @@ export const metadata = {
   title: "Trade catalogue",
 };
 
-function TradeCard({ product, offer }: { product: ComposedProduct; offer: OfferView }) {
-  const tiers = offer.b2b_tiers ?? [];
-  const moq = Math.max(1, offer.b2b_moq ?? 1);
-  const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
-  return (
-    <article className="trade-product">
-      <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-product-media">
-        <ProductImage src={product.thumbnail} alt={product.title} />
-        {offer.discount_percent ? (
-          <span className="deal-badge">{offer.discount_percent}% off</span>
-        ) : null}
-      </Link>
-      <div className="trade-product-body">
-        <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
-        <h3>{product.title}</h3>
-        <p className="muted">
-          SKU {offer.sku}
-          {offer.b2b_ends_at ? ` · terms end ${new Date(offer.b2b_ends_at).toLocaleDateString("en-IN")}` : ""}
-        </p>
-        {note ? <p className="product-note">{note}</p> : null}
-        <div className="trade-price-row">
-          <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
-          {offer.list_amount_minor && offer.list_amount_minor > offer.unit_amount_minor ? (
-            <span className="price-was">
-              {formatMoney(offer.list_amount_minor, offer.currency_code)}
-            </span>
-          ) : null}
-          <span className="trade-moq">MOQ {moq}</span>
-        </div>
-        {tiers.length > 0 ? (
-          <table className="tier-table">
-            <thead>
-              <tr>
-                <th>Quantity</th>
-                <th>Unit price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((tier) => (
-                <tr key={`${tier.min_quantity}-${tier.max_quantity ?? "up"}`}>
-                  <td>
-                    {tier.min_quantity}
-                    {tier.max_quantity === null ? "+" : `–${tier.max_quantity}`}
-                  </td>
-                  <td>{formatMoney(tier.amount, offer.currency_code)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="tier-single">Single trade rate · MOQ {moq}</p>
-        )}
-        <AddToQuote
-          line={{
-            productId: product.id,
-            offerId: offer.id,
-            sku: offer.sku,
-            title: product.title,
-            seller: offer.seller_name ?? "",
-            image: product.thumbnail ?? null,
-            moq,
-            basePriceMinor: offer.unit_amount_minor,
-            currency: offer.currency_code,
-            tiers,
-          }}
-        />
-      </div>
-    </article>
-  );
+function tradeUnit(product: ComposedProduct): number {
+  return product.best_price?.unit_amount_minor ?? Number.POSITIVE_INFINITY;
+}
+
+function sortedTrade(products: ComposedProduct[], sort: string | undefined): ComposedProduct[] {
+  const copy = [...products];
+  if (sort === "price-asc") {
+    copy.sort((a, b) => tradeUnit(a) - tradeUnit(b));
+  } else if (sort === "price-desc") {
+    copy.sort((a, b) => tradeUnit(b) - tradeUnit(a));
+  } else if (sort === "discount") {
+    copy.sort((a, b) => discountPercent(b) - discountPercent(a));
+  } else if (sort === "fastest") {
+    copy.sort(
+      (a, b) =>
+        deliveryRank(a) - deliveryRank(b) ||
+        discountPercent(b) - discountPercent(a),
+    );
+  }
+  return copy;
+}
+
+function brandOptions(products: ComposedProduct[]): FilterOption[] {
+  const counts = new Map<string, number>();
+  for (const product of products) {
+    const brand = brandOf(product);
+    if (brand) counts.set(brand, (counts.get(brand) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([value, count]) => ({ value, label: brandLabel(value), count }))
+    .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label));
 }
 
 export default async function TradeCataloguePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string }>;
+  searchParams: Promise<{
+    cat?: string;
+    sort?: string;
+    brand?: string | string[];
+    price?: string | string[];
+    discount?: string | string[];
+    flag?: string | string[];
+  }>;
 }) {
-  const { cat } = await searchParams;
+  const params = await searchParams;
+  const { cat, sort } = params;
+  const activeFilters: CatalogueFilterState = {
+    brands: parseList(params.brand),
+    prices: parseList(params.price),
+    discounts: parseList(params.discount),
+    flags: parseList(params.flag),
+  };
+
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
   const locale = await getStorefrontLocale();
   if (!token) {
@@ -162,15 +155,49 @@ export default async function TradeCataloguePage({
   if (presentationResult.status === "fulfilled") {
     cmsCategories = presentationResult.value.categories ?? [];
   }
+
   const selectedCategory = cmsCategories.find((candidate) => candidate.slug === cat);
-  const filtered = selectedCategory
+  const scoped = (selectedCategory
     ? products.filter(
         (product) =>
           productRootCategoryId(product, new Set([selectedCategory.category_id])) ===
           selectedCategory.category_id,
       )
-    : products;
+    : products
+  ).filter((product) => product.best_price);
+
+  const brandOptionsList = brandOptions(scoped);
+  const priceOptions: FilterOption[] = PRICE_BANDS.map((band) => ({
+    value: band.value,
+    label: band.label,
+    count: scoped.filter((product) => priceInBand(product, band.value)).length,
+  }));
+  const discountOptions: FilterOption[] = DISCOUNT_BANDS.map((band) => ({
+    value: band.value,
+    label: band.label,
+    count: scoped.filter((product) => discountInBand(product, band.value)).length,
+  }));
+  const flagOptions: FilterOption[] = FLAG_OPTIONS.map((flag) => ({
+    ...flag,
+    count: scoped.filter((product) => matchesFlag(product, flag.value)).length,
+  }));
+
+  const filtered = sortedTrade(
+    scoped.filter((product) => matchesCatalogueFilters(product, activeFilters)),
+    sort,
+  );
   const bannerImage = imageSources(selectedCategory?.banner_image_uri, 1600);
+  const filterHref = (overrides: Partial<CatalogueHrefState> = {}) =>
+    catalogueHref({
+      path: "/trade/catalogue",
+      cat: selectedCategory?.slug,
+      sort,
+      brands: activeFilters.brands,
+      prices: activeFilters.prices,
+      discounts: activeFilters.discounts,
+      flags: activeFilters.flags,
+      ...overrides,
+    });
 
   return (
     <section className="trade-page">
@@ -199,7 +226,7 @@ export default async function TradeCataloguePage({
         </div>
       ) : null}
 
-      <div className="section-heading">
+      <div className="section-heading catalogue-heading">
         <div>
           <span className="eyebrow">Trade rates · MOQ · GST invoicing</span>
           <h1>{selectedCategory?.label ?? "Trade catalogue"}</h1>
@@ -207,14 +234,67 @@ export default async function TradeCataloguePage({
             {filtered.length} {filtered.length === 1 ? "product" : "products"} with active B2B terms.
             Quantity tiers are applied to your quotation.
           </p>
+          {sort === "fastest" ? (
+            <p className="muted catalogue-sort-note">
+              Estimated delivery uses the product note where present, otherwise the standard 3–5 day
+              promise.
+            </p>
+          ) : null}
         </div>
-        <Link className="section-link" href="/trade/credit">
-          Credit overview →
-        </Link>
+        <div className="catalogue-heading-actions">
+          <CatalogueFilters
+            brands={brandOptionsList}
+            prices={priceOptions}
+            discounts={discountOptions}
+            flags={flagOptions}
+            active={activeFilters}
+            cat={selectedCategory?.slug}
+            sort={sort}
+            basePath="/trade/catalogue"
+          />
+          <div className="sort-control">
+            <label htmlFor="trade-sort">Sort</label>
+            <div className="sort-links">
+              <Link
+                className={!sort ? "sort-link active" : "sort-link"}
+                href={filterHref({ sort: undefined })}
+              >
+                Recommended
+              </Link>
+              <Link
+                className={sort === "fastest" ? "sort-link active" : "sort-link"}
+                href={filterHref({ sort: "fastest" })}
+              >
+                Fastest delivery
+              </Link>
+              <Link
+                className={sort === "price-asc" ? "sort-link active" : "sort-link"}
+                href={filterHref({ sort: "price-asc" })}
+              >
+                Price ↑
+              </Link>
+              <Link
+                className={sort === "price-desc" ? "sort-link active" : "sort-link"}
+                href={filterHref({ sort: "price-desc" })}
+              >
+                Price ↓
+              </Link>
+              <Link
+                className={sort === "discount" ? "sort-link active" : "sort-link"}
+                href={filterHref({ sort: "discount" })}
+              >
+                Discount
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
 
       <DragScroll className="filter-bar" ariaLabel="Trade categories">
-        <Link className={!selectedCategory ? "filter-chip active" : "filter-chip"} href="/trade/catalogue">
+        <Link
+          className={!selectedCategory ? "filter-chip active" : "filter-chip"}
+          href={filterHref({ cat: undefined })}
+        >
           All
         </Link>
         {cmsCategories.map((candidate) => (
@@ -225,7 +305,7 @@ export default async function TradeCataloguePage({
                 ? "filter-chip active"
                 : "filter-chip"
             }
-            href={`/trade/catalogue?cat=${encodeURIComponent(candidate.slug)}`}
+            href={filterHref({ cat: candidate.slug })}
           >
             {candidate.label}
           </Link>
@@ -238,21 +318,20 @@ export default async function TradeCataloguePage({
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-panel">
-          <h2>No trade terms in this category</h2>
+          <h2>No trade terms match</h2>
           <p className="muted">
-            No offer currently has active B2B pricing here. Try another trade category.
+            No offer in this view has active B2B pricing and the selected filters. Try another
+            category or clear the filters.
           </p>
-          <Link className="button" href="/trade/catalogue">
-            Clear category
+          <Link className="button" href={catalogueHref({ path: "/trade/catalogue" })}>
+            Clear filters
           </Link>
         </div>
       ) : (
         <div className="trade-product-grid">
-          {filtered
-            .filter((product) => product.best_price)
-            .map((product) => (
-              <TradeCard key={product.id} product={product} offer={product.best_price!} />
-            ))}
+          {filtered.map((product) => (
+            <TradeProductCard key={product.id} product={product} />
+          ))}
         </div>
       )}
     </section>

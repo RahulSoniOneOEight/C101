@@ -2,7 +2,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   PILOT_SESSION_COOKIE,
-  formatMoney,
   getMyContexts,
   getStorefrontPresentation,
   hasTradeRole,
@@ -13,13 +12,12 @@ import {
   type StorefrontBanner,
   type StorefrontCategory,
 } from "@/lib/experience-api";
-import { bannerHref, categoryCount, categoryTone, firstBanner, imageObjectPosition, imageSources, productDeliveryNote, productStockNote } from "@/lib/storefront";
+import { bannerHref, categoryCount, categoryTone, firstBanner, imageObjectPosition, imageSources } from "@/lib/storefront";
 import { getStorefrontLocale } from "@/lib/locale";
 import { buyAgainProducts, readableBusinessName } from "@/lib/trade";
 import { CategoryIcon } from "../components/category-icon";
 import { DragScroll } from "../components/drag-scroll";
-import { ProductImage } from "../components/product-image";
-import { AddToQuote } from "./add-to-quote";
+import { TradeProductCard } from "./trade-product-card";
 import { TradeNav } from "./trade-nav";
 
 export const dynamic = "force-dynamic";
@@ -255,42 +253,9 @@ export default async function TradePage() {
             </Link>
           </div>
           <div className="trade-offer-grid">
-            {offerProducts.map((product) => {
-              const offer = product.best_price!;
-              const moq = Math.max(1, offer.b2b_moq ?? 1);
-              const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
-              return (
-                <article className="trade-offer-card" key={product.id}>
-                  <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-offer-media">
-                    <ProductImage src={product.thumbnail} alt={product.title} />
-                  </Link>
-                  <div className="trade-offer-body">
-                    <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
-                    <h3>{product.title}</h3>
-                    <p className="muted">MOQ {moq} · SKU {offer.sku}</p>
-                    {note ? <p className="product-note">{note}</p> : null}
-                    <div className="trade-offer-price">
-                      <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
-                      <span className="trade-moq">MOQ {moq}</span>
-                    </div>
-                    <AddToQuote
-                      line={{
-                        productId: product.id,
-                        offerId: offer.id,
-                        sku: offer.sku,
-                        title: product.title,
-                        seller: offer.seller_name ?? "",
-                        image: product.thumbnail ?? null,
-                        moq,
-                        basePriceMinor: offer.unit_amount_minor,
-                        currency: offer.currency_code,
-                        tiers: offer.b2b_tiers ?? [],
-                      }}
-                    />
-                  </div>
-                </article>
-              );
-            })}
+            {offerProducts.map((product) => (
+              <TradeProductCard key={product.id} product={product} />
+            ))}
           </div>
         </section>
       ) : null}
@@ -307,42 +272,9 @@ export default async function TradePage() {
             </Link>
           </div>
           <div className="trade-offer-grid">
-            {buyAgain.map((product) => {
-              const offer = product.best_price!;
-              const moq = Math.max(1, offer.b2b_moq ?? 1);
-              const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
-              return (
-                <article className="trade-offer-card" key={`buy-again-${product.id}`}>
-                  <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-offer-media">
-                    <ProductImage src={product.thumbnail} alt={product.title} />
-                  </Link>
-                  <div className="trade-offer-body">
-                    <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
-                    <h3>{product.title}</h3>
-                    <p className="muted">MOQ {moq} · SKU {offer.sku}</p>
-                    {note ? <p className="product-note">{note}</p> : null}
-                    <div className="trade-offer-price">
-                      <span className="price">{formatMoney(offer.unit_amount_minor, offer.currency_code)}</span>
-                      <span className="trade-moq">MOQ {moq}</span>
-                    </div>
-                    <AddToQuote
-                      line={{
-                        productId: product.id,
-                        offerId: offer.id,
-                        sku: offer.sku,
-                        title: product.title,
-                        seller: offer.seller_name ?? "",
-                        image: product.thumbnail ?? null,
-                        moq,
-                        basePriceMinor: offer.unit_amount_minor,
-                        currency: offer.currency_code,
-                        tiers: offer.b2b_tiers ?? [],
-                      }}
-                    />
-                  </div>
-                </article>
-              );
-            })}
+            {buyAgain.map((product) => (
+              <TradeProductCard key={`buy-again-${product.id}`} product={product} />
+            ))}
           </div>
         </section>
       ) : null}

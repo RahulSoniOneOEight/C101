@@ -6895,3 +6895,272 @@ textarea:focus-visible {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.catalogue-heading-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.catalogue-heading-actions .catalogue-filter-tools {
+  margin: 0;
+}
+.catalogue-heading-actions .sort-control {
+  padding-top: 0;
+}
+.catalogue-sort-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+@media (max-width: 900px) {
+  .catalogue-heading-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .catalogue-heading-actions .sort-links {
+    flex-wrap: wrap;
+  }
+}
+
+/* Shared B2B trade tile -------------------------------------------------- */
+.trade-product-card .trade-card-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.trade-card-moq {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.trade-card-title {
+  color: var(--ink);
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.trade-card-title:hover {
+  color: var(--accent-strong);
+}
+.trade-card-sub,
+.trade-card-delivery {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.trade-card-delivery {
+  color: var(--ink-soft);
+}
+.trade-tier-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 4px 0;
+}
+.trade-tier-chip {
+  min-width: 34px;
+  padding: 4px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.trade-tier-chip:hover {
+  border-color: var(--accent);
+}
+.trade-tier-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.trade-card-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+.trade-card-price strong {
+  color: var(--accent-strong);
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 19px;
+  font-weight: 800;
+}
+.trade-card-price span {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.trade-card-price s {
+  color: var(--muted);
+  font-size: 11px;
+}
+.trade-card-actions {
+  margin-top: 4px;
+}
+.trade-card-actions .button {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.stock-flag-in {
+  background: var(--leaf-soft);
+  color: var(--leaf);
+}
+.stock-flag-out {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.trade-product-compact {
+  flex-direction: row;
+}
+.trade-product-compact .trade-product-media {
+  flex: 0 0 140px;
+  width: 140px;
+  aspect-ratio: auto;
+  border-right: 1px solid var(--line);
+  border-bottom: 0;
+}
+.trade-product-compact .trade-product-body {
+  padding: 12px;
+}
+.trade-product-compact .trade-card-delivery {
+  display: none;
+}
+.trade-product-rail {
+  width: 100%;
+}
+.trade-product-rail .trade-card-sub,
+.trade-product-rail .trade-card-delivery {
+  display: none;
+}
+.trade-product-rail .trade-product-body {
+  padding: 10px;
+}
+.trade-product-rail .trade-card-title {
+  font-size: 13px;
+}
+.trade-product-rail .trade-card-price strong {
+  font-size: 16px;
+}
+
+/* B2B product detail ----------------------------------------------------- */
+.trade-pdp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+.trade-pdp-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 420px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+}
+.trade-pdp-media img {
+  width: 100%;
+  max-height: 460px;
+  object-fit: contain;
+}
+.trade-pdp-info h1 {
+  margin: 4px 0 8px;
+}
+.trade-pdp-specs {
+  margin-top: 18px;
+}
+.trade-pricing-panel {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.trade-pricing-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.trade-pricing-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+}
+.trade-pricing-price strong {
+  color: var(--accent-strong);
+  font-family: var(--font-outfit), Outfit, sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+}
+.trade-pricing-price span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.trade-pricing-price s {
+  color: var(--muted);
+  font-size: 13px;
+}
+.trade-pricing-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.trade-pricing-actions .button {
+  min-width: 180px;
+}
+
+@media (max-width: 900px) {
+  .trade-pdp-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .trade-pdp-media {
+    min-height: 300px;
+  }
+}
+@media (max-width: 720px) {
+  .trade-product-compact {
+    flex-direction: column;
+  }
+  .trade-product-compact .trade-product-media {
+    flex: none;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.catalogue-heading-actions .filter-hint {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .catalogue-heading-actions .sort-control {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .catalogue-heading-actions .sort-links {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}

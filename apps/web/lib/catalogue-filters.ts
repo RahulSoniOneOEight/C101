@@ -139,6 +139,7 @@ export function parseList(value: string | string[] | undefined): string[] {
 }
 
 export interface CatalogueHrefState {
+  path?: string;
   q?: string;
   cat?: string;
   sort?: string;
@@ -158,7 +159,8 @@ export function catalogueHref(state: CatalogueHrefState): string {
   for (const discount of state.discounts ?? []) query.append("discount", discount);
   for (const flag of state.flags ?? []) query.append("flag", flag);
   const suffix = query.toString();
-  return suffix ? `/search?${suffix}` : "/search";
+  const path = state.path ?? "/search";
+  return suffix ? `${path}?${suffix}` : path;
 }
 
 export function activeFilterCount(filters: CatalogueFilterState): number {

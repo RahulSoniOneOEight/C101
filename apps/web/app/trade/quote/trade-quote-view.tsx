@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
 import { brandOf, discountPercent } from "@/lib/catalogue-filters";
 import { formatMoney } from "@/lib/money";
+import { TradeProductCard } from "../trade-product-card";
 import {
-  addToTradeQuote,
   lineTotal,
   readLatestRfq,
   saveSubmittedRfq,
@@ -15,54 +15,9 @@ import {
   type SubmittedRfq,
   type TradeQuoteLine,
 } from "@/lib/trade-quote";
-import { ProductImage } from "../../components/product-image";
 
 function newReference(): string {
   return `RFQ-${Math.floor(1000 + Math.random() * 9000)}`;
-}
-
-function RelatedTradeCard({ product }: { product: ComposedProduct }) {
-  const [added, setAdded] = useState(false);
-  const offer = product.best_price;
-  if (!offer) return null;
-  const moq = Math.max(1, offer.b2b_moq ?? 1);
-
-  return (
-    <article className="trade-related-card">
-      <Link href={`/products/${encodeURIComponent(product.id)}`} className="trade-related-media">
-        <ProductImage src={product.thumbnail} alt={product.title} />
-      </Link>
-      <div className="trade-related-body">
-        <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
-        <h4>{product.title}</h4>
-        <p className="muted">
-          MOQ {moq} · {formatMoney(offer.unit_amount_minor, offer.currency_code)} / unit
-        </p>
-        <button
-          className="button button-ghost"
-          type="button"
-          disabled={added}
-          onClick={() => {
-            addToTradeQuote({
-              productId: product.id,
-              offerId: offer.id,
-              sku: offer.sku,
-              title: product.title,
-              seller: offer.seller_name ?? "",
-              image: product.thumbnail ?? null,
-              moq,
-              basePriceMinor: offer.unit_amount_minor,
-              currency: offer.currency_code,
-              tiers: offer.b2b_tiers ?? [],
-            });
-            setAdded(true);
-          }}
-        >
-          {added ? "Added" : "Add to quote"}
-        </button>
-      </div>
-    </article>
-  );
 }
 
 function RelatedTradeRail({
@@ -131,7 +86,7 @@ function RelatedTradeRail({
       {open ? (
         <div className="trade-related-rail" id="trade-related-rail">
           {related.map((product) => (
-            <RelatedTradeCard key={product.id} product={product} />
+            <TradeProductCard key={product.id} product={product} variant="rail" />
           ))}
         </div>
       ) : null}

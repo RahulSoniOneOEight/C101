@@ -24,6 +24,7 @@ import {
   type FilterOption,
 } from "@/lib/catalogue-filters";
 import { GUIDED_PROMPTS, guidedSearchHref, resolveGuidedPrompt } from "@/lib/discovery";
+import { deliveryPromise, deliveryRank } from "@/lib/delivery-promise";
 import { getStorefrontLocale } from "@/lib/locale";
 import { imageSources, productsInStorefrontCategory } from "@/lib/storefront";
 import { CategoryIcon } from "../components/category-icon";
@@ -47,6 +48,12 @@ function sorted(products: ComposedProduct[], sort: string | undefined): Composed
     copy.sort((a, b) => a.title.localeCompare(b.title));
   } else if (sort === "discount") {
     copy.sort((a, b) => discountPercent(b) - discountPercent(a));
+  } else if (sort === "fastest") {
+    copy.sort(
+      (a, b) =>
+        deliveryRank(a) - deliveryRank(b) ||
+        discountPercent(b) - discountPercent(a),
+    );
   }
   return copy;
 }
@@ -216,12 +223,35 @@ export default async function SearchPage({
                   categoryLabel ? ` in ${categoryLabel.toLowerCase()}` : ""
                 }${effectiveQuery.trim() ? ` matching “${effectiveQuery.trim()}”` : ""}.`}
           </p>
+          {sort === "fastest" ? (
+            <p className="muted catalogue-sort-note">
+              Estimated delivery uses the product note where present, otherwise the standard 3–5 day
+              promise.
+            </p>
+          ) : null}
         </div>
-        <div className="sort-control">
+        <div className="catalogue-heading-actions">
+          <CatalogueFilters
+            brands={brandOptionsList}
+            prices={priceOptions}
+            discounts={discountOptions}
+            flags={flagOptions}
+            active={activeFilters}
+            q={displayQuery}
+            cat={categorySlug}
+            sort={sort}
+          />
+          <div className="sort-control">
           <label htmlFor="sort">Sort</label>
           <div className="sort-links">
             <Link className={!sort ? "sort-link active" : "sort-link"} href={filterHref({ sort: undefined })}>
               Featured
+            </Link>
+            <Link
+              className={sort === "fastest" ? "sort-link active" : "sort-link"}
+              href={filterHref({ sort: "fastest" })}
+            >
+              Fastest delivery
             </Link>
             <Link
               className={sort === "discount" ? "sort-link active" : "sort-link"}
@@ -248,6 +278,7 @@ export default async function SearchPage({
               A–Z
             </Link>
           </div>
+        </div>
         </div>
       </div>
 
@@ -281,17 +312,6 @@ export default async function SearchPage({
               </Link>
             ))}
       </DragScroll>
-
-      <CatalogueFilters
-        brands={brandOptionsList}
-        prices={priceOptions}
-        discounts={discountOptions}
-        flags={flagOptions}
-        active={activeFilters}
-        q={displayQuery}
-        cat={categorySlug}
-        sort={sort}
-      />
 
       <form className="inline-search catalogue-search" action="/search" role="search">
         {categorySlug ? <input type="hidden" name="cat" value={categorySlug} /> : null}

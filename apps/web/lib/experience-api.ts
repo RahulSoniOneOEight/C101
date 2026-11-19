@@ -197,6 +197,7 @@ export interface VariantView {
 }
 
 export interface ProductDetail extends ComposedProduct {
+  offers?: OfferView[];
   variants?: VariantView[];
   commercial?: {
     selected_seller?: OfferView | null;
@@ -656,6 +657,17 @@ export async function listTradeProducts(
 
 export async function getProduct(id: string): Promise<ProductDetail> {
   return call<ProductDetail>(`/v1/products/${encodeURIComponent(id)}`);
+}
+
+/** B2B detail projection: the same product composed against the trade channel and its offers. */
+export async function getTradeProduct(
+  id: string,
+  sessionToken: string,
+): Promise<ProductDetail> {
+  return call<ProductDetail>(
+    `/v1/products/${encodeURIComponent(id)}?channel=b2b`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
 }
 
 /** A workspace the signed-in buyer can open. Household projects and trade workspaces share this shape. */

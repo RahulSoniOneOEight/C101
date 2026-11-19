@@ -3,42 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
-import { productDeliveryNote, productStockNote } from "@/lib/storefront";
 import { DragScroll } from "../../components/drag-scroll";
-import { AddToQuote } from "../add-to-quote";
-
-function QuickLine({ product }: { product: ComposedProduct }) {
-  const offer = product.best_price;
-  if (!offer) return null;
-  const moq = Math.max(1, offer.b2b_moq ?? 1);
-  const note = [productDeliveryNote(product), productStockNote(offer)].filter(Boolean).join(" · ");
-  return (
-    <article className="trade-product quick-order-line" data-testid="quick-order-line">
-      <div className="trade-product-body">
-        <span className="trade-seller">{offer.seller_name ?? "Trade seller"}</span>
-        <h3>{product.title}</h3>
-        <p className="muted">
-          SKU {offer.sku} · MOQ {moq}
-        </p>
-        {note ? <p className="product-note">{note}</p> : null}
-        <AddToQuote
-          line={{
-            productId: product.id,
-            offerId: offer.id,
-            sku: offer.sku,
-            title: product.title,
-            seller: offer.seller_name ?? "",
-            image: product.thumbnail ?? null,
-            moq,
-            basePriceMinor: offer.unit_amount_minor,
-            currency: offer.currency_code,
-            tiers: offer.b2b_tiers ?? [],
-          }}
-        />
-      </div>
-    </article>
-  );
-}
+import { TradeProductCard } from "../trade-product-card";
 
 export function QuickOrder({
   products,
@@ -127,7 +93,9 @@ export function QuickOrder({
           </div>
           <div className="trade-product-grid">
             {buyAgain.map((product) => (
-              <QuickLine key={`buy-again-${product.id}`} product={product} />
+              <div key={`buy-again-${product.id}`} data-testid="quick-order-line">
+                <TradeProductCard product={product} variant="compact" />
+              </div>
             ))}
           </div>
         </section>
@@ -146,7 +114,9 @@ export function QuickOrder({
         {filtered.length > 0 ? (
           <div className="trade-product-grid" data-testid="quick-order-grid">
             {filtered.map((product) => (
-              <QuickLine key={product.id} product={product} />
+              <div key={product.id} data-testid="quick-order-line">
+                <TradeProductCard product={product} variant="compact" />
+              </div>
             ))}
           </div>
         ) : (

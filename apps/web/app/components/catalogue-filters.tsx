@@ -70,6 +70,7 @@ export function CatalogueFilters({
   q,
   cat,
   sort,
+  basePath = "/search",
 }: {
   brands: FilterOption[];
   prices: FilterOption[];
@@ -79,6 +80,7 @@ export function CatalogueFilters({
   q?: string;
   cat?: string;
   sort?: string;
+  basePath?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -123,6 +125,7 @@ export function CatalogueFilters({
   const apply = () => {
     router.push(
       catalogueHref({
+        path: basePath,
         q,
         cat,
         sort,
@@ -142,6 +145,7 @@ export function CatalogueFilters({
     };
     router.push(
       catalogueHref({
+        path: basePath,
         q,
         cat,
         sort,
@@ -154,7 +158,7 @@ export function CatalogueFilters({
   };
 
   const clearAll = () => {
-    router.push(catalogueHref({ q, cat, sort }));
+    router.push(catalogueHref({ path: basePath, q, cat, sort }));
   };
 
   return (
