@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-304ccab`; admin panel `/opt/buildkart-releases/release-6d55d39`
+Web release: `/opt/buildkart-releases/release-d451153`; admin panel `/opt/buildkart-releases/release-6d55d39`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -185,8 +185,9 @@ returned **ship**.
   editor upgrade.
 - Banner Studio searches category, product and collection references; product/collection queries load
   the first 100 products and all collections, so a very large catalogue needs server-side search.
-- hi-IN presentation currently serves English content as the fallback; the web does not expose a
-  locale switch yet.
+- hi-IN content is seeded and the web switch works. The CMS operator localization publish path currently
+  duplicates the default-locale draft/published row, so self-serve localization needs a CMS fix; the
+  seeded records are visible in the CMS admin. Some static B2B nav/footer strings remain English.
 - Quotes create a short-lived Medusa cart per quote. This is acceptable for staging; production
   should reuse the checkout cart.
 - Catalogue is the staging set (30 products), including test products with unrelated imagery.
@@ -202,7 +203,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web release `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `d451153`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -211,6 +212,10 @@ Web release `304ccab`; CMS/API `5639fe3`; admin panel `6d55d39`. CMS presentatio
 | B2C Electrical | Category tile opens `/search?cat=lighting-electrical`; banner 1, products 2 |
 | B2C Tools & Hardware | Banner 1, chips 11, products 4 |
 | B2C checkout | Fresh email-code session → add to cart → quote `₹3,990 − ₹199.50 + ₹99 = ₹3,889.50`; order `BK-261119-2ZVH8R` confirmed as simulated prepaid, 1 item |
+| hi-IN B2C | `html lang=hi-IN`; hero “ज़्यादा बनाएं। बेहतर खरीदें।”, 10 Hindi categories and rail; section labels “श्रेणी से खरीदें”, “फ्लैश डील्स”, “आपके लिए सुझाए गए”; locale switch returns English |
+| hi-IN category | Electrical rail link → `इलेक्ट्रिकल`, 2 products |
+| hi-IN checkout | Same quote `₹3,889.50`; order `BK-261119-4S660H` simulated prepaid, 1 item |
+| hi-IN B2B | “आपका ट्रेड डेस्क, अब वेब पर।” hero, 3 offers, `औज़ार और हार्डवेयर` category with banner and 1 product |
 | B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
 | B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |
