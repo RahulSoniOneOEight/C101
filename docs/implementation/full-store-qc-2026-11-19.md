@@ -3,7 +3,7 @@
 Environment: staging only. Payment, delivery and inventory are simulated. Production release remains
 unauthorised.
 
-Web release: `release-web-20261119-160503`; API `5639fe3`; CMS `ea16cf2`; admin `93eeac1`.
+Web release: `release-web-20261119-160503` (source `bae1bc0`); API `5639fe3`; CMS `ea16cf2`; admin `93eeac1`.
 
 ## 1. Orders placed
 
