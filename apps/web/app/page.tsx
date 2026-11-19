@@ -172,8 +172,10 @@ export default async function HomePage() {
   const hindi = locale === "hi-IN";
   const sectionCopy: Record<string, string> = {
     "Flash Deals": "फ्लैश डील्स",
+    "FLASH DEALS": "फ्लैश डील्स",
     "Best Sellers": "बेस्ट सेलर्स",
     "Recommended for You": "आपके लिए सुझाए गए",
+    "RECOMMENDED FOR YOU": "आपके लिए सुझाए गए",
     "Buy Again": "फिर से खरीदें",
     "Up to 60% OFF": "60% तक छूट",
     "See all deals": "सभी डील्स देखें",
@@ -184,7 +186,7 @@ export default async function HomePage() {
   return (
     <>
       {heroBanners.length > 0 ? (
-        <HeroCarousel banners={heroBanners} channel="b2c" />
+        <HeroCarousel banners={heroBanners} channel="b2c" locale={locale} />
       ) : (
         <DefaultHero featured={featured} />
       )}
@@ -263,7 +265,7 @@ export default async function HomePage() {
               <section className="section" key={section.placement}>
                 <div className="section-heading">
                   <div>
-                    <span className="eyebrow">{section.label ?? (hindi ? "मर्चेंडाइज़िंग" : "Merchandising")}</span>
+                    <span className="eyebrow">{localizeSection(section.label) ?? (hindi ? "मर्चेंडाइज़िंग" : "Merchandising")}</span>
                     <h2>
                       {localizeSection(section.title) ?? section.label ?? section.placement}{" "}
                       {section.badge ? <span className="section-badge">{localizeSection(section.badge)}</span> : null}

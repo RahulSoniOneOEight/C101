@@ -15,9 +15,11 @@ import {
 export function HeroCarousel({
   banners,
   channel,
+  locale = "en-IN",
 }: {
   banners: StorefrontBanner[];
   channel: "b2c" | "b2b";
+  locale?: "en-IN" | "hi-IN";
 }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -68,7 +70,7 @@ export function HeroCarousel({
       <div className="cms-hero-copy">
         <span className="hero-eyebrow">
           <span className="pulse-dot" aria-hidden="true" />
-          BazarBee campaign
+          {locale === "hi-IN" ? "बाज़ारबी कैंपेन" : "BazarBee campaign"}
         </span>
         <h1>{title}</h1>
         {body ? <p>{body}</p> : null}
