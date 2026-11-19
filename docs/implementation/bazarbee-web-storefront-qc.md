@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; latest deployed web code is `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`
+Branch: `feat/bazarbee-branding`; latest deployed web code is `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`
 Surfaces: `https://app-staging.pinakaplay.cloud` (Next.js), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://gobazarbee.com` (`buildkart-staging` Firebase site)
-Web release: `/opt/buildkart-releases/release-d451153`; admin panel `/opt/buildkart-releases/release-6d55d39`
+Web release: `/opt/buildkart-releases/release-63c9812`; admin panel `/opt/buildkart-releases/release-6d55d39`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -183,6 +183,9 @@ returned **ship**.
   staging secret store.
 - Banner focal point is supported; media-library crops and focal-point dragging are still a future
   editor upgrade.
+- Delivery notes are read from product `metadata.delivery_note`; the staging note was set through the
+  Medusa admin API. Product Studio still needs a dedicated delivery-note field for non-technical
+  authoring.
 - Banner Studio searches category, product and collection references; product/collection queries load
   the first 100 products and all collections, so a very large catalogue needs server-side search.
 - hi-IN content is authored and published through Banner Studio (`ea16cf2`). Six legacy category
@@ -203,7 +206,7 @@ returned **ship**.
 
 ## 8. Final merchandising and admin QC — 19 Nov 2026
 
-Web release `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
+Web release `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS presentation data drives the B2C and B2B surfaces below.
 
 | Surface | Result |
 |---|---|
@@ -217,6 +220,9 @@ Web release `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`. CMS 
 | hi-IN checkout | Same quote `₹3,889.50`; order `BK-261119-4S660H` simulated prepaid, 1 item |
 | hi-IN B2B | “आपका ट्रेड डेस्क, अब वेब पर।” hero, 3 offers, `औज़ार और हार्डवेयर` category with banner and 1 product |
 | CMS hi-IN authoring | Banner Studio hi-IN list shows 24 banners; banner and category draft→publish works without changing the en-IN title; canonical 10 categories localized per channel |
+| Delivery note | Action Tesa search tile shows “Standard delivery · 1–3 business days” from authored product metadata |
+| B2B quick order | `/trade/quick-order`: 4 trade lines, SKU filter “socket” → 1 line, Add to quote → quotation cart ₹350 |
+| B2B buy again | Quick-order and `/trade` show a buy-again section sourced from the buyer's owner-scoped order lines |
 | B2C order history | Earlier runs created `BK-261119-D35FDW` and `BK-261119-QFEJWX` at ₹3,889.50 |
 | B2C welcome | `b2c.welcome.banner` renders on `/sign-in` |
 | B2B home | “Your trade desk, on the web.” hero, 3 trade-offer cards, credit ₹1,71,550; hero CTA “Open trade catalogue” → `/trade/catalogue?utm_source=web&utm_medium=banner&utm_campaign=b2b-banner-welcome-en-in`; category rail absent |

@@ -45,6 +45,8 @@ record the deviation.
 | Full-page admin preview | **Implemented (`1782cce`)** | Welcome/home/category page context at App / Mobile web / Desktop, with the current draft banner and published page shell. |
 | B2B trade-offer rail | **Implemented (`6e106f6`)** | Three trade cards with MOQ, tier price and add-to-quote on `/trade`. |
 | Desktop category rail | **Implemented (`3ffbefd`, fit fix `304ccab`)** | CMS categories render in a horizontal rail on B2C shopping pages; all 11 links fit at 1440px; hidden on trade, auth, checkout and account pages and below 900px. |
+| Product tile delivery/stock note | **Implemented (`63c9812`)** | Authored `metadata.delivery_note` renders on B2C and trade tiles; real `stock_badge`/`inventory_quantity` renders “Only X left”/“Out of stock”. Action Tesa staging note verified. |
+| B2B quick order + buy again | **Implemented (`a3e5f6e`)** | `/trade/quick-order` with SKU/title search, saved-list chips, MOQ quantity steppers and Add to quote; buy-again lines from owner-scoped orders on `/trade` and quick order. |
 | Branded creative assets | Shipped | B2C/B2B hero and welcome art at desktop/mobile sizes, CMS records published. |
 
 ### Implementation log
@@ -64,8 +66,9 @@ record the deviation.
 | Desktop category rail | 11 CMS links (All products + 10 categories) at 1440px; last link visible, rail `scrollWidth = clientWidth = 1360`; Electrical opens `/search?cat=lighting-electrical` with 2 products; hidden on `/trade`, checkout and 390px |
 | Test orders | `BK-261119-PKWH70`, `BK-261119-EH54M7`, `BK-261119-D35FDW`, `BK-261119-QFEJWX`, `BK-261119-2ZVH8R`, `BK-261119-4S660H`; each `₹3,889.50` simulated prepaid, 1 item |
 | hi-IN QC | B2C/B2B APIs return Hindi banners and all 10 category labels; web home/category pages render Hindi; switch back to en-IN works; hi-IN checkout `BK-261119-4S660H`; 390px no overflow |
+| Delivery note + quick order | Action Tesa tile shows “Standard delivery · 1–3 business days”; `/trade/quick-order` shows 4 trade lines, SKU filter returns 1 line, Add to quote wrote `₹350` to the quotation cart; buy-again section renders 1 previous line |
 | CMS localization path | `ea16cf2`: non-default locale drafts/publishes use the query-engine/Knex path so Banner Studio edits do not touch the en-IN draft; verified on a banner and a category; 24 hi-IN banners visible in the admin list |
-| Releases | Web `d451153`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; latest commit `ea16cf2` |
+| Releases | Web `63c9812`; CMS `ea16cf2`; API `5639fe3`; admin panel `6d55d39`; latest commit `63c9812` |
 | Final visual QC | Nemotron 3.5 Super VL reviewed B2C home/campaign/category, B2B hero/category and 390px views: **ship, no P0/P1** |
 | Final functional QC | B2C: rail 11 links, Electrical 2 products, Tools 4 products, checkout receipt `₹3,889.50`; B2B: 3 offers, 1 quote line, credit `₹1,71,550`, Tools 1 product + banner; 390px scroll width 390 on all four surfaces; no page errors |
 | Locale + rollback QC | hi-IN presentation returns 4 B2C / 2 B2B banners and 10 categories (English fallback); campaign hero unpublish `200` removed it from delivery (4→3) and republish `200` restored it (3→4); `ROLLBACK_OK` |
@@ -666,6 +669,6 @@ A merchandising change is releasable only when:
 | Trade offers and bulk tiers on the B2B home | Adopted as a three-card trade-offer rail with MOQ, tier price and add-to-quote. |
 | App-store and wallet/cashback prompts | Not in scope for the storefront pilot. |
 
-**Benchmark outcome:** the category-first home, desktop category rail, deals rail, card-level options and
-B2B bulk-tier entry are adopted. The remaining gaps are a delivery/stock note on product tiles when the
-API carries one, and the B2B quick-order/buy-again rail until the trade-order API is exposed.
+**Benchmark outcome:** the category-first home, desktop category rail, deals rail, card-level options,
+delivery/stock notes, B2B bulk-tier entry, quick-order and buy-again are adopted. The remaining
+spec items (media-library crops and the Flutter welcome surface) are not HomeRun storefront gaps.
