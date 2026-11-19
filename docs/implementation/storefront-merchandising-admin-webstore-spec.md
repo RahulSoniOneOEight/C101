@@ -1,11 +1,42 @@
-# B2C + B2B storefront merchandising and admin-console specification
+# B2C + B2B storefront merchandising — implementation plan
 
 Date: 2026-11-19
+Status: implementation-ready; parts already shipped, remaining work is broken into MERCH work items.
 Scope: Flutter app customer surfaces, admin console controls, and the responsive Next.js web store.
 Source of truth: published CMS records + Experience API composition; the app and web store must render,
 not re-author, the same records.
 
 Related review: `docs/implementation/b2c-tiles-welcome-login-review.md`
+
+## Plan conventions
+
+| Term | Meaning |
+|---|---|
+| Work item | `MERCH-xx`, independently reviewable change |
+| Owner | Admin/Platform, Experience API, Web, Design/Ops, QA |
+| Done | Code + admin preview + published staging evidence |
+| P0 | Blocks web parity or can publish a broken customer surface |
+| P1 | Required for the first production-shaped release |
+| P2 | Follow-up polish or scale |
+
+If a decision is not made before implementation, use the **recommended default** in section 9 and
+record the deviation.
+
+## Current implementation status
+
+| Area | Status | Note |
+|---|---|---|
+| Responsive web D2C storefront | Shipped | Static hero and hardcoded category taxonomy; CMS consumption is pending. |
+| Web B2B trade slice | Shipped | Catalogue + MOQ/tiers + credit + RFQ; trade hero is still static. |
+| Account, wishlist, notifications | Shipped | Web account hub and API inbox live. |
+| Admin Banner Studio | Existing | Placement-bound banners, schedule, preview, draft/publish. |
+| Storefront layouts | Existing | B2C/B2B sections, collection source, order, visibility, validation. |
+| Category presentation / collections | Existing | Category editorial and curated collections. |
+| Product Studio | Existing | Product, media, tags, offers, B2B price/MOQ/tiers. |
+| CMS-driven web banners/sections | **Not started** | MERCH-09/10. |
+| Responsive banner variants + CTA mapping | **Not started** | MERCH-01/02. |
+| Welcome banners | **Not started** | MERCH-03/04; placement does not exist. |
+| Full-page admin preview | **Not started** | MERCH-06. |
 
 ---
 
@@ -322,7 +353,9 @@ Experience API endpoints the web should use:
 
 ## 7. Webstore update plan
 
-### Phase 1 — Presentation and category banners
+### 7.0 Delivery phases
+
+#### Phase 1 - Presentation and category banners
 
 - Add typed server clients for presentation and app-shell.
 - Replace the static home hero with `b2c.home.hero` banners (priority, schedule, CTA).
@@ -331,14 +364,14 @@ Experience API endpoints the web should use:
   image, alt, count).
 - Use `b2c.category.banner` on category pages; fall back to category editorial then seed.
 
-### Phase 2 — Layout-driven B2C home
+#### Phase 2 - Layout-driven B2C home
 
 - Render sections in published order with title/badge/limit/See All/banner.
 - Support `flash_deals`, `best_sellers`, `recommended` (and `productComposition`).
 - Show empty-collection explanations and never silently substitute unrelated products.
 - Keep a governed fallback only when the CMS layout is absent; never use B2C seed content on B2B.
 
-### Phase 3 — B2B layout and trade surfaces
+#### Phase 3 - B2B layout and trade surfaces
 
 - Render `b2b.home.hero` on `/trade`.
 - Add `buy_again` (needs web order-history data), `trade_offers` group with seasonal/best-deals/schemes,
@@ -346,14 +379,14 @@ Experience API endpoints the web should use:
 - Map trade product tiles to B2B price, MOQ, tiers and stock.
 - Add trade offer collections and quick-order lists where the data exists.
 
-### Phase 4 — Welcome, login and tile parity
+#### Phase 4 - Welcome, login and tile parity
 
 - Add optional welcome banners for B2C and B2B.
 - Add full-page preview in admin for welcome/login/home/category.
 - Add media crops, CTA pickers and segment templates.
 - Align tile fields: two-line titles, visible stock, rating/delivery where authored, badge overrides.
 
-### Acceptance criteria
+### 7.1 Acceptance criteria
 
 1. A published banner appears only on its channel/placement/locale and within its schedule.
 2. Priority order is respected; expired/scheduled banners are not shown.
@@ -365,7 +398,7 @@ Experience API endpoints the web should use:
 7. Welcome banners are additive; without one, the current welcome layout still renders.
 8. Admin preview matches the published web/mobile result before publish.
 
-### Dependencies and risks
+### 7.2 Dependencies and risks
 
 - Welcome placements require mirror updates in admin, Experience API and the validator; otherwise they
   publish but never render.
@@ -376,6 +409,40 @@ Experience API endpoints the web should use:
   fallbacks.
 - B2B quick-order and buy-again require web data that the current web slice does not yet have.
 - Staging remains `noindex` and test-data only; production needs the CHG-020 gates.
+
+### 7.3 Delivery work breakdown
+
+| ID | Owner | Change | Depends on | Done when |
+|---|---|---|---|---|
+| **MERCH-01** | Admin + API | Responsive creative: `imageDesktop`, `imageTablet`, `imageMobile`, `imageAlt`, focal point or media-library crops. Keep one-image fallback. | CMS banner definition | Editor saves all variants; delivery serves them; preview shows the correct crop. |
+| **MERCH-02** | Admin + API | Surface-aware CTA: canonical product/category/collection target, plus `appRoute` + `webPath` for custom routes; validation for both. | MERCH-01 | Publish is blocked when the web destination is missing/invalid; web never receives an app-only route. |
+| **MERCH-03** | Admin + API + App/Web | Add `b2c.welcome.banner` and `b2b.welcome.banner` to the placement registry, CMS delivery, validator and previews. | CMS + delivery registry | Admin lists them as rendered; API delivers them; app/web consume them. |
+| **MERCH-04** | App + Web | Render optional welcome banners; retain the current icon/headline/benefit layout when absent. | MERCH-03 | No banner → current layout; B2C banner never appears on B2B and vice versa. |
+| **MERCH-05** | Admin + API + Web | Optional `webTitle`, `webSubtitle`, `webCtaLabel` overrides and a shared character budget. | MERCH-02 | App copy fits; web overrides are optional; tested widths do not truncate. |
+| **MERCH-06** | Admin | Full-page preview for welcome, home and category on App / Mobile web / Desktop. | MERCH-01, 02, 04 | Preview matches the published page before publish. |
+| **MERCH-07** | Admin | Placement coverage matrix; one record per placement; warn when a required slot has no banner. | MERCH-03 | Operator can see missing home/welcome/category slots; channel-wide substitution is rejected. |
+| **MERCH-08** | Admin + API | Show category copy precedence (banner → editorial → seed) and return the winning source. | MERCH-01 | Operator sees which source wins; no duplicate-copy confusion. |
+| **MERCH-09** | Web | Consume `/v1/content/presentation` and `/v1/content/app-shell`; pick image by viewport; resolve CTA; map placements to web components; revalidate. | MERCH-01, 02 | B2C/B2B banners and categories come from CMS; no hardcoded hero/category copy. |
+| **MERCH-10** | Web | Render layout sections in published order with title/badge/limit/See All/banner and empty-collection states. | MERCH-09 | Published order/visibility/limits match; empty collections explain themselves. |
+| **MERCH-11** | Web + Ops | Per-surface attribution: UTM or click event distinguishing app vs web. | MERCH-02 | Dashboard can separate app and web clicks for the same campaign. |
+| **MERCH-12** | QA | Channel/locale/schedule/expiry/CTA/responsive matrix; publish/rollback rehearsal. | All | Evidence recorded for B2C/B2B, 390/1440, en-IN/hi-IN. |
+
+### 7.4 Sequencing
+
+| Phase | Work | Outcome |
+|---|---|---|
+| **0. Contracts** | MERCH-01, MERCH-03 | CMS/admin/API can represent responsive welcome banners; registry is no longer missing slots. |
+| **1. Admin control** | MERCH-02, 06, 07, 08 | Operators can author, validate and preview the web result. |
+| **2. Web consumption** | MERCH-09, MERCH-10 | Home/category banners and sections render from CMS; hardcoded fallbacks removed. |
+| **3. Welcome + copy** | MERCH-04, 05 | B2C/B2B welcome banners and optional web copy overrides ship. |
+| **4. Attribution + QA** | MERCH-11, 12 | Campaign reporting and release evidence. |
+
+**Can ship before Phase 0:** existing placements with one image, canonical product/category/collection
+CTAs, copy/schedule/priority/locale, and the current app/web fallback. Use `object-fit: cover` and a safe
+text zone on web; do not block the current web launch on media crops.
+
+**Do not ship before Phase 1:** any banner that depends on a custom app-only route, or a welcome banner
+without a full-page preview.
 
 ---
 
@@ -448,15 +515,60 @@ The web renderer should:
 - Use the Experience API `source`/`freshness` fields and a short revalidation window so a publish is
   visible without a full rebuild.
 
+### 8.1 Single-banner workstream
+
+| ID | Task | Maps to | Acceptance |
+|---|---|---|---|
+| **SB-1** | Add responsive image fields + focal point/crops; keep one-image fallback. | MERCH-01 | 390px, 768px and 1440px each use the intended crop; missing variant falls back cleanly. |
+| **SB-2** | Add surface-aware CTA (`appRoute` + `webPath`, or canonical entity + resolver). | MERCH-02 | The same record resolves to a valid app route and web path; no 404. |
+| **SB-3** | Add optional web copy overrides/character budget. | MERCH-05 | App and web both fit without truncation at tested widths. |
+| **SB-4** | Enforce one record per placement; add placement coverage matrix. | MERCH-07 | Home hero, campaign strip, welcome and category each have their own record or an explicit “not used”. |
+| **SB-5** | Add welcome placements and render fallback. | MERCH-03, 04 | Welcome banner appears only on the correct channel; absent banner retains the current welcome layout. |
+| **SB-6** | Add full-page preview for app/mobile/desktop. | MERCH-06 | Preview includes the real header/pinned bar safe area; matches publish. |
+| **SB-7** | Publish validation: missing web path, missing crop, app-only route, wrong channel. | MERCH-02, 07 | Publish is blocked with a specific error; draft is still saveable. |
+| **SB-8** | Web renderer: image selection, CTA resolution, placement map, revalidation. | MERCH-09 | Web renders the same campaign as the app with the correct crop and target. |
+
+**Non-goals for this workstream:** separate app/web banner records for the same campaign; a single
+channel-wide banner standing in for multiple placements; hardcoded web fallback copy when the CMS record
+is missing (governed seed is allowed only where documented).
+
+**Single-banner definition of done:**
+
+1. A campaign is authored once, scoped to one placement/channel/locale.
+2. The app and web each render the correct crop and copy at 390px and 1440px.
+3. Both CTAs resolve; an app-only route cannot reach production.
+4. Welcome/hero/campaign/category are separate placement records.
+5. Admin preview shows the actual page chrome before publish.
+6. Unpublishing restores the prior published state; drafts never leak.
+
 ## 9. Decisions needed
 
-1. Is the welcome banner a **single optional hero** or a carousel? Recommend single banner + the
-   existing value-prop stack; carousel only if operators need multiple.
-2. Is B2B welcome a separate screen or a B2B variant of the shared welcome? Recommend a B2B variant
-   selected before login, using `b2b.welcome.banner`.
-3. Should welcome banners share creative with `b2c.home.hero`, or be separate records? Recommend
-   separate placements so the welcome and home can differ.
-4. Should tile badges be operator-overridable per product, or stay derived from tags/reviews? Recommend
-   an optional tile badge override in Product Studio.
-5. Who approves welcome/login copy and imagery? Use the same merchandising publish role, with a
-   second reviewer for the welcome surface.
+| Decision | Recommended default | Blocking? |
+|---|---|---|
+| Welcome banner: single optional hero or carousel? | Single optional banner above the existing value-prop stack; carousel only when multiple campaigns are actually needed. | Blocks MERCH-04 scope only. |
+| B2B welcome: separate screen or a B2B variant of the shared welcome? | B2B variant selected before login, using `b2b.welcome.banner`; no separate route unless product asks for it. | Blocks MERCH-04 design. |
+| Welcome creative: share with `b2c.home.hero` or separate records? | Separate placements and separate records; welcome and home have different jobs. | Blocks MERCH-03/04. |
+| Tile badges: operator override or derived? | Keep derived from tags/reviews for now; add an optional Product Studio tile-badge override in P2. | Blocks only tile polish. |
+| Welcome/login approval | Same merchandising publish role plus a second reviewer for welcome/login. | Blocks production publish, not build. |
+| Media management | Media library with desktop/tablet/mobile crops; one-image fallback until then. | Blocks MERCH-01 quality, not the web launch. |
+
+If a decision is not made, implement the recommended default and record it in the change contract.
+
+## 10. Release gates
+
+A merchandising change is releasable only when:
+
+1. **Channel isolation:** no B2C banner, seed creative or category copy appears on B2B, and vice versa.
+2. **Placement correctness:** the banner is published to the intended placement; a channel-wide “single
+   banner” is not used as a substitute for home/welcome/category slots.
+3. **Responsive evidence:** 390px and 1440px screenshots show the intended crop, copy and no chrome
+   collision.
+4. **CTA resolution:** both the app and web destinations resolve; no app-only route remains in a web
+   `href`.
+5. **Schedule/locale:** scheduled banners are not live early; expired banners are not shown; EN/HI
+   records are complete for the launch locale set.
+6. **Fallback safety:** missing banner → current welcome/hero fallback; missing layout → governed
+   fallback only where documented; no B2C fallback on B2B.
+7. **Admin preview:** preview matches the published page, including the real header/pinned-bar safe area.
+8. **Rollback:** unpublishing restores the previous published state and leaves drafts untouched.
+9. **Evidence:** publish time, actor, placement, locale and screenshots recorded once per bundle.
