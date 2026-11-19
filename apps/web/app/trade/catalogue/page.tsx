@@ -116,18 +116,20 @@ export default async function TradeCataloguePage({
   if (!trade) {
     return (
       <section className="trade-page">
-        <TradeNav active="catalogue" />
         <div className="trade-access">
           <span className="eyebrow">Trade account required</span>
           <h1>This catalogue is for trade buyers</h1>
           <p className="muted">
-            The signed-in identity does not carry a B2B buyer role. Open the trade app with a trade
-            account, or continue shopping the consumer catalogue.
+            The signed-in account is a consumer account. Sign in with a trade-enabled BazarBee
+            account to see trade rates, MOQ and quantity tiers.
           </p>
           <div className="buy-actions">
-            <a className="button" href="https://gobazarbee.com/#/b2b">
-              Open trade app
-            </a>
+            <Link
+              className="button"
+              href={`/sign-in?next=${encodeURIComponent("/trade/catalogue")}`}
+            >
+              Sign in with a trade account
+            </Link>
             <Link className="button button-ghost" href="/search">
               Consumer catalogue
             </Link>

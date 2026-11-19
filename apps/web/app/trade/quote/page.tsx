@@ -40,16 +40,21 @@ export default async function TradeQuotePage() {
   if (!trade) {
     return (
       <section className="trade-page">
-        <TradeNav active="quote" />
         <div className="trade-access">
           <span className="eyebrow">Trade account required</span>
           <h1>A quotation cart needs a trade account</h1>
           <p className="muted">
-            Open the trade app with a B2B buyer account to build and submit an RFQ.
+            The signed-in account is a consumer account. Sign in with a trade-enabled account to
+            build a quotation and submit an RFQ.
           </p>
-          <a className="button" href="https://gobazarbee.com/#/b2b">
-            Open trade app
-          </a>
+          <div className="buy-actions">
+            <Link className="button" href={`/sign-in?next=${encodeURIComponent("/trade/quote")}`}>
+              Sign in with a trade account
+            </Link>
+            <Link className="button button-ghost" href="/trade">
+              Trade overview
+            </Link>
+          </div>
         </div>
       </section>
     );

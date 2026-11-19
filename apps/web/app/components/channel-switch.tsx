@@ -14,7 +14,7 @@ export function ChannelSwitch({
   locale?: StorefrontLocale;
 }) {
   const pathname = usePathname();
-  if (!signedIn || !hasTrade) return null;
+  if (!signedIn) return null;
   const inTrade = pathname?.startsWith("/trade") ?? false;
 
   return (
@@ -30,6 +30,7 @@ export function ChannelSwitch({
         href="/trade"
         className={inTrade ? "channel-option active" : "channel-option"}
         aria-current={inTrade ? "page" : undefined}
+        title={hasTrade ? undefined : "Trade access requires a trade-enabled account"}
       >
         {locale === "hi-IN" ? "ट्रेड" : "Trade"}
       </Link>

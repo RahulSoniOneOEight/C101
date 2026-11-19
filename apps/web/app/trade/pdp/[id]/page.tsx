@@ -48,18 +48,23 @@ export default async function TradePdpPage({
   if (!hasTradeRole(contexts)) {
     return (
       <section className="trade-page">
-        <TradeNav active="catalogue" />
         <div className="trade-access">
           <span className="eyebrow">Trade account required</span>
           <h1>Trade pricing is for business buyers</h1>
           <p className="muted">
-            Open the trade workspace with a B2B buyer account, or continue shopping the consumer
-            catalogue.
+            The signed-in account is a consumer account. Sign in with a trade-enabled account to
+            see MOQ, tier pricing and add the line to a quotation.
           </p>
           <div className="buy-actions">
-            <a className="button" href="https://gobazarbee.com/#/b2b">
-              Open trade app
-            </a>
+            <Link
+              className="button"
+              href={`/sign-in?next=${encodeURIComponent(`/trade/pdp/${id}`)}`}
+            >
+              Sign in with a trade account
+            </Link>
+            <Link className="button button-ghost" href="/trade">
+              Trade overview
+            </Link>
             <Link className="button button-ghost" href="/search">
               Consumer catalogue
             </Link>

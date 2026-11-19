@@ -74,7 +74,7 @@ export default async function TradePage() {
     }
   }
 
-  if (!trade || !token) return <TradeMarketing />;
+  if (!trade || !token) return <TradeMarketing signedIn={Boolean(token)} />;
   const businessName = readableBusinessName(businessId);
   let heroBanner: StorefrontBanner | null = null;
   let tradeProducts: ComposedProduct[] = [];
@@ -329,7 +329,7 @@ export default async function TradePage() {
   );
 }
 
-function TradeMarketing() {
+function TradeMarketing({ signedIn }: { signedIn: boolean }) {
   return (
     <section className="trade-page">
       <nav className="breadcrumb" aria-label="Breadcrumb">
@@ -338,17 +338,30 @@ function TradeMarketing() {
         <span>BazarBee Trade</span>
       </nav>
 
+      {signedIn ? (
+        <div className="notice">
+          You are signed in with a consumer account. The trade workspace needs a trade-enabled B2B
+          account. Sign in with a trade account below to open it.
+        </div>
+      ) : null}
+
       <div className="trade-hero">
         <div>
           <span className="eyebrow eyebrow-light">BazarBee Trade</span>
           <h1>Built for trade counters and project sites.</h1>
           <p>
-            One catalogue, two ways to buy. Consumer checkout on the web today, with the full trade
-            workspace — negotiated tiers, credit, quotes and RFQ — on the same account.
+            One catalogue, two ways to buy. Consumer checkout is open to everyone; trade rates,
+            credit, quotes and RFQ need a trade-enabled BazarBee account.
           </p>
           <div className="hero-actions">
-            <a className="button button-honey button-lg" href="https://gobazarbee.com/#/b2b">
-              Open BazarBee Trade
+            <Link
+              className="button button-honey button-lg"
+              href={`/sign-in?next=${encodeURIComponent("/trade")}`}
+            >
+              Sign in with a trade account
+            </Link>
+            <a className="button button-ghost-light button-lg" href="https://gobazarbee.com/#/b2b">
+              Open BazarBee Trade app
             </a>
             <Link className="button button-ghost-light button-lg" href="/search">
               Shop the shared catalogue
@@ -394,9 +407,8 @@ function TradeMarketing() {
           <span className="eyebrow">Rollout status</span>
           <h2>Where the trade workspace lives today</h2>
           <p>
-            The trade workspace is live in the BazarBee app. The responsive web trade workspace is
-            the next slice; this page is the shared entry point until it ships. Catalogue,
-            identity and GST details are shared, so the same account works in both places.
+            The trade workspace is live on the web for trade-enabled accounts. Sign in with a trade
+            account to open it. Catalogue, identity and GST details are shared across web and app.
           </p>
         </div>
         <div className="trade-status-lists">
@@ -404,7 +416,8 @@ function TradeMarketing() {
             <h3>Available on the web today</h3>
             <ul>
               <li>Shared product catalogue and search</li>
-              <li>Email code and magic-link sign-in</li>
+              <li>Trade rates, MOQ and tier pricing</li>
+              <li>Quotation cart and RFQ draft</li>
               <li>Cart, quote-backed checkout and confirmation</li>
               <li>Orders, tracking, returns, wishlist and notifications</li>
             </ul>
@@ -412,10 +425,10 @@ function TradeMarketing() {
           <div>
             <h3>In the trade app today</h3>
             <ul>
-              <li>Trade rates, MOQ and tier pricing</li>
-              <li>Credit account and invoice ledger</li>
-              <li>Quotation cart, RFQ and quote comparison</li>
-              <li>Projects, procurement lists, GST invoices and approvals</li>
+              <li>Credit account actions and invoice ledger</li>
+              <li>Quote comparison and approvals</li>
+              <li>Projects, procurement lists and team roles</li>
+              <li>GST invoice history</li>
             </ul>
           </div>
         </div>
@@ -424,11 +437,21 @@ function TradeMarketing() {
       <div className="trade-cta">
         <div>
           <h2>Ready to buy at trade terms?</h2>
-          <p className="muted">Open the trade app with the same BazarBee account.</p>
+          <p className="muted">
+            Sign in with a trade-enabled account, or open the trade app with the same identity.
+          </p>
         </div>
-        <a className="button button-lg" href="https://gobazarbee.com/#/b2b">
-          Open BazarBee Trade
-        </a>
+        <div className="hero-actions">
+          <Link
+            className="button button-lg"
+            href={`/sign-in?next=${encodeURIComponent("/trade")}`}
+          >
+            Sign in with a trade account
+          </Link>
+          <a className="button button-ghost button-lg" href="https://gobazarbee.com/#/b2b">
+            Open BazarBee Trade app
+          </a>
+        </div>
       </div>
     </section>
   );

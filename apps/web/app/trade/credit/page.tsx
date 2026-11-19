@@ -39,17 +39,21 @@ export default async function TradeCreditPage() {
   if (!trade) {
     return (
       <section className="trade-page">
-        <TradeNav active="credit" />
         <div className="trade-access">
           <span className="eyebrow">Trade account required</span>
           <h1>Credit is available to trade buyers</h1>
           <p className="muted">
-            The signed-in identity does not carry a B2B buyer role. Open the trade app with a trade
-            account to view credit.
+            The signed-in account is a consumer account. Sign in with a trade-enabled account to
+            view the credit limit and invoice ledger.
           </p>
-          <a className="button" href="https://gobazarbee.com/#/b2b">
-            Open trade app
-          </a>
+          <div className="buy-actions">
+            <Link className="button" href={`/sign-in?next=${encodeURIComponent("/trade/credit")}`}>
+              Sign in with a trade account
+            </Link>
+            <Link className="button button-ghost" href="/trade">
+              Trade overview
+            </Link>
+          </div>
         </div>
       </section>
     );
