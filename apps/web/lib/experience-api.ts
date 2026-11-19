@@ -76,8 +76,107 @@ export interface ComposedProduct {
   thumbnail?: string | null;
   description?: string | null;
   handle?: string | null;
+  categories?: { id: string; name: string; parent_category_id?: string | null }[];
+  badges?: string[];
   best_price?: OfferView | null;
   offer_count?: number;
+}
+
+export interface StorefrontBanner {
+  content_key: string;
+  placement: string;
+  title: string;
+  body?: string;
+  image_uri?: string;
+  image_mobile_uri?: string;
+  image_tablet_uri?: string;
+  image_desktop_uri?: string;
+  image_alt?: string;
+  action_label?: string;
+  action_uri?: string;
+  priority?: number;
+}
+
+export interface StorefrontCategory {
+  category_id: string;
+  slug: string;
+  name: string;
+  label: string;
+  short_text?: string;
+  icon_key?: string;
+  banner_image_uri?: string;
+  banner_image_alt?: string;
+  presentation_source?: string;
+}
+
+export interface StorefrontPresentation {
+  locale: string;
+  channel: "b2c" | "b2b";
+  banners: StorefrontBanner[];
+  categories: StorefrontCategory[];
+  source?: string;
+  freshness?: unknown;
+}
+
+export interface LayoutProductRef {
+  id: string;
+  title: string;
+  handle?: string | null;
+  thumbnail?: string | null;
+}
+
+export interface StorefrontLayoutSection {
+  placement: string;
+  label?: string;
+  source?: string;
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  collection_key?: string;
+  limit?: number;
+  see_all_label?: string;
+  see_all_uri?: string;
+  visible?: boolean;
+  products?: LayoutProductRef[];
+  products_unavailable_reason?: string;
+  children?: StorefrontLayoutSection[];
+}
+
+export interface StorefrontLayout {
+  layout_key: string;
+  channel: "b2c" | "b2b";
+  locale: string;
+  sections: StorefrontLayoutSection[];
+  modules?: unknown[];
+  hero_rotation_ms?: number;
+  empty_collections?: string[];
+  source?: string;
+}
+
+export interface StorefrontAppShell {
+  locale: string;
+  channel?: "b2c" | "b2b";
+  layout?: StorefrontLayout;
+  source?: string;
+  freshness?: unknown;
+}
+
+export async function getStorefrontPresentation(
+  channel: "b2c" | "b2b",
+  locale = "en-IN",
+): Promise<StorefrontPresentation> {
+  return call<StorefrontPresentation>(
+    `/v1/content/presentation?locale=${encodeURIComponent(locale)}&channel=${channel}`,
+  );
+}
+
+export async function getStorefrontAppShell(
+  channel: "b2c" | "b2b",
+  locale = "en-IN",
+): Promise<StorefrontAppShell> {
+  return call<StorefrontAppShell>(
+    `/v1/content/app-shell?locale=${encodeURIComponent(locale)}&channel=${channel}`,
+  );
 }
 
 export interface VariantView {

@@ -3,11 +3,21 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { StorefrontBanner } from "@/lib/experience-api";
+import { imageSources } from "@/lib/storefront";
 
 type Mode = "code" | "magic";
 type Stage = "identify" | "verify" | "link-sent";
 
-export function SignInForm({ next }: { next?: string }) {
+export function SignInForm({
+  next,
+  welcomeBanner,
+}: {
+  next?: string;
+  welcomeBanner?: StorefrontBanner | null;
+}) {
+  const welcomeDesktop = imageSources(welcomeBanner?.image_desktop_uri ?? welcomeBanner?.image_uri, 1200);
+  const welcomeMobile = imageSources(welcomeBanner?.image_mobile_uri ?? welcomeBanner?.image_desktop_uri ?? welcomeBanner?.image_uri, 720);
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("code");
   const [stage, setStage] = useState<Stage>("identify");
@@ -206,6 +216,23 @@ export function SignInForm({ next }: { next?: string }) {
 
   return (
     <div className="auth-card">
+      {welcomeBanner && welcomeDesktop.src ? (
+        <div className="auth-welcome">
+          <picture>
+            <source media="(max-width: 720px)" srcSet={welcomeMobile.srcSet ?? welcomeMobile.src} />
+            <img
+              src={welcomeDesktop.src}
+              srcSet={welcomeDesktop.srcSet}
+              sizes="(max-width: 720px) 100vw, 560px"
+              alt={welcomeBanner.image_alt ?? ""}
+            />
+          </picture>
+          <div>
+            <strong>{welcomeBanner.title}</strong>
+            {welcomeBanner.body ? <span>{welcomeBanner.body}</span> : null}
+          </div>
+        </div>
+      ) : null}
       {tabs}
       {mode === "code" ? (
         <form className="stack" onSubmit={requestCode}>

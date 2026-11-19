@@ -512,8 +512,8 @@ export function BannerEditor({
                   </div>
                   <Field
                     id="banner-image"
-                    label="Creative reference (https)"
-                    description="Approved staging creative. Media-library upload and crop are deferred."
+                    label="Fallback creative (https)"
+                    description="Single creative used when no responsive URL is set."
                   >
                     <Input
                       id="banner-image"
@@ -523,6 +523,47 @@ export function BannerEditor({
                       onChange={(event) => update({ externalImageUrl: event.target.value })}
                     />
                   </Field>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <Field
+                      id="banner-image-mobile"
+                      label="Mobile creative (https)"
+                      description="Portrait/phone crop."
+                    >
+                      <Input
+                        id="banner-image-mobile"
+                        type="url"
+                        placeholder="https://…"
+                        value={form.imageMobileUrl}
+                        onChange={(event) => update({ imageMobileUrl: event.target.value })}
+                      />
+                    </Field>
+                    <Field
+                      id="banner-image-tablet"
+                      label="Tablet creative (https)"
+                      description="Tablet crop."
+                    >
+                      <Input
+                        id="banner-image-tablet"
+                        type="url"
+                        placeholder="https://…"
+                        value={form.imageTabletUrl}
+                        onChange={(event) => update({ imageTabletUrl: event.target.value })}
+                      />
+                    </Field>
+                    <Field
+                      id="banner-image-desktop"
+                      label="Desktop creative (https)"
+                      description="Wide web/desktop crop."
+                    >
+                      <Input
+                        id="banner-image-desktop"
+                        type="url"
+                        placeholder="https://…"
+                        value={form.imageDesktopUrl}
+                        onChange={(event) => update({ imageDesktopUrl: event.target.value })}
+                      />
+                    </Field>
+                  </div>
                   <Field
                     id="banner-image-alt"
                     label="Alternative text"

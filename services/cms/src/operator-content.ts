@@ -122,7 +122,25 @@ const CONTENT_KINDS: ContentKindDefinition[] = [
         name: "externalImageUrl",
         label: "External image URL",
         type: "url",
-        description: "HTTPS staging creative. Existing Strapi media remains preferred when present.",
+        description: "Single fallback creative. Used when no responsive URL is set.",
+      },
+      {
+        name: "imageMobileUrl",
+        label: "Mobile creative URL",
+        type: "url",
+        description: "HTTPS portrait/phone creative. Falls back to the single image URL.",
+      },
+      {
+        name: "imageTabletUrl",
+        label: "Tablet creative URL",
+        type: "url",
+        description: "HTTPS tablet creative. Falls back to the desktop image.",
+      },
+      {
+        name: "imageDesktopUrl",
+        label: "Desktop creative URL",
+        type: "url",
+        description: "HTTPS wide creative for web and desktop app.",
       },
       {
         name: "imageAltText",

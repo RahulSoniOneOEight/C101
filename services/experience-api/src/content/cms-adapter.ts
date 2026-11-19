@@ -69,6 +69,9 @@ export interface StorefrontBannerPresentation {
   title: string;
   body?: string;
   image_uri?: string;
+  image_mobile_uri?: string;
+  image_tablet_uri?: string;
+  image_desktop_uri?: string;
   action_label?: string;
   action_uri?: string;
   priority: number;
@@ -242,14 +245,23 @@ function mapBannerFields(value: unknown): StorefrontBannerPresentation | undefin
   // Alt text and colour theme are no longer authored per banner: the card's heading carries the
   // meaning, and the app owns the gradient. Their absence must not drop the banner.
   if (!contentKey || !placement || !title) return undefined;
-  const image = mediaUri(banner.imageMobile ?? banner.imageTablet ?? banner.imageDesktop)
-    ?? externalImageUri(banner.externalImageUrl);
+  const single = externalImageUri(banner.externalImageUrl);
+  const mediaDesktop = mediaUri(banner.imageDesktop);
+  const mediaTablet = mediaUri(banner.imageTablet);
+  const mediaMobile = mediaUri(banner.imageMobile);
+  const desktop = externalImageUri(banner.imageDesktopUrl) ?? mediaDesktop ?? single;
+  const tablet = externalImageUri(banner.imageTabletUrl) ?? mediaTablet ?? desktop;
+  const mobile = externalImageUri(banner.imageMobileUrl) ?? mediaMobile ?? desktop;
+  const image = desktop ?? tablet ?? mobile;
   return {
     content_key: contentKey,
     placement,
     title,
     ...(text(banner.subtitle) ? { body: text(banner.subtitle) } : {}),
     ...(image ? { image_uri: image } : {}),
+    ...(desktop ? { image_desktop_uri: desktop } : {}),
+    ...(tablet ? { image_tablet_uri: tablet } : {}),
+    ...(mobile ? { image_mobile_uri: mobile } : {}),
     ...(text(banner.ctaLabel) ? { action_label: text(banner.ctaLabel) } : {}),
     ...(actionUri(banner) ? { action_uri: actionUri(banner) } : {}),
     priority: numberValue(banner.priority) ?? 0,

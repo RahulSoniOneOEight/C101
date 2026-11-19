@@ -11,7 +11,7 @@
  * state the same values, and `tooling/validate_banner_types.py` fails the build if they diverge.
  */
 
-export type StorefrontSurface = "home" | "category";
+export type StorefrontSurface = "home" | "category" | "welcome";
 
 export interface BannerType {
   /** Placement value stored on the banner. */
@@ -46,6 +46,13 @@ export const BANNER_TYPES: ReadonlyArray<BannerType> = [
     label: "B2C · Category banner",
   },
   {
+    placement: "b2c.welcome.banner",
+    channel: "b2c",
+    surface: "welcome",
+    requiresCategory: false,
+    label: "B2C · Welcome banner",
+  },
+  {
     placement: "b2b.home.hero",
     channel: "b2b",
     surface: "home",
@@ -58,6 +65,13 @@ export const BANNER_TYPES: ReadonlyArray<BannerType> = [
     surface: "category",
     requiresCategory: true,
     label: "B2B · Category banner",
+  },
+  {
+    placement: "b2b.welcome.banner",
+    channel: "b2b",
+    surface: "welcome",
+    requiresCategory: false,
+    label: "B2B · Welcome banner",
   },
 ];
 

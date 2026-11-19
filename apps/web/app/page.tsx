@@ -1,7 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatMoney, listProducts, type ComposedProduct } from "@/lib/experience-api";
+import {
+  formatMoney,
+  getStorefrontAppShell,
+  getStorefrontPresentation,
+  listProducts,
+  type ComposedProduct,
+  type StorefrontBanner,
+  type StorefrontPresentation,
+} from "@/lib/experience-api";
 import { CATEGORIES, productsInCategory } from "@/lib/catalogue";
+import {
+  categoryCount,
+  categoryIcon,
+  categoryTone,
+  firstBanner,
+  imageSources,
+  sectionHref,
+  sectionProducts,
+  sortedBanners,
+  webHrefForAction,
+} from "@/lib/storefront";
+import { HeroCarousel } from "./components/hero-carousel";
 import { ProductCard } from "./components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -10,91 +30,137 @@ export const metadata = {
   title: "BazarBee · Everything you need, delivered",
 };
 
-const CATEGORY_TILES: Record<string, { icon: string; tone: string }> = {
-  building: { icon: "▦", tone: "tile-indigo" },
-  paint: { icon: "◐", tone: "tile-aqua" },
-  tools: { icon: "✦", tone: "tile-honey" },
-  plumbing: { icon: "◉", tone: "tile-leaf" },
-  lighting: { icon: "☀", tone: "tile-lavender" },
-  tyres: { icon: "◎", tone: "tile-night" },
-};
+function DefaultHero({ featured }: { featured: ComposedProduct | null }) {
+  return (
+    <section className="hero">
+      <div className="hero-copy">
+        <span className="hero-eyebrow">
+          <span className="pulse-dot" aria-hidden="true" />
+          For home and business buyers
+        </span>
+        <h1>
+          Everything you need,
+          <br />
+          <span className="hero-accent">delivered to your site.</span>
+        </h1>
+        <p className="hero-lead">
+          Shop building materials, paint, tools and everyday essentials at prices made for every
+          buyer — with GST invoices and doorstep delivery.
+        </p>
+        <div className="hero-actions">
+          <Link className="button button-lg" href="/search">
+            Shop the catalogue
+          </Link>
+          <Link className="button button-ghost button-lg" href="/orders">
+            Track an order
+          </Link>
+        </div>
+        <ul className="hero-trust">
+          <li>
+            <strong>30+</strong> products in the staging catalogue
+          </li>
+          <li>
+            <strong>GST</strong> invoices for business
+          </li>
+          <li>
+            <strong>1–3 day</strong> delivery windows
+          </li>
+        </ul>
+      </div>
+      <div className="hero-art" aria-hidden="true">
+        <div className="hero-orbit hero-orbit-one" />
+        <div className="hero-orbit hero-orbit-two" />
+        <Image
+          src="/branding/bazarbee-logo-dark-transparent.png"
+          alt=""
+          width={300}
+          height={281}
+          priority
+          className="hero-logo"
+        />
+        {featured?.best_price ? (
+          <div className="hero-float hero-price">
+            <span>Today&apos;s best price</span>
+            <strong>
+              {formatMoney(featured.best_price.unit_amount_minor, featured.best_price.currency_code)}
+            </strong>
+            <small>{featured.title}</small>
+          </div>
+        ) : null}
+        <div className="hero-float hero-delivery">
+          <span className="delivery-tick">✓</span>
+          <div>
+            <strong>Delivered to your doorstep</strong>
+            <small>Home or project site</small>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CampaignStrip({ banner }: { banner: StorefrontBanner }) {
+  const href = webHrefForAction(banner.action_uri, "b2c");
+  const image = imageSources(banner.image_uri, 1200);
+  return (
+    <section className="campaign-strip">
+      {image.src ? <img src={image.src} srcSet={image.srcSet} sizes="240px" alt="" /> : null}
+      <div>
+        <span className="eyebrow">Campaign</span>
+        <h2>{banner.title}</h2>
+        {banner.body ? <p>{banner.body}</p> : null}
+      </div>
+      {href && banner.action_label ? (
+        <Link className="button" href={href}>
+          {banner.action_label}
+        </Link>
+      ) : null}
+    </section>
+  );
+}
 
 export default async function HomePage() {
   let products: ComposedProduct[] = [];
+  let presentation: StorefrontPresentation | null = null;
+  let layoutSections: Awaited<ReturnType<typeof getStorefrontAppShell>>["layout"] | undefined;
   let loadError = "";
-  try {
-    products = await listProducts(60);
-  } catch (error) {
-    loadError = (error as Error).message;
-  }
+
+  const [productsResult, presentationResult, shellResult] = await Promise.allSettled([
+    listProducts(60),
+    getStorefrontPresentation("b2c"),
+    getStorefrontAppShell("b2c"),
+  ]);
+  if (productsResult.status === "fulfilled") products = productsResult.value;
+  if (presentationResult.status === "fulfilled") presentation = presentationResult.value;
+  if (shellResult.status === "fulfilled") layoutSections = shellResult.value.layout;
+  if (productsResult.status === "rejected") loadError = (productsResult.reason as Error).message;
 
   const featured = products.find((product) => product.best_price) ?? products[0] ?? null;
   const popular = products.filter((product) => product.best_price).slice(0, 12);
+  const banners = presentation?.banners ?? [];
+  const heroBanners = sortedBanners(banners, "b2c.home.hero");
+  const campaign = firstBanner(banners, "b2c.home.campaign-strip");
+  const cmsCategories = presentation?.categories ?? [];
+  const counts = categoryCount(products, cmsCategories);
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const sections = (layoutSections?.sections ?? [])
+    .filter((section) => section.visible !== false)
+    .map((section) => ({
+      ...section,
+      resolved: sectionProducts(section, productsById),
+    }))
+    .filter((section) => section.resolved.length > 0);
+  const hasCmsSections = sections.length > 0;
 
   return (
     <>
-      <section className="hero">
-        <div className="hero-copy">
-          <span className="hero-eyebrow">
-            <span className="pulse-dot" aria-hidden="true" />
-            For home and business buyers
-          </span>
-          <h1>
-            Everything you need,
-            <br />
-            <span className="hero-accent">delivered to your site.</span>
-          </h1>
-          <p className="hero-lead">
-            Shop building materials, paint, tools and everyday essentials at prices made for
-            every buyer — with GST invoices and doorstep delivery.
-          </p>
-          <div className="hero-actions">
-            <Link className="button button-lg" href="/search">
-              Shop the catalogue
-            </Link>
-            <Link className="button button-ghost button-lg" href="/orders">
-              Track an order
-            </Link>
-          </div>
-          <ul className="hero-trust">
-            <li>
-              <strong>30+</strong> products in the staging catalogue
-            </li>
-            <li>
-              <strong>GST</strong> invoices for business
-            </li>
-            <li>
-              <strong>1–3 day</strong> delivery windows
-            </li>
-          </ul>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <div className="hero-orbit hero-orbit-one" />
-          <div className="hero-orbit hero-orbit-two" />
-          <Image
-            src="/branding/bazarbee-logo-dark-transparent.png"
-            alt=""
-            width={300}
-            height={281}
-            priority
-            className="hero-logo"
-          />
-          {featured?.best_price ? (
-            <div className="hero-float hero-price">
-              <span>Today&apos;s best price</span>
-              <strong>{formatMoney(featured.best_price.unit_amount_minor, featured.best_price.currency_code)}</strong>
-              <small>{featured.title}</small>
-            </div>
-          ) : null}
-          <div className="hero-float hero-delivery">
-            <span className="delivery-tick">✓</span>
-            <div>
-              <strong>Delivered to your doorstep</strong>
-              <small>Home or project site</small>
-            </div>
-          </div>
-        </div>
-      </section>
+      {heroBanners.length > 0 ? (
+        <HeroCarousel banners={heroBanners} channel="b2c" />
+      ) : (
+        <DefaultHero featured={featured} />
+      )}
+
+      {campaign ? <CampaignStrip banner={campaign} /> : null}
 
       {loadError ? (
         <div className="notice err" role="alert">
@@ -112,53 +178,107 @@ export default async function HomePage() {
             View everything →
           </Link>
         </div>
-        <div className="category-grid">
-          {CATEGORIES.map((category) => {
-            const count = productsInCategory(products, category).length;
-            const tile = CATEGORY_TILES[category.slug] ?? CATEGORY_TILES.building;
-            return (
-              <Link
-                className={`category-tile ${tile.tone}`}
-                key={category.slug}
-                href={`/search?cat=${category.slug}`}
-              >
-                <span className="category-icon" aria-hidden="true">
-                  {tile.icon}
-                </span>
-                <span className="category-name">{category.name}</span>
-                <span className="category-blurb">{category.blurb}</span>
-                <span className="category-count">
-                  {count} {count === 1 ? "product" : "products"} →
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Popular right now</span>
-            <h2>Buyer favourites</h2>
-          </div>
-          <Link className="section-link" href="/search">
-            See all products →
-          </Link>
-        </div>
-        {popular.length > 0 ? (
-          <div className="product-grid">
-            {popular.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+        {cmsCategories.length > 0 ? (
+          <div className="category-grid">
+            {cmsCategories.map((category, index) => {
+              const count = counts.get(category.category_id) ?? 0;
+              return (
+                <Link
+                  className={`category-tile ${categoryTone(index)}`}
+                  key={category.category_id}
+                  href={`/search?cat=${encodeURIComponent(category.slug)}`}
+                >
+                  <span className="category-icon" aria-hidden="true">
+                    {categoryIcon(category)}
+                  </span>
+                  <span className="category-name">{category.label}</span>
+                  <span className="category-blurb">
+                    {category.short_text ?? category.name}
+                  </span>
+                  <span className="category-count">
+                    {count} {count === 1 ? "product" : "products"} →
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         ) : (
-          <div className="empty-panel">
-            <h2>The catalogue is warming up</h2>
-            <p className="muted">No products are available in this staging snapshot yet.</p>
+          <div className="category-grid">
+            {CATEGORIES.map((category, index) => {
+              const count = productsInCategory(products, category).length;
+              return (
+                <Link
+                  className={`category-tile ${categoryTone(index)}`}
+                  key={category.slug}
+                  href={`/search?cat=${category.slug}`}
+                >
+                  <span className="category-icon" aria-hidden="true">
+                    ▦
+                  </span>
+                  <span className="category-name">{category.name}</span>
+                  <span className="category-blurb">{category.blurb}</span>
+                  <span className="category-count">
+                    {count} {count === 1 ? "product" : "products"} →
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
+
+      {hasCmsSections
+        ? sections.map((section) => {
+            const href = sectionHref(section, "b2c");
+            return (
+              <section className="section" key={section.placement}>
+                <div className="section-heading">
+                  <div>
+                    <span className="eyebrow">{section.label ?? "Merchandising"}</span>
+                    <h2>
+                      {section.title ?? section.label ?? section.placement}{" "}
+                      {section.badge ? <span className="section-badge">{section.badge}</span> : null}
+                    </h2>
+                  </div>
+                  {href && (section.see_all_label ?? "See all") ? (
+                    <Link className="section-link" href={href}>
+                      {section.see_all_label ?? "See all"} →
+                    </Link>
+                  ) : null}
+                </div>
+                <div className="product-grid">
+                  {section.resolved.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </section>
+            );
+          })
+        : (
+          <section className="section">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">Popular right now</span>
+                <h2>Buyer favourites</h2>
+              </div>
+              <Link className="section-link" href="/search">
+                See all products →
+              </Link>
+            </div>
+            {popular.length > 0 ? (
+              <div className="product-grid">
+                {popular.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="empty-panel">
+                <h2>The catalogue is warming up</h2>
+                <p className="muted">No products are available in this staging snapshot yet.</p>
+              </div>
+            )}
+          </section>
+        )}
 
       <section className="b2b-band">
         <div className="b2b-copy">
@@ -172,8 +292,8 @@ export default async function HomePage() {
             <Link className="button button-honey" href="/sign-in?next=%2Forders">
               Sign in to your account
             </Link>
-            <Link className="button button-ghost-light" href="/search?cat=building">
-              Browse building materials
+            <Link className="button button-ghost-light" href="/search">
+              Browse the catalogue
             </Link>
           </div>
         </div>

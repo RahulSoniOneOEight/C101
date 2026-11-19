@@ -3,8 +3,11 @@ import { cookies } from "next/headers";
 import {
   PILOT_SESSION_COOKIE,
   getMyContexts,
+  getStorefrontPresentation,
   hasTradeRole,
+  type StorefrontBanner,
 } from "@/lib/experience-api";
+import { firstBanner, imageSources, webHrefForAction } from "@/lib/storefront";
 import { readableBusinessName } from "@/lib/trade";
 import { TradeNav } from "./trade-nav";
 
@@ -47,6 +50,32 @@ const CAPABILITIES = [
   },
 ];
 
+function TradeCmsBanner({ banner }: { banner: StorefrontBanner }) {
+  const desktop = imageSources(banner.image_desktop_uri ?? banner.image_uri, 1600);
+  const mobile = imageSources(banner.image_mobile_uri ?? banner.image_desktop_uri ?? banner.image_uri, 900);
+  const href = webHrefForAction(banner.action_uri, "b2b");
+  return (
+    <section className="trade-cms-banner">
+      {desktop.src ? (
+        <picture>
+          <source media="(max-width: 720px)" srcSet={mobile.srcSet ?? mobile.src} />
+          <img src={desktop.src} srcSet={desktop.srcSet} sizes="100vw" alt={banner.image_alt ?? ""} />
+        </picture>
+      ) : null}
+      <div className="trade-cms-banner-copy">
+        <span className="eyebrow eyebrow-light">Trade campaign</span>
+        <h2>{banner.title}</h2>
+        {banner.body ? <p>{banner.body}</p> : null}
+        {href && banner.action_label ? (
+          <Link className="button button-honey" href={href}>
+            {banner.action_label}
+          </Link>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export default async function TradePage() {
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
   let trade = false;
@@ -63,6 +92,13 @@ export default async function TradePage() {
 
   if (!trade) return <TradeMarketing />;
   const businessName = readableBusinessName(businessId);
+  let heroBanner: StorefrontBanner | null = null;
+  try {
+    const presentation = await getStorefrontPresentation("b2b");
+    heroBanner = firstBanner(presentation.banners, "b2b.home.hero");
+  } catch {
+    // The workspace remains usable with the static hero if content is unavailable.
+  }
 
   return (
     <section className="trade-page">
@@ -72,6 +108,8 @@ export default async function TradePage() {
         <span aria-hidden="true">/</span>
         <span>BazarBee Trade</span>
       </nav>
+
+      {heroBanner ? <TradeCmsBanner banner={heroBanner} /> : null}
 
       <div className="trade-hero trade-hero-workspace">
         <div>

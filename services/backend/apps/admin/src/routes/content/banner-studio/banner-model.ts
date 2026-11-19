@@ -38,7 +38,7 @@ export interface PlacementOption {
   value: string;
   label: string;
   channel: "b2c" | "b2b";
-  surface: "home" | "category";
+  surface: "home" | "category" | "welcome";
   /** A category banner must reference a Medusa category. */
   requiresCategory: boolean;
   /** False while the consuming surface does not read the CMS yet. */
@@ -78,6 +78,14 @@ export const SUPPORTED_PLACEMENTS: ReadonlyArray<PlacementOption> = [
     rendered: true,
   },
   {
+    value: "b2c.welcome.banner",
+    label: "B2C · Welcome banner",
+    channel: "b2c",
+    surface: "welcome",
+    requiresCategory: false,
+    rendered: true,
+  },
+  {
     value: "b2b.home.hero",
     label: "B2B · Home",
     channel: "b2b",
@@ -91,6 +99,14 @@ export const SUPPORTED_PLACEMENTS: ReadonlyArray<PlacementOption> = [
     channel: "b2b",
     surface: "category",
     requiresCategory: true,
+    rendered: true,
+  },
+  {
+    value: "b2b.welcome.banner",
+    label: "B2B · Welcome banner",
+    channel: "b2b",
+    surface: "welcome",
+    requiresCategory: false,
     rendered: true,
   },
 ];
@@ -228,6 +244,9 @@ export interface BannerForm {
   ctaTargetType: string;
   ctaTargetId: string;
   externalImageUrl: string;
+  imageMobileUrl: string;
+  imageTabletUrl: string;
+  imageDesktopUrl: string;
   startMode: StartMode;
   startsAt: string;
   endsAt: string;
@@ -247,6 +266,9 @@ export const EMPTY_BANNER_FORM: BannerForm = {
   ctaTargetType: "route",
   ctaTargetId: "",
   externalImageUrl: "",
+  imageMobileUrl: "",
+  imageTabletUrl: "",
+  imageDesktopUrl: "",
   startMode: "now",
   startsAt: "",
   endsAt: "",
@@ -274,6 +296,9 @@ export function formFromDocument(document: ContentDocument): BannerForm {
     ctaTargetType: text(document.ctaTargetType) || "route",
     ctaTargetId: text(document.ctaTargetId),
     externalImageUrl: text(document.externalImageUrl),
+    imageMobileUrl: text(document.imageMobileUrl),
+    imageTabletUrl: text(document.imageTabletUrl),
+    imageDesktopUrl: text(document.imageDesktopUrl),
     startMode,
     startsAt: startMode === "later" ? toIstInputValue(document.startsAt) : toIstInputValue(document.startsAt),
     endsAt: toIstInputValue(document.endsAt),
@@ -299,8 +324,24 @@ export function validateBannerForm(
     errors.push("Choose the category this banner belongs to.");
   }
   if (context.requireContent && !form.title.trim()) errors.push("Add the customer-facing heading.");
-  if (form.externalImageUrl.trim() && !/^https:\/\//i.test(form.externalImageUrl.trim())) {
-    errors.push("The image reference must be an https URL.");
+  for (const [label, value] of [
+    ["fallback", form.externalImageUrl],
+    ["mobile", form.imageMobileUrl],
+    ["tablet", form.imageTabletUrl],
+    ["desktop", form.imageDesktopUrl],
+  ] as const) {
+    if (value.trim() && !/^https:\/\//i.test(value.trim())) {
+      errors.push(`The ${label} image reference must be an https URL.`);
+    }
+  }
+  if (
+    context.requireContent &&
+    !form.externalImageUrl.trim() &&
+    !form.imageMobileUrl.trim() &&
+    !form.imageTabletUrl.trim() &&
+    !form.imageDesktopUrl.trim()
+  ) {
+    errors.push("Add at least one creative URL before publishing.");
   }
   if (form.ctaTargetId.trim()) {
     if (form.ctaTargetType === "url" && !/^https:\/\//i.test(form.ctaTargetId.trim())) {
@@ -368,6 +409,9 @@ export function serializeBannerForm(form: BannerForm): Record<string, unknown> {
     ctaTargetType: form.ctaTargetType,
     ctaTargetId: form.ctaTargetId.trim() || null,
     externalImageUrl: form.externalImageUrl.trim() || null,
+    imageMobileUrl: form.imageMobileUrl.trim() || null,
+    imageTabletUrl: form.imageTabletUrl.trim() || null,
+    imageDesktopUrl: form.imageDesktopUrl.trim() || null,
     startsAt,
     endsAt,
     timezone: IST_TIMEZONE,

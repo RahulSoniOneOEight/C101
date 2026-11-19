@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { listProducts, type ComposedProduct } from "@/lib/experience-api";
 import {
-  CATEGORIES,
-  categoryBySlug,
-  searchProducts,
-} from "@/lib/catalogue";
+  getStorefrontPresentation,
+  listProducts,
+  type ComposedProduct,
+  type StorefrontCategory,
+} from "@/lib/experience-api";
+import { CATEGORIES, categoryBySlug, searchProducts } from "@/lib/catalogue";
+import { imageSources, productsInStorefrontCategory } from "@/lib/storefront";
 import { ProductCard } from "../components/product-card";
 
 export const dynamic = "force-dynamic";
@@ -40,29 +42,62 @@ export default async function SearchPage({
   searchParams: Promise<{ q?: string; cat?: string; sort?: string }>;
 }) {
   const { q = "", cat, sort } = await searchParams;
-  const category = categoryBySlug(cat);
   let products: ComposedProduct[] = [];
+  let cmsCategories: StorefrontCategory[] = [];
   let loadError = "";
-  try {
-    products = await listProducts(60);
-  } catch (error) {
-    loadError = (error as Error).message;
-  }
 
-  const results = sorted(searchProducts(products, q, category), sort);
-  const heading = category
-    ? category.name
+  const [productsResult, presentationResult] = await Promise.allSettled([
+    listProducts(60),
+    getStorefrontPresentation("b2c"),
+  ]);
+  if (productsResult.status === "fulfilled") products = productsResult.value;
+  if (presentationResult.status === "fulfilled") {
+    cmsCategories = presentationResult.value.categories ?? [];
+  }
+  if (productsResult.status === "rejected") loadError = (productsResult.reason as Error).message;
+
+  const cmsCategory = cmsCategories.find((candidate) => candidate.slug === cat);
+  const legacyCategory = cmsCategory ? undefined : categoryBySlug(cat);
+  const categoryLabel = cmsCategory?.label ?? legacyCategory?.name;
+  const categorySlug = cmsCategory?.slug ?? legacyCategory?.slug;
+
+  let scope = products;
+  if (cmsCategory) {
+    scope = productsInStorefrontCategory(products, cmsCategory);
+  } else if (legacyCategory) {
+    scope = products.filter((product) => searchProducts([product], "", legacyCategory).length > 0);
+  }
+  const results = sorted(searchProducts(scope, q), sort);
+  const heading = categoryLabel
+    ? categoryLabel
     : q.trim()
       ? `Results for “${q.trim()}”`
       : "All products";
+  const bannerImage = imageSources(cmsCategory?.banner_image_uri, 1600);
 
   return (
     <section className="catalogue-page">
       <nav className="breadcrumb" aria-label="Breadcrumb">
         <Link href="/">Home</Link>
         <span aria-hidden="true">/</span>
-        <span>{category ? category.name : "Shop"}</span>
+        <span>{categoryLabel ?? "Shop"}</span>
       </nav>
+
+      {cmsCategory && bannerImage.src ? (
+        <div className="category-banner">
+          <img
+            src={bannerImage.src}
+            srcSet={bannerImage.srcSet}
+            sizes="(max-width: 720px) 100vw, 1200px"
+            alt={cmsCategory.banner_image_alt ?? cmsCategory.label}
+          />
+          <div className="category-banner-copy">
+            <span className="eyebrow eyebrow-light">BazarBee category</span>
+            <strong>{cmsCategory.label}</strong>
+            {cmsCategory.short_text ? <span>{cmsCategory.short_text}</span> : null}
+          </div>
+        </div>
+      ) : null}
 
       <div className="section-heading catalogue-heading">
         <div>
@@ -72,34 +107,31 @@ export default async function SearchPage({
             {loadError
               ? "The catalogue is temporarily unavailable."
               : `${results.length} ${results.length === 1 ? "product" : "products"}${
-                  category ? ` in ${category.name.toLowerCase()}` : ""
+                  categoryLabel ? ` in ${categoryLabel.toLowerCase()}` : ""
                 }${q.trim() ? ` matching “${q.trim()}”` : ""}.`}
           </p>
         </div>
         <div className="sort-control">
           <label htmlFor="sort">Sort</label>
           <div className="sort-links">
-            <Link
-              className={!sort ? "sort-link active" : "sort-link"}
-              href={href({ q, cat })}
-            >
+            <Link className={!sort ? "sort-link active" : "sort-link"} href={href({ q, cat: categorySlug })}>
               Featured
             </Link>
             <Link
               className={sort === "price-asc" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat, sort: "price-asc" })}
+              href={href({ q, cat: categorySlug, sort: "price-asc" })}
             >
               Price ↑
             </Link>
             <Link
               className={sort === "price-desc" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat, sort: "price-desc" })}
+              href={href({ q, cat: categorySlug, sort: "price-desc" })}
             >
               Price ↓
             </Link>
             <Link
               className={sort === "name" ? "sort-link active" : "sort-link"}
-              href={href({ q, cat, sort: "name" })}
+              href={href({ q, cat: categorySlug, sort: "name" })}
             >
               A–Z
             </Link>
@@ -108,22 +140,32 @@ export default async function SearchPage({
       </div>
 
       <div className="filter-bar" aria-label="Categories">
-        <Link className={!category ? "filter-chip active" : "filter-chip"} href={href({ q })}>
+        <Link className={!categoryLabel ? "filter-chip active" : "filter-chip"} href={href({ q })}>
           All
         </Link>
-        {CATEGORIES.map((candidate) => (
-          <Link
-            key={candidate.slug}
-            className={category?.slug === candidate.slug ? "filter-chip active" : "filter-chip"}
-            href={href({ q, cat: candidate.slug })}
-          >
-            {candidate.name}
-          </Link>
-        ))}
+        {cmsCategories.length > 0
+          ? cmsCategories.map((candidate) => (
+              <Link
+                key={candidate.category_id}
+                className={categorySlug === candidate.slug ? "filter-chip active" : "filter-chip"}
+                href={href({ q, cat: candidate.slug })}
+              >
+                {candidate.label}
+              </Link>
+            ))
+          : CATEGORIES.map((candidate) => (
+              <Link
+                key={candidate.slug}
+                className={categorySlug === candidate.slug ? "filter-chip active" : "filter-chip"}
+                href={href({ q, cat: candidate.slug })}
+              >
+                {candidate.name}
+              </Link>
+            ))}
       </div>
 
       <form className="inline-search catalogue-search" action="/search" role="search">
-        {category ? <input type="hidden" name="cat" value={category.slug} /> : null}
+        {categorySlug ? <input type="hidden" name="cat" value={categorySlug} /> : null}
         <input name="q" type="search" defaultValue={q} placeholder="Search the catalogue…" />
         <button className="button" type="submit">
           Search
@@ -143,9 +185,7 @@ export default async function SearchPage({
       ) : (
         <div className="empty-panel">
           <h2>No products matched</h2>
-          <p className="muted">
-            Try a different search term or browse all categories.
-          </p>
+          <p className="muted">Try a different search term or browse all categories.</p>
           <Link className="button" href="/search">
             Clear filters
           </Link>
