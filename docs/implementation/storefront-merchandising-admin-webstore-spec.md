@@ -1,0 +1,393 @@
+# B2C + B2B storefront merchandising and admin-console specification
+
+Date: 2026-11-19
+Scope: Flutter app customer surfaces, admin console controls, and the responsive Next.js web store.
+Source of truth: published CMS records + Experience API composition; the app and web store must render,
+not re-author, the same records.
+
+Related review: `docs/implementation/b2c-tiles-welcome-login-review.md`
+
+---
+
+## 1. Channel and publication model
+
+| Concept | Values |
+|---|---|
+| Channel | `b2c`, `b2b` |
+| Locale | `en-IN`, `hi-IN` |
+| CMS content kinds | `storefront-layout`, `banner`, `curated-collection`, `category-editorial`, `product-editorial`, `faq-article` |
+| Publication | Draft → Published → Modified; scheduled start/end in IST; optimistic concurrency on edits |
+| Delivery | Admin console → Medusa admin content API → CMS operator content → Experience API projection → Flutter app / Next.js web |
+
+The **published** record is authoritative. The web store must never hardcode banner copy, category
+labels, section order or product badges that the CMS owns.
+
+---
+
+## 2. B2C surfaces
+
+### 2.1 B2C welcome / onboarding
+
+Current welcome screen:
+
+| Element | Current behaviour |
+|---|---|
+| Brand mark | 72px BazarBee app icon |
+| Headline | “Everything you need, delivered to your site.” |
+| Subcopy | “Shop for your home or business — from everyday essentials to bulk building supplies.” |
+| Benefits | Delivery to your doorstep · Better prices for every buyer · Business buying made easy |
+| Primary CTA | Full-width “Get Started” → login |
+| Banner | **None today** |
+| Guest path | None; catalogue is gated behind login |
+| Legal | No terms/privacy links |
+
+**Proposed welcome banners (new placements):**
+
+| Placement | Channel | Behaviour |
+|---|---|---|
+| `b2c.welcome.banner` | B2C | Optional single banner above the headline; if absent, the current icon/headline layout remains |
+| `b2b.welcome.banner` | B2B | Optional trade-specific banner on the B2B welcome/login mode; if absent, current B2B copy remains |
+
+Properties to manage: internal name, content key, channel, locale, title, subtitle, image, alt text,
+CTA label, CTA target, schedule, priority, segments, publish status. A welcome banner must not replace
+the value-proposition benefits; it is additive.
+
+> These two placements do **not** exist in the current placement registry. Adding them requires updating
+> the admin `SUPPORTED_PLACEMENTS`, the Experience API `placement-registry`, and
+> `tooling/validate_banner_types.py`, then teaching the welcome screens to consume them.
+
+### 2.2 B2C home (`/`)
+
+| Feature | Detail |
+|---|---|
+| Pinned bar | Logo, search (“products or ask what you need”), conversation bell, notification bell, B2B switch, cart badge |
+| Hero | Delivery location, trust chips (GST invoices, verified sellers, easy returns), CMS hero carousel, CTA |
+| Discovery | “Find the right aisle”, category/brand counts, AI project chips, Explore all |
+| Default modules | Flash Deals carousel, Best Sellers carousel, optional campaign strip, Recommended for You composition + Recently viewed slot |
+| Layout-driven modules | Banner, carousel, grid or composition; operator controls order, visibility, title, badge, limit, See All |
+| Catalogue unit | Category banner, category icon rail, product grid, auto-loading pages |
+| Product tile | Image, badge stack, wishlist, brand, title (one line), price, discount pill, MRP, add/stepper |
+
+Merchandising properties:
+
+| Property | Admin source |
+|---|---|
+| Hero banners | Banner Studio → `b2c.home.hero` |
+| Campaign strip | Banner Studio → `b2c.home.campaign-strip` |
+| Home sections | Storefront layouts (B2C): Flash Deals, Best Sellers, Recommended |
+| Section title/badge/subtitle | Storefront layout section fields |
+| Product source | Commerce collection referenced by the section |
+| Products to show | Section `limit` |
+| See All | Section `seeAllLabel`, `seeAllUri` |
+| Section banner | `bannerReference` on sections that accept a banner |
+| Schedule/visibility | Section `startsAt`, `endsAt`, `enabled` |
+| Category labels/icons/banners | Editorial → Category presentation + Banner Studio category placement |
+| Product title/image/brand/price/badges | Product Studio + offer/B2B pricing data |
+
+### 2.3 B2C category / browse (`/browse`, `/collections/:key`)
+
+| Feature | Detail |
+|---|---|
+| App bar | Browse, conversation bell, notification bell, cart badge |
+| Search | Products, brands or SKU (variant labels and SKUs included) |
+| Category banner | Category title, “Top picks in this aisle”, CTA Best sellers |
+| Category rail | All + categories, single-select |
+| Sort | Relevance, Price ↑, Price ↓, Rating |
+| Quick filters | Flash Deal, Clearance, In stock |
+| Full filters | Brands, price ranges, key items, 4.0+ rating, active count, clear |
+| Results | Count, two-column grid, load more, all-shown state |
+| No results | Suggested filters + popular products |
+| Collections | Collection title, responsive grid, pull-to-refresh, explicit empty/not-found |
+
+Merchandising properties: `b2c.category.banner` (copy + image + alt), category editorial
+(label, short text, icon key, hero image, alt), collection membership, product badges/prices.
+
+**Precedence for category copy:** banner title → category editorial label → governed seed → commerce
+name; same chain for subtitle. Banner image → editorial hero image → seed. Icon comes from the category
+editorial or seed.
+
+---
+
+## 3. B2B surfaces
+
+### 3.1 B2B welcome / login
+
+Current B2B mode on the login screen:
+
+| Element | Current behaviour |
+|---|---|
+| Mode switch | Consumer D2C / B2B Trade segmented control |
+| Title | “B2B Trade Portal Sign-In” |
+| Copy | “Enter your phone to access wholesale pricing & credit.” |
+| Field | “Pilot email or 10-digit phone” |
+| CTA | Get OTP |
+| Trust line | “No lengthy forms or extra details collected during login.” |
+| Banner | **None today** |
+
+Proposed `b2b.welcome.banner` adds optional trade creative (credit, GST invoicing, MOQ, project supply)
+without changing the identity step. The B2B welcome should be a separate content variant from B2C.
+
+### 3.2 B2B home (`/b2b`)
+
+| Feature | Detail |
+|---|---|
+| Header | BazarBee Trade, search, delivery site, conversations, notifications, cart, account |
+| Hero | B2B-only `b2b.home.hero` banners; no B2C fallback |
+| Quick order | Saved procurement-list chips, SKU grid, MOQ quantity steppers, Add to Order, See All |
+| Buy Again | Previous order lines, reorder, See All |
+| Trade Offers & Deals | Featured offer collections, active collection, trade product rail, See All |
+| Categories + Products | Category banner, trade category rail, product grid, See All |
+| Cart summary | Visible when the cart is non-empty |
+| Bottom nav | Trade, Browse, Credit, Cart, Account |
+
+Merchandising properties:
+
+| Property | Admin source |
+|---|---|
+| Trade hero | Banner Studio → `b2b.home.hero` |
+| Trade Offers & Deals | Storefront layouts (B2B): `trade_offers` group with `seasonal`, `best_deals`, `schemes` |
+| Buy Again | Layout section `buy_again` (customer history source) |
+| Quick order lists | Curated collections (`Collections & trade lists`) and saved procurement lists |
+| Category banner | Banner Studio → `b2b.category.banner` |
+| Category labels/icons | Editorial → Category presentation |
+| Trade product price/MOQ/tiers | Product Studio → B2B pricing |
+| Section title/badge/limit/See All | Storefront layout fields |
+
+### 3.3 B2B category (`/b2b/catalogue`)
+
+| Feature | Detail |
+|---|---|
+| App bar | Dynamic title (Catalogue / Best Deals / Seasonal / category) + conversation bell |
+| Search | Products and SKU |
+| Banner | Category title, “Trade rates · MOQ · GST invoicing”, CTA Filters/Best Deals |
+| Category chips | All + trade categories |
+| Sort | Recommended, Price ↑, Price ↓, Discount |
+| Quick filters | Best Deals, Seasonal |
+| Filter sheet | Trade filters, active count, clear |
+| Results | Count, responsive 2/3/4-column grid, load more, all-shown |
+| Trade tile | Image, badge, title, MOQ, savings, tier selector, unit price/pc, list price, stock, add |
+| No results | Suggested searches + nearby products |
+
+Merchandising properties: `b2b.category.banner`, category editorial, product B2B price/MOQ/tiers,
+trade category membership, savings %, seasonal flag, stock, badge.
+
+---
+
+## 4. Product tile specification
+
+### B2C (`CartProductCard` → `ProductCard`)
+
+| Property | Rule |
+|---|---|
+| Image | `BoxFit.contain` on tinted surface; placeholder on failure |
+| Badges | Top-left, max 2 + `+N`; allowlist; colour by label |
+| Wishlist | 44×44 translucent heart, top-right |
+| Add / quantity | 44×44 cart-plus bottom-right; compact stepper once exact variant is in cart |
+| Brand | 11px secondary, one line |
+| Title | 13px compact / 14px large, **one line** |
+| Price | 18px compact / 20px large |
+| Discount | Promotion pill beside price |
+| MRP | 11px struck-through, only when a real MRP exists |
+| States | Loading, failure, out-of-stock (tap/add disabled) |
+
+Review notes: one-line titles hide SKU identity; desktop rails show 8 cards across at 1440px; the add
+button overlays the product image; out-of-stock has no visible label; rating/review/delivery props are
+accepted but not rendered. See the separate review doc for the full list.
+
+### B2B (`tradeProductTile`)
+
+| Property | Rule |
+|---|---|
+| Image | Product image with badge |
+| MOQ | “MOQ N” label |
+| Savings | “N% off” when a real list price exists |
+| Tiers | Quantity band → unit price selector |
+| Price | Unit price/pc for selected quantity |
+| Stock | Known stock state, add disabled when unavailable |
+| Add | Adds the selected quantity to the quotation/order cart |
+
+Admin inputs: B2B price, MOQ, tiers, list price, stock, badge, title, image, category.
+
+---
+
+## 5. Admin console UX
+
+### 5.1 Navigation map
+
+| Menu | Page | Purpose |
+|---|---|---|
+| Merchandising | Banners | Banner Studio: create/publish banners by placement, channel, locale, schedule |
+| Merchandising | Storefront layouts | Section composition for B2C/B2B home |
+| Merchandising | Bought together | Pair products for “Bought together” |
+| Merchandising presets | Presets | Campaign/collection/promotion presets |
+| Editorial | Category presentation | Category label, short text, icon, hero image/alt |
+| Editorial | Collections & trade lists | Curated collections for B2C/B2B, offers, quick-order lists |
+| Editorial | Product editorial | Product storytelling content |
+| Product Studio | Details, media, organisation, specs, tags, variants/offers, inventory, review | Product and offer authoring |
+
+### 5.2 Banner Studio
+
+Current UX:
+
+- Tabs: **Live, Draft, Scheduled, Historical**, placement filter, locale.
+- Editor sections: **01 Details & placement** (internal name, placement, category if required, language),
+  **02 Creative & copy** (HTTPS creative, alt text, heading, supporting text, CTA label),
+  **03 Destination** (route/product/category/collection/url reference), **04 Schedule** (start now/later,
+  end, IST), advanced technical key/priority/segments.
+- Preview devices: **App, Mobile web, Desktop**.
+- Lifecycle: draft/publish/unpublish/duplicate; eligibility = eligible/scheduled/expired.
+- Hero rotation: per-channel `heroRotationMs` saved through the storefront layout.
+- Optimistic concurrency: 409 on a newer draft.
+- Category banners: pick a category; copy overrides category editorial copy.
+
+Gaps for the webstore:
+
+| Gap | Impact | Recommendation |
+|---|---|---|
+| No welcome placements | Cannot manage welcome banners | Add `b2c.welcome.banner` / `b2b.welcome.banner` to the registry, admin, delivery and validation |
+| Creative is a raw HTTPS URL; upload/crop/focal point deferred | Cannot art-direct desktop/mobile crops | Add media library + desktop/tablet/mobile crops or one focal-point crop |
+| CTA destinations are raw reference IDs | Broken links, wrong product/collection | Add searchable product/category/collection pickers and URL validation |
+| Category copy editable in two places | Banner and category editorial can disagree | Show precedence explicitly; badge which source wins |
+| Preview is banner-only | Layout composition is not seen as a page | Add full B2C/B2B home and category previews before publish |
+| Segments are raw JSON | Easy to publish an invalid audience | Provide segment templates/validation |
+| No welcome/login preview | Welcome banner cannot be reviewed in context | Add welcome and login preview devices |
+| Publish is per locale | EN/HI can drift | Add a locale completeness/publish checklist |
+
+### 5.3 Storefront layouts
+
+Current UX:
+
+- Channel-scoped (`b2c` / `b2b`) + locale.
+- Sections: add, delete, reorder; display title, badge, subtitle, product source, collection, product
+  limit, See All label/URI, banner reference, start/end, enabled.
+- B2C types: `flash_deals`, `best_sellers`, `recommended` (collection source).
+- B2B types: `buy_again` (customer history), `trade_offers` group (`seasonal`, `best_deals`,
+  `schemes`), plus top-level seasonal/best-deals/schemes.
+- Validation mirrors delivery: duplicate placements, wrong channel, missing collection, missing group
+  children, invalid schedule; warnings for banners on sections that do not accept them.
+- Draft/publish; optimistic concurrency.
+
+Gaps: no welcome section type (welcome banner is standalone, not a layout section); no full-page
+preview; no per-section product picker/override; no side-by-side locale view.
+
+### 5.4 Category presentation and collections
+
+- Category editorial: category id, label, short text, icon key, hero image, alt, channel/locale.
+- Collections & trade lists: collection key, audience (`b2c`/`b2b`/`both`), placement, title,
+  description, category labels, product ids, limit, default quantity, display order, icon key, accent,
+  deal type, scheme label.
+- Category banner override precedence is documented above.
+
+### 5.5 Product Studio
+
+Fields relevant to tiles and merchandising:
+
+- Title, subtitle, description, category, tags, media, variants.
+- B2C price/offer readiness.
+- B2B price, MOQ, quantity tiers, list price, channel readiness.
+- Inventory and review/visibility.
+- Badge labels come from product tags/review enrichment, filtered through the B2C badge allowlist.
+
+Gap: no explicit **storefront tile** section for a display-title override, tile badge override, image
+focal point, or short tile description. Add one if operators need card-level control beyond tags.
+
+---
+
+## 6. Property → admin → webstore mapping
+
+| Customer property | Admin control | Webstore component |
+|---|---|---|
+| B2C hero banner | Banners → `b2c.home.hero` | `app/page.tsx` hero carousel |
+| B2C campaign strip | Banners → `b2c.home.campaign-strip` | Home campaign band |
+| B2C category banner | Banners → `b2c.category.banner` + Category presentation | Category banner on `/search?cat=` |
+| B2C home sections | Storefront layouts (B2C) | Home section renderer |
+| B2C product tile | Product Studio + offers | `components/product-card.tsx` |
+| B2B hero | Banners → `b2b.home.hero` | `/trade` workspace hero |
+| B2B category banner | Banners → `b2b.category.banner` | `/trade/catalogue` banner |
+| B2B trade offers | Layout `trade_offers` + curated collections | `/trade` offers rail (next phase) |
+| B2B quick order | Curated collections / saved lists | `/trade/quick-order` (next phase) |
+| B2B price/MOQ/tiers | Product Studio B2B pricing | `/trade/catalogue` tile |
+| Welcome banner | **Proposed** `b2c.welcome.banner` / `b2b.welcome.banner` | Welcome/onboarding and B2B login |
+
+Experience API endpoints the web should use:
+
+- `GET /v1/content/presentation?locale=…&channel=b2c|b2b` → banners + categories.
+- `GET /v1/content/app-shell?locale=…&channel=…` → layout sections (resolved products, empty collections,
+  `source`, `freshness`).
+- `GET /v1/content/curated-collections?locale=…&channel=…` → B2B trade lists/offers.
+- `GET /v1/collections/{key}` → collection page.
+- `GET /v1/products?channel=b2b` → trade catalogue.
+
+---
+
+## 7. Webstore update plan
+
+### Phase 1 — Presentation and category banners
+
+- Add typed server clients for presentation and app-shell.
+- Replace the static home hero with `b2c.home.hero` banners (priority, schedule, CTA).
+- Add `b2c.home.campaign-strip`.
+- Replace hardcoded category tiles in `lib/catalogue.ts` with `presentation.categories` (label, icon,
+  image, alt, count).
+- Use `b2c.category.banner` on category pages; fall back to category editorial then seed.
+
+### Phase 2 — Layout-driven B2C home
+
+- Render sections in published order with title/badge/limit/See All/banner.
+- Support `flash_deals`, `best_sellers`, `recommended` (and `productComposition`).
+- Show empty-collection explanations and never silently substitute unrelated products.
+- Keep a governed fallback only when the CMS layout is absent; never use B2C seed content on B2B.
+
+### Phase 3 — B2B layout and trade surfaces
+
+- Render `b2b.home.hero` on `/trade`.
+- Add `buy_again` (needs web order-history data), `trade_offers` group with seasonal/best-deals/schemes,
+  and the trade category rail.
+- Map trade product tiles to B2B price, MOQ, tiers and stock.
+- Add trade offer collections and quick-order lists where the data exists.
+
+### Phase 4 — Welcome, login and tile parity
+
+- Add optional welcome banners for B2C and B2B.
+- Add full-page preview in admin for welcome/login/home/category.
+- Add media crops, CTA pickers and segment templates.
+- Align tile fields: two-line titles, visible stock, rating/delivery where authored, badge overrides.
+
+### Acceptance criteria
+
+1. A published banner appears only on its channel/placement/locale and within its schedule.
+2. Priority order is respected; expired/scheduled banners are not shown.
+3. B2C seed/fallback content never appears on a B2B surface.
+4. Storefront layout order, visibility, title, badge, limit and See All match the admin record.
+5. Category banner copy/image follows the documented precedence and falls back safely.
+6. Product tiles render the authored title, image, price, MRP, discount, badge, stock and B2B
+   MOQ/tiers; no raw HTML or unsafe CTA.
+7. Welcome banners are additive; without one, the current welcome layout still renders.
+8. Admin preview matches the published web/mobile result before publish.
+
+### Dependencies and risks
+
+- Welcome placements require mirror updates in admin, Experience API and the validator; otherwise they
+  publish but never render.
+- Responsive art direction needs media crops; the current editor only accepts an HTTPS URL.
+- Raw CTA reference IDs can create broken links until pickers exist.
+- Category copy has two editing surfaces; precedence must be visible to operators.
+- Web needs a cache/freshness policy; use the API `source` and `freshness` fields and avoid stale
+  fallbacks.
+- B2B quick-order and buy-again require web data that the current web slice does not yet have.
+- Staging remains `noindex` and test-data only; production needs the CHG-020 gates.
+
+---
+
+## 8. Decisions needed
+
+1. Is the welcome banner a **single optional hero** or a carousel? Recommend single banner + the
+   existing value-prop stack; carousel only if operators need multiple.
+2. Is B2B welcome a separate screen or a B2B variant of the shared welcome? Recommend a B2B variant
+   selected before login, using `b2b.welcome.banner`.
+3. Should welcome banners share creative with `b2c.home.hero`, or be separate records? Recommend
+   separate placements so the welcome and home can differ.
+4. Should tile badges be operator-overridable per product, or stay derived from tags/reviews? Recommend
+   an optional tile badge override in Product Studio.
+5. Who approves welcome/login copy and imagery? Use the same merchandising publish role, with a
+   second reviewer for the welcome surface.
