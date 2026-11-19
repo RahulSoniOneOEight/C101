@@ -3,7 +3,7 @@
 This change closes the customer-facing gaps found when the Flutter app was compared with
 `gobazarbee.com`. It is staging evidence only; production remains unauthorised.
 
-Deployed: `release-web-20261119-142517` from source `058c97a`; live at `https://gobazarbee.com`.
+Deployed: `release-web-20261119-142913`; live at `https://gobazarbee.com`.
 
 ## 1. Feature parity matrix
 
@@ -13,7 +13,7 @@ Deployed: `release-web-20261119-142517` from source `058c97a`; live at `https://
 | Category icons | Emoji/glyph placeholders on home tiles; text-only desktop rail | One inline SVG icon set used on home tiles, the desktop rail, Discover cards and search filter chips; label-first matching tolerates stale CMS `icon_key` values |
 | “Find the right aisle” discovery | Text search only | `/discover` hub: guided task cards, category cards with imagery, seller/brand index, popular deals and a search entry point; linked from the home discovery band and the desktop rail |
 | Guided search / “AI mode” | `?q=` only | `?mode=guided&q=<task>` maps a household task to the closest **stocked** aisle and states the match explicitly; it does not pretend to be a generative answer |
-| Workspace chat / assistant | None | “Ask BazarBee” drawer on every page, signed-in only. It uses the same Experience API workspace proxy and assistant channel as the app: household project for B2C, trade workspace for `/trade` |
+| Workspace chat / assistant | None | “Ask BazarBee” drawer on every page, signed-in only. It uses the same Experience API workspace proxy as the app and exposes both the human workspace thread (Project chat for B2C, Procurement for B2B) and the read-only assistant channel. |
 | Related products on cart | None | “You may also like” on `/cart`, drawn first from the cart's aisles and then from current deals |
 | Recently viewed merchandising | None | Product views are recorded in the browser; a “Recently viewed” rail appears on home and product detail without inventing items |
 | B2B order entry | Trade catalogue could only add to a quotation/RFQ | “Buy at trade rate” adds the B2B offer at its MOQ to the order cart and opens checkout; a trade buyer's cart is created as a B2B order by the API |
@@ -72,8 +72,9 @@ npm run build      -> 18 routes, /discover and /api/chat and /api/products prese
 - Brand search “UrbanBuild Supply”: 11 products.
 - Product view writes `bazarbee.recently-viewed.v1`; home renders the Recently viewed rail.
 - Add to cart → `/cart` shows 4 “You may also like” products.
-- Chat: signed-in B2C drawer shows the household project and the assistant replies; signed-in B2B
-  drawer shows the trade workspace and the assistant replies.
+- Chat: signed-in B2C drawer shows Assistant / Project chat and the household project; signed-in B2B
+  drawer shows Assistant / Procurement and the trade workspace. Both tabs load their own persisted
+  messages; the assistant replies to a sent prompt.
 - Mobile 390: home and Discover report `scrollWidth = innerWidth = 390`; chat launcher is visible
   above the mobile tab bar.
 

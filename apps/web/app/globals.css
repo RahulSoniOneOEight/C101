@@ -5142,6 +5142,37 @@ textarea:focus-visible {
 .chat-close:hover {
   background: rgb(255 255 255 / 22%);
 }
+.chat-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.chat-tab {
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chat-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+.chat-tab.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+.chat-tab:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
 .chat-body {
   flex: 1;
   overflow-y: auto;

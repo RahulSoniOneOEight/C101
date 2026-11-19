@@ -48,6 +48,13 @@ function isAssistantMessage(message: WorkspaceMessage): boolean {
   );
 }
 
+function channelLabel(channel: WorkspaceChannel): string {
+  if (channel.kind === "assistant") return "Assistant";
+  if (channel.kind === "procurement") return "Procurement";
+  if (channel.kind === "project") return "Project chat";
+  return channel.name || "Team chat";
+}
+
 /**
  * "Ask BazarBee" is the web home of the app's workspace conversation. It uses the same
  * Experience API workspace proxy: a household project (or the signed-in trade workspace) exposes
@@ -61,6 +68,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [error, setError] = useState("");
   const [authRequired, setAuthRequired] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceSummary | null>(null);
+  const [channels, setChannels] = useState<WorkspaceChannel[]>([]);
   const [channel, setChannel] = useState<WorkspaceChannel | null>(null);
   const [messages, setMessages] = useState<WorkspaceMessage[]>([]);
   const [draft, setDraft] = useState("");
@@ -133,12 +141,21 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       });
       if (!response.ok) throw new Error("The workspace channels could not be loaded.");
       const channelsPayload = (await response.json()) as { channels?: WorkspaceChannel[] };
-      const channels = channelsPayload.channels ?? [];
+      const allChannels = channelsPayload.channels ?? [];
       const assistant =
-        channels.find((candidate) => candidate.kind === "assistant") ??
-        channels.find((candidate) => candidate.kind === "project") ??
-        channels[0];
+        allChannels.find((candidate) => candidate.kind === "assistant") ??
+        allChannels.find((candidate) => candidate.kind === "project") ??
+        allChannels[0];
       if (!assistant) throw new Error("This workspace has no conversation channel yet.");
+      const human =
+        allChannels.find(
+          (candidate) => candidate.kind === "project" || candidate.kind === "procurement",
+        ) ?? allChannels.find((candidate) => candidate.id !== assistant.id);
+      const visible = [assistant, human].filter(
+        (candidate, index, list): candidate is WorkspaceChannel =>
+          Boolean(candidate) && list.findIndex((item) => item?.id === candidate?.id) === index,
+      );
+      setChannels(visible);
       setChannel(assistant);
       await loadMessages(assistant);
       setState("ready");
@@ -169,9 +186,23 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     if (node) node.scrollTop = node.scrollHeight;
   }, [messages, state]);
 
+  const selectChannel = async (next: WorkspaceChannel) => {
+    if (sending || next.id === channel?.id) return;
+    setChannel(next);
+    setMessages([]);
+    setState("loading");
+    setError("");
+    try {
+      await loadMessages(next);
+      setState("ready");
+    } catch (cause) {
+      setError((cause as Error).message);
+      setState("error");
+    }
+  };
+
   const send = async (text: string) => {
-    if (!channel || sending) return;
-    const value = text.trim();
+    if (!channel || sending) return;    const value = text.trim();
     if (!value) return;
     setSending(true);
     setError("");
@@ -202,7 +233,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       // The assistant reply is written by the workspace service before the POST resolves. One
       // short read is usually enough; retry briefly so a slower write still appears.
       let latest: WorkspaceMessage[] = [];
-      for (let attempt = 0; attempt < 6; attempt += 1) {
+      const attempts = channel.kind === "assistant" ? 6 : 2;
+      for (let attempt = 0; attempt < attempts; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, attempt === 0 ? 220 : 550));
         const refresh = await fetch(`/api/chat?channel=${encodeURIComponent(channel.id)}`, {
           cache: "no-store",
@@ -275,6 +307,26 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               </button>
             </header>
 
+            {channels.length > 1 ? (
+              <div className="chat-tabs" role="tablist" aria-label="Conversation channel">
+                {channels.map((candidate) => (
+                  <button
+                    key={candidate.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={candidate.id === channel?.id}
+                    className={
+                      candidate.id === channel?.id ? "chat-tab active" : "chat-tab"
+                    }
+                    onClick={() => void selectChannel(candidate)}
+                    disabled={sending}
+                  >
+                    {channelLabel(candidate)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
             <div className="chat-body" ref={scrollRef}>
               {authRequired ? (
                 <div className="chat-empty">
@@ -304,24 +356,31 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                 </div>
               ) : messages.length === 0 ? (
                 <div className="chat-empty">
-                  <h3>How can I help?</h3>
+                  <h3>
+                    {channel?.kind === "assistant"
+                      ? "How can I help?"
+                      : `Start the ${channel ? channelLabel(channel).toLowerCase() : "conversation"}`}
+                  </h3>
                   <p>
-                    I can summarise your shared list, explain the cart handoff and point a blocked
-                    question to a human. I cannot change the list, cart or an order.
+                    {channel?.kind === "assistant"
+                      ? "I can summarise your shared list, explain the cart handoff and point a blocked question to a human. I cannot change the list, cart or an order."
+                      : "Messages here are visible to the members of this workspace and persist server-side. The assistant stays in its own tab."}
                   </p>
-                  <div className="chat-suggestions">
-                    {SUGGESTIONS.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        className="chat-suggestion"
-                        onClick={() => void send(suggestion)}
-                        disabled={sending}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
+                  {channel?.kind === "assistant" ? (
+                    <div className="chat-suggestions">
+                      {SUGGESTIONS.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          type="button"
+                          className="chat-suggestion"
+                          onClick={() => void send(suggestion)}
+                          disabled={sending}
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 messages.map((message) => {

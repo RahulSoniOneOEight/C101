@@ -1,10 +1,10 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; web release `release-web-20261119-142517` (source `058c97a`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-142913`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
-Web release: `/opt/buildkart-releases/release-web-20261119-142517`; admin panel `/opt/buildkart-releases/release-93eeac1`
+Web release: `/opt/buildkart-releases/release-web-20261119-142913`; admin panel `/opt/buildkart-releases/release-93eeac1`
 
 This record covers the responsive web storefront, email authentication, branding, and the order and
 checkout QC. It is staging evidence only; production remains unauthorised.
@@ -307,8 +307,8 @@ workspace drawer and B2B trade-rate checkout. Full change record:
 | Seller search | “UrbanBuild Supply” → 11 products |
 | Cart cross-sell | 4 “You may also like” products from the cart's aisles |
 | Recently viewed | product view wrote `["prod_01M59JHKBZ41EJTYW3X6MCXZC6"]`; home rendered 1 card |
-| B2C chat | Household project “Rohan's Home”; assistant replied to “What can you do?” |
-| B2B chat | Trade workspace “Arjun Traders Procurement”; assistant replied |
+| B2C chat | Household project “Rohan's Home”; tabs Assistant / Project chat; Project chat loaded 19 persisted messages; assistant replied to “What can you do?” |
+| B2B chat | Trade workspace “Arjun Traders Procurement”; tabs Assistant / Procurement; Procurement loaded 33 persisted messages; assistant replied |
 | Mobile 390 | Home and Discover `scrollWidth = innerWidth = 390`; chat launcher visible |
 | B2C order | `BK-261119-KCQJ60`, `₹3,889.50`, simulated prepaid; cart metadata `channel=b2c` |
 | B2B order | `BK-261119-PTPF1G`, `₹18,576.50`; cart metadata `channel=b2b`, `business_account_id=business_arjun_traders` |
