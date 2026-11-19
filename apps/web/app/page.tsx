@@ -142,6 +142,9 @@ export default async function HomePage() {
   const campaign = firstBanner(banners, "b2c.home.campaign-strip");
   const cmsCategories = presentation?.categories ?? [];
   const counts = categoryCount(products, cmsCategories);
+  const visibleCmsCategories = cmsCategories.filter(
+    (category) => (counts.get(category.category_id) ?? 0) > 0,
+  );
   const productsById = new Map(products.map((product) => [product.id, product]));
   const sections = (layoutSections?.sections ?? [])
     .filter((section) => section.visible !== false)
@@ -178,9 +181,9 @@ export default async function HomePage() {
             View everything →
           </Link>
         </div>
-        {cmsCategories.length > 0 ? (
+        {visibleCmsCategories.length > 0 ? (
           <div className="category-grid">
-            {cmsCategories.map((category, index) => {
+            {visibleCmsCategories.map((category, index) => {
               const count = counts.get(category.category_id) ?? 0;
               return (
                 <Link

@@ -50,32 +50,6 @@ const CAPABILITIES = [
   },
 ];
 
-function TradeCmsBanner({ banner }: { banner: StorefrontBanner }) {
-  const desktop = imageSources(banner.image_desktop_uri ?? banner.image_uri, 1600);
-  const mobile = imageSources(banner.image_mobile_uri ?? banner.image_desktop_uri ?? banner.image_uri, 900);
-  const href = webHrefForAction(banner.action_uri, "b2b");
-  return (
-    <section className="trade-cms-banner">
-      {desktop.src ? (
-        <picture>
-          <source media="(max-width: 720px)" srcSet={mobile.srcSet ?? mobile.src} />
-          <img src={desktop.src} srcSet={desktop.srcSet} sizes="100vw" alt={banner.image_alt ?? ""} />
-        </picture>
-      ) : null}
-      <div className="trade-cms-banner-copy">
-        <span className="eyebrow eyebrow-light">Trade campaign</span>
-        <h2>{banner.title}</h2>
-        {banner.body ? <p>{banner.body}</p> : null}
-        {href && banner.action_label ? (
-          <Link className="button button-honey" href={href}>
-            {banner.action_label}
-          </Link>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
 export default async function TradePage() {
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
   let trade = false;
@@ -109,19 +83,46 @@ export default async function TradePage() {
         <span>BazarBee Trade</span>
       </nav>
 
-      {heroBanner ? <TradeCmsBanner banner={heroBanner} /> : null}
-
       <div className="trade-hero trade-hero-workspace">
-        <div>
+        {heroBanner ? (
+          <div className="trade-hero-bg" aria-hidden="true">
+            <picture>
+              <source
+                media="(max-width: 720px)"
+                srcSet={
+                  imageSources(
+                    heroBanner.image_mobile_uri ?? heroBanner.image_desktop_uri ?? heroBanner.image_uri,
+                    900,
+                  ).srcSet ??
+                  imageSources(
+                    heroBanner.image_mobile_uri ?? heroBanner.image_desktop_uri ?? heroBanner.image_uri,
+                    900,
+                  ).src
+                }
+              />
+              <img
+                src={
+                  imageSources(heroBanner.image_desktop_uri ?? heroBanner.image_uri, 1600).src
+                }
+                srcSet={
+                  imageSources(heroBanner.image_desktop_uri ?? heroBanner.image_uri, 1600).srcSet
+                }
+                alt=""
+              />
+            </picture>
+            <span className="trade-hero-scrim" />
+          </div>
+        ) : null}
+        <div className="trade-hero-copy">
           <span className="eyebrow eyebrow-light">Trade workspace</span>
-          <h1>Your trade desk, on the web.</h1>
+          <h1>{heroBanner?.title ?? "Your trade desk, on the web."}</h1>
           <p>
-            The first web slice of the Flutter trade workspace: B2B catalogue with MOQ and tier
-            pricing, credit overview, quotation cart and RFQ entry — on the same account.
+            {heroBanner?.body ??
+              "The first web slice of the Flutter trade workspace: B2B catalogue with MOQ and tier pricing, credit overview, quotation cart and RFQ entry — on the same account."}
           </p>
           <div className="hero-actions">
             <Link className="button button-honey button-lg" href="/trade/catalogue">
-              Open trade catalogue
+              {heroBanner?.action_label ?? "Open trade catalogue"}
             </Link>
             <Link className="button button-ghost-light button-lg" href="/trade/quote">
               Quotation cart
