@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  ExperienceApiError,
   PILOT_SESSION_COOKIE,
   listMyNotifications,
   type NotificationView,
@@ -36,6 +37,9 @@ export default async function NotificationsPage() {
   try {
     items = await listMyNotifications(token, 50);
   } catch (error) {
+    if (error instanceof ExperienceApiError && [401, 403].includes(error.status)) {
+      redirect(`/sign-in?next=${encodeURIComponent("/notifications")}`);
+    }
     loadError = (error as Error).message;
   }
   const unread = items.filter((item) => !item.read_at).length;
@@ -52,9 +56,11 @@ export default async function NotificationsPage() {
           <span className="eyebrow">Your inbox</span>
           <h1>Notifications</h1>
           <p className="muted">
-            {unread > 0
-              ? `${unread} unread of ${items.length} notifications.`
-              : `${items.length} notifications, all read.`}
+            {loadError
+              ? "The inbox could not be loaded. Try again in a moment."
+              : unread > 0
+                ? `${unread} unread of ${items.length} notifications.`
+                : `${items.length} notifications, all read.`}
           </p>
         </div>
         <MarkAllReadButton disabled={unread === 0} />

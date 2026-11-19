@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   EMAIL_HINT_COOKIE,
+  ExperienceApiError,
   PILOT_SESSION_COOKIE,
   listMyNotifications,
 } from "@/lib/experience-api";
@@ -25,7 +26,10 @@ export default async function AccountPage() {
   try {
     const notifications = await listMyNotifications(token, 50);
     unread = notifications.filter((item) => !item.read_at).length;
-  } catch {
+  } catch (error) {
+    if (error instanceof ExperienceApiError && [401, 403].includes(error.status)) {
+      redirect(`/sign-in?next=${encodeURIComponent("/account")}`);
+    }
     // The account hub still works when the notification inbox is briefly unavailable.
   }
   const name = email.includes("@") ? email.split("@")[0] : email;
