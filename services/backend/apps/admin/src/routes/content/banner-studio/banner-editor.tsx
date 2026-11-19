@@ -141,7 +141,7 @@ export function BannerEditor({
 
   const productsQuery = useQuery({
     queryKey: ["buildkart", "commerce-products-picker"],
-    queryFn: () => client.admin.products.query(),
+    queryFn: () => client.admin.products.query({ limit: 100 }),
     enabled: open && form.ctaTargetType === "product",
     staleTime: 5 * 60 * 1000,
   });
