@@ -1,6 +1,6 @@
 # B2C → Trade access path — 19 Nov 2026
 
-Status: **shipped to staging web** · Release `release-web-20261119-182252`
+Status: **shipped to staging web** · Release `release-web-20261119-182252` · Source `081b389`
 Hosts: `https://gobazarbee.com` · `/trade` · `/trade/catalogue`
 Branch: `feat/bazarbee-branding`
 
