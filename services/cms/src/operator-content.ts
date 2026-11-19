@@ -626,6 +626,108 @@ async function nextAvailableKey(
   return candidate;
 }
 
+/**
+ * Strapi's document service currently mutates the default-locale draft when it creates a
+ * non-default localization. Banner/category editing bypasses that path with the query engine so
+ * Banner Studio can author hi-IN content without touching the en-IN draft.
+ */
+const DEFAULT_CMS_LOCALE = "en-IN";
+const LOCALIZED_DB_KINDS = new Set(["banner", "category-editorial"]);
+
+function localizedQuery(strapi: Core.Strapi, definition: ContentKindDefinition): any {
+  return strapi.db.query(definition.uid as never);
+}
+
+function localizedWriteData(
+  definition: ContentKindDefinition,
+  data: JsonRecord,
+): JsonRecord {
+  const copy = { ...data };
+  // Category banners are component instances; the label/hero fields are the localized payload.
+  if (definition.kind === "category-editorial") delete copy.banners;
+  return copy;
+}
+
+async function localizedRows(
+  strapi: Core.Strapi,
+  definition: ContentKindDefinition,
+  documentId: string,
+  locale: string,
+): Promise<JsonRecord[]> {
+  return localizedQuery(strapi, definition).findMany({
+    where: { documentId, locale },
+  });
+}
+
+async function writeLocalizedDraft(
+  strapi: Core.Strapi,
+  definition: ContentKindDefinition,
+  documentId: string,
+  locale: string,
+  data: JsonRecord,
+): Promise<unknown> {
+  const query = localizedQuery(strapi, definition);
+  const rows = await localizedRows(strapi, definition, documentId, locale);
+  const draft = rows.find((row) => row.publishedAt === null || row.publishedAt === undefined);
+  const payload = localizedWriteData(definition, data);
+  if (draft) {
+    return query.update({ where: { id: draft.id }, data: payload });
+  }
+  return query.create({ data: { ...payload, documentId, locale } });
+}
+
+function publishedPayload(
+  definition: ContentKindDefinition,
+  row: JsonRecord,
+): JsonRecord {
+  const copy = { ...row };
+  for (const key of [
+    "id",
+    "documentId",
+    "locale",
+    "publishedAt",
+    "createdAt",
+    "updatedAt",
+    "createdBy",
+    "updatedBy",
+  ]) {
+    delete copy[key];
+  }
+  if (definition.kind === "category-editorial") delete copy.banners;
+  return copy;
+}
+
+async function publishLocalized(
+  strapi: Core.Strapi,
+  definition: ContentKindDefinition,
+  documentId: string,
+  locale: string,
+): Promise<unknown> {
+  const query = localizedQuery(strapi, definition);
+  const rows = await localizedRows(strapi, definition, documentId, locale);
+  const draft = rows.find((row) => row.publishedAt === null || row.publishedAt === undefined);
+  if (!draft) throw new Error("No draft exists for this locale.");
+  const payload = { ...publishedPayload(definition, draft), publishedAt: new Date() };
+  const published = rows.find((row) => row.publishedAt !== null && row.publishedAt !== undefined);
+  if (published) {
+    return query.update({ where: { id: published.id }, data: payload });
+  }
+  return query.create({ data: { ...payload, documentId, locale } });
+}
+
+async function unpublishLocalized(
+  strapi: Core.Strapi,
+  definition: ContentKindDefinition,
+  documentId: string,
+  locale: string,
+): Promise<unknown> {
+  const query = localizedQuery(strapi, definition);
+  const rows = await localizedRows(strapi, definition, documentId, locale);
+  const published = rows.find((row) => row.publishedAt !== null && row.publishedAt !== undefined);
+  if (!published) return null;
+  return query.update({ where: { id: published.id }, data: { publishedAt: null } });
+}
+
 async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void> {
   const identity = authenticate(ctx);
   const definition = definitionFor(ctx);
@@ -635,6 +737,8 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
   const documentId = stringValue(body!.documentId);
   const locale = stringValue(body!.locale) ?? "en-IN";
   const expectedUpdatedAt = stringValue(body!.expectedUpdatedAt);
+  const useLocalizedDb =
+    LOCALIZED_DB_KINDS.has(definition.kind) && locale !== DEFAULT_CMS_LOCALE;
   const service = documents(strapi, definition);
   const operations = [
     "create-draft",
@@ -672,6 +776,9 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
       async () => {
         if (operation === "create-draft") return service.create({ locale, status: "draft", data });
         if (operation === "update-draft") {
+          if (useLocalizedDb) {
+            return writeLocalizedDraft(strapi, definition, documentId!, locale, data ?? {});
+          }
           if (expectedUpdatedAt) {
             const current = await service.findOne({
               documentId,
@@ -710,7 +817,15 @@ async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void>
           assertNoCommerceFields(copy);
           return service.create({ locale, status: "draft", data: copy });
         }
-        if (operation === "publish") return service.publish({ documentId, locale });
+        if (operation === "publish") {
+          if (useLocalizedDb) {
+            return publishLocalized(strapi, definition, documentId!, locale);
+          }
+          return service.publish({ documentId, locale });
+        }
+        if (useLocalizedDb) {
+          return unpublishLocalized(strapi, definition, documentId!, locale);
+        }
         return service.unpublish({ documentId, locale });
       },
     );
