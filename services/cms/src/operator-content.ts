@@ -634,18 +634,28 @@ async function nextAvailableKey(
 const DEFAULT_CMS_LOCALE = "en-IN";
 const LOCALIZED_DB_KINDS = new Set(["banner", "category-editorial"]);
 
-function localizedQuery(strapi: Core.Strapi, definition: ContentKindDefinition): any {
-  return strapi.db.query(definition.uid as never);
+function localizedTable(strapi: Core.Strapi, definition: ContentKindDefinition): string {
+  const model = strapi.getModel(definition.uid as never) as any;
+  return String(model.collectionName);
 }
 
-function localizedWriteData(
+function localizedPayload(
+  strapi: Core.Strapi,
   definition: ContentKindDefinition,
   data: JsonRecord,
 ): JsonRecord {
-  const copy = { ...data };
-  // Category banners are component instances; the label/hero fields are the localized payload.
-  if (definition.kind === "category-editorial") delete copy.banners;
-  return copy;
+  const model = strapi.getModel(definition.uid as never) as any;
+  const payload: JsonRecord = {};
+  for (const [key, value] of Object.entries(data)) {
+    const attribute = model.attributes?.[key];
+    if (!attribute) continue;
+    if (["media", "relation", "component", "dynamiczone"].includes(attribute.type)) continue;
+    const column = attribute.columnName ?? key;
+    payload[column] = attribute.type === "json" && value !== null
+      ? JSON.stringify(value)
+      : value;
+  }
+  return payload;
 }
 
 async function localizedRows(
@@ -654,9 +664,25 @@ async function localizedRows(
   documentId: string,
   locale: string,
 ): Promise<JsonRecord[]> {
-  return localizedQuery(strapi, definition).findMany({
-    where: { documentId, locale },
-  });
+  return strapi.db.connection(localizedTable(strapi, definition))
+    .where({ document_id: documentId, locale });
+}
+
+function stripSystemColumns(row: JsonRecord): JsonRecord {
+  const copy = { ...row };
+  for (const key of [
+    "id",
+    "document_id",
+    "locale",
+    "published_at",
+    "created_at",
+    "updated_at",
+    "created_by_id",
+    "updated_by_id",
+  ]) {
+    delete copy[key];
+  }
+  return copy;
 }
 
 async function writeLocalizedDraft(
@@ -666,35 +692,28 @@ async function writeLocalizedDraft(
   locale: string,
   data: JsonRecord,
 ): Promise<unknown> {
-  const query = localizedQuery(strapi, definition);
+  const table = localizedTable(strapi, definition);
   const rows = await localizedRows(strapi, definition, documentId, locale);
-  const draft = rows.find((row) => row.publishedAt === null || row.publishedAt === undefined);
-  const payload = localizedWriteData(definition, data);
+  const draft = rows.find((row) => !row.published_at);
+  const payload = localizedPayload(strapi, definition, data);
   if (draft) {
-    return query.update({ where: { id: draft.id }, data: payload });
+    const updated = await strapi.db.connection(table)
+      .where({ id: draft.id })
+      .update({ ...payload, updated_at: new Date() })
+      .returning("*");
+    return updated[0] ?? null;
   }
-  return query.create({ data: { ...payload, documentId, locale } });
-}
-
-function publishedPayload(
-  definition: ContentKindDefinition,
-  row: JsonRecord,
-): JsonRecord {
-  const copy = { ...row };
-  for (const key of [
-    "id",
-    "documentId",
-    "locale",
-    "publishedAt",
-    "createdAt",
-    "updatedAt",
-    "createdBy",
-    "updatedBy",
-  ]) {
-    delete copy[key];
-  }
-  if (definition.kind === "category-editorial") delete copy.banners;
-  return copy;
+  const inserted = await strapi.db.connection(table)
+    .insert({
+      ...payload,
+      document_id: documentId,
+      locale,
+      published_at: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .returning("*");
+  return inserted[0] ?? null;
 }
 
 async function publishLocalized(
@@ -703,16 +722,30 @@ async function publishLocalized(
   documentId: string,
   locale: string,
 ): Promise<unknown> {
-  const query = localizedQuery(strapi, definition);
+  const table = localizedTable(strapi, definition);
   const rows = await localizedRows(strapi, definition, documentId, locale);
-  const draft = rows.find((row) => row.publishedAt === null || row.publishedAt === undefined);
+  const draft = rows.find((row) => !row.published_at);
   if (!draft) throw new Error("No draft exists for this locale.");
-  const payload = { ...publishedPayload(definition, draft), publishedAt: new Date() };
-  const published = rows.find((row) => row.publishedAt !== null && row.publishedAt !== undefined);
+  const published = rows.find((row) => Boolean(row.published_at));
+  const payload = stripSystemColumns(draft);
   if (published) {
-    return query.update({ where: { id: published.id }, data: payload });
+    const updated = await strapi.db.connection(table)
+      .where({ id: published.id })
+      .update({ ...payload, published_at: new Date(), updated_at: new Date() })
+      .returning("*");
+    return updated[0] ?? null;
   }
-  return query.create({ data: { ...payload, documentId, locale } });
+  const inserted = await strapi.db.connection(table)
+    .insert({
+      ...payload,
+      document_id: documentId,
+      locale,
+      published_at: new Date(),
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .returning("*");
+  return inserted[0] ?? null;
 }
 
 async function unpublishLocalized(
@@ -721,11 +754,15 @@ async function unpublishLocalized(
   documentId: string,
   locale: string,
 ): Promise<unknown> {
-  const query = localizedQuery(strapi, definition);
+  const table = localizedTable(strapi, definition);
   const rows = await localizedRows(strapi, definition, documentId, locale);
-  const published = rows.find((row) => row.publishedAt !== null && row.publishedAt !== undefined);
+  const published = rows.find((row) => Boolean(row.published_at));
   if (!published) return null;
-  return query.update({ where: { id: published.id }, data: { publishedAt: null } });
+  const updated = await strapi.db.connection(table)
+    .where({ id: published.id })
+    .update({ published_at: null, updated_at: new Date() })
+    .returning("*");
+  return updated[0] ?? null;
 }
 
 async function mutationHandler(strapi: Core.Strapi, ctx: Context): Promise<void> {
