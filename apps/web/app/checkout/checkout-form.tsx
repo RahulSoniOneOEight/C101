@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart";
+import { deliveryChangeEventName, readDeliveryAddress } from "@/lib/delivery";
 import type { CartQuote } from "@/lib/experience-api";
 import { ProductImage } from "../components/product-image";
 
@@ -51,8 +52,27 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
   const [state, setState] = useState<State>({ status: "idle" });
   const [postalCode, setPostalCode] = useState("302001");
+  const [city, setCity] = useState("Jaipur");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
   const linesKey = items.map((item) => `${item.offerId}:${item.quantity}`).join("|");
+
+  // The home delivery selector is the source of truth for this browser. It pre-fills the quote
+  // postcode and the city field, while the customer still enters the street address.
+  useEffect(() => {
+    const sync = () => {
+      const saved = readDeliveryAddress();
+      setPostalCode(saved.pincode);
+      setCity(saved.city);
+    };
+    sync();
+    const event = deliveryChangeEventName();
+    window.addEventListener(event, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(event, sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
 
   // Load an authoritative quote (subtotal, automatic discount, delivery, total) from the API.
   useEffect(() => {
@@ -257,7 +277,14 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
             </label>
             <label>
               City
-              <input name="city" required autoComplete="address-level2" placeholder="Jaipur" />
+              <input
+                name="city"
+                required
+                autoComplete="address-level2"
+                placeholder="Jaipur"
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+              />
             </label>
             <label>
               Postal code

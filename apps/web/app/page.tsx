@@ -27,6 +27,8 @@ import {
   sortedBanners,
 } from "@/lib/storefront";
 import { CategoryIcon } from "./components/category-icon";
+import { AddressSelector } from "./components/address-selector";
+import { AppDownloadBanner } from "./components/app-download-banner";
 import { DragScroll } from "./components/drag-scroll";
 import { HeroCarousel } from "./components/hero-carousel";
 import { ProductCard } from "./components/product-card";
@@ -245,6 +247,13 @@ export default async function HomePage() {
 
   return (
     <>
+      <div className="home-delivery-bar">
+        <AddressSelector locale={locale} />
+        <span className="home-delivery-promise">
+          {hindi ? "घर या साइट तक डिलीवरी · GST इनवॉइस" : "Doorstep or site delivery · GST invoices"}
+        </span>
+      </div>
+
       {heroBanners.length > 0 ? (
         <HeroCarousel banners={heroBanners} channel="b2c" locale={locale} />
       ) : (
@@ -453,6 +462,8 @@ export default async function HomePage() {
           <p>Owner-scoped tracking and returns in one place.</p>
         </div>
       </section>
+
+      <AppDownloadBanner />
     </>
   );
 }
