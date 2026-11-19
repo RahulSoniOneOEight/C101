@@ -1,7 +1,7 @@
 # BazarBee web storefront — build and flow QC
 
 Date: 2026-11-19
-Branch: `feat/bazarbee-branding`; web release `release-web-20261119-151906`; CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
+Branch: `feat/bazarbee-branding`; web release `release-web-20261119-151906` (source `181f35f`); CMS `ea16cf2`; API `5639fe3`; admin panel `93eeac1`; Flutter code `bd956e2`
 Surfaces: `https://gobazarbee.com` (Next.js web store), `https://app-staging.pinakaplay.cloud` (Flutter Web), `https://api-staging.pinakaplay.cloud` (Experience API)
 Flutter baseline: `https://app-staging.pinakaplay.cloud` (Flutter Web; Firebase `gobazarbee.com` retired from the Flutter role)
 Web release: `/opt/buildkart-releases/release-web-20261119-151906`; admin panel `/opt/buildkart-releases/release-93eeac1`
