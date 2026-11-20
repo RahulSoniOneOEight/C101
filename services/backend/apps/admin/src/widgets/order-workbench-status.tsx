@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Container, Heading, StatusBadge, Text } from "@medusajs/ui";
+
+declare const __BACKEND_URL__: string;
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../lib/client";
@@ -50,6 +52,30 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     staleTime: 30_000,
   });
   const orderGroupId = orderGroup.data?.order_group?.id;
+  const isCod =
+    order?.metadata?.payment_method === "cod" || order?.metadata?.payment_mode === "cod";
+  const codCollection = useQuery({
+    queryKey: ["buildkart", "order-cod", orderGroupId],
+    queryFn: async () => {
+      const response = await fetch(
+        `${__BACKEND_URL__}/admin/buildkart/order-groups/${encodeURIComponent(orderGroupId!)}/cod`,
+        { credentials: "include" },
+      );
+      if (!response.ok) throw new Error("COD collection is not available.");
+      return (await response.json()) as {
+        collection?: {
+          status: "pending" | "collected" | "short" | "refused";
+          expected_minor: number;
+          collected_minor: number;
+          proof_ref: string | null;
+          collected_at: string | null;
+        };
+      };
+    },
+    enabled: Boolean(orderGroupId) && isCod,
+    refetchInterval: 10_000,
+    retry: false,
+  });
   const lifecycle = useQuery({
     queryKey: ["buildkart", "order-delivery-returns", orderGroupId],
     queryFn: () =>
@@ -75,9 +101,40 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   const paymentLabel = order.payment_status
     ? paymentStatusLabel(order.payment_status)
     : "Status unavailable";
-  const isCod =
+  const isCodOrder =
     order.metadata?.payment_method === "cod" || order.metadata?.payment_mode === "cod";
-  const paymentValue = isCod ? "Cash due" : paymentLabel;
+  const collection = codCollection.data?.collection;
+  const cashStatus = collection?.status;
+  const cashCollectedMinor = Number(collection?.collected_minor ?? 0);
+  const paymentValue = !isCodOrder
+    ? paymentLabel
+    : cashStatus === "collected"
+      ? "Cash collected"
+      : cashStatus === "short"
+        ? "Cash short"
+        : cashStatus === "refused"
+          ? "Cash refused"
+          : "Cash due";
+  const paymentDetail = !isCodOrder
+    ? order.payment_status === "authorized"
+      ? "Ready to capture"
+      : order.payment_status === "captured"
+        ? "Payment captured"
+        : "Native payment"
+    : cashStatus === "collected"
+      ? `${formatCurrency(cashCollectedMinor / 100, currencyCode)} collected`
+      : cashStatus === "short"
+        ? `${formatCurrency(cashCollectedMinor / 100, currencyCode)} of ${formatCurrency(Number(collection?.expected_minor ?? 0) / 100, currencyCode)}`
+        : cashStatus === "refused"
+          ? "Delivery refused · no cash"
+          : "Collect cash at delivery";
+  const paymentTone = !isCodOrder
+    ? paymentStatusColor(order.payment_status)
+    : cashStatus === "collected"
+      ? "green"
+      : cashStatus === "refused"
+        ? "red"
+        : "orange";
 
   const refundValue = simulatedRefund
     ? `${formatCurrency(simulatedRefund.amountMinor / 100, simulatedRefund.currencyCode)} simulated`
@@ -97,14 +154,8 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     {
       label: "Payment",
       value: paymentValue,
-      detail: isCod
-        ? "Collect cash at delivery"
-        : order.payment_status === "authorized"
-          ? "Ready to capture"
-          : order.payment_status === "captured"
-            ? "Payment captured"
-            : "Native payment",
-      tone: isCod ? "orange" : paymentStatusColor(order.payment_status),
+      detail: paymentDetail,
+      tone: paymentTone,
     },
     {
       label: "Delivery",
@@ -134,15 +185,31 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     ["delivery_failed", "buyer_action_required", "damaged", "lost"].includes(shipment.status),
   );
 
-  if (isCod) {
-    attention.push({
-      tone: "orange" as Tone,
-      title: "Cash on delivery · collect at delivery",
-      detail:
-        "The seller collects cash and records it in the seller portal. Do not capture this payment in Medusa.",
-      action: "Open payments",
-      href: "#payments",
-    });
+  if (isCodOrder) {
+    if (cashStatus === "short" || cashStatus === "refused") {
+      attention.push({
+        tone: cashStatus === "refused" ? ("red" as Tone) : ("orange" as Tone),
+        title:
+          cashStatus === "refused"
+            ? "Cash on delivery refused"
+            : "Cash on delivery short",
+        detail:
+          cashStatus === "refused"
+            ? "No cash was collected; the seller must raise a credit note."
+            : paymentDetail,
+        action: "Open payments",
+        href: "#payments",
+      });
+    } else if (cashStatus !== "collected") {
+      attention.push({
+        tone: "orange" as Tone,
+        title: "Cash on delivery · collect at delivery",
+        detail:
+          "The seller collects cash and records it in the seller portal. Do not capture this payment in Medusa.",
+        action: "Open payments",
+        href: "#payments",
+      });
+    }
   } else if (order.payment_status === "authorized") {
     attention.push({
       tone: "blue" as Tone,
@@ -185,12 +252,8 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     {
       label: "Payment",
       status: paymentValue,
-      tone: (isCod ? "orange" : paymentStatusColor(order.payment_status)) as Tone,
-      detail: isCod
-        ? "Collect cash at delivery"
-        : order.payment_status === "authorized"
-          ? "Ready to capture"
-          : undefined,
+      tone: paymentTone as Tone,
+      detail: paymentDetail,
     },
     {
       label: "Delivery",

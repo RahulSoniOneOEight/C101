@@ -98,14 +98,29 @@ Page smoke, zero console errors:
 ### Defect found and fixed
 
 The order workbench said **“Payment ready to capture”** for a COD order and linked to capture.
-It now shows:
+It now reads the COD collection record and shows the true cash state:
 
 ```text
-Payment: Cash due
-Collect cash at delivery
-Cash on delivery · collect at delivery
-The seller collects cash and records it in the seller portal. Do not capture this payment in Medusa.
+pending    Payment: Cash due · Collect cash at delivery
+collected  Payment: Cash collected · ₹479 collected
+short      Payment: Cash short · amount collected of expected
+refused    Payment: Cash refused · delivery refused, no cash
 ```
+
+The warning “Do not capture this payment in Medusa” remains for pending COD orders.
+
+### End-to-end admin run (web + Flutter)
+
+Two fresh COD orders were placed and checked:
+
+| Order | Surface | Total | Admin workbench |
+|---|---|---|---|
+| `BK-261120-ET7J2F` | Web store | ₹479 | **Cash collected** after seller capture, proof `qc-web-cash-1` |
+| `BK-261120-6ZJ00Q` | Flutter app | ₹479 | **Cash due** (not yet collected) |
+
+Both orders show provider `pp_cod_cod`, authorized ₹479, captured ₹0, shipment `booked`, and zero
+console errors. The admin COD API reports `pending` for the Flutter order and `collected` for the
+web order.
 
 ### Open findings
 
@@ -119,10 +134,14 @@ The seller collects cash and records it in the seller portal. Do not capture thi
 
 ## 4. Releases
 
-- Backend (admin widget): `release-backend-20261120-152837`
+- Backend (admin widget): `release-backend-20261120-162309`
 - Flutter web: `/opt/buildkart-flutter/web` (backup `web.bak-cod-20261120-153617`)
 - Experience API: unchanged `release-api-20261120-150022`
 - Web storefront: unchanged `release-web-20261120-132447`
+
+Ops note: recreating `medusa-api` changes its container IP. Restart
+`buildkart-hosted-pilot-proxy-1` after a backend deploy or the ops host returns 502 until nginx
+re-resolves the upstream.
 
 ## 5. Verdict
 
