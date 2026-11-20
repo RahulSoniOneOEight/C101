@@ -1,7 +1,7 @@
 # Ops identity: superadmin staff directory + TOTP
 
-Status: **accepted for production** · selected by the human requester on 2026-11-21 · slices 1–2
-implemented · gate running in `shadow` on staging · login/enrolment UI and nginx wiring pending.
+Status: **accepted for production** · selected by the human requester on 2026-11-21 · slices 1–3
+implemented · gate running in `shadow` on staging · staff UI and nginx wiring pending.
 
 This decision replaces a real IdP with a BazarBee-owned staff directory and a second factor at the
 application. Cloudflare Access remains the outer gate. It is a compensating control, not an
@@ -217,7 +217,7 @@ tables are additive.
 |---|---|---|
 | 1. Staff store + TOTP | done | RFC 6238 vectors, single-use TOTP and recovery codes, lockout, audit; staging DB test passed; rows cleaned up |
 | 2. Access JWT + session + gate | done, shadow | JWT failure modes, gate decision matrix, Redis issue/resolve/revoke; `/v1/ops/gate` returns `204` + `x-ops-shadow-status: 401` |
-| 3. Login/enrolment pages | pending | — |
+| 3. Login/enrolment pages | done | CSRF issue/verify/expiry/tamper, escaped pages, `/ops/login` and `/ops/enroll` return `401 Access required` without an Access JWT; forms fail closed; first superadmin seeded |
 | 4. `/ops/staff` superadmin UI | pending | — |
 | 5. Cloudflare group sync + nginx | pending | — |
 | 6. Staging UAT shadow → enforce | pending | — |
@@ -235,3 +235,27 @@ OPS_TOTP_ENCRYPTION_KEY in /etc/buildkart/secrets/experience-api.env
 The gate endpoint is excluded from the normal bearer-session pre-check. nginx does not call it yet, so
 no request is blocked. The customer API host returns `404` for `/v1/ops/gate`; the ops host remains
 behind Access.
+
+### Slice 3 — pages and verification
+
+```text
+GET  /ops/login              TOTP form, CSRF-bound, redirects enrolled users to /dashboard
+GET  /ops/enroll             secret + otpauth URI + confirmation form
+POST /v1/ops/totp/verify     TOTP or recovery code → bz_ops_session (8h, HttpOnly, Secure, Lax)
+POST /v1/ops/totp/enroll     confirms the first code, sets totp_last_step, shows recovery codes once
+GET  /ops/logout             revokes the session and clears the cookie
+bun run ops:staff:bootstrap  seeds the first superadmin (no secret printed)
+```
+
+Rate limits: 20 verify attempts / 10 min per IP, 10 enrolment attempts / 10 min per IP, plus the
+5-failure / 15-minute account lockout. Forms require a same-origin request and a 10-minute HMAC token
+bound to the Cloudflare-verified email.
+
+First staging superadmin:
+
+```text
+gobazarbee@gmail.com   super_admin   status invited   TOTP not enrolled
+```
+
+The next action is browser UAT: sign in through Access, open `/ops/enroll`, add the secret to an
+authenticator, confirm a code, save the recovery codes, then sign in at `/ops/login`.

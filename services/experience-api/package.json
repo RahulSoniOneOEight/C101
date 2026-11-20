@@ -22,6 +22,8 @@
     "test:identity": "bun run src/scripts/identity-test.ts",
     "test:ops-staff": "bun run src/scripts/ops-staff-test.ts",
     "test:ops-gate": "bun run src/scripts/ops-gate-test.ts",
+    "test:ops-pages": "bun run src/scripts/ops-pages-test.ts",
+    "ops:staff:bootstrap": "bun run src/scripts/ops-staff-bootstrap.ts",
     "test:rbac": "bun run src/scripts/rbac-test.ts",
     "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
     "test:acceptance": "bun run src/scripts/hosted-acceptance.ts",

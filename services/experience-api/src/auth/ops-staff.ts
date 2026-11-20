@@ -340,6 +340,7 @@ export class OpsStaffStore {
     email: string,
     recoveryCodes: readonly string[],
     actorEmail?: string,
+    step?: number | null,
   ): Promise<OpsStaff | null> {
     await this.ready;
     const staff = await this.get(email);
@@ -351,11 +352,12 @@ export class OpsStaffStore {
           SET totp_confirmed_at = now(),
               status = 'active',
               recovery_hashes = $2,
+              totp_last_step = $3,
               failed_attempts = 0,
               locked_until = NULL
         WHERE id = $1 AND status <> 'disabled' AND totp_confirmed_at IS NULL
         RETURNING *`,
-      [staff.id, hashes],
+      [staff.id, hashes, step ?? null],
     );
     const row = result.rows[0] as OpsStaffRow | undefined;
     if (!row) return null;
@@ -413,6 +415,39 @@ export class OpsStaffStore {
     const row = result.rows[0] as { totp_secret_enc: string | null } | undefined;
     if (!row?.totp_secret_enc) return null;
     return decryptSecret(row.totp_secret_enc, this.encryptionKey);
+  }
+
+  async getTotpState(email: string): Promise<{
+    secret: string | null;
+    lastStep: number | null;
+    status: OpsStaffStatus;
+    lockedUntil: string | null;
+  } | null> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT status, totp_secret_enc, totp_last_step, locked_until
+         FROM ops_staff
+        WHERE lower(email) = lower($1)
+        LIMIT 1`,
+      [email.trim()],
+    );
+    const row = result.rows[0] as
+      | {
+          status: OpsStaffStatus;
+          totp_secret_enc: string | null;
+          totp_last_step: string | null;
+          locked_until: Date | string | null;
+        }
+      | undefined;
+    if (!row) return null;
+    return {
+      secret: row.totp_secret_enc
+        ? decryptSecret(row.totp_secret_enc, this.encryptionKey)
+        : null,
+      lastStep: row.totp_last_step === null ? null : Number(row.totp_last_step),
+      status: row.status,
+      lockedUntil: iso(row.locked_until),
+    };
   }
 
   /**

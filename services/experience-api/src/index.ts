@@ -29,6 +29,20 @@ import { OpsGate, OPS_SESSION_COOKIE, readCookie } from "./auth/ops-gate.js";
 import { OpsSessionStore } from "./auth/ops-session.js";
 import { decodeOpsEncryptionKey, OpsStaffStore } from "./auth/ops-staff.js";
 import {
+  issueFormToken,
+  opsEnrollPage,
+  opsLoginPage,
+  opsNoticePage,
+  opsRecoveryPage,
+  verifyFormToken,
+} from "./auth/ops-pages.js";
+import {
+  generateRecoveryCodes,
+  generateTotpSecret,
+  otpauthUri,
+  verifyTotp,
+} from "./auth/ops-totp.js";
+import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
   parseGuestQuoteBody,
@@ -177,12 +191,10 @@ const customerSessions = new RealmSessionStore(
   config.customerSessionTtlSeconds,
 );
 const authRateLimiter = new AuthRateLimiter(config.redisUrl);
-const opsGate = (() => {
+const opsContext = (() => {
   if (config.opsTotpGate === "off") return null;
-  const staff = new OpsStaffStore(
-    config.experienceDatabaseUrl,
-    decodeOpsEncryptionKey(config.opsTotpEncryptionKey as string),
-  );
+  const masterKey = decodeOpsEncryptionKey(config.opsTotpEncryptionKey as string);
+  const staff = new OpsStaffStore(config.experienceDatabaseUrl, masterKey);
   const sessions = new OpsSessionStore(
     config.redisUrl,
     "bazarbee:ops-realm:v1",
@@ -192,7 +204,9 @@ const opsGate = (() => {
     teamDomain: config.opsAccessTeamDomain,
     audience: config.opsAccessAudience as string,
   });
-  return new OpsGate({ mode: config.opsTotpGate, staff, sessions, verifier });
+  const gate = new OpsGate({ mode: config.opsTotpGate, staff, sessions, verifier });
+  const formKey = createHmac("sha256", masterKey).update("ops-form-csrf-v1").digest();
+  return { staff, sessions, verifier, gate, formKey };
 })();
 const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
@@ -473,6 +487,48 @@ async function enforceAuthRateLimit(
     console.warn("[experience-api] auth rate limiter unavailable:", (error as Error).message);
     return problem(503, "rate-limit-unavailable", "Sign-in is temporarily unavailable.");
   }
+}
+
+function opsHtml(html: string, status = 200): Response {
+  return new Response(html, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
+function opsRedirect(location: string, cookie?: string): Response {
+  const headers = new Headers({ location, "cache-control": "no-store" });
+  if (cookie) headers.set("set-cookie", cookie);
+  return new Response(null, { status: 303, headers });
+}
+
+function opsSessionCookie(token: string, ttlSeconds: number): string {
+  return `${OPS_SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttlSeconds}`;
+}
+
+function clearOpsSessionCookie(): string {
+  return `${OPS_SESSION_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
+}
+
+function safeOpsNext(value: string | null | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/dashboard";
+  return value.slice(0, 500);
+}
+
+function sameOriginPost(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === req.headers.get("host");
+  } catch {
+    return false;
+  }
+}
+
+async function opsIdentity(req: Request): Promise<{ email: string; sub: string | null } | null> {
+  if (!opsContext) return null;
+  const verified = await opsContext.verifier.verify(req.headers.get("cf-access-jwt-assertion"));
+  return verified.ok ? { email: verified.claims.email, sub: verified.claims.sub } : null;
 }
 
 /**
@@ -2972,10 +3028,14 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
   // Local legacy integration runs without that configuration retain their existing operator access.
-  // The gate endpoint authenticates itself with the Cloudflare assertion; nginx calls it before
-  // the normal bearer-session check.
+  // Ops identity endpoints authenticate themselves: the gate with the Cloudflare assertion, the
+  // TOTP forms with that assertion plus a CSRF token.
+  const opsSelfAuthenticated =
+    url.pathname === "/v1/ops/gate" ||
+    url.pathname === "/v1/ops/totp/verify" ||
+    url.pathname === "/v1/ops/totp/enroll";
   const requiredRoles =
-    config.pilotRoleAssignmentsJson && url.pathname !== "/v1/ops/gate"
+    config.pilotRoleAssignmentsJson && !opsSelfAuthenticated
       ? privilegedRoles(url.pathname)
       : null;
   if (requiredRoles) {
@@ -3047,13 +3107,13 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // GET /v1/ops/gate — nginx auth_request for the operator host. Not a browser endpoint.
   if (url.pathname === "/v1/ops/gate" && req.method === "GET") {
-    if (!opsGate) {
+    if (!opsContext) {
       return new Response(null, {
         status: 204,
         headers: { "x-ops-gate": "off", "cache-control": "no-store" },
       });
     }
-    const decision = await opsGate.evaluate({
+    const decision = await opsContext.gate.evaluate({
       accessJwt: req.headers.get("cf-access-jwt-assertion"),
       sessionToken: readCookie(req.headers.get("cookie"), OPS_SESSION_COOKIE),
     });
@@ -3067,6 +3127,302 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       headers.set("x-ops-shadow-reason", decision.shadow.reason);
     }
     return new Response(null, { status: decision.status, headers });
+  }
+
+  // GET /ops/login — TOTP step for a staff user already verified by Cloudflare Access.
+  if (url.pathname === "/ops/login" && req.method === "GET") {
+    if (!opsContext) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Not configured",
+          message: "Ops identity is not enabled in this environment.",
+        }),
+        404,
+      );
+    }
+    const identity = await opsIdentity(req);
+    if (!identity) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Access required",
+          message: "Open this page through Cloudflare Access.",
+        }),
+        401,
+      );
+    }
+    const staff = await opsContext.staff.get(identity.email);
+    if (!staff || staff.status === "disabled") {
+      return opsHtml(
+        opsNoticePage({
+          title: "No access",
+          message: "This account is not on the ops staff list.",
+        }),
+        403,
+      );
+    }
+    const next = safeOpsNext(url.searchParams.get("next"));
+    if (!staff.totpEnrolled) return opsRedirect("/ops/enroll");
+    const existing = await opsContext.sessions.resolveSession(
+      readCookie(req.headers.get("cookie"), OPS_SESSION_COOKIE),
+    );
+    if (existing?.email === staff.email) return opsRedirect(next);
+    return opsHtml(
+      opsLoginPage({
+        email: staff.email,
+        csrf: issueFormToken(staff.email, opsContext.formKey),
+        next,
+      }),
+    );
+  }
+
+  // GET /ops/enroll — first-time authenticator setup for an invited staff user.
+  if (url.pathname === "/ops/enroll" && req.method === "GET") {
+    if (!opsContext) return opsRedirect("/ops/login");
+    const identity = await opsIdentity(req);
+    if (!identity) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Access required",
+          message: "Open this page through Cloudflare Access.",
+        }),
+        401,
+      );
+    }
+    const staff = await opsContext.staff.get(identity.email);
+    if (!staff || staff.status === "disabled") {
+      return opsHtml(
+        opsNoticePage({
+          title: "No access",
+          message: "This account is not on the ops staff list.",
+        }),
+        403,
+      );
+    }
+    if (staff.totpEnrolled) return opsRedirect("/ops/login");
+    let state = await opsContext.staff.getTotpState(staff.email);
+    if (!state?.secret) {
+      const secret = generateTotpSecret();
+      const started = await opsContext.staff.beginEnrollment(staff.email, secret);
+      if (!started) return opsRedirect("/ops/login");
+      state = await opsContext.staff.getTotpState(staff.email);
+    }
+    if (!state?.secret) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Enrolment unavailable",
+          message: "The authenticator secret could not be prepared. Try again.",
+        }),
+        500,
+      );
+    }
+    return opsHtml(
+      opsEnrollPage({
+        email: staff.email,
+        csrf: issueFormToken(staff.email, opsContext.formKey),
+        secret: state.secret,
+        uri: otpauthUri(state.secret, staff.email),
+      }),
+    );
+  }
+
+  // GET /ops/logout — clear the ops session cookie.
+  if (url.pathname === "/ops/logout" && req.method === "GET") {
+    if (opsContext) {
+      await opsContext.sessions.revokeSession(
+        readCookie(req.headers.get("cookie"), OPS_SESSION_COOKIE),
+      );
+    }
+    return opsRedirect("/ops/login", clearOpsSessionCookie());
+  }
+
+  // POST /v1/ops/totp/verify — verify TOTP or a recovery code and issue the ops session.
+  if (url.pathname === "/v1/ops/totp/verify" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    if (!sameOriginPost(req)) {
+      return opsHtml(
+        opsNoticePage({ title: "Rejected", message: "Cross-origin form submission." }),
+        403,
+      );
+    }
+    const limited = await enforceAuthRateLimit(req, "ops-totp-verify", {
+      ipLimit: 20,
+      windowSeconds: 600,
+    });
+    if (limited) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Too many attempts",
+          message: "Wait a few minutes before trying again.",
+        }),
+        429,
+      );
+    }
+    let code = "";
+    let next = "/dashboard";
+    let csrfToken = "";
+    try {
+      const form = await req.formData();
+      code = String(form.get("code") ?? "").trim();
+      next = safeOpsNext(String(form.get("next") ?? ""));
+      csrfToken = String(form.get("csrf") ?? "");
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a form body.");
+    }
+    const identity = await opsIdentity(req);
+    if (!identity) return problem(401, "access-required", "Cloudflare Access is required.");
+    if (!verifyFormToken(csrfToken, identity.email, opsContext.formKey)) {
+      return opsHtml(
+        opsNoticePage({ title: "Expired form", message: "Reload the sign-in page and try again." }),
+        403,
+      );
+    }
+    const staff = await opsContext.staff.get(identity.email);
+    if (!staff || staff.status === "disabled") {
+      return opsHtml(
+        opsNoticePage({ title: "No access", message: "This account is not on the ops staff list." }),
+        403,
+      );
+    }
+    if (staff.lockedUntil && new Date(staff.lockedUntil).getTime() > Date.now()) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Temporarily locked",
+          message: "Too many failed codes. Try again in 15 minutes or ask a superadmin to reset.",
+        }),
+        423,
+      );
+    }
+    const state = await opsContext.staff.getTotpState(staff.email);
+    if (!state?.secret) return opsRedirect("/ops/enroll");
+
+    let success = false;
+    let replay = false;
+    if (/^\d{6}$/.test(code)) {
+      const result = verifyTotp(state.secret, code, state.lastStep);
+      if (result.valid) {
+        success = await opsContext.staff.consumeTotpStep(staff.email, result.step);
+        replay = !success;
+      }
+    } else {
+      success = await opsContext.staff.consumeRecoveryCode(staff.email, code);
+    }
+
+    if (success) {
+      const issued = await opsContext.sessions.issueSession({
+        email: staff.email,
+        name: staff.name,
+        roles: staff.roles,
+        accessSub: identity.sub,
+        totpAt: new Date().toISOString(),
+      });
+      return opsRedirect(next, opsSessionCookie(issued.session_token, issued.expires_in_seconds));
+    }
+
+    const failure = await opsContext.staff.registerFailure(staff.email);
+    if (failure.lockedUntil && new Date(failure.lockedUntil).getTime() > Date.now()) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Temporarily locked",
+          message: "Too many failed codes. Try again in 15 minutes or ask a superadmin to reset.",
+        }),
+        423,
+      );
+    }
+    return opsHtml(
+      opsLoginPage({
+        email: staff.email,
+        csrf: issueFormToken(staff.email, opsContext.formKey),
+        next,
+        error:
+          replay
+            ? "That code was already used. Wait for the next code."
+            : "That code was not accepted.",
+      }),
+      401,
+    );
+  }
+
+  // POST /v1/ops/totp/enroll — confirm the first authenticator code and show recovery codes once.
+  if (url.pathname === "/v1/ops/totp/enroll" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    if (!sameOriginPost(req)) {
+      return opsHtml(
+        opsNoticePage({ title: "Rejected", message: "Cross-origin form submission." }),
+        403,
+      );
+    }
+    const limited = await enforceAuthRateLimit(req, "ops-totp-enroll", {
+      ipLimit: 10,
+      windowSeconds: 600,
+    });
+    if (limited) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Too many attempts",
+          message: "Wait a few minutes before trying again.",
+        }),
+        429,
+      );
+    }
+    let code = "";
+    let csrfToken = "";
+    try {
+      const form = await req.formData();
+      code = String(form.get("code") ?? "").trim();
+      csrfToken = String(form.get("csrf") ?? "");
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a form body.");
+    }
+    const identity = await opsIdentity(req);
+    if (!identity) return problem(401, "access-required", "Cloudflare Access is required.");
+    if (!verifyFormToken(csrfToken, identity.email, opsContext.formKey)) {
+      return opsHtml(
+        opsNoticePage({ title: "Expired form", message: "Reload the setup page and try again." }),
+        403,
+      );
+    }
+    const staff = await opsContext.staff.get(identity.email);
+    if (!staff || staff.status === "disabled") {
+      return opsHtml(
+        opsNoticePage({ title: "No access", message: "This account is not on the ops staff list." }),
+        403,
+      );
+    }
+    if (staff.totpEnrolled) return opsRedirect("/ops/login");
+    const state = await opsContext.staff.getTotpState(staff.email);
+    if (!state?.secret) return opsRedirect("/ops/enroll");
+    const result = verifyTotp(state.secret, code, null);
+    if (!result.valid) {
+      const failure = await opsContext.staff.registerFailure(staff.email);
+      if (failure.lockedUntil && new Date(failure.lockedUntil).getTime() > Date.now()) {
+        return opsHtml(
+          opsNoticePage({
+            title: "Temporarily locked",
+            message: "Too many failed codes. Ask a superadmin to reset your enrolment.",
+          }),
+          423,
+        );
+      }
+      return opsHtml(
+        opsEnrollPage({
+          email: staff.email,
+          csrf: issueFormToken(staff.email, opsContext.formKey),
+          secret: state.secret,
+          uri: otpauthUri(state.secret, staff.email),
+          error: "That code was not accepted. Check the device clock and try the next code.",
+        }),
+        401,
+      );
+    }
+    const recoveryCodes = generateRecoveryCodes();
+    const confirmed = await opsContext.staff.confirmEnrollment(
+      staff.email,
+      recoveryCodes,
+      staff.email,
+      result.step,
+    );
+    if (!confirmed) return opsRedirect("/ops/login");
+    return opsHtml(opsRecoveryPage({ codes: recoveryCodes }));
   }
 
   // POST /v1/auth/email/code — email a six-digit sign-in code.
@@ -9287,10 +9643,14 @@ const server = Bun.serve({
     if (streamMatch && req.method === "GET") {
       return handleWorkspaceStream(req, bunServer, streamMatch[1], url, cid);
     }
-    // The gate endpoint authenticates itself with the Cloudflare assertion; nginx calls it before
-  // the normal bearer-session check.
+    // Ops identity endpoints authenticate themselves: the gate with the Cloudflare assertion, the
+  // TOTP forms with that assertion plus a CSRF token.
+  const opsSelfAuthenticated =
+    url.pathname === "/v1/ops/gate" ||
+    url.pathname === "/v1/ops/totp/verify" ||
+    url.pathname === "/v1/ops/totp/enroll";
   const requiredRoles =
-    config.pilotRoleAssignmentsJson && url.pathname !== "/v1/ops/gate"
+    config.pilotRoleAssignmentsJson && !opsSelfAuthenticated
       ? privilegedRoles(url.pathname)
       : null;
     const isMutation = req.method !== "GET" && req.method !== "OPTIONS";
