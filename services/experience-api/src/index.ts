@@ -4770,6 +4770,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
     let completionBody: Record<string, unknown> | null = null;
     let cartAttached = false;
+    let completionAttempted = false;
     try {
       const cart = await prepareGuestCart(
         parsed.value,
@@ -4783,6 +4784,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           cartAttached = true;
         },
       );
+      completionAttempted = true;
       const response = await completeCanonicalCart({
         cartId: cart.id,
         regionId: config.medusaRegionId,
@@ -4800,7 +4802,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return response;
     } catch (error) {
       const code = (error as { code?: string }).code;
-      if (code !== "guest-checkout-in-progress" && !completionBody && !cartAttached) {
+      if (code !== "guest-checkout-in-progress" && !completionBody && !completionAttempted) {
         await guestCheckout.fail(requestKey).catch(() => undefined);
       }
       if (code === "promotion-rejected") {
