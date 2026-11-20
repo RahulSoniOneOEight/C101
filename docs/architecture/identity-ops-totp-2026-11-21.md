@@ -1,7 +1,7 @@
 # Ops identity: superadmin staff directory + TOTP
 
-Status: **accepted for production** · selected by the human requester on 2026-11-21 · not yet
-implemented · Google Workspace/Entra is no longer required for the production release.
+Status: **accepted for production** · selected by the human requester on 2026-11-21 · slices 1–2
+implemented · gate running in `shadow` on staging · login/enrolment UI and nginx wiring pending.
 
 This decision replaces a real IdP with a BazarBee-owned staff directory and a second factor at the
 application. Cloudflare Access remains the outer gate. It is a compensating control, not an
@@ -210,3 +210,28 @@ tables are additive.
 - Google Workspace/Entra is marked **not required**, replaced by this decision.
 - The identity gate requires evidence of §9 and a named owner for the staff directory.
 - Review date: 90 days after the first production staff user, or when an IdP becomes available.
+
+## 12. Progress — 2026-11-21
+
+| Slice | State | Evidence |
+|---|---|---|
+| 1. Staff store + TOTP | done | RFC 6238 vectors, single-use TOTP and recovery codes, lockout, audit; staging DB test passed; rows cleaned up |
+| 2. Access JWT + session + gate | done, shadow | JWT failure modes, gate decision matrix, Redis issue/resolve/revoke; `/v1/ops/gate` returns `204` + `x-ops-shadow-status: 401` |
+| 3. Login/enrolment pages | pending | — |
+| 4. `/ops/staff` superadmin UI | pending | — |
+| 5. Cloudflare group sync + nginx | pending | — |
+| 6. Staging UAT shadow → enforce | pending | — |
+
+Staging configuration:
+
+```text
+OPS_TOTP_GATE=shadow
+OPS_ACCESS_TEAM_DOMAIN=bazarbee.cloudflareaccess.com
+OPS_ACCESS_AUDIENCE=037248…bf19
+OPS_SESSION_TTL_SECONDS=28800
+OPS_TOTP_ENCRYPTION_KEY in /etc/buildkart/secrets/experience-api.env
+```
+
+The gate endpoint is excluded from the normal bearer-session pre-check. nginx does not call it yet, so
+no request is blocked. The customer API host returns `404` for `/v1/ops/gate`; the ops host remains
+behind Access.

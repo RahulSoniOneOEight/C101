@@ -65,6 +65,16 @@ export interface Config {
   identityMode: "pilot" | "directory";
   /** Lifetime of a customer-realm session. */
   customerSessionTtlSeconds: number;
+  /** Ops TOTP gate: off (not wired), shadow (evaluate and log only), enforce. */
+  opsTotpGate: "off" | "shadow" | "enforce";
+  /** Cloudflare Access team domain, for example `bazarbee.cloudflareaccess.com`. */
+  opsAccessTeamDomain: string;
+  /** Access application AUD tag. Required when the gate is not off. */
+  opsAccessAudience?: string;
+  /** Base64 32-byte key used to encrypt TOTP secrets. Required when the gate is not off. */
+  opsTotpEncryptionKey?: string;
+  /** Lifetime of an ops session after TOTP verification. */
+  opsSessionTtlSeconds: number;
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
@@ -188,6 +198,34 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     }
   }
 
+  const opsTotpGate = (env.OPS_TOTP_GATE ?? "off").trim();
+  if (opsTotpGate !== "off" && opsTotpGate !== "shadow" && opsTotpGate !== "enforce") {
+    throw new Error("OPS_TOTP_GATE must be off, shadow or enforce.");
+  }
+  const opsAccessTeamDomain = (env.OPS_ACCESS_TEAM_DOMAIN ?? "bazarbee.cloudflareaccess.com")
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/\/+$/, "");
+  if (!opsAccessTeamDomain) {
+    throw new Error("OPS_ACCESS_TEAM_DOMAIN must name the Cloudflare Access team domain.");
+  }
+  const opsAccessAudience = env.OPS_ACCESS_AUDIENCE?.trim() || undefined;
+  const opsTotpEncryptionKey = env.OPS_TOTP_ENCRYPTION_KEY?.trim() || undefined;
+  if (opsTotpGate !== "off") {
+    if (!opsAccessAudience) {
+      throw new Error("OPS_TOTP_GATE requires OPS_ACCESS_AUDIENCE.");
+    }
+    if (!opsTotpEncryptionKey) {
+      throw new Error("OPS_TOTP_GATE requires OPS_TOTP_ENCRYPTION_KEY.");
+    }
+    if (Buffer.from(opsTotpEncryptionKey, "base64").length !== 32) {
+      throw new Error("OPS_TOTP_ENCRYPTION_KEY must be 32 bytes encoded as base64.");
+    }
+  }
+  if (environment === "production" && opsTotpGate === "off") {
+    throw new Error("Production requires OPS_TOTP_GATE=shadow or enforce.");
+  }
+
   const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
     ? positiveInteger(env.PILOT_EXPECTED_USER_COUNT, 20, "PILOT_EXPECTED_USER_COUNT")
     : undefined;
@@ -291,6 +329,15 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       env.CUSTOMER_SESSION_TTL_SECONDS,
       2_592_000,
       "CUSTOMER_SESSION_TTL_SECONDS",
+    ),
+    opsTotpGate,
+    opsAccessTeamDomain,
+    opsAccessAudience,
+    opsTotpEncryptionKey,
+    opsSessionTtlSeconds: positiveInteger(
+      env.OPS_SESSION_TTL_SECONDS,
+      8 * 60 * 60,
+      "OPS_SESSION_TTL_SECONDS",
     ),
     pilotOtpCode,
     pilotChallengeTtlSeconds: positiveInteger(

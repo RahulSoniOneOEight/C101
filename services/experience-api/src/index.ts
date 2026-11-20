@@ -24,6 +24,10 @@ import { CodStore, currentPeriod, type CodOrderDue } from "./store/cod-store.js"
 import { CustomerIdentityStore } from "./auth/customer-identity.js";
 import { RealmSessionStore } from "./auth/realm-session.js";
 import { AuthRateLimiter } from "./auth/rate-limit.js";
+import { AccessJwtVerifier } from "./auth/ops-access-jwt.js";
+import { OpsGate, OPS_SESSION_COOKIE, readCookie } from "./auth/ops-gate.js";
+import { OpsSessionStore } from "./auth/ops-session.js";
+import { decodeOpsEncryptionKey, OpsStaffStore } from "./auth/ops-staff.js";
 import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
@@ -173,6 +177,23 @@ const customerSessions = new RealmSessionStore(
   config.customerSessionTtlSeconds,
 );
 const authRateLimiter = new AuthRateLimiter(config.redisUrl);
+const opsGate = (() => {
+  if (config.opsTotpGate === "off") return null;
+  const staff = new OpsStaffStore(
+    config.experienceDatabaseUrl,
+    decodeOpsEncryptionKey(config.opsTotpEncryptionKey as string),
+  );
+  const sessions = new OpsSessionStore(
+    config.redisUrl,
+    "bazarbee:ops-realm:v1",
+    config.opsSessionTtlSeconds,
+  );
+  const verifier = new AccessJwtVerifier({
+    teamDomain: config.opsAccessTeamDomain,
+    audience: config.opsAccessAudience as string,
+  });
+  return new OpsGate({ mode: config.opsTotpGate, staff, sessions, verifier });
+})();
 const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
   config.redisUrl,
@@ -2951,7 +2972,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // Hosted RBAC is enabled when the governed deployment supplies explicit role assignments.
   // Local legacy integration runs without that configuration retain their existing operator access.
-  const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
+  // The gate endpoint authenticates itself with the Cloudflare assertion; nginx calls it before
+  // the normal bearer-session check.
+  const requiredRoles =
+    config.pilotRoleAssignmentsJson && url.pathname !== "/v1/ops/gate"
+      ? privilegedRoles(url.pathname)
+      : null;
   if (requiredRoles) {
     const privileged = await requireAnyRole(req, requiredRoles);
     if ("response" in privileged) return privileged.response;
@@ -3017,6 +3043,30 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return new Response(`${lines.join("\n")}\n`, {
       headers: { "content-type": "text/plain; version=0.0.4" },
     });
+  }
+
+  // GET /v1/ops/gate — nginx auth_request for the operator host. Not a browser endpoint.
+  if (url.pathname === "/v1/ops/gate" && req.method === "GET") {
+    if (!opsGate) {
+      return new Response(null, {
+        status: 204,
+        headers: { "x-ops-gate": "off", "cache-control": "no-store" },
+      });
+    }
+    const decision = await opsGate.evaluate({
+      accessJwt: req.headers.get("cf-access-jwt-assertion"),
+      sessionToken: readCookie(req.headers.get("cookie"), OPS_SESSION_COOKIE),
+    });
+    const headers = new Headers({
+      "x-ops-reason": decision.reason,
+      "cache-control": "no-store",
+    });
+    if (decision.next) headers.set("x-ops-next", decision.next);
+    if (decision.shadow) {
+      headers.set("x-ops-shadow-status", String(decision.shadow.wouldBeStatus));
+      headers.set("x-ops-shadow-reason", decision.shadow.reason);
+    }
+    return new Response(null, { status: decision.status, headers });
   }
 
   // POST /v1/auth/email/code — email a six-digit sign-in code.
@@ -9237,7 +9287,12 @@ const server = Bun.serve({
     if (streamMatch && req.method === "GET") {
       return handleWorkspaceStream(req, bunServer, streamMatch[1], url, cid);
     }
-    const requiredRoles = config.pilotRoleAssignmentsJson ? privilegedRoles(url.pathname) : null;
+    // The gate endpoint authenticates itself with the Cloudflare assertion; nginx calls it before
+  // the normal bearer-session check.
+  const requiredRoles =
+    config.pilotRoleAssignmentsJson && url.pathname !== "/v1/ops/gate"
+      ? privilegedRoles(url.pathname)
+      : null;
     const isMutation = req.method !== "GET" && req.method !== "OPTIONS";
     if (!requiredRoles || !isMutation) return handle(req, url, cid);
 
