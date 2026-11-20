@@ -1521,6 +1521,34 @@ export async function getRazorpayCheckoutStatus(
   });
 }
 
+export interface CodCheckoutInput {
+  lines: CheckoutLineInput[];
+  email: string;
+  mobile?: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+  promoCode?: string;
+  channel: "b2c" | "b2b";
+}
+
+/**
+ * Places a cash-on-delivery order. The order is confirmed with cash due; no gateway is called and
+ * the response must never be treated as a paid order.
+ */
+export async function placeCodCheckout(
+  input: CodCheckoutInput,
+  sessionToken?: string,
+): Promise<CompletionResult> {
+  return call<CompletionResult>("/v1/checkouts/cod/place", {
+    method: "POST",
+    headers: sessionToken ? authenticatedHeaders(sessionToken) : undefined,
+    body: JSON.stringify(input),
+  });
+}
+
 export interface GuestCheckoutInput {
   lines: CheckoutLineInput[];
   email: string;

@@ -1,6 +1,6 @@
 change_id: CHG-099
 revision: 1
-status: proposed
+status: approved-in-progress
 request: >-
   Add cash-on-delivery ordering for B2C and B2B on web, with the seller collecting cash at
   delivery. A COD order is a confirmed, canonical order that is never marked paid; the seller
@@ -14,13 +14,13 @@ related:
 requested_by: human-requester
 requested_at_utc: '2026-11-20'
 approval_required: true
-approved_by: null
-approved_at_utc: null
-approval_source: null
-approval_scope: null
-implementation_authorized: false
-staging_data_write_authorized: false
-staging_deployment_authorized: false
+approved_by: human-requester
+approved_at_utc: '2026-11-20'
+approval_source: chat-cod-seller-collected
+approval_scope: cod-order-placement-and-cash-capture-staging-only
+implementation_authorized: true
+staging_data_write_authorized: true
+staging_deployment_authorized: true
 production_release_authorized: false
 
 lane: C
@@ -43,15 +43,15 @@ requirements:
 - id: R1
   name: COD order placement
   outcome: Checkout can submit payment_method=cod; a canonical order is created with payment_status=cod_pending and no gateway session.
-  status: pending
+  status: done
 - id: R2
   name: Server-side eligibility
   outcome: COD is rejected unless the seller, pincode, category, order value and caps allow it; eligibility and amounts are server-computed.
-  status: pending
+  status: in-progress
 - id: R3
   name: Never paid
   outcome: COD orders are labelled cash due in buyer, seller and admin surfaces; delivered alone does not set paid or collected.
-  status: pending
+  status: done
 - id: R4
   name: Cash capture
   outcome: Seller records amount collected, collector, timestamp, proof reference and shortfall against the order group; refused delivery is recorded separately.
@@ -67,11 +67,11 @@ requirements:
 - id: R7
   name: Prepaid isolation
   outcome: Razorpay is never called for COD orders, and the existing prepaid flow and provider evidence are unchanged.
-  status: pending
+  status: done
 - id: R8
   name: Verification
   outcome: Typechecks and builds pass, COD and prepaid journeys are exercised end to end on staging, and evidence records order refs, state transitions and audit rows.
-  status: pending
+  status: in-progress
 
 scope_lock:
   allowed_paths:

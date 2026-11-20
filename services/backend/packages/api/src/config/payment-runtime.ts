@@ -1,5 +1,6 @@
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
 export const RAZORPAY_PAYMENT_PROVIDER_ID = "pp_razorpay_razorpay";
+export const COD_PAYMENT_PROVIDER_ID = "pp_cod_cod";
 
 export type PaymentAdapterMode = "simulated" | "provider";
 

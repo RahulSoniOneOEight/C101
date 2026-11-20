@@ -88,6 +88,13 @@ module.exports = withMercur({
               webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
             },
           },
+          {
+            resolve: './src/modules/cod-payment',
+            id: 'cod',
+            options: {
+              testData: process.env.BUILDKART_ENVIRONMENT !== 'production',
+            },
+          },
         ],
       },
     }] : []),

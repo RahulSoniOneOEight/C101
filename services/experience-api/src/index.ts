@@ -3,6 +3,7 @@ import type { ServerWebSocket } from "bun";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
+  COD_PAYMENT_PROVIDER_ID,
   RAZORPAY_PAYMENT_PROVIDER_ID,
   SIMULATED_PAYMENT_PROVIDER_ID,
   type StoreOffer,
@@ -1653,6 +1654,9 @@ async function completeCanonicalCart(input: {
     providerId: string;
     providerPaymentId?: string;
     providerStatus?: string;
+    /** Prepaid gateway or seller-collected cash. */
+    method?: "prepaid" | "cod";
+    expectedMinor?: number;
   };
 }): Promise<Response> {
   const { cartId, regionId, cid, ownerUserId, guest, payment } = input;
@@ -1685,12 +1689,15 @@ async function completeCanonicalCart(input: {
     }
 
     const cart = await medusa.getCart(cartId);
-    const paymentMode = input.payment ? "provider" : "simulated";
+    const isCod = input.payment?.method === "cod";
+    const paymentMode = input.payment ? (isCod ? "cod" : "provider") : "simulated";
     if (!cart.completed_at) {
       await medusa.updateCartMetadata(cartId, {
         ...(cart.metadata ?? {}),
         payment_mode: paymentMode,
-        test_data: paymentMode === "simulated",
+        ...(isCod ? { cod_status: "pending" } : {}),
+        test_data:
+          paymentMode === "simulated" || (isCod && config.environment !== "production"),
       });
     }
 
@@ -1713,16 +1720,24 @@ async function completeCanonicalCart(input: {
         provider_id: input.payment.providerId,
         status: "pending",
         amount: 0,
-        data: {
-          payment_mode: "provider",
-          test_data: Boolean(config.razorpayKeyId?.startsWith("rzp_test")),
-          ...(input.payment.providerPaymentId
-            ? { razorpay_payment_id: input.payment.providerPaymentId }
-            : {}),
-          ...(input.payment.providerStatus
-            ? { razorpay_status: input.payment.providerStatus }
-            : {}),
-        },
+        data: isCod
+          ? {
+              payment_mode: "cod",
+              provider: "cod",
+              cod_status: "pending",
+              test_data: config.environment !== "production",
+              cod_amount_minor: input.payment.expectedMinor ?? 0,
+            }
+          : {
+              payment_mode: "provider",
+              test_data: Boolean(config.razorpayKeyId?.startsWith("rzp_test")),
+              ...(input.payment.providerPaymentId
+                ? { razorpay_payment_id: input.payment.providerPaymentId }
+                : {}),
+              ...(input.payment.providerStatus
+                ? { razorpay_status: input.payment.providerStatus }
+                : {}),
+            },
       };
     } else {
       // Simulated staging/local path: reuse an amount-matched simulated session on retries so an
@@ -1751,15 +1766,24 @@ async function completeCanonicalCart(input: {
         provider_id: paymentSession.provider_id,
         payment_mode: paymentMode,
         test_data: paymentIsTest,
-        ...(paymentMode === "provider"
+        ...(isCod
           ? {
-              provider_payment_id: input.payment?.providerPaymentId ?? null,
-              provider_order_id: input.payment?.providerPaymentId
-                ? String(cart.metadata?.razorpay_order_id ?? "")
-                : null,
-              provider_status: input.payment?.providerStatus ?? null,
+              provider_status: "authorized",
+              provider_payment_id: null,
+              provider_order_id: null,
+              cod_status: "pending",
+              expected_minor: input.payment?.expectedMinor ?? medusaToMinor(cart.total),
+              collected_minor: 0,
             }
-          : {}),
+          : paymentMode === "provider"
+            ? {
+                provider_payment_id: input.payment?.providerPaymentId ?? null,
+                provider_order_id: input.payment?.providerPaymentId
+                  ? String(cart.metadata?.razorpay_order_id ?? "")
+                  : null,
+                provider_status: input.payment?.providerStatus ?? null,
+              }
+            : {}),
       };
       const productIds = [
         ...new Set(
@@ -2142,7 +2166,9 @@ async function prepareRazorpayCart(input: RazorpayCartInput): Promise<{
   currency: string;
 }> {
   const cart = await medusa.createCart(
-    input.regionId,
+    // Canonical carts use the India delivery region for both channels; the B2B region has no
+    // countries and cannot accept an address.
+    config.medusaRegionId,
     "inr",
     input.customerEmail ? { customerEmail: input.customerEmail } : {},
   );
@@ -2213,6 +2239,199 @@ async function prepareRazorpayCart(input: RazorpayCartInput): Promise<{
     keyId,
     amountMinor: Math.round(Number(session.amount ?? 0) * 100),
     currency: String(session.data?.razorpay_currency ?? "INR").toUpperCase(),
+  };
+}
+
+type CodCartInput = RazorpayCartInput;
+
+/** Order-value caps in paise. Server-side only; the browser cannot raise them. */
+const COD_B2C_CAP_MINOR = Number(process.env.COD_B2C_MAX_MINOR ?? "2000000");
+const COD_B2B_CAP_MINOR = Number(process.env.COD_B2B_MAX_MINOR ?? "5000000");
+
+/**
+ * Build a COD cart and authorise a cash-due session. The order is completed immediately, but no
+ * money moves: the seller collects at delivery and the order stays `cod_pending`.
+ */
+async function prepareCodCart(input: CodCartInput): Promise<{
+  cart: StoreCart;
+  collection: StorePaymentCollection;
+  session: StorePaymentSession;
+  amountMinor: number;
+  currency: string;
+  capMinor: number;
+}> {
+  const cart = await medusa.createCart(
+    // A Medusa country belongs to one region. The B2B region is a read-side pricing context with
+    // no countries, so a canonical cart (B2C or B2B) must use the India delivery region.
+    config.medusaRegionId,
+    "inr",
+    input.customerEmail ? { customerEmail: input.customerEmail } : {},
+  );
+  await medusa.updateCartMetadata(cart.id, {
+    ...(cart.metadata ?? {}),
+    channel: input.channel,
+    payment_method: "cod",
+    cod_status: "pending",
+    ...(input.channel === "b2b" && input.businessAccountId
+      ? { business_account_id: input.businessAccountId }
+      : {}),
+    ...(input.mobile ? { guest_mobile: input.mobile } : {}),
+  });
+  for (const line of input.lines) {
+    await medusa.addLineItem(cart.id, line.offerId, line.quantity);
+  }
+  const withOffer = await applyAutomaticOffer(cart.id, await medusa.getCart(cart.id));
+  await medusa.updateCartCustomerDetails(cart.id, {
+    email: input.email,
+    shipping_address: {
+      first_name: input.firstName,
+      last_name: input.lastName,
+      address_1: input.address1,
+      city: input.city,
+      postal_code: input.postalCode,
+      country_code: "in",
+      ...(input.mobile ? { phone: input.mobile } : {}),
+    },
+  });
+  if (input.promoCode) {
+    for (const code of appliedPromotionCodes(withOffer)) {
+      try {
+        await medusa.removePromotion(cart.id, code);
+      } catch {
+        // The add below still validates what the engine grants.
+      }
+    }
+    const applied = await medusa.addPromotion(cart.id, input.promoCode);
+    if (!hasPromotionCode(applied, input.promoCode)) {
+      throw Object.assign(new Error("That promo code is not eligible for this order."), {
+        code: "promotion-rejected",
+      });
+    }
+  }
+  const delivered = await applyDeliveryForCart(cart.id);
+  const totalMinor = medusaToMinor(delivered.total) ?? 0;
+  if (totalMinor <= 0) {
+    throw Object.assign(new Error("The order total could not be calculated."), {
+      code: "cod-not-eligible",
+    });
+  }
+  const capMinor = input.channel === "b2b" ? COD_B2B_CAP_MINOR : COD_B2C_CAP_MINOR;
+  if (!Number.isFinite(capMinor) || capMinor <= 0 || totalMinor > capMinor) {
+    throw Object.assign(
+      new Error(
+        input.channel === "b2b"
+          ? "This order is above the cash-on-delivery limit for trade orders. Pay online instead."
+          : "This order is above the cash-on-delivery limit. Pay online instead.",
+      ),
+      { code: "cod-not-eligible" },
+    );
+  }
+  const collection = await medusa.createPaymentCollection(cart.id);
+  const withSession = await medusa.createPaymentSession(collection.id, COD_PAYMENT_PROVIDER_ID);
+  const session = withSession.payment_sessions.find(
+    (candidate) => candidate.provider_id === COD_PAYMENT_PROVIDER_ID,
+  );
+  if (!session) throw new Error("COD payment session was not created.");
+  await medusa.updateCartMetadata(cart.id, {
+    ...(delivered.metadata ?? {}),
+    payment_method: "cod",
+    cod_status: "pending",
+    cod_amount_minor: totalMinor,
+    cod_payment_session_id: session.id,
+  });
+  return {
+    cart: delivered,
+    collection: withSession,
+    session,
+    amountMinor: totalMinor,
+    currency: String(delivered.currency_code ?? "inr").toUpperCase(),
+    capMinor,
+  };
+}
+
+/**
+ * Validate the shared checkout fields. Kept beside the COD flow so prepaid validation is untouched
+ * until both paths are refactored together.
+ */
+type ParsedCheckoutFields = {
+  channel: "b2c" | "b2b";
+  lines: Array<{ offerId: string; quantity: number; channel: "b2c" | "b2b" }>;
+  email: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+};
+
+function parseCheckoutFields(
+  body: Record<string, unknown>,
+):
+  | { ok: true; fields: ParsedCheckoutFields }
+  | { ok: false; status: number; code: string; message: string } {
+  const channel = body.channel === "b2b" ? "b2b" : "b2c";
+  const rawLines = Array.isArray(body.lines) ? body.lines : [];
+  const lines = rawLines
+    .map((line) => {
+      if (!line || typeof line !== "object") return null;
+      const entry = line as { offerId?: unknown; quantity?: unknown; channel?: unknown };
+      const offerId = typeof entry.offerId === "string" ? entry.offerId.trim() : "";
+      const quantity = Number(entry.quantity);
+      if (!offerId || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+        return null;
+      }
+      return {
+        offerId,
+        quantity,
+        channel: entry.channel === "b2b" ? ("b2b" as const) : ("b2c" as const),
+      };
+    })
+    .filter(
+      (line): line is { offerId: string; quantity: number; channel: "b2c" | "b2b" } =>
+        line !== null,
+    );
+  if (lines.length === 0) {
+    return { ok: false, status: 400, code: "empty-cart", message: "The cart is empty." };
+  }
+  if (lines.length > 30) {
+    return {
+      ok: false,
+      status: 400,
+      code: "too-many-lines",
+      message: "This cart has too many lines.",
+    };
+  }
+  if (new Set(lines.map((line) => line.channel)).size !== 1 || lines[0].channel !== channel) {
+    return {
+      ok: false,
+      status: 400,
+      code: "mixed-cart",
+      message: "The cart channel does not match its items.",
+    };
+  }
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const firstName =
+    typeof body.firstName === "string" ? body.firstName.trim().slice(0, 80) : "";
+  const lastName =
+    typeof body.lastName === "string" ? body.lastName.trim().slice(0, 80) : "";
+  const address1 =
+    typeof body.address1 === "string" ? body.address1.trim().slice(0, 240) : "";
+  const city = typeof body.city === "string" ? body.city.trim().slice(0, 120) : "";
+  const postalCode =
+    typeof body.postalCode === "string"
+      ? body.postalCode.replace(/\D/g, "").slice(0, 6)
+      : "";
+  if (!email || !firstName || !lastName || !address1 || !city || !/^\d{6}$/.test(postalCode)) {
+    return {
+      ok: false,
+      status: 400,
+      code: "invalid-customer-details",
+      message: "Email, name, address, city and a six-digit postal code are required.",
+    };
+  }
+  return {
+    ok: true,
+    fields: { channel, lines, email, firstName, lastName, address1, city, postalCode },
   };
 }
 
@@ -5227,6 +5446,103 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       });
     } catch (error) {
       return problem(502, "razorpay-status-failed", (error as Error).message);
+    }
+  }
+
+  // POST /v1/checkouts/cod/place — seller-collected cash on delivery. The order is
+  // confirmed with cash due; no gateway is called and no payment is captured.
+  if (url.pathname === "/v1/checkouts/cod/place" && req.method === "POST") {
+    if (config.paymentAdapterMode !== "provider") {
+      return problem(503, "cod-not-configured", "Cash on delivery is not enabled.");
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON checkout body.");
+    }
+    const parsed = parseCheckoutFields(body);
+    if (!parsed.ok) return problem(parsed.status, parsed.code, parsed.message);
+    const { channel: requestedChannel, lines, email, firstName, lastName, address1, city, postalCode } =
+      parsed.fields;
+    const token = bearerToken(req);
+    let authenticated: Exclude<AuthenticationResult, { response: Response }> | null = null;
+    if (token) {
+      const candidate = await authenticate(req);
+      if ("response" in candidate) return candidate.response;
+      authenticated = candidate;
+      if (!hasAnyRole(authenticated.authorization, [
+        "customer",
+        "b2b_buyer",
+        "b2b_account_admin",
+        "b2b_approver",
+      ])) {
+        return problem(403, "checkout-forbidden", "This account cannot check out.");
+      }
+    }
+    if (!authenticated && requestedChannel !== "b2c") {
+      return problem(403, "sign-in-required", "Sign in to place a trade order.");
+    }
+    if (authenticated && requestedChannel === "b2b" && !isBusinessBuyer(authenticated.authorization)) {
+      return problem(403, "trade-access-required", "A trade-enabled account is required.");
+    }
+    const effectiveEmail = authenticated?.user.email ?? email;
+    if (authenticated && email && email !== effectiveEmail.toLowerCase()) {
+      return problem(403, "identity-mismatch", "Checkout email must match the signed-in account.");
+    }
+    const rawMobile = typeof body.mobile === "string" ? body.mobile : "";
+    const mobile = rawMobile ? normalizeIndianMobile(rawMobile) : null;
+    if (!authenticated && !mobile) {
+      return problem(400, "mobile-required", "A valid Indian mobile number is required.");
+    }
+    try {
+      const prepared = await prepareCodCart({
+        lines: lines.map((line) => ({ offerId: line.offerId, quantity: line.quantity })),
+        email: effectiveEmail,
+        mobile: mobile ?? undefined,
+        firstName,
+        lastName,
+        address1,
+        city,
+        postalCode,
+        promoCode:
+          typeof body.promoCode === "string"
+            ? body.promoCode.trim().slice(0, 40) || undefined
+            : undefined,
+        channel: requestedChannel,
+        regionId: authenticated ? regionFor(authenticated.authorization) : config.medusaRegionId,
+        customerEmail: authenticated?.user.email,
+        businessAccountId: authenticated?.authorization.businessAccountId,
+      });
+      if (authenticated) {
+        await correlation.link(prepared.cart.id, { ownerUserId: authenticated.user.id });
+      }
+      return await completeCanonicalCart({
+        cartId: prepared.cart.id,
+        regionId: authenticated
+          ? regionFor(authenticated.authorization)
+          : config.medusaRegionId,
+        cid,
+        ownerUserId: authenticated?.user.id,
+        guest: authenticated
+          ? undefined
+          : { email: effectiveEmail, mobile: mobile! },
+        payment: {
+          collectionId: prepared.collection.id,
+          sessionId: prepared.session.id,
+          providerId: COD_PAYMENT_PROVIDER_ID,
+          method: "cod",
+          expectedMinor: prepared.amountMinor,
+        },
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "promotion-rejected") {
+        return problem(400, "promotion-rejected", "That promo code is not eligible for this cart.");
+      }
+      if ((error as { code?: string }).code === "cod-not-eligible") {
+        return problem(400, "cod-not-eligible", (error as Error).message);
+      }
+      return problem(502, "cod-checkout-failed", (error as Error).message);
     }
   }
 

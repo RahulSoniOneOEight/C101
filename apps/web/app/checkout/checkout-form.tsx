@@ -19,6 +19,7 @@ type State =
       orderNumber: string | null;
       orderType: string;
       totalMinor: number | null;
+      paymentKind: "prepaid" | "cod";
     };
 
 type QuoteState =
@@ -80,10 +81,12 @@ export function CheckoutForm({
   const { items, ready, subtotalMinor, currency, clear } = useCart();
   const idempotencyKeyRef = useRef("");
   const razorpayPollRef = useRef<number | null>(null);
+  const codSubmittingRef = useRef(false);
   const cartChannels = new Set(items.map((item) => item.channel ?? "b2c"));
   const cartChannel =
     cartChannels.size === 1 ? (Array.from(cartChannels)[0] as "b2c" | "b2b") : null;
   const [state, setState] = useState<State>({ status: "idle" });
+  const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "cod">("razorpay");
   const [postalCode, setPostalCode] = useState("302001");
   const [city, setCity] = useState("Jaipur");
   const [quote, setQuote] = useState<QuoteState>({ status: "idle" });
@@ -220,16 +223,17 @@ export function CheckoutForm({
     payment?: { payment_mode?: string; test_data?: boolean };
   }) {
     const provider = data.payment?.payment_mode === "provider";
+    const cod = data.payment?.payment_mode === "cod";
     const simulated = data.payment?.payment_mode === "simulated";
     if (
       data.type !== "order_group" ||
       !data.order_group?.id ||
-      (!provider && !simulated) ||
+      (!provider && !cod && !simulated) ||
       (simulated && data.payment?.test_data !== true)
     ) {
       setState({
         status: "error",
-        message: "Server did not return a canonical paid order.",
+        message: "Server did not return a canonical order.",
       });
       return;
     }
@@ -240,6 +244,7 @@ export function CheckoutForm({
       orderNumber: data.order_number ?? null,
       orderType: data.type,
       totalMinor: data.total_minor ?? quoted?.total ?? null,
+      paymentKind: cod ? "cod" : "prepaid",
     });
   }
 
@@ -414,6 +419,55 @@ export function CheckoutForm({
     }
   }
 
+  async function placeCodOrder(form: FormData) {
+    if (codSubmittingRef.current) return;
+    codSubmittingRef.current = true;
+    setState({ status: "busy" });
+    try {
+      const res = await fetch("/api/checkout/cod", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          lines: items.map((item) => ({
+            offerId: item.offerId,
+            quantity: item.quantity,
+            channel: item.channel ?? "b2c",
+          })),
+          email: form.get("email"),
+          mobile: form.get("mobile"),
+          firstName: form.get("firstName"),
+          lastName: form.get("lastName"),
+          address1: form.get("address1"),
+          city: form.get("city"),
+          postalCode: form.get("postalCode"),
+          promoCode: appliedPromo || undefined,
+          channel: cartChannel,
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        type?: string;
+        order_group?: { id: string };
+        order_number?: string | null;
+        total_minor?: number | null;
+        payment?: { payment_mode?: string; test_data?: boolean };
+      };
+      if (!res.ok) {
+        setState({
+          status: "error",
+          message: data.error ?? `request failed (${res.status})`,
+          signedOut: res.status === 401,
+        });
+        return;
+      }
+      finishOrder(data);
+    } catch (error) {
+      setState({ status: "error", message: (error as Error).message });
+    } finally {
+      codSubmittingRef.current = false;
+    }
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (items.length === 0) return;
@@ -430,6 +484,10 @@ export function CheckoutForm({
       idempotencyKeyRef.current = crypto.randomUUID();
     }
     if (paymentMode === "provider") {
+      if (paymentMethod === "cod") {
+        await placeCodOrder(form);
+        return;
+      }
       await startRazorpayPayment(form);
       return;
     }
@@ -483,20 +541,23 @@ export function CheckoutForm({
   }
 
   if (state.status === "done") {
+    const codOrder = state.paymentKind === "cod";
     return (
       <>
         <CheckoutSteps current={3} />
         <div className="checkout-success">
           <span className="success-mark" aria-hidden="true">✓</span>
         <span className="eyebrow">Order confirmed</span>
-        <h1>Thanks — your order is in.</h1>
+        <h1>{codOrder ? "Order confirmed — pay on delivery." : "Thanks — your order is in."}</h1>
         <p className="muted">
-          {signedIn
-            ? `The Experience API returned a canonical ${state.orderType.replaceAll(
-                "_",
-                " ",
-              )} with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. Your owner-scoped tracking is available in Orders.`
-            : `Your guest order is confirmed with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. No sign-in account or password was created. Keep this reference for support; the mobile you entered is recorded for delivery.`}
+          {codOrder
+            ? `Your order is confirmed with cash on delivery. No online payment was taken; pay the seller when the order arrives.`
+            : signedIn
+              ? `The Experience API returned a canonical ${state.orderType.replaceAll(
+                  "_",
+                  " ",
+                )} with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. Your owner-scoped tracking is available in Orders.`
+              : `Your guest order is confirmed with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. No sign-in account or password was created. Keep this reference for support; the mobile you entered is recorded for delivery.`}
         </p>
         <div className="order-reference">
           <span>Order reference</span>
@@ -511,7 +572,13 @@ export function CheckoutForm({
           ) : null}
           <div>
             <dt>Payment</dt>
-            <dd>{paymentMode === "provider" ? "Razorpay" : "Simulated payment · test data"}</dd>
+            <dd>
+              {codOrder
+                ? "Cash on delivery · pay the seller"
+                : paymentMode === "provider"
+                  ? "Razorpay"
+                  : "Simulated payment · test data"}
+            </dd>
           </div>
           <div>
             <dt>Delivery</dt>
@@ -747,25 +814,60 @@ export function CheckoutForm({
         <div className="checkout-block">
           <span className="eyebrow">Payment</span>
           <h2>
-            {paymentMode === "provider" ? "Pay securely with Razorpay" : "Simulated prepaid payment"}
+            {paymentMode === "provider" ? "How would you like to pay?" : "Simulated prepaid payment"}
           </h2>
           <p className="muted">
             {paymentMode === "provider"
-              ? "You will complete payment on Razorpay. The order is created only after the payment signature is verified and captured."
+              ? "Pay online now with Razorpay, or choose cash on delivery and pay the seller when the order arrives."
               : "This staging pilot records a simulated payment only. No card is charged and no money moves."}
           </p>
-          <div className="payment-choice">
-            <span className="payment-radio" aria-hidden="true">●</span>
-            <div>
-              <strong>{paymentMode === "provider" ? "Razorpay prepaid" : "Simulated prepaid"}</strong>
-              <p>
-                {paymentMode === "provider"
-                  ? "UPI, cards, net banking and wallets"
-                  : "Server-verified test payment · no production effect"}
-              </p>
+          {paymentMode === "provider" ? (
+            <div className="payment-options" role="radiogroup" aria-label="Payment method">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={paymentMethod === "razorpay"}
+                className={`payment-choice option${paymentMethod === "razorpay" ? " selected" : ""}`}
+                onClick={() => setPaymentMethod("razorpay")}
+              >
+                <span className="payment-radio" aria-hidden="true">
+                  {paymentMethod === "razorpay" ? "●" : "○"}
+                </span>
+                <div>
+                  <strong>Razorpay prepaid</strong>
+                  <p>UPI, cards, net banking and wallets</p>
+                </div>
+                {paymentMethod === "razorpay" ? (
+                  <span className="status-pill">Selected</span>
+                ) : null}
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={paymentMethod === "cod"}
+                className={`payment-choice option${paymentMethod === "cod" ? " selected" : ""}`}
+                onClick={() => setPaymentMethod("cod")}
+              >
+                <span className="payment-radio" aria-hidden="true">
+                  {paymentMethod === "cod" ? "●" : "○"}
+                </span>
+                <div>
+                  <strong>Cash on delivery</strong>
+                  <p>Pay the seller in cash when the order arrives. No online payment is taken.</p>
+                </div>
+                {paymentMethod === "cod" ? <span className="status-pill">Selected</span> : null}
+              </button>
             </div>
-            <span className="status-pill">Selected</span>
-          </div>
+          ) : (
+            <div className="payment-choice">
+              <span className="payment-radio" aria-hidden="true">●</span>
+              <div>
+                <strong>Simulated prepaid</strong>
+                <p>Server-verified test payment · no production effect</p>
+              </div>
+              <span className="status-pill">Selected</span>
+            </div>
+          )}
         </div>
 
         {state.status === "error" ? (
@@ -781,13 +883,15 @@ export function CheckoutForm({
           disabled={state.status === "busy" || !cartChannel}
         >
           {state.status === "busy"
-            ? paymentMode === "provider"
+            ? paymentMode === "provider" && paymentMethod === "razorpay"
               ? "Opening Razorpay…"
               : "Placing your order…"
             : quoted
-              ? paymentMode === "provider"
+              ? paymentMode === "provider" && paymentMethod === "razorpay"
                 ? `Pay ${formatMoney(quoted.total, summaryCurrency)} with Razorpay`
-                : `Place order — ${formatMoney(quoted.total, summaryCurrency)}`
+                : paymentMode === "provider" && paymentMethod === "cod"
+                  ? `Place COD order — ${formatMoney(quoted.total, summaryCurrency)}`
+                  : `Place order — ${formatMoney(quoted.total, summaryCurrency)}`
               : "Place order"}
         </button>
         <p className="field-hint checkout-terms">

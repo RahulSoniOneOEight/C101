@@ -2,6 +2,7 @@ import type { ExecArgs } from "@medusajs/framework/types";
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils";
 import { updateRegionsWorkflow } from "@medusajs/medusa/core-flows";
 import {
+  COD_PAYMENT_PROVIDER_ID,
   RAZORPAY_PAYMENT_PROVIDER_ID,
   resolvePaymentRuntime,
 } from "../config/payment-runtime";
@@ -42,6 +43,7 @@ export default async function configureRazorpayPayment({ container }: ExecArgs) 
   );
   providerIds.add("pp_system_default");
   providerIds.add(RAZORPAY_PAYMENT_PROVIDER_ID);
+  providerIds.add(COD_PAYMENT_PROVIDER_ID);
 
   await updateRegionsWorkflow(container).run({
     input: {
@@ -51,7 +53,7 @@ export default async function configureRazorpayPayment({ container }: ExecArgs) 
   });
 
   logger.info(
-    `Enabled ${RAZORPAY_PAYMENT_PROVIDER_ID} on ${indiaRegion.name} (${indiaRegion.id}) ` +
-      "alongside pp_system_default.",
+    `Enabled ${RAZORPAY_PAYMENT_PROVIDER_ID} and ${COD_PAYMENT_PROVIDER_ID} on ` +
+      `${indiaRegion.name} (${indiaRegion.id}) alongside pp_system_default.`,
   );
 }
