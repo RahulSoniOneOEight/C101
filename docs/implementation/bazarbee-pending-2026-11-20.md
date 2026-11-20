@@ -5,6 +5,10 @@
 **Out of scope:** production authorization and cutover (tracked separately as point 5).  
 **Status:** staging only; production untouched.
 
+**Implementation update (20 Nov 2026):** branding strings, stale Flutter tests, the mixed-channel
+cart guard and the Flutter chat channel-switch race are implemented. See
+`bazarbee-brand-cart-chat-2026-11-20.md`. The remaining items below are still pending.
+
 Already completed and excluded from this list: dual-channel access for all 21 testers, the super-admin access editor, B2C/B2B cart tagging, B2C Tryton reservation/reconciliation, and the DeepSeek Pro QC follow-ups.
 
 ---
