@@ -107,24 +107,36 @@ gate.
 
 | Check | Result |
 |---|---|
-| Supplied API token | Account reads succeed; `/user/tokens/verify` returns 401 but `GET /accounts/{id}` returns 200, so the token is account-scoped rather than a user token |
+| API token | Account reads succeed; `/user/tokens/verify` returns 401 because the token is account-scoped |
 | Account | `Gobazarbee@gmail.com's Account` (`a6f468c20d83314a619ce00e7c5a8ddd`) |
-| Zones | **0 zones** in the account |
-| Cloudflare Access | **Not enabled** — `access.api.error.not_enabled`; apps, groups and IdPs cannot be listed |
-| `gobazarbee.com` nameservers | Hostinger parking (`horizon/orbit.dns-parking.com`), not Cloudflare |
+| Zero Trust / Access | **Enabled** — team domain `bazarbee.cloudflareaccess.com` |
+| Zone | `gobazarbee.com` added, status **pending**; nameservers `jillian.ns.cloudflare.com`, `odin.ns.cloudflare.com` |
+| Access groups | 3 created: Staff, Sellers, ERP |
+| Access apps | 0 — creation returns `domain does not belong to zone` until the zone is active |
+| IdPs | 0 external IdPs; Cloudflare One-time PIN is available |
 | `ops-staging.pinakaplay.cloud` | direct nginx on `89.116.20.164`; no `cf-ray`, no Access redirect |
-| `bazarbee.com` | resolves to `74.220.199.6`; connection times out |
 
-### Required order
+Group IDs:
 
-1. In the Cloudflare dashboard, open **Zero Trust / Access** and click **Enable Access** for the
-   account. Choose the team domain.
-2. Add the zone (`gobazarbee.com`, and the production domain) to this Cloudflare account.
-3. Change the registrar nameservers to the Cloudflare pair.
-4. Proxy the ops hostname through Cloudflare (orange cloud or Tunnel).
-5. Create the IdP (Google Workspace or Entra) and the Access groups.
-6. Create the three Access applications and policies.
-7. Re-issue the API token with Access: Apps/Groups/IdP **Edit** so the configuration can be automated.
+```text
+BazarBee Staff    8402ec6c-94db-4b02-ae31-4af4e2886f97
+BazarBee Sellers  526ab49c-3701-49e8-aa43-7c5d4bd1bbb0
+BazarBee ERP      5ce76749-9f8e-46b2-bb52-2ff6804c79d8
+```
 
-Until Access is enabled, the admin/seller/ERP hosts remain protected only by nginx and application
-passwords.
+### Required next steps
+
+1. At Hostinger, change the `gobazarbee.com` nameservers to:
+   - `jillian.ns.cloudflare.com`
+   - `odin.ns.cloudflare.com`
+2. Wait for the zone to become `active`.
+3. Create the three Access applications on `ops.gobazarbee.com`:
+   - `/dashboard` → Staff, 8h
+   - `/seller` → Sellers, 12h
+   - `/erp` → ERP, 8h
+4. Point `ops.gobazarbee.com` at the staging/production proxy through Cloudflare.
+5. Add Google Workspace or Entra as the IdP and map the groups to it.
+6. Restrict the origin so only Cloudflare can reach it.
+
+Until the zone is active, the apps cannot be created and the ops host is not protected by
+Access.
