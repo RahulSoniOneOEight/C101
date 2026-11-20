@@ -183,6 +183,8 @@ The ERP response remains explicit: `accounting_treatment: staging_test_clearing`
    the platform ledger currently records only the legacy single-line reserve path.
 7. Mixed-channel carts are not blocked: the checkout treats any B2B line as a B2B cart. A future
    slice should prevent adding a Shop line to a Trade cart (or vice versa) before checkout.
+8. The simulated payment collection remains cart-scoped (`cart_payment_collection`); there is no
+   `order_payment_collection` row on the order. A2 clearing needs that order-level link.
 
 ## 8. Rollback
 
