@@ -14,6 +14,12 @@ export class NotificationProcessor {
   async process(event: Record<string, unknown>): Promise<void> {
     const rendered = renderPilotNotification(event);
     if (!rendered) return;
+    // Guest orders have no pilot account to notify. Their contact is stored on the order for
+    // operations; skipping here avoids a dead-letter for every guest checkout.
+    const payload = event.payload && typeof event.payload === "object"
+      ? (event.payload as Record<string, unknown>)
+      : {};
+    if (payload.guest_checkout === true) return;
     const eventId = String(event.id ?? "");
     if (!eventId) throw new Error("Notification source event is missing id.");
 

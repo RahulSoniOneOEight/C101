@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import {
   EMAIL_HINT_COOKIE,
   PILOT_SESSION_COOKIE,
@@ -15,14 +14,11 @@ export const metadata = {
 export default async function CheckoutPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(PILOT_SESSION_COOKIE)?.value;
-  if (!token) {
-    redirect(`/sign-in?next=${encodeURIComponent("/checkout")}`);
-  }
-  const defaultEmail = cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "";
+  const defaultEmail = token ? cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "" : "";
 
   return (
     <section className="checkout-page">
-      <CheckoutForm defaultEmail={defaultEmail} />
+      <CheckoutForm defaultEmail={defaultEmail} signedIn={Boolean(token)} />
     </section>
   );
 }

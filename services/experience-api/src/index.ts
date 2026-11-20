@@ -17,6 +17,11 @@ import type { Money, SimulatorOutcome } from "./payment/types.js";
 import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
+import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
+import {
+  parseGuestCheckoutBody,
+  parseGuestQuoteBody,
+} from "./guest/guest-checkout.js";
 import { EventStore } from "./store/event-store.js";
 import { ReservationStore } from "./store/reservation-store.js";
 import { InventoryRequestStore } from "./store/inventory-request-store.js";
@@ -109,6 +114,7 @@ const erp = new TrytonErp(tryton, config.trytonUsername);
 // Pre-resolve Tryton company/UoM/locations so concurrent reserves don't race setup.
 erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:", (e as Error).message));
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
+const guestCheckout = new GuestCheckoutStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const inventoryRequests = new InventoryRequestStore(config.experienceDatabaseUrl);
@@ -1625,6 +1631,358 @@ setInterval(load, 5000);
 </script>
 </body>
 </html>`;
+}
+
+/**
+ * Shared completion path for signed-in and guest checkouts.
+ *
+ * The cart is already assembled and owned by the caller. A guest completion records no owner, but
+ * stores the guest email/mobile on the order group so operations and delivery have a contact.
+ */
+async function completeCanonicalCart(input: {
+  cartId: string;
+  regionId: string;
+  cid: string;
+  ownerUserId?: string;
+  guest?: { email: string; mobile: string };
+}): Promise<Response> {
+  const { cartId, regionId, cid, ownerUserId, guest } = input;
+  return correlation.withCheckoutLock(cartId, async () => {
+    // Mercur 2.3.4's split workflow can create a second group if invoked again after success.
+    // Stop retries here and return the first persisted canonical completion snapshot.
+    const existingCompletion = await correlation.get(cartId);
+    if (existingCompletion?.medusa_order_group_id) {
+      const existingGroup = existingCompletion.medusa_order_group as
+        | Record<string, unknown>
+        | null;
+      const existingAmounts = (existingGroup?.amounts ?? {}) as Record<string, unknown>;
+      return json({
+        type: "order_group",
+        order_group: existingCompletion.medusa_order_group ?? {
+          id: existingCompletion.medusa_order_group_id,
+          cart_id: cartId,
+        },
+        order_number: (existingGroup?.customer_reference as string | undefined) ?? null,
+        total_minor: existingAmounts.total ?? null,
+        payment: existingCompletion.payment_evidence,
+        environment: config.environment,
+        test_data: true,
+        payment_mode: config.paymentAdapterMode,
+        correlation_id: cid,
+        idempotent_replay: true,
+      });
+    }
+
+    const cart = await medusa.getCart(cartId);
+    if (!cart.completed_at) {
+      await medusa.updateCartMetadata(cartId, {
+        ...(cart.metadata ?? {}),
+        payment_mode: "simulated",
+        test_data: true,
+      });
+    }
+
+    // Medusa requires a payment collection and initialized session before completion. Reuse an
+    // amount-matched simulated session on retries so an authorization is never replaced.
+    let paymentCollection = await medusa.createPaymentCollection(cartId);
+    let paymentSession = findValidSimulatedSession(paymentCollection);
+    if (!paymentSession) {
+      paymentCollection = await medusa.createPaymentSession(
+        paymentCollection.id,
+        SIMULATED_PAYMENT_PROVIDER_ID,
+      );
+      paymentSession = findValidSimulatedSession(paymentCollection);
+    }
+    if (!paymentSession) {
+      throw new Error(
+        "Simulated payment session was not initialized with required test-only markers.",
+      );
+    }
+
+    const result = await medusa.completeCart(cartId);
+    if (result.type === "order_group") {
+      const paymentEvidence = {
+        payment_collection_id: paymentCollection.id,
+        payment_session_id: paymentSession.id,
+        provider_id: paymentSession.provider_id,
+        payment_mode: "simulated" as const,
+        test_data: true as const,
+      };
+      const productIds = [
+        ...new Set(
+          (cart.items ?? [])
+            .map((item) => item.product_id)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+      const completionOffers = await medusa.listOffersByProducts(productIds, regionId);
+      const offerById = new Map(completionOffers.map((offer) => [offer.id, offer]));
+      const orderGroupPayload = {
+        ...(result.order_group ?? {}),
+        ...(guest
+          ? {
+              guest_checkout: true,
+              guest_contact: { email: guest.email, mobile: guest.mobile },
+            }
+          : {}),
+        destination_postcode:
+          (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
+        // Buyer-visible delivery address, stored once at completion so the
+        // order page can show where the order ships (B2C + B2B).
+        shipping_address:
+          (cart as { shipping_address?: StoreAddress }).shipping_address ?? null,
+        // Buyer-visible money, stored once at completion in the API's minor-unit convention.
+        // Legacy rows without this block fall back to the group total only.
+        currency_code: cart.currency_code ?? "inr",
+        amounts: {
+          subtotal: itemSubtotalMinor(cart),
+          shipping: medusaToMinor(cart.shipping_total),
+          discount: medusaToMinorOr(cart.discount_total),
+          total: medusaToMinor(result.order_group?.total ?? cart.total),
+        },
+        customer_reference: customerOrderReference(
+          result.order_group?.id ?? cartId,
+          (result.order_group as { created_at?: string } | undefined)?.created_at ?? null,
+        ),
+        lines: (cart.items ?? []).map((item) => {
+          const offer = item.metadata?.offer_id
+            ? offerById.get(item.metadata.offer_id)
+            : undefined;
+          return {
+            line_key: item.id,
+            sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
+            title: item.product_title ?? item.title,
+            quantity: item.quantity,
+            unit_price: medusaToMinorOr(item.unit_price),
+            product_id: item.product_id ?? null,
+            variant_id: item.variant_id ?? null,
+            seller_id: item.seller_id ?? offer?.seller_id ?? null,
+          };
+        }),
+      };
+      // Reserve every ordered line in Tryton before the completion is recorded. The order is
+      // already canonical in Medusa; a failed reservation is surfaced as an ERP mismatch, not
+      // as a lost order, so the operator can recover from the reconciliation queue.
+      const reservationMoves: Array<{
+        move_id: number;
+        sku: string;
+        quantity: number;
+        line_id?: string;
+      }> = [];
+      for (const item of cart.items ?? []) {
+        const offer = item.metadata?.offer_id
+          ? offerById.get(item.metadata.offer_id)
+          : undefined;
+        const sku = item.sku ?? offer?.sku ?? item.variant_id;
+        if (!sku) continue;
+        try {
+          await erp.syncVariant(
+            sku,
+            item.product_title ?? item.title ?? sku,
+            medusaToMinorOr(item.unit_price),
+          );
+          const moveId = await erp.reserve(`${cartId}:${item.id}`, sku, item.quantity);
+          await erp.commit(moveId);
+          reservationMoves.push({
+            move_id: moveId,
+            sku,
+            quantity: item.quantity,
+            line_id: item.id,
+          });
+          await events.append({
+            event_type: "inventory.reservation_created",
+            aggregate_type: "checkout",
+            aggregate_id: cartId,
+            correlation_id: cid,
+            payload: {
+              sku,
+              quantity: item.quantity,
+              tryton_move_id: moveId,
+              order_group_id: result.order_group?.id ?? null,
+            },
+          });
+        } catch (error) {
+          console.warn(
+            `[experience-api] Tryton reservation failed for ${sku}:`,
+            (error as Error).message,
+          );
+        }
+      }
+      await correlation.link(cartId, {
+        orderGroup: result.order_group?.id,
+        orderGroupPayload,
+        paymentEvidence,
+        trytonMove: reservationMoves[0]?.move_id,
+        trytonMoves: reservationMoves.length > 0 ? reservationMoves : undefined,
+        ...(ownerUserId ? { ownerUserId } : {}),
+      });
+      await events.appendOrderConfirmed({
+        event_type: "order.confirmed",
+        aggregate_type: "order_group",
+        aggregate_id: result.order_group?.id ?? cartId,
+        correlation_id: cid,
+        payload: {
+          cart_id: cartId,
+          order_group: result.order_group,
+          lines: orderGroupPayload.lines,
+          payment: paymentEvidence,
+          ...(guest ? { guest_checkout: true, guest_contact: orderGroupPayload.guest_contact } : {}),
+        },
+      });
+      return json({
+        type: "order_group",
+        order_group: result.order_group,
+        order_number: orderGroupPayload.customer_reference,
+        total_minor: orderGroupPayload.amounts.total,
+        payment: paymentEvidence,
+        environment: config.environment,
+        test_data: true,
+        payment_mode: config.paymentAdapterMode,
+        correlation_id: cid,
+      });
+    }
+    return json({
+      type: "cart",
+      cart: result.cart,
+      error: result.error,
+      payment: {
+        payment_collection_id: paymentCollection.id,
+        payment_session_id: paymentSession.id,
+        provider_id: paymentSession.provider_id,
+        payment_mode: "simulated",
+        test_data: true,
+      },
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  });
+}
+
+/** Assemble a guest B2C cart with contact, delivery and one promotion. */
+async function prepareGuestCart(input: {
+  lines: Array<{ offerId: string; quantity: number }>;
+  email: string;
+  mobile?: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+  promoCode?: string;
+}, onCartCreated?: (cartId: string) => Promise<void>): Promise<StoreCart> {
+  const cart = await medusa.createCart(config.medusaRegionId, "inr");
+  if (onCartCreated) await onCartCreated(cart.id);
+  await medusa.updateCartMetadata(cart.id, {
+    ...(cart.metadata ?? {}),
+    channel: "b2c",
+    guest_checkout: true,
+    guest_email: input.email,
+    ...(input.mobile ? { guest_mobile: input.mobile } : {}),
+  });
+  for (const line of input.lines) {
+    await medusa.addLineItem(cart.id, line.offerId, line.quantity);
+  }
+  const withOffer = await applyAutomaticOffer(cart.id, await medusa.getCart(cart.id));
+  await medusa.updateCartCustomerDetails(cart.id, {
+    email: input.email,
+    shipping_address: {
+      first_name: input.firstName,
+      last_name: input.lastName,
+      address_1: input.address1,
+      city: input.city,
+      postal_code: input.postalCode,
+      country_code: "in",
+      ...(input.mobile ? { phone: input.mobile } : {}),
+    },
+  });
+  if (input.promoCode) {
+    for (const code of appliedPromotionCodes(withOffer)) {
+      try {
+        await medusa.removePromotion(cart.id, code);
+      } catch {
+        // The replacement below still validates what the engine actually grants.
+      }
+    }
+    const applied = await medusa.addPromotion(cart.id, input.promoCode);
+    if (!hasPromotionCode(applied, input.promoCode)) {
+      throw Object.assign(new Error("That promo code is not eligible for this order."), {
+        code: "promotion-rejected",
+      });
+    }
+  }
+  return applyDeliveryForCart(cart.id);
+}
+
+async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
+  const options = await medusa.listShippingOptions(cartId);
+  const current = await medusa.getCart(cartId);
+  // Medusa lists calculated options for every seller in the sales channel, not
+  // only the sellers present in this cart. Applying all of them would charge a
+  // delivery fee for sellers with no items, so scope to the cart's own sellers.
+  const cartSellerIds = new Set(
+    (current.items ?? [])
+      .map((item) => item.seller_id)
+      .filter((sellerId): sellerId is string => Boolean(sellerId)),
+  );
+
+  const bySeller = new Map<string, StoreShippingOption[]>();
+  for (const option of options) {
+    if (cartSellerIds.size > 0 && !cartSellerIds.has(option.seller_id)) {
+      continue;
+    }
+    const list = bySeller.get(option.seller_id) ?? [];
+    list.push(option);
+    bySeller.set(option.seller_id, list);
+  }
+
+  const lines: DeliveryLine[] = [];
+  const sellerNames = await medusa.listSellerNames();
+  let cart = current;
+  for (const [sellerId, sellerOptions] of bySeller) {
+    const option =
+      sellerOptions.find(
+        (candidate) => candidate.provider_id === "pincode_pincode",
+      ) ?? sellerOptions.find((candidate) => /delivery/i.test(candidate.name));
+    if (!option) {
+      lines.push({
+        seller_id: sellerId,
+        seller_name: sellerNames[sellerId] ?? null,
+        option_id: null,
+        name: "Delivery",
+        amount: 0,
+        status: "unavailable",
+      });
+      continue;
+    }
+    cart = await medusa.addShippingMethod(cartId, option.id);
+    lines.push({
+      seller_id: sellerId,
+      seller_name: sellerNames[sellerId] ?? null,
+      option_id: option.id,
+      name: option.name,
+      amount: medusaToMinorOr(option.amount),
+      status: "applied",
+    });
+  }
+
+  // The Mercur store shipping-options workflow prices flat options from the
+  // Pricing Module and leaves calculated options unpriced, so the applied
+  // method on the cart is the authoritative amount for a calculated fee.
+  const refreshed = await medusa.getCart(cartId);
+  const methods = refreshed.shipping_methods ?? [];
+  for (const line of lines) {
+    if (!line.option_id) continue;
+    const method = methods.find(
+      (candidate) => candidate.shipping_option_id === line.option_id,
+    );
+    if (method) line.amount = medusaToMinorOr(method.amount);
+  }
+
+  return medusa.updateCartMetadata(cartId, {
+    [CART_DELIVERY_LINES_KEY]: lines,
+    [CART_DELIVERY_PINCODE_KEY]: refreshed.shipping_address?.postal_code ?? null,
+  });
 }
 
 async function handle(req: Request, url: URL, cid: string): Promise<Response> {
@@ -4329,6 +4687,138 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     }
   }
 
+  // POST /v1/guest/cart-quote — public B2C quote without creating an account.
+  if (url.pathname === "/v1/guest/cart-quote" && req.method === "POST") {
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON quote body.");
+    }
+    const parsed = parseGuestQuoteBody(raw);
+    if (!parsed.ok) return problem(400, "invalid-guest-quote", parsed.error);
+    try {
+      const cart = await prepareGuestCart({
+        lines: parsed.value.lines,
+        email: `guest-quote+${randomUUID()}@bazarbee.invalid`,
+        firstName: "Guest",
+        lastName: "Buyer",
+        address1: "Quote address",
+        city: "Jaipur",
+        postalCode: parsed.value.postalCode,
+        promoCode: parsed.value.promoCode,
+      });
+      return json({
+        ...composeCartView(cart),
+        item_count: cart.items?.length ?? 0,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "promotion-rejected") {
+        return problem(400, "promotion-rejected", "That promo code is not eligible for this cart.");
+      }
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/guest/checkout — public B2C checkout. An account is never created; the normalized
+  // mobile and email are stored on the order so delivery and support can reach the buyer.
+  if (url.pathname === "/v1/guest/checkout" && req.method === "POST") {
+    const requestKey = req.headers.get("idempotency-key")?.trim() ?? "";
+    if (!/^[A-Za-z0-9._:-]{16,100}$/.test(requestKey)) {
+      return problem(
+        400,
+        "idempotency-key-required",
+        "A 16-100 character Idempotency-Key header is required.",
+      );
+    }
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON checkout body.");
+    }
+    const parsed = parseGuestCheckoutBody(raw);
+    if (!parsed.ok) return problem(400, "invalid-guest-checkout", parsed.error);
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify(parsed.value))
+      .digest("hex");
+    let reservation;
+    try {
+      reservation = await guestCheckout.begin(requestKey, requestHash);
+    } catch (error) {
+      if ((error as { code?: string }).code === "idempotency-key-reuse") {
+        return problem(
+          409,
+          "idempotency-key-reuse",
+          "This checkout key was already used for a different cart.",
+        );
+      }
+      return problem(502, "guest-checkout-store-unavailable", (error as Error).message);
+    }
+    if (reservation.response) {
+      return json({ ...reservation.response, idempotent_replay: true });
+    }
+    if (reservation.cart_id) {
+      return problem(
+        409,
+        "guest-checkout-in-progress",
+        "This checkout is already being processed. Retry shortly.",
+      );
+    }
+    let completionBody: Record<string, unknown> | null = null;
+    let cartAttached = false;
+    try {
+      const cart = await prepareGuestCart(
+        parsed.value,
+        async (cartId) => {
+          const attached = await guestCheckout.attachCart(requestKey, cartId);
+          if (!attached) {
+            throw Object.assign(new Error("Another guest checkout attempt won the reservation."), {
+              code: "guest-checkout-in-progress",
+            });
+          }
+          cartAttached = true;
+        },
+      );
+      const response = await completeCanonicalCart({
+        cartId: cart.id,
+        regionId: config.medusaRegionId,
+        cid,
+        guest: { email: parsed.value.email, mobile: parsed.value.mobile },
+      });
+      if (response.status >= 400) {
+        // Once a cart exists, keep the reservation. A retry must not create a second order while
+        // the first attempt may still have completed in Medusa.
+        if (!cartAttached) await guestCheckout.fail(requestKey);
+        return response;
+      }
+      completionBody = (await response.clone().json()) as Record<string, unknown>;
+      await guestCheckout.complete(requestKey, completionBody);
+      return response;
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code !== "guest-checkout-in-progress" && !completionBody && !cartAttached) {
+        await guestCheckout.fail(requestKey).catch(() => undefined);
+      }
+      if (code === "promotion-rejected") {
+        // No order was attempted; release the key so the buyer can retry without the code.
+        await guestCheckout.fail(requestKey).catch(() => undefined);
+        return problem(400, "promotion-rejected", "That promo code is not eligible for this cart.");
+      }
+      if (code === "guest-checkout-in-progress") {
+        return problem(
+          409,
+          "guest-checkout-in-progress",
+          "This checkout is already being processed. Retry shortly.",
+        );
+      }
+      return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
   // POST /v1/carts — create a canonical Medusa cart (Commerce)
   if (url.pathname === "/v1/carts" && req.method === "POST") {
     const authenticated = await requireAnyRole(req, ["customer", "b2b_buyer", "b2b_account_admin", "b2b_approver"]);
@@ -4400,84 +4890,6 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
-
-/**
- * Applies the single Delivery option for every seller in the cart.
- *
- * U-009 D4 retired the Standard/Express choice: the cart carries one flat
- * per-seller fee resolved from the pincode. The resolved lines are stored in
- * cart metadata so every cart response can render them.
- */
-async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
-  const options = await medusa.listShippingOptions(cartId);
-  const current = await medusa.getCart(cartId);
-  // Medusa lists calculated options for every seller in the sales channel, not
-  // only the sellers present in this cart. Applying all of them would charge a
-  // delivery fee for sellers with no items, so scope to the cart's own sellers.
-  const cartSellerIds = new Set(
-    (current.items ?? [])
-      .map((item) => item.seller_id)
-      .filter((sellerId): sellerId is string => Boolean(sellerId)),
-  );
-
-  const bySeller = new Map<string, StoreShippingOption[]>();
-  for (const option of options) {
-    if (cartSellerIds.size > 0 && !cartSellerIds.has(option.seller_id)) {
-      continue;
-    }
-    const list = bySeller.get(option.seller_id) ?? [];
-    list.push(option);
-    bySeller.set(option.seller_id, list);
-  }
-
-  const lines: DeliveryLine[] = [];
-  const sellerNames = await medusa.listSellerNames();
-  let cart = current;
-  for (const [sellerId, sellerOptions] of bySeller) {
-    const option =
-      sellerOptions.find(
-        (candidate) => candidate.provider_id === "pincode_pincode",
-      ) ?? sellerOptions.find((candidate) => /delivery/i.test(candidate.name));
-    if (!option) {
-      lines.push({
-        seller_id: sellerId,
-        seller_name: sellerNames[sellerId] ?? null,
-        option_id: null,
-        name: "Delivery",
-        amount: 0,
-        status: "unavailable",
-      });
-      continue;
-    }
-    cart = await medusa.addShippingMethod(cartId, option.id);
-    lines.push({
-      seller_id: sellerId,
-      seller_name: sellerNames[sellerId] ?? null,
-      option_id: option.id,
-      name: option.name,
-      amount: medusaToMinorOr(option.amount),
-      status: "applied",
-    });
-  }
-
-  // The Mercur store shipping-options workflow prices flat options from the
-  // Pricing Module and leaves calculated options unpriced, so the applied
-  // method on the cart is the authoritative amount for a calculated fee.
-  const refreshed = await medusa.getCart(cartId);
-  const methods = refreshed.shipping_methods ?? [];
-  for (const line of lines) {
-    if (!line.option_id) continue;
-    const method = methods.find(
-      (candidate) => candidate.shipping_option_id === line.option_id,
-    );
-    if (method) line.amount = medusaToMinorOr(method.amount);
-  }
-
-  return medusa.updateCartMetadata(cartId, {
-    [CART_DELIVERY_LINES_KEY]: lines,
-    [CART_DELIVERY_PINCODE_KEY]: refreshed.shipping_address?.postal_code ?? null,
-  });
-}
 
   // POST /v1/carts/{cartId}/customer-details — attach checkout contact and delivery address.
   const cartCustomerDetails = url.pathname.match(/^\/v1\/carts\/([^/]+)\/customer-details$/);
@@ -4787,230 +5199,23 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     }
   }
 
-  // POST /v1/checkouts/{cartId}/complete — complete the cart into per-seller orders (Commerce + Marketplace)
+  // POST /v1/checkouts/{cartId}/complete - complete the cart into per-seller orders (Commerce + Marketplace)
   const complete = url.pathname.match(/^\/v1\/checkouts\/([^/]+)\/complete$/);
   if (complete && req.method === "POST") {
     const cartId = complete[1];
     const authenticated = await authorizeCheckoutOwner(req, cartId);
     if ("response" in authenticated) return authenticated.response;
     try {
-      return await correlation.withCheckoutLock(cartId, async () => {
-        // Mercur 2.3.4's split workflow can create a second group if invoked again after success.
-        // Stop retries here and return the first persisted canonical completion snapshot.
-        const existingCompletion = await correlation.get(cartId);
-        if (existingCompletion?.medusa_order_group_id) {
-          const existingGroup = existingCompletion.medusa_order_group as
-            | Record<string, unknown>
-            | null;
-          const existingAmounts = (existingGroup?.amounts ?? {}) as Record<string, unknown>;
-          return json({
-            type: "order_group",
-            order_group: existingCompletion.medusa_order_group ?? {
-              id: existingCompletion.medusa_order_group_id,
-              cart_id: cartId,
-            },
-            order_number: (existingGroup?.customer_reference as string | undefined) ?? null,
-            total_minor: existingAmounts.total ?? null,
-            payment: existingCompletion.payment_evidence,
-            environment: config.environment,
-            test_data: true,
-            payment_mode: config.paymentAdapterMode,
-            correlation_id: cid,
-            idempotent_replay: true,
-          });
-        }
-
-        const cart = await medusa.getCart(cartId);
-        if (!cart.completed_at) {
-          await medusa.updateCartMetadata(cartId, {
-            ...(cart.metadata ?? {}),
-            payment_mode: "simulated",
-            test_data: true,
-          });
-        }
-
-        // Medusa requires a payment collection and initialized session before completion. Reuse an
-        // amount-matched simulated session on retries so an authorization is never replaced.
-        let paymentCollection = await medusa.createPaymentCollection(cartId);
-        let paymentSession = findValidSimulatedSession(paymentCollection);
-        if (!paymentSession) {
-          paymentCollection = await medusa.createPaymentSession(
-            paymentCollection.id,
-            SIMULATED_PAYMENT_PROVIDER_ID,
-          );
-          paymentSession = findValidSimulatedSession(paymentCollection);
-        }
-        if (!paymentSession) {
-          throw new Error(
-            "Simulated payment session was not initialized with required test-only markers.",
-          );
-        }
-
-        const result = await medusa.completeCart(cartId);
-        if (result.type === "order_group") {
-          const paymentEvidence = {
-            payment_collection_id: paymentCollection.id,
-            payment_session_id: paymentSession.id,
-            provider_id: paymentSession.provider_id,
-            payment_mode: "simulated" as const,
-            test_data: true as const,
-          };
-          const productIds = [
-            ...new Set(
-              (cart.items ?? [])
-                .map((item) => item.product_id)
-                .filter((id): id is string => Boolean(id)),
-            ),
-          ];
-          const completionOffers = await medusa.listOffersByProducts(
-            productIds,
-            regionFor(authenticated.authorization),
-          );
-          const offerById = new Map(
-            completionOffers.map((offer) => [offer.id, offer]),
-          );
-          const orderGroupPayload = {
-            ...(result.order_group ?? {}),
-            destination_postcode:
-              (cart as { shipping_address?: StoreAddress }).shipping_address?.postal_code ?? null,
-            // Buyer-visible delivery address, stored once at completion so the
-            // order page can show where the order ships (B2C + B2B).
-            shipping_address:
-              (cart as { shipping_address?: StoreAddress }).shipping_address ?? null,
-            // Buyer-visible money, stored once at completion in the API's minor-unit convention.
-            // Legacy rows without this block fall back to the group total only.
-            currency_code: cart.currency_code ?? "inr",
-            amounts: {
-              subtotal: itemSubtotalMinor(cart),
-              shipping: medusaToMinor(cart.shipping_total),
-              discount: medusaToMinorOr(cart.discount_total),
-              total: medusaToMinor(result.order_group?.total ?? cart.total),
-            },
-            customer_reference: customerOrderReference(
-              result.order_group?.id ?? cartId,
-              (result.order_group as { created_at?: string } | undefined)?.created_at ??
-                null,
-            ),
-            lines: (cart.items ?? []).map((item) => {
-              const offer = item.metadata?.offer_id
-                ? offerById.get(item.metadata.offer_id)
-                : undefined;
-              return {
-                line_key: item.id,
-                sku: item.sku ?? offer?.sku ?? item.variant_id ?? item.id,
-                title: item.product_title ?? item.title,
-                quantity: item.quantity,
-                unit_price: medusaToMinorOr(item.unit_price),
-                product_id: item.product_id ?? null,
-                variant_id: item.variant_id ?? null,
-                seller_id: item.seller_id ?? offer?.seller_id ?? null,
-              };
-            }),
-          };
-          // Reserve every ordered line in Tryton before the completion is recorded. The order is
-          // already canonical in Medusa; a failed reservation is surfaced as an ERP mismatch, not
-          // as a lost order, so the operator can recover from the reconciliation queue.
-          const reservationMoves: Array<{
-            move_id: number;
-            sku: string;
-            quantity: number;
-            line_id?: string;
-          }> = [];
-          for (const item of cart.items ?? []) {
-            const offer = item.metadata?.offer_id
-              ? offerById.get(item.metadata.offer_id)
-              : undefined;
-            const sku = item.sku ?? offer?.sku ?? item.variant_id;
-            if (!sku) continue;
-            try {
-              await erp.syncVariant(
-                sku,
-                item.product_title ?? item.title ?? sku,
-                medusaToMinorOr(item.unit_price),
-              );
-              const moveId = await erp.reserve(
-                `${cartId}:${item.id}`,
-                sku,
-                item.quantity,
-              );
-              await erp.commit(moveId);
-              reservationMoves.push({
-                move_id: moveId,
-                sku,
-                quantity: item.quantity,
-                line_id: item.id,
-              });
-              await events.append({
-                event_type: "inventory.reservation_created",
-                aggregate_type: "checkout",
-                aggregate_id: cartId,
-                correlation_id: cid,
-                payload: {
-                  sku,
-                  quantity: item.quantity,
-                  tryton_move_id: moveId,
-                  order_group_id: result.order_group?.id ?? null,
-                },
-              });
-            } catch (error) {
-              console.warn(
-                `[experience-api] Tryton reservation failed for ${sku}:`,
-                (error as Error).message,
-              );
-            }
-          }
-          await correlation.link(cartId, {
-            orderGroup: result.order_group?.id,
-            orderGroupPayload,
-            paymentEvidence,
-            trytonMove: reservationMoves[0]?.move_id,
-            trytonMoves: reservationMoves.length > 0 ? reservationMoves : undefined,
-          });
-          await events.appendOrderConfirmed({
-            event_type: "order.confirmed",
-            aggregate_type: "order_group",
-            aggregate_id: result.order_group?.id ?? cartId,
-            correlation_id: cid,
-            payload: {
-              cart_id: cartId,
-              order_group: result.order_group,
-              lines: orderGroupPayload.lines,
-              payment: paymentEvidence,
-            },
-          });
-          return json({
-            type: "order_group",
-            order_group: result.order_group,
-            order_number: orderGroupPayload.customer_reference,
-            total_minor: orderGroupPayload.amounts.total,
-            payment: paymentEvidence,
-            environment: config.environment,
-            test_data: true,
-            payment_mode: config.paymentAdapterMode,
-            correlation_id: cid,
-          });
-        }
-        return json({
-          type: "cart",
-          cart: result.cart,
-          error: result.error,
-          payment: {
-            payment_collection_id: paymentCollection.id,
-            payment_session_id: paymentSession.id,
-            provider_id: paymentSession.provider_id,
-            payment_mode: "simulated",
-            test_data: true,
-          },
-          environment: config.environment,
-          test_data: true,
-          correlation_id: cid,
-        });
+      return await completeCanonicalCart({
+        cartId,
+        regionId: regionFor(authenticated.authorization),
+        cid,
+        ownerUserId: authenticated.user.id,
       });
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
     }
   }
-
   // POST /v1/internal/catalogue/readiness — server-owned Product Studio visibility diagnostics.
   if (
     url.pathname === "/v1/internal/catalogue/readiness" &&

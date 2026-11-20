@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatMoney } from "@/lib/money";
 import { useCart } from "@/lib/cart";
 import { deliveryChangeEventName, readDeliveryAddress } from "@/lib/delivery";
@@ -49,8 +49,15 @@ function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
-export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
+export function CheckoutForm({
+  defaultEmail,
+  signedIn,
+}: {
+  defaultEmail: string;
+  signedIn: boolean;
+}) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
+  const idempotencyKeyRef = useRef("");
   const cartChannels = new Set(items.map((item) => item.channel ?? "b2c"));
   const cartChannel =
     cartChannels.size === 1 ? (Array.from(cartChannels)[0] as "b2c" | "b2b") : null;
@@ -186,11 +193,17 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
       return;
     }
     const form = new FormData(event.currentTarget);
+    if (!signedIn && !idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
     setState({ status: "busy" });
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(!signedIn ? { "idempotency-key": idempotencyKeyRef.current } : {}),
+        },
         body: JSON.stringify({
           lines: items.map((item) => ({
             offerId: item.offerId,
@@ -198,6 +211,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
             channel: item.channel ?? "b2c",
           })),
           email: form.get("email"),
+          mobile: signedIn ? undefined : form.get("mobile"),
           firstName: form.get("firstName"),
           lastName: form.get("lastName"),
           address1: form.get("address1"),
@@ -255,8 +269,12 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         <span className="eyebrow">Order confirmed</span>
         <h1>Thanks — your order is in.</h1>
         <p className="muted">
-          The Experience API returned a canonical {state.orderType.replaceAll("_", " ")} with a
-          simulated payment. Your owner-scoped tracking is available in Orders.
+          {signedIn
+            ? `The Experience API returned a canonical ${state.orderType.replaceAll(
+                "_",
+                " ",
+              )} with a simulated payment. Your owner-scoped tracking is available in Orders.`
+            : "Your guest order is confirmed with a simulated payment. No sign-in account or password was created. Keep this reference for support; the mobile you entered is recorded for delivery."}
         </p>
         <div className="order-reference">
           <span>Order reference</span>
@@ -279,13 +297,26 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           </div>
           <div>
             <dt>Invoice</dt>
-            <dd>GST invoice available in your account</dd>
+            <dd>
+              {signedIn
+                ? "GST invoice available in your account"
+                : "GST invoice will be issued for this order"}
+            </dd>
           </div>
         </dl>
         <div className="buy-actions">
-          <Link className="button button-lg" href="/orders">
-            View my orders
-          </Link>
+          {signedIn ? (
+            <Link className="button button-lg" href="/orders">
+              View my orders
+            </Link>
+          ) : (
+            <Link
+              className="button button-lg"
+              href={`/sign-in?next=${encodeURIComponent("/orders")}`}
+            >
+              Sign in to track orders
+            </Link>
+          )}
           <Link className="button button-ghost button-lg" href="/search">
             Continue shopping
           </Link>
@@ -311,6 +342,24 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
     );
   }
 
+  if (!signedIn && cartChannel === "b2b") {
+    return (
+      <div className="empty-panel">
+        <h1>Trade checkout needs a sign-in</h1>
+        <p className="muted">
+          Guest checkout is available for Shop orders. Sign in with a trade-enabled account to
+          place this quotation order.
+        </p>
+        <Link
+          className="button"
+          href={`/sign-in?next=${encodeURIComponent("/checkout")}`}
+        >
+          Sign in to continue
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
       <CheckoutSteps current={2} />
@@ -325,6 +374,11 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         <div className="checkout-block">
           <span className="eyebrow">Contact</span>
           <h2>Where should we send the receipt?</h2>
+          {!signedIn ? (
+            <p className="muted">
+              Guest checkout — no account needed. We will use this mobile for delivery updates.
+            </p>
+          ) : null}
           <label>
             Email
             <input
@@ -336,6 +390,20 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
               autoComplete="email"
             />
           </label>
+          {!signedIn ? (
+            <label>
+              Mobile number
+              <input
+                name="mobile"
+                type="tel"
+                required
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="+91 98765 43210"
+                maxLength={16}
+              />
+            </label>
+          ) : null}
         </div>
 
         <div className="checkout-block">

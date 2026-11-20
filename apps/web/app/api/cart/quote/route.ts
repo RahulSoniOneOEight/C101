@@ -5,18 +5,16 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   quoteCart,
+  quoteGuestCart,
   type CheckoutLineInput,
 } from "@/lib/experience-api";
 
-/** Quotes the signed-in customer's basket with delivery for the entered postal code. */
+/** Quotes the cart with delivery for the entered postal code (signed-in or guest B2C). */
 export async function POST(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get(PILOT_SESSION_COOKIE)?.value;
-  if (!token) {
-    return NextResponse.json({ error: "Sign in to see delivery and totals." }, { status: 401 });
-  }
   const email = cookieStore.get(EMAIL_HINT_COOKIE)?.value?.trim() ?? "";
-  if (!email) {
+  if (token && !email) {
     return NextResponse.json(
       { error: "Sign in again to see delivery and totals." },
       { status: 401 },
@@ -72,20 +70,39 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
-    const quote = await quoteCart(
-      {
-        lines,
-        postalCode: typeof body.postalCode === "string" ? body.postalCode : "",
-        email,
-        promoCode:
-          typeof body.promoCode === "string"
-            ? body.promoCode.trim().slice(0, 40) || undefined
-            : undefined,
-        channel: body.channel === "b2b" ? "b2b" : "b2c",
-      },
-      token,
+  if (
+    !token &&
+    (requestedChannel !== "b2c" || lines.some((line) => line.channel !== "b2c"))
+  ) {
+    return NextResponse.json(
+      { error: "Sign in to see trade delivery and totals." },
+      { status: 403 },
     );
+  }
+
+  try {
+    const quote = token
+      ? await quoteCart(
+          {
+            lines,
+            postalCode: typeof body.postalCode === "string" ? body.postalCode : "",
+            email,
+            promoCode:
+              typeof body.promoCode === "string"
+                ? body.promoCode.trim().slice(0, 40) || undefined
+                : undefined,
+            channel: body.channel === "b2b" ? "b2b" : "b2c",
+          },
+          token,
+        )
+      : await quoteGuestCart({
+          lines,
+          postalCode: typeof body.postalCode === "string" ? body.postalCode : "",
+          promoCode:
+            typeof body.promoCode === "string"
+              ? body.promoCode.trim().slice(0, 40) || undefined
+              : undefined,
+        });
     return NextResponse.json(quote, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     if (error instanceof ExperienceApiError && error.status === 401) {

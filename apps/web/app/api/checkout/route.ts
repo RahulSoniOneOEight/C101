@@ -4,19 +4,48 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   completeCheckout,
+  completeGuestCheckout,
   type CheckoutLineInput,
 } from "@/lib/experience-api";
 
+function checkoutError(error: unknown) {
+  if (error instanceof ExperienceApiError && error.status === 401) {
+    return NextResponse.json(
+      { error: "Your session cannot place this order. Sign in again." },
+      { status: 401 },
+    );
+  }
+  if (
+    error instanceof ExperienceApiError &&
+    (error.problemType === "promotion-rejected" ||
+      error.problemType === "promotion-not-found" ||
+      error.problemType === "promotion-usage-limit" ||
+      error.problemType === "promotion-unavailable")
+  ) {
+    const message =
+      error.problemType === "promotion-not-found"
+        ? "That promo code was not found."
+        : error.problemType === "promotion-usage-limit"
+          ? "That offer has reached its usage limit."
+          : error.problemType === "promotion-unavailable"
+            ? "Promotions are unavailable right now. Please retry."
+            : "That code is not eligible for this cart.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+  if (error instanceof ExperienceApiError && [400, 404, 409].includes(error.status)) {
+    return NextResponse.json({ error: error.message }, { status: error.status });
+  }
+  return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+}
+
 /**
  * Server-side checkout. The browser cannot manufacture a canonical order: this route calls the
- * shared Experience API with the signed-in customer's session and returns only what the server
- * produced. Anonymous checkout is intentionally unsupported because the cart API is owner-scoped.
+ * shared Experience API and returns only what the server produced. Signed-in customers use their
+ * owner-scoped cart; guests use the public B2C path, which requires an email and Indian mobile and
+ * never creates an account.
  */
 export async function POST(request: Request) {
   const token = (await cookies()).get(PILOT_SESSION_COOKIE)?.value;
-  if (!token) {
-    return NextResponse.json({ error: "Sign in to place an order." }, { status: 401 });
-  }
 
   let body: {
     lines?: unknown;
@@ -26,6 +55,7 @@ export async function POST(request: Request) {
     address1?: string;
     city?: string;
     postalCode?: string;
+    mobile?: string;
     promoCode?: string;
     channel?: string;
   };
@@ -77,52 +107,58 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  try {
-    const result = await completeCheckout(
-      {
-        lines,
-        email: body.email,
-        firstName: body.firstName,
-        lastName: body.lastName ?? "",
-        address1: body.address1,
-        city: body.city,
-        postalCode: body.postalCode,
-        promoCode:
-          typeof body.promoCode === "string"
-            ? body.promoCode.trim().slice(0, 40) || undefined
-            : undefined,
-        channel: body.channel === "b2b" ? "b2b" : "b2c",
-      },
-      token,
-    );
-    return NextResponse.json(result);
-  } catch (error) {
-    if (error instanceof ExperienceApiError && error.status === 401) {
+  const checkoutInput = {
+    lines,
+    email: body.email,
+    firstName: body.firstName,
+    lastName: body.lastName ?? "",
+    address1: body.address1,
+    city: body.city,
+    postalCode: body.postalCode,
+    promoCode:
+      typeof body.promoCode === "string"
+        ? body.promoCode.trim().slice(0, 40) || undefined
+        : undefined,
+    channel: body.channel === "b2b" ? ("b2b" as const) : ("b2c" as const),
+  };
+  if (!token) {
+    if (checkoutInput.channel !== "b2c" || lines.some((line) => line.channel !== "b2c")) {
       return NextResponse.json(
-        { error: "Your session cannot place this order. Sign in again." },
-        { status: 401 },
+        { error: "Sign in to place a trade order. Guest checkout is for Shop orders only." },
+        { status: 403 },
       );
     }
-    if (
-      error instanceof ExperienceApiError &&
-      (error.problemType === "promotion-rejected" ||
-        error.problemType === "promotion-not-found" ||
-        error.problemType === "promotion-usage-limit" ||
-        error.problemType === "promotion-unavailable")
-    ) {
-      const message =
-        error.problemType === "promotion-not-found"
-          ? "That promo code was not found."
-          : error.problemType === "promotion-usage-limit"
-            ? "That offer has reached its usage limit."
-            : error.problemType === "promotion-unavailable"
-              ? "Promotions are unavailable right now. Please retry."
-              : "That code is not eligible for this cart.";
-      return NextResponse.json({ error: message }, { status: 400 });
+    const mobile = typeof body.mobile === "string" ? body.mobile.trim() : "";
+    if (!mobile) {
+      return NextResponse.json(
+        { error: "A mobile number is required for guest checkout." },
+        { status: 400 },
+      );
     }
-    if (error instanceof ExperienceApiError && [400, 404, 409].includes(error.status)) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim() ?? "";
+    if (!/^[A-Za-z0-9._:-]{16,100}$/.test(idempotencyKey)) {
+      return NextResponse.json(
+        { error: "A valid checkout idempotency key is required." },
+        { status: 400 },
+      );
     }
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 });
+    try {
+      const result = await completeGuestCheckout(
+        {
+          ...checkoutInput,
+          mobile,
+        },
+        idempotencyKey,
+      );
+      return NextResponse.json(result);
+    } catch (error) {
+      return checkoutError(error);
+    }
+  }
+  try {
+    const result = await completeCheckout(checkoutInput, token);
+    return NextResponse.json(result);
+  } catch (error) {
+    return checkoutError(error);
   }
 }

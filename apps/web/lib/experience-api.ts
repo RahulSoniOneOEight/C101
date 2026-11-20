@@ -1301,6 +1301,10 @@ export async function quoteCart(
   const view = await call<CartView>(`/v1/carts/${encodeURIComponent(cart.id)}`, {
     headers: auth,
   });
+  return cartQuoteFromView(view, input.lines.length);
+}
+
+function cartQuoteFromView(view: CartView, fallbackItemCount = 0): CartQuote {
   const subtotal = view.item_subtotal ?? view.subtotal ?? 0;
   const promotions = Array.isArray(view.promotions)
     ? view.promotions
@@ -1334,10 +1338,30 @@ export async function quoteCart(
     discount: view.discount_total ?? 0,
     total: view.total ?? subtotal,
     currency: (view.currency_code ?? "inr").toUpperCase(),
-    itemCount: Array.isArray(view.items) ? view.items.length : input.lines.length,
+    itemCount: Array.isArray(view.items) ? view.items.length : fallbackItemCount,
     promotions,
     autoOffer,
   };
+}
+
+export async function quoteGuestCart(input: {
+  lines: CheckoutLineInput[];
+  postalCode: string;
+  promoCode?: string;
+}): Promise<CartQuote> {
+  const view = await call<CartView & { item_count?: number }>("/v1/guest/cart-quote", {
+    method: "POST",
+    body: JSON.stringify({
+      lines: input.lines.map((line) => ({
+        offerId: line.offerId,
+        quantity: line.quantity,
+      })),
+      postalCode: input.postalCode,
+      promoCode: input.promoCode,
+      channel: "b2c",
+    }),
+  });
+  return cartQuoteFromView(view, input.lines.length);
 }
 
 export async function completeCheckout(
@@ -1409,5 +1433,49 @@ export async function completeCheckout(
   return call<CompletionResult>(`/v1/checkouts/${encodeURIComponent(cart.id)}/complete`, {
     method: "POST",
     headers: auth,
+  });
+}
+
+export interface GuestCheckoutInput {
+  lines: CheckoutLineInput[];
+  email: string;
+  mobile: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+  promoCode?: string;
+}
+
+/**
+ * Public B2C checkout. No account or session is created; the API stores the normalized mobile
+ * and email on the order and returns the same canonical completion shape as signed-in checkout.
+ */
+export async function completeGuestCheckout(
+  input: GuestCheckoutInput,
+  idempotencyKey: string,
+): Promise<CompletionResult> {
+  if (input.lines.some((line) => line.channel !== "b2c")) {
+    throw new Error("Guest checkout is available for Shop orders only.");
+  }
+  return call<CompletionResult>("/v1/guest/checkout", {
+    method: "POST",
+    headers: { "idempotency-key": idempotencyKey },
+    body: JSON.stringify({
+      lines: input.lines.map((line) => ({
+        offerId: line.offerId,
+        quantity: line.quantity,
+      })),
+      email: input.email,
+      mobile: input.mobile,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      address1: input.address1,
+      city: input.city,
+      postalCode: input.postalCode,
+      promoCode: input.promoCode,
+      channel: "b2c",
+    }),
   });
 }
