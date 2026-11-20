@@ -102,6 +102,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
   including signature verification, capture, status polling and order completion. The B2B prepaid
   server path is built but not browser-tested; Razorpay webhooks, refunds and Flutter SDK integration
   remain pending. See `bazarbee-razorpay-web-checkout-2026-11-20.md`.
+- **COD (seller-collected)** — model confirmed on 2026-11-20: the seller delivers and collects cash,
+  Bazarbee never holds the goods money, and a COD order is confirmed but never paid. Design is in
+  `docs/architecture/payments-cod.md`; build is scoped by proposed `CHG-099` and needs approval plus
+  the recovery/TCS decision before coding.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.

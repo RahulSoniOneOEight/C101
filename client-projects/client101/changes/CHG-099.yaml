@@ -1,0 +1,120 @@
+change_id: CHG-099
+revision: 1
+status: proposed
+request: >-
+  Add cash-on-delivery ordering for B2C and B2B on web, with the seller collecting cash at
+  delivery. A COD order is a confirmed, canonical order that is never marked paid; the seller
+  records cash collection, and Bazarbee carries a fee/TCS receivable instead of a payout.
+type: cod-seller-collected
+extends: []
+related:
+- CHG-020
+- CHG-093
+- CHG-098
+requested_by: human-requester
+requested_at_utc: '2026-11-20'
+approval_required: true
+approved_by: null
+approved_at_utc: null
+approval_source: null
+approval_scope: null
+implementation_authorized: false
+staging_data_write_authorized: false
+staging_deployment_authorized: false
+production_release_authorized: false
+
+lane: C
+release_mechanism:
+- api+ui
+- image-rebuild
+- governed-data-update
+release_under_test: null
+environment: staging
+
+design_reference: docs/architecture/payments-cod.md
+
+outcome: >-
+  A signed-in B2C or B2B buyer can place a COD order where the seller delivers and collects cash.
+  The order is confirmed with cash due and no payment captured. The seller records collection in the
+  seller portal, an admin can correct it with a reason and audit row, and no COD order is ever shown
+  as paid or refunded by Bazarbee.
+
+requirements:
+- id: R1
+  name: COD order placement
+  outcome: Checkout can submit payment_method=cod; a canonical order is created with payment_status=cod_pending and no gateway session.
+  status: pending
+- id: R2
+  name: Server-side eligibility
+  outcome: COD is rejected unless the seller, pincode, category, order value and caps allow it; eligibility and amounts are server-computed.
+  status: pending
+- id: R3
+  name: Never paid
+  outcome: COD orders are labelled cash due in buyer, seller and admin surfaces; delivered alone does not set paid or collected.
+  status: pending
+- id: R4
+  name: Cash capture
+  outcome: Seller records amount collected, collector, timestamp, proof reference and shortfall against the order group; refused delivery is recorded separately.
+  status: pending
+- id: R5
+  name: Admin correction
+  outcome: An admin can correct a cash entry only with a reason, and the correction writes a privileged audit row.
+  status: pending
+- id: R6
+  name: Receivable, not payout
+  outcome: The COD ledger records commission, GST on commission, TCS and any COD fee as amounts owed by the seller; no goods payout is created and Bazarbee issues no goods payment receipt.
+  status: pending
+- id: R7
+  name: Prepaid isolation
+  outcome: Razorpay is never called for COD orders, and the existing prepaid flow and provider evidence are unchanged.
+  status: pending
+- id: R8
+  name: Verification
+  outcome: Typechecks and builds pass, COD and prepaid journeys are exercised end to end on staging, and evidence records order refs, state transitions and audit rows.
+  status: pending
+
+scope_lock:
+  allowed_paths:
+  - apps/web/app/checkout
+  - apps/web/lib
+  - apps/prototype_app/lib
+  - services/experience-api/src
+  - services/backend/packages/api/src/modules/cod-payment
+  - services/backend/packages/api/src/config
+  - services/backend/packages/api/medusa-config.ts
+  - services/backend/apps/admin/src
+  - services/backend/apps/vendor/src
+  - services/hosted/docker-compose.hosted.yml
+  - client-projects/client101/changes/CHG-099.yaml
+  - docs/architecture/payments-cod.md
+  - docs/implementation
+
+out_of_scope:
+- Credit terms and RFQ conversion.
+- GSTR-8 filing integration and fee-invoice PDF generation.
+- Carrier integration; logistics remains seller/admin manual.
+- Production release or live keys.
+- Settlement UI beyond the minimum needed to record the COD receivable.
+
+dependencies:
+- Finance/CA sign-off on the dues-statement recovery mechanism and TCS treatment.
+- Decision on delivery-fee ownership.
+- Product GST rate / HSN fields for the TCS base.
+
+verification:
+- Lane C checks: typecheck, build, idempotent schema apply.
+- End-to-end: COD order placed on web B2C and B2B, seller marks collected, admin reads it back.
+- Negative: COD rejected above cap, outside pincode, or for a non-opted-in seller.
+- Regression: Razorpay prepaid order still completes and no COD field leaks into its evidence.
+
+risks:
+- Treating COD as paid would corrupt settlement and TCS reporting.
+- Without product GST rate, TCS cannot be computed; launch must not guess.
+- A COD-only seller has no payout to offset, so the dues process is the only recovery path.
+
+open_decisions:
+- Recovery waterfall (next prepaid payout, then monthly dues statement).
+- Delivery fee ownership.
+- COD fee and caps.
+- Delivery OTP requirement.
+- Refusal/forfeiture policy legal review.
