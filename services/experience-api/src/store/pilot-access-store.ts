@@ -23,9 +23,11 @@ interface AssignmentRow {
 }
 
 export class PilotAccessStore {
+  private static readonly CACHE_TTL_MS = 5_000;
   private readonly pool: pg.Pool;
   private readonly ready: Promise<void>;
   private cache?: Map<string, PilotAccessAssignment>;
+  private cacheLoadedAt = 0;
 
   constructor(connectionString: string) {
     this.pool = new pg.Pool({ connectionString, max: 2 });
@@ -70,16 +72,27 @@ export class PilotAccessStore {
         ORDER BY user_id`,
     );
     this.cache = new Map(result.rows.map((row) => [row.user_id, this.normalize(row)]));
+    this.cacheLoadedAt = Date.now();
+    return this.cache;
+  }
+
+  private async ensureCache(): Promise<Map<string, PilotAccessAssignment>> {
+    if (
+      !this.cache ||
+      Date.now() - this.cacheLoadedAt > PilotAccessStore.CACHE_TTL_MS
+    ) {
+      return this.load();
+    }
     return this.cache;
   }
 
   async get(userId: string): Promise<PilotAccessAssignment | undefined> {
-    const cache = this.cache ?? (await this.load());
+    const cache = await this.ensureCache();
     return cache.get(userId);
   }
 
   async list(): Promise<PilotAccessAssignment[]> {
-    const cache = this.cache ?? (await this.load());
+    const cache = await this.ensureCache();
     return [...cache.values()];
   }
 
@@ -112,7 +125,10 @@ export class PilotAccessStore {
       ],
     );
     const assignment = this.normalize(result.rows[0]);
-    if (this.cache) this.cache.set(assignment.userId, assignment);
+    if (this.cache) {
+      this.cache.set(assignment.userId, assignment);
+      this.cacheLoadedAt = Date.now();
+    }
     return assignment;
   }
 

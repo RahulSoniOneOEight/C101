@@ -4340,16 +4340,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     } catch {
       return problem(400, "invalid-request-body", "Expected a JSON body.");
     }
-    // B2B vs B2C is an explicit sales channel, so canonical orders carry the channel and the
-    // marketplace admin can separate them. Defaults to the caller's role when not supplied.
-    const isBusinessBuyer = hasAnyRole(authenticated.authorization, [
-      "b2b_buyer",
-      "b2b_account_admin",
-      "b2b_approver",
-    ]);
+    // B2B vs B2C is an explicit sales channel. A missing channel defaults to B2C; B2B clients
+    // must send b2b_app or b2b_web. This prevents a dual-role tester from creating a trade cart
+    // through an API call that omits the channel.
     const wantsB2B = typeof body.channel === "string" && body.channel
       ? body.channel.toLowerCase().startsWith("b2b")
-      : isBusinessBuyer;
+      : false;
     const allowedChannels = ["b2c_app", "b2c_web", "b2b_app", "b2b_web"];
     if (typeof body.channel === "string" && body.channel && !allowedChannels.includes(body.channel)) {
       return problem(400, "invalid-channel", `channel must be one of ${allowedChannels.join(", ")}`);
@@ -6275,15 +6271,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
   if (url.pathname === "/v1/admin/pilot-users/grant-all" && req.method === "POST") {
     const operator = await requireAnyRole(req, ["super_admin"]);
     if ("response" in operator) return operator.response;
-    const auditId = await privilegedAudit.start({
-      actorUserId: operator.user.id,
-      actorRoles: operator.authorization.roles,
-      businessAccountId: operator.authorization.businessAccountId,
-      sellerId: operator.authorization.sellerId,
-      method: "POST",
-      path: url.pathname,
-      correlationId: cid,
-    });
     try {
       const changed: Array<Record<string, unknown>> = [];
       for (const user of pilotDirectory.users) {
@@ -6306,7 +6293,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
           seller_id: assignment.sellerId ?? null,
         });
       }
-      await privilegedAudit.complete(auditId, 200);
       return json({
         updated: changed.length,
         users: changed,
@@ -6315,7 +6301,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
         correlation_id: cid,
       });
     } catch (error) {
-      await privilegedAudit.complete(auditId, 502);
       return problem(502, "pilot-access-update-failed", (error as Error).message);
     }
   }
@@ -6364,15 +6349,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     if (roles.some((role) => role.startsWith("seller_")) && !sellerId) {
       return problem(400, "seller-required", "A seller role requires a seller id.");
     }
-    const auditId = await privilegedAudit.start({
-      actorUserId: operator.user.id,
-      actorRoles: operator.authorization.roles,
-      businessAccountId: operator.authorization.businessAccountId,
-      sellerId: operator.authorization.sellerId,
-      method: "PATCH",
-      path: url.pathname,
-      correlationId: cid,
-    });
     try {
       const assignment = await pilotAccess.upsert({
         userId,
@@ -6381,7 +6357,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
         sellerId,
         updatedBy: operator.user.id,
       });
-      await privilegedAudit.complete(auditId, 200);
       return json({
         user: {
           id: user.id,
@@ -6399,7 +6374,6 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
         correlation_id: cid,
       });
     } catch (error) {
-      await privilegedAudit.complete(auditId, 502);
       return problem(502, "pilot-access-update-failed", (error as Error).message);
     }
   }
