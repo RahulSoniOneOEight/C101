@@ -6,13 +6,14 @@
 **Status:** staging only; production untouched.
 
 **Implementation update (20 Nov 2026):** branding strings, stale Flutter tests, the mixed-channel
-cart guard, the Flutter chat channel-switch race, B2B Bought Together, the web chat shared-list and
-read-cursor flows, and web participant invitations are implemented. The Flutter chat flows were
-audited and verified (17/17 tests); the remaining chat gaps are the web member removal/role
-changes, draft editing, cart-build and multi-draft flows. See
-`bazarbee-brand-cart-chat-2026-11-20.md`, `bazarbee-b2b-bought-together-2026-11-20.md`,
-`bazarbee-web-chat-shared-list-2026-11-20.md` and
-`bazarbee-web-chat-invitations-2026-11-20.md`. The remaining items below are still pending.
+cart guard, the Flutter chat channel-switch race, B2B Bought Together, the web chat shared-list,
+read-cursor and invitation flows, and the web draft-edit/proposal/cart-build flows are implemented.
+The Flutter chat flows were audited and verified (17/17 tests); the remaining chat gaps are web
+member removal/role changes, revision approval requests, unread refresh and tab-strip keyboard
+navigation. See `bazarbee-brand-cart-chat-2026-11-20.md`,
+`bazarbee-b2b-bought-together-2026-11-20.md`, `bazarbee-web-chat-shared-list-2026-11-20.md`,
+`bazarbee-web-chat-invitations-2026-11-20.md` and
+`bazarbee-web-chat-draft-cart-2026-11-20.md`. The remaining items below are still pending.
 
 Already completed and excluded from this list: dual-channel access for all 21 testers, the super-admin access editor, B2C/B2B cart tagging, B2C Tryton reservation/reconciliation, and the DeepSeek Pro QC follow-ups.
 
@@ -104,13 +105,14 @@ The Flutter dock already includes the shared-list tab, invitations/participant m
 proposals, the cart-build sheet and read cursors; `conversation_dock_test.dart`,
 `cart_build_sheet_test.dart` and `workspace_screen_test.dart` pass 17/17.
 
-The **web** drawer now has a shared-list view, read cursors/unread badges, and invitation
-creation/revocation with seat counts. Remaining web gaps:
+The **web** drawer now has a shared-list view, read cursors/unread badges, invitation
+creation/revocation with seat counts, multi-draft selection, quantity/remove edits with proposal
+decisions, and a cart-build review that revalidates price, stock, seller and MOQ before adding to
+the retail cart or trade quotation cart. The build result links to the appropriate cart/quote
+page; it never submits an order. Remaining web gaps:
 
 - participant removal and role changes (no member-list/remove API)
-- draft editing/proposal decisions and revision approvals
-- cart-build sheet and checkout handoff
-- multi-draft selector
+- revision approval request UI (cart build reads approval state but the web cannot request it)
 - unread refresh while the drawer is open on another channel
 - arrow-key navigation in the tab strips
 - richer product-reference cards for app-originated shares
