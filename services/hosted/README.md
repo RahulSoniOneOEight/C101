@@ -20,8 +20,22 @@ A Cloudflare Tunnel edge is **active on staging** (`docker-compose.cloudflared.y
 zone on Cloudflare, a token in `/etc/buildkart/secrets/cloudflared.env`, and the public hostname as
 a proxied CNAME to `<tunnel-id>.cfargotunnel.com`. The operator hostname `ops.gobazarbee.com` is
 behind Cloudflare Access; the customer, API and app hosts stay outside Access. See
-`docs/architecture/cloudflare-access.md`. The `proxy` always joins the `tunnel` network so a
-base-file `up` does not detach it.
+`docs/architecture/cloudflare-access.md`.
+
+The `proxy` always joins the `tunnel` network so a base-file `up` does not detach it. It also reads
+`/etc/buildkart/secrets/edge.env` for `EDGE_SHARED_SECRET` and rejects ops-host requests that do not
+carry Cloudflare's `X-Bazarbee-Edge` header. Create that file (mode 600) before `up`:
+
+```sh
+install -m 600 /dev/null /etc/buildkart/secrets/edge.env
+printf 'EDGE_SHARED_SECRET=%s\n' "$(openssl rand -hex 24)" >> /etc/buildkart/secrets/edge.env
+```
+
+The same value must exist in the zone's `http_request_late_transform` rule for the ops host. Keep the
+two in step; a missing or mismatched value returns `403` on the ops host.
+
+The hostname table above is the default example. Staging now uses `gobazarbee.com` for the app host
+and `ops.gobazarbee.com` for the operator host.
 
 ### Recreating services and the edge
 

@@ -9,11 +9,27 @@ http {
   access_log /dev/stdout structured;
   error_log /dev/stderr warn;
   server_tokens off;
+  map_hash_bucket_size 256;
 
   limit_req_zone $binary_remote_addr zone=pilot_api:10m rate=10r/s;
   map $http_upgrade $connection_upgrade {
     default upgrade;
     '' close;
+  }
+
+  # Origin lock for the operator host. Cloudflare adds X-Bazarbee-Edge for ops.gobazarbee.com; a
+  # direct request to the origin with a spoofed Host header does not carry it and is rejected.
+  map $host $edge_ops_host {
+    default 0;
+    "$PUBLIC_OPS_HOSTNAME" 1;
+  }
+  map $http_x_bazarbee_edge $edge_header {
+    default 0;
+    "$EDGE_SHARED_SECRET" 1;
+  }
+  map "$edge_ops_host$edge_header" $deny_ops_direct {
+    default 0;
+    "10" 1;
   }
 
   upstream experience_api { server experience-api:9020; }
@@ -33,6 +49,11 @@ http {
     proxy_set_header Connection $connection_upgrade;
     proxy_connect_timeout 5s;
     proxy_read_timeout 30s;
+
+    # The operator host is only served to requests that came through Cloudflare.
+    if ($deny_ops_direct = 1) {
+      return 403;
+    }
 
     location = /health {
       proxy_pass http://experience_api/health;

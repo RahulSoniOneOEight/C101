@@ -125,19 +125,30 @@ IPs and return `502` even while containers are healthy.
 
 ```sh
 curl -fsS https://api-staging.pinakaplay.cloud/health
-curl -fsS https://ops.gobazarbee.com/health
-curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/dashboard/
-curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/seller/
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/dashboard/   # 302 from Access
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/seller/      # 302 from Access
 ```
 
-Hosted acceptance uses host networking because the container cannot resolve the public hostname:
+`ops.gobazarbee.com` is fully behind Access, including `/health`. Probe health from inside the
+proxy instead:
 
 ```sh
 ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164 \
-  "docker run --rm --network host \
+  "docker exec buildkart-hosted-pilot-proxy-1 sh -c \
+    'wget -qO- --header=\"Host: ops.gobazarbee.com\" --header=\"X-Bazarbee-Edge: \$EDGE_SHARED_SECRET\" http://127.0.0.1:8080/health'"
+```
+
+A request to the origin with the ops Host but without the edge header returns `403`.
+
+Hosted acceptance reaches the API over the public host. The operator checks target the proxy directly
+on the tunnel network because `ops.gobazarbee.com` is now behind Access and the edge header:
+
+```sh
+ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164 \
+  "docker run --rm --network buildkart-hosted-pilot_tunnel \
     --env-file /etc/buildkart/secrets/experience-api.env \
     -e EXPERIENCE_BASE_URL=https://api-staging.pinakaplay.cloud \
-    -e EXPERIENCE_OPS_BASE_URL=https://ops.gobazarbee.com \
+    -e EXPERIENCE_OPS_BASE_URL=http://proxy:8080 \
     buildkart-hosted-pilot-experience-api \
     bun run src/scripts/hosted-acceptance.ts"
 ```

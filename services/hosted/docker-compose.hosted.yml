@@ -246,11 +246,13 @@ services:
     command:
       - /bin/sh
       - -c
-      - envsubst '$$PUBLIC_API_HOSTNAME $$PUBLIC_OPS_HOSTNAME $$PUBLIC_APP_HOSTNAME' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
+      - envsubst '$$PUBLIC_API_HOSTNAME $$PUBLIC_OPS_HOSTNAME $$PUBLIC_APP_HOSTNAME $$EDGE_SHARED_SECRET' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'
     environment:
       PUBLIC_API_HOSTNAME: ${PUBLIC_API_HOSTNAME:?set PUBLIC_API_HOSTNAME}
       PUBLIC_OPS_HOSTNAME: ${PUBLIC_OPS_HOSTNAME:?set PUBLIC_OPS_HOSTNAME}
       PUBLIC_APP_HOSTNAME: ${PUBLIC_APP_HOSTNAME:?set PUBLIC_APP_HOSTNAME}
+    # EDGE_SHARED_SECRET, matched against the header Cloudflare adds for the ops host.
+    env_file: /etc/buildkart/secrets/edge.env
     volumes:
       - ./nginx.conf.template:/etc/nginx/nginx.conf.template:ro
     depends_on:
