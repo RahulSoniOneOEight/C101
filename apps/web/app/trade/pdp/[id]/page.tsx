@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
+  getBoughtTogether,
   getMyContexts,
   getTradeProduct,
   hasTradeRole,
@@ -113,6 +114,9 @@ export default async function TradePdpPage({
     product.variants?.find((variant) => variant.best_price)?.best_price ??
     null;
   const pricedProduct: ComposedProduct = offer ? { ...product, best_price: offer } : product;
+  const pair = offer ? await getBoughtTogether(product.id, offer.sku, "b2b", token) : null;
+  const paired = pair?.paired ?? null;
+  const pairedOffer = paired?.best_price ?? null;
   const stock = productStockNote(offer);
   const delivery = productDeliveryNote(product) ?? `Standard delivery · ${deliveryPromise(product).label}`;
   const category = product.categories?.[0]?.name;
@@ -235,6 +239,50 @@ export default async function TradePdpPage({
           ) : null}
         </div>
       </div>
+
+      {paired ? (
+        <section className="pair-block">
+          <span className="eyebrow">Complete the job</span>
+          <h2>Bought together</h2>
+          <p className="muted">Recommended trade line for this item.</p>
+          <div className="pair-grid">
+            <div className="card pair-card">
+              <p className="muted">This item</p>
+              <p className="card-title">{product.title}</p>
+              {offer ? (
+                <p className="price">
+                  {formatMoney(offer.unit_amount_minor, offer.currency_code)}
+                </p>
+              ) : null}
+            </div>
+            <p className="pair-plus" aria-hidden="true">
+              +
+            </p>
+            <div className="card pair-card">
+              <p className="muted">Pair with</p>
+              <p className="card-title">{paired.title}</p>
+              {pairedOffer ? (
+                <>
+                  <p className="price">
+                    {formatMoney(pairedOffer.unit_amount_minor, pairedOffer.currency_code)}
+                  </p>
+                  <p className="muted">
+                    MOQ {pairedOffer.b2b_moq ?? 1} ·{" "}
+                    {pairedOffer.seller_name ?? pairedOffer.seller_id}
+                  </p>
+                </>
+              ) : (
+                <p className="muted">No active trade offer for this line.</p>
+              )}
+              <p>
+                <Link className="button" href={`/trade/pdp/${encodeURIComponent(paired.id)}`}>
+                  View trade product
+                </Link>
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       {related.length > 0 ? (
         <section className="section">

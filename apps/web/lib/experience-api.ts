@@ -960,12 +960,14 @@ export async function getBoughtTogether(
   productId: string,
   sku: string | null | undefined,
   channel: "b2c" | "b2b" = "b2c",
+  sessionToken?: string,
 ): Promise<BoughtTogetherResult | null> {
   const query = new URLSearchParams({ channel });
   if (sku) query.set("sku", sku);
   try {
     const data = await call<BoughtTogetherResult>(
       `/v1/products/${encodeURIComponent(productId)}/bought-together?${query.toString()}`,
+      sessionToken ? { headers: authenticatedHeaders(sessionToken) } : undefined,
     );
     return data?.pair_id ? data : null;
   } catch {
