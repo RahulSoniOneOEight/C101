@@ -106,11 +106,11 @@ Production additions:
 
 ## 9. Current state
 
-- customer directory and realm-scoped sessions are implemented behind `IDENTITY_MODE=directory`
-- staging still runs `IDENTITY_MODE=pilot`; production requires directory
-- admin/seller use Mercur email/password
-- ERP uses Tryton username/password
+- customer directory and realm-scoped sessions are live on staging in `IDENTITY_MODE=directory`
+- 21 pilot identities were migrated with their roles; staging uses email codes with preview codes
+- web and Flutter sign in with email code; Flutter sends a device id for auth rate limiting
+- Cloudflare Access, IdP groups and Turnstile keys are still pending account configuration
+- admin/seller use Mercur email/password; ERP uses Tryton username/password
 - admin password was temporarily set to `supersecret` during QC — rotate immediately
-- Cloudflare Access is not yet in front of `ops-staging`
-- production boot requires directory mode and an email sender
-- Flutter still calls the pilot OTP endpoint; production Flutter must switch to email code/magic link
+- production email delivery still needs a verified Resend sender
+- production starts with an empty customer directory

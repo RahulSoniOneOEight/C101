@@ -23,6 +23,7 @@ import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
 import { CodStore, currentPeriod, type CodOrderDue } from "./store/cod-store.js";
 import { CustomerIdentityStore } from "./auth/customer-identity.js";
 import { RealmSessionStore } from "./auth/realm-session.js";
+import { AuthRateLimiter } from "./auth/rate-limit.js";
 import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
@@ -171,6 +172,7 @@ const customerSessions = new RealmSessionStore(
   "bazarbee:customer-auth:v1",
   config.customerSessionTtlSeconds,
 );
+const authRateLimiter = new AuthRateLimiter(config.redisUrl);
 const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
   config.redisUrl,
@@ -275,7 +277,7 @@ const json = (body: unknown, status = 200) =>
     headers: {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
-      "access-control-allow-headers": "authorization, content-type, idempotency-key, x-correlation-id",
+      "access-control-allow-headers": "authorization, content-type, idempotency-key, x-device-id, x-correlation-id",
       "access-control-allow-methods": "GET, POST, PATCH, OPTIONS",
     },
   });
@@ -401,6 +403,55 @@ async function issueUserSession(userId: string): Promise<{
     return customerSessions.issueSession(userId);
   }
   return pilotAuth.issueSession(userId);
+}
+
+function clientAddress(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    forwarded ||
+    req.headers.get("x-real-ip")?.trim() ||
+    "unknown"
+  );
+}
+
+async function enforceAuthRateLimit(
+  req: Request,
+  bucket: string,
+  options: { ipLimit?: number; deviceLimit?: number; windowSeconds?: number } = {},
+): Promise<Response | null> {
+  const windowSeconds = options.windowSeconds ?? 600;
+  try {
+    const ip = await authRateLimiter.hit(
+      `${bucket}:ip`,
+      clientAddress(req),
+      options.ipLimit ?? 10,
+      windowSeconds,
+    );
+    if (!ip.allowed) {
+      return problem(429, "rate-limited", "Too many attempts. Try again later.", {
+        retry_after_seconds: ip.retryAfterSeconds,
+      });
+    }
+    const device = req.headers.get("x-device-id")?.trim();
+    if (device) {
+      const result = await authRateLimiter.hit(
+        `${bucket}:device`,
+        device.slice(0, 200),
+        options.deviceLimit ?? 5,
+        windowSeconds,
+      );
+      if (!result.allowed) {
+        return problem(429, "rate-limited", "Too many attempts. Try again later.", {
+          retry_after_seconds: result.retryAfterSeconds,
+        });
+      }
+    }
+    return null;
+  } catch (error) {
+    console.warn("[experience-api] auth rate limiter unavailable:", (error as Error).message);
+    return problem(503, "rate-limit-unavailable", "Sign-in is temporarily unavailable.");
+  }
 }
 
 /**
@@ -2815,7 +2866,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       status: 204,
       headers: {
         "access-control-allow-origin": "*",
-        "access-control-allow-headers": "authorization, content-type, idempotency-key, x-correlation-id",
+        "access-control-allow-headers": "authorization, content-type, idempotency-key, x-device-id, x-correlation-id",
         "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
       },
     });
@@ -2920,6 +2971,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       payment_mode: config.paymentAdapterMode,
       nats: nats.connected ? "connected" : "disconnected",
       identity_store: identityStore,
+      identity_mode: config.identityMode,
       pilot_user_count: pilotDirectory.users.length,
       cms_adapter: cmsContent.enabled ? "configured" : "governed-seed-fallback",
       test_data: config.environment !== "production",
@@ -2969,6 +3021,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/email/code — email a six-digit sign-in code.
   if (url.pathname === "/v1/auth/email/code" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "email-code", {
+      ipLimit: 10,
+      deviceLimit: 5,
+    });
+    if (limited) return limited;
     let body: { email?: string };
     try {
       body = (await req.json()) as { email?: string };
@@ -3015,6 +3072,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/email/verify — verify an email code and issue a session.
   if (url.pathname === "/v1/auth/email/verify" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "email-verify", {
+      ipLimit: 30,
+      deviceLimit: 15,
+    });
+    if (limited) return limited;
     let body: { challenge_id?: string; code?: string };
     try {
       body = (await req.json()) as { challenge_id?: string; code?: string };
@@ -3047,6 +3109,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/email/magic-link — email a single-use sign-in link.
   if (url.pathname === "/v1/auth/email/magic-link" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "email-magic", {
+      ipLimit: 10,
+      deviceLimit: 5,
+    });
+    if (limited) return limited;
     let body: { email?: string };
     try {
       body = (await req.json()) as { email?: string };
@@ -3093,6 +3160,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/email/magic/verify — consume a magic link and issue a session.
   if (url.pathname === "/v1/auth/email/magic/verify" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "magic-verify", {
+      ipLimit: 30,
+      deviceLimit: 15,
+    });
+    if (limited) return limited;
     let body: { token?: string };
     try {
       body = (await req.json()) as { token?: string };
@@ -3124,6 +3196,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/otp/challenges — issue a simulated OTP challenge (allowlisted pilot users only)
   if (url.pathname === "/v1/auth/otp/challenges" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "otp-challenge", {
+      ipLimit: 10,
+      deviceLimit: 5,
+    });
+    if (limited) return limited;
     let body: { identifier?: string };
     try {
       body = (await req.json()) as { identifier?: string };
@@ -3153,6 +3230,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
 
   // POST /v1/auth/otp/verify — verify the simulated OTP and return a pilot session
   if (url.pathname === "/v1/auth/otp/verify" && req.method === "POST") {
+    const limited = await enforceAuthRateLimit(req, "otp-verify", {
+      ipLimit: 30,
+      deviceLimit: 15,
+    });
+    if (limited) return limited;
     let body: { challenge_id?: string; code?: string };
     try {
       body = (await req.json()) as { challenge_id?: string; code?: string };

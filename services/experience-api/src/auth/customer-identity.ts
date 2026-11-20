@@ -154,6 +154,23 @@ export class CustomerIdentityStore {
     return row ? toIdentity(row) : null;
   }
 
+  async setAuthorization(
+    id: string,
+    roles: string[],
+    businessAccountId: string | null,
+  ): Promise<CustomerIdentity | null> {
+    await this.ready;
+    const result = await this.pool.query(
+      `UPDATE customer_identity
+          SET roles = $2, business_account_id = $3
+        WHERE id = $1
+        RETURNING *`,
+      [id, roles, businessAccountId],
+    );
+    const row = result.rows[0] as CustomerRow | undefined;
+    return row ? toIdentity(row) : null;
+  }
+
   async close(): Promise<void> {
     await this.pool.end();
   }

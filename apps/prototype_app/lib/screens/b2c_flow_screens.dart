@@ -192,11 +192,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  /// Accepts a pilot email or an India phone number (prefix +91 applied).
+  /// Email-only sign-in. Phone OTP is retired in favour of email code and magic link.
   String _identifier() {
     final text = _identifierController.text.trim();
-    if (text.contains('@')) return text;
-    return '+91$text';
+    if (!text.contains('@')) {
+      throw StateError('Enter a valid email address.');
+    }
+    return text.toLowerCase();
   }
 
   Future<void> _requestOtp() async {
@@ -263,7 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       color: colors.contentPrimary)),
               if (_isB2B) ...<Widget>[
                 const SizedBox(height: AgencySpacing.sm),
-                Text('Enter your phone to access wholesale pricing & credit.',
+                Text('Enter your business email to access wholesale pricing.',
                     style: TextStyle(
                         fontSize: 13, color: colors.contentSecondary)),
               ],
@@ -271,7 +273,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               TextField(
                 controller: _identifierController,
                 decoration: InputDecoration(
-                  hintText: 'Pilot email or 10-digit phone',
+                  hintText: 'Email address',
                   filled: true,
                   fillColor: colors.surfaceInteractive,
                   border: OutlineInputBorder(
@@ -298,7 +300,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     backgroundColor: colors.actionPrimary,
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  child: Text(_busy ? 'Sending…' : 'Get OTP'),
+                  child: Text(_busy ? 'Sending…' : 'Email me a code'),
                 ),
               ),
               if (_isB2B) ...<Widget>[
@@ -367,14 +369,19 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = _c(context);
+    final challenge = ref.watch(pilotOtpProvider);
+    final previewCode = challenge?['preview_code'] as String?;
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify OTP')),
+      appBar: AppBar(title: const Text('Check your email')),
       body: Padding(
         padding: const EdgeInsets.all(AgencySpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Text('Enter the 6-digit code (pilot test code: 123456)',
+            Text(
+                previewCode != null
+                    ? 'Staging preview code: $previewCode'
+                    : 'Enter the 6-digit code we emailed you.',
                 style: TextStyle(fontSize: 13, color: colors.contentSecondary)),
             const SizedBox(height: AgencySpacing.lg),
             TextField(

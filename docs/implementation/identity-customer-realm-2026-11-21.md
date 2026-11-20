@@ -1,7 +1,7 @@
 # Customer identity realm — 2026-11-21
 
-Status: **implemented and tested in directory mode on staging** · staging still runs pilot mode ·
-Cloudflare Access not yet configured.
+Status: **live on staging in directory mode** · customer identities migrated · Flutter uses email
+code · Cloudflare Access/IdP and Turnstile keys still pending.
 
 ## 1. What changed
 
@@ -16,8 +16,8 @@ Cloudflare Access not yet configured.
 - Email auth Redis prefix is realm-scoped (`bazarbee:customer-email-auth:v1`).
 - Login responses report `test_data: false` in production.
 
-Staging remains `IDENTITY_MODE=pilot`; pilot OTP and the 21 tester identities are unchanged.
-
+Staging now runs `IDENTITY_MODE=directory`. The 21 pilot identities were migrated into
+`customer_identity` with their roles and business accounts, so B2B testers keep their channel.
 ## 2. Verification
 
 A temporary API instance was started with:
@@ -46,27 +46,76 @@ disable   status disabled
 recreate  null (disabled users are not reactivated)
 ```
 
+### Staging rollout
+
+`IDENTITY_MODE=directory` is now live on staging. The previous secret file is kept as
+`experience-api.env.pre-directory`.
+
+The 21 pilot identities were migrated with their role assignments:
+
+```text
+rsoni001@gmail.com          customer, b2b_buyer   business_bazarbee_pilot
+buyer.b2b01@…               b2b_buyer, customer   business_arjun_traders
+buyer.b2b02@…               b2b_buyer, customer   business_shakti_hardware
+admin.b2b01@…               b2b_account_admin, customer, b2b_buyer
+approver.b2b01@…            b2b_approver, customer, b2b_buyer
+```
+
+Web sign-in:
+
+```text
+/sign-in → email code → staging preview code → signed in at /orders
+header shows Shop / Trade (B2B role preserved)
+zero page errors
+```
+
+Flutter sign-in:
+
+```text
+Email address → Email me a code → “Staging preview code: …” → Verify
+lands on home, B2B trade entry present
+zero page errors
+```
+
+### Rate limiting
+
+Auth endpoints now enforce fixed-window limits in Redis:
+
+```text
+code / magic / OTP challenge   10 per 10 min per IP · 5 per 10 min per device
+code / magic / OTP verify      30 per 10 min per IP · 15 per 10 min per device
+```
+
+A 429 was observed during testing, confirming the limiter. Test buckets were cleared for the QC
+rerun. Flutter now sends a persistent `x-device-id`; CORS allows that header.
+
 ## 3. Files
 
 ```text
 services/experience-api/src/auth/customer-identity.ts
 services/experience-api/src/auth/realm-session.ts
+services/experience-api/src/auth/rate-limit.ts
 services/experience-api/src/auth/email-auth.ts
 services/experience-api/src/config.ts
 services/experience-api/src/index.ts
+services/experience-api/src/scripts/migrate-pilot-identities.ts
+apps/prototype_app/lib/data/experience_api.dart
+apps/prototype_app/lib/screens/b2c_flow_screens.dart
 ```
 
 ## 4. Not done
 
-- Cloudflare Access for ops/seller/ERP — see `docs/architecture/cloudflare-access.md`.
-- Seller and admin identity realms are still Mercur passwords.
-- Flutter still uses `/v1/auth/otp/challenges`; production Flutter must switch to email code/magic
-  link or the endpoint must proxy email OTP in directory mode.
-- No production user migration yet; production starts with an empty directory.
+- Cloudflare Access for ops/seller/ERP — needs the Cloudflare account, zone and IdP; see
+  `docs/architecture/cloudflare-access.md`.
+- Cloudflare Turnstile keys are not installed; bot protection currently means rate limits only.
+- Seller and admin identity realms are still Mercur passwords. Access + MFA would make the password a
+  second factor, but a true SSO bridge is not implemented.
+- Production email delivery still needs a verified Resend sender with SPF/DKIM/DMARC.
 - No admin UI for disabling customers; the store has `setStatus` for an operator endpoint.
-- Rate limiting is still email-based; per-IP/device and bot protection remain.
+- No production user migration; production starts with an empty directory.
 
 ## 5. Release
 
-- API `release-api-20261120-194119`
-- Staging identity mode remains `pilot`
+- API `release-api-20261120-195556`
+- Flutter `/opt/buildkart-flutter/web` (backup `web.bak-cod-20261120-195509`)
+- Staging identity mode: `directory`

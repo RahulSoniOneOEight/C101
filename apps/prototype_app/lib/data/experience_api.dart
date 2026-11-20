@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -25,6 +27,7 @@ class ExperienceApi {
   static const _sessionEmailKey = 'pilot_session_email_v1';
   static const _sessionNameKey = 'pilot_session_name_v1';
   static const _sessionUserIdKey = 'pilot_session_user_id_v1';
+  static const _deviceIdKey = 'bazarbee_device_id_v1';
 
   /// Email of the authenticated pilot, when known.
   ///
@@ -43,6 +46,20 @@ class ExperienceApi {
   String? _sessionUserId;
 
   String? get sessionUserId => _sessionUserId;
+
+  /// Stable per-install device id used for auth rate limiting.
+  Future<void> _applyDeviceHeader() async {
+    var deviceId = await _secureStorage.read(key: _deviceIdKey);
+    if (deviceId == null || deviceId.length < 8) {
+      final random = Random.secure();
+      deviceId = List.generate(
+        16,
+        (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ).join();
+      await _secureStorage.write(key: _deviceIdKey, value: deviceId);
+    }
+    _dio.options.headers['x-device-id'] = deviceId;
+  }
 
   /// Retries a read once or twice on a transient gateway failure.
   ///
@@ -67,17 +84,19 @@ class ExperienceApi {
   }
 
   Future<Map<String, dynamic>> requestOtp(String identifier) async {
+    await _applyDeviceHeader();
     final res = await _dio.post<Map<String, dynamic>>(
-      '/v1/auth/otp/challenges',
-      data: {'identifier': identifier},
+      '/v1/auth/email/code',
+      data: {'email': identifier},
     );
     return res.data!;
   }
 
   Future<Map<String, dynamic>> verifyOtp(
       String challengeId, String code) async {
+    await _applyDeviceHeader();
     final res = await _dio.post<Map<String, dynamic>>(
-      '/v1/auth/otp/verify',
+      '/v1/auth/email/verify',
       data: {'challenge_id': challengeId, 'code': code},
     );
     final token = res.data?['session_token'] as String?;
