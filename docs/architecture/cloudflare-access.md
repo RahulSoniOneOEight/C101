@@ -98,7 +98,21 @@ gate.
 
 ## 6. Current state
 
-- `ops-staging.pinakaplay.cloud` is not behind Access
+- `ops-staging.pinakaplay.cloud` is not behind Access; `/dashboard` returns 200 directly from nginx
 - admin/seller/ERP still use application passwords
 - the staging admin password was temporarily set to `supersecret` for QC
 - this document is the production configuration baseline, not evidence of completion
+
+## 7. Status check — 2026-11-21
+
+| Check | Result |
+|---|---|
+| Supplied Cloudflare API token | `401 Invalid API Token` — cannot query accounts, Access apps, groups or IdPs |
+| `gobazarbee.com` nameservers | Hostinger parking (`horizon/orbit.dns-parking.com`), not Cloudflare |
+| `pinakaplay.cloud` nameservers | Hostinger parking (`aurora/nebula.dns-parking.com`) |
+| `ops-staging.pinakaplay.cloud` | resolves to `89.116.20.164`, served directly by nginx; no `cf-ray`, no Access redirect |
+| `bazarbee.com` | resolves to `74.220.199.6`; connection times out, not serving the app |
+
+Access cannot be enabled until the zone is on Cloudflare nameservers and the ops host is proxied
+through Cloudflare (orange cloud or Tunnel). A valid API token with Access: Apps/Groups/IdP read-write
+is also required.
