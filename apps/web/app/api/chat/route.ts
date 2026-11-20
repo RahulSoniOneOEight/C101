@@ -5,11 +5,14 @@ import {
   PILOT_SESSION_COOKIE,
   createHouseholdProject,
   getWorkspaceDraft,
+  getWorkspaceInvitations,
+  inviteWorkspaceParticipant,
   listWorkspaceChannels,
   listWorkspaceDrafts,
   listWorkspaceMessages,
   listWorkspaces,
   markWorkspaceRead,
+  revokeWorkspaceInvitation,
   sendWorkspaceMessage,
   shareWorkspaceProduct,
 } from "@/lib/experience-api";
@@ -25,7 +28,15 @@ export async function GET(request: Request) {
   const workspaceId = url.searchParams.get("workspace");
   const draftsWorkspace = url.searchParams.get("drafts");
   const draftId = url.searchParams.get("draft");
+  const invitationsWorkspace = url.searchParams.get("invitations");
   try {
+    if (invitationsWorkspace) {
+      const page = await getWorkspaceInvitations(token, invitationsWorkspace);
+      return NextResponse.json(
+        { page },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
     if (draftsWorkspace) {
       const drafts = await listWorkspaceDrafts(token, draftsWorkspace);
       return NextResponse.json(
@@ -89,6 +100,9 @@ export async function POST(request: Request) {
     currency?: unknown;
     sellerName?: unknown;
     sequence?: unknown;
+    workspaceId?: unknown;
+    email?: unknown;
+    invitationId?: unknown;
   } = {};
   try {
     body = (await request.json()) as typeof body;
@@ -115,6 +129,31 @@ export async function POST(request: Request) {
       }
       const message = await sendWorkspaceMessage(token, channelId, text.slice(0, 4000));
       return NextResponse.json({ message }, { headers: { "cache-control": "no-store" } });
+    }
+    if (body.action === "invite") {
+      const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId.trim() : "";
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+      if (!workspaceId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return NextResponse.json(
+          { error: "A workspace and a valid email are required." },
+          { status: 400 },
+        );
+      }
+      const created = await inviteWorkspaceParticipant(token, workspaceId, email);
+      return NextResponse.json(created, { headers: { "cache-control": "no-store" } });
+    }
+    if (body.action === "revoke-invite") {
+      const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId.trim() : "";
+      const invitationId =
+        typeof body.invitationId === "string" ? body.invitationId.trim() : "";
+      if (!workspaceId || !invitationId) {
+        return NextResponse.json(
+          { error: "A workspace and invitation are required." },
+          { status: 400 },
+        );
+      }
+      await revokeWorkspaceInvitation(token, workspaceId, invitationId);
+      return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
     }
     if (body.action === "mark-read") {
       const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";

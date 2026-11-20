@@ -882,6 +882,27 @@ export interface WorkspaceDraftView {
   proposals: WorkspaceDraftProposal[];
 }
 
+export interface WorkspaceInvitation {
+  id: string;
+  invitee_email: string;
+  status: string;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  revoked_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface WorkspaceInvitationPage {
+  invitations: WorkspaceInvitation[];
+  participants: number;
+  capacity: number;
+}
+
+export interface WorkspaceInvitationCreated {
+  invitation: WorkspaceInvitation;
+  invite_token: string;
+}
+
 export async function listWorkspaceDrafts(
   sessionToken: string,
   workspaceId: string,
@@ -913,6 +934,45 @@ export async function markWorkspaceRead(
     headers: authenticatedHeaders(sessionToken),
     body: JSON.stringify({ last_event_sequence: sequence }),
   });
+}
+
+export async function getWorkspaceInvitations(
+  sessionToken: string,
+  workspaceId: string,
+): Promise<WorkspaceInvitationPage> {
+  return call<WorkspaceInvitationPage>(
+    `/v1/workspaces/${encodeURIComponent(workspaceId)}/invitations`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+}
+
+export async function inviteWorkspaceParticipant(
+  sessionToken: string,
+  workspaceId: string,
+  email: string,
+): Promise<WorkspaceInvitationCreated> {
+  return call<WorkspaceInvitationCreated>(
+    `/v1/workspaces/${encodeURIComponent(workspaceId)}/invitations`,
+    {
+      method: "POST",
+      headers: authenticatedHeaders(sessionToken),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    },
+  );
+}
+
+export async function revokeWorkspaceInvitation(
+  sessionToken: string,
+  workspaceId: string,
+  invitationId: string,
+): Promise<void> {
+  await call<void>(
+    `/v1/workspaces/${encodeURIComponent(workspaceId)}/invitations/${encodeURIComponent(invitationId)}/revoke`,
+    {
+      method: "POST",
+      headers: authenticatedHeaders(sessionToken),
+    },
+  );
 }
 
 export async function listWorkspaceMessages(
