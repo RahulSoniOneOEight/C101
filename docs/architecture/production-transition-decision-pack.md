@@ -68,3 +68,9 @@ Each gate decision is approved only when its record links:
 - Consequential actions remain audited; super-admin actions require independent second approval.
 - Notification and integration failures must never alter canonical order success.
 - All numeric RPO/RTO, SLO and performance targets require explicit human approval.
+
+## 7. Accepted business exceptions
+
+Tax/TCS and COD finance/legal items accepted on 2026-11-21 are recorded in
+`docs/architecture/production-exceptions-2026-11-21.md`. They are removed from the technical
+blocker list but are not gate passes and do not authorize release without `D-020-12`.

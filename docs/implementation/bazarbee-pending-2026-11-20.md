@@ -112,6 +112,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
   (admin, reason required) and COD-backed settlement statements were implemented and closed on
   2026-11-21; the staging deploy and runtime QC are tracked as release work, not as open design work.
   See `bazarbee-cod-commission-statements-2026-11-21.md`.
+  Tax/TCS and COD finance/legal items are **accepted business exceptions** as of 2026-11-21, not
+  completed controls: 18% TCS default, no product GST rates, manual fee invoice/GSTR-8/reconciliation,
+  deferred CA sign-off, and manual COD dues/refunds/delivery-fee policy. See
+  `docs/architecture/production-exceptions-2026-11-21.md`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.
