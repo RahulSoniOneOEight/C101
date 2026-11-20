@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:prototype_app/app.dart';
@@ -64,6 +65,16 @@ void main() {
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
 
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Image &&
+            widget.image is AssetImage &&
+            (widget.image as AssetImage).assetName ==
+                'assets/branding/bazarbee-logo-light.png',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Get OTP'), findsOneWidget);
     expect(find.text('Sign In'), findsNothing);
