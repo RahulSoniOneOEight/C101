@@ -27,6 +27,7 @@ import { AuthRateLimiter } from "./auth/rate-limit.js";
 import { AccessJwtVerifier } from "./auth/ops-access-jwt.js";
 import { OpsGate, OPS_SESSION_COOKIE, readCookie } from "./auth/ops-gate.js";
 import { OpsSessionStore } from "./auth/ops-session.js";
+import { CloudflareAccessGroupSync } from "./auth/ops-cloudflare-sync.js";
 import { decodeOpsEncryptionKey, OpsStaffStore, type OpsStaff, type OpsStaffRole } from "./auth/ops-staff.js";
 import {
   issueFormToken,
@@ -208,8 +209,41 @@ const opsContext = (() => {
   });
   const gate = new OpsGate({ mode: config.opsTotpGate, staff, sessions, verifier });
   const formKey = createHmac("sha256", masterKey).update("ops-form-csrf-v1").digest();
-  return { staff, sessions, verifier, gate, formKey };
+  const groupSync = config.cloudflareAccessSyncEnabled
+    ? new CloudflareAccessGroupSync({
+        accountId: config.cloudflareAccountId as string,
+        apiToken: config.cloudflareAccessApiToken as string,
+        staffGroupId: config.cloudflareAccessStaffGroupId as string,
+        erpGroupId: config.cloudflareAccessErpGroupId as string,
+      })
+    : null;
+  return { staff, sessions, verifier, gate, formKey, groupSync };
 })();
+
+if (opsContext?.groupSync) {
+  const sync = opsContext.groupSync;
+  const reconcile = async () => {
+    try {
+      const staff = await opsContext.staff.list();
+      const result = await sync.reconcile(
+        staff.map((person) => ({
+          email: person.email,
+          roles: person.roles,
+          status: person.status,
+        })),
+      );
+      if (!result.ok) {
+        console.error("[ops-sync] reconciliation failed:", result.errors.join("; "));
+      }
+    } catch (error) {
+      console.error("[ops-sync] reconciliation crashed:", (error as Error).message);
+    }
+  };
+  const boot = setTimeout(reconcile, 15_000) as unknown as { unref?: () => void };
+  boot.unref?.();
+  const timer = setInterval(reconcile, 5 * 60 * 1000) as unknown as { unref?: () => void };
+  timer.unref?.();
+}
 const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
   config.redisUrl,
@@ -625,6 +659,20 @@ async function superadminChangeGuard(
   }
   if (lastActiveSuperadmin(all, targetEmail)) {
     return "The last active superadmin cannot be disabled or demoted.";
+  }
+  return null;
+}
+
+async function syncOpsStaff(person: OpsStaff): Promise<string | null> {
+  if (!opsContext?.groupSync) return null;
+  const result = await opsContext.groupSync.syncUser({
+    email: person.email,
+    roles: person.roles,
+    status: person.status,
+  });
+  if (!result.ok) {
+    console.error("[ops-sync] Cloudflare group sync failed:", person.email, result.errors.join("; "));
+    return "Cloudflare Access group sync failed; the app gate still applies and reconciliation will retry.";
   }
   return null;
 }
@@ -3592,9 +3640,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           actorEmail: auth.actor.email,
           reason,
         });
+        const warning = await syncOpsStaff(created);
+        if (warning) return back("error", warning);
         return back(
           "message",
-          `Invited ${created.email}. Add the address to the Access group before they can enrol.`,
+          `Invited ${created.email} and synced the Access group. They can now enrol.`,
         );
       }
       if (action === "roles") {
@@ -3607,7 +3657,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           reason,
         );
         if (!updated) return back("error", "Staff user not found.");
-        return back("message", `Roles updated for ${updated.email}.`);
+        const warning = await syncOpsStaff(updated);
+        if (warning) return back("error", warning);
+        return back("message", `Roles updated for ${updated.email} and synced.`);
       }
       if (action === "status") {
         const nextStatus =
@@ -3628,7 +3680,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           reason,
         );
         if (!updated) return back("error", "Staff user not found.");
-        return back("message", `${updated.email} is now ${updated.status}.`);
+        const warning = await syncOpsStaff(updated);
+        if (warning) return back("error", warning);
+        return back("message", `${updated.email} is now ${updated.status} and synced.`);
       }
       if (action === "reset-totp") {
         const updated = await opsContext.staff.resetEnrollment(email, auth.actor.email, reason);
@@ -3691,7 +3745,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         actorEmail: auth.actor.email,
         reason,
       });
-      return json({ staff: created }, 201);
+      const warning = await syncOpsStaff(created);
+      return json({ staff: created, sync_warning: warning }, 201);
     } catch (error) {
       return problem(400, "staff-create-failed", (error as Error).message);
     }
@@ -3723,7 +3778,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         reason,
       );
       if (!updated) return problem(404, "not-found");
-      return json({ staff: updated });
+      const warning = await syncOpsStaff(updated);
+      return json({ staff: updated, sync_warning: warning });
     } catch (error) {
       return problem(400, "staff-update-failed", (error as Error).message);
     }
@@ -3750,7 +3806,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (guard) return problem(409, "superadmin-guard", guard);
     const updated = await opsContext.staff.setStatus(email, status, auth.actor.email, reason);
     if (!updated) return problem(404, "not-found");
-    return json({ staff: updated });
+    const warning = await syncOpsStaff(updated);
+    return json({ staff: updated, sync_warning: warning });
   }
 
   // POST /v1/ops/staff/reset-totp - JSON TOTP reset.

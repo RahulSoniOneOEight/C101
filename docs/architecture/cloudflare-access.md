@@ -59,6 +59,8 @@ Only the Staff address can receive a PIN today; the `buildkart.test` addresses a
 | WAF | Cloudflare Managed Free Ruleset on `pinakaplay.cloud` |
 | Rate limit | 120 requests / 10 s per IP per colo on ops entry paths; 10 s block (free-plan limits) |
 | Origin lock | Cloudflare adds `X-Bazarbee-Edge`; nginx returns `403` on the ops host without it |
+| Group sync | `ops_staff` -> `BazarBee Staff` / `BazarBee ERP`; reconcile every 5 minutes |
+| TOTP gate | nginx `auth_request` on `/dashboard`, `/admin`, `/erp/`, `/v1/admin`, `/v1/ops`, `/metrics`; sellers, `/auth`, `/static`, `/uploads` excluded |
 | Tunnel | `bazarbee-ops` -> `http://buildkart-hosted-pilot-proxy-1:8080` |
 
 The rate limit covers `/dashboard`, `/seller`, `/erp`, `/admin`, `/auth`, `/v1/ops`, `/v1/admin` and
@@ -101,6 +103,9 @@ limit (`c602bc4b...`) and transform rule (`09aea3be...`) belong to the retired s
 | Old `ops.gobazarbee.com` | DNS and Access app removed |
 | Old `gobazarbee.com` staging web | `404`; zone reserved for production |
 | `pinakaplay.cloud` zone / SSL | active / `active` |
+| Enforce: `/dashboard`, `/erp/`, `/v1/admin`, `/metrics` | `302` to `/ops/login` |
+| Enforce: `/seller`, `/static`, `/ops/login`, `/health` | unaffected |
+| Live group sync | invite -> Staff, finance role -> ERP, disable -> removed, reconcile -> re-added |
 
 The end-to-end test used a one-hour service token; it was deleted together with its policy. No
 standing service token remains.

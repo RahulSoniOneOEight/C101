@@ -228,8 +228,41 @@ tables are additive.
 | 2. Access JWT + session + gate | done, shadow | JWT failure modes, gate decision matrix, Redis issue/resolve/revoke; `/v1/ops/gate` returns `204` + `x-ops-shadow-status: 401` |
 | 3. Login/enrolment pages | done | CSRF issue/verify/expiry/tamper, escaped pages, `/ops/login` and `/ops/enroll` return `401 Access required` without an Access JWT; forms fail closed; first superadmin seeded |
 | 4. `/ops/staff` superadmin UI | done (API + page) | list, invite, roles, disable/enable, TOTP reset, audit page, CSV; guards prevent self-disable and last-superadmin removal; staging DB test passed; endpoints fail closed with `401 An ops session is required.` |
-| 5. Cloudflare group sync + nginx | pending | — |
+| 5. Cloudflare group sync + nginx | done, shadow | live add/move/remove/reconcile against the real Staff and ERP groups; admin/ERP paths return `302 /ops/login` in enforce while seller/static/health pass; restored to shadow |
 | 6. Staging UAT shadow → enforce | pending | — |
+
+### Slice 5 evidence
+
+- The Staff group is **explicit-email only**; the blanket `gobazarbee.com` domain rule was removed.
+- `CloudflareAccessGroupSync` adds, moves and removes emails on invite, role change and disable.
+- Reconciliation runs 15 seconds after boot and every 5 minutes; the log shows
+  `ops.access_group.reconcile` with `ok:true`.
+- Live group test:
+
+```text
+invite support role        -> Staff group contains the email
+role change finance        -> ERP contains it, Staff removes it
+disable                    -> ERP removes it
+reconcile active support   -> Staff re-adds it
+cleanup                    -> no test email remains
+```
+
+- nginx enforcement test with `OPS_TOTP_GATE=enforce`:
+
+```text
+/dashboard/login            302 https://.../ops/login?next=/dashboard/login
+/dashboard/assets/...       302 https://.../ops/login?next=/dashboard/assets/...
+/erp/                       302 https://.../ops/login?next=/erp/
+/v1/admin/orders            302 https://.../ops/login?next=/v1/admin/orders
+/metrics                    302 https://.../ops/login?next=/metrics
+/seller                     301 /seller/            (not gated)
+/static/...                 404                     (not gated)
+/ops/login                  401 Access required     (not gated)
+/health                     200                     (not gated)
+```
+
+Staging is back on `OPS_TOTP_GATE=shadow`. The production token must be scoped to Access Groups
+edit only; the staging token is stored in `experience-api.env` on the host and is not committed.
 
 Second-approver workflow for superadmin changes is still pending; the page states this and production
 acceptance requires it before the first production superadmin is added.

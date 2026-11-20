@@ -75,6 +75,12 @@ export interface Config {
   opsTotpEncryptionKey?: string;
   /** Lifetime of an ops session after TOTP verification. */
   opsSessionTtlSeconds: number;
+  /** Cloudflare Access group sync for the ops staff directory. */
+  cloudflareAccountId?: string;
+  cloudflareAccessApiToken?: string;
+  cloudflareAccessStaffGroupId?: string;
+  cloudflareAccessErpGroupId?: string;
+  cloudflareAccessSyncEnabled: boolean;
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
@@ -226,6 +232,29 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     throw new Error("Production requires OPS_TOTP_GATE=shadow or enforce.");
   }
 
+  const cloudflareAccountId = env.CLOUDFLARE_ACCOUNT_ID?.trim() || undefined;
+  const cloudflareAccessApiToken = env.CLOUDFLARE_ACCESS_API_TOKEN?.trim() || undefined;
+  const cloudflareAccessStaffGroupId = env.CLOUDFLARE_ACCESS_STAFF_GROUP_ID?.trim() || undefined;
+  const cloudflareAccessErpGroupId = env.CLOUDFLARE_ACCESS_ERP_GROUP_ID?.trim() || undefined;
+  const cloudflareParts = [
+    cloudflareAccountId,
+    cloudflareAccessApiToken,
+    cloudflareAccessStaffGroupId,
+    cloudflareAccessErpGroupId,
+  ];
+  const cloudflareSupplied = cloudflareParts.filter(Boolean).length;
+  if (cloudflareSupplied > 0 && cloudflareSupplied < cloudflareParts.length) {
+    throw new Error(
+      "Cloudflare Access group sync requires CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_ACCESS_API_TOKEN, CLOUDFLARE_ACCESS_STAFF_GROUP_ID and CLOUDFLARE_ACCESS_ERP_GROUP_ID.",
+    );
+  }
+  const cloudflareAccessSyncEnabled = cloudflareSupplied === cloudflareParts.length;
+  if (environment === "production" && opsTotpGate !== "off" && !cloudflareAccessSyncEnabled) {
+    throw new Error(
+      "Production ops identity requires Cloudflare Access group sync configuration.",
+    );
+  }
+
   const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
     ? positiveInteger(env.PILOT_EXPECTED_USER_COUNT, 20, "PILOT_EXPECTED_USER_COUNT")
     : undefined;
@@ -339,6 +368,11 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
       8 * 60 * 60,
       "OPS_SESSION_TTL_SECONDS",
     ),
+    cloudflareAccountId,
+    cloudflareAccessApiToken,
+    cloudflareAccessStaffGroupId,
+    cloudflareAccessErpGroupId,
+    cloudflareAccessSyncEnabled,
     pilotOtpCode,
     pilotChallengeTtlSeconds: positiveInteger(
       env.PILOT_CHALLENGE_TTL_SECONDS,

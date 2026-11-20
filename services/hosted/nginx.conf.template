@@ -55,6 +55,27 @@ http {
       return 403;
     }
 
+    # Unauthenticated gated requests go to the TOTP page. The login handler redirects an
+    # unenrolled user onward to /ops/enroll.
+    location @ops_login_redirect {
+      return 302 https://$host/ops/login?next=$uri;
+    }
+
+    location @ops_denied {
+      default_type text/plain;
+      return 403 "Access denied. Contact a superadmin.";
+    }
+
+    # Internal auth_request target. Never exposed to browsers.
+    location = /__ops_gate {
+      internal;
+      proxy_pass http://experience_api/v1/ops/gate;
+      proxy_pass_request_body off;
+      proxy_set_header Content-Length "";
+      proxy_set_header Cf-Access-Jwt-Assertion $http_cf_access_jwt_assertion;
+      proxy_set_header Cookie $http_cookie;
+    }
+
     location = /health {
       proxy_pass http://experience_api/health;
     }
@@ -66,9 +87,18 @@ http {
       proxy_pass http://web_app;
     }
 
-    # MVP admin/operator surfaces (Mercur admin + vendor panels and the Medusa admin/auth/vendor APIs).
-    # Reachable ONLY on the operator hostname; the customer hostname 404s them.
-    location ~ ^/(dashboard|seller|vendor|admin|auth|static|uploads)(/|$) {
+    # Admin console and Medusa admin API: require the BazarBee TOTP session.
+    location ~ ^/(dashboard|admin)(/|$) {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
+      proxy_pass http://medusa_api;
+    }
+
+    # Seller portal and shared auth/assets: Cloudflare Access only, no BazarBee TOTP.
+    # Sellers stay on the Mercur seller login.
+    location ~ ^/(seller|vendor|auth|static|uploads)(/|$) {
       if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
       proxy_pass http://medusa_api;
     }
@@ -79,6 +109,9 @@ http {
     location = /erp { return 301 /erp/; }
     location /erp/ {
       if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
       # trytond scopes its session cookie to the database path (/<db>). Since the
       # client is served under /erp/, re-scope the cookie so the browser returns
       # it for /erp/<db>/ requests.
@@ -86,9 +119,58 @@ http {
       proxy_pass http://tryton_api/;
     }
 
-    # The public customer hostname can never reach operator/admin/metrics or simulation controls.
-    location ~ ^/(metrics|ops(?:/|$)|v1/(?:admin|ops)(?:/|$)|v1/payments/[^/]+/simulate$|v1/shipments/[^/]+/advance$) {
+    # Ops identity pages and their API endpoints authenticate with the ops session. nginx must not
+    # gate them, otherwise the login and TOTP endpoints could not be reached.
+    location ^~ /ops/ {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://experience_api;
+    }
+    location = /ops {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://experience_api;
+    }
+    location ^~ /v1/ops/totp/ {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://experience_api;
+    }
+    location ^~ /v1/ops/staff {
+      if ($host != $PUBLIC_OPS_HOSTNAME) { return 404; }
+      proxy_pass http://experience_api;
+    }
+    location = /v1/ops/gate {
+      internal;
+      proxy_pass http://experience_api/v1/ops/gate;
+      proxy_pass_request_body off;
+      proxy_set_header Content-Length "";
+    }
+
+    # Operator/admin API, metrics and simulation controls: require the TOTP session.
+    location ~ ^/v1/(admin|ops)(/|$) {
       if ($host = $PUBLIC_API_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
+      proxy_pass http://experience_api;
+    }
+    location ~ ^/v1/payments/[^/]+/simulate$ {
+      if ($host = $PUBLIC_API_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
+      proxy_pass http://experience_api;
+    }
+    location ~ ^/v1/shipments/[^/]+/advance$ {
+      if ($host = $PUBLIC_API_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
+      proxy_pass http://experience_api;
+    }
+    location = /metrics {
+      if ($host = $PUBLIC_API_HOSTNAME) { return 404; }
+      auth_request /__ops_gate;
+      error_page 401 = @ops_login_redirect;
+      error_page 403 423 = @ops_denied;
       proxy_pass http://experience_api;
     }
 
