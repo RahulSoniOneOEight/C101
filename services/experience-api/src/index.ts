@@ -27,13 +27,15 @@ import { AuthRateLimiter } from "./auth/rate-limit.js";
 import { AccessJwtVerifier } from "./auth/ops-access-jwt.js";
 import { OpsGate, OPS_SESSION_COOKIE, readCookie } from "./auth/ops-gate.js";
 import { OpsSessionStore } from "./auth/ops-session.js";
-import { decodeOpsEncryptionKey, OpsStaffStore } from "./auth/ops-staff.js";
+import { decodeOpsEncryptionKey, OpsStaffStore, type OpsStaff, type OpsStaffRole } from "./auth/ops-staff.js";
 import {
   issueFormToken,
   opsEnrollPage,
   opsLoginPage,
   opsNoticePage,
   opsRecoveryPage,
+  opsStaffAuditPage,
+  opsStaffPage,
   verifyFormToken,
 } from "./auth/ops-pages.js";
 import {
@@ -515,6 +517,11 @@ function safeOpsNext(value: string | null | undefined): string {
   return value.slice(0, 500);
 }
 
+function csvCell(value: unknown): string {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 function sameOriginPost(req: Request): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return true;
@@ -529,6 +536,97 @@ async function opsIdentity(req: Request): Promise<{ email: string; sub: string |
   if (!opsContext) return null;
   const verified = await opsContext.verifier.verify(req.headers.get("cf-access-jwt-assertion"));
   return verified.ok ? { email: verified.claims.email, sub: verified.claims.sub } : null;
+}
+
+type OpsActor = { email: string; staff: OpsStaff };
+
+async function resolveOpsActor(
+  req: Request,
+): Promise<{ actor: OpsActor } | { error: "not-configured" | "access" | "session" | "denied" }> {
+  if (!opsContext) return { error: "not-configured" };
+  const identity = await opsIdentity(req);
+  if (!identity) return { error: "access" };
+  const session = await opsContext.sessions.resolveSession(
+    readCookie(req.headers.get("cookie"), OPS_SESSION_COOKIE),
+  );
+  if (!session || session.email !== identity.email) return { error: "session" };
+  const staff = await opsContext.staff.get(identity.email);
+  if (!staff || staff.status !== "active" || !staff.roles.includes("super_admin")) {
+    return { error: "denied" };
+  }
+  return { actor: { email: staff.email, staff } };
+}
+
+function opsActorHtmlError(
+  error: "not-configured" | "access" | "session" | "denied",
+): Response {
+  if (error === "session") return opsRedirect("/ops/login?next=/ops/staff");
+  if (error === "access") {
+    return opsHtml(
+      opsNoticePage({
+        title: "Access required",
+        message: "Open this page through Cloudflare Access.",
+      }),
+      401,
+    );
+  }
+  if (error === "denied") {
+    return opsHtml(
+      opsNoticePage({
+        title: "No access",
+        message: "This account is not an active superadmin.",
+      }),
+      403,
+    );
+  }
+  return opsHtml(
+    opsNoticePage({ title: "Not configured", message: "Ops identity is not enabled." }),
+    404,
+  );
+}
+
+function opsActorJsonError(
+  error: "not-configured" | "access" | "session" | "denied",
+): Response {
+  if (error === "session" || error === "access") {
+    return problem(401, "authentication-required", "An ops session is required.");
+  }
+  if (error === "denied") {
+    return problem(403, "forbidden", "An active superadmin is required.");
+  }
+  return problem(404, "not-found");
+}
+
+function lastActiveSuperadmin(staff: OpsStaff[], email: string): boolean {
+  const active = staff.filter(
+    (person) => person.status === "active" && person.roles.includes("super_admin"),
+  );
+  return active.length <= 1 && active.some((person) => person.email === email);
+}
+
+async function superadminChangeGuard(
+  action: "roles" | "status",
+  actorEmail: string,
+  targetEmail: string,
+  roles?: readonly string[],
+  status?: string,
+): Promise<string | null> {
+  if (!opsContext) return "Ops identity is not configured.";
+  const all = await opsContext.staff.list();
+  if (!all.some((person) => person.email === targetEmail)) {
+    return "Staff user not found.";
+  }
+  const removesSuperadmin =
+    (action === "roles" && !roles?.includes("super_admin")) ||
+    (action === "status" && status === "disabled");
+  if (!removesSuperadmin) return null;
+  if (targetEmail === actorEmail) {
+    return "You cannot disable yourself or remove your own super_admin role.";
+  }
+  if (lastActiveSuperadmin(all, targetEmail)) {
+    return "The last active superadmin cannot be disabled or demoted.";
+  }
+  return null;
 }
 
 /**
@@ -3033,7 +3131,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
   const opsSelfAuthenticated =
     url.pathname === "/v1/ops/gate" ||
     url.pathname === "/v1/ops/totp/verify" ||
-    url.pathname === "/v1/ops/totp/enroll";
+    url.pathname === "/v1/ops/totp/enroll" ||
+    url.pathname === "/v1/ops/staff" ||
+    url.pathname.startsWith("/v1/ops/staff/");
   const requiredRoles =
     config.pilotRoleAssignmentsJson && !opsSelfAuthenticated
       ? privilegedRoles(url.pathname)
@@ -3423,6 +3523,293 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     );
     if (!confirmed) return opsRedirect("/ops/login");
     return opsHtml(opsRecoveryPage({ codes: recoveryCodes }));
+  }
+
+  // GET /ops/staff - superadmin staff directory.
+  if (url.pathname === "/ops/staff" && req.method === "GET") {
+    if (!opsContext) return opsActorHtmlError("not-configured");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorHtmlError(auth.error);
+    const staff = await opsContext.staff.list();
+    return opsHtml(
+      opsStaffPage({
+        actorEmail: auth.actor.email,
+        staff,
+        csrf: issueFormToken(auth.actor.email, opsContext.formKey),
+        message: url.searchParams.get("message") ?? undefined,
+        error: url.searchParams.get("error") ?? undefined,
+      }),
+    );
+  }
+
+  // POST /ops/staff - staff actions from the page.
+  if (url.pathname === "/ops/staff" && req.method === "POST") {
+    if (!opsContext) return opsActorHtmlError("not-configured");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorHtmlError(auth.error);
+    if (!sameOriginPost(req)) {
+      return problem(403, "cross-origin", "Cross-origin form submission.");
+    }
+    let action = "";
+    let email = "";
+    let reason = "";
+    let name = "";
+    let status = "";
+    let csrfToken = "";
+    let roles: string[] = [];
+    try {
+      const form = await req.formData();
+      action = String(form.get("action") ?? "");
+      email = String(form.get("email") ?? "").trim().toLowerCase();
+      reason = String(form.get("reason") ?? "").trim();
+      name = String(form.get("name") ?? "").trim();
+      status = String(form.get("status") ?? "");
+      csrfToken = String(form.get("csrf") ?? "");
+      roles = form.getAll("roles").map(String);
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a form body.");
+    }
+    if (!verifyFormToken(csrfToken, auth.actor.email, opsContext.formKey)) {
+      return opsHtml(
+        opsNoticePage({
+          title: "Expired form",
+          message: "Reload the staff page and try again.",
+        }),
+        403,
+      );
+    }
+    if (!reason) {
+      return opsRedirect(`/ops/staff?error=${encodeURIComponent("A reason is required.")}`);
+    }
+    const back = (kind: "message" | "error", text: string) =>
+      opsRedirect(`/ops/staff?${kind}=${encodeURIComponent(text)}`);
+    try {
+      if (action === "invite") {
+        const created = await opsContext.staff.create({
+          email,
+          name,
+          roles: roles as OpsStaffRole[],
+          actorEmail: auth.actor.email,
+          reason,
+        });
+        return back(
+          "message",
+          `Invited ${created.email}. Add the address to the Access group before they can enrol.`,
+        );
+      }
+      if (action === "roles") {
+        const guard = await superadminChangeGuard("roles", auth.actor.email, email, roles);
+        if (guard) return back("error", guard);
+        const updated = await opsContext.staff.setRoles(
+          email,
+          roles as OpsStaffRole[],
+          auth.actor.email,
+          reason,
+        );
+        if (!updated) return back("error", "Staff user not found.");
+        return back("message", `Roles updated for ${updated.email}.`);
+      }
+      if (action === "status") {
+        const nextStatus =
+          status === "active" ? "active" : status === "disabled" ? "disabled" : null;
+        if (!nextStatus) return back("error", "Invalid status.");
+        const guard = await superadminChangeGuard(
+          "status",
+          auth.actor.email,
+          email,
+          undefined,
+          nextStatus,
+        );
+        if (guard) return back("error", guard);
+        const updated = await opsContext.staff.setStatus(
+          email,
+          nextStatus,
+          auth.actor.email,
+          reason,
+        );
+        if (!updated) return back("error", "Staff user not found.");
+        return back("message", `${updated.email} is now ${updated.status}.`);
+      }
+      if (action === "reset-totp") {
+        const updated = await opsContext.staff.resetEnrollment(email, auth.actor.email, reason);
+        if (!updated) return back("error", "Staff user not found.");
+        return back("message", `TOTP reset for ${updated.email}; they must enrol again.`);
+      }
+      return problem(400, "unknown-action", "Unknown staff action.");
+    } catch (error) {
+      return back("error", (error as Error).message);
+    }
+  }
+
+  // GET /ops/staff/audit - audit trail for one staff user.
+  if (url.pathname === "/ops/staff/audit" && req.method === "GET") {
+    if (!opsContext) return opsActorHtmlError("not-configured");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorHtmlError(auth.error);
+    const email = (url.searchParams.get("email") ?? "").trim().toLowerCase();
+    if (!email) return opsRedirect("/ops/staff");
+    const rows = await opsContext.staff.auditTrail(email, 200);
+    return opsHtml(
+      opsStaffAuditPage({
+        actorEmail: auth.actor.email,
+        targetEmail: email,
+        rows,
+      }),
+    );
+  }
+
+  // GET /v1/ops/staff - JSON list.
+  if (url.pathname === "/v1/ops/staff" && req.method === "GET") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    return json({ items: await opsContext.staff.list() });
+  }
+
+  // POST /v1/ops/staff - JSON invite.
+  if (url.pathname === "/v1/ops/staff" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    if (!sameOriginPost(req)) return problem(403, "cross-origin", "Cross-origin request.");
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = String(body.email ?? "").trim();
+    const name = String(body.name ?? "").trim();
+    const roles = Array.isArray(body.roles) ? body.roles.map(String) : [];
+    const reason = String(body.reason ?? "").trim();
+    if (!reason) return problem(400, "reason-required", "A reason is required.");
+    try {
+      const created = await opsContext.staff.create({
+        email,
+        name,
+        roles: roles as OpsStaffRole[],
+        actorEmail: auth.actor.email,
+        reason,
+      });
+      return json({ staff: created }, 201);
+    } catch (error) {
+      return problem(400, "staff-create-failed", (error as Error).message);
+    }
+  }
+
+  // POST /v1/ops/staff/roles - JSON role change.
+  if (url.pathname === "/v1/ops/staff/roles" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    if (!sameOriginPost(req)) return problem(403, "cross-origin", "Cross-origin request.");
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = String(body.email ?? "").trim();
+    const roles = Array.isArray(body.roles) ? body.roles.map(String) : [];
+    const reason = String(body.reason ?? "").trim();
+    if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const guard = await superadminChangeGuard("roles", auth.actor.email, email, roles);
+    if (guard) return problem(409, "superadmin-guard", guard);
+    try {
+      const updated = await opsContext.staff.setRoles(
+        email,
+        roles as OpsStaffRole[],
+        auth.actor.email,
+        reason,
+      );
+      if (!updated) return problem(404, "not-found");
+      return json({ staff: updated });
+    } catch (error) {
+      return problem(400, "staff-update-failed", (error as Error).message);
+    }
+  }
+
+  // POST /v1/ops/staff/status - JSON disable/enable.
+  if (url.pathname === "/v1/ops/staff/status" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    if (!sameOriginPost(req)) return problem(403, "cross-origin", "Cross-origin request.");
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = String(body.email ?? "").trim();
+    const status = body.status === "active" ? "active" : body.status === "disabled" ? "disabled" : null;
+    const reason = String(body.reason ?? "").trim();
+    if (!status) return problem(400, "invalid-status", "Status must be active or disabled.");
+    if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const guard = await superadminChangeGuard("status", auth.actor.email, email, undefined, status);
+    if (guard) return problem(409, "superadmin-guard", guard);
+    const updated = await opsContext.staff.setStatus(email, status, auth.actor.email, reason);
+    if (!updated) return problem(404, "not-found");
+    return json({ staff: updated });
+  }
+
+  // POST /v1/ops/staff/reset-totp - JSON TOTP reset.
+  if (url.pathname === "/v1/ops/staff/reset-totp" && req.method === "POST") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    if (!sameOriginPost(req)) return problem(403, "cross-origin", "Cross-origin request.");
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const email = String(body.email ?? "").trim();
+    const reason = String(body.reason ?? "").trim();
+    if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const updated = await opsContext.staff.resetEnrollment(email, auth.actor.email, reason);
+    if (!updated) return problem(404, "not-found");
+    return json({ staff: updated });
+  }
+
+  // GET /v1/ops/staff/export.csv - access review export.
+  if (url.pathname === "/v1/ops/staff/export.csv" && req.method === "GET") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    const staff = await opsContext.staff.list();
+    const header = [
+      "email",
+      "name",
+      "roles",
+      "status",
+      "totp_enrolled",
+      "recovery_codes",
+      "created_at",
+      "last_login_at",
+    ];
+    const lines = staff.map((person) =>
+      [
+        person.email,
+        person.name,
+        person.roles.join("|"),
+        person.status,
+        person.totpEnrolled ? "yes" : "no",
+        person.recoveryCodesRemaining,
+        person.createdAt,
+        person.lastLoginAt ?? "",
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+    return new Response([header.join(","), ...lines].join("\n") + "\n", {
+      headers: {
+        "content-type": "text/csv; charset=utf-8",
+        "content-disposition": 'attachment; filename="bazarbee-ops-staff.csv"',
+        "cache-control": "no-store",
+      },
+    });
   }
 
   // POST /v1/auth/email/code — email a six-digit sign-in code.
@@ -9648,7 +10035,9 @@ const server = Bun.serve({
   const opsSelfAuthenticated =
     url.pathname === "/v1/ops/gate" ||
     url.pathname === "/v1/ops/totp/verify" ||
-    url.pathname === "/v1/ops/totp/enroll";
+    url.pathname === "/v1/ops/totp/enroll" ||
+    url.pathname === "/v1/ops/staff" ||
+    url.pathname.startsWith("/v1/ops/staff/");
   const requiredRoles =
     config.pilotRoleAssignmentsJson && !opsSelfAuthenticated
       ? privilegedRoles(url.pathname)

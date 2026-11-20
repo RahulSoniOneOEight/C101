@@ -121,6 +121,32 @@ try {
   assert.equal(afterRecovery?.recoveryCodesRemaining, 9);
   console.log("PASS recovery code is single-use");
 
+  const listed = await store.list();
+  assert.ok(listed.some((person) => person.email === email), "list includes the staff user");
+  await assert.rejects(
+    () =>
+      store.create({
+        email,
+        name: "Duplicate",
+        roles: ["support_operator"],
+        actorEmail: actor,
+        reason: "duplicate test",
+      }),
+    /already exists/,
+  );
+  console.log("PASS list and duplicate protection");
+
+  const reset = await store.resetEnrollment(email, actor, "reset test");
+  assert.equal(reset?.status, "invited");
+  assert.equal(reset?.totpEnrolled, false);
+  assert.equal(reset?.recoveryCodesRemaining, 0);
+  assert.equal(await store.getTotpSecret(email), null);
+  assert.equal(await store.beginEnrollment(email, generated), true);
+  const reenrolled = await store.confirmEnrollment(email, generateRecoveryCodes());
+  assert.equal(reenrolled?.status, "active");
+  assert.equal(reenrolled?.totpEnrolled, true);
+  console.log("PASS TOTP reset clears the secret and allows re-enrolment");
+
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     const failure = await store.registerFailure(email);
     assert.equal(failure.failedAttempts, attempt);

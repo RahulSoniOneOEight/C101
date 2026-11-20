@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { OPS_STAFF_ROLES, type OpsStaff } from "./ops-staff.js";
 
 /**
  * Server-rendered ops identity pages.
@@ -51,7 +52,7 @@ function escapeHtml(value: string): string {
   });
 }
 
-function layout(title: string, body: string): string {
+function layout(title: string, body: string, options: { wide?: boolean } = {}): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -93,10 +94,35 @@ function layout(title: string, body: string): string {
   .codes span { background: #f3f4f6; border-radius: 6px; padding: .4rem .5rem; text-align: center; }
   a { color: #111827; font-weight: 600; }
   .footer { margin-top: 1.4rem; font-size: .78rem; color: #6b7280; }
+  main.wide { width: min(1060px, calc(100% - 2rem)); }
+  table { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 1rem; }
+  th, td { text-align: left; padding: .55rem .45rem; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { color: #6b7280; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+  .muted { color: #6b7280; font-size: .75rem; }
+  .pill { display: inline-block; font-size: .68rem; border-radius: 999px; padding: .1rem .45rem;
+          background: #f3f4f6; margin: 0 .15rem .15rem 0; }
+  .pill.ok { background: #dcfce7; color: #166534; }
+  .pill.warn { background: #fef3c7; color: #92400e; }
+  .pill.off { background: #fee2e2; color: #991b1b; }
+  details { margin-top: .3rem; }
+  summary { cursor: pointer; font-size: .78rem; font-weight: 600; }
+  .actions form { margin: .45rem 0; padding: .5rem; background: #f9fafb; border: 1px solid #e5e7eb;
+                  border-radius: 8px; }
+  .actions input[type=text], .actions select { padding: .35rem .45rem; font-size: .78rem; }
+  .actions button { width: auto; margin-top: .4rem; padding: .38rem .65rem; font-size: .75rem; }
+  .invite { margin-top: 1.2rem; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 10px;
+            background: #f9fafb; }
+  .invite label { margin-top: .6rem; }
+  .check { display: inline-flex; align-items: center; gap: .3rem; margin: .2rem .7rem .2rem 0;
+           font-size: .8rem; }
+  .check input { width: auto; }
+  .banner { border-radius: 8px; padding: .6rem .75rem; font-size: .85rem; margin: 1rem 0 0; }
+  .banner.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .banner.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 </style>
 </head>
 <body>
-<main>
+<main${options.wide ? ' class="wide"' : ""}>
   <div class="brand"><strong>BazarBee</strong><span class="badge">Ops · staging</span></div>
   ${body}
 </main>
@@ -180,5 +206,143 @@ export function opsNoticePage(options: {
     `<h1>${escapeHtml(options.title)}</h1>
      <p>${escapeHtml(options.message)}</p>
      ${options.link ? `<p style="margin-top:1rem"><a href="${escapeHtml(options.link.href)}">${escapeHtml(options.link.label)}</a></p>` : ""}`,
+  );
+}
+
+function roleChecks(selected: readonly string[]): string {
+  return OPS_STAFF_ROLES.map(
+    (role) =>
+      `<label class="check"><input type="checkbox" name="roles" value="${role}"${
+        selected.includes(role) ? " checked" : ""
+      } /> ${role}</label>`,
+  ).join("");
+}
+
+function statusPill(status: OpsStaff["status"]): string {
+  const className = status === "active" ? "ok" : status === "disabled" ? "off" : "warn";
+  return `<span class="pill ${className}">${escapeHtml(status)}</span>`;
+}
+
+function staffRow(person: OpsStaff, csrf: string): string {
+  const rolePills = person.roles
+    .map((role) => `<span class="pill">${escapeHtml(role)}</span>`)
+    .join("");
+  const nextStatus = person.status === "disabled" ? "active" : "disabled";
+  const statusLabel = person.status === "disabled" ? "Enable" : "Disable";
+  const lastLogin = person.lastLoginAt
+    ? new Date(person.lastLoginAt).toISOString().replace("T", " ").slice(0, 16)
+    : "never";
+  return `<tr>
+    <td><strong>${escapeHtml(person.email)}</strong><div class="muted">${escapeHtml(person.name)}</div></td>
+    <td>${rolePills || '<span class="muted">none</span>'}</td>
+    <td>${statusPill(person.status)}</td>
+    <td><span class="pill ${person.totpEnrolled ? "ok" : "warn"}">${person.totpEnrolled ? "enrolled" : "not enrolled"}</span>
+        <div class="muted">${person.recoveryCodesRemaining} recovery codes</div></td>
+    <td class="muted">${escapeHtml(lastLogin)}</td>
+    <td class="actions">
+      <details>
+        <summary>Manage</summary>
+        <form method="post" action="/ops/staff">
+          <input type="hidden" name="action" value="roles" />
+          <input type="hidden" name="email" value="${escapeHtml(person.email)}" />
+          <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
+          <div>${roleChecks(person.roles)}</div>
+          <input type="text" name="reason" placeholder="Reason (required)" required />
+          <button type="submit">Update roles</button>
+        </form>
+        <form method="post" action="/ops/staff">
+          <input type="hidden" name="action" value="status" />
+          <input type="hidden" name="email" value="${escapeHtml(person.email)}" />
+          <input type="hidden" name="status" value="${nextStatus}" />
+          <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
+          <input type="text" name="reason" placeholder="Reason (required)" required />
+          <button type="submit">${statusLabel}</button>
+        </form>
+        <form method="post" action="/ops/staff">
+          <input type="hidden" name="action" value="reset-totp" />
+          <input type="hidden" name="email" value="${escapeHtml(person.email)}" />
+          <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
+          <input type="text" name="reason" placeholder="Reason (required)" required />
+          <button type="submit">Reset TOTP</button>
+        </form>
+        <p style="margin:.4rem 0 0"><a href="/ops/staff/audit?email=${encodeURIComponent(person.email)}">Audit trail</a></p>
+      </details>
+    </td>
+  </tr>`;
+}
+
+export function opsStaffPage(options: {
+  actorEmail: string;
+  staff: OpsStaff[];
+  csrf: string;
+  message?: string;
+  error?: string;
+}): string {
+  const rows = options.staff.map((person) => staffRow(person, options.csrf)).join("");
+  return layout(
+    "Staff",
+    `<h1>Staff directory</h1>
+     <p>Signed in as <strong>${escapeHtml(options.actorEmail)}</strong>. This list controls who can
+        reach the operator surfaces after TOTP enrolment.</p>
+     ${options.message ? `<div class="banner ok">${escapeHtml(options.message)}</div>` : ""}
+     ${options.error ? `<div class="banner err">${escapeHtml(options.error)}</div>` : ""}
+     <div class="invite">
+       <strong>Invite staff</strong>
+       <form method="post" action="/ops/staff">
+         <input type="hidden" name="action" value="invite" />
+         <input type="hidden" name="csrf" value="${escapeHtml(options.csrf)}" />
+         <label for="email">Email</label>
+         <input id="email" name="email" type="email" autocomplete="off" required />
+         <label for="name">Name</label>
+         <input id="name" name="name" type="text" autocomplete="off" />
+         <label>Roles</label>
+         <div>${roleChecks(["support_operator"])}</div>
+         <label for="reason">Reason</label>
+         <input id="reason" name="reason" type="text" required />
+         <button type="submit">Invite</button>
+       </form>
+     </div>
+     <table>
+       <thead><tr><th>Person</th><th>Roles</th><th>Status</th><th>TOTP</th><th>Last login</th><th>Actions</th></tr></thead>
+       <tbody>${rows || '<tr><td colspan="6" class="muted">No staff yet.</td></tr>'}</tbody>
+     </table>
+     <p style="margin-top:1rem"><a href="/v1/ops/staff/export.csv">Export access review CSV</a></p>
+     <div class="footer">Every action is audited with the actor and reason. A second-approver
+       workflow for superadmin changes is still pending; do not add a second superadmin until it is
+       in place.</div>`,
+    { wide: true },
+  );
+}
+
+export function opsStaffAuditPage(options: {
+  actorEmail: string;
+  targetEmail: string;
+  rows: Array<Record<string, unknown>>;
+}): string {
+  const rows = options.rows
+    .map((row) => {
+      const at = row.at ? new Date(String(row.at)).toISOString().replace("T", " ").slice(0, 19) : "";
+      const before = row.before ? JSON.stringify(row.before) : "";
+      const after = row.after ? JSON.stringify(row.after) : "";
+      const change = [before && `from ${before}`, after && `to ${after}`].filter(Boolean).join(" ");
+      return `<tr>
+        <td class="muted">${escapeHtml(at)}</td>
+        <td>${escapeHtml(String(row.actor_email ?? ""))}</td>
+        <td><code>${escapeHtml(String(row.action ?? ""))}</code></td>
+        <td>${escapeHtml(String(row.reason ?? ""))}</td>
+        <td class="muted">${escapeHtml(change.slice(0, 300))}</td>
+      </tr>`;
+    })
+    .join("");
+  return layout(
+    "Audit",
+    `<h1>Audit trail</h1>
+     <p>${escapeHtml(options.targetEmail)} - signed in as ${escapeHtml(options.actorEmail)}.</p>
+     <table>
+       <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Reason</th><th>Change</th></tr></thead>
+       <tbody>${rows || '<tr><td colspan="5" class="muted">No audit rows.</td></tr>'}</tbody>
+     </table>
+     <p style="margin-top:1rem"><a href="/ops/staff">Back to staff</a></p>`,
+    { wide: true },
   );
 }

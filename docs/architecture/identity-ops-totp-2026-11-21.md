@@ -227,9 +227,12 @@ tables are additive.
 | 1. Staff store + TOTP | done | RFC 6238 vectors, single-use TOTP and recovery codes, lockout, audit; staging DB test passed; rows cleaned up |
 | 2. Access JWT + session + gate | done, shadow | JWT failure modes, gate decision matrix, Redis issue/resolve/revoke; `/v1/ops/gate` returns `204` + `x-ops-shadow-status: 401` |
 | 3. Login/enrolment pages | done | CSRF issue/verify/expiry/tamper, escaped pages, `/ops/login` and `/ops/enroll` return `401 Access required` without an Access JWT; forms fail closed; first superadmin seeded |
-| 4. `/ops/staff` superadmin UI | pending | — |
+| 4. `/ops/staff` superadmin UI | done (API + page) | list, invite, roles, disable/enable, TOTP reset, audit page, CSV; guards prevent self-disable and last-superadmin removal; staging DB test passed; endpoints fail closed with `401 An ops session is required.` |
 | 5. Cloudflare group sync + nginx | pending | — |
 | 6. Staging UAT shadow → enforce | pending | — |
+
+Second-approver workflow for superadmin changes is still pending; the page states this and production
+acceptance requires it before the first production superadmin is added.
 
 Staging configuration:
 
