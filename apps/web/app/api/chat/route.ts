@@ -4,6 +4,9 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   createHouseholdProject,
+  createWorkspaceDraftProposal,
+  getProduct,
+  getTradeProduct,
   getWorkspaceDraft,
   getWorkspaceInvitations,
   inviteWorkspaceParticipant,
@@ -12,6 +15,8 @@ import {
   listWorkspaceMessages,
   listWorkspaces,
   markWorkspaceRead,
+  acceptWorkspaceProposal,
+  rejectWorkspaceProposal,
   revokeWorkspaceInvitation,
   sendWorkspaceMessage,
   shareWorkspaceProduct,
@@ -29,7 +34,18 @@ export async function GET(request: Request) {
   const draftsWorkspace = url.searchParams.get("drafts");
   const draftId = url.searchParams.get("draft");
   const invitationsWorkspace = url.searchParams.get("invitations");
+  const productId = url.searchParams.get("product");
   try {
+    if (productId) {
+      const product =
+        url.searchParams.get("channel") === "b2b"
+          ? await getTradeProduct(productId, token)
+          : await getProduct(productId);
+      return NextResponse.json(
+        { product },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
     if (invitationsWorkspace) {
       const page = await getWorkspaceInvitations(token, invitationsWorkspace);
       return NextResponse.json(
@@ -103,6 +119,12 @@ export async function POST(request: Request) {
     workspaceId?: unknown;
     email?: unknown;
     invitationId?: unknown;
+    draftId?: unknown;
+    expectedVersion?: unknown;
+    kind?: unknown;
+    payload?: unknown;
+    proposalId?: unknown;
+    decision?: unknown;
   } = {};
   try {
     body = (await request.json()) as typeof body;
@@ -153,6 +175,54 @@ export async function POST(request: Request) {
         );
       }
       await revokeWorkspaceInvitation(token, workspaceId, invitationId);
+      return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
+    }
+    if (body.action === "draft-proposal") {
+      const draftId = typeof body.draftId === "string" ? body.draftId.trim() : "";
+      const expectedVersion = Number(body.expectedVersion);
+      const kind = typeof body.kind === "string" ? body.kind.trim() : "";
+      const payload =
+        body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
+          ? (body.payload as Record<string, unknown>)
+          : null;
+      if (
+        !draftId ||
+        !Number.isInteger(expectedVersion) ||
+        expectedVersion < 0 ||
+        !kind ||
+        !payload
+      ) {
+        return NextResponse.json(
+          { error: "A draft, expected version, kind and payload are required." },
+          { status: 400 },
+        );
+      }
+      const proposalId = await createWorkspaceDraftProposal(token, draftId, {
+        expectedVersion,
+        kind,
+        payload,
+      });
+      return NextResponse.json(
+        { proposal_id: proposalId },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
+    if (body.action === "proposal-decision") {
+      const proposalId = typeof body.proposalId === "string" ? body.proposalId.trim() : "";
+      const decision = body.decision === "accept" || body.decision === "reject"
+        ? body.decision
+        : "";
+      if (!proposalId || !decision) {
+        return NextResponse.json(
+          { error: "A proposal and accept/reject decision are required." },
+          { status: 400 },
+        );
+      }
+      if (decision === "accept") {
+        await acceptWorkspaceProposal(token, proposalId);
+      } else {
+        await rejectWorkspaceProposal(token, proposalId);
+      }
       return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
     }
     if (body.action === "mark-read") {

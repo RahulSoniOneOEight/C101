@@ -272,6 +272,8 @@ export interface ProductDetail extends ComposedProduct {
   commercial?: {
     selected_seller?: OfferView | null;
     payment_eligibility?: string[];
+    moq?: number | null;
+    quantity_tiers?: B2bTier[] | null;
   };
   environment?: string;
   test_data?: boolean;
@@ -923,6 +925,56 @@ export async function getWorkspaceDraft(
     `/v1/purchase-drafts/${encodeURIComponent(draftId)}`,
     { headers: authenticatedHeaders(sessionToken) },
   );
+}
+
+export async function createWorkspaceDraftProposal(
+  sessionToken: string,
+  draftId: string,
+  input: {
+    expectedVersion: number;
+    kind: string;
+    payload: Record<string, unknown>;
+  },
+): Promise<string> {
+  const result = await call<{ proposal_id?: string }>(
+    `/v1/purchase-drafts/${encodeURIComponent(draftId)}/proposals`,
+    {
+      method: "POST",
+      headers: {
+        ...authenticatedHeaders(sessionToken),
+        "idempotency-key": `web_prop_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      },
+      body: JSON.stringify({
+        expected_version: input.expectedVersion,
+        kind: input.kind,
+        payload: input.payload,
+      }),
+    },
+  );
+  return result.proposal_id ?? "";
+}
+
+export async function acceptWorkspaceProposal(
+  sessionToken: string,
+  proposalId: string,
+): Promise<void> {
+  await call<void>(`/v1/proposals/${encodeURIComponent(proposalId)}/accept`, {
+    method: "POST",
+    headers: {
+      ...authenticatedHeaders(sessionToken),
+      "idempotency-key": `web_accept_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    },
+  });
+}
+
+export async function rejectWorkspaceProposal(
+  sessionToken: string,
+  proposalId: string,
+): Promise<void> {
+  await call<void>(`/v1/proposals/${encodeURIComponent(proposalId)}/reject`, {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+  });
 }
 
 export async function markWorkspaceRead(

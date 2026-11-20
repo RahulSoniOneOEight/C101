@@ -4,13 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  ProductDetail,
   WorkspaceChannel,
+  WorkspaceDraft,
+  WorkspaceDraftLine,
+  WorkspaceDraftProposal,
   WorkspaceDraftView,
   WorkspaceInvitationCreated,
   WorkspaceInvitationPage,
   WorkspaceMessage,
   WorkspaceSummary,
 } from "@/lib/experience-api";
+import { addToCart, announceCartConflict } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -44,6 +49,21 @@ interface PendingShare {
   unitPriceMinor?: number;
   currency?: string;
 }
+
+interface CartBuildLine {
+  line: WorkspaceDraftLine;
+  offerId: string;
+  unitAmountMinor: number;
+  currencyCode: string;
+  sellerName: string;
+  sku: string;
+  productTitle: string;
+  thumbnail?: string | null;
+  differences: string[];
+  blocked: boolean;
+}
+
+const CART_BUILD_KEY = "bazarbee.cart-builds.v1";
 
 function SparkIcon() {
   return (
@@ -86,8 +106,8 @@ function channelLabel(channel: WorkspaceChannel): string {
 /**
  * "Ask BazarBee" is the web home of the app's workspace conversation. It uses the same
  * Experience API workspace proxy: a household project (or the signed-in trade workspace) exposes
- * an assistant channel, and every message is persisted server-side. The assistant is read-only;
- * this drawer never changes the cart, list or an order.
+ * an assistant channel, and every message is persisted server-side. The shared list and cart build
+ * are explicit, user-triggered actions; building a cart never creates an order.
  */
 export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname();
@@ -104,6 +124,17 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
   const [view, setView] = useState<ChatView>("chat");
   const [shared, setShared] = useState<SharedState>({ status: "idle" });
+  const [draftOptions, setDraftOptions] = useState<WorkspaceDraft[]>([]);
+  const [selectedDraftId, setSelectedDraftId] = useState("");
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [draftMessage, setDraftMessage] = useState("");
+  const [draftError, setDraftError] = useState("");
+  const [cartBuildOpen, setCartBuildOpen] = useState(false);
+  const [cartBuildLines, setCartBuildLines] = useState<CartBuildLine[]>([]);
+  const [cartBuildLoading, setCartBuildLoading] = useState(false);
+  const [cartBuildAck, setCartBuildAck] = useState(false);
+  const [cartBuildMessage, setCartBuildMessage] = useState("");
+  const [cartBuildError, setCartBuildError] = useState("");
   const [participants, setParticipants] = useState<ParticipantsState>({ status: "idle" });
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -174,9 +205,24 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     if (last) void markChannelRead(nextChannel.id, last.sequence);
   }, [markChannelRead]);
 
+  const fetchDraftView = useCallback(async (draftId: string) => {
+    const detailResponse = await fetch(
+      `/api/chat?draft=${encodeURIComponent(draftId)}`,
+      { cache: "no-store" },
+    );
+    if (!detailResponse.ok) throw new Error("The shared list could not be loaded.");
+    const detail = (await detailResponse.json()) as { draft?: WorkspaceDraftView };
+    if (!detail.draft) throw new Error("The shared list could not be loaded.");
+    setSelectedDraftId(draftId);
+    setShared({ status: "ready", view: detail.draft });
+  }, []);
+
   const loadShared = useCallback(async () => {
     if (!workspace) return;
     setShared({ status: "loading" });
+    setDraftMessage("");
+    setDraftError("");
+    setCartBuildOpen(false);
     try {
       const draftsResponse = await fetch(
         `/api/chat?drafts=${encodeURIComponent(workspace.id)}`,
@@ -184,24 +230,22 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       );
       if (!draftsResponse.ok) throw new Error("The shared list could not be loaded.");
       const draftsPayload = (await draftsResponse.json()) as {
-        drafts?: { id: string }[];
+        drafts?: WorkspaceDraft[];
       };
-      const first = draftsPayload.drafts?.[0];
-      if (!first) {
+      const drafts = draftsPayload.drafts ?? [];
+      setDraftOptions(drafts);
+      const next =
+        drafts.find((candidate) => candidate.id === selectedDraftId) ?? drafts[0];
+      if (!next) {
+        setSelectedDraftId("");
         setShared({ status: "ready", view: null });
         return;
       }
-      const detailResponse = await fetch(
-        `/api/chat?draft=${encodeURIComponent(first.id)}`,
-        { cache: "no-store" },
-      );
-      if (!detailResponse.ok) throw new Error("The shared list could not be loaded.");
-      const detail = (await detailResponse.json()) as { draft?: WorkspaceDraftView };
-      setShared({ status: "ready", view: detail.draft ?? null });
+      await fetchDraftView(next.id);
     } catch (cause) {
       setShared({ status: "error", message: (cause as Error).message });
     }
-  }, [workspace]);
+  }, [workspace, selectedDraftId, fetchDraftView]);
 
   const loadParticipants = useCallback(async () => {
     if (!workspace) return;
@@ -539,6 +583,31 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const sharedLines = sharedView?.revision?.lines ?? [];
   const sharedPending =
     sharedView?.proposals.filter((proposal) => proposal.status === "pending") ?? [];
+  const isBusinessWorkspace = workspace?.scope_type === "business_account";
+  const draftRole = sharedView?.draft.role ?? "";
+  const canDecideProposal = isBusinessWorkspace
+    ? draftRole === "buyer" || draftRole === "admin"
+    : draftRole === "owner";
+  const sharedRevision = sharedView?.revision ?? null;
+  const sharedApproval = sharedView?.approval ?? null;
+  const approvalReady =
+    !isBusinessWorkspace ||
+    (sharedApproval?.decision === "approved" &&
+      sharedApproval?.revision_id === sharedRevision?.id &&
+      sharedApproval?.commercial_hash === sharedRevision?.commercial_hash);
+  const canBuildCart = isBusinessWorkspace
+    ? draftRole === "buyer" || draftRole === "admin"
+    : draftRole === "owner";
+  const cartBuildHasDifferences = cartBuildLines.some((line) => line.differences.length > 0);
+  const cartBuildHasBlocked = cartBuildLines.some((line) => line.blocked);
+  const cartBuildReady =
+    cartBuildOpen &&
+    !cartBuildLoading &&
+    Boolean(sharedRevision) &&
+    cartBuildLines.length > 0 &&
+    !cartBuildHasBlocked &&
+    (!cartBuildHasDifferences || cartBuildAck) &&
+    approvalReady;
   const participantsPage = participants.status === "ready" ? participants.page : null;
   const atCapacity = participantsPage
     ? participantsPage.participants >= participantsPage.capacity
@@ -615,6 +684,273 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     } finally {
       setInviteBusy(false);
     }
+  }
+
+  async function postProposal(kind: string, payload: Record<string, unknown>) {
+    if (!sharedView || draftBusy) return;
+    const draftId = sharedView.draft.id;
+    const expectedVersion =
+      sharedRevision?.version ?? sharedView.draft.current_version;
+    setDraftBusy(true);
+    setDraftError("");
+    setDraftMessage("");
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "draft-proposal",
+          draftId,
+          expectedVersion,
+          kind,
+          payload,
+        }),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        proposal_id?: string;
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(result.error ?? "The shared list could not be updated.");
+      }
+      if (canDecideProposal && result.proposal_id) {
+        const decision = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "proposal-decision",
+            proposalId: result.proposal_id,
+            decision: "accept",
+          }),
+        });
+        if (!decision.ok) {
+          const failure = (await decision.json().catch(() => ({}))) as { error?: string };
+          throw new Error(failure.error ?? "The proposal could not be accepted.");
+        }
+      }
+      setDraftMessage(
+        canDecideProposal
+          ? "Shared list updated."
+          : "Proposal sent to the workspace owner.",
+      );
+      await fetchDraftView(draftId);
+    } catch (cause) {
+      setDraftError((cause as Error).message);
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
+  async function proposeQuantity(line: WorkspaceDraftLine, next: number) {
+    if (next < 1) return;
+    await postProposal("update_quantity", {
+      line_key: line.line_key,
+      quantity: next,
+    });
+  }
+
+  async function removeSharedLine(line: WorkspaceDraftLine) {
+    const title = line.commercial_snapshot?.product_title ?? line.line_key;
+    if (!window.confirm(`Remove ${title} from the shared list?`)) return;
+    await postProposal("remove_line", { line_key: line.line_key });
+  }
+
+  async function decideProposal(proposalId: string, accept: boolean) {
+    if (!sharedView || draftBusy) return;
+    setDraftBusy(true);
+    setDraftError("");
+    setDraftMessage("");
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "proposal-decision",
+          proposalId,
+          decision: accept ? "accept" : "reject",
+        }),
+      });
+      if (!response.ok) {
+        const failure = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(failure.error ?? "The proposal could not be updated.");
+      }
+      setDraftMessage(accept ? "Proposal accepted." : "Proposal rejected.");
+      await fetchDraftView(sharedView.draft.id);
+    } catch (cause) {
+      setDraftError((cause as Error).message);
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
+  function proposalLabel(proposal: WorkspaceDraftProposal): string {
+    if (proposal.kind === "update_quantity") {
+      return `Change quantity to ${String(proposal.payload.quantity ?? "?")}`;
+    }
+    if (proposal.kind === "add_line") {
+      const line = proposal.payload.line as Record<string, unknown> | undefined;
+      const snapshot = line?.commercial_snapshot as Record<string, unknown> | undefined;
+      return `Add ${String(snapshot?.product_title ?? line?.product_id ?? "product")}`;
+    }
+    if (proposal.kind === "remove_line") {
+      const lineKey = String(proposal.payload.line_key ?? "");
+      const line = sharedLines.find((candidate) => candidate.line_key === lineKey);
+      return `Remove ${
+        line?.commercial_snapshot?.product_title ?? lineKey ?? "line"
+      }`;
+    }
+    return proposal.kind.replaceAll("_", " ");
+  }
+
+  async function openCartBuild() {
+    if (!sharedView || !sharedRevision || !canBuildCart || cartBuildLoading) return;
+    setCartBuildOpen(true);
+    setCartBuildLoading(true);
+    setCartBuildAck(false);
+    setCartBuildMessage("");
+    setCartBuildError("");
+    setCartBuildLines([]);
+    try {
+      const channel = isBusinessWorkspace ? "b2b" : "b2c";
+      const rows: CartBuildLine[] = [];
+      for (const line of sharedRevision.lines) {
+        const response = await fetch(
+          `/api/chat?product=${encodeURIComponent(line.product_id)}&channel=${channel}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) {
+          throw new Error("Current prices and stock could not be checked.");
+        }
+        const payload = (await response.json()) as { product?: ProductDetail };
+        const product = payload.product;
+        const offers = product?.offers ?? [];
+        const snapshot = line.commercial_snapshot ?? {};
+        const exact = offers.find((offer) => offer.id === line.offer_id);
+        const offer = exact ?? offers[0] ?? null;
+        const differences: string[] = [];
+        let blocked = false;
+        if (!offer) {
+          differences.push("No current seller offer");
+          blocked = true;
+        } else {
+          if (!exact) {
+            differences.push(
+              `Original offer unavailable — using ${offer.seller_name ?? "the current seller"}`,
+            );
+          }
+          const previousUnit = snapshot.unit_amount_minor ?? 0;
+          if (offer.unit_amount_minor !== previousUnit) {
+            differences.push(
+              `Price ${formatMoney(previousUnit, snapshot.currency_code ?? "INR")} → ${formatMoney(
+                offer.unit_amount_minor,
+                offer.currency_code,
+              )}`,
+            );
+          }
+          const previousSeller = snapshot.seller_name ?? "";
+          const currentSeller = offer.seller_name ?? "";
+          if (previousSeller && currentSeller && previousSeller !== currentSeller) {
+            differences.push(`Seller ${previousSeller} → ${currentSeller}`);
+          }
+          if (
+            (snapshot.currency_code ?? "").toUpperCase() !==
+            (offer.currency_code ?? "").toUpperCase()
+          ) {
+            differences.push(
+              `Currency ${snapshot.currency_code ?? ""} → ${offer.currency_code}`,
+            );
+          }
+          if (offer.in_stock === false) {
+            differences.push("Out of stock");
+            blocked = true;
+          } else if (
+            typeof offer.inventory_quantity === "number" &&
+            offer.inventory_quantity < line.quantity
+          ) {
+            differences.push(
+              `Only ${offer.inventory_quantity} left (list needs ${line.quantity})`,
+            );
+            blocked = true;
+          }
+          const moq = product?.commercial?.moq ?? offer.b2b_moq ?? null;
+          if (isBusinessWorkspace && moq && line.quantity < moq) {
+            differences.push(`MOQ ${moq} (list has ${line.quantity})`);
+            blocked = true;
+          }
+        }
+        rows.push({
+          line,
+          offerId: offer?.id ?? line.offer_id,
+          unitAmountMinor: offer?.unit_amount_minor ?? snapshot.unit_amount_minor ?? 0,
+          currencyCode: (
+            offer?.currency_code ??
+            snapshot.currency_code ??
+            "INR"
+          ).toUpperCase(),
+          sellerName: offer?.seller_name ?? snapshot.seller_name ?? "",
+          sku: offer?.sku ?? snapshot.sku ?? "",
+          productTitle: snapshot.product_title ?? product?.title ?? "Catalogue product",
+          thumbnail: snapshot.thumbnail ?? product?.thumbnail ?? null,
+          differences,
+          blocked,
+        });
+      }
+      setCartBuildLines(rows);
+    } catch (cause) {
+      setCartBuildError((cause as Error).message);
+    } finally {
+      setCartBuildLoading(false);
+    }
+  }
+
+  function buildCart() {
+    if (!cartBuildReady || !sharedView || !sharedRevision) return;
+    const channel = isBusinessWorkspace ? "b2b" : "b2c";
+    setCartBuildError("");
+    setCartBuildMessage("");
+    for (const row of cartBuildLines) {
+      const result = addToCart(
+        {
+          offerId: row.offerId,
+          productId: row.line.product_id,
+          sku: row.sku,
+          title: row.productTitle,
+          seller: row.sellerName,
+          priceMinor: row.unitAmountMinor,
+          currency: row.currencyCode,
+          image: row.thumbnail,
+          channel,
+        },
+        row.line.quantity,
+      );
+      if (!result.ok) {
+        announceCartConflict(result);
+        setCartBuildError(
+          result.currentChannel === "b2c"
+            ? "Your cart already has retail items. Empty it before building this trade list."
+            : "Your cart already has trade items. Empty it before building this retail list.",
+        );
+        return;
+      }
+    }
+    try {
+      const key = `${sharedView.draft.id}:${sharedRevision.id}`;
+      const raw = window.localStorage.getItem(CART_BUILD_KEY);
+      const previous = raw ? (JSON.parse(raw) as unknown) : [];
+      const keys = Array.isArray(previous)
+        ? previous.filter((value): value is string => typeof value === "string")
+        : [];
+      if (!keys.includes(key)) {
+        window.localStorage.setItem(CART_BUILD_KEY, JSON.stringify([...keys, key]));
+      }
+    } catch {
+      // Cart build history is only a convenience; the cart itself is already updated.
+    }
+    setCartBuildMessage(
+      `${cartBuildLines.length} line${
+        cartBuildLines.length === 1 ? "" : "s"
+      } added to the cart. No order was created.`,
+    );
   }
 
   return (
@@ -806,6 +1142,36 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                           {sharedView.draft.validation_status}
                         </small>
                       </div>
+                      {draftOptions.length > 1 ? (
+                        <label className="chat-draft-select">
+                          <span>List</span>
+                          <select
+                            value={sharedView.draft.id}
+                            disabled={draftBusy}
+                            onChange={(event) => {
+                              void fetchDraftView(event.target.value).catch((cause) => {
+                                setDraftError((cause as Error).message);
+                              });
+                            }}
+                          >
+                            {draftOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                      {draftMessage ? (
+                        <p className="admin-ok" role="status">
+                          {draftMessage}
+                        </p>
+                      ) : null}
+                      {draftError ? (
+                        <p className="admin-error" role="alert">
+                          {draftError}
+                        </p>
+                      ) : null}
                       {sharedLines.length === 0 ? (
                         <p className="muted">
                           No accepted lines yet. Pending proposals appear below.
@@ -815,33 +1181,205 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                           {sharedLines.map((line) => {
                             const snapshot = line.commercial_snapshot ?? {};
                             const unit = snapshot.unit_amount_minor ?? 0;
+                            const title = snapshot.product_title ?? "Catalogue product";
                             return (
                               <div className="chat-shared-line" key={line.line_key}>
                                 <div>
-                                  <strong>{snapshot.product_title ?? "Catalogue product"}</strong>
+                                  <strong>{title}</strong>
                                   <small>
                                     {snapshot.sku ? `SKU ${snapshot.sku}` : line.line_key}
                                     {snapshot.seller_name ? ` · ${snapshot.seller_name}` : ""}
                                   </small>
                                 </div>
-                                <span>
-                                  {line.quantity} ×{" "}
-                                  {formatMoney(unit, snapshot.currency_code ?? "INR")}
-                                </span>
+                                <div className="chat-shared-line-side">
+                                  <span>
+                                    {line.quantity} ×{" "}
+                                    {formatMoney(unit, snapshot.currency_code ?? "INR")}
+                                  </span>
+                                  <div className="chat-shared-line-controls">
+                                    <button
+                                      className="qty-button"
+                                      type="button"
+                                      aria-label={`Decrease ${title} quantity`}
+                                      disabled={draftBusy || line.quantity <= 1}
+                                      onClick={() => void proposeQuantity(line, line.quantity - 1)}
+                                    >
+                                      −
+                                    </button>
+                                    <button
+                                      className="qty-button"
+                                      type="button"
+                                      aria-label={`Increase ${title} quantity`}
+                                      disabled={draftBusy}
+                                      onClick={() => void proposeQuantity(line, line.quantity + 1)}
+                                    >
+                                      +
+                                    </button>
+                                    <button
+                                      className="text-button"
+                                      type="button"
+                                      disabled={draftBusy}
+                                      aria-label={`Remove ${title} from the shared list`}
+                                      onClick={() => void removeSharedLine(line)}
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
                         </div>
                       )}
+                      <p className="muted chat-draft-hint">
+                        {canDecideProposal
+                          ? "Changes to this list apply immediately."
+                          : "Your changes become proposals for the owner."}
+                      </p>
                       {sharedPending.length > 0 ? (
                         <div className="chat-shared-proposals">
                           <h3>Pending proposals</h3>
                           {sharedPending.map((proposal) => (
                             <div className="chat-shared-proposal" key={proposal.id}>
-                              <span>{proposal.kind.replaceAll("_", " ")}</span>
-                              <small>{proposal.proposed_by}</small>
+                              <div>
+                                <span>{proposalLabel(proposal)}</span>
+                                <small>
+                                  Proposed by {proposal.proposed_by} · based on v
+                                  {proposal.expected_version}
+                                </small>
+                              </div>
+                              {canDecideProposal ? (
+                                <div className="chat-shared-proposal-actions">
+                                  <button
+                                    className="text-button"
+                                    type="button"
+                                    disabled={draftBusy}
+                                    onClick={() => void decideProposal(proposal.id, true)}
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    className="text-button"
+                                    type="button"
+                                    disabled={draftBusy}
+                                    onClick={() => void decideProposal(proposal.id, false)}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <small>Waiting for the owner</small>
+                              )}
                             </div>
                           ))}
+                        </div>
+                      ) : null}
+                      {canBuildCart ? (
+                        <div className="chat-cart-build">
+                          {!approvalReady ? (
+                            <p className="muted">
+                              This trade list needs an approved revision before it can become a
+                              cart.
+                            </p>
+                          ) : null}
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={!sharedRevision || !approvalReady || draftBusy}
+                            onClick={() => void openCartBuild()}
+                          >
+                            Review and build cart
+                          </button>
+                          {cartBuildOpen ? (
+                            <div className="chat-cart-build-panel">
+                              <div className="chat-cart-build-head">
+                                <strong>Review before cart build</strong>
+                                <small>
+                                  Current price, stock, seller and MOQ are checked. This creates
+                                  a cart only.
+                                </small>
+                              </div>
+                              {cartBuildLoading ? (
+                                <p className="muted">Checking current offers…</p>
+                              ) : null}
+                              {cartBuildLines.map((row) => (
+                                <div
+                                  className={
+                                    row.blocked
+                                      ? "chat-cart-build-line blocked"
+                                      : "chat-cart-build-line"
+                                  }
+                                  key={row.line.line_key}
+                                >
+                                  <div>
+                                    <strong>{row.productTitle}</strong>
+                                    <small>
+                                      {row.sku ? `SKU ${row.sku}` : row.line.line_key} ·{" "}
+                                      {row.line.quantity} ×{" "}
+                                      {formatMoney(row.unitAmountMinor, row.currencyCode)}
+                                    </small>
+                                  </div>
+                                  {row.differences.length > 0 ? (
+                                    <ul className="chat-cart-build-diff">
+                                      {row.differences.map((difference) => (
+                                        <li key={difference}>{difference}</li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <small className="chat-cart-build-ok">
+                                      Matches the list
+                                    </small>
+                                  )}
+                                </div>
+                              ))}
+                              {cartBuildHasBlocked ? (
+                                <p className="admin-error" role="alert">
+                                  A line is out of stock, short on stock or below MOQ. Update the
+                                  list before building.
+                                </p>
+                              ) : null}
+                              {cartBuildHasDifferences ? (
+                                <label className="chat-cart-build-ack">
+                                  <input
+                                    type="checkbox"
+                                    checked={cartBuildAck}
+                                    onChange={(event) => setCartBuildAck(event.target.checked)}
+                                  />
+                                  <span>
+                                    I understand the price, stock, seller or MOQ differences.
+                                  </span>
+                                </label>
+                              ) : null}
+                              {cartBuildError ? (
+                                <p className="admin-error" role="alert">
+                                  {cartBuildError}
+                                </p>
+                              ) : null}
+                              {cartBuildMessage ? (
+                                <p className="admin-ok" role="status">
+                                  {cartBuildMessage}{" "}
+                                  <Link href="/cart">View cart</Link>
+                                </p>
+                              ) : null}
+                              <div className="chat-cart-build-actions">
+                                <button
+                                  className="button"
+                                  type="button"
+                                  disabled={!cartBuildReady || Boolean(cartBuildMessage)}
+                                  onClick={buildCart}
+                                >
+                                  Add to cart
+                                </button>
+                                <button
+                                  className="text-button"
+                                  type="button"
+                                  onClick={() => setCartBuildOpen(false)}
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                       <button className="text-button" type="button" onClick={() => void loadShared()}>
