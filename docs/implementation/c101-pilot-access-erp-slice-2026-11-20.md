@@ -117,6 +117,10 @@ Order completion now reserves every cart line in Tryton before the correlation i
   - `bank_receipt_claimed: false`
   - `reconciled: true`, `mismatch_codes: []`.
 
+A final post-fix re-run (`607c5a5` / API `055757`) produced `BK-261120-HTPT2K` (display 227,
+`cart_01M7VRMAVVJN5P8T4HHZ67EW40`): channel `b2c`, no business metadata, `tryton_move_61`
+committed, `reconciled: true`.
+
 ### 4.3 B2B regression
 
 `BK-261120-8Z2PDS` (`order_01M7VR37ENVC7KR72PSAF6VDN1`, display 226):
