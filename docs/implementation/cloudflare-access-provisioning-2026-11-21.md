@@ -9,6 +9,11 @@ created.
 - Enabled Zero Trust / Access for the account.
 - Team domain: `bazarbee.cloudflareaccess.com`.
 - Added the `gobazarbee.com` zone; status `pending`.
+- Seeded the live DNS records:
+  - `A @` → `89.116.20.164`, proxied
+  - `A www` → `89.116.20.164`, proxied
+  - Google site-verification TXT, DNS only
+- Set zone SSL mode to `strict`.
 - Cloudflare nameservers assigned:
   - `jillian.ns.cloudflare.com`
   - `odin.ns.cloudflare.com`

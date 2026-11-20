@@ -111,6 +111,8 @@ gate.
 | Account | `Gobazarbee@gmail.com's Account` (`a6f468c20d83314a619ce00e7c5a8ddd`) |
 | Zero Trust / Access | **Enabled** — team domain `bazarbee.cloudflareaccess.com` |
 | Zone | `gobazarbee.com` added, status **pending**; nameservers `jillian.ns.cloudflare.com`, `odin.ns.cloudflare.com` |
+| Zone DNS | 3 records created: `A @` and `A www` → `89.116.20.164` (proxied), Google verification TXT |
+| SSL mode | `strict` |
 | Access groups | 3 created: Staff, Sellers, ERP |
 | Access apps | 0 — creation returns `domain does not belong to zone` until the zone is active |
 | IdPs | 0 external IdPs; Cloudflare One-time PIN is available |
