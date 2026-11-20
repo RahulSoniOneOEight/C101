@@ -181,6 +181,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           orderNumber: state.uri.queryParameters['number'],
           totalMinor: int.tryParse(state.uri.queryParameters['total'] ?? ''),
           currencyCode: state.uri.queryParameters['currency'] ?? 'INR',
+          paymentMethod: state.uri.queryParameters['payment'],
         ),
       ),
       GoRoute(

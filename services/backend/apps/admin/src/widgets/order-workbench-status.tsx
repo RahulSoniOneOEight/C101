@@ -75,6 +75,9 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   const paymentLabel = order.payment_status
     ? paymentStatusLabel(order.payment_status)
     : "Status unavailable";
+  const isCod =
+    order.metadata?.payment_method === "cod" || order.metadata?.payment_mode === "cod";
+  const paymentValue = isCod ? "Cash due" : paymentLabel;
 
   const refundValue = simulatedRefund
     ? `${formatCurrency(simulatedRefund.amountMinor / 100, simulatedRefund.currencyCode)} simulated`
@@ -93,14 +96,15 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   const statusItems: StatusStripItem[] = [
     {
       label: "Payment",
-      value: paymentLabel,
-      detail:
-        order.payment_status === "authorized"
+      value: paymentValue,
+      detail: isCod
+        ? "Collect cash at delivery"
+        : order.payment_status === "authorized"
           ? "Ready to capture"
           : order.payment_status === "captured"
             ? "Payment captured"
             : "Native payment",
-      tone: paymentStatusColor(order.payment_status),
+      tone: isCod ? "orange" : paymentStatusColor(order.payment_status),
     },
     {
       label: "Delivery",
@@ -130,7 +134,16 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
     ["delivery_failed", "buyer_action_required", "damaged", "lost"].includes(shipment.status),
   );
 
-  if (order.payment_status === "authorized") {
+  if (isCod) {
+    attention.push({
+      tone: "orange" as Tone,
+      title: "Cash on delivery · collect at delivery",
+      detail:
+        "The seller collects cash and records it in the seller portal. Do not capture this payment in Medusa.",
+      action: "Open payments",
+      href: "#payments",
+    });
+  } else if (order.payment_status === "authorized") {
     attention.push({
       tone: "blue" as Tone,
       title: "Payment ready to capture",
@@ -171,9 +184,13 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
       : []),
     {
       label: "Payment",
-      status: paymentLabel,
-      tone: paymentStatusColor(order.payment_status) as Tone,
-      detail: order.payment_status === "authorized" ? "Ready to capture" : undefined,
+      status: paymentValue,
+      tone: (isCod ? "orange" : paymentStatusColor(order.payment_status)) as Tone,
+      detail: isCod
+        ? "Collect cash at delivery"
+        : order.payment_status === "authorized"
+          ? "Ready to capture"
+          : undefined,
     },
     {
       label: "Delivery",

@@ -1722,6 +1722,7 @@ class OrderConfirmedScreen extends StatelessWidget {
     this.orderNumber,
     this.totalMinor,
     this.currencyCode = 'INR',
+    this.paymentMethod,
     super.key,
   });
 
@@ -1731,6 +1732,9 @@ class OrderConfirmedScreen extends StatelessWidget {
   /// Paid total in minor units, passed from the completion response.
   final int? totalMinor;
   final String currencyCode;
+
+  /// `cod` for seller-collected cash, otherwise the simulated prepaid path.
+  final String? paymentMethod;
 
   @override
   Widget build(BuildContext context) {
@@ -1784,7 +1788,10 @@ class OrderConfirmedScreen extends StatelessWidget {
                         color: colors.contentPrimary)),
               ],
               const SizedBox(height: AgencySpacing.xs),
-              Text('Simulated payment authorized · no real charge',
+              Text(
+                  paymentMethod == 'cod'
+                      ? 'Cash on delivery · pay the seller when the order arrives'
+                      : 'Simulated payment authorized · no real charge',
                   textAlign: TextAlign.center,
                   style:
                       TextStyle(fontSize: 12, color: colors.contentSecondary)),
