@@ -53,6 +53,7 @@ All 21 pilot users have `customer` and `b2b_buyer`.
   - Procurement, Approvals and Assistant channels;
   - 21 members;
   - super-admin as owner, the other testers as buyers.
+- Reproducible provisioning: `services/hosted/scripts/provision-pilot-workspace.sql`.
 
 ### 2.4 Evidence
 
@@ -65,6 +66,8 @@ All 21 pilot users have `customer` and `b2b_buyer`.
 | Restore rsoni001 B2B | `21 of 21`; checkbox true after reload |
 | `/account` | Test-user access card only for `super_admin` |
 | Non-admin `buyer.b2b01` | Page says “Test-user access is restricted”; API `404` |
+| Live revoke `buyer.b2b01` B2B | Next `/trade` request shows “You are signed in with a consumer account” |
+| Live restore | Next `/trade` request shows “Your trade desk, on the web.” |
 | `/trade` as a dual-role tester | “Your trade desk, on the web.” |
 | Trade chat workspace | `BazarBee Pilot Trade · trade workspace`; Assistant + Procurement |
 
@@ -155,12 +158,16 @@ The ERP response remains explicit: `accounting_treatment: staging_test_clearing`
   - Tryton `stock_move` 59 and 60 `assigned`;
   - `domain_event` reservation + order-confirmed rows.
 - Screenshots:
-  - `pilot-access-02-all-granted.png`
+  - `pilot-access-05-account.png`
+  - `pilot-access-06-trade.png`
   - `pilot-access-07-one-revoked.png`
   - `pilot-access-08-restored.png`
   - `pilot-access-09-trade-chat.png`
+  - `pilot-access-10-denied.png`
+  - `pilot-access-12-live-revoked.png`
   - `b2c-erp-03-success.png`
   - `b2b-erp-order.png`
+  - `erp-order-detail.png`
 
 ## 7. Remaining work
 
@@ -174,6 +181,8 @@ The ERP response remains explicit: `accounting_treatment: staging_test_clearing`
    known control-total difference.
 6. Add a per-line reservation ledger for operator stock views; Tryton remains authoritative, but
    the platform ledger currently records only the legacy single-line reserve path.
+7. Mixed-channel carts are not blocked: the checkout treats any B2B line as a B2B cart. A future
+   slice should prevent adding a Shop line to a Trade cart (or vice versa) before checkout.
 
 ## 8. Rollback
 
