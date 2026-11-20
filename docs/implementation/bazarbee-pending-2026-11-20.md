@@ -7,13 +7,14 @@
 
 **Implementation update (20 Nov 2026):** branding strings, stale Flutter tests, the mixed-channel
 cart guard, the Flutter chat channel-switch race, B2B Bought Together, the web chat shared-list,
-read-cursor and invitation flows, and the web draft-edit/proposal/cart-build flows are implemented.
-The Flutter chat flows were audited and verified (17/17 tests); the remaining chat gaps are web
-member removal/role changes, revision approval requests, unread refresh and tab-strip keyboard
-navigation. See `bazarbee-brand-cart-chat-2026-11-20.md`,
+read-cursor and invitation flows, the web draft-edit/proposal/cart-build flows, and web guest
+checkout are implemented. The Flutter chat flows were audited and verified (17/17 tests); the
+remaining chat gaps are web member removal/role changes, revision approval requests, unread refresh
+and tab-strip keyboard navigation. See `bazarbee-brand-cart-chat-2026-11-20.md`,
 `bazarbee-b2b-bought-together-2026-11-20.md`, `bazarbee-web-chat-shared-list-2026-11-20.md`,
-`bazarbee-web-chat-invitations-2026-11-20.md` and
-`bazarbee-web-chat-draft-cart-2026-11-20.md`. The remaining items below are still pending.
+`bazarbee-web-chat-invitations-2026-11-20.md`,
+`bazarbee-web-chat-draft-cart-2026-11-20.md` and
+`bazarbee-web-guest-checkout-2026-11-20.md`. The remaining items below are still pending.
 
 Already completed and excluded from this list: dual-channel access for all 21 testers, the super-admin access editor, B2C/B2B cart tagging, B2C Tryton reservation/reconciliation, and the DeepSeek Pro QC follow-ups.
 
@@ -91,6 +92,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
 
 - **B2B Bought Together** - implemented: trade PDP renders the active B2B pair with trade pricing,
   MOQ and a link. Staging pair seeded by `services/hosted/scripts/seed-b2b-bought-together.sql`.
+- **Web guest checkout** - implemented: Shop orders can be placed without sign-in, with email,
+  Indian mobile, delivery address and an idempotent completion key; B2B still requires sign-in.
+  Guest contact is stored on the order. Guest order tracking/email is still pending. See
+  `bazarbee-web-guest-checkout-2026-11-20.md`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.
