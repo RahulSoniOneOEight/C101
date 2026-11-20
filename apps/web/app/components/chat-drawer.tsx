@@ -6,16 +6,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   WorkspaceChannel,
   WorkspaceDraftView,
+  WorkspaceInvitationCreated,
+  WorkspaceInvitationPage,
   WorkspaceMessage,
   WorkspaceSummary,
 } from "@/lib/experience-api";
 import { formatMoney } from "@/lib/money";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
-type ChatView = "chat" | "shared";
+type ChatView = "chat" | "shared" | "participants";
 type SharedState =
   | { status: "idle" | "loading" }
   | { status: "ready"; view: WorkspaceDraftView | null }
+  | { status: "error"; message: string };
+type ParticipantsState =
+  | { status: "idle" | "loading" }
+  | { status: "ready"; page: WorkspaceInvitationPage }
   | { status: "error"; message: string };
 
 const SUGGESTIONS = [
@@ -98,6 +104,12 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
   const [view, setView] = useState<ChatView>("chat");
   const [shared, setShared] = useState<SharedState>({ status: "idle" });
+  const [participants, setParticipants] = useState<ParticipantsState>({ status: "idle" });
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [createdInvite, setCreatedInvite] = useState<WorkspaceInvitationCreated | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
@@ -190,6 +202,23 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     }
   }, [workspace]);
 
+  const loadParticipants = useCallback(async () => {
+    if (!workspace) return;
+    setParticipants({ status: "loading" });
+    try {
+      const response = await fetch(
+        `/api/chat?invitations=${encodeURIComponent(workspace.id)}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("Participants could not be loaded.");
+      const payload = (await response.json()) as { page?: WorkspaceInvitationPage };
+      if (!payload.page) throw new Error("Participants could not be loaded.");
+      setParticipants({ status: "ready", page: payload.page });
+    } catch (cause) {
+      setParticipants({ status: "error", message: (cause as Error).message });
+    }
+  }, [workspace]);
+
   const load = useCallback(async () => {
     if (!signedIn) {
       setAuthRequired(true);
@@ -226,6 +255,9 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       if (!chosen) throw new Error("No conversation workspace is available for this account.");
       setWorkspace(chosen);
       setShared({ status: "idle" });
+      setParticipants({ status: "idle" });
+      setCreatedInvite(null);
+      setInviteMessage("");
 
       response = await fetch(`/api/chat?workspace=${encodeURIComponent(chosen.id)}`, {
         cache: "no-store",
@@ -350,6 +382,12 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       void loadShared();
     }
   }, [open, view, workspace, shared.status, loadShared]);
+
+  useEffect(() => {
+    if (open && view === "participants" && workspace && participants.status === "idle") {
+      void loadParticipants();
+    }
+  }, [open, view, workspace, participants.status, loadParticipants]);
 
   const selectChannel = async (next: WorkspaceChannel) => {
     if (sending || next.id === channel?.id) return;
@@ -494,6 +532,88 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const sharedLines = sharedView?.revision?.lines ?? [];
   const sharedPending =
     sharedView?.proposals.filter((proposal) => proposal.status === "pending") ?? [];
+  const participantsPage = participants.status === "ready" ? participants.page : null;
+  const canManageInvitations =
+    workspace?.scope_type === "household"
+      ? workspace.role === "owner"
+      : workspace?.scope_type === "business_account"
+        ? workspace.role === "admin" ||
+          workspace.role === "buyer" ||
+          workspace.role === "owner"
+        : false;
+
+  async function inviteParticipant(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!workspace || inviteBusy) return;
+    const email = inviteEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setInviteError("Enter a valid email address.");
+      return;
+    }
+    setInviteBusy(true);
+    setInviteError("");
+    setInviteMessage("");
+    setCreatedInvite(null);
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "invite",
+          workspaceId: workspace.id,
+          email,
+        }),
+      });
+      const payload = (await response.json()) as {
+        invitation?: WorkspaceInvitationCreated["invitation"];
+        invite_token?: string;
+        error?: string;
+      };
+      if (!response.ok || !payload.invitation || !payload.invite_token) {
+        throw new Error(payload.error ?? "The invitation could not be created.");
+      }
+      setCreatedInvite({
+        invitation: payload.invitation,
+        invite_token: payload.invite_token,
+      });
+      setInviteMessage(`Invitation created for ${payload.invitation.invitee_email}.`);
+      setInviteEmail("");
+      await loadParticipants();
+    } catch (cause) {
+      setInviteError((cause as Error).message);
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
+  async function revokeInvitation(invitationId: string) {
+    if (!workspace || inviteBusy) return;
+    setInviteBusy(true);
+    setInviteError("");
+    setInviteMessage("");
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "revoke-invite",
+          workspaceId: workspace.id,
+          invitationId,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? "The invitation could not be revoked.");
+      }
+      setInviteMessage("Invitation revoked.");
+      setCreatedInvite(null);
+      await loadParticipants();
+    } catch (cause) {
+      setInviteError((cause as Error).message);
+    } finally {
+      setInviteBusy(false);
+    }
+  }
 
   return (
     <>
@@ -579,6 +699,20 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               >
                 Shared list
               </button>
+              <button
+                type="button"
+                role="tab"
+                id="chat-view-participants"
+                aria-controls="chat-view-panel"
+                aria-selected={view === "participants"}
+                tabIndex={view === "participants" ? 0 : -1}
+                className={
+                  view === "participants" ? "chat-view-tab active" : "chat-view-tab"
+                }
+                onClick={() => setView("participants")}
+              >
+                Participants
+              </button>
             </div>
 
             {view === "chat" && channels.length > 1 ? (
@@ -612,7 +746,13 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               ref={scrollRef}
               id="chat-view-panel"
               role="tabpanel"
-              aria-labelledby={view === "chat" ? "chat-view-chat" : "chat-view-shared"}
+              aria-labelledby={
+                view === "chat"
+                  ? "chat-view-chat"
+                  : view === "shared"
+                    ? "chat-view-shared"
+                    : "chat-view-participants"
+              }
             >
               {view === "shared" ? (
                 <div className="chat-shared">
@@ -704,6 +844,122 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                       ) : null}
                       <button className="text-button" type="button" onClick={() => void loadShared()}>
                         Refresh shared list
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : view === "participants" ? (
+                <div className="chat-participants">
+                  {authRequired ? (
+                    <div className="chat-empty">
+                      <h3>Sign in to manage participants</h3>
+                      <p>Workspace membership is private to the signed-in account.</p>
+                      <Link
+                        className="button"
+                        href={`/sign-in?next=${encodeURIComponent(pathname || "/")}`}
+                      >
+                        Sign in
+                      </Link>
+                    </div>
+                  ) : participants.status === "loading" ? (
+                    <div className="chat-empty">
+                      <p>Loading participants…</p>
+                    </div>
+                  ) : participants.status === "error" ? (
+                    <div className="chat-empty">
+                      <h3>Participants unavailable</h3>
+                      <p>{participants.message}</p>
+                      <button
+                        className="button"
+                        type="button"
+                        onClick={() => void loadParticipants()}
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="chat-participants-head">
+                        <span className="eyebrow">Participants</span>
+                        <strong>
+                          {participantsPage &&
+                          participantsPage.participants > participantsPage.capacity
+                            ? `${participantsPage.participants} participants · staging pilot workspace`
+                            : `${participantsPage?.participants ?? 0} of ${
+                                participantsPage?.capacity ?? 0
+                              } seats used`}
+                        </strong>
+                      </div>
+                      {canManageInvitations ? (
+                        <form className="chat-invite-form" onSubmit={inviteParticipant}>
+                          <label className="sr-only" htmlFor="chat-invite-email">
+                            Invite email
+                          </label>
+                          <input
+                            id="chat-invite-email"
+                            type="email"
+                            value={inviteEmail}
+                            onChange={(event) => setInviteEmail(event.target.value)}
+                            placeholder="teammate@example.com"
+                            autoComplete="email"
+                            disabled={inviteBusy}
+                          />
+                          <button
+                            className="button"
+                            type="submit"
+                            disabled={inviteBusy || inviteEmail.trim().length === 0}
+                          >
+                            {inviteBusy ? "Inviting…" : "Invite"}
+                          </button>
+                        </form>
+                      ) : (
+                        <p className="muted">
+                          Only the workspace owner, admin or buyer can invite participants.
+                        </p>
+                      )}
+                      {inviteMessage ? <p className="admin-ok">{inviteMessage}</p> : null}
+                      {inviteError ? <p className="admin-error">{inviteError}</p> : null}
+                      {createdInvite ? (
+                        <div className="chat-invite-token">
+                          <span>Share this invite code</span>
+                          <code>{createdInvite.invite_token}</code>
+                        </div>
+                      ) : null}
+                      <div className="chat-invitation-list">
+                        {participantsPage?.invitations.length ? (
+                          participantsPage.invitations.map((invitation) => (
+                            <div className="chat-invitation" key={invitation.id}>
+                              <div>
+                                <strong>{invitation.invitee_email}</strong>
+                                <small>
+                                  {invitation.status}
+                                  {invitation.expires_at
+                                    ? ` · expires ${new Date(invitation.expires_at).toLocaleDateString()}`
+                                    : ""}
+                                </small>
+                              </div>
+                              {canManageInvitations && invitation.status === "pending" ? (
+                                <button
+                                  className="text-button"
+                                  type="button"
+                                  disabled={inviteBusy}
+                                  onClick={() => void revokeInvitation(invitation.id)}
+                                >
+                                  Revoke
+                                </button>
+                              ) : null}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="muted">No invitations yet.</p>
+                        )}
+                      </div>
+                      <button
+                        className="text-button"
+                        type="button"
+                        onClick={() => void loadParticipants()}
+                      >
+                        Refresh participants
                       </button>
                     </>
                   )}
