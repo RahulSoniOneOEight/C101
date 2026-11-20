@@ -1,6 +1,6 @@
 # Web chat shared list + read cursors — 20 Nov 2026
 
-Status: **implemented on staging** · Web `release-web-20261120-070827` · Source `a68a118`
+Status: **implemented on staging** · Web `release-web-20261120-071856` · Source `6d8b173`
 Production: untouched.
 
 ## 1. What changed
@@ -69,7 +69,21 @@ read_cursor.last_event_sequence = 132
 
 Screenshots: `web-shared-02-list.png`, `web-shared-04-read-procurement.png`.
 
-## 4. Remaining web drawer gaps
+## 4. QC follow-ups
+
+DeepSeek V4 Pro reviewed the increment and returned **ship**. Corrected:
+
+- mark-read now checks the response before clearing the local unread badge;
+- signed-out users see the sign-in prompt on the Shared list tab;
+- initial message loading paginates up to 10 pages and displays the latest 100, so a >50-message
+  channel can be marked fully read;
+- `mark-read` rejects an empty/ambiguous sequence;
+- the aside no longer announces the whole drawer; the launcher unread count is part of its
+  accessible name; view/channel tabs have `aria-controls`, linked tabpanels and roving tabindex.
+
+Arrow-key navigation within the tabs remains a follow-up; mouse/Enter activation works.
+
+## 5. Remaining web drawer gaps
 
 - Invitations/participant management.
 - Draft editing/proposal decisions and revision approvals.
