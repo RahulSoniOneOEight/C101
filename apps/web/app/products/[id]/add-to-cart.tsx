@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addToCart, type CartItem } from "@/lib/cart";
+import { addToCart, announceCartConflict, type CartItem } from "@/lib/cart";
 
 export function AddToCart({
   item,
@@ -18,12 +18,20 @@ export function AddToCart({
   const cap = Math.max(1, Math.min(99, maxQuantity || 99));
 
   function add(): void {
-    addToCart(item, quantity);
+    const result = addToCart(item, quantity);
+    if (!result.ok) {
+      announceCartConflict(result);
+      return;
+    }
     setAdded(true);
   }
 
   function buyNow(): void {
-    addToCart(item, quantity);
+    const result = addToCart(item, quantity);
+    if (!result.ok) {
+      announceCartConflict(result);
+      return;
+    }
     router.push("/checkout");
   }
 

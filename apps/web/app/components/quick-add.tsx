@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { addToCart, type CartItem } from "@/lib/cart";
+import { addToCart, announceCartConflict, type CartItem } from "@/lib/cart";
 
 /**
  * Quick add-to-cart for catalogue tiles. The product card opens the detail page; this button is
@@ -41,7 +41,11 @@ export function QuickAdd({
       className={`${className}${added ? " is-added" : ""}`}
       type="button"
       onClick={() => {
-        addToCart(item, Math.max(1, Math.min(99, quantity)));
+        const result = addToCart(item, Math.max(1, Math.min(99, quantity)));
+        if (!result.ok) {
+          announceCartConflict(result);
+          return;
+        }
         setAdded(true);
         if (timer.current !== null) window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => setAdded(false), 1800);

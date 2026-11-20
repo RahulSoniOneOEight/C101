@@ -976,6 +976,7 @@ export async function getBoughtTogether(
 export interface CheckoutLineInput {
   offerId: string;
   quantity: number;
+  channel: "b2c" | "b2b";
 }
 
 export interface CheckoutInput {
@@ -1036,12 +1037,23 @@ export async function quoteCart(
   sessionToken: string,
 ): Promise<CartQuote> {
   if (input.lines.length === 0) throw new Error("The cart is empty.");
+  const lineChannels = new Set(
+    input.lines.map((line) => line.channel ?? input.channel ?? "b2c"),
+  );
+  if (lineChannels.size > 1) throw new Error("The cart mixes Shop and Trade items.");
+  if (input.channel && !lineChannels.has(input.channel)) {
+    throw new Error("The cart channel does not match its lines.");
+  }
+  const channel =
+    input.channel ??
+    (Array.from(lineChannels)[0] as "b2c" | "b2b" | undefined) ??
+    "b2c";
   const auth = authenticatedHeaders(sessionToken);
   const cart = await call<{ id: string }>("/v1/carts", {
     method: "POST",
     headers: auth,
     body: JSON.stringify({
-      channel: input.channel === "b2b" ? "b2b_web" : "b2c_web",
+      channel: channel === "b2b" ? "b2b_web" : "b2c_web",
     }),
   });
   for (const line of input.lines) {
@@ -1133,11 +1145,22 @@ export async function completeCheckout(
 ): Promise<CompletionResult> {
   const auth = authenticatedHeaders(sessionToken);
   if (input.lines.length === 0) throw new Error("The cart is empty.");
+  const lineChannels = new Set(
+    input.lines.map((line) => line.channel ?? input.channel ?? "b2c"),
+  );
+  if (lineChannels.size > 1) throw new Error("The cart mixes Shop and Trade items.");
+  if (input.channel && !lineChannels.has(input.channel)) {
+    throw new Error("The cart channel does not match its lines.");
+  }
+  const channel =
+    input.channel ??
+    (Array.from(lineChannels)[0] as "b2c" | "b2b" | undefined) ??
+    "b2c";
   const cart = await call<{ id: string }>("/v1/carts", {
     method: "POST",
     headers: auth,
     body: JSON.stringify({
-      channel: input.channel === "b2b" ? "b2b_web" : "b2c_web",
+      channel: channel === "b2b" ? "b2b_web" : "b2c_web",
     }),
   });
   for (const line of input.lines) {

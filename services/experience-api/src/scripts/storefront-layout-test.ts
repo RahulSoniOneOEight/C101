@@ -15,8 +15,12 @@ assert.ok(b2c, "a b2c layout must resolve for en-IN");
 assert.equal(b2c.layout_key, "b2c-home");
 assert.equal(b2c.channel, "b2c");
 
-// No b2b layout is seeded yet: absence must be undefined, never a throw.
-assert.equal(resolveLayout("b2b", "en-IN"), undefined);
+// The b2b shell is seeded without commerce modules; it must resolve, not throw.
+const b2b = resolveLayout("b2b", "en-IN");
+assert.ok(b2b, "the b2b shell must resolve for en-IN");
+assert.equal(b2b.layout_key, "b2b-home");
+assert.equal(b2b.channel, "b2b");
+assert.equal(b2b.modules.length, 0, "the b2b shell has no seeded modules yet");
 
 // Outside the layout window the layout is withheld rather than served stale.
 assert.equal(resolveLayout("b2c", "en-IN", new Date("2027-06-01T00:00:00Z")), undefined);
@@ -102,5 +106,5 @@ const unlabelled = normaliseLayoutSections(
 assert.equal(unlabelled.sections[0]?.label, "Flash Deals", "an unauthored label falls back to the registry label");
 
 console.log(
-  "storefront-layout-test: PASS (b2c layout resolves, b2b withholds, labels and badge preserved, membership referenced, fixture parity)",
+  "storefront-layout-test: PASS (b2c layout resolves, b2b shell resolves without modules, labels and badge preserved, membership referenced, fixture parity)",
 );

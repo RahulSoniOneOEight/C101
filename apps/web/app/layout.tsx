@@ -10,6 +10,7 @@ import {
 } from "@/lib/experience-api";
 import { getStorefrontLocale } from "@/lib/locale";
 import { ChatDrawer } from "./components/chat-drawer";
+import { CartConflictToast } from "./components/cart-conflict-toast";
 import { SiteFooter, SiteHeader } from "./components/site-chrome";
 import "./globals.css";
 
@@ -75,6 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {children}
         </main>
         <ChatDrawer signedIn={signedIn} />
+        <CartConflictToast />
         <SiteFooter />
       </body>
     </html>

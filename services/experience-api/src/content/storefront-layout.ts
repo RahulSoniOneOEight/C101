@@ -128,7 +128,7 @@ export const storefrontLayouts: StorefrontLayout[] = [
       {
         type: "trust-row",
         module_key: "home-trust",
-        title: "Why BuildKart",
+        title: "Why BazarBee",
       },
       {
         type: "category-banner",

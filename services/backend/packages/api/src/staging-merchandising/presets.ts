@@ -315,7 +315,7 @@ export const MERCHANDISING_CONTENT_PRESETS: MerchandisingContentPreset[] = [
     contentType: "onboarding",
     placement: "onboarding.trade-program",
     locale: "en-IN",
-    title: "Join the BuildKart trade program",
+    title: "Join the BazarBee trade program",
     body: "Add your GSTIN and delivery sites to unlock trade pricing and campaign eligibility in staging.",
     actionLabel: "Start",
     actionUri: "/onboarding/business",

@@ -52,8 +52,12 @@ class _EmptyNotifications extends NotificationsNotifier {
 }
 
 /// Reads the colour the bar merges into its title row.
-Color? _titleColor(WidgetTester tester) =>
-    DefaultTextStyle.of(tester.element(find.text('BuildKart'))).style.color;
+Color? _titleColor(WidgetTester tester) => tester
+    .widget<DefaultTextStyle>(
+      find.byKey(const ValueKey<String>('home-bar-title-style')),
+    )
+    .style
+    .color;
 
 double _barAlpha(WidgetTester tester) {
   final container = tester.widget<Container>(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { addToCart } from "@/lib/cart";
+import { addToCart, announceCartConflict } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import { useWishlist } from "@/lib/wishlist";
 import { ProductImage } from "../components/product-image";
@@ -83,8 +83,8 @@ export function WishlistView() {
                   <button
                     className="button"
                     type="button"
-                    onClick={() =>
-                      addToCart({
+                    onClick={() => {
+                      const result = addToCart({
                         offerId: item.offerId,
                         productId: item.productId,
                         sku: item.sku,
@@ -93,8 +93,9 @@ export function WishlistView() {
                         priceMinor: item.priceMinor,
                         currency: item.currency,
                         image: item.image,
-                      })
-                    }
+                      });
+                      if (!result.ok) announceCartConflict(result);
+                    }}
                   >
                     Add to cart
                   </button>

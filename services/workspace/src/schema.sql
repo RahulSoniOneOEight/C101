@@ -1,4 +1,4 @@
--- BuildKart Workspace Service — Phase 1 kernel, with the CHG-072 household extension.
+-- BazarBee Workspace Service — Phase 1 kernel, with the CHG-072 household extension.
 -- Own database; no shared tables with Medusa, Experience API or Tryton.
 --
 -- Every statement below is idempotent: ensureSchema() re-runs this file on each boot.
@@ -285,9 +285,9 @@ INSERT INTO channel (id, workspace_id, kind, name)
 VALUES
   ('ch_arjun_procurement', 'ws_arjun_procurement', 'procurement', 'Procurement'),
   ('ch_arjun_approvals', 'ws_arjun_procurement', 'approvals', 'Approvals'),
-  ('ch_arjun_assistant', 'ws_arjun_procurement', 'assistant', 'BuildKart Cart Assistant'),
+  ('ch_arjun_assistant', 'ws_arjun_procurement', 'assistant', 'BazarBee Cart Assistant'),
   ('ch_shakti_procurement', 'ws_shakti_procurement', 'procurement', 'Procurement'),
-  ('ch_shakti_assistant', 'ws_shakti_procurement', 'assistant', 'BuildKart Cart Assistant')
+  ('ch_shakti_assistant', 'ws_shakti_procurement', 'assistant', 'BazarBee Cart Assistant')
 ON CONFLICT (workspace_id, kind) DO NOTHING;
 
 INSERT INTO message (id, workspace_id, channel_id, actor_id, actor_name, body, message_type)

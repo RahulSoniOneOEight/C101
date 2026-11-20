@@ -64,7 +64,7 @@ void main() {
     await tester.tap(find.text('Get Started'));
     await tester.pumpAndSettle();
 
-    expect(find.text('BuildKart'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Get OTP'), findsOneWidget);
     expect(find.text('Sign In'), findsNothing);
   });

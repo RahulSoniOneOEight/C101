@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
-import { addToCart } from "@/lib/cart";
+import { addToCart, announceCartConflict } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import {
   addToTradeQuote,
@@ -151,7 +151,10 @@ export function TradePricingPanel({ product }: { product: ComposedProduct }) {
         <button
           className="button button-ghost"
           type="button"
-          onClick={() => addToCart(cartItem, cartQuantity)}
+          onClick={() => {
+            const result = addToCart(cartItem, cartQuantity);
+            if (!result.ok) announceCartConflict(result);
+          }}
         >
           Add to cart
         </button>

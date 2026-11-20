@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agency_flutter_ui/agency_flutter_ui.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +36,7 @@ class _DockApi extends ExperienceApi {
   int proposalExpectedVersion = -1;
   String? proposalKind;
   List<Map<String, dynamic>>? initialDraftLines;
+  Completer<WorkspaceMessagePage>? chatGate;
 
   static const channel = WorkspaceChannel(
     id: 'ch_project',
@@ -46,7 +49,7 @@ class _DockApi extends ExperienceApi {
     id: 'ch_assistant',
     workspaceId: 'ws_household',
     kind: 'assistant',
-    name: 'BuildKart Cart Assistant',
+    name: 'BazarBee Cart Assistant',
   );
 
   static const procurementChannel = WorkspaceChannel(
@@ -60,7 +63,7 @@ class _DockApi extends ExperienceApi {
     id: 'msg_assistant',
     channelId: 'ch_assistant',
     actorId: 'assistant_cart',
-    actorName: 'BuildKart Cart Assistant',
+    actorName: 'BazarBee Cart Assistant',
     body: 'Shared list has 2 lines and 4 units. I cannot build a cart.',
     messageType: 'text',
     sequence: 2,
@@ -207,6 +210,11 @@ class _DockApi extends ExperienceApi {
         messages: <WorkspaceMessage>[assistantMessage],
         nextCursor: '2',
       );
+    }
+    final gate = chatGate;
+    if (gate != null) {
+      chatGate = null;
+      return gate.future;
     }
     return WorkspaceMessagePage(
       messages: shareCalls == 0
@@ -474,8 +482,8 @@ void main() {
     await tester.tap(find.text('Assistant'));
     await tester.pumpAndSettle();
 
-    expect(find.text('BuildKart Cart Assistant'), findsWidgets);
-    expect(find.text('Automated · BuildKart Cart Assistant'), findsOneWidget);
+    expect(find.text('BazarBee Cart Assistant'), findsWidgets);
+    expect(find.text('Automated · BazarBee Cart Assistant'), findsOneWidget);
     expect(
       find.text('Shared list has 2 lines and 4 units. I cannot build a cart.'),
       findsOneWidget,
@@ -485,6 +493,56 @@ void main() {
     await tester.tap(find.text('Chat'));
     await tester.pumpAndSettle();
     expect(find.text('Project conversation'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('late chat response cannot overwrite the assistant tab',
+      (tester) async {
+    final api = _DockApi(
+      householdMember: true,
+      householdRole: 'owner',
+      withAssistant: true,
+    );
+    await tester.pumpWidget(_host(api));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Conversations'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Assistant'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Shared list has 2 lines and 4 units. I cannot build a cart.'),
+      findsOneWidget,
+    );
+
+    final gate = Completer<WorkspaceMessagePage>();
+    api.chatGate = gate;
+    await tester.tap(find.text('Chat'));
+    await tester.pump();
+    await tester.tap(find.text('Assistant'));
+    await tester.pump();
+
+    gate.complete(const WorkspaceMessagePage(
+      messages: <WorkspaceMessage>[
+        WorkspaceMessage(
+          id: 'msg_chat_late',
+          channelId: 'ch_project',
+          actorId: 'participant',
+          actorName: 'Participant',
+          body: 'Late chat message',
+          messageType: 'text',
+          sequence: 9,
+        ),
+      ],
+      nextCursor: '9',
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Late chat message'), findsNothing);
+    expect(
+      find.text('Shared list has 2 lines and 4 units. I cannot build a cart.'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

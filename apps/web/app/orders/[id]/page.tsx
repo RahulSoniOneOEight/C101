@@ -46,7 +46,7 @@ export default async function OrderDetailPage({
       <div className="page-heading-row order-heading">
         <div>
           <span className="eyebrow">Customer order</span>
-          <h1>{order.order_number ?? "BuildKart order"}</h1>
+          <h1>{order.order_number ?? "BazarBee order"}</h1>
           <p className="muted">Internal owner reference {order.order_id}</p>
         </div>
         <span className="status-pill">{label(order.status)}</span>

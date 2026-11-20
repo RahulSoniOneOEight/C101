@@ -59,15 +59,55 @@ function writeCart(items: CartItem[]): void {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-export function addToCart(item: Omit<CartItem, "quantity">, quantity = 1): void {
+export type CartAddResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: "channel-conflict";
+      currentChannel: "b2c" | "b2b";
+      nextChannel: "b2c" | "b2b";
+    };
+
+export function addToCart(
+  item: Omit<CartItem, "quantity">,
+  quantity = 1,
+): CartAddResult {
   const items = readCart();
+  const nextChannel = item.channel === "b2b" ? "b2b" : "b2c";
+  const currentChannels = new Set(items.map((candidate) => candidate.channel ?? "b2c"));
+  if (items.length > 0 && (currentChannels.size > 1 || !currentChannels.has(nextChannel))) {
+    return {
+      ok: false,
+      reason: "channel-conflict",
+      currentChannel: [...currentChannels][0] ?? "b2c",
+      nextChannel,
+    };
+  }
   const existing = items.find((candidate) => candidate.offerId === item.offerId);
   if (existing) {
     existing.quantity = Math.min(99, existing.quantity + Math.max(1, quantity));
   } else {
-    items.push({ ...item, quantity: Math.max(1, Math.min(99, quantity)) });
+    items.push({
+      ...item,
+      channel: nextChannel,
+      quantity: Math.max(1, Math.min(99, quantity)),
+    });
   }
   writeCart(items);
+  return { ok: true };
+}
+
+/** Surface a channel conflict without discarding the existing basket. */
+export function announceCartConflict(result: CartAddResult): void {
+  if (result.ok || typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("bazarbee:cart-conflict", {
+      detail: {
+        currentChannel: result.currentChannel,
+        nextChannel: result.nextChannel,
+      },
+    }),
+  );
 }
 
 export function setQuantity(offerId: string, quantity: number): void {

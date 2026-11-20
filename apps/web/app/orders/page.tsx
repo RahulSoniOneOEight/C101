@@ -70,7 +70,7 @@ export default async function OrdersPage() {
             <div className="card-row">
               <div>
                 <span className="eyebrow">{dateLabel(order.created_at)}</span>
-                <h2>{order.order_number ?? "BuildKart order"}</h2>
+                <h2>{order.order_number ?? "BazarBee order"}</h2>
               </div>
               <span className="status-pill">{order.status.replaceAll("_", " ")}</span>
             </div>

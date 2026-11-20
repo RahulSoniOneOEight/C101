@@ -324,7 +324,7 @@ void main() {
     await tester.pumpWidget(_host(prefs, const CheckoutScreen()));
     await tester.pumpAndSettle();
 
-    expect(find.text('BuildKart staging collection desk'), findsOneWidget);
+    expect(find.text('BazarBee staging collection desk'), findsOneWidget);
     expect(find.text('Switch to delivery to place order'), findsOneWidget);
     expect(find.textContaining('No order will be submitted as delivery'),
         findsOneWidget);

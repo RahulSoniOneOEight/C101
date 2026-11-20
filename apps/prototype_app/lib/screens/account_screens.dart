@@ -1040,7 +1040,7 @@ class HelpSupportScreen extends ConsumerWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: Icon(Icons.mail_outline, color: colors.actionPrimary),
-            title: const Text('support@buildkart.example',
+            title: const Text('support@gobazarbee.com',
                 style: TextStyle(fontSize: 13)),
             onTap: () => PinToast.show(context, 'Email client not available',
                 tone: PinToastTone.info),
@@ -1323,7 +1323,7 @@ class SettingsScreen extends ConsumerWidget {
                 .update(settings.copyWith(promotionalOptIn: v)),
             title: const Text('Deals & promotions',
                 style: TextStyle(fontSize: 13)),
-            subtitle: const Text('Offers from BuildKart and sellers',
+            subtitle: const Text('Offers from BazarBee and sellers',
                 style: TextStyle(fontSize: 11)),
           ),
           SwitchListTile(

@@ -80,6 +80,7 @@ class HomePinnedBar extends StatelessWidget {
                   IconTheme.merge(
                     data: IconThemeData(color: foreground, size: 22),
                     child: DefaultTextStyle.merge(
+                      key: const ValueKey<String>('home-bar-title-style'),
                       style: TextStyle(color: foreground),
                       child: child!,
                     ),

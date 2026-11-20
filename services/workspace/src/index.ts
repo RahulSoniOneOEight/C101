@@ -288,7 +288,7 @@ async function createWorkspace(req: Request, actor: Actor): Promise<Response> {
       `insert into channel (id, workspace_id, kind, name)
        values ($1, $2, 'procurement', 'Procurement'),
               ($3, $2, 'approvals', 'Approvals'),
-              ($4, $2, 'assistant', 'BuildKart Cart Assistant')`,
+              ($4, $2, 'assistant', 'BazarBee Cart Assistant')`,
       [procurementId, workspaceId, approvalsId, assistantId],
     );
     await client.query(
@@ -359,7 +359,7 @@ async function createHouseholdProject(req: Request, actor: Actor): Promise<Respo
     await client.query(
       `insert into channel (id, workspace_id, kind, name)
        values ($1, $2, 'project', $3),
-              ($4, $2, 'assistant', 'BuildKart Cart Assistant')`,
+              ($4, $2, 'assistant', 'BazarBee Cart Assistant')`,
       [channelId, workspaceId, name, assistantId],
     );
     await client.query(
@@ -705,7 +705,7 @@ async function acceptInvitation(req: Request, actor: Actor): Promise<Response> {
 }
 
 const ASSISTANT_ACTOR_ID = "assistant_cart";
-const ASSISTANT_ACTOR_NAME = "BuildKart Cart Assistant";
+const ASSISTANT_ACTOR_NAME = "BazarBee Cart Assistant";
 
 /**
  * Every workspace gets one assistant channel. It is created lazily for older
@@ -715,7 +715,7 @@ const ASSISTANT_ACTOR_NAME = "BuildKart Cart Assistant";
 async function ensureAssistantChannel(workspaceId: string): Promise<void> {
   await pool.query(
     `insert into channel (id, workspace_id, kind, name)
-     values ($1, $2, 'assistant', 'BuildKart Cart Assistant')
+     values ($1, $2, 'assistant', 'BazarBee Cart Assistant')
      on conflict (workspace_id, kind) do nothing`,
     [`ch_${randomUUID().replaceAll("-", "")}`, workspaceId],
   );
@@ -2355,7 +2355,7 @@ async function ensureSeedDraft(): Promise<void> {
       currency_code: "INR",
       commercial_snapshot: {
         product_title: "RANGER A/T",
-        seller_name: "BuildKart Direct",
+        seller_name: "BazarBee Direct",
         sku: "RANGER-A-T-215-75R15",
         unit_amount_minor: 93906,
         currency_code: "INR",

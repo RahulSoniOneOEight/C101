@@ -53,7 +53,7 @@ export default async function NewReturnPage({
           <span className="eyebrow">Owner-scoped return</span>
           <h1>Start a return</h1>
           <p className="muted">
-            {order.order_number ?? "BuildKart order"} · reference {order.order_id}
+            {order.order_number ?? "BazarBee order"} · reference {order.order_id}
           </p>
         </div>
       </div>

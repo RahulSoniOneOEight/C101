@@ -8,6 +8,7 @@
   "starts_at": "2026-10-01T00:00:00Z",
   "ends_at": "2026-12-31T23:59:59Z",
   "fallback_layout_key": null,
+  "hero_rotation_ms": 5000,
   "modules": [
     {
       "type": "hero-banner",
@@ -50,7 +51,7 @@
     {
       "type": "trust-row",
       "module_key": "home-trust",
-      "title": "Why BuildKart"
+      "title": "Why BazarBee"
     },
     {
       "type": "category-banner",

@@ -21,7 +21,7 @@ void main() {
       const HomeBannerCarousel(banners: homeFallbackBanners),
     ));
 
-    expect(find.text('BuildKart'), findsNothing,
+    expect(find.text('BazarBee'), findsNothing,
         reason: 'the carousel owns banner copy only');
     expect(find.text('BULK ORDERS'), findsOneWidget);
     expect(find.text('Buy more, save more'), findsOneWidget);

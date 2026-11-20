@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ComposedProduct } from "@/lib/experience-api";
-import { addToCart } from "@/lib/cart";
+import { addToCart, announceCartConflict } from "@/lib/cart";
 import { deliveryPromise } from "@/lib/delivery-promise";
 import { formatMoney } from "@/lib/money";
 import { productDeliveryNote, productStockNote } from "@/lib/storefront";
@@ -187,7 +187,10 @@ export function TradeProductCard({
             className="button button-ghost trade-card-cart"
             type="button"
             disabled={outOfStock}
-            onClick={() => addToCart(cartItem, cartQuantity)}
+            onClick={() => {
+              const result = addToCart(cartItem, cartQuantity);
+              if (!result.ok) announceCartConflict(result);
+            }}
           >
             Add to cart
           </button>

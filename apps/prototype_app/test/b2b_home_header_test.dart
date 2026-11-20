@@ -15,7 +15,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(_host(const B2bHomeHeader()));
 
-    expect(find.text('BuildKart Trade'), findsOneWidget);
+    expect(find.text('BazarBee Trade'), findsOneWidget);
     expect(find.text('Search the trade catalogue'), findsOneWidget);
     expect(find.textContaining('Deliver to'), findsOneWidget);
     expect(find.byType(B2bHomeHeader), findsOneWidget);

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { addToCart } from "@/lib/cart";
+import { addToCart, announceCartConflict } from "@/lib/cart";
 import { formatMoney } from "@/lib/money";
 import {
   addToTradeQuote,
@@ -62,7 +62,7 @@ export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> })
           className="button button-ghost"
           type="button"
           onClick={() => {
-            addToCart(
+            const result = addToCart(
               {
                 productId: line.productId,
                 offerId: line.offerId,
@@ -76,6 +76,10 @@ export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> })
               },
               quantity,
             );
+            if (!result.ok) {
+              announceCartConflict(result);
+              return;
+            }
             setCartAdded(true);
           }}
         >

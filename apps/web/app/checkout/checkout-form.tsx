@@ -51,7 +51,9 @@ function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
 
 export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
-  const cartChannel = items.some((item) => item.channel === "b2b") ? "b2b" : "b2c";
+  const cartChannels = new Set(items.map((item) => item.channel ?? "b2c"));
+  const cartChannel =
+    cartChannels.size === 1 ? (Array.from(cartChannels)[0] as "b2c" | "b2b") : null;
   const [state, setState] = useState<State>({ status: "idle" });
   const [postalCode, setPostalCode] = useState("302001");
   const [city, setCity] = useState("Jaipur");
@@ -86,7 +88,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
 
   // Load an authoritative quote (subtotal, automatic discount, delivery, total) from the API.
   useEffect(() => {
-    if (!ready || items.length === 0) return;
+    if (!ready || items.length === 0 || !cartChannel) return;
     // Keep the last valid quote while a six-digit postal code is being typed.
     if (!/^\d{6}$/.test(postalCode)) return;
     const controller = new AbortController();
@@ -98,7 +100,11 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           headers: { "content-type": "application/json" },
           signal: controller.signal,
           body: JSON.stringify({
-            lines: items.map((item) => ({ offerId: item.offerId, quantity: item.quantity })),
+            lines: items.map((item) => ({
+              offerId: item.offerId,
+              quantity: item.quantity,
+              channel: item.channel ?? "b2c",
+            })),
             postalCode,
             promoCode: appliedPromo || undefined,
             channel: cartChannel,
@@ -134,7 +140,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [items, linesKey, postalCode, ready, appliedPromo]);
+  }, [items, linesKey, postalCode, ready, appliedPromo, cartChannel]);
 
   const quoted = quote.status === "ready" ? quote.data : null;
   const summarySubtotal = quoted?.subtotal ?? subtotalMinor;
@@ -167,6 +173,14 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (items.length === 0) return;
+    if (!cartChannel) {
+      setState({
+        status: "error",
+        message:
+          "Your cart mixes Shop and Trade items. Remove one channel before placing the order.",
+      });
+      return;
+    }
     const form = new FormData(event.currentTarget);
     setState({ status: "busy" });
     try {
@@ -174,7 +188,11 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          lines: items.map((item) => ({ offerId: item.offerId, quantity: item.quantity })),
+          lines: items.map((item) => ({
+            offerId: item.offerId,
+            quantity: item.quantity,
+            channel: item.channel ?? "b2c",
+          })),
           email: form.get("email"),
           firstName: form.get("firstName"),
           lastName: form.get("lastName"),
@@ -292,6 +310,12 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   return (
     <>
       <CheckoutSteps current={2} />
+      {!cartChannel ? (
+        <div className="notice err" role="alert">
+          Your cart mixes Shop and Trade items. Remove one channel before checkout.{" "}
+          <Link href="/cart">Review cart</Link>
+        </div>
+      ) : null}
       <div className="checkout-layout">
       <form className="checkout-form" onSubmit={onSubmit}>
         <div className="checkout-block">
@@ -450,7 +474,11 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           </div>
         ) : null}
 
-        <button className="button button-lg button-block" type="submit" disabled={state.status === "busy"}>
+        <button
+          className="button button-lg button-block"
+          type="submit"
+          disabled={state.status === "busy" || !cartChannel}
+        >
           {state.status === "busy"
             ? "Placing your order…"
             : quoted

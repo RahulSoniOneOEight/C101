@@ -209,6 +209,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
 
   Future<void> _loadWorkspace(WorkspaceSummary workspace) async {
     final api = ref.read(experienceApiProvider);
+    final requestedTab = ref.read(conversationDockProvider).tab;
     final channels = await api.getWorkspaceChannels(workspace.id);
     final expectedKind = _isHousehold ? 'project' : 'procurement';
     final channel =
@@ -216,18 +217,25 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
             channels.firstOrNull;
     final assistant =
         channels.where((item) => item.kind == 'assistant').firstOrNull;
+    final viewChannel = requestedTab == ConversationDockTab.assistant
+        ? assistant
+        : channel;
     final drafts = await api.getWorkspaceDrafts(workspace.id);
     final draft =
         drafts.isEmpty ? null : await api.getWorkspaceDraft(drafts.first.id);
-    final messages = channel == null
+    final messages = viewChannel == null
         ? const WorkspaceMessagePage(
             messages: <WorkspaceMessage>[], nextCursor: '0')
-        : await api.getWorkspaceMessages(channel.id);
+        : await api.getWorkspaceMessages(viewChannel.id);
     WorkspaceInvitationPage? invitations;
     if (workspace.canManageInvitations) {
       invitations = await api.getWorkspaceInvitations(workspace.id);
     }
-    if (!mounted || _workspace?.id != workspace.id) return;
+    if (!mounted ||
+        _workspace?.id != workspace.id ||
+        ref.read(conversationDockProvider).tab != requestedTab) {
+      return;
+    }
     setState(() {
       _channel = channel;
       _assistantChannel = assistant;
@@ -237,7 +245,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
       _invitationPage = invitations;
       _actionError = null;
     });
-    _markRead(messages.messages);
+    _markRead(messages.messages, viewChannel);
     _scrollToBottom();
   }
 
@@ -259,7 +267,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
       final page = await ref
           .read(experienceApiProvider)
           .getWorkspaceMessages(channel.id);
-      if (!mounted) return;
+      if (!mounted || _activeChannel?.id != channel.id) return;
       setState(() {
         _messages = page.messages;
         _cursor = page.nextCursor;
@@ -300,12 +308,14 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
 
   Future<void> _pollMessages() async {
     final channel = _activeChannel;
+    final cursor = _cursor;
     if (!widget.active || channel == null || _sending || _busy) return;
     try {
       final page = await ref
           .read(experienceApiProvider)
-          .getWorkspaceMessages(channel.id, cursor: _cursor);
-      if (!mounted || page.messages.isEmpty) return;
+          .getWorkspaceMessages(channel.id, cursor: cursor);
+      if (!mounted || _activeChannel?.id != channel.id) return;
+      if (page.messages.isEmpty) return;
       final known = _messages.map((message) => message.id).toSet();
       final fresh = page.messages
           .where((message) => !known.contains(message.id))
@@ -315,7 +325,7 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
         _messages = <WorkspaceMessage>[..._messages, ...fresh];
         _cursor = page.nextCursor;
       });
-      await _markRead(fresh);
+      await _markRead(fresh, channel);
       _scrollToBottom();
     } catch (_) {
       // Polling is best effort; explicit actions surface their own error.
@@ -360,13 +370,14 @@ class _ConversationDockPanelState extends ConsumerState<ConversationDockPanel> {
           .sendWorkspaceMessage(channel.id, text);
       if (!mounted) return;
       _composer.clear();
+      if (_activeChannel?.id != channel.id) return;
       setState(() {
         if (!_messages.any((message) => message.id == sent.id)) {
           _messages = <WorkspaceMessage>[..._messages, sent];
         }
         _cursor = '${sent.sequence}';
       });
-      await _markRead(<WorkspaceMessage>[sent]);
+      await _markRead(<WorkspaceMessage>[sent], channel);
       _scrollToBottom();
     } catch (error) {
       if (mounted) setState(() => _actionError = _friendlyError(error));
