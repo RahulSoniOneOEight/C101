@@ -21,10 +21,11 @@ whole operator host; Mercur and Tryton still enforce role separation inside the 
 gap where `/admin`, `/auth`, `/v1/ops` and `/metrics` were reachable without the outer gate.
 
 Production will use the same shape on `ops.gobazarbee.com`, in a **separate Cloudflare account** with
-its own zone, team domain, apps, groups, tunnel and AUD. Staging currently uses that hostname, so it
-must move first: `ops.staging.gobazarbee.com` via a delegated subdomain zone, or
-`ops-staging.pinakaplay.cloud`. The apex `gobazarbee.com` zone then transfers to the production
-account.
+its own zone, team domain, apps, groups, tunnel and AUD. Staging currently owns that hostname and the
+apex zone, so it must move before the transfer. A delegated `staging.gobazarbee.com` subdomain zone is
+**not available on the current Cloudflare plan** (`1116` root domain only; partial `1104`; secondary
+`1111`); the feasible options are `pinakaplay.cloud` with a nameserver change, one account with
+staging subdomains, or a plan upgrade. See the production runbook section 1.1.
 
 The TOTP second factor applies to **admin and ERP paths only**. Sellers stay on the Mercur seller
 login behind the Access `BazarBee Sellers` group; `/seller`, `/vendor`, `/auth`, `/static` and
