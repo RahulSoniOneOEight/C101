@@ -107,6 +107,9 @@ Production additions:
 ## 9. Current state
 
 - customer directory and realm-scoped sessions are live on staging in `IDENTITY_MODE=directory`
+- ops staff will use a superadmin-maintained directory plus TOTP at the app; Cloudflare Access
+  One-time PIN is factor 1, not MFA (`identity-ops-totp-2026-11-21.md`)
+- Google Workspace/Entra is no longer a production requirement under that decision
 - 21 pilot identities were migrated with their roles; staging uses email codes with preview codes
 - web and Flutter sign in with email code; Flutter sends a device id for auth rate limiting
 - Cloudflare Access is live on staging at `ops.gobazarbee.com`; the One-time PIN IdP is enabled and

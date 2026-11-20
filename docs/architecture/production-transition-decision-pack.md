@@ -74,3 +74,12 @@ Each gate decision is approved only when its record links:
 Tax/TCS and COD finance/legal items accepted on 2026-11-21 are recorded in
 `docs/architecture/production-exceptions-2026-11-21.md`. They are removed from the technical
 blocker list but are not gate passes and do not authorize release without `D-020-12`.
+
+## 8. Identity decision
+
+Google Workspace/Entra is **not required** for production. The accepted alternative is the
+superadmin-maintained `ops_staff` directory with app-level TOTP, bound to the Cloudflare-verified
+email. Cloudflare Access One-time PIN is factor 1 only and is not treated as MFA. The design, limits
+and acceptance criteria are in `docs/architecture/identity-ops-totp-2026-11-21.md`. This is a
+compensating control and must be presented as such in the security review; it does not satisfy an
+auditor requirement for a recognised IdP.

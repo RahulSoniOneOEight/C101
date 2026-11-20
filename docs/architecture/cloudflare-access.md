@@ -89,9 +89,10 @@ standing service token remains.
 
 ## 6. Remaining
 
-1. **Google Workspace / Entra IdP** — needs the customer's tenant, group object IDs and MFA policy.
-   No such tenant is configured for `gobazarbee.com` (the domain has no MX). Until then staging uses
-   One-time PIN only.
+1. **Second factor** — Google Workspace/Entra is **not required**. The production decision is a
+   superadmin-maintained `ops_staff` directory plus app-level TOTP, bound to the Cloudflare-verified
+   email. See `identity-ops-totp-2026-11-21.md`. One-time PIN alone is factor 1 only; it must not be
+   treated as MFA.
 2. **Production `ops.bazarbee.com`** — separate environment, tunnel, Access app, groups and IdP.
    Cannot be created before `D-020-12` authorises an immutable release.
 3. **Health monitoring** — `/health` is now behind Access. Monitors must use a scoped service token
