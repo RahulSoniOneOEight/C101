@@ -20,7 +20,7 @@ import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
-import { CodStore, currentPeriod } from "./store/cod-store.js";
+import { CodStore, currentPeriod, type CodOrderDue } from "./store/cod-store.js";
 import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
@@ -2591,6 +2591,8 @@ async function postCodDues(input: {
   sellerId: string;
   policy: { commission_bps: number; cod_fee_minor: number };
   status: string;
+  /** Collection month; defaults to the existing snapshot or the current period. */
+  period?: string | null;
 }): Promise<void> {
   if (input.status === "refused") return;
   const group = input.record.medusa_order_group ?? {};
@@ -2605,10 +2607,21 @@ async function postCodDues(input: {
     0,
   );
   if (goodsMinor <= 0) return;
-  const commission = Math.round((goodsMinor * input.policy.commission_bps) / 10000);
+  // Per-order override wins; otherwise the seller policy rate applies.
+  const orderCommission = await codStore.getOrderCommission(input.orderGroupId, input.sellerId);
+  const commissionBps = orderCommission?.commission_bps ?? input.policy.commission_bps;
+  const commissionSource: "override" | "policy" = orderCommission ? "override" : "policy";
+  const commission = Math.round((goodsMinor * commissionBps) / 10000);
   const gstOnCommission = Math.round((commission * BAZARBEE_GST_RATE_BPS) / 10000);
   const entries: Array<{ kind: string; amountMinor: number; note: string }> = [
-    { kind: "commission", amountMinor: commission, note: `${input.policy.commission_bps} bps` },
+    {
+      kind: "commission",
+      amountMinor: commission,
+      note:
+        commissionSource === "override"
+          ? `${commissionBps} bps (per-order override: ${orderCommission!.reason})`
+          : `${commissionBps} bps (seller policy)`,
+    },
     { kind: "gst_on_commission", amountMinor: gstOnCommission, note: "18% GST on commission" },
   ];
   if (input.policy.cod_fee_minor > 0) {
@@ -2634,7 +2647,11 @@ async function postCodDues(input: {
       ? "0.5% of net taxable value at the 18% default GST rate (product rate not set)"
       : "0.5% of net taxable value (ex-GST)",
   });
-  const period = currentPeriod();
+  // Reuse the period recorded when the order was first posted so a recompute does not move
+  // historical dues into the current month.
+  const existingDue = await codStore.getOrderDue(input.orderGroupId, input.sellerId);
+  const period =
+    existingDue?.period ?? (input.period ? input.period.slice(0, 7) : currentPeriod());
   await codStore.addDues(
     entries.map((entry) => ({
       sellerId: input.sellerId,
@@ -2645,6 +2662,20 @@ async function postCodDues(input: {
       note: entry.note,
     })),
   );
+  await codStore.upsertOrderDue({
+    orderGroupId: input.orderGroupId,
+    sellerId: input.sellerId,
+    period,
+    goodsMinor,
+    commissionBps,
+    commissionSource,
+    commissionMinor: commission,
+    gstOnCommissionMinor: gstOnCommission,
+    tcsMinor: tcs,
+    tcsDefaultRate: usedDefaultRate,
+    codFeeMinor: input.policy.cod_fee_minor,
+    invoiceRef: existingDue?.invoice_ref ?? null,
+  });
 }
 
 function duesTotals(entries: Array<{ amount_minor: number }>): number {
@@ -2655,6 +2686,42 @@ function duesCsv(entries: Array<Record<string, unknown>>): string {
   const header = ["seller_id", "period", "kind", "amount_minor", "currency", "source_ref", "status", "note"];
   const rows = entries.map((entry) =>
     header.map((key) => `"${String(entry[key] ?? "").replaceAll('"', '""')}"`).join(","),
+  );
+  return [header.join(","), ...rows].join("\n");
+}
+
+/** Order-level rows for the COD statement CSV: one line per seller per order, never a net-only total. */
+function orderDuesCsv(lines: CodOrderDue[]): string {
+  const header = [
+    "order_ref",
+    "invoice_ref",
+    "seller_id",
+    "period",
+    "goods_minor",
+    "commission_bps",
+    "commission_source",
+    "commission_minor",
+    "gst_on_commission_minor",
+    "tcs_minor",
+    "cod_fee_minor",
+    "adjustments_minor",
+    "amount_due_minor",
+    "currency",
+  ];
+  const rows = lines.map((line) =>
+    header
+      .map((key) => {
+        const value =
+          key === "order_ref"
+            ? line.order_group_id
+            : key === "commission_bps"
+              ? line.commission_bps
+              : key === "commission_source"
+                ? line.commission_source
+                : (line as unknown as Record<string, unknown>)[key];
+        return `"${String(value ?? "").replaceAll('"', '""')}"`;
+      })
+      .join(","),
   );
   return [header.join(","), ...rows].join("\n");
 }
@@ -3792,6 +3859,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           sellerId,
           policy,
           status: collection.status,
+          period: collection.collected_at,
         });
         sellersUpdated += 1;
       }
@@ -3847,6 +3915,159 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     });
   }
 
+
+  // Admin settlement statements built from the COD dues ledger (one line per order).
+  if (url.pathname === "/v1/admin/cod/settlement-statements" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const period = (url.searchParams.get("period") ?? currentPeriod()).slice(0, 7);
+    const sellerFilter = url.searchParams.get("seller_id")?.trim() || null;
+    const allLines = await codStore.listOrderDues({ period, limit: 5000 });
+    const lines = sellerFilter
+      ? allLines.filter((line) => line.seller_id === sellerFilter)
+      : allLines;
+    if (url.searchParams.get("format") === "csv") {
+      return new Response(orderDuesCsv(lines), {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="bazarbee-cod-dues-${period}.csv"`,
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+    const bySeller = new Map<string, CodOrderDue[]>();
+    for (const line of lines) {
+      const list = bySeller.get(line.seller_id) ?? [];
+      list.push(line);
+      bySeller.set(line.seller_id, list);
+    }
+    const statements = [];
+    for (const [sellerId, sellerLines] of bySeller) {
+      const sum = (key: keyof CodOrderDue) =>
+        sellerLines.reduce((total, line) => total + Number(line[key] ?? 0), 0);
+      const amountDue = sum("amount_due_minor");
+      const carryForward = await codStore.carryForwardMinor(sellerId, period);
+      statements.push({
+        id: `${period}~${sellerId}`,
+        statement_number: `COD-${period}-${sellerId.replace(/^sel_/, "").slice(0, 8).toUpperCase()}`,
+        seller_id: sellerId,
+        seller_name: sellerId,
+        period,
+        currency: sellerLines[0]?.currency ?? "INR",
+        status: "open",
+        order_count: sellerLines.length,
+        goods_minor: sum("goods_minor"),
+        commission_minor: sum("commission_minor"),
+        gst_on_commission_minor: sum("gst_on_commission_minor"),
+        tcs_minor: sum("tcs_minor"),
+        cod_fee_minor: sum("cod_fee_minor"),
+        adjustments_minor: sum("adjustments_minor"),
+        amount_due_minor: amountDue,
+        carry_forward_minor: carryForward,
+        total_outstanding_minor: amountDue + carryForward,
+        tcs_default_rate_applied: sellerLines.some((line) => line.tcs_default_rate === true),
+        lines: sellerLines.map((line) => ({
+          order_group_id: line.order_group_id,
+          invoice_ref: line.invoice_ref,
+          goods_minor: line.goods_minor,
+          commission_bps: line.commission_bps,
+          commission_source: line.commission_source,
+          commission_minor: line.commission_minor,
+          gst_on_commission_minor: line.gst_on_commission_minor,
+          tcs_minor: line.tcs_minor,
+          cod_fee_minor: line.cod_fee_minor,
+          adjustments_minor: line.adjustments_minor,
+          amount_due_minor: line.amount_due_minor,
+        })),
+      });
+    }
+    statements.sort(
+      (left, right) => right.total_outstanding_minor - left.total_outstanding_minor,
+    );
+    return json({
+      period,
+      statements,
+      currency: "INR",
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // Per-order commission override. Applies to one seller on one COD order, with a reason.
+  if (
+    url.pathname === "/v1/admin/cod/commission" &&
+    (req.method === "POST" || req.method === "DELETE")
+  ) {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    let body: Record<string, unknown> = {};
+    if (req.method === "POST") {
+      try {
+        body = (await req.json()) as Record<string, unknown>;
+      } catch {
+        return problem(400, "invalid-request-body", "Expected a JSON body.");
+      }
+    }
+    const orderGroupId = String(
+      body.order_group_id ?? url.searchParams.get("order_group_id") ?? "",
+    ).trim();
+    const sellerId = String(body.seller_id ?? url.searchParams.get("seller_id") ?? "").trim();
+    if (!orderGroupId || !sellerId) {
+      return problem(400, "order-and-seller-required", "order_group_id and seller_id are required.");
+    }
+    const record = await correlation.getByOrderGroup(orderGroupId);
+    if (!record) return problem(404, "order-not-found", "That order group does not exist.");
+    const group = record.medusa_order_group ?? {};
+    const groupLines = Array.isArray(group.lines)
+      ? (group.lines as Array<Record<string, unknown>>)
+      : [];
+    if (!groupLines.some((line) => line.seller_id === sellerId)) {
+      return problem(400, "seller-not-on-order", "That seller has no line on this order.");
+    }
+    let commission: Record<string, unknown> | null = null;
+    if (req.method === "DELETE") {
+      await codStore.clearOrderCommission(orderGroupId, sellerId);
+    } else {
+      const commissionBps = Math.round(Number(body.commission_bps ?? -1));
+      const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+      if (!Number.isFinite(commissionBps) || commissionBps < 0 || commissionBps > 10000) {
+        return problem(400, "invalid-commission", "commission_bps must be between 0 and 10000.");
+      }
+      if (reason.length < 3) {
+        return problem(400, "reason-required", "A reason is required for a per-order commission.");
+      }
+      commission = (await codStore.setOrderCommission({
+        orderGroupId,
+        sellerId,
+        commissionBps,
+        reason,
+        actorUserId: operator.user.id,
+      })) as unknown as Record<string, unknown>;
+    }
+    // If cash was already recorded, reprice this order so the ledger and statement agree.
+    const collection = await codStore.getCollectionByOrderGroup(orderGroupId);
+    const policy = await codStore.getPolicy(sellerId);
+    let recomputed = false;
+    if (collection && collection.status !== "pending" && policy) {
+      await postCodDues({
+        orderGroupId,
+        record,
+        sellerId,
+        policy,
+        status: collection.status,
+      });
+      recomputed = true;
+    }
+    return json({
+      commission,
+      due: await codStore.getOrderDue(orderGroupId, sellerId),
+      recomputed,
+      seller_id: sellerId,
+      order_group_id: orderGroupId,
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
 
   const adminShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)$/);
   if (adminShipment && req.method === "GET") {
@@ -6089,6 +6310,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
             sellerId,
             policy,
             status,
+            period: updated.collected_at,
           });
         }
         return json({

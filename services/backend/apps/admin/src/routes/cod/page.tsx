@@ -95,6 +95,12 @@ export default function CodPage() {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [editing, setEditing] = useState<Policy | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
+  const [overrideForm, setOverrideForm] = useState({
+    order: "",
+    seller: "",
+    commission: "",
+    reason: "",
+  });
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -177,6 +183,34 @@ export default function CodPage() {
     }
   };
 
+  const saveCommissionOverride = async () => {
+    setError("");
+    setNotice("");
+    try {
+      const data = await api<{
+        recomputed: boolean;
+        due: { commission_bps: number; amount_due_minor: number } | null;
+      }>("/admin/buildkart/cod/commission", {
+        method: "POST",
+        body: JSON.stringify({
+          order_group_id: overrideForm.order.trim(),
+          seller_id: overrideForm.seller.trim(),
+          commission_bps: Math.round(Number(overrideForm.commission || "0") * 100),
+          reason: overrideForm.reason.trim(),
+        }),
+      });
+      setNotice(
+        data.recomputed && data.due
+          ? `Override saved; order repriced at ${(data.due.commission_bps / 100).toFixed(2)}%.`
+          : "Override saved; it applies when cash is captured.",
+      );
+      setOverrideForm({ order: "", seller: "", commission: "", reason: "" });
+      await loadStatements();
+    } catch (caught) {
+      setError((caught as Error).message);
+    }
+  };
+
   const exportCsv = () => {
     const rows = statements.flatMap((statement) =>
       statement.entries.map((entry) => ({
@@ -252,6 +286,63 @@ export default function CodPage() {
 
         {tab === "collections" ? (
           <Container className="p-0">
+            <div className="border-b border-ui-border-base px-6 py-5">
+              <Text size="small" weight="plus">
+                Per-order commission override
+              </Text>
+              <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
+                Applies to one seller on one COD order. Without an override the seller
+                policy rate is used. Repricing an already collected order updates the
+                dues ledger and the statement.
+              </Text>
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-5">
+                <label className="flex flex-col gap-1">
+                  <Text size="xsmall">Order group</Text>
+                  <Input
+                    value={overrideForm.order}
+                    onChange={(event) =>
+                      setOverrideForm({ ...overrideForm, order: event.target.value })
+                    }
+                    placeholder="ordgrp_…"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <Text size="xsmall">Seller id</Text>
+                  <Input
+                    value={overrideForm.seller}
+                    onChange={(event) =>
+                      setOverrideForm({ ...overrideForm, seller: event.target.value })
+                    }
+                    placeholder="sel_…"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <Text size="xsmall">Commission %</Text>
+                  <Input
+                    value={overrideForm.commission}
+                    onChange={(event) =>
+                      setOverrideForm({ ...overrideForm, commission: event.target.value })
+                    }
+                    placeholder="3"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 md:col-span-2">
+                  <Text size="xsmall">Reason (required)</Text>
+                  <Input
+                    value={overrideForm.reason}
+                    onChange={(event) =>
+                      setOverrideForm({ ...overrideForm, reason: event.target.value })
+                    }
+                    placeholder="Negotiated rate for this order"
+                  />
+                </label>
+              </div>
+              <div className="mt-3">
+                <Button size="small" onClick={() => void saveCommissionOverride()}>
+                  Set override
+                </Button>
+              </div>
+            </div>
             <Table>
               <Table.Header>
                 <Table.Row>

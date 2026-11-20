@@ -43,7 +43,7 @@ export function experienceAdminConfig(): { baseUrl: string; secret: string } {
 export async function experienceAdminFetch(
   path: string,
   options: {
-    method?: "GET" | "POST" | "PATCH";
+    method?: "GET" | "POST" | "PATCH" | "DELETE";
     actorId?: string | null;
     sellerId?: string | null;
     correlationId?: string | null;

@@ -55,6 +55,43 @@ export interface DuesEntry {
   created_at: string;
 }
 
+/** Per-order commission override. Falls back to the seller policy when absent. */
+export interface CodOrderCommission {
+  order_group_id: string;
+  seller_id: string;
+  commission_bps: number;
+  reason: string;
+  actor_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Per-order statement snapshot. One row per seller per order, written when the COD dues are
+ * posted so the monthly statement can show goods value, the resolved commission rate and each
+ * charge separately without recomputing from Medusa.
+ */
+export interface CodOrderDue {
+  order_group_id: string;
+  seller_id: string;
+  period: string;
+  goods_minor: number;
+  commission_bps: number;
+  commission_source: "override" | "policy" | "default";
+  commission_minor: number;
+  gst_on_commission_minor: number;
+  tcs_minor: number;
+  cod_fee_minor: number;
+  adjustments_minor: number;
+  amount_due_minor: number;
+  tcs_default_rate: boolean;
+  invoice_ref: string | null;
+  currency: string;
+  status: "open" | "settled" | "waived";
+  created_at: string;
+  updated_at: string;
+}
+
 const POLICY_DEFAULTS = {
   enabled: false,
   pincodes: [] as string[],
@@ -145,8 +182,44 @@ export class CodStore {
         UNIQUE (seller_id, period, kind, source_ref)
       );
 
+      CREATE TABLE IF NOT EXISTS cod_order_commission (
+        order_group_id text NOT NULL,
+        seller_id      text NOT NULL,
+        commission_bps integer NOT NULL CHECK (commission_bps BETWEEN 0 AND 10000),
+        reason         text NOT NULL,
+        actor_user_id  text NOT NULL,
+        created_at     timestamptz NOT NULL DEFAULT now(),
+        updated_at     timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (order_group_id, seller_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS cod_order_due (
+        order_group_id          text NOT NULL,
+        seller_id               text NOT NULL,
+        period                  text NOT NULL,
+        goods_minor             bigint NOT NULL,
+        commission_bps          integer NOT NULL,
+        commission_source       text NOT NULL CHECK (commission_source IN ('override','policy','default')),
+        commission_minor        bigint NOT NULL,
+        gst_on_commission_minor bigint NOT NULL,
+        tcs_minor               bigint NOT NULL,
+        cod_fee_minor           bigint NOT NULL DEFAULT 0,
+        adjustments_minor       bigint NOT NULL DEFAULT 0,
+        amount_due_minor        bigint NOT NULL,
+        tcs_default_rate        boolean NOT NULL DEFAULT false,
+        invoice_ref             text,
+        currency                text NOT NULL DEFAULT 'INR',
+        status                  text NOT NULL DEFAULT 'open' CHECK (status IN ('open','settled','waived')),
+        created_at              timestamptz NOT NULL DEFAULT now(),
+        updated_at              timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (order_group_id, seller_id)
+      );
+
       CREATE INDEX IF NOT EXISTS cod_collection_buyer_idx ON cod_collection (buyer_scope, created_at DESC);
       CREATE INDEX IF NOT EXISTS seller_dues_open_idx ON seller_dues_ledger (seller_id, status);
+      CREATE INDEX IF NOT EXISTS cod_order_due_period_idx ON cod_order_due (seller_id, period, status);
+
+      ALTER TABLE cod_order_due ADD COLUMN IF NOT EXISTS tcs_default_rate boolean NOT NULL DEFAULT false;
     `);
   }
 
@@ -537,6 +610,178 @@ export class CodStore {
       ...(row as unknown as DuesEntry),
       amount_minor: Number(row.amount_minor ?? 0),
     }));
+  }
+
+  async getOrderCommission(
+    orderGroupId: string,
+    sellerId: string,
+  ): Promise<CodOrderCommission | null> {
+    await this.ready;
+    const result = await this.pool.query(
+      "SELECT * FROM cod_order_commission WHERE order_group_id = $1 AND seller_id = $2",
+      [orderGroupId, sellerId],
+    );
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row
+      ? { ...(row as unknown as CodOrderCommission), commission_bps: Number(row.commission_bps) }
+      : null;
+  }
+
+  async setOrderCommission(input: {
+    orderGroupId: string;
+    sellerId: string;
+    commissionBps: number;
+    reason: string;
+    actorUserId: string;
+  }): Promise<CodOrderCommission> {
+    await this.ready;
+    const result = await this.pool.query(
+      `INSERT INTO cod_order_commission
+         (order_group_id, seller_id, commission_bps, reason, actor_user_id)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (order_group_id, seller_id) DO UPDATE SET
+         commission_bps = EXCLUDED.commission_bps,
+         reason = EXCLUDED.reason,
+         actor_user_id = EXCLUDED.actor_user_id,
+         updated_at = now()
+       RETURNING *`,
+      [input.orderGroupId, input.sellerId, input.commissionBps, input.reason, input.actorUserId],
+    );
+    const row = result.rows[0] as Record<string, unknown>;
+    return { ...(row as unknown as CodOrderCommission), commission_bps: Number(row.commission_bps) };
+  }
+
+  async clearOrderCommission(orderGroupId: string, sellerId: string): Promise<void> {
+    await this.ready;
+    await this.pool.query(
+      "DELETE FROM cod_order_commission WHERE order_group_id = $1 AND seller_id = $2",
+      [orderGroupId, sellerId],
+    );
+  }
+
+  async upsertOrderDue(input: {
+    orderGroupId: string;
+    sellerId: string;
+    period: string;
+    goodsMinor: number;
+    commissionBps: number;
+    commissionSource: CodOrderDue["commission_source"];
+    commissionMinor: number;
+    gstOnCommissionMinor: number;
+    tcsMinor: number;
+    tcsDefaultRate?: boolean;
+    codFeeMinor: number;
+    adjustmentsMinor?: number;
+    invoiceRef?: string | null;
+  }): Promise<CodOrderDue> {
+    await this.ready;
+    const adjustments = input.adjustmentsMinor ?? 0;
+    const amountDue =
+      input.commissionMinor + input.gstOnCommissionMinor + input.tcsMinor + input.codFeeMinor + adjustments;
+    const result = await this.pool.query(
+      `INSERT INTO cod_order_due
+         (order_group_id, seller_id, period, goods_minor, commission_bps, commission_source,
+          commission_minor, gst_on_commission_minor, tcs_minor, cod_fee_minor, adjustments_minor,
+          amount_due_minor, invoice_ref, tcs_default_rate)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       ON CONFLICT (order_group_id, seller_id) DO UPDATE SET
+         period = EXCLUDED.period,
+         goods_minor = EXCLUDED.goods_minor,
+         commission_bps = EXCLUDED.commission_bps,
+         commission_source = EXCLUDED.commission_source,
+         commission_minor = EXCLUDED.commission_minor,
+         gst_on_commission_minor = EXCLUDED.gst_on_commission_minor,
+         tcs_minor = EXCLUDED.tcs_minor,
+         cod_fee_minor = EXCLUDED.cod_fee_minor,
+         adjustments_minor = EXCLUDED.adjustments_minor,
+         amount_due_minor = EXCLUDED.amount_due_minor,
+         invoice_ref = EXCLUDED.invoice_ref,
+         tcs_default_rate = EXCLUDED.tcs_default_rate,
+         updated_at = now()
+       RETURNING *`,
+      [
+        input.orderGroupId,
+        input.sellerId,
+        input.period,
+        input.goodsMinor,
+        input.commissionBps,
+        input.commissionSource,
+        input.commissionMinor,
+        input.gstOnCommissionMinor,
+        input.tcsMinor,
+        input.codFeeMinor,
+        adjustments,
+        amountDue,
+        input.invoiceRef ?? null,
+        input.tcsDefaultRate ?? false,
+      ],
+    );
+    return this.normalizeOrderDue(result.rows[0] as Record<string, unknown>);
+  }
+
+  private normalizeOrderDue(row: Record<string, unknown>): CodOrderDue {
+    return {
+      ...(row as unknown as CodOrderDue),
+      goods_minor: Number(row.goods_minor ?? 0),
+      commission_bps: Number(row.commission_bps ?? 0),
+      commission_minor: Number(row.commission_minor ?? 0),
+      gst_on_commission_minor: Number(row.gst_on_commission_minor ?? 0),
+      tcs_minor: Number(row.tcs_minor ?? 0),
+      cod_fee_minor: Number(row.cod_fee_minor ?? 0),
+      adjustments_minor: Number(row.adjustments_minor ?? 0),
+      amount_due_minor: Number(row.amount_due_minor ?? 0),
+    };
+  }
+
+  async getOrderDue(orderGroupId: string, sellerId: string): Promise<CodOrderDue | null> {
+    await this.ready;
+    const result = await this.pool.query(
+      "SELECT * FROM cod_order_due WHERE order_group_id = $1 AND seller_id = $2",
+      [orderGroupId, sellerId],
+    );
+    const row = result.rows[0] as Record<string, unknown> | undefined;
+    return row ? this.normalizeOrderDue(row) : null;
+  }
+
+  async listOrderDues(input: {
+    sellerId?: string;
+    period?: string;
+    limit?: number;
+  }): Promise<CodOrderDue[]> {
+    await this.ready;
+    const clauses: string[] = [];
+    const values: unknown[] = [];
+    if (input.sellerId) {
+      values.push(input.sellerId);
+      clauses.push(`seller_id = $${values.length}`);
+    }
+    if (input.period) {
+      values.push(input.period);
+      clauses.push(`period = $${values.length}`);
+    }
+    values.push(input.limit ?? 5000);
+    const result = await this.pool.query(
+      `SELECT * FROM cod_order_due
+        ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+        ORDER BY period DESC, created_at DESC
+        LIMIT $${values.length}`,
+      values,
+    );
+    return (result.rows as Array<Record<string, unknown>>).map((row) =>
+      this.normalizeOrderDue(row),
+    );
+  }
+
+  /** Open dues from earlier periods, shown as carry-forward on the current statement. */
+  async carryForwardMinor(sellerId: string, period: string): Promise<number> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT COALESCE(SUM(amount_due_minor),0)::bigint AS total
+         FROM cod_order_due
+        WHERE seller_id = $1 AND period < $2 AND status = 'open'`,
+      [sellerId, period],
+    );
+    return Number(result.rows[0]?.total ?? 0);
   }
 
   async close(): Promise<void> {

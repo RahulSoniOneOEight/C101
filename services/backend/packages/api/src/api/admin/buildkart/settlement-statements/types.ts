@@ -1,41 +1,49 @@
-import type {
-  StatementLineSeed,
-  StagingStatementStatus,
-} from "../../../../staging-finance/presets";
+export interface AdminCodStatementLine {
+  order_group_id: string;
+  invoice_ref: string | null;
+  goods_minor: number;
+  commission_bps: number;
+  commission_source: "override" | "policy" | "default";
+  commission_minor: number;
+  gst_on_commission_minor: number;
+  tcs_minor: number;
+  cod_fee_minor: number;
+  adjustments_minor: number;
+  amount_due_minor: number;
+}
 
-export interface AdminSettlementStatement {
+export interface AdminCodSettlementStatement {
   id: string;
   statement_number: string;
   seller_id: string;
   seller_name: string;
-  period_start: string;
-  period_end: string;
-  generated_at: string;
-  currency_code: string;
-  gross_amount_minor: number;
-  refund_amount_minor: number;
-  commission_amount_minor: number;
-  adjustment_amount_minor: number;
-  payable_amount_minor: number;
-  status: StagingStatementStatus;
-  lines: StatementLineSeed[];
-  policy_snapshot: Record<string, unknown>;
-  test_data: true;
-  payment_mode: "simulated";
-  payout_execution_authorized: false;
+  period: string;
+  currency: string;
+  status: "open";
+  order_count: number;
+  goods_minor: number;
+  commission_minor: number;
+  gst_on_commission_minor: number;
+  tcs_minor: number;
+  cod_fee_minor: number;
+  adjustments_minor: number;
+  amount_due_minor: number;
+  carry_forward_minor: number;
+  total_outstanding_minor: number;
+  tcs_default_rate_applied: boolean;
+  lines: AdminCodStatementLine[];
 }
 
 export interface AdminSettlementStatementListResponse {
-  statements: AdminSettlementStatement[];
-  count: number;
-  test_data: true;
-  payment_mode: "simulated";
-  payout_execution_authorized: false;
+  period: string;
+  statements: AdminCodSettlementStatement[];
+  currency: string;
+  test_data: boolean;
+  correlation_id?: string;
 }
 
 export interface AdminSettlementStatementResponse {
-  statement: AdminSettlementStatement;
-  test_data: true;
-  payment_mode: "simulated";
-  payout_execution_authorized: false;
+  statement: AdminCodSettlementStatement;
+  test_data: boolean;
+  correlation_id?: string;
 }

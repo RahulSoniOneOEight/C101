@@ -108,8 +108,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
   Flutter payment choice are built and verified on staging; TCS uses an interim 18% default until
   sellers supply product-wise GST rates. See `bazarbee-cod-capture-dues-2026-11-20.md` and
   `bazarbee-brand-flutter-admin-qc-2026-11-20.md`; build scoped by `CHG-099`. COD admin screens,
-  capture hiding/rejection and the 3% commission alignment are closed; custom seller commission rules
-  still need a per-order feed.
+  capture hiding/rejection and the 3% commission alignment are closed. Per-order commission overrides
+  (admin, reason required) and COD-backed settlement statements were implemented and closed on
+  2026-11-21; the staging deploy and runtime QC are tracked as release work, not as open design work.
+  See `bazarbee-cod-commission-statements-2026-11-21.md`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.

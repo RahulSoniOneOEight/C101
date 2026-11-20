@@ -16,27 +16,26 @@ type StatementResponse = InferClientOutput<
   typeof client.admin.buildkart.settlementStatements.$id.query
 >;
 type SettlementStatement = StatementResponse["statement"];
+type StatementLine = SettlementStatement["lines"][number];
 
 const money = (minor: number, currencyCode: string) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: currencyCode.toUpperCase(),
+    currency: (currencyCode || "inr").toUpperCase(),
     maximumFractionDigits: 2,
   }).format(minor / 100);
 
-const statusLabel = (status: SettlementStatement["status"]) =>
-  status.charAt(0).toUpperCase() + status.slice(1);
-
-const statusColor = (status: SettlementStatement["status"]) => {
-  if (status === "reviewed") return "green" as const;
-  if (status === "held") return "red" as const;
-  return "orange" as const;
+const sourceBadge = (line: StatementLine) => {
+  if (line.commission_source === "override") {
+    return <StatusBadge color="purple">Per-order override</StatusBadge>;
+  }
+  return <StatusBadge color="grey">Seller policy</StatusBadge>;
 };
 
 export default function SettlementStatementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const query = useQuery({
-    queryKey: ["buildkart", "staging-settlement-statement", id],
+    queryKey: ["buildkart", "cod-settlement-statement", id],
     queryFn: () =>
       client.admin.buildkart.settlementStatements.$id.query({ $id: id! }),
     enabled: Boolean(id),
@@ -51,18 +50,15 @@ export default function SettlementStatementDetailPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Heading level="h1">
-                  {statement?.statement_number ?? "Settlement statement"}
+                  {statement?.statement_number ?? "COD dues statement"}
                 </Heading>
-                <StatusBadge color="orange">Simulated staging data</StatusBadge>
-                {statement ? (
-                  <StatusBadge color={statusColor(statement.status)}>
-                    {statusLabel(statement.status)}
-                  </StatusBadge>
-                ) : null}
+                <StatusBadge color="orange">Staging ledger</StatusBadge>
+                <StatusBadge color="grey">No payout execution</StatusBadge>
               </div>
               <Text size="small" className="mt-1 text-ui-fg-subtle">
-                Read-only seller earnings projection. Payout execution and
-                Tryton posting are disabled.
+                Seller receivables from cash-on-delivery orders. Each line is one
+                order; commission uses a per-order override when present, otherwise
+                the seller policy rate.
               </Text>
             </div>
             <Button asChild variant="secondary" size="small">
@@ -76,50 +72,106 @@ export default function SettlementStatementDetailPage() {
             </Text>
           ) : query.isError || !statement ? (
             <Text size="small" className="px-6 py-8 text-ui-fg-error">
-              Could not load this simulated settlement statement.
+              Could not load this COD dues statement.
             </Text>
           ) : (
-            <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-4">
-              <div>
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Seller
-                </Text>
-                <Text size="small" weight="plus">
-                  {statement.seller_name}
-                </Text>
+            <>
+              <div className="grid grid-cols-1 gap-4 px-6 py-5 md:grid-cols-4">
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Seller
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {statement.seller_name}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    {statement.order_count} order
+                    {statement.order_count === 1 ? "" : "s"} · {statement.period}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Goods value
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.goods_minor, statement.currency)}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Commission base
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Amount due
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.amount_due_minor, statement.currency)}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Commission + GST + TCS + fee
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Total outstanding
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.total_outstanding_minor, statement.currency)}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Includes {money(statement.carry_forward_minor, statement.currency)}{" "}
+                    carry-forward
+                  </Text>
+                </div>
               </div>
-              <div>
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Statement period
-                </Text>
-                <Text size="small" weight="plus">
-                  {new Date(statement.period_start).toLocaleDateString("en-IN")}{" "}
-                  – {new Date(statement.period_end).toLocaleDateString("en-IN")}
-                </Text>
+              <div className="grid grid-cols-2 gap-4 px-6 py-4 md:grid-cols-5">
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Commission
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.commission_minor, statement.currency)}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    GST on commission
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.gst_on_commission_minor, statement.currency)}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    TCS
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.tcs_minor, statement.currency)}
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    {statement.tcs_default_rate_applied
+                      ? "18% default GST rate"
+                      : "Product GST rate"}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    COD fee
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.cod_fee_minor, statement.currency)}
+                  </Text>
+                </div>
+                <div>
+                  <Text size="xsmall" className="text-ui-fg-subtle">
+                    Adjustments
+                  </Text>
+                  <Text size="small" weight="plus">
+                    {money(statement.adjustments_minor, statement.currency)}
+                  </Text>
+                </div>
               </div>
-              <div>
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Commission
-                </Text>
-                <Text size="small" weight="plus">
-                  {money(
-                    statement.commission_amount_minor,
-                    statement.currency_code,
-                  )}
-                </Text>
-              </div>
-              <div>
-                <Text size="xsmall" className="text-ui-fg-subtle">
-                  Payable projection
-                </Text>
-                <Text size="small" weight="plus">
-                  {money(
-                    statement.payable_amount_minor,
-                    statement.currency_code,
-                  )}
-                </Text>
-              </div>
-            </div>
+            </>
           )}
         </Container>
 
@@ -128,78 +180,71 @@ export default function SettlementStatementDetailPage() {
             <div className="border-b border-ui-border-base px-6 py-4">
               <Heading level="h2">Statement lines</Heading>
               <Text size="xsmall" className="mt-1 text-ui-fg-subtle">
-                Commission is calculated on merchandise value after refunds,
-                excluding GST and shipping.
+                One row per order. Invoice reference and GST in goods come from the
+                seller's tax invoice once it is linked; they are never estimated
+                here.
               </Text>
             </div>
             <div className="overflow-x-auto">
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.HeaderCell>Order</Table.HeaderCell>
-                  <Table.HeaderCell>Category</Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Gross
-                  </Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Refund
-                  </Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Rate
-                  </Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Commission
-                  </Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Adjustment
-                  </Table.HeaderCell>
-                  <Table.HeaderCell className="text-right">
-                    Payable
-                  </Table.HeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {statement.lines.map((line) => (
-                  <Table.Row key={line.orderReference}>
-                    <Table.Cell>
-                      <Text size="small" weight="plus">
-                        {line.orderReference}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell>{line.categoryName}</Table.Cell>
-                    <Table.Cell className="text-right">
-                      {money(line.grossAmountMinor, statement.currency_code)}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {money(line.refundAmountMinor, statement.currency_code)}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {line.commissionRatePercent}%
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {money(
-                        line.commissionAmountMinor,
-                        statement.currency_code,
-                      )}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      {money(
-                        line.adjustmentAmountMinor,
-                        statement.currency_code,
-                      )}
-                    </Table.Cell>
-                    <Table.Cell className="text-right">
-                      <Text size="small" weight="plus">
-                        {money(
-                          line.payableAmountMinor,
-                          statement.currency_code,
-                        )}
-                      </Text>
-                    </Table.Cell>
+              <Table>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.HeaderCell>Order</Table.HeaderCell>
+                    <Table.HeaderCell>Invoice</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Goods</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Rate</Table.HeaderCell>
+                    <Table.HeaderCell>Source</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Commission</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">GST</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">TCS</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">COD fee</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Adjustment</Table.HeaderCell>
+                    <Table.HeaderCell className="text-right">Amount due</Table.HeaderCell>
                   </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
+                </Table.Header>
+                <Table.Body>
+                  {statement.lines.map((line: StatementLine) => (
+                    <Table.Row key={line.order_group_id}>
+                      <Table.Cell>
+                        <Text size="small" weight="plus">
+                          {line.order_group_id}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell>{line.invoice_ref ?? "—"}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(line.goods_minor, statement.currency)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {(line.commission_bps / 100).toFixed(2)}%
+                      </Table.Cell>
+                      <Table.Cell>{sourceBadge(line)}</Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(line.commission_minor, statement.currency)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(
+                          line.gst_on_commission_minor,
+                          statement.currency,
+                        )}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(line.tcs_minor, statement.currency)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(line.cod_fee_minor, statement.currency)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        {money(line.adjustments_minor, statement.currency)}
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <Text size="small" weight="plus">
+                          {money(line.amount_due_minor, statement.currency)}
+                        </Text>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table>
             </div>
           </Container>
         ) : null}
