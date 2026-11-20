@@ -23,7 +23,12 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { lines?: unknown; postalCode?: string; promoCode?: string };
+  let body: {
+    lines?: unknown;
+    postalCode?: string;
+    promoCode?: string;
+    channel?: string;
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -59,6 +64,7 @@ export async function POST(request: Request) {
           typeof body.promoCode === "string"
             ? body.promoCode.trim().slice(0, 40) || undefined
             : undefined,
+        channel: body.channel === "b2b" ? "b2b" : "b2c",
       },
       token,
     );

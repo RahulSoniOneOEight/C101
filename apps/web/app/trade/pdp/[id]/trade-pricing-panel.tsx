@@ -55,6 +55,7 @@ export function TradePricingPanel({ product }: { product: ComposedProduct }) {
     priceMinor: unitPrice,
     currency: offer.currency_code,
     image: product.thumbnail ?? null,
+    channel: "b2b" as const,
   };
 
   const selectTier = (index: number) => {

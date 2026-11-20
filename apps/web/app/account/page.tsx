@@ -6,6 +6,7 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   getMyContexts,
+  hasAdminRole,
   hasTradeRole,
   listMyNotifications,
 } from "@/lib/experience-api";
@@ -25,8 +26,11 @@ export default async function AccountPage() {
   }
   const email = cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "Signed-in pilot customer";
   let hasTrade = false;
+  let isAdmin = false;
   try {
-    hasTrade = hasTradeRole(await getMyContexts(token));
+    const contexts = await getMyContexts(token);
+    hasTrade = hasTradeRole(contexts);
+    isAdmin = hasAdminRole(contexts);
   } catch (error) {
     if (error instanceof ExperienceApiError && [401, 403].includes(error.status)) {
       redirect(`/sign-in?next=${encodeURIComponent("/account")}`);
@@ -114,6 +118,14 @@ export default async function AccountPage() {
           <p>Negotiated tiers, credit, quotes, RFQ and GST invoices.</p>
           <span className="card-link">Explore trade →</span>
         </Link>
+        {isAdmin ? (
+          <Link className="account-card" href="/account/test-users">
+            <span className="account-card-icon" aria-hidden="true">⚙</span>
+            <strong>Test-user access</strong>
+            <p>Grant consumer and trade channels to every allowlisted staging tester.</p>
+            <span className="card-link">Manage access →</span>
+          </Link>
+        ) : null}
       </div>
 
       <section className="account-trade-band">

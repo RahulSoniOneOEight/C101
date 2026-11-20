@@ -11,6 +11,8 @@ export interface CartItem {
   priceMinor: number;
   currency: string;
   image?: string | null;
+  /** The cart is created in one sales channel; a trade line marks the whole basket B2B. */
+  channel?: "b2c" | "b2b";
   quantity: number;
 }
 
@@ -40,6 +42,7 @@ export function readCart(): CartItem[] {
       ...item,
       sku: item.sku ?? "",
       seller: item.seller ?? "",
+      channel: item.channel === "b2b" ? "b2b" : "b2c",
       quantity:
         typeof item.quantity === "number" && item.quantity > 0
           ? Math.min(99, Math.trunc(item.quantity))

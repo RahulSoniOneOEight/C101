@@ -51,6 +51,7 @@ function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
 
 export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
+  const cartChannel = items.some((item) => item.channel === "b2b") ? "b2b" : "b2c";
   const [state, setState] = useState<State>({ status: "idle" });
   const [postalCode, setPostalCode] = useState("302001");
   const [city, setCity] = useState("Jaipur");
@@ -100,6 +101,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
             lines: items.map((item) => ({ offerId: item.offerId, quantity: item.quantity })),
             postalCode,
             promoCode: appliedPromo || undefined,
+            channel: cartChannel,
           }),
         });
         const data = (await response.json()) as CartQuote & { error?: string };
@@ -180,6 +182,7 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
           city: form.get("city"),
           postalCode: form.get("postalCode"),
           promoCode: appliedPromo || undefined,
+          channel: cartChannel,
         }),
       });
       const data = (await res.json()) as {

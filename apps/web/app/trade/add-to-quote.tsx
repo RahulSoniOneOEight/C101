@@ -72,6 +72,7 @@ export function AddToQuote({ line }: { line: Omit<TradeQuoteLine, "quantity"> })
                 priceMinor: unit,
                 currency: line.currency,
                 image: line.image ?? null,
+                channel: "b2b" as const,
               },
               quantity,
             );

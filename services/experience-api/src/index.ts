@@ -22,6 +22,7 @@ import { ReservationStore } from "./store/reservation-store.js";
 import { InventoryRequestStore } from "./store/inventory-request-store.js";
 import { NotificationStore } from "./store/notification-store.js";
 import { PrivilegedAuditStore } from "./store/privileged-audit-store.js";
+import { PilotAccessStore } from "./store/pilot-access-store.js";
 import { NatsPublisher, eventSubject } from "./events/nats-publisher.js";
 import { appContent, resolveContent, type AppLocale } from "./content/app-content.js";
 import { CmsContentAdapter, buildBannerPreview } from "./content/cms-adapter.js";
@@ -53,6 +54,7 @@ import { ResendEmailSender, type EmailMessage } from "./email/sender.js";
 import {
   hasAnyRole,
   loadPilotAuthorizations,
+  PILOT_ROLES,
   type PilotAuthorization,
   type PilotRole,
 } from "./auth/pilot-authorization.js";
@@ -144,6 +146,7 @@ const pilotAuthorizations = loadPilotAuthorizations(
   pilotDirectory.users,
   config.pilotExpectedUserCount !== undefined,
 );
+const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
   config.redisUrl,
   config.pilotOtpCode,
@@ -289,7 +292,13 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
   try {
     const userId = await pilotAuth.resolveSession(token);
     const user = userId ? pilotDirectory.get(userId) : undefined;
-    const authorization = userId ? pilotAuthorizations.get(userId) : undefined;
+    let authorization = userId ? pilotAuthorizations.get(userId) : undefined;
+    if (userId) {
+      // A super-admin update is effective on the next request; if the override store is
+      // unavailable the deployment assignment remains the safe fallback.
+      const override = await pilotAccess.get(userId).catch(() => undefined);
+      if (override) authorization = override;
+    }
     if (!user || !authorization) {
       return { response: problem(401, "invalid-session", "The pilot session is invalid or expired.") };
     }
@@ -1749,6 +1758,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       ["correlation", correlation.poolStats()],
       ["notification", notifications.poolStats()],
       ["privileged_audit", privilegedAudit.poolStats()],
+      ["pilot_access", pilotAccess.poolStats()],
       ["cms_content", cmsContentStore.poolStats()],
     ];
     const lines: string[] = [
@@ -4358,15 +4368,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       // carried as cart metadata. Cart metadata propagates to the canonical order, so the
       // marketplace admin can separate B2B from B2C on real orders.
       const metadata: Record<string, unknown> = { ...(cart.metadata ?? {}), channel };
-      if (authenticated.authorization.businessAccountId) {
+      if (channel === "b2b" && authenticated.authorization.businessAccountId) {
         metadata.business_account_id = authenticated.authorization.businessAccountId;
+      } else {
+        delete metadata.business_account_id;
       }
       await medusa.updateCartMetadata(cart.id, metadata);
       await correlation.link(cart.id, { ownerUserId: authenticated.user.id });
       return json({
         ...composeCartView({ ...cart, metadata }),
         channel,
-        business_account_id: authenticated.authorization.businessAccountId ?? null,
+        business_account_id:
+          channel === "b2b" ? authenticated.authorization.businessAccountId ?? null : null,
         environment: config.environment,
         test_data: true,
         correlation_id: cid,
@@ -4882,10 +4895,64 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
               };
             }),
           };
+          // Reserve every ordered line in Tryton before the completion is recorded. The order is
+          // already canonical in Medusa; a failed reservation is surfaced as an ERP mismatch, not
+          // as a lost order, so the operator can recover from the reconciliation queue.
+          const reservationMoves: Array<{
+            move_id: number;
+            sku: string;
+            quantity: number;
+            line_id?: string;
+          }> = [];
+          for (const item of cart.items ?? []) {
+            const offer = item.metadata?.offer_id
+              ? offerById.get(item.metadata.offer_id)
+              : undefined;
+            const sku = item.sku ?? offer?.sku ?? item.variant_id;
+            if (!sku) continue;
+            try {
+              await erp.syncVariant(
+                sku,
+                item.product_title ?? item.title ?? sku,
+                medusaToMinorOr(item.unit_price),
+              );
+              const moveId = await erp.reserve(
+                `${cartId}:${item.id}`,
+                sku,
+                item.quantity,
+              );
+              await erp.commit(moveId);
+              reservationMoves.push({
+                move_id: moveId,
+                sku,
+                quantity: item.quantity,
+                line_id: item.id,
+              });
+              await events.append({
+                event_type: "inventory.reservation_created",
+                aggregate_type: "checkout",
+                aggregate_id: cartId,
+                correlation_id: cid,
+                payload: {
+                  sku,
+                  quantity: item.quantity,
+                  tryton_move_id: moveId,
+                  order_group_id: result.order_group?.id ?? null,
+                },
+              });
+            } catch (error) {
+              console.warn(
+                `[experience-api] Tryton reservation failed for ${sku}:`,
+                (error as Error).message,
+              );
+            }
+          }
           await correlation.link(cartId, {
             orderGroup: result.order_group?.id,
             orderGroupPayload,
             paymentEvidence,
+            trytonMove: reservationMoves[0]?.move_id,
+            trytonMoves: reservationMoves.length > 0 ? reservationMoves : undefined,
           });
           await events.appendOrderConfirmed({
             event_type: "order.confirmed",
@@ -6168,6 +6235,175 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     });
   }
 
+  // GET /v1/admin/pilot-users — test-user access directory and the roles an operator can grant.
+  // The environment assignment is the baseline; a database override wins until changed again.
+  if (url.pathname === "/v1/admin/pilot-users" && req.method === "GET") {
+    const operator = await requireAnyRole(req, ["super_admin"]);
+    if ("response" in operator) return operator.response;
+    const overrides = await pilotAccess.list();
+    const byUser = new Map(overrides.map((assignment) => [assignment.userId, assignment]));
+    const roleSet = new Set<string>(PILOT_ROLES);
+    const users = pilotDirectory.users.map((user) => {
+      const override = byUser.get(user.id);
+      const environment = pilotAuthorizations.get(user.id);
+      const assignment = override ?? environment;
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        roles: (assignment?.roles ?? []).filter((role) => roleSet.has(role)),
+        business_account_id: assignment?.businessAccountId ?? null,
+        seller_id: assignment?.sellerId ?? null,
+        source: override ? "override" : "environment",
+        updated_at: override?.updatedAt ?? null,
+        updated_by: override?.updatedBy ?? null,
+      };
+    });
+    return json({
+      users,
+      roles: PILOT_ROLES,
+      total: users.length,
+      environment: config.environment,
+      test_data: true,
+      correlation_id: cid,
+    });
+  }
+
+  // POST /v1/admin/pilot-users/grant-all — give every allowlisted tester both channels.
+  // Existing seller/operator roles are preserved; a shared staging business is used when the
+  // tester has no business account yet.
+  if (url.pathname === "/v1/admin/pilot-users/grant-all" && req.method === "POST") {
+    const operator = await requireAnyRole(req, ["super_admin"]);
+    if ("response" in operator) return operator.response;
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      sellerId: operator.authorization.sellerId,
+      method: "POST",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const changed: Array<Record<string, unknown>> = [];
+      for (const user of pilotDirectory.users) {
+        const existing =
+          (await pilotAccess.get(user.id)) ??
+          pilotAuthorizations.get(user.id) ??
+          ({ userId: user.id, roles: ["customer"] } as PilotAuthorization);
+        const roles = [...new Set([...existing.roles, "customer", "b2b_buyer"])] as PilotRole[];
+        const assignment = await pilotAccess.upsert({
+          userId: user.id,
+          roles,
+          businessAccountId: existing.businessAccountId ?? "business_bazarbee_pilot",
+          sellerId: existing.sellerId,
+          updatedBy: operator.user.id,
+        });
+        changed.push({
+          id: user.id,
+          roles: assignment.roles,
+          business_account_id: assignment.businessAccountId ?? null,
+          seller_id: assignment.sellerId ?? null,
+        });
+      }
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        updated: changed.length,
+        users: changed,
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 502);
+      return problem(502, "pilot-access-update-failed", (error as Error).message);
+    }
+  }
+
+  // PATCH /v1/admin/pilot-users/{userId} — update one tester's roles and account scope.
+  const pilotUserMatch = url.pathname.match(/^\/v1\/admin\/pilot-users\/([^/]+)$/);
+  if (pilotUserMatch && req.method === "PATCH") {
+    const operator = await requireAnyRole(req, ["super_admin"]);
+    if ("response" in operator) return operator.response;
+    const userId = decodeURIComponent(pilotUserMatch[1]);
+    const user = pilotDirectory.get(userId);
+    if (!user) return problem(404, "pilot-user-not-found", "That pilot user is not allowlisted.");
+    let body: {
+      roles?: unknown;
+      businessAccountId?: unknown;
+      sellerId?: unknown;
+    };
+    try {
+      body = (await req.json()) as typeof body;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    if (!Array.isArray(body.roles) || body.roles.length < 1) {
+      return problem(400, "invalid-roles", "At least one role is required.");
+    }
+    const roles = [...new Set(body.roles.map((role) => String(role)))] as PilotRole[];
+    const unknownRole = roles.find((role) => !PILOT_ROLES.includes(role));
+    if (unknownRole) {
+      return problem(400, "invalid-role", `Unknown pilot role: ${unknownRole}`);
+    }
+    const businessAccountId =
+      typeof body.businessAccountId === "string" && body.businessAccountId.trim()
+        ? body.businessAccountId.trim()
+        : undefined;
+    const sellerId =
+      typeof body.sellerId === "string" && body.sellerId.trim()
+        ? body.sellerId.trim()
+        : undefined;
+    if (roles.some((role) => role.startsWith("b2b_")) && !businessAccountId) {
+      return problem(
+        400,
+        "business-account-required",
+        "A B2B role requires a business account id.",
+      );
+    }
+    if (roles.some((role) => role.startsWith("seller_")) && !sellerId) {
+      return problem(400, "seller-required", "A seller role requires a seller id.");
+    }
+    const auditId = await privilegedAudit.start({
+      actorUserId: operator.user.id,
+      actorRoles: operator.authorization.roles,
+      businessAccountId: operator.authorization.businessAccountId,
+      sellerId: operator.authorization.sellerId,
+      method: "PATCH",
+      path: url.pathname,
+      correlationId: cid,
+    });
+    try {
+      const assignment = await pilotAccess.upsert({
+        userId,
+        roles,
+        businessAccountId,
+        sellerId,
+        updatedBy: operator.user.id,
+      });
+      await privilegedAudit.complete(auditId, 200);
+      return json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          roles: assignment.roles,
+          business_account_id: assignment.businessAccountId ?? null,
+          seller_id: assignment.sellerId ?? null,
+          source: "override",
+          updated_at: assignment.updatedAt ?? null,
+          updated_by: assignment.updatedBy ?? null,
+        },
+        environment: config.environment,
+        test_data: true,
+        correlation_id: cid,
+      });
+    } catch (error) {
+      await privilegedAudit.complete(auditId, 502);
+      return problem(502, "pilot-access-update-failed", (error as Error).message);
+    }
+  }
+
   // GET /v1/admin/environment — non-secret routing + provider summary for isolation verification.
   // Never exposed in production, and credentials are stripped (host:port only).
   if (url.pathname === "/v1/admin/environment" && req.method === "GET") {
@@ -6210,33 +6446,40 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     const orderId = reconciliation[1];
     const now = new Date().toISOString();
     const ref = await correlation.get(orderId);
-    const trytonMove = ref?.tryton_move_id ?? null;
+    const moveRefs = ref?.tryton_moves?.length
+      ? ref.tryton_moves
+      : ref?.tryton_move_id
+        ? [{ move_id: ref.tryton_move_id, sku: "", quantity: 0 }]
+        : [];
+    const trytonMove = moveRefs[0]?.move_id ?? null;
+    const moveEntityId = moveRefs.length > 1
+      ? `tryton_moves_${moveRefs.length}`
+      : trytonMove
+        ? `tryton_move_${trytonMove}`
+        : null;
     const orderGroup = ref?.medusa_order_group_id ?? null;
 
-    // Reflect the real Tryton reservation/movement state rather than assuming "committed" when a
-    // move exists, so a released/expired/draft reservation is visible as a mismatch.
+    // Reflect every Tryton stock move, not just the first line. A multi-line order is committed
+    // only when all of its moves are assigned; a cancelled line releases the projection.
     let reservationStatus: "not_started" | "reserved" | "committed" | "released" = "not_started";
     let movementStatus = "not_started";
-    if (trytonMove) {
-      const record = await reservations.getReservation(orderId);
-      if (record?.status === "released") {
+    if (moveRefs.length > 0) {
+      const states: string[] = [];
+      for (const moveRef of moveRefs) {
+        const [move] = await tryton
+          .read("stock.move", [moveRef.move_id], ["state"])
+          .catch(() => [] as Record<string, unknown>[]);
+        states.push(String(move?.state ?? "missing"));
+      }
+      if (states.some((state) => state === "cancelled")) {
         reservationStatus = "released";
         movementStatus = "released";
+      } else if (states.every((state) => state === "assigned")) {
+        reservationStatus = "committed";
+        movementStatus = "staging-posted";
       } else {
-        const [move] = await tryton
-          .read("stock.move", [trytonMove], ["state"])
-          .catch(() => [] as Record<string, unknown>[]);
-        const state = String(move?.state ?? "");
-        if (state === "assigned") {
-          reservationStatus = "committed";
-          movementStatus = "staging-posted";
-        } else if (state === "cancelled") {
-          reservationStatus = "released";
-          movementStatus = "released";
-        } else {
-          reservationStatus = "reserved";
-          movementStatus = "staging-pending";
-        }
+        reservationStatus = "reserved";
+        movementStatus = "staging-pending";
       }
     }
     const reconciled = Boolean(orderGroup && reservationStatus === "committed");
@@ -6261,8 +6504,8 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
       checkout: { system: "commerce", entity_type: "checkout-attempt", entity_id: orderId, environment: "staging", test_data: true, status: "completed", observed_at: now },
       order: { system: "medusa", entity_type: "order", entity_id: null, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
       allocation: { system: "mercur", entity_type: "marketplace-order-allocation", entity_id: orderGroup, environment: "staging", test_data: true, status: orderGroup ? "confirmed" : "not_started", observed_at: now },
-      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: reservationStatus, observed_at: now },
-      movement: { system: "tryton", entity_type: "stock-movement", entity_id: trytonMove ? `tryton_move_${trytonMove}` : null, environment: "staging", test_data: true, status: movementStatus, observed_at: now },
+      reservation: { system: "tryton", entity_type: "inventory-reservation", entity_id: moveEntityId, environment: "staging", test_data: true, status: reservationStatus, observed_at: now },
+      movement: { system: "tryton", entity_type: "stock-movement", entity_id: moveEntityId, environment: "staging", test_data: true, status: movementStatus, observed_at: now },
       accounting: { system: "tryton", entity_type: "accounting-projection", entity_id: null, environment: "staging", test_data: true, status: "test-clearing-projected", observed_at: now },
       accounting_treatment: "staging_test_clearing",
       bank_receipt_claimed: false,

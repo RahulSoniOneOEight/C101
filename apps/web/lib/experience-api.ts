@@ -70,6 +70,63 @@ export function hasTradeRole(contexts: BuyerContext[]): boolean {
   );
 }
 
+export function hasAdminRole(contexts: BuyerContext[]): boolean {
+  return contexts.some((context) => context.roles.includes("super_admin"));
+}
+
+export interface PilotAccessUser {
+  id: string;
+  email: string;
+  name: string;
+  roles: string[];
+  business_account_id: string | null;
+  seller_id: string | null;
+  source: "environment" | "override";
+  updated_at: string | null;
+  updated_by: string | null;
+}
+
+export interface PilotAccessDirectory {
+  users: PilotAccessUser[];
+  roles: string[];
+  total: number;
+}
+
+/** Super-admin test-user directory. The environment is the baseline; overrides win. */
+export async function listPilotAccess(sessionToken: string): Promise<PilotAccessDirectory> {
+  return call<PilotAccessDirectory>("/v1/admin/pilot-users", {
+    headers: authenticatedHeaders(sessionToken),
+    cache: "no-store",
+  });
+}
+
+export async function updatePilotAccess(
+  sessionToken: string,
+  userId: string,
+  input: { roles: string[]; businessAccountId?: string; sellerId?: string },
+): Promise<{ user: PilotAccessUser }> {
+  return call<{ user: PilotAccessUser }>(
+    `/v1/admin/pilot-users/${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers: authenticatedHeaders(sessionToken),
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export async function grantAllPilotAccess(
+  sessionToken: string,
+): Promise<{ updated: number; users: PilotAccessUser[] }> {
+  return call<{ updated: number; users: PilotAccessUser[] }>(
+    "/v1/admin/pilot-users/grant-all",
+    {
+      method: "POST",
+      headers: authenticatedHeaders(sessionToken),
+    },
+  );
+}
+
 export interface Serviceability {
   serviceable: boolean;
   eta_days: number;
@@ -930,6 +987,7 @@ export interface CheckoutInput {
   city: string;
   postalCode: string;
   promoCode?: string;
+  channel?: "b2c" | "b2b";
 }
 
 /**
@@ -968,7 +1026,13 @@ interface CartView {
  * the checkout cart instead of creating a quote cart.
  */
 export async function quoteCart(
-  input: { lines: CheckoutLineInput[]; postalCode: string; email: string; promoCode?: string },
+  input: {
+    lines: CheckoutLineInput[];
+    postalCode: string;
+    email: string;
+    promoCode?: string;
+    channel?: "b2c" | "b2b";
+  },
   sessionToken: string,
 ): Promise<CartQuote> {
   if (input.lines.length === 0) throw new Error("The cart is empty.");
@@ -976,7 +1040,9 @@ export async function quoteCart(
   const cart = await call<{ id: string }>("/v1/carts", {
     method: "POST",
     headers: auth,
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      channel: input.channel === "b2b" ? "b2b_web" : "b2c_web",
+    }),
   });
   for (const line of input.lines) {
     await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
@@ -1070,7 +1136,9 @@ export async function completeCheckout(
   const cart = await call<{ id: string }>("/v1/carts", {
     method: "POST",
     headers: auth,
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      channel: input.channel === "b2b" ? "b2b_web" : "b2c_web",
+    }),
   });
   for (const line of input.lines) {
     await call(`/v1/carts/${encodeURIComponent(cart.id)}/lines`, {
