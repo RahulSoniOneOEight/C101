@@ -38,9 +38,14 @@ repo or paste their contents into chat.
 | Tryton ERP | `https://ops.gobazarbee.com/erp/` (Cloudflare Access) |
 
 `ops.gobazarbee.com` is a proxied Cloudflare Tunnel CNAME to `bazarbee-ops`; the origin proxy runs
-with `PUBLIC_OPS_HOSTNAME=ops.gobazarbee.com`. The old `ops-staging.pinakaplay.cloud` operator host
-was retired — it returns `503` and no longer serves admin, seller or ERP. Access groups and apps are
-recorded in `docs/architecture/cloudflare-access.md`.
+with `PUBLIC_OPS_HOSTNAME=ops.gobazarbee.com`. Access groups and apps are recorded in
+`docs/architecture/cloudflare-access.md`.
+
+**Move in progress:** staging web and ops are moving to `staging.pinakaplay.cloud` and
+`ops-staging.pinakaplay.cloud`. The `pinakaplay.cloud` Cloudflare zone is created and fully
+provisioned (DNS, tunnel, transform rule, WAF, rate limit) but is **pending the Hostinger nameserver
+change** to `jillian.ns.cloudflare.com` / `odin.ns.cloudflare.com`. The URLs above remain live until
+that cutover.
 
 ## Host and services
 
