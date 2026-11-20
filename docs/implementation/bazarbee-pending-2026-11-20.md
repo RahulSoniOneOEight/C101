@@ -96,6 +96,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
   Indian mobile, delivery address and an idempotent completion key; B2B still requires sign-in.
   Guest contact is stored on the order. Guest order tracking/email is still pending. See
   `bazarbee-web-guest-checkout-2026-11-20.md`.
+- **Razorpay prepaid checkout** — staging B2C web flow is verified end to end with test cards,
+  including signature verification, capture, status polling and order completion. The B2B prepaid
+  server path is built but not browser-tested; Razorpay webhooks, refunds and Flutter SDK integration
+  remain pending. See `bazarbee-razorpay-web-checkout-2026-11-20.md`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.
