@@ -1,7 +1,7 @@
 # C101 pilot access + B2C ERP slice — 20 Nov 2026
 
 Status: **shipped to staging** · Web `release-web-20261120-054221` · API
-`release-api-20261120-054806` · Source `97443c0`
+`release-api-20261120-055757` · Source `607c5a5`
 Host: `https://gobazarbee.com` · Branch: `feat/bazarbee-branding`
 Production: untouched.
 
@@ -25,8 +25,9 @@ Production: untouched.
 - `updated_by`, `updated_at`
 
 The deployment's `PILOT_ROLE_ASSIGNMENTS_JSON` remains the safe baseline. Every authenticated
-request reads the override first; if the override store is unavailable, the environment assignment
-is used. A role change therefore applies on the tester's next request.
+request consults a 5-second override cache backed by the table; an update made on the same API
+instance is effective immediately, and a revocation on another instance lands within that window.
+If the override store is unavailable, the environment assignment is used.
 
 ### 2.2 Admin surface
 
@@ -68,6 +69,7 @@ All 21 pilot users have `customer` and `b2b_buyer`.
 | Non-admin `buyer.b2b01` | Page says “Test-user access is restricted”; API `404` |
 | Live revoke `buyer.b2b01` B2B | Next `/trade` request shows “You are signed in with a consumer account” |
 | Live restore | Next `/trade` request shows “Your trade desk, on the web.” |
+| Audit | One `pilot_privileged_audit` row per PATCH after the wrapper-level audit dedupe |
 | `/trade` as a dual-role tester | “Your trade desk, on the web.” |
 | Trade chat workspace | `BazarBee Pilot Trade · trade workspace`; Assistant + Procurement |
 
@@ -81,6 +83,9 @@ Corrected:
 - `CartItem` carries `channel`; trade tiles and the trade PDP mark lines `b2b`.
 - Checkout derives one cart channel and sends it to both the quote and completion APIs.
 - `GET /v1/carts` writes `business_account_id` only for a B2B cart; a B2C cart clears it.
+- `POST /v1/carts` defaults to B2C when `channel` is omitted; B2B clients must send
+  `b2b_app` or `b2b_web`. This removes the old role-based default that would turn a dual-role
+  API caller’s cart into a trade cart.
 
 ## 4. B2C order + ERP reconciliation
 
@@ -146,7 +151,24 @@ This slice is **not** an accounting release. The plan's gates still apply:
 The ERP response remains explicit: `accounting_treatment: staging_test_clearing`,
 `bank_receipt_claimed: false`, and no invoice/document is created.
 
-## 6. Verification commands / evidence
+## 6. Independent QC
+
+DeepSeek V4 Pro reviewed the substantive commit `97443c0` (docs-only commits excluded). Verdict:
+**SHIP (staging), no blocking defects.** It confirmed the super-admin gating, override fallback,
+channel propagation, multi-move reconciliation and per-line reservation behavior. The review
+follow-ups are in `607c5a5`.
+
+Follow-ups applied from that review:
+
+- duplicate handler-level audit writes removed; the privileged wrapper is the single audit row;
+- pilot override cache now has a 5-second TTL so a revocation propagates to another replica;
+- `POST /v1/carts` now defaults to B2C when `channel` is omitted; B2B callers must send
+  `b2b_app` / `b2b_web`.
+
+The review did not execute the live DB checks; those are covered by the evidence above. It also
+confirmed the remaining accounting items are outside this slice and not regressions.
+
+## 7. Verification commands / evidence
 
 - API and web typechecks pass.
 - `bun run test:rbac` → `PASS: server-owned pilot role assignments validate and fail closed.`
@@ -169,7 +191,7 @@ The ERP response remains explicit: `accounting_treatment: staging_test_clearing`
   - `b2b-erp-order.png`
   - `erp-order-detail.png`
 
-## 7. Remaining work
+## 8. Remaining work
 
 1. Install `account_payment` on a restored copy and rehearse A2 invoice/clearing (P-GATE-07).
 2. Scaffold `buildkart_accounting` and move the event intake/source links out of the API adapter
@@ -186,10 +208,11 @@ The ERP response remains explicit: `accounting_treatment: staging_test_clearing`
 8. The simulated payment collection remains cart-scoped (`cart_payment_collection`); there is no
    `order_payment_collection` row on the order. A2 clearing needs that order-level link.
 
-## 8. Rollback
+## 9. Rollback
 
 - Web: redeploy `release-web-20261119-185718` (before pilot access / cart channel).
-- API: redeploy `release-api-20261120-054806` is the current image; the prior API image is
+- API: redeploy `release-api-20261120-055757` is the current image; the prior API image is
+  `release-api-20261120-054806` (before the audit/cache/default fixes), then
   `release-api-20261119-190940`.
 - Data: the pilot access rows and shared workspace are additive; remove them only if the access
   model is reverted.
