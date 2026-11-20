@@ -466,6 +466,21 @@ export class CodStore {
     return result.rows as Array<Record<string, unknown>>;
   }
 
+  async listCollections(
+    statuses: string[] = ["collected", "short"],
+  ): Promise<CodCollection[]> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT * FROM cod_collection
+        WHERE status = ANY($1::text[])
+        ORDER BY updated_at DESC`,
+      [statuses],
+    );
+    return (result.rows as Array<Record<string, unknown>>).map((row) =>
+      this.normalizeCollection(row),
+    );
+  }
+
   async addDues(
     entries: Array<{
       sellerId: string;
@@ -482,7 +497,9 @@ export class CodStore {
         `INSERT INTO seller_dues_ledger
            (id, seller_id, period, kind, amount_minor, source_ref, note)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
-         ON CONFLICT (seller_id, period, kind, source_ref) DO NOTHING`,
+         ON CONFLICT (seller_id, period, kind, source_ref) DO UPDATE SET
+           amount_minor = EXCLUDED.amount_minor,
+           note = EXCLUDED.note`,
         [
           `due_${randomUUID()}`,
           entry.sellerId,

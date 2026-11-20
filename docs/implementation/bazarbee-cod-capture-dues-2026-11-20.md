@@ -1,7 +1,7 @@
 # COD capture, policies, dues and Flutter UI — 2026-11-20
 
-Status: **staging bundle complete** for seller-collected COD · TCS blocked on product GST rates ·
-production untouched.
+Status: **staging bundle complete** for seller-collected COD · TCS computes at a governed 18%
+default until product rates exist · production untouched.
 
 Change contract: `CHG-099`. Design: `docs/architecture/payments-cod.md`.
 
@@ -54,11 +54,12 @@ On collection the seller ledger writes:
 commission        10% of the seller's goods value (policy bps)
 GST on commission 18% of commission
 COD fee           seller policy, default 0
-TCS               0.5% of net taxable value when every line has a product GST rate
+TCS               0.5% of net taxable value; product `gst_rate` or a governed 18% default
 ```
 
-TCS is recorded as **pending** when a product has no `gst_rate`; it is never guessed. The statement
-reports `tcs_pending: true`, and CSV export carries the note.
+When a product has no `gst_rate`, TCS is computed at the **18% default** and the ledger note says so.
+The statement exposes `tcs_default_rate_applied: true` and `tcs_pending: false`; CSV export carries
+the same note. A product-level rate overrides the default once supplied.
 
 ### Flutter
 
@@ -95,7 +96,7 @@ Order `BK-261120-Y8ZD93`, seller `sel_01M4EC9CVVHG168X1DHHBY29HY`:
 GET  seller cod   200 · pending · expected 47900 · version 1
 POST seller cod   200 · collected · 47900 · proof qc-cash-receipt-1 · version 2
 event             cod.seller_recorded · actor seller_qc
-dues              commission 4000 · GST 720 · TCS 0 (pending: gst_rate missing)
+dues              commission 4000 · GST 720 · TCS 169 at 18% default
 ```
 
 Admin correction:
@@ -109,9 +110,18 @@ Statement:
 
 ```text
 GET /v1/admin/cod/statements?period=2026-11   200
-total_due_minor 4720 · tcs_pending true
+total_due_minor 4889 · tcs_pending false · tcs_default_rate_applied true
 GET /v1/seller/dues?period=2026-11            200
 ```
+
+Recompute after the 18% default was introduced:
+
+```text
+POST /v1/admin/cod/recompute-dues  200
+collections 1 · seller_dues_recomputed 1 · default_gst_rate_percent 18
+```
+
+Fresh order check: `BK-261120-GAKT78` captured with TCS **169** at the 18% default, no recompute.
 
 Final placement check after the bundle: `BK-261120-V7HRJ1`, `cod / pending`.
 
@@ -130,14 +140,16 @@ Admin COD routes now work through the same service-auth path as shipments.
 ## 4. Releases
 
 - Backend: `release-backend-20261120-131634`
-- Experience API: `release-api-20261120-134048` (final)
+- Experience API: `release-api-20261120-150022` (final, 18% TCS default)
 - Web: `release-web-20261120-132447`
 - Flutter web: `/opt/buildkart-flutter/web` (backup `web.bak-cod-20261120-134110`)
 
 ## 5. Still open
 
-- **Product GST rate**: no product carries `gst_rate`, so every TCS line is pending. Add the field and
-  approval before production; TCS must not be filed from these zeros.
+- **Product GST rate**: TCS now uses a **18% default** because no product carries `gst_rate`. This is
+  an interim rate, not a tax determination: exempt or differently-rated goods will over- or
+  under-collect until sellers supply the product rate. The override key is product metadata
+  `gst_rate`; a Product Studio field and finance approval are still needed.
 - **Medusa payment capture**: cash capture writes the COD ledger and audit, but the Medusa payment
   session remains `authorized`; it is not captured via the admin API. The COD ledger is the source of
   truth for cash. Align the two before finance reporting.
@@ -152,5 +164,5 @@ Admin COD routes now work through the same service-auth path as shipments.
 
 Every COD mechanic requested is now present on staging: capture with proof and audit, admin
 correction, seller-level opt-in and limits, idempotent placement, a seller receivable with statement
-and TCS handling, and a Flutter payment choice. The remaining blockers are data (GST rate), one
-accounting alignment (Medusa capture) and visual UAT, not missing COD state.
+and TCS at the 18% default, and a Flutter payment choice. The remaining blockers are the product-wise
+GST rates, one accounting alignment (Medusa capture) and visual UAT, not missing COD state.

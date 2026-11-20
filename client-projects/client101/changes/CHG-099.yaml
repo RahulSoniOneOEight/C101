@@ -62,7 +62,7 @@ requirements:
   status: done
 - id: R6
   name: Receivable, not payout
-  outcome: The COD ledger records commission, GST on commission, TCS and any COD fee as amounts owed by the seller; no goods payout is created and Bazarbee issues no goods payment receipt. TCS is flagged pending when a product has no GST rate.
+  outcome: The COD ledger records commission, GST on commission, TCS and any COD fee as amounts owed by the seller; no goods payout is created and Bazarbee issues no goods payment receipt. TCS uses the product GST rate when present and a governed 18% default otherwise.
   status: done
 - id: R7
   name: Prepaid isolation

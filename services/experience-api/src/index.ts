@@ -2560,22 +2560,30 @@ function parseCheckoutFields(
   };
 }
 
-async function productGstRate(productId: unknown): Promise<number | null> {
-  if (typeof productId !== "string" || !productId) return null;
-  try {
-    const product = await medusa.getProduct(productId);
-    const raw = product.metadata?.gst_rate;
-    const rate = Number(raw);
-    return Number.isFinite(rate) && rate >= 0 && rate <= 28 ? rate : null;
-  } catch {
-    return null;
+/** Fallback until sellers supply a product-level GST rate. */
+const DEFAULT_GST_RATE_PERCENT = 18;
+
+async function productGstRate(
+  productId: unknown,
+): Promise<{ rate: number; source: "product" | "default" }> {
+  if (typeof productId === "string" && productId) {
+    try {
+      const product = await medusa.getProduct(productId);
+      const raw = product.metadata?.gst_rate;
+      const rate = Number(raw);
+      if (Number.isFinite(rate) && rate >= 0 && rate <= 28) {
+        return { rate, source: "product" };
+      }
+    } catch {
+      // Fall through to the governed default.
+    }
   }
+  return { rate: DEFAULT_GST_RATE_PERCENT, source: "default" };
 }
 
 /**
  * Write the seller receivable for a collected COD order: commission, GST on commission, COD fee
- * and TCS. TCS is only computed when every line carries a product GST rate; otherwise it is recorded
- * as pending rather than guessed.
+ * and TCS. TCS uses the product GST rate when present and the governed 18% fallback otherwise.
  */
 async function postCodDues(input: {
   orderGroupId: string;
@@ -2611,22 +2619,19 @@ async function postCodDues(input: {
     });
   }
   let tcs = 0;
-  let tcsPending = false;
+  let usedDefaultRate = false;
   for (const line of lines) {
-    const rate = await productGstRate(line.product_id);
+    const { rate, source } = await productGstRate(line.product_id);
+    if (source === "default") usedDefaultRate = true;
     const lineTotal = Math.round(Number(line.unit_price ?? 0)) * Number(line.quantity ?? 0);
-    if (rate === null) {
-      tcsPending = true;
-      continue;
-    }
     const taxable = Math.round(lineTotal / (1 + rate / 100));
     tcs += Math.round((taxable * COD_TCS_RATE_BPS) / 10000);
   }
   entries.push({
     kind: "tcs",
-    amountMinor: tcsPending ? 0 : tcs,
-    note: tcsPending
-      ? "pending: product gst_rate missing"
+    amountMinor: tcs,
+    note: usedDefaultRate
+      ? "0.5% of net taxable value at the 18% default GST rate (product rate not set)"
       : "0.5% of net taxable value (ex-GST)",
   });
   const period = currentPeriod();
@@ -3735,6 +3740,52 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       tcs_pending: entries.some(
         (entry) => entry.kind === "tcs" && String(entry.note ?? "").startsWith("pending"),
       ),
+      tcs_default_rate_applied: entries.some(
+        (entry) =>
+          entry.kind === "tcs" &&
+          String(entry.note ?? "").includes("default GST rate"),
+      ),
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // Recompute derived COD dues from stored orders, e.g. after a TCS rate change.
+  if (url.pathname === "/v1/admin/cod/recompute-dues" && req.method === "POST") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const collections = await codStore.listCollections(["collected", "short"]);
+    let sellersUpdated = 0;
+    for (const collection of collections) {
+      const record = await correlation.getByOrderGroup(collection.order_group_id);
+      if (!record) continue;
+      const lines = Array.isArray(record.medusa_order_group?.lines)
+        ? (record.medusa_order_group!.lines as Array<Record<string, unknown>>)
+        : [];
+      const sellerIds = [
+        ...new Set(
+          lines
+            .map((line) => (typeof line.seller_id === "string" ? line.seller_id : ""))
+            .filter(Boolean),
+        ),
+      ];
+      for (const sellerId of sellerIds) {
+        const policy = await codStore.getPolicy(sellerId);
+        if (!policy) continue;
+        await postCodDues({
+          orderGroupId: collection.order_group_id,
+          record,
+          sellerId,
+          policy,
+          status: collection.status,
+        });
+        sellersUpdated += 1;
+      }
+    }
+    return json({
+      collections: collections.length,
+      seller_dues_recomputed: sellersUpdated,
+      default_gst_rate_percent: DEFAULT_GST_RATE_PERCENT,
       test_data: config.environment !== "production",
       correlation_id: cid,
     });
@@ -3768,6 +3819,11 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         total_due_minor: duesTotals(rows),
         tcs_pending: rows.some(
           (entry) => entry.kind === "tcs" && String(entry.note ?? "").startsWith("pending"),
+        ),
+        tcs_default_rate_applied: rows.some(
+          (entry) =>
+            entry.kind === "tcs" &&
+            String(entry.note ?? "").includes("default GST rate"),
         ),
         entries: rows,
       })),

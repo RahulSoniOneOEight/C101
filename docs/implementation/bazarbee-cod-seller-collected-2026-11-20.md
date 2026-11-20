@@ -1,7 +1,7 @@
 # Seller-collected COD — staging slice 1
 
 Status: **B2C and B2B COD order placement verified on staging** · cash capture, dues ledger and TCS
-still pending · production untouched.
+were completed in `bazarbee-cod-capture-dues-2026-11-20.md`; this note covers slice 1 only.
 
 Change contract: `CHG-099` (approved 2026-11-20). Design: `docs/architecture/payments-cod.md`.
 

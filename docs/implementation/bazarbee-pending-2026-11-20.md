@@ -105,8 +105,8 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
 - **COD (seller-collected)** — model confirmed on 2026-11-20: the seller delivers and collects cash,
   Bazarbee never holds the goods money, and a COD order is confirmed but never paid. Web B2C and B2B
   placement, seller cash capture with audit, seller policies/caps, idempotency, dues statement and
-  Flutter payment choice are built and verified on staging; TCS is blocked on missing product GST
-  rates. See `bazarbee-cod-capture-dues-2026-11-20.md` and `docs/architecture/payments-cod.md`;
+  Flutter payment choice are built and verified on staging; TCS uses an interim 18% default until
+  sellers supply product-wise GST rates. See `bazarbee-cod-capture-dues-2026-11-20.md` and `docs/architecture/payments-cod.md`;
   build scoped by `CHG-099`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.

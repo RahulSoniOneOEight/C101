@@ -47,6 +47,11 @@ Bazarbee pays seller:    nothing for goods
 TCS is **not** part of Bazarbee's turnover and never appears on the fee invoice. It is a separate
 line on the seller statement and in GSTR-8.
 
+Until a seller supplies a product-level GST rate, TCS is computed at a governed **18% default**
+(excluding GST from the inclusive price) and the ledger note records that the default was used.
+The API exposes `tcs_default_rate_applied` alongside `tcs_pending`. A product metadata
+`gst_rate` overrides the default for that line once supplied.
+
 Delivery fee:
 
 - if the seller collects it from the buyer, it is the seller's supply and stays out of Bazarbee's books;
@@ -130,7 +135,7 @@ off the fee invoice and appears only on the dues statement and in GSTR-8.
 |---|---|---|
 | 1 | C | COD order placement on web, B2C and B2B: eligibility, `payment_method=cod`, `cod_pending`, no gateway call, confirmed order — **built and verified on staging** |
 | 2 | C | Cash capture at delivery in seller portal and admin: amount, collector, proof, short/refused, audit — **built and verified on staging** |
-| 3 | C/D | Seller dues ledger, monthly statement, TCS lines, fee invoice series, GSTR-8 export — **ledger and statement built; TCS pending product GST rates; GSTR-8 export pending** |
+| 3 | C/D | Seller dues ledger, monthly statement, TCS lines, fee invoice series, GSTR-8 export — **ledger and statement built; TCS uses 18% default until product rates exist; GSTR-8 export pending** |
 | 4 | B | Buyer-facing COD labels, eligibility messaging, delivery OTP; Flutter parity — **web and Flutter COD choice built; delivery OTP not built** |
 | 5 | E | Production configuration, caps, finance acceptance |
 
