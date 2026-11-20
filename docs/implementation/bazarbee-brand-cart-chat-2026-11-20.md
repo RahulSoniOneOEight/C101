@@ -114,8 +114,9 @@ discarded. `conversation_dock_test.dart` passes 11/11.
   pass.
 - C101 finance gates and A2–A5 remain unchanged: no invoices, journals, clearing, payouts,
   `account_payment` or `bazarbee_accounting` module.
-- B2B Bought Together still needs an active `b2b`/`both` pair.
-- All-21 tester login smoke still needs each human tester’s OTP access.
+- B2B Bought Together is implemented and seeded; see
+  `bazarbee-b2b-bought-together-2026-11-20.md`.
+- All-21 tester login smoke still needs each human tester's OTP access.
 - Ratings/reviews and the local market-comparison fixture remain product decisions.
 
 ## 5. Commits and rollback

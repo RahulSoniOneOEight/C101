@@ -6,8 +6,10 @@
 **Status:** staging only; production untouched.
 
 **Implementation update (20 Nov 2026):** branding strings, stale Flutter tests, the mixed-channel
-cart guard and the Flutter chat channel-switch race are implemented. See
-`bazarbee-brand-cart-chat-2026-11-20.md`. The remaining items below are still pending.
+cart guard, the Flutter chat channel-switch race and the B2B Bought Together trade section are
+implemented. The Flutter chat flows were audited and verified (17/17 chat/workspace/cart-build
+tests); the remaining chat gap is the web drawer. See `bazarbee-brand-cart-chat-2026-11-20.md` and
+`bazarbee-b2b-bought-together-2026-11-20.md`. The remaining items below are still pending.
 
 Already completed and excluded from this list: dual-channel access for all 21 testers, the super-admin access editor, B2C/B2B cart tagging, B2C Tryton reservation/reconciliation, and the DeepSeek Pro QC follow-ups.
 
@@ -83,7 +85,8 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
 
 ## 3. Commerce and product
 
-- **B2B Bought Together** — B2C pair renders; the B2B page has no pair section and staging has only active `b2c` pairs.
+- **B2B Bought Together** - implemented: trade PDP renders the active B2B pair with trade pricing,
+  MOQ and a link. Staging pair seeded by `services/hosted/scripts/seed-b2b-bought-together.sql`.
 - **Ratings/reviews** — the Experience API exposes no rating data. Decide whether to build a ratings source or explicitly drop the feature.
 - **Market comparison** — Flutter uses a local staging fixture. Decide whether to port it as explicitly labelled fixture data or drop it.
 - **Per-user business isolation** — all consumer testers currently share `business_bazarbee_pilot`. Fine for staging, not a production model.
@@ -94,7 +97,10 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
 
 ## 4. Chat
 
-The web drawer covers assistant/human channels, persistence, polling, product Discuss and references. Still missing from the Flutter dock:
+The Flutter dock already includes the shared-list tab, invitations/participant management, draft
+proposals, the cart-build sheet and read cursors; `conversation_dock_test.dart`,
+`cart_build_sheet_test.dart` and `workspace_screen_test.dart` pass 17/17. The **web** drawer still
+lacks:
 
 - shared-list tab
 - invitations and participant management
