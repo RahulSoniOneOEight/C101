@@ -9,7 +9,8 @@ equivalent to Google Workspace or Entra; the limits are listed in §8.
 
 ## 1. Context
 
-- Cloudflare Access is live on staging at `ops.gobazarbee.com` with One-time PIN (email code).
+- Cloudflare Access is live on staging at `ops-staging.pinakaplay.cloud` with One-time PIN (email
+  code).
 - There is no Google Workspace or Entra tenant for `gobazarbee.com`; the domain has no MX.
 - Production needs named staff accounts, MFA, immediate offboarding and an audit trail.
 - Sellers are external and keep their Medusa seller accounts; this decision covers ops staff

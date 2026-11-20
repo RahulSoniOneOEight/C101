@@ -114,8 +114,8 @@ Production additions:
 - Google Workspace/Entra is no longer a production requirement under that decision
 - 21 pilot identities were migrated with their roles; staging uses email codes with preview codes
 - web and Flutter sign in with email code; Flutter sends a device id for auth rate limiting
-- Cloudflare Access is live on staging at `ops.gobazarbee.com`; the One-time PIN IdP is enabled and
-  Google Workspace/Entra mapping and Turnstile keys are still pending
+- Cloudflare Access is live on staging at `ops-staging.pinakaplay.cloud`; the One-time PIN IdP is
+  enabled and the staff-list + TOTP decision replaces Google Workspace/Entra
 - admin/seller use Mercur email/password; ERP uses Tryton username/password
 - admin password was temporarily set to `supersecret` during QC — rotate immediately
 - production email delivery still needs a verified Resend sender

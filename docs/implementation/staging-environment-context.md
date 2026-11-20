@@ -32,20 +32,21 @@ repo or paste their contents into chat.
 
 | Surface | URL |
 |---|---|
-| Admin | `https://ops.gobazarbee.com/dashboard/` (Cloudflare Access) |
-| Seller | `https://ops.gobazarbee.com/seller/` (Cloudflare Access) |
+| Customer web | `https://staging.pinakaplay.cloud` |
+| Admin | `https://ops-staging.pinakaplay.cloud/dashboard/` (Cloudflare Access) |
+| Seller | `https://ops-staging.pinakaplay.cloud/seller/` (Cloudflare Access) |
 | Customer API | `https://api-staging.pinakaplay.cloud` |
-| Tryton ERP | `https://ops.gobazarbee.com/erp/` (Cloudflare Access) |
+| Flutter app | `https://app-staging.pinakaplay.cloud` |
+| Tryton ERP | `https://ops-staging.pinakaplay.cloud/erp/` (Cloudflare Access) |
 
-`ops.gobazarbee.com` is a proxied Cloudflare Tunnel CNAME to `bazarbee-ops`; the origin proxy runs
-with `PUBLIC_OPS_HOSTNAME=ops.gobazarbee.com`. Access groups and apps are recorded in
-`docs/architecture/cloudflare-access.md`.
+`staging.pinakaplay.cloud` and `ops-staging.pinakaplay.cloud` are proxied Cloudflare Tunnel CNAMEs
+to `bazarbee-ops`; the origin proxy runs with `PUBLIC_APP_HOSTNAME=staging.pinakaplay.cloud` and
+`PUBLIC_OPS_HOSTNAME=ops-staging.pinakaplay.cloud`. The `pinakaplay.cloud` zone is active on
+Cloudflare and carries the origin-lock transform rule, WAF and rate limit. Access groups and apps
+are recorded in `docs/architecture/cloudflare-access.md`.
 
-**Move in progress:** staging web and ops are moving to `staging.pinakaplay.cloud` and
-`ops-staging.pinakaplay.cloud`. The `pinakaplay.cloud` Cloudflare zone is created and fully
-provisioned (DNS, tunnel, transform rule, WAF, rate limit) but is **pending the Hostinger nameserver
-change** to `jillian.ns.cloudflare.com` / `odin.ns.cloudflare.com`. The URLs above remain live until
-that cutover.
+`ops.gobazarbee.com` and the apex staging web were retired on 2026-11-21; the `gobazarbee.com` zone
+is now reserved for the production environment.
 
 ## Host and services
 
@@ -130,23 +131,24 @@ IPs and return `502` even while containers are healthy.
 
 ```sh
 curl -fsS https://api-staging.pinakaplay.cloud/health
-curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/dashboard/   # 302 from Access
-curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/seller/      # 302 from Access
+curl -sS -o /dev/null -w '%{http_code}\n' https://staging.pinakaplay.cloud/                 # 200
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops-staging.pinakaplay.cloud/dashboard/  # 302 from Access
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops-staging.pinakaplay.cloud/seller/     # 302 from Access
 ```
 
-`ops.gobazarbee.com` is fully behind Access, including `/health`. Probe health from inside the
-proxy instead:
+`ops-staging.pinakaplay.cloud` is fully behind Access, including `/health`. Probe health from inside
+the proxy instead:
 
 ```sh
 ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164 \
   "docker exec buildkart-hosted-pilot-proxy-1 sh -c \
-    'wget -qO- --header=\"Host: ops.gobazarbee.com\" --header=\"X-Bazarbee-Edge: \$EDGE_SHARED_SECRET\" http://127.0.0.1:8080/health'"
+    'wget -qO- --header=\"Host: ops-staging.pinakaplay.cloud\" --header=\"X-Bazarbee-Edge: \$EDGE_SHARED_SECRET\" http://127.0.0.1:8080/health'"
 ```
 
 A request to the origin with the ops Host but without the edge header returns `403`.
 
 Hosted acceptance reaches the API over the public host. The operator checks target the proxy directly
-on the tunnel network because `ops.gobazarbee.com` is now behind Access and the edge header:
+on the tunnel network because `ops-staging.pinakaplay.cloud` is behind Access and the edge header:
 
 ```sh
 ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164 \
