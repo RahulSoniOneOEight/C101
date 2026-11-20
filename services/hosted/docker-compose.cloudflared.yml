@@ -2,14 +2,18 @@ name: buildkart-hosted-pilot
 
 # Optional Cloudflare Tunnel edge.
 #
-# Use this ONLY when the zone's nameservers are on Cloudflare and the public hostnames are proxied
-# CNAMEs to the tunnel (`<tunnel-id>.cfargotunnel.com`). It requires
-# /etc/buildkart/cloudflared/config.yml and tunnel-credentials.json on the host.
+# Use this when the zone's nameservers are on Cloudflare and the public hostnames are proxied
+# CNAMEs to the tunnel (`<tunnel-id>.cfargotunnel.com`). The tunnel is a second ingress path next to
+# Coolify's Traefik; both reach the same nginx `proxy`.
 #
-# The default and currently authorised edge is Coolify's Traefik (docker-compose.hosted.yml). This
-# overlay can be applied alongside it when a Cloudflare front door (Access/WAF) is approved.
+# The tunnel token is held only on the host:
 #
-#   docker compose -f docker-compose.hosted.yml -f docker-compose.cloudflared.yml up -d
+#   /etc/buildkart/secrets/cloudflared.env   TUNNEL_TOKEN=...
+#
+# with mode 600. It is never committed. The tunnel ingress (public hostname -> proxy and the origin
+# Host header) is stored in Cloudflare and managed through the API.
+#
+#   docker compose -f docker-compose.hosted.yml -f docker-compose.cloudflared.yml up -d --no-deps proxy cloudflared
 
 services:
   proxy:
@@ -18,9 +22,8 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:2026.9.1
     restart: unless-stopped
-    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
-    volumes:
-      - /etc/buildkart/cloudflared:/etc/cloudflared:ro
+    command: ["tunnel", "--no-autoupdate", "run"]
+    env_file: /etc/buildkart/secrets/cloudflared.env
     depends_on: [proxy]
     networks: [tunnel]
 

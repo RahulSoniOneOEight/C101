@@ -258,7 +258,9 @@ services:
       tryton: {condition: service_started}
       # nginx resolves upstream hostnames at startup, so `web` must exist before the proxy boots.
       web: {condition: service_started}
-    networks: [private, coolify]
+    # `tunnel` is always attached so a base-file `up` never detaches the proxy from the Cloudflare
+    # Tunnel edge when the cloudflared overlay is enabled.
+    networks: [private, coolify, tunnel]
     labels:
       traefik.enable: "true"
       traefik.docker.network: "coolify"
@@ -316,3 +318,4 @@ networks:
   # Coolify's existing Traefik network (created by Coolify).
   coolify:
     external: true
+  tunnel:

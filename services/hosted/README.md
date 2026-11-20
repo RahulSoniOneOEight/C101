@@ -16,10 +16,12 @@ service joins the external `coolify` network and is routed by Traefik labels for
 | `api-staging.pinakaplay.cloud` | `PUBLIC_API_HOSTNAME` | Customer API (privileged paths return `404`) |
 | `ops-staging.pinakaplay.cloud` | `PUBLIC_OPS_HOSTNAME` | Operator API + `/ops` console (app RBAC) |
 
-A Cloudflare Tunnel edge is **optional and inactive**; it only works if the zone's nameservers are
-moved to Cloudflare and the hostnames become proxied CNAMEs to the tunnel. See
-`docker-compose.cloudflared.yml`. The operator hostname is protected by application RBAC (CHG-019);
-the approved Cloudflare Access layer is **deferred** and tracked as a hardening gap.
+A Cloudflare Tunnel edge is **active on staging** (`docker-compose.cloudflared.yml`). It requires the
+zone on Cloudflare, a token in `/etc/buildkart/secrets/cloudflared.env`, and the public hostname as
+a proxied CNAME to `<tunnel-id>.cfargotunnel.com`. The operator hostname `ops.gobazarbee.com` is
+behind Cloudflare Access; the customer, API and app hosts stay outside Access. See
+`docs/architecture/cloudflare-access.md`. The `proxy` always joins the `tunnel` network so a
+base-file `up` does not detach it.
 
 ### Recreating services and the edge
 

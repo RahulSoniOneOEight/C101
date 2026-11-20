@@ -32,10 +32,15 @@ repo or paste their contents into chat.
 
 | Surface | URL |
 |---|---|
-| Admin | `https://ops-staging.pinakaplay.cloud/dashboard/` |
-| Seller | `https://ops-staging.pinakaplay.cloud/seller/` |
+| Admin | `https://ops.gobazarbee.com/dashboard/` (Cloudflare Access) |
+| Seller | `https://ops.gobazarbee.com/seller/` (Cloudflare Access) |
 | Customer API | `https://api-staging.pinakaplay.cloud` |
-| Tryton ERP | `https://ops-staging.pinakaplay.cloud/erp/` |
+| Tryton ERP | `https://ops.gobazarbee.com/erp/` (Cloudflare Access) |
+
+`ops.gobazarbee.com` is a proxied Cloudflare Tunnel CNAME to `bazarbee-ops`; the origin proxy runs
+with `PUBLIC_OPS_HOSTNAME=ops.gobazarbee.com`. The old `ops-staging.pinakaplay.cloud` operator host
+was retired — it returns `503` and no longer serves admin, seller or ERP. Access groups and apps are
+recorded in `docs/architecture/cloudflare-access.md`.
 
 ## Host and services
 
@@ -120,9 +125,9 @@ IPs and return `502` even while containers are healthy.
 
 ```sh
 curl -fsS https://api-staging.pinakaplay.cloud/health
-curl -fsS https://ops-staging.pinakaplay.cloud/health
-curl -fsS https://ops-staging.pinakaplay.cloud/dashboard/
-curl -fsS https://ops-staging.pinakaplay.cloud/seller/
+curl -fsS https://ops.gobazarbee.com/health
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/dashboard/
+curl -sS -o /dev/null -w '%{http_code}\n' https://ops.gobazarbee.com/seller/
 ```
 
 Hosted acceptance uses host networking because the container cannot resolve the public hostname:
@@ -132,7 +137,7 @@ ssh -i ~/.ssh/buildkart_deploy root@89.116.20.164 \
   "docker run --rm --network host \
     --env-file /etc/buildkart/secrets/experience-api.env \
     -e EXPERIENCE_BASE_URL=https://api-staging.pinakaplay.cloud \
-    -e EXPERIENCE_OPS_BASE_URL=https://ops-staging.pinakaplay.cloud \
+    -e EXPERIENCE_OPS_BASE_URL=https://ops.gobazarbee.com \
     buildkart-hosted-pilot-experience-api \
     bun run src/scripts/hosted-acceptance.ts"
 ```
