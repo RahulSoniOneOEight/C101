@@ -416,7 +416,7 @@ export function CheckoutForm({
             </label>
             <label>
               Last name
-              <input name="lastName" autoComplete="family-name" placeholder="Buyer" />
+              <input name="lastName" required autoComplete="family-name" placeholder="Buyer" />
             </label>
             <label className="form-span">
               Address

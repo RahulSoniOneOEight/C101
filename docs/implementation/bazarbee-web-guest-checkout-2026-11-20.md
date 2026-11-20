@@ -1,6 +1,6 @@
 # Web guest checkout with mobile capture — 20 Nov 2026
 
-Status: **implemented on staging** · Web `release-web-20261120-085315` · API
+Status: **implemented on staging** · Web `release-web-20261120-085736` · API
 `release-api-20261120-085556` · Source `dceda27`, `ab9acc8`
 Production: untouched.
 
