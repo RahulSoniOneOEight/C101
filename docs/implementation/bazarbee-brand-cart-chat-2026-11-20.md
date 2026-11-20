@@ -108,8 +108,9 @@ discarded. `conversation_dock_test.dart` passes 11/11.
 
 ## 5. Commits and rollback
 
-- Source commit: `59c980b` (`fix(bazarbee): finish brand copy and enforce trade cart entitlement`),
-  following `86345bb` (brand/cart/chat implementation).
+- Source commits: `ccd141a` (BazarBee logo assertion), `59c980b`
+  (`fix(bazarbee): finish brand copy and enforce trade cart entitlement`), `86345bb`
+  (`feat(bazarbee): brand rename, cart channel guard and chat race fix`).
 - Rollback: redeploy web `release-web-20261120-054221`, API `release-api-20261120-055757`,
   workspace `release-workspace-20261120-062701` is the first branded workspace image; the
   workspace schema/data change is additive and can be reverted with the previous image plus the
