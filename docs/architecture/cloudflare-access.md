@@ -1,8 +1,8 @@
 # Cloudflare Access for ops, seller and ERP
 
 Status: **live on staging** at `ops.gobazarbee.com` · whole host behind one Access application ·
-WAF, rate limiting and an origin lock are active · Google Workspace/Entra IdP and production are
-still open.
+WAF, rate limiting and an origin lock are active · Google Workspace/Entra is not required under the
+2026-11-21 identity decision · production is still a separate environment.
 
 The customer host stays on the application's own email OTP/magic-link auth. Cloudflare Access is the
 outer gate for the operator host only.
@@ -20,13 +20,20 @@ A single host-level application replaced the three path-scoped apps. One Access 
 whole operator host; Mercur and Tryton still enforce role separation inside the app. This closes the
 gap where `/admin`, `/auth`, `/v1/ops` and `/metrics` were reachable without the outer gate.
 
-Production will use the same shape on `ops.bazarbee.com`, in a separate environment.
+Production will use the same shape on `ops.bazarbee.com`, in a **separate Cloudflare account** with
+its own zone, team domain, apps, groups, tunnel and AUD.
+
+The TOTP second factor applies to **admin and ERP paths only**. Sellers stay on the Mercur seller
+login behind the Access `BazarBee Sellers` group; `/seller`, `/vendor`, `/auth`, `/static` and
+`/uploads` are not TOTP-gated.
 
 ## 2. Identity
 
-1. **Cloudflare One-time PIN** is enabled for staging.
-2. Google Workspace or Microsoft Entra ID is required for production, with MFA enforced in the IdP.
-3. Break-glass remains one named security administrator with a hardware key.
+1. **Cloudflare One-time PIN** is enabled for staging and is factor 1 at the edge.
+2. Factor 2 is the BazarBee TOTP gate backed by the superadmin-maintained `ops_staff` list.
+3. Google Workspace or Microsoft Entra ID is **not required**; see
+   `identity-ops-totp-2026-11-21.md`.
+4. Break-glass remains one named security administrator with offline recovery codes.
 
 Staging group membership uses test identities:
 

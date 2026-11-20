@@ -130,10 +130,11 @@ Roles map to Cloudflare groups:
 ```text
 super_admin, marketplace_operator, support_operator → BazarBee Staff
 finance_operator, erp_operator                     → BazarBee ERP
-seller_admin (optional)                            → BazarBee Sellers
 ```
 
 The gate uses the `ops_staff.roles` value; Cloudflare group membership is only the edge allowlist.
+Seller accounts are Medusa seller accounts and are **not** in `ops_staff`; the optional
+`seller_admin` role is not used for the TOTP gate.
 
 ## 6. Superadmin surface
 
@@ -153,10 +154,17 @@ Adding a superadmin or changing a superadmin's roles requires a second approver 
 
 | Surface | Gate |
 |---|---|
-| `/dashboard`, `/seller`, `/erp/`, `/admin`, `/auth`, `/static`, `/uploads` | nginx `auth_request` |
-| `/v1/ops/*`, `/v1/admin/*`, `/metrics` on the ops host | nginx `auth_request` |
-| `/ops/login`, `/ops/enroll`, `/v1/ops/auth/*` | excluded from the gate, still behind Cloudflare Access |
+| `/dashboard`, `/erp/` | nginx `auth_request` |
+| `/admin`, `/v1/admin/*`, `/v1/ops/*`, `/metrics` on the ops host | nginx `auth_request` |
+| `/seller`, `/vendor`, `/auth`, `/static`, `/uploads` | **Cloudflare Access only** — sellers stay on Mercur login |
+| `/ops/login`, `/ops/enroll`, `/ops/logout`, `/v1/ops/totp/*`, `/v1/ops/gate` | excluded from the gate, still behind Cloudflare Access |
 | Customer, API and app hosts | unchanged, no ops gate |
+
+Sellers are intentionally outside the TOTP gate. They reach `/seller` through the Access `BazarBee
+Sellers` group and then authenticate with their Mercur seller password. `/auth`, `/static` and
+`/uploads` are shared with the seller UI, so they cannot be gated without breaking it; the Mercur
+password remains the inner gate for those paths. Seller payout or bank-detail changes need a
+step-up check later.
 
 Feature flag `OPS_TOTP_GATE=off|shadow|enforce`:
 
@@ -179,7 +187,7 @@ Staging starts in `shadow`, then `enforce` after UAT.
 
 ## 9. Acceptance criteria
 
-1. A new staff user cannot reach any ops path until TOTP enrolment completes.
+1. A new staff user cannot reach any admin or ERP path until TOTP enrolment completes.
 2. Invalid TOTP is rejected; a reused code is rejected; five failures lock for 15 minutes.
 3. Disable revokes the app session and removes the Cloudflare group entry within 60 seconds.
 4. Every create, role change, MFA reset, enable and disable writes an audit row with actor and reason.
@@ -259,3 +267,13 @@ gobazarbee@gmail.com   super_admin   status invited   TOTP not enrolled
 
 The next action is browser UAT: sign in through Access, open `/ops/enroll`, add the secret to an
 authenticator, confirm a code, save the recovery codes, then sign in at `/ops/login`.
+
+## 13. Production decisions — 2026-11-21
+
+| Decision | Value |
+|---|---|
+| Seller access | Sellers stay on the **Mercur seller login**. No BazarBee TOTP. The Access `BazarBee Sellers` group remains the edge gate. Seller payout and bank-detail changes need a step-up check later. |
+| Cloudflare isolation | Production uses a **separate Cloudflare account**: own zone, team domain, Access app, groups, tunnel, AUD and transform rule. No production asset is shared with staging. |
+| MFA compensating control | Accepted in writing by the requester on 2026-11-21: superadmin-maintained staff list + TOTP + Access One-time PIN. Owner: Release Authority. Review: 90 days after the first production staff user. A security auditor may still require a recognised IdP; this is a compensating control, not an IdP equivalent. |
+| Rate limiting | Free-tier limits accepted: 120 requests / 10 s per IP per colo, 10-second mitigation. Application lockout (5 failures / 15 min) and WAF remain. Residual: a sustained distributed attack is not fully mitigated at the edge; upgrade the plan if measurements show a need. |
+

@@ -83,3 +83,8 @@ email. Cloudflare Access One-time PIN is factor 1 only and is not treated as MFA
 and acceptance criteria are in `docs/architecture/identity-ops-totp-2026-11-21.md`. This is a
 compensating control and must be presented as such in the security review; it does not satisfy an
 auditor requirement for a recognised IdP.
+
+The requester accepted the compensating control in writing on 2026-11-21. Production uses a
+**separate Cloudflare account**. Sellers are excluded from TOTP and stay on the Mercur seller login
+behind the Access `BazarBee Sellers` group. Free-tier rate limits are accepted (120 requests / 10 s
+per IP per colo, 10 s mitigation). Review date: 90 days after the first production staff user.
