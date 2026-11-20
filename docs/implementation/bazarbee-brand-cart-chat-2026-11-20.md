@@ -1,7 +1,7 @@
 # BazarBee brand, cart-channel guard and chat race — 20 Nov 2026
 
 Status: **implemented on staging** · Web `release-web-20261120-064202` · API
-`release-api-20261120-064109` · Workspace `release-workspace-20261120-062701`
+`release-api-20261120-064642` · Workspace `release-workspace-20261120-062701`
 Production: untouched.
 
 This is the implementation pass for points 1–4 of
@@ -22,6 +22,8 @@ This is the implementation pass for points 1–4 of
 | Flutter account | `support@gobazarbee.com`, “Offers from BazarBee and sellers”, `bazarbee_<invoice>.pdf` |
 | Flutter refresh page | BazarBee title/copy; Firebase URL kept intact |
 | Push notification copy | “BuildKart” replaced with “BazarBee” in all template bodies |
+| Ops console | HTML title and heading now “BazarBee Ops” |
+| Tryton company party | `BazarBee India` (existing party row updated) |
 | Android app label | `BazarBee Staging` |
 | CMS admin display name | `BazarBee CMS` |
 
@@ -30,6 +32,9 @@ This is the implementation pass for points 1–4 of
 - `channel.name`: 5 old assistant channels → `BazarBee Cart Assistant`; 6 total assistant channels now use the new name.
 - `message.actor_name`: 17 historical assistant messages → `BazarBee Cart Assistant`.
 - CMS `admin_users`: display name → `BazarBee CMS`.
+- Experience API `PILOT_USERS_JSON`: `pilot_superadmin01` display name → `BazarBee Super Admin`;
+  previous env backed up as `/etc/buildkart/secrets/experience-api.env.bak-brand-20261120`.
+- Tryton `party_party` company party → `BazarBee India`.
 
 ### 1.3 Verification
 
@@ -108,9 +113,9 @@ discarded. `conversation_dock_test.dart` passes 11/11.
 
 ## 5. Commits and rollback
 
-- Source commits: `ccd141a` (BazarBee logo assertion), `59c980b`
-  (`fix(bazarbee): finish brand copy and enforce trade cart entitlement`), `86345bb`
-  (`feat(bazarbee): brand rename, cart channel guard and chat race fix`).
+- Source commits: `0527013` (Ops console + Tryton company rename), `ccd141a` (BazarBee logo
+  assertion), `59c980b` (`fix(bazarbee): finish brand copy and enforce trade cart entitlement`),
+  `86345bb` (`feat(bazarbee): brand rename, cart channel guard and chat race fix`).
 - Rollback: redeploy web `release-web-20261120-054221`, API `release-api-20261120-055757`,
   workspace `release-workspace-20261120-062701` is the first branded workspace image; the
   workspace schema/data change is additive and can be reverted with the previous image plus the
