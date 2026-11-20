@@ -405,4 +405,6 @@ deployment remains staging-only (`test_data: true`, no production release).
 Install `age`, place the backup recipient in `/etc/buildkart/backup-age-recipient`, and run
 `scripts/backup-postgres.sh` from a root-owned timer. A backup is not accepted until
 `scripts/restore-proof.sh` succeeds against a throwaway database. The encrypted set includes
-`buildkart`, `buildkart_experience`, `buildkart_tryton`, and the editorial `buildkart_cms` database.
+`buildkart`, `buildkart_experience`, `bazarbee_workspace`, `buildkart_tryton`, and the editorial
+`buildkart_cms` database. The script runs under `bash` with `pipefail`, because a failed `pg_dump`
+would otherwise still exit 0 through `age` and leave a small, valid-looking encrypted file.

@@ -59,7 +59,9 @@ Published CMS content is clean: a staging CMS data dump found only the CMS admin
 
 These are technical identifiers. Renaming them is a migration, not a text edit:
 
-- databases: `buildkart`, `buildkart_experience`, `buildkart_workspace`, `buildkart_tryton`, `buildkart_cms`
+- databases: `buildkart`, `buildkart_experience`, `bazarbee_workspace`, `buildkart_tryton`, `buildkart_cms`
+  (`bazarbee_workspace` was renamed from `buildkart_workspace` on staging on 2026-11-20; see
+  `bazarbee-workspace-database-rename-2026-11-20.md`)
 - cookies: `buildkart_pilot_session`, `buildkart_pilot_challenge`
 - environment variables: `BUILDKART_*`
 - containers/releases: `buildkart-hosted-pilot-*`, `/opt/buildkart-releases`

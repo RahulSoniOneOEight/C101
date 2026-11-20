@@ -1,5 +1,5 @@
 -- Staging-only shared list for the web drawer QC.
--- Run against buildkart_workspace:
+-- Run against bazarbee_workspace:
 --   psql "$WORKSPACE_DATABASE_URL" -f services/hosted/scripts/seed-web-shared-list.sql
 --
 -- Creates one accepted Wonder Cement line and one pending quantity proposal in the shared pilot
