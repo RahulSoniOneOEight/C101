@@ -122,21 +122,28 @@ Both orders show provider `pp_cod_cod`, authorized ₹479, captured ₹0, shipme
 console errors. The admin COD API reports `pending` for the Flutter order and `collected` for the
 web order.
 
-### Open findings
+### Closed follow-ups
 
-1. **Native Medusa “Capture payment” remains visible** below the workbench. Capturing there would
-   mark a COD order paid before cash is collected. The warning reduces the risk; the control should
-   be removed or permission-gated for `pp_cod_cod`.
-2. **Commission disagrees.** Admin order summary shows **₹12.00** commission (3% of ₹400); the COD
-   ledger used **₹40.00** (10% policy). One rate must be chosen before finance reporting.
-3. There is no admin screen for COD seller policies, cash collections or dues; they are API-only.
-4. Settlement statements page still lists Medusa seed statements, not the COD dues ledger.
+1. **Native “Capture payment” is hidden for COD orders.** The workbench hides the button on
+   `pp_cod_cod` orders, and the provider now rejects `capturePayment` with an explicit error, so a
+   direct API call cannot mark a cash order paid.
+2. **Commission is aligned to 3%.** The Medusa default commission is 300 bps; COD policy now defaults
+   to 300 bps and existing policies were set to 300. Dues were recomputed:
+   `BK-261120-ET7J2F` now shows ₹12 commission, ₹2.16 GST on commission and ₹1.69 TCS, total ₹15.85.
+   Admin order commission and the COD ledger now match.
+3. **Admin COD screen added** at `/dashboard/cod` with three views:
+   - **Collections** — order group, status, expected, collected, collector, proof, timestamp;
+   - **Policies** — seller opt-in, commission, caps, pincodes and blocked categories with inline edit;
+   - **Dues** — period selector, commission/GST/TCS/total per seller, TCS source and CSV export.
+
+Residual: sellers with a custom Medusa commission rule still use the COD policy rate until a
+per-order commission feed is wired. Settlement statements page remains Medusa-seed only.
 
 ## 4. Releases
 
-- Backend (admin widget): `release-backend-20261120-162309`
+- Backend (admin widget + COD page): `release-backend-20261120-165530`
 - Flutter web: `/opt/buildkart-flutter/web` (backup `web.bak-cod-20261120-153617`)
-- Experience API: unchanged `release-api-20261120-150022`
+- Experience API (collections, 3% default): `release-api-20261120-165319`
 - Web storefront: unchanged `release-web-20261120-132447`
 
 Ops note: recreating `medusa-api` changes its container IP. Restart
@@ -146,5 +153,5 @@ re-resolves the upstream.
 ## 5. Verdict
 
 Brand logo and primary colours are in sync; the Flutter COD journey completes end to end; the admin
-console loads and correctly labels COD as cash due after the fix. Remaining work is the native
-capture control, the commission-rate decision, and COD admin screens for policies/collections/dues.
+console correctly labels COD cash state, hides capture, matches the 3% commission, and now has a
+dedicated COD screen for collections, policies and dues.

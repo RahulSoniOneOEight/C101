@@ -3705,7 +3705,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       buyerDailyCapMinor: numberOrNull(body.buyer_daily_cap_minor),
       sellerDailyCapMinor: numberOrNull(body.seller_daily_cap_minor),
       codFeeMinor: numberOrNull(body.cod_fee_minor) ?? 0,
-      commissionBps: numberOrNull(body.commission_bps) ?? 1000,
+      commissionBps: numberOrNull(body.commission_bps) ?? 300,
       updatedBy: operator.user.id,
     });
     return json({
@@ -3745,6 +3745,20 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           entry.kind === "tcs" &&
           String(entry.note ?? "").includes("default GST rate"),
       ),
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // Admin COD cash collections.
+  if (url.pathname === "/v1/admin/cod/collections" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const status = url.searchParams.get("status");
+    const allowed = ["pending", "collected", "short", "refused"];
+    const statuses = status && allowed.includes(status) ? [status] : allowed;
+    return json({
+      collections: await codStore.listCollections(statuses),
       test_data: config.environment !== "production",
       correlation_id: cid,
     });

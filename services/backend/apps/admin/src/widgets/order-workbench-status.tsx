@@ -4,6 +4,7 @@ import { Container, Heading, StatusBadge, Text } from "@medusajs/ui";
 declare const __BACKEND_URL__: string;
 import { defineWidgetConfig } from "@mercurjs/dashboard-sdk";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { client } from "../lib/client";
 import {
   AttentionStack,
@@ -54,6 +55,21 @@ const OrderWorkbenchStatus = ({ data: order }: { data?: OrderContext }) => {
   const orderGroupId = orderGroup.data?.order_group?.id;
   const isCod =
     order?.metadata?.payment_method === "cod" || order?.metadata?.payment_mode === "cod";
+  useEffect(() => {
+    if (!isCod) return;
+    const hideCapture = () => {
+      document.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+        if (button.textContent?.includes("Capture payment")) {
+          button.disabled = true;
+          button.style.display = "none";
+        }
+      });
+    };
+    hideCapture();
+    const observer = new MutationObserver(hideCapture);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [isCod]);
   const codCollection = useQuery({
     queryKey: ["buildkart", "order-cod", orderGroupId],
     queryFn: async () => {

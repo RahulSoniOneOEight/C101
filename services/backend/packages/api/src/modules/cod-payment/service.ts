@@ -87,17 +87,11 @@ class CodPaymentProviderService extends AbstractPaymentProvider {
     };
   }
 
-  async capturePayment(input: CapturePaymentInput): Promise<CapturePaymentOutput> {
-    const data = (input.data ?? {}) as Record<string, unknown>;
-    const capturedAt =
-      typeof data.captured_at === "string" ? data.captured_at : new Date().toISOString();
-    return {
-      data: {
-        ...this.providerData(data),
-        cod_status: "collected",
-        captured_at: capturedAt,
-      },
-    };
+  async capturePayment(_input: CapturePaymentInput): Promise<CapturePaymentOutput> {
+    throw new Error(
+      "COD capture is disabled. The seller records cash in the BazarBee seller portal; " +
+        "capturing in Medusa would mark a cash order paid before collection.",
+    );
   }
 
   async getPaymentStatus(input: GetPaymentStatusInput): Promise<GetPaymentStatusOutput> {

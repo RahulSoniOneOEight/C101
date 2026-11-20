@@ -63,7 +63,7 @@ const POLICY_DEFAULTS = {
   buyerDailyCapMinor: null as number | null,
   sellerDailyCapMinor: null as number | null,
   codFeeMinor: 0,
-  commissionBps: 1000,
+  commissionBps: 300,
 };
 
 export class CodStore {
@@ -86,7 +86,7 @@ export class CodStore {
         buyer_daily_cap_minor bigint,
         seller_daily_cap_minor bigint,
         cod_fee_minor        bigint NOT NULL DEFAULT 0,
-        commission_bps       integer NOT NULL DEFAULT 1000,
+        commission_bps       integer NOT NULL DEFAULT 300,
         updated_at           timestamptz NOT NULL DEFAULT now(),
         updated_by           text
       );
@@ -175,7 +175,7 @@ export class CodStore {
           ? null
           : Number(row.seller_daily_cap_minor),
       cod_fee_minor: Number(row.cod_fee_minor ?? 0),
-      commission_bps: Number(row.commission_bps ?? 1000),
+      commission_bps: Number(row.commission_bps ?? 300),
     };
   }
 
