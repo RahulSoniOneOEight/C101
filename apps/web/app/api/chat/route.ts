@@ -118,7 +118,13 @@ export async function POST(request: Request) {
     }
     if (body.action === "mark-read") {
       const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
-      const sequence = Number(body.sequence);
+      const rawSequence = body.sequence;
+      const sequence =
+        typeof rawSequence === "number"
+          ? rawSequence
+          : typeof rawSequence === "string" && rawSequence.trim()
+            ? Number(rawSequence)
+            : Number.NaN;
       if (!channelId || !Number.isInteger(sequence) || sequence < 0) {
         return NextResponse.json(
           { error: "A channel and a non-negative sequence are required." },

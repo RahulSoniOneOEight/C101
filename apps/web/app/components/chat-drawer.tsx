@@ -119,11 +119,12 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const markChannelRead = useCallback(async (channelId: string, sequence: number) => {
     if (sequence <= 0) return;
     try {
-      await fetch("/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action: "mark-read", channelId, sequence }),
       });
+      if (!response.ok) return;
       setChannels((current) =>
         current.map((candidate) =>
           candidate.id === channelId ? { ...candidate, unread_count: 0 } : candidate,
@@ -135,12 +136,26 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   }, []);
 
   const loadMessages = useCallback(async (nextChannel: WorkspaceChannel) => {
-    const response = await fetch(`/api/chat?channel=${encodeURIComponent(nextChannel.id)}`, {
-      cache: "no-store",
-    });
-    if (!response.ok) throw new Error("The conversation could not be loaded.");
-    const data = (await response.json()) as { messages?: WorkspaceMessage[] };
-    const latest = data.messages ?? [];
+    let cursor: string | undefined;
+    let all: WorkspaceMessage[] = [];
+    for (let page = 0; page < 10; page += 1) {
+      const query = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+      const response = await fetch(
+        `/api/chat?channel=${encodeURIComponent(nextChannel.id)}${query}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("The conversation could not be loaded.");
+      const data = (await response.json()) as {
+        messages?: WorkspaceMessage[];
+        next_cursor?: string;
+      };
+      const batch = data.messages ?? [];
+      all = [...all, ...batch];
+      const next = data.next_cursor;
+      if (batch.length < 50 || !next || next === cursor) break;
+      cursor = next;
+    }
+    const latest = all.slice(-100);
     setMessages(latest);
     const last = latest[latest.length - 1];
     if (last) void markChannelRead(nextChannel.id, last.sequence);
@@ -487,12 +502,17 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
         className={open ? "chat-launcher open" : "chat-launcher"}
         aria-expanded={open}
         aria-controls="bazarbee-chat-panel"
+        aria-label={
+          unreadTotal > 0
+            ? `Ask BazarBee, ${unreadTotal} unread ${unreadTotal === 1 ? "message" : "messages"}`
+            : "Ask BazarBee"
+        }
         onClick={() => setOpen((current) => !current)}
       >
         <SparkIcon />
         <span>Ask BazarBee</span>
         {unreadTotal > 0 ? (
-          <span className="chat-launcher-badge" aria-label={`${unreadTotal} unread messages`}>
+          <span className="chat-launcher-badge" aria-hidden="true">
             {unreadTotal > 9 ? "9+" : unreadTotal}
           </span>
         ) : null}
@@ -510,7 +530,6 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
             id="bazarbee-chat-panel"
             className="chat-panel"
             aria-label="Ask BazarBee"
-            aria-live="polite"
           >
             <header className="chat-head">
               <div className="chat-avatar" aria-hidden="true">
@@ -539,7 +558,10 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               <button
                 type="button"
                 role="tab"
+                id="chat-view-chat"
+                aria-controls="chat-view-panel"
                 aria-selected={view === "chat"}
+                tabIndex={view === "chat" ? 0 : -1}
                 className={view === "chat" ? "chat-view-tab active" : "chat-view-tab"}
                 onClick={() => setView("chat")}
               >
@@ -548,7 +570,10 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               <button
                 type="button"
                 role="tab"
+                id="chat-view-shared"
+                aria-controls="chat-view-panel"
                 aria-selected={view === "shared"}
+                tabIndex={view === "shared" ? 0 : -1}
                 className={view === "shared" ? "chat-view-tab active" : "chat-view-tab"}
                 onClick={() => setView("shared")}
               >
@@ -563,7 +588,10 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                     key={candidate.id}
                     type="button"
                     role="tab"
+                    id={`chat-channel-${candidate.id}`}
+                    aria-controls="chat-channel-panel"
                     aria-selected={candidate.id === channel?.id}
+                    tabIndex={candidate.id === channel?.id ? 0 : -1}
                     className={
                       candidate.id === channel?.id ? "chat-tab active" : "chat-tab"
                     }
@@ -579,10 +607,30 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               </div>
             ) : null}
 
-            <div className="chat-body" ref={scrollRef}>
+            <div
+              className="chat-body"
+              ref={scrollRef}
+              id="chat-view-panel"
+              role="tabpanel"
+              aria-labelledby={view === "chat" ? "chat-view-chat" : "chat-view-shared"}
+            >
               {view === "shared" ? (
                 <div className="chat-shared">
-                  {shared.status === "loading" ? (
+                  {authRequired ? (
+                    <div className="chat-empty">
+                      <h3>Sign in to view the shared list</h3>
+                      <p>
+                        Shared lists are private to the members of this workspace. Sign in to
+                        continue.
+                      </p>
+                      <Link
+                        className="button"
+                        href={`/sign-in?next=${encodeURIComponent(pathname || "/")}`}
+                      >
+                        Sign in
+                      </Link>
+                    </div>
+                  ) : shared.status === "loading" ? (
                     <div className="chat-empty">
                       <p>Loading the shared list…</p>
                     </div>
@@ -662,6 +710,11 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                 </div>
               ) : (
                 <>
+                  <div
+                    id="chat-channel-panel"
+                    role="tabpanel"
+                    aria-label={channel ? channelLabel(channel) : "Conversation"}
+                  >
                   {authRequired ? (
                 <div className="chat-empty">
                   <h3>Sign in to chat</h3>
@@ -782,6 +835,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                   {error}
                 </p>
               ) : null}
+                  </div>
                 </>
               )}
             </div>
