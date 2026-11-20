@@ -6,10 +6,12 @@
 **Status:** staging only; production untouched.
 
 **Implementation update (20 Nov 2026):** branding strings, stale Flutter tests, the mixed-channel
-cart guard, the Flutter chat channel-switch race and the B2B Bought Together trade section are
-implemented. The Flutter chat flows were audited and verified (17/17 chat/workspace/cart-build
-tests); the remaining chat gap is the web drawer. See `bazarbee-brand-cart-chat-2026-11-20.md` and
-`bazarbee-b2b-bought-together-2026-11-20.md`. The remaining items below are still pending.
+cart guard, the Flutter chat channel-switch race, B2B Bought Together, and the web chat shared-list
+and read-cursor flows are implemented. The Flutter chat flows were audited and verified (17/17
+tests); the remaining chat gaps are the web invitation, draft-edit, cart-build and multi-draft
+flows. See `bazarbee-brand-cart-chat-2026-11-20.md`,
+`bazarbee-b2b-bought-together-2026-11-20.md` and `bazarbee-web-chat-shared-list-2026-11-20.md`.
+The remaining items below are still pending.
 
 Already completed and excluded from this list: dual-channel access for all 21 testers, the super-admin access editor, B2C/B2B cart tagging, B2C Tryton reservation/reconciliation, and the DeepSeek Pro QC follow-ups.
 
@@ -99,14 +101,15 @@ These are technical identifiers. Renaming them is a migration, not a text edit:
 
 The Flutter dock already includes the shared-list tab, invitations/participant management, draft
 proposals, the cart-build sheet and read cursors; `conversation_dock_test.dart`,
-`cart_build_sheet_test.dart` and `workspace_screen_test.dart` pass 17/17. The **web** drawer still
-lacks:
+`cart_build_sheet_test.dart` and `workspace_screen_test.dart` pass 17/17.
 
-- shared-list tab
+The **web** drawer now has a shared-list view and read cursors/unread badges. Remaining web gaps:
+
 - invitations and participant management
-- draft revisions
-- cart-build sheet
-- read cursors / unread counts
+- draft editing/proposal decisions and revision approvals
+- cart-build sheet and checkout handoff
+- multi-draft selector
+- unread refresh while the drawer is open on another channel
 - richer product-reference cards for app-originated shares
 
 ---
