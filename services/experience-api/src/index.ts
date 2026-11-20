@@ -1566,7 +1566,7 @@ function opsPage(): string {
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BuildKart Ops — Staging</title>
+<title>BazarBee Ops — Staging</title>
 <style>
   body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 2rem; color: #111; }
   h1 { font-size: 1.25rem; }
@@ -1580,7 +1580,7 @@ function opsPage(): string {
 </style>
 </head>
 <body>
-<h1>BuildKart Ops Console <span class="badge">staging · simulated payment</span></h1>
+<h1>BazarBee Ops Console <span class="badge">staging · simulated payment</span></h1>
 <section>
   <h2>Correlated orders</h2>
   <div id="orders">Loading…</div>

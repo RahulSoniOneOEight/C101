@@ -71,7 +71,7 @@ export class TrytonErp {
         });
         currency = [id];
       }
-      const partyId = await this.client.create("party.party", { name: "BuildKart India" });
+      const partyId = await this.client.create("party.party", { name: "BazarBee India" });
       companyId = await this.client.create("company.company", {
         party: partyId,
         currency: currency[0],
