@@ -73,8 +73,10 @@ Production additions:
 
 ## 6. Admin and ERP flow
 
-- `ops.bazarbee.com` is behind Cloudflare Access.
-- Staff use company Google Workspace or Entra accounts with mandatory MFA.
+- `ops.gobazarbee.com` is behind Cloudflare Access in production.
+- Staff use the superadmin-maintained `ops_staff` directory plus TOTP; Google Workspace/Entra is not
+  required under the 2026-11-21 decision.
+- Sellers use the Access `BazarBee Sellers` group and their Mercur seller login, without TOTP.
 - Mercur admin and seller sessions remain app-level authorization, but Access is the outer gate.
 - Tryton is reachable only under `/erp/` on the ops hostname and only through Access.
 - No shared `admin@buildkart.test` password in production.

@@ -69,9 +69,11 @@ deleted.
 
 ## 3. Open
 
-1. Google Workspace or Entra IdP — needs tenant, group object IDs and MFA policy; `gobazarbee.com`
-   has no mail/Workspace today, so One-time PIN is the only usable method.
-2. Production apps/groups/tunnel on `ops.bazarbee.com` — blocked by `D-020-12`.
+1. Google Workspace or Entra IdP is **not required**; the accepted alternative is the
+   superadmin-maintained staff list plus TOTP (`docs/architecture/identity-ops-totp-2026-11-21.md`).
+   One-time PIN is factor 1 only and is not MFA.
+2. Production apps/groups/tunnel on `ops.gobazarbee.com` — blocked by `D-020-12`. Staging must move
+   to `ops.staging.gobazarbee.com` (or `ops-staging.pinakaplay.cloud`) before the apex zone transfers.
 3. External health monitoring must use a scoped service token (or an internal probe) because
    `/health` is behind Access.
 4. Network-level origin restriction (80/443 to Cloudflare ranges) waits for the customer/API/app

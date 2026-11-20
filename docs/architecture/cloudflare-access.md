@@ -20,8 +20,11 @@ A single host-level application replaced the three path-scoped apps. One Access 
 whole operator host; Mercur and Tryton still enforce role separation inside the app. This closes the
 gap where `/admin`, `/auth`, `/v1/ops` and `/metrics` were reachable without the outer gate.
 
-Production will use the same shape on `ops.bazarbee.com`, in a **separate Cloudflare account** with
-its own zone, team domain, apps, groups, tunnel and AUD.
+Production will use the same shape on `ops.gobazarbee.com`, in a **separate Cloudflare account** with
+its own zone, team domain, apps, groups, tunnel and AUD. Staging currently uses that hostname, so it
+must move first: `ops.staging.gobazarbee.com` via a delegated subdomain zone, or
+`ops-staging.pinakaplay.cloud`. The apex `gobazarbee.com` zone then transfers to the production
+account.
 
 The TOTP second factor applies to **admin and ERP paths only**. Sellers stay on the Mercur seller
 login behind the Access `BazarBee Sellers` group; `/seller`, `/vendor`, `/auth`, `/static` and
@@ -100,8 +103,9 @@ standing service token remains.
    superadmin-maintained `ops_staff` directory plus app-level TOTP, bound to the Cloudflare-verified
    email. See `identity-ops-totp-2026-11-21.md`. One-time PIN alone is factor 1 only; it must not be
    treated as MFA.
-2. **Production `ops.bazarbee.com`** — separate environment, tunnel, Access app, groups and IdP.
-   Cannot be created before `D-020-12` authorises an immutable release.
+2. **Production `ops.gobazarbee.com`** — separate environment, tunnel, Access app, groups and staff
+   directory. Staging moves off the hostname before the transfer. Cannot be created before
+   `D-020-12` authorises an immutable release.
 3. **Health monitoring** — `/health` is now behind Access. Monitors must use a scoped service token
    or an internal probe.
 4. **Network-level origin restriction** — the header lock blocks spoofed ops requests, but the VPS
