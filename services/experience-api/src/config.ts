@@ -61,6 +61,10 @@ export interface Config {
   pilotUsersJson?: string;
   pilotRoleAssignmentsJson?: string;
   pilotExpectedUserCount?: number;
+  /** `pilot` keeps the staging allowlist; `directory` uses the customer identity table. */
+  identityMode: "pilot" | "directory";
+  /** Lifetime of a customer-realm session. */
+  customerSessionTtlSeconds: number;
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
@@ -166,8 +170,22 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   if (!/^\d{6}$/.test(pilotOtpCode)) {
     throw new Error("PILOT_OTP_CODE must be exactly six digits.");
   }
+  const identityMode = (
+    env.IDENTITY_MODE ?? (environment === "production" ? "directory" : "pilot")
+  ).trim();
+  if (identityMode !== "pilot" && identityMode !== "directory") {
+    throw new Error("IDENTITY_MODE must be pilot or directory.");
+  }
   if (environment === "production") {
-    throw new Error("Pilot simulated identity is prohibited in production.");
+    if (identityMode !== "directory") {
+      throw new Error("Production requires IDENTITY_MODE=directory.");
+    }
+    if (!env.RESEND_API_KEY?.trim()) {
+      throw new Error("Production requires RESEND_API_KEY for email OTP and magic links.");
+    }
+    if (env.PILOT_USERS_JSON?.trim()) {
+      throw new Error("PILOT_USERS_JSON is prohibited in production.");
+    }
   }
 
   const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
@@ -268,6 +286,12 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     pilotUsersJson: env.PILOT_USERS_JSON,
     pilotRoleAssignmentsJson: env.PILOT_ROLE_ASSIGNMENTS_JSON,
     pilotExpectedUserCount: expectedPilotUsers,
+    identityMode,
+    customerSessionTtlSeconds: positiveInteger(
+      env.CUSTOMER_SESSION_TTL_SECONDS,
+      2_592_000,
+      "CUSTOMER_SESSION_TTL_SECONDS",
+    ),
     pilotOtpCode,
     pilotChallengeTtlSeconds: positiveInteger(
       env.PILOT_CHALLENGE_TTL_SECONDS,

@@ -106,9 +106,11 @@ Production additions:
 
 ## 9. Current state
 
-- customer email code/magic link exists but is still pilot-directory based
+- customer directory and realm-scoped sessions are implemented behind `IDENTITY_MODE=directory`
+- staging still runs `IDENTITY_MODE=pilot`; production requires directory
 - admin/seller use Mercur email/password
 - ERP uses Tryton username/password
 - admin password was temporarily set to `supersecret` during QC — rotate immediately
 - Cloudflare Access is not yet in front of `ops-staging`
-- production boot still refuses pilot identity by design
+- production boot requires directory mode and an email sender
+- Flutter still calls the pilot OTP endpoint; production Flutter must switch to email code/magic link

@@ -9,7 +9,7 @@ import { RedisClient } from "bun";
  * emails anything itself.
  */
 
-const PREFIX = "buildkart:email-auth:v1";
+const DEFAULT_PREFIX = "buildkart:email-auth:v1";
 
 interface CodeChallenge {
   userId: string;
@@ -38,6 +38,7 @@ export class EmailAuthStore {
     private readonly magicTtlSeconds = 900,
     private readonly maxAttempts = 5,
     private readonly cooldownSeconds = 60,
+    private readonly prefix = DEFAULT_PREFIX,
   ) {
     this.redis = new RedisClient(redisUrl, {
       connectionTimeout: 5000,
@@ -48,15 +49,15 @@ export class EmailAuthStore {
   }
 
   private codeKey(challengeId: string): string {
-    return `${PREFIX}:code:${challengeId}`;
+    return `${this.prefix}:code:${challengeId}`;
   }
 
   private magicKey(token: string): string {
-    return `${PREFIX}:magic:${digest(token)}`;
+    return `${this.prefix}:magic:${digest(token)}`;
   }
 
   private cooldownKey(email: string): string {
-    return `${PREFIX}:cooldown:${digest(email.trim().toLowerCase())}`;
+    return `${this.prefix}:cooldown:${digest(email.trim().toLowerCase())}`;
   }
 
   /** Returns false when the same email requested another code inside the cooldown window. */

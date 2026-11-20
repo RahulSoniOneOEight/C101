@@ -21,6 +21,8 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
 import { CodStore, currentPeriod, type CodOrderDue } from "./store/cod-store.js";
+import { CustomerIdentityStore } from "./auth/customer-identity.js";
+import { RealmSessionStore } from "./auth/realm-session.js";
 import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
@@ -150,12 +152,24 @@ const nats = new NatsPublisher(config.natsUrl, {
   password: config.natsPassword,
 });
 const pilotDirectory = new PilotUserDirectory(
-  loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount),
+  config.identityMode === "pilot"
+    ? loadPilotUsers(config.pilotUsersJson, config.pilotExpectedUserCount)
+    : [],
 );
-const pilotAuthorizations = loadPilotAuthorizations(
-  config.pilotRoleAssignmentsJson,
-  pilotDirectory.users,
-  config.pilotExpectedUserCount !== undefined,
+const pilotAuthorizations = config.identityMode === "pilot"
+  ? loadPilotAuthorizations(
+      config.pilotRoleAssignmentsJson,
+      pilotDirectory.users,
+      config.pilotExpectedUserCount !== undefined,
+    )
+  : new Map<string, PilotAuthorization>();
+const customerIdentity = config.identityMode === "directory"
+  ? new CustomerIdentityStore(config.experienceDatabaseUrl)
+  : null;
+const customerSessions = new RealmSessionStore(
+  config.redisUrl,
+  "bazarbee:customer-auth:v1",
+  config.customerSessionTtlSeconds,
 );
 const pilotAccess = new PilotAccessStore(config.experienceDatabaseUrl);
 const pilotAuth = new PilotAuthStore(
@@ -170,6 +184,9 @@ const emailAuth = new EmailAuthStore(
   config.emailMagicTtlSeconds,
   5,
   config.emailCooldownSeconds,
+  config.identityMode === "directory"
+    ? "bazarbee:customer-email-auth:v1"
+    : "buildkart:email-auth:v1",
 );
 const emailSender = config.resendApiKey
   ? new ResendEmailSender(config.resendApiKey, config.emailFrom)
@@ -298,9 +315,34 @@ type AuthenticationResult = {
 async function authenticate(req: Request): Promise<AuthenticationResult> {
   const token = bearerToken(req);
   if (!token) {
-    return { response: problem(401, "authentication-required", "A pilot bearer session is required.") };
+    return { response: problem(401, "authentication-required", "A bearer session is required.") };
   }
   try {
+    if (config.identityMode === "directory") {
+      const userId = await customerSessions.resolveSession(token);
+      const identity = userId ? await customerIdentity!.get(userId) : null;
+      if (!identity || identity.status !== "active") {
+        return {
+          response: problem(401, "invalid-session", "The session is invalid or expired."),
+        };
+      }
+      return {
+        user: {
+          id: identity.id,
+          email: identity.email,
+          name: identity.name,
+          ...(identity.phone ? { phone: identity.phone } : {}),
+        },
+        token,
+        authorization: {
+          userId: identity.id,
+          roles: identity.roles as PilotAuthorization["roles"],
+          ...(identity.businessAccountId
+            ? { businessAccountId: identity.businessAccountId }
+            : {}),
+        },
+      };
+    }
     const userId = await pilotAuth.resolveSession(token);
     const user = userId ? pilotDirectory.get(userId) : undefined;
     let authorization = userId ? pilotAuthorizations.get(userId) : undefined;
@@ -311,13 +353,54 @@ async function authenticate(req: Request): Promise<AuthenticationResult> {
       if (override) authorization = override;
     }
     if (!user || !authorization) {
-      return { response: problem(401, "invalid-session", "The pilot session is invalid or expired.") };
+      return { response: problem(401, "invalid-session", "The session is invalid or expired.") };
     }
     return { user, token, authorization };
   } catch (error) {
-    console.warn("[experience-api] pilot session lookup failed:", (error as Error).message);
-    return { response: problem(503, "identity-store-unavailable", "Pilot sessions are temporarily unavailable.") };
+    console.warn("[experience-api] session lookup failed:", (error as Error).message);
+    return { response: problem(503, "identity-store-unavailable", "Sessions are temporarily unavailable.") };
   }
+}
+
+function identityUser(identity: {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+}): PilotUser {
+  return {
+    id: identity.id,
+    email: identity.email,
+    name: identity.name,
+    ...(identity.phone ? { phone: identity.phone } : {}),
+  };
+}
+
+async function resolveEmailUser(email: string): Promise<PilotUser | null> {
+  if (config.identityMode === "directory") {
+    const identity = await customerIdentity!.findOrCreate(email);
+    return identity ? identityUser(identity) : null;
+  }
+  return pilotDirectory.find(email) ?? null;
+}
+
+async function resolveSessionUser(userId: string): Promise<PilotUser | null> {
+  if (config.identityMode === "directory") {
+    const identity = await customerIdentity!.get(userId);
+    return identity && identity.status === "active" ? identityUser(identity) : null;
+  }
+  return pilotDirectory.get(userId) ?? null;
+}
+
+async function issueUserSession(userId: string): Promise<{
+  session_token: string;
+  expires_in_seconds: number;
+}> {
+  if (config.identityMode === "directory") {
+    await customerIdentity!.markLogin(userId);
+    return customerSessions.issueSession(userId);
+  }
+  return pilotAuth.issueSession(userId);
 }
 
 /**
@@ -2899,9 +2982,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!emailSender && config.environment === "production") {
       return problem(503, "email-not-configured", "Email sign-in is not configured.");
     }
-    const user = pilotDirectory.find(email);
+    const user = await resolveEmailUser(email);
     if (!user) {
-      return problem(403, "not-pilot-user", "This email is not allowlisted for the pilot.");
+      return problem(403, "sign-in-unavailable", "This email is not available for sign-in.");
     }
     if (!(await emailAuth.beginRequest(email))) {
       return problem(429, "email-cooldown", "Wait a minute before requesting another code.");
@@ -2919,7 +3002,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return json({
         challenge_id: issued.challengeId,
         expires_in_seconds: issued.expiresInSeconds,
-        test_data: true,
+        test_data: config.environment !== "production",
         ...(emailSender ? {} : { preview_code: issued.code }),
         environment: config.environment,
         correlation_id: cid,
@@ -2947,16 +3030,16 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!userId) {
       return problem(401, "invalid-email-code", "Invalid or expired email code.");
     }
-    const user = pilotDirectory.get(userId);
+    const user = await resolveSessionUser(userId);
     if (!user) {
-      return problem(401, "invalid-email-code", "The pilot identity is no longer allowlisted.");
+      return problem(401, "invalid-email-code", "The sign-in identity is no longer active.");
     }
-    const session = await pilotAuth.issueSession(userId);
+    const session = await issueUserSession(userId);
     return json({
       session_token: session.session_token,
       expires_in_seconds: session.expires_in_seconds,
       user,
-      test_data: true,
+      test_data: config.environment !== "production",
       environment: config.environment,
       correlation_id: cid,
     });
@@ -2977,9 +3060,9 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!emailSender && config.environment === "production") {
       return problem(503, "email-not-configured", "Email sign-in is not configured.");
     }
-    const user = pilotDirectory.find(email);
+    const user = await resolveEmailUser(email);
     if (!user) {
-      return problem(403, "not-pilot-user", "This email is not allowlisted for the pilot.");
+      return problem(403, "sign-in-unavailable", "This email is not available for sign-in.");
     }
     if (!(await emailAuth.beginRequest(email))) {
       return problem(429, "email-cooldown", "Wait a minute before requesting another link.");
@@ -2997,7 +3080,7 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       if (emailSender) await emailSender.send(message);
       return json({
         expires_in_seconds: issued.expiresInSeconds,
-        test_data: true,
+        test_data: config.environment !== "production",
         ...(emailSender ? {} : { preview_link: link }),
         environment: config.environment,
         correlation_id: cid,
@@ -3024,16 +3107,16 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!userId) {
       return problem(401, "invalid-magic-link", "This sign-in link is invalid or has expired.");
     }
-    const user = pilotDirectory.get(userId);
+    const user = await resolveSessionUser(userId);
     if (!user) {
-      return problem(401, "invalid-magic-link", "The pilot identity is no longer allowlisted.");
+      return problem(401, "invalid-magic-link", "The sign-in identity is no longer active.");
     }
-    const session = await pilotAuth.issueSession(userId);
+    const session = await issueUserSession(userId);
     return json({
       session_token: session.session_token,
       expires_in_seconds: session.expires_in_seconds,
       user,
-      test_data: true,
+      test_data: config.environment !== "production",
       environment: config.environment,
       correlation_id: cid,
     });
