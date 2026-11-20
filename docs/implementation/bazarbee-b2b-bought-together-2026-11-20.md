@@ -1,7 +1,7 @@
 # B2B Bought Together on the trade PDP — 20 Nov 2026
 
-Status: **implemented on staging** · Web `release-web-20261120-065339` · API
-`release-api-20261120-065241` · Source `a83f989`
+Status: **implemented on staging** · Web `release-web-20261120-070126` · API
+`release-api-20261120-070027` · Source `3345594`
 Production: untouched.
 
 ## 1. What changed
@@ -58,7 +58,21 @@ View trade product → /trade/pdp/prod_01M637Y1F4N6AZF9BRC5K7KP6S
 
 Screenshot: `b2b-pair-01.png`.
 
-## 4. Remaining
+## 4. Independent QC
+
+DeepSeek V4 Pro reviewed the increment and returned **ship**. Follow-ups applied:
+
+- `optionalAuthorization` now also rejects a session whose user is no longer in the pilot directory,
+  matching `authenticate`.
+- the seed's `ON CONFLICT (id)` now refreshes product/variant IDs and versions the pair, so re-runs
+  cannot leave stale membership.
+- the “This item” pair card now shows its own MOQ and seller, matching the paired card.
+
+A pre-existing constraint remains: the non-archived pair uniqueness index is channel-agnostic, so a
+B2C and B2B pair cannot use the same SKU pair simultaneously. The seeded pair uses different
+products and does not trigger it.
+
+## 5. Remaining
 
 - The B2B pair card links to the paired PDP; it does not yet add the paired line to the quote
   directly from the card.
