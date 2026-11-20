@@ -97,6 +97,65 @@ export function addToCart(
   return { ok: true };
 }
 
+export type DraftCartResult =
+  | CartAddResult
+  | { ok: false; reason: "invalid-quantity" | "duplicate-offer" | "currency-conflict" };
+
+/**
+ * Apply a reviewed shared-list revision in one browser-local write. An existing offer is
+ * replaced with the confirmed quantity (not incremented), so a repeated build is idempotent.
+ * Channel/quantity checks run before anything is written.
+ */
+export function replaceDraftCartLines(lines: CartItem[]): DraftCartResult {
+  if (
+    lines.length === 0 ||
+    lines.some(
+      (line) =>
+        !line.offerId ||
+        !Number.isInteger(line.quantity) ||
+        line.quantity < 1 ||
+        line.quantity > 99 ||
+        !Number.isSafeInteger(line.priceMinor) ||
+        line.priceMinor < 0,
+    )
+  ) {
+    return { ok: false, reason: "invalid-quantity" };
+  }
+  const offerIds = lines.map((line) => line.offerId);
+  if (new Set(offerIds).size !== offerIds.length) {
+    return { ok: false, reason: "duplicate-offer" };
+  }
+  const nextChannel = lines[0].channel === "b2b" ? "b2b" : "b2c";
+  const currency = lines[0].currency.toUpperCase();
+  if (lines.some((line) => line.currency.toUpperCase() !== currency)) {
+    return { ok: false, reason: "currency-conflict" };
+  }
+  if (lines.some((line) => (line.channel === "b2b" ? "b2b" : "b2c") !== nextChannel)) {
+    return { ok: false, reason: "channel-conflict", currentChannel: nextChannel, nextChannel };
+  }
+  const items = readCart();
+  const currentChannels = new Set(items.map((item) => item.channel ?? "b2c"));
+  if (items.length > 0 && (currentChannels.size > 1 || !currentChannels.has(nextChannel))) {
+    return {
+      ok: false,
+      reason: "channel-conflict",
+      currentChannel: currentChannels.has("b2c") ? "b2c" : "b2b",
+      nextChannel,
+    };
+  }
+  if (items.some((item) => item.currency.toUpperCase() !== currency)) {
+    return { ok: false, reason: "currency-conflict" };
+  }
+  const byOffer = new Map<string, CartItem>(
+    lines.map((line) => [line.offerId, { ...line, channel: nextChannel }]),
+  );
+  const next = items
+    .filter((item) => !byOffer.has(item.offerId))
+    .concat([...byOffer.values()]);
+  writeCart(next);
+  return { ok: true };
+}
+
 /** Surface a channel conflict without discarding the existing basket. */
 export function announceCartConflict(result: CartAddResult): void {
   if (result.ok || typeof window === "undefined") return;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  B2bTier,
   ProductDetail,
   WorkspaceChannel,
   WorkspaceDraft,
@@ -15,7 +16,8 @@ import type {
   WorkspaceMessage,
   WorkspaceSummary,
 } from "@/lib/experience-api";
-import { addToCart, announceCartConflict } from "@/lib/cart";
+import { announceCartConflict, replaceDraftCartLines } from "@/lib/cart";
+import { replaceDraftTradeQuoteLines, tierUnitPrice } from "@/lib/trade-quote";
 import { formatMoney } from "@/lib/money";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -54,16 +56,17 @@ interface CartBuildLine {
   line: WorkspaceDraftLine;
   offerId: string;
   unitAmountMinor: number;
+  baseUnitAmountMinor: number;
   currencyCode: string;
   sellerName: string;
   sku: string;
   productTitle: string;
   thumbnail?: string | null;
+  moq: number;
+  tiers: B2bTier[];
   differences: string[];
   blocked: boolean;
 }
-
-const CART_BUILD_KEY = "bazarbee.cart-builds.v1";
 
 function SparkIcon() {
   return (
@@ -103,6 +106,124 @@ function channelLabel(channel: WorkspaceChannel): string {
   return channel.name || "Team chat";
 }
 
+/** Revalidate the exact variant in Commerce before any cart or quote write. */
+async function revalidateSharedCartLines(
+  lines: WorkspaceDraftLine[],
+  business: boolean,
+): Promise<CartBuildLine[]> {
+  const channel = business ? "b2b" : "b2c";
+  const rows: CartBuildLine[] = [];
+  for (const line of lines) {
+    const response = await fetch(
+      `/api/chat?product=${encodeURIComponent(line.product_id)}&channel=${channel}`,
+      { cache: "no-store" },
+    );
+    if (!response.ok) throw new Error("Current prices and stock could not be checked.");
+    const payload = (await response.json()) as { product?: ProductDetail };
+    const product = payload.product;
+    const offers = product?.offers ?? [];
+    const snapshot = line.commercial_snapshot ?? {};
+    const exact = offers.find(
+      (offer) =>
+        offer.id === line.offer_id &&
+        (!offer.variant_id || offer.variant_id === line.variant_id),
+    );
+    // Never substitute an offer for a different variant, even if it is the first on the product.
+    const offer = exact ?? offers.find((candidate) => candidate.variant_id === line.variant_id);
+    const differences: string[] = [];
+    let blocked = false;
+    if (!offer) {
+      differences.push("No current offer for this variant");
+      blocked = true;
+    } else {
+      if (!exact) {
+        differences.push(
+          `Original offer unavailable — using ${offer.seller_name ?? "the current seller"}`,
+        );
+      }
+      if (offer.in_stock === false) {
+        differences.push("Out of stock");
+        blocked = true;
+      } else if (
+        typeof offer.inventory_quantity === "number" &&
+        offer.inventory_quantity < line.quantity
+      ) {
+        differences.push(`Only ${offer.inventory_quantity} left (list needs ${line.quantity})`);
+        blocked = true;
+      }
+    }
+    const moq = business ? offer?.b2b_moq ?? product?.commercial?.moq ?? 1 : 1;
+    const tiers = business
+      ? offer?.b2b_tiers ?? product?.commercial?.quantity_tiers ?? []
+      : [];
+    const baseUnitAmountMinor = offer?.unit_amount_minor ?? snapshot.unit_amount_minor ?? 0;
+    const unitAmountMinor =
+      business && offer
+        ? tierUnitPrice(
+            {
+              productId: line.product_id,
+              offerId: offer.id,
+              title: product?.title ?? "",
+              sku: offer.sku,
+              seller: offer.seller_name ?? "",
+              moq,
+              basePriceMinor: baseUnitAmountMinor,
+              currency: offer.currency_code,
+              tiers,
+              quantity: line.quantity,
+            },
+            line.quantity,
+          )
+        : baseUnitAmountMinor;
+    if (!Number.isSafeInteger(unitAmountMinor) || unitAmountMinor < 0) {
+      differences.push("Current price unavailable");
+      blocked = true;
+    }
+    if (offer) {
+      const previousUnit = snapshot.unit_amount_minor ?? 0;
+      if (unitAmountMinor !== previousUnit) {
+        differences.push(
+          `Price ${formatMoney(previousUnit, snapshot.currency_code ?? "INR")} → ${formatMoney(
+            unitAmountMinor,
+            offer.currency_code,
+          )}`,
+        );
+      }
+      const previousSeller = snapshot.seller_name ?? "";
+      const currentSeller = offer.seller_name ?? "";
+      if (previousSeller && currentSeller && previousSeller !== currentSeller) {
+        differences.push(`Seller ${previousSeller} → ${currentSeller}`);
+      }
+      if (
+        (snapshot.currency_code ?? "").toUpperCase() !==
+        offer.currency_code.toUpperCase()
+      ) {
+        differences.push(`Currency ${snapshot.currency_code ?? ""} → ${offer.currency_code}`);
+      }
+      if (business && line.quantity < moq) {
+        differences.push(`MOQ ${moq} (list has ${line.quantity})`);
+        blocked = true;
+      }
+    }
+    rows.push({
+      line,
+      offerId: offer?.id ?? line.offer_id,
+      unitAmountMinor,
+      baseUnitAmountMinor,
+      currencyCode: (offer?.currency_code ?? snapshot.currency_code ?? "INR").toUpperCase(),
+      sellerName: offer?.seller_name ?? snapshot.seller_name ?? "",
+      sku: offer?.sku ?? snapshot.sku ?? "",
+      productTitle: snapshot.product_title ?? product?.title ?? "Catalogue product",
+      thumbnail: snapshot.thumbnail ?? product?.thumbnail ?? null,
+      moq,
+      tiers,
+      differences,
+      blocked,
+    });
+  }
+  return rows;
+}
+
 /**
  * "Ask BazarBee" is the web home of the app's workspace conversation. It uses the same
  * Experience API workspace proxy: a household project (or the signed-in trade workspace) exposes
@@ -132,6 +253,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [cartBuildOpen, setCartBuildOpen] = useState(false);
   const [cartBuildLines, setCartBuildLines] = useState<CartBuildLine[]>([]);
   const [cartBuildLoading, setCartBuildLoading] = useState(false);
+  const [cartBuildBusy, setCartBuildBusy] = useState(false);
   const [cartBuildAck, setCartBuildAck] = useState(false);
   const [cartBuildMessage, setCartBuildMessage] = useState("");
   const [cartBuildError, setCartBuildError] = useState("");
@@ -143,6 +265,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [createdInvite, setCreatedInvite] = useState<WorkspaceInvitationCreated | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
+  const cartBuildBusyRef = useRef(false);
 
   const isTrade = pathname?.startsWith("/trade") ?? false;
   const canManageInvitations = workspace?.can_manage_invitations === true;
@@ -213,6 +336,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     if (!detailResponse.ok) throw new Error("The shared list could not be loaded.");
     const detail = (await detailResponse.json()) as { draft?: WorkspaceDraftView };
     if (!detail.draft) throw new Error("The shared list could not be loaded.");
+    setCartBuildOpen(false);
+    setCartBuildLines([]);
     setSelectedDraftId(draftId);
     setShared({ status: "ready", view: detail.draft });
   }, []);
@@ -300,6 +425,10 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       if (!chosen) throw new Error("No conversation workspace is available for this account.");
       setWorkspace(chosen);
       setShared({ status: "idle" });
+      setDraftOptions([]);
+      setSelectedDraftId("");
+      setCartBuildOpen(false);
+      setCartBuildLines([]);
       setParticipants({ status: "idle" });
       setCreatedInvite(null);
       setInviteMessage("");
@@ -603,6 +732,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const cartBuildReady =
     cartBuildOpen &&
     !cartBuildLoading &&
+    !cartBuildBusy &&
     Boolean(sharedRevision) &&
     cartBuildLines.length > 0 &&
     !cartBuildHasBlocked &&
@@ -811,91 +941,9 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     setCartBuildError("");
     setCartBuildLines([]);
     try {
-      const channel = isBusinessWorkspace ? "b2b" : "b2c";
-      const rows: CartBuildLine[] = [];
-      for (const line of sharedRevision.lines) {
-        const response = await fetch(
-          `/api/chat?product=${encodeURIComponent(line.product_id)}&channel=${channel}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) {
-          throw new Error("Current prices and stock could not be checked.");
-        }
-        const payload = (await response.json()) as { product?: ProductDetail };
-        const product = payload.product;
-        const offers = product?.offers ?? [];
-        const snapshot = line.commercial_snapshot ?? {};
-        const exact = offers.find((offer) => offer.id === line.offer_id);
-        const offer = exact ?? offers[0] ?? null;
-        const differences: string[] = [];
-        let blocked = false;
-        if (!offer) {
-          differences.push("No current seller offer");
-          blocked = true;
-        } else {
-          if (!exact) {
-            differences.push(
-              `Original offer unavailable — using ${offer.seller_name ?? "the current seller"}`,
-            );
-          }
-          const previousUnit = snapshot.unit_amount_minor ?? 0;
-          if (offer.unit_amount_minor !== previousUnit) {
-            differences.push(
-              `Price ${formatMoney(previousUnit, snapshot.currency_code ?? "INR")} → ${formatMoney(
-                offer.unit_amount_minor,
-                offer.currency_code,
-              )}`,
-            );
-          }
-          const previousSeller = snapshot.seller_name ?? "";
-          const currentSeller = offer.seller_name ?? "";
-          if (previousSeller && currentSeller && previousSeller !== currentSeller) {
-            differences.push(`Seller ${previousSeller} → ${currentSeller}`);
-          }
-          if (
-            (snapshot.currency_code ?? "").toUpperCase() !==
-            (offer.currency_code ?? "").toUpperCase()
-          ) {
-            differences.push(
-              `Currency ${snapshot.currency_code ?? ""} → ${offer.currency_code}`,
-            );
-          }
-          if (offer.in_stock === false) {
-            differences.push("Out of stock");
-            blocked = true;
-          } else if (
-            typeof offer.inventory_quantity === "number" &&
-            offer.inventory_quantity < line.quantity
-          ) {
-            differences.push(
-              `Only ${offer.inventory_quantity} left (list needs ${line.quantity})`,
-            );
-            blocked = true;
-          }
-          const moq = product?.commercial?.moq ?? offer.b2b_moq ?? null;
-          if (isBusinessWorkspace && moq && line.quantity < moq) {
-            differences.push(`MOQ ${moq} (list has ${line.quantity})`);
-            blocked = true;
-          }
-        }
-        rows.push({
-          line,
-          offerId: offer?.id ?? line.offer_id,
-          unitAmountMinor: offer?.unit_amount_minor ?? snapshot.unit_amount_minor ?? 0,
-          currencyCode: (
-            offer?.currency_code ??
-            snapshot.currency_code ??
-            "INR"
-          ).toUpperCase(),
-          sellerName: offer?.seller_name ?? snapshot.seller_name ?? "",
-          sku: offer?.sku ?? snapshot.sku ?? "",
-          productTitle: snapshot.product_title ?? product?.title ?? "Catalogue product",
-          thumbnail: snapshot.thumbnail ?? product?.thumbnail ?? null,
-          differences,
-          blocked,
-        });
-      }
-      setCartBuildLines(rows);
+      setCartBuildLines(
+        await revalidateSharedCartLines(sharedRevision.lines, Boolean(isBusinessWorkspace)),
+      );
     } catch (cause) {
       setCartBuildError((cause as Error).message);
     } finally {
@@ -903,54 +951,143 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     }
   }
 
-  function buildCart() {
-    if (!cartBuildReady || !sharedView || !sharedRevision) return;
-    const channel = isBusinessWorkspace ? "b2b" : "b2c";
+  async function buildCart() {
+    if (!cartBuildReady || !sharedView || !sharedRevision || cartBuildBusyRef.current) return;
+    cartBuildBusyRef.current = true;
+    setCartBuildBusy(true);
     setCartBuildError("");
     setCartBuildMessage("");
-    for (const row of cartBuildLines) {
-      const result = addToCart(
-        {
-          offerId: row.offerId,
-          productId: row.line.product_id,
-          sku: row.sku,
-          title: row.productTitle,
-          seller: row.sellerName,
-          priceMinor: row.unitAmountMinor,
-          currency: row.currencyCode,
-          image: row.thumbnail,
-          channel,
-        },
-        row.line.quantity,
+    try {
+      const draftResponse = await fetch(
+        `/api/chat?draft=${encodeURIComponent(sharedView.draft.id)}`,
+        { cache: "no-store" },
       );
-      if (!result.ok) {
-        announceCartConflict(result);
-        setCartBuildError(
-          result.currentChannel === "b2c"
-            ? "Your cart already has retail items. Empty it before building this trade list."
-            : "Your cart already has trade items. Empty it before building this retail list.",
-        );
+      if (!draftResponse.ok) throw new Error("The shared list could not be rechecked.");
+      const payload = (await draftResponse.json()) as { draft?: WorkspaceDraftView };
+      const latest = payload.draft;
+      if (
+        !latest ||
+        latest.draft.current_version !== sharedView.draft.current_version ||
+        latest.revision?.id !== sharedRevision.id ||
+        latest.revision.commercial_hash !== sharedRevision.commercial_hash
+      ) {
+        if (latest) setShared({ status: "ready", view: latest });
+        setCartBuildOpen(false);
+        setDraftError("The list changed. Review the latest revision before building a cart.");
         return;
       }
-    }
-    try {
-      const key = `${sharedView.draft.id}:${sharedRevision.id}`;
-      const raw = window.localStorage.getItem(CART_BUILD_KEY);
-      const previous = raw ? (JSON.parse(raw) as unknown) : [];
-      const keys = Array.isArray(previous)
-        ? previous.filter((value): value is string => typeof value === "string")
-        : [];
-      if (!keys.includes(key)) {
-        window.localStorage.setItem(CART_BUILD_KEY, JSON.stringify([...keys, key]));
+      const currentRole = latest.draft.role;
+      const stillAllowed = isBusinessWorkspace
+        ? currentRole === "buyer" || currentRole === "admin"
+        : currentRole === "owner";
+      const stillApproved =
+        !isBusinessWorkspace ||
+        (latest.approval?.decision === "approved" &&
+          latest.approval.revision_id === latest.revision.id &&
+          latest.approval.commercial_hash === latest.revision.commercial_hash);
+      if (!stillAllowed || !stillApproved) {
+        setCartBuildOpen(false);
+        setDraftError("Cart-build permission or approval changed. Refresh the shared list.");
+        return;
       }
-    } catch {
-      // Cart build history is only a convenience; the cart itself is already updated.
+      const latestRows = await revalidateSharedCartLines(
+        latest.revision.lines,
+        Boolean(isBusinessWorkspace),
+      );
+      const reviewKey = (rows: CartBuildLine[]) =>
+        JSON.stringify(
+          rows.map((row) => [
+            row.line.line_key,
+            row.line.quantity,
+            row.offerId,
+            row.unitAmountMinor,
+            row.baseUnitAmountMinor,
+            row.currencyCode,
+            row.sellerName,
+            row.moq,
+            row.tiers,
+            row.blocked,
+            row.differences,
+          ]),
+        );
+      if (reviewKey(latestRows) !== reviewKey(cartBuildLines)) {
+        setCartBuildLines(latestRows);
+        setCartBuildAck(false);
+        setCartBuildError("Current offers changed. Review the differences and try again.");
+        return;
+      }
+      if (latestRows.some((row) => row.blocked)) {
+        setCartBuildError("A line is no longer available. Refresh the shared list.");
+        return;
+      }
+      if (isBusinessWorkspace) {
+        const result = replaceDraftTradeQuoteLines(
+          latestRows.map((row) => ({
+            productId: row.line.product_id,
+            offerId: row.offerId,
+            sku: row.sku,
+            title: row.productTitle,
+            seller: row.sellerName,
+            image: row.thumbnail,
+            moq: row.moq,
+            basePriceMinor: row.baseUnitAmountMinor,
+            currency: row.currencyCode,
+            tiers: row.tiers,
+            quantity: row.line.quantity,
+          })),
+        );
+        if (!result.ok) {
+          setCartBuildError(
+            result.reason === "currency-conflict"
+              ? "The quotation cart has a different currency. Clear it before building this list."
+              : "The list has an invalid quantity or duplicate offer.",
+          );
+          return;
+        }
+      } else {
+        const result = replaceDraftCartLines(
+          latestRows.map((row) => ({
+            offerId: row.offerId,
+            productId: row.line.product_id,
+            sku: row.sku,
+            title: row.productTitle,
+            seller: row.sellerName,
+            priceMinor: row.unitAmountMinor,
+            currency: row.currencyCode,
+            image: row.thumbnail,
+            channel: "b2c",
+            quantity: row.line.quantity,
+          })),
+        );
+        if (!result.ok && result.reason === "channel-conflict") {
+          announceCartConflict(result);
+          setCartBuildError(
+            result.currentChannel === "b2c"
+              ? "Your cart contains mixed channels. Empty it before building this list."
+              : "Your cart already has trade items. Empty it before building this retail list.",
+          );
+          return;
+        }
+        if (!result.ok) {
+          setCartBuildError(
+            result.reason === "currency-conflict"
+              ? "The cart has a different currency. Clear it before building this list."
+              : "The list has an invalid quantity or duplicate offer.",
+          );
+          return;
+        }
+      }
+      setCartBuildMessage(
+        `${latestRows.length} line${latestRows.length === 1 ? "" : "s"} added to the ${
+          isBusinessWorkspace ? "quotation cart" : "cart"
+        }. No order was created.`,
+      );
+    } catch (cause) {
+      setCartBuildError((cause as Error).message || "The cart could not be built.");
+    } finally {
+      cartBuildBusyRef.current = false;
+      setCartBuildBusy(false);
     }
-    setCartBuildMessage(
-      `${cartBuildLines.length} line${
-        cartBuildLines.length === 1 ? "" : "s"
-      } added to the cart. No order was created.`,
-    );
   }
 
   return (
@@ -1147,7 +1284,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                           <span>List</span>
                           <select
                             value={sharedView.draft.id}
-                            disabled={draftBusy}
+                            disabled={draftBusy || cartBuildLoading || cartBuildBusy}
                             onChange={(event) => {
                               void fetchDraftView(event.target.value).catch((cause) => {
                                 setDraftError((cause as Error).message);
@@ -1201,7 +1338,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                       className="qty-button"
                                       type="button"
                                       aria-label={`Decrease ${title} quantity`}
-                                      disabled={draftBusy || line.quantity <= 1}
+                                       disabled={draftBusy || cartBuildLoading || cartBuildBusy || line.quantity <= 1}
                                       onClick={() => void proposeQuantity(line, line.quantity - 1)}
                                     >
                                       −
@@ -1210,7 +1347,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                       className="qty-button"
                                       type="button"
                                       aria-label={`Increase ${title} quantity`}
-                                      disabled={draftBusy}
+                                      disabled={draftBusy || cartBuildLoading || cartBuildBusy}
                                       onClick={() => void proposeQuantity(line, line.quantity + 1)}
                                     >
                                       +
@@ -1218,7 +1355,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                     <button
                                       className="text-button"
                                       type="button"
-                                      disabled={draftBusy}
+                                      disabled={draftBusy || cartBuildLoading || cartBuildBusy}
                                       aria-label={`Remove ${title} from the shared list`}
                                       onClick={() => void removeSharedLine(line)}
                                     >
@@ -1253,7 +1390,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                   <button
                                     className="text-button"
                                     type="button"
-                                    disabled={draftBusy}
+                                    disabled={draftBusy || cartBuildLoading || cartBuildBusy}
                                     onClick={() => void decideProposal(proposal.id, true)}
                                   >
                                     Accept
@@ -1261,7 +1398,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                   <button
                                     className="text-button"
                                     type="button"
-                                    disabled={draftBusy}
+                                    disabled={draftBusy || cartBuildLoading || cartBuildBusy}
                                     onClick={() => void decideProposal(proposal.id, false)}
                                   >
                                     Reject
@@ -1279,16 +1416,16 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                           {!approvalReady ? (
                             <p className="muted">
                               This trade list needs an approved revision before it can become a
-                              cart.
+                              quotation cart.
                             </p>
                           ) : null}
                           <button
                             className="button"
                             type="button"
-                            disabled={!sharedRevision || !approvalReady || draftBusy}
+                            disabled={!sharedRevision || !approvalReady || draftBusy || cartBuildLoading || cartBuildBusy}
                             onClick={() => void openCartBuild()}
                           >
-                            Review and build cart
+                            Review and build {isBusinessWorkspace ? "quotation cart" : "cart"}
                           </button>
                           {cartBuildOpen ? (
                             <div className="chat-cart-build-panel">
@@ -1296,7 +1433,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                 <strong>Review before cart build</strong>
                                 <small>
                                   Current price, stock, seller and MOQ are checked. This creates
-                                  a cart only.
+                                  {isBusinessWorkspace ? " a quotation cart" : " a cart"} only.
                                 </small>
                               </div>
                               {cartBuildLoading ? (
@@ -1334,8 +1471,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                               ))}
                               {cartBuildHasBlocked ? (
                                 <p className="admin-error" role="alert">
-                                  A line is out of stock, short on stock or below MOQ. Update the
-                                  list before building.
+                                  A line has no suitable offer, an invalid price, is out of stock,
+                                  short on stock or below MOQ. Update the list before building.
                                 </p>
                               ) : null}
                               {cartBuildHasDifferences ? (
@@ -1358,7 +1495,9 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                               {cartBuildMessage ? (
                                 <p className="admin-ok" role="status">
                                   {cartBuildMessage}{" "}
-                                  <Link href="/cart">View cart</Link>
+                                  <Link href={isBusinessWorkspace ? "/trade/quote" : "/cart"}>
+                                    View {isBusinessWorkspace ? "quotation cart" : "cart"}
+                                  </Link>
                                 </p>
                               ) : null}
                               <div className="chat-cart-build-actions">
@@ -1366,13 +1505,14 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                   className="button"
                                   type="button"
                                   disabled={!cartBuildReady || Boolean(cartBuildMessage)}
-                                  onClick={buildCart}
+                                  onClick={() => void buildCart()}
                                 >
-                                  Add to cart
+                                  Add to {isBusinessWorkspace ? "quotation cart" : "cart"}
                                 </button>
                                 <button
                                   className="text-button"
                                   type="button"
+                                  disabled={cartBuildBusy}
                                   onClick={() => setCartBuildOpen(false)}
                                 >
                                   Close
@@ -1382,7 +1522,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                           ) : null}
                         </div>
                       ) : null}
-                      <button className="text-button" type="button" onClick={() => void loadShared()}>
+                      <button className="text-button" type="button" disabled={cartBuildBusy} onClick={() => void loadShared()}>
                         Refresh shared list
                       </button>
                     </>
@@ -1662,7 +1802,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
             {view === "chat" ? (
               <footer className="chat-composer">
               <p className="chat-disclaimer">
-                Read-only in staging · your cart and orders are never changed from here.
+                 Assistant replies are read-only. List and cart changes require your action; no
+                 order is created here.
               </p>
               <form
                 onSubmit={(event) => {

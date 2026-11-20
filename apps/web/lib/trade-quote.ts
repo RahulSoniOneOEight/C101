@@ -96,6 +96,44 @@ export function addToTradeQuote(line: Omit<TradeQuoteLine, "quantity">, quantity
   writeTradeQuote(items);
 }
 
+/** One write per reviewed list; replacing matching offers avoids duplicated quantities on retry. */
+export function replaceDraftTradeQuoteLines(
+  lines: TradeQuoteLine[],
+): { ok: true } | { ok: false; reason: "invalid-quantity" | "duplicate-offer" | "currency-conflict" } {
+  if (
+    lines.length === 0 ||
+    lines.some(
+      (line) =>
+        !line.offerId ||
+        !Number.isInteger(line.quantity) ||
+        line.quantity < Math.max(1, line.moq) ||
+        line.quantity > 999 ||
+        !Number.isSafeInteger(line.basePriceMinor) ||
+        line.basePriceMinor < 0,
+    )
+  ) {
+    return { ok: false, reason: "invalid-quantity" };
+  }
+  const offerIds = lines.map((line) => line.offerId);
+  if (new Set(offerIds).size !== offerIds.length) {
+    return { ok: false, reason: "duplicate-offer" };
+  }
+  const currency = lines[0].currency.toUpperCase();
+  const existing = readTradeQuote();
+  if (
+    lines.some((line) => line.currency.toUpperCase() !== currency) ||
+    existing.some((line) => line.currency.toUpperCase() !== currency)
+  ) {
+    return { ok: false, reason: "currency-conflict" };
+  }
+  const byOffer = new Map(lines.map((line) => [line.offerId, line]));
+  const next = existing
+    .filter((line) => !byOffer.has(line.offerId))
+    .concat([...byOffer.values()]);
+  writeTradeQuote(next);
+  return { ok: true };
+}
+
 export function setTradeQuoteQuantity(offerId: string, quantity: number): void {
   writeTradeQuote(
     readTradeQuote().map((line) =>
