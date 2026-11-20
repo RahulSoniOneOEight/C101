@@ -913,7 +913,7 @@ class _GstInvoicesScreenState extends ConsumerState<GstInvoicesScreen> {
     final gst = ref.read(gstProvider);
     try {
       final message = await saveInvoiceFile(
-        'buildkart_${inv.number}.pdf',
+        'bazarbee_${inv.number}.pdf',
         _buildInvoicePdf(inv, gst),
       );
       if (context.mounted) {

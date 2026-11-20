@@ -4346,6 +4346,20 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const wantsB2B = typeof body.channel === "string" && body.channel
       ? body.channel.toLowerCase().startsWith("b2b")
       : false;
+    if (
+      wantsB2B &&
+      !hasAnyRole(authenticated.authorization, [
+        "b2b_buyer",
+        "b2b_account_admin",
+        "b2b_approver",
+      ])
+    ) {
+      return problem(
+        403,
+        "trade-access-required",
+        "A trade-enabled account is required for a B2B cart.",
+      );
+    }
     const allowedChannels = ["b2c_app", "b2c_web", "b2b_app", "b2b_web"];
     if (typeof body.channel === "string" && body.channel && !allowedChannels.includes(body.channel)) {
       return problem(400, "invalid-channel", `channel must be one of ${allowedChannels.join(", ")}`);

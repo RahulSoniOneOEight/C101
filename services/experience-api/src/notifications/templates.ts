@@ -51,7 +51,7 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
         templateKey: "product_launch_v1",
         audience: "all-pilot-users",
         title: "New Arrival Live",
-        body: "A new product landed in BuildKart. Tap to explore it now.",
+        body: "A new product landed in BazarBee. Tap to explore it now.",
         deepLink: `/product/${encodeURIComponent(productId)}`,
         imageUrl: IMAGE.launch,
       };
@@ -73,7 +73,7 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
         templateKey: "order_confirmed_v1",
         audience: "order-owner",
         title: "Your Order Confirmed",
-        body: "Your BuildKart test order is confirmed. We will keep you posted.",
+        body: "Your BazarBee test order is confirmed. We will keep you posted.",
         deepLink: `/orders/${encodeURIComponent(checkoutRef)}`,
         imageUrl: IMAGE.order,
       };
@@ -95,10 +95,10 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
             ? "Delivery Needs Attention"
             : "Delivery Status Update",
         body: delivered
-          ? "Your simulated delivery is complete. Open BuildKart to review the order."
+          ? "Your simulated delivery is complete. Open BazarBee to review the order."
           : exception
-            ? "A simulated delivery exception was recorded. Open BuildKart for details."
-            : "Your simulated shipment status changed. Open BuildKart to see details.",
+            ? "A simulated delivery exception was recorded. Open BazarBee for details."
+            : "Your simulated shipment status changed. Open BazarBee to see details.",
         deepLink: `/track?order=${encodeURIComponent(aggregateId)}`,
         imageUrl: IMAGE.delivery,
       };
@@ -121,7 +121,7 @@ export function renderPilotNotification(event: Record<string, unknown>): Rendere
         title: status === "approved" ? "Return Approved" : "Return Update",
         body: status === "approved"
           ? "Your return was approved. No refund or stock movement is executed in this phase."
-          : "Your return decision was recorded. Open BuildKart for the outcome.",
+          : "Your return decision was recorded. Open BazarBee for the outcome.",
         deepLink: `/returns/${encodeURIComponent(String(payload.return_id ?? aggregateId))}`,
         imageUrl: IMAGE.order,
       };

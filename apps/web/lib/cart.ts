@@ -79,7 +79,7 @@ export function addToCart(
     return {
       ok: false,
       reason: "channel-conflict",
-      currentChannel: [...currentChannels][0] ?? "b2c",
+      currentChannel: currentChannels.has("b2c") ? "b2c" : "b2b",
       nextChannel,
     };
   }

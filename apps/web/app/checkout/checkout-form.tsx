@@ -142,6 +142,10 @@ export function CheckoutForm({ defaultEmail }: { defaultEmail: string }) {
     };
   }, [items, linesKey, postalCode, ready, appliedPromo, cartChannel]);
 
+  useEffect(() => {
+    if (!cartChannel) setQuote({ status: "idle" });
+  }, [cartChannel]);
+
   const quoted = quote.status === "ready" ? quote.data : null;
   const summarySubtotal = quoted?.subtotal ?? subtotalMinor;
   const summaryCurrency = quoted?.currency ?? currency;
