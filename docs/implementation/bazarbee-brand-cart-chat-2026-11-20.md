@@ -1,7 +1,8 @@
 # BazarBee brand, cart-channel guard and chat race — 20 Nov 2026
 
 Status: **implemented on staging** · Web `release-web-20261120-064202` · API
-`release-api-20261120-064642` · Workspace `release-workspace-20261120-062701`
+`release-api-20261120-064642` · Workspace `release-workspace-20261120-062701` · Flutter web
+`app-staging` rebuilt 20 Nov 2026 (backup `web.bak-brand-20261120-064923`)
 Production: untouched.
 
 This is the implementation pass for points 1–4 of
@@ -42,6 +43,12 @@ This is the implementation pass for points 1–4 of
   `Join the BazarBee trade program`.
 - Hindi app-shell returns `BazarBee में आपका स्वागत है`.
 - Workspace DB: 0 old assistant channel names, 0 old assistant message authors.
+- `app-staging.pinakaplay.cloud` serves the rebuilt bundle (HTTP 200); `main.dart.js` contains
+  `support@gobazarbee.com`, `BazarBee Cart Assistant`, `bazarbee_` invoice prefix and no
+  `BuildKart Cart Assistant`.
+- Flutter app-staging web bundle rebuilt and deployed (`app-staging.pinakaplay.cloud`), with the
+  previous bundle backed up at
+  `/opt/buildkart-flutter/web.bak-brand-20261120-064923`.
 - Flutter brand tests (six files) all pass:
   - `b2b_home_header_test.dart`
   - `b2c_benchmark_ux_test.dart`
@@ -103,8 +110,8 @@ discarded. `conversation_dock_test.dart` passes 11/11.
 
 - Direct Experience API callers can still build a mixed cart; the guard is enforced in the web BFF
   and web UI. A future service-level offer/channel check should close that path.
-- Flutter code and tests are updated, but the `app-staging` static bundle has not been rebuilt in
-  this pass; the web/API/workspace surfaces are live.
+- The Flutter web bundle is live; the Android APK has not been rebuilt or redistributed in this
+  pass.
 - C101 finance gates and A2–A5 remain unchanged: no invoices, journals, clearing, payouts,
   `account_payment` or `bazarbee_accounting` module.
 - B2B Bought Together still needs an active `b2b`/`both` pair.
