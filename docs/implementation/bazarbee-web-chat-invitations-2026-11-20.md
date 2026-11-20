@@ -1,7 +1,7 @@
 # Web chat participants and invitations — 20 Nov 2026
 
-Status: **implemented on staging** · Web `release-web-20261120-073032` · Source `c8a5892`,
-`50bfa6c`
+Status: **implemented on staging** · Web `release-web-20261120-074159` · Workspace
+`release-workspace-20261120-073835` · Source `c8a5892`, `50bfa6c`, `06290bb`
 Production: untouched.
 
 ## 1. What changed
@@ -52,11 +52,29 @@ Screenshots: `web-invite-05-created.png`, `web-invite-07-revoked-clean.png`.
 ## 3. Shared pilot workspace note
 
 `ws_bazarbee_pilot` has 21 testers, while the business workspace seat limit is 10. The drawer
-therefore shows `21 participants · staging pilot workspace` rather than a misleading `21 of 10 seats
-used`. The API still correctly refuses a new invitation once capacity is reached. Invitation QC was
-performed on the fresh household workspace, where capacity is available.
+therefore shows `21 participants · pilot workspace` rather than `21 of 10 seats used`, hides the
+invite form and explains that the workspace is at capacity. The API also refuses a new invitation
+once capacity is reached. Invitation QC was performed on the fresh household workspace, where
+capacity is available.
 
-## 4. Remaining web chat gaps
+## 4. Independent QC
+
+DeepSeek V4 Pro reviewed the increment and returned **ship**. Corrections applied:
+
+- the workspace list now exposes `can_manage_invitations`, computed server-side from household
+  owner / business admin / buyer / workspace owner; the UI uses that flag instead of guessing from
+  `role`;
+- non-managers see a read-only explanation instead of triggering a 403 error state;
+- invite success/error messages use `role="status"`/`role="alert"`;
+- the token block has an accessible group label and each revoke button names its invitee;
+- revoking clears the displayed token only when it belongs to the revoked invitation;
+- the shared pilot workspace at 21/10 shows `21 participants · pilot workspace`, hides the invite
+  form, and explains that the workspace is at capacity.
+
+Remaining low-severity note: the workspace service still performs a count-then-insert capacity check
+without a transaction lock; the accept-time DB constraint remains the backstop.
+
+## 5. Remaining web chat gaps
 
 - Participant removal and role changes: the workspace API exposes invitation create/revoke and
   participant count, but no member list/remove endpoint.
