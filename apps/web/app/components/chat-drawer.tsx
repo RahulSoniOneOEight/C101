@@ -114,6 +114,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const busyRef = useRef(false);
 
   const isTrade = pathname?.startsWith("/trade") ?? false;
+  const canManageInvitations = workspace?.can_manage_invitations === true;
 
   const chooseWorkspace = useCallback(
     (workspaces: WorkspaceSummary[]) => {
@@ -384,10 +385,16 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   }, [open, view, workspace, shared.status, loadShared]);
 
   useEffect(() => {
-    if (open && view === "participants" && workspace && participants.status === "idle") {
+    if (
+      open &&
+      view === "participants" &&
+      workspace &&
+      canManageInvitations &&
+      participants.status === "idle"
+    ) {
       void loadParticipants();
     }
-  }, [open, view, workspace, participants.status, loadParticipants]);
+  }, [open, view, workspace, canManageInvitations, participants.status, loadParticipants]);
 
   const selectChannel = async (next: WorkspaceChannel) => {
     if (sending || next.id === channel?.id) return;
@@ -533,14 +540,9 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const sharedPending =
     sharedView?.proposals.filter((proposal) => proposal.status === "pending") ?? [];
   const participantsPage = participants.status === "ready" ? participants.page : null;
-  const canManageInvitations =
-    workspace?.scope_type === "household"
-      ? workspace.role === "owner"
-      : workspace?.scope_type === "business_account"
-        ? workspace.role === "admin" ||
-          workspace.role === "buyer" ||
-          workspace.role === "owner"
-        : false;
+  const atCapacity = participantsPage
+    ? participantsPage.participants >= participantsPage.capacity
+    : false;
 
   async function inviteParticipant(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -606,7 +608,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
         throw new Error(payload.error ?? "The invitation could not be revoked.");
       }
       setInviteMessage("Invitation revoked.");
-      setCreatedInvite(null);
+      if (createdInvite?.invitation.id === invitationId) setCreatedInvite(null);
       await loadParticipants();
     } catch (cause) {
       setInviteError((cause as Error).message);
@@ -861,6 +863,14 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                         Sign in
                       </Link>
                     </div>
+                  ) : !canManageInvitations ? (
+                    <div className="chat-empty">
+                      <h3>Participants</h3>
+                      <p>
+                        Only the workspace owner, admin or buyer can view and manage
+                        participants.
+                      </p>
+                    </div>
                   ) : participants.status === "loading" ? (
                     <div className="chat-empty">
                       <p>Loading participants…</p>
@@ -884,13 +894,13 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                         <strong>
                           {participantsPage &&
                           participantsPage.participants > participantsPage.capacity
-                            ? `${participantsPage.participants} participants · staging pilot workspace`
+                            ? `${participantsPage.participants} participants · pilot workspace`
                             : `${participantsPage?.participants ?? 0} of ${
                                 participantsPage?.capacity ?? 0
                               } seats used`}
                         </strong>
                       </div>
-                      {canManageInvitations ? (
+                      {canManageInvitations && !atCapacity ? (
                         <form className="chat-invite-form" onSubmit={inviteParticipant}>
                           <label className="sr-only" htmlFor="chat-invite-email">
                             Invite email
@@ -914,13 +924,27 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                         </form>
                       ) : (
                         <p className="muted">
-                          Only the workspace owner, admin or buyer can invite participants.
+                          {atCapacity
+                            ? "This workspace is at capacity. Revoke a pending invitation or ask the owner to add seats."
+                            : "Only the workspace owner, admin or buyer can invite participants."}
                         </p>
                       )}
-                      {inviteMessage ? <p className="admin-ok">{inviteMessage}</p> : null}
-                      {inviteError ? <p className="admin-error">{inviteError}</p> : null}
+                      {inviteMessage ? (
+                        <p className="admin-ok" role="status">
+                          {inviteMessage}
+                        </p>
+                      ) : null}
+                      {inviteError ? (
+                        <p className="admin-error" role="alert">
+                          {inviteError}
+                        </p>
+                      ) : null}
                       {createdInvite ? (
-                        <div className="chat-invite-token">
+                        <div
+                          className="chat-invite-token"
+                          role="group"
+                          aria-label="Invite code"
+                        >
                           <span>Share this invite code</span>
                           <code>{createdInvite.invite_token}</code>
                         </div>
@@ -943,6 +967,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                                   className="text-button"
                                   type="button"
                                   disabled={inviteBusy}
+                                  aria-label={`Revoke invitation for ${invitation.invitee_email}`}
                                   onClick={() => void revokeInvitation(invitation.id)}
                                 >
                                   Revoke

@@ -221,6 +221,12 @@ function canWriteRole(role?: string | null): boolean {
 async function listWorkspaces(actor: Actor): Promise<Response> {
   const result = await pool.query(
     `select w.id, w.scope_type, w.scope_id, w.name, w.status, w.created_at, wm.role,
+            case
+              when w.scope_type = 'household' and wm.role = 'owner' then true
+              when w.scope_type = 'business_account'
+                   and (wm.role in ('admin', 'buyer') or w.owner_user_id = $2) then true
+              else false
+            end as can_manage_invitations,
             coalesce((
               select count(*) from message m
                 join channel c on c.id = m.channel_id

@@ -749,6 +749,7 @@ export interface WorkspaceSummary {
   status: string;
   created_at: string;
   role: string;
+  can_manage_invitations?: boolean;
   unread_count?: number;
 }
 
