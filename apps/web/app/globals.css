@@ -7566,3 +7566,109 @@ textarea:focus-visible {
     max-width: none;
   }
 }
+
+.chat-view-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.chat-view-tab {
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chat-view-tab.active {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+.chat-tab-badge,
+.chat-launcher-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 5px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e5484d;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+}
+.chat-launcher-badge {
+  margin-left: 2px;
+}
+.chat-shared {
+  display: grid;
+  gap: 12px;
+}
+.chat-shared-head {
+  display: grid;
+  gap: 2px;
+}
+.chat-shared-head strong {
+  font-size: 14px;
+}
+.chat-shared-head small {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.chat-shared-lines {
+  display: grid;
+  gap: 6px;
+}
+.chat-shared-line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+}
+.chat-shared-line strong {
+  display: block;
+  font-size: 12px;
+}
+.chat-shared-line small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.chat-shared-line > span {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+.chat-shared-proposals {
+  display: grid;
+  gap: 5px;
+}
+.chat-shared-proposals h3 {
+  margin: 0;
+  font-size: 12px;
+}
+.chat-shared-proposal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 11px;
+}
+.chat-shared-proposal small {
+  color: var(--muted);
+  font-size: 10px;
+}

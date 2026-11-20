@@ -5,12 +5,18 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   WorkspaceChannel,
+  WorkspaceDraftView,
   WorkspaceMessage,
   WorkspaceSummary,
 } from "@/lib/experience-api";
 import { formatMoney } from "@/lib/money";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
+type ChatView = "chat" | "shared";
+type SharedState =
+  | { status: "idle" | "loading" }
+  | { status: "ready"; view: WorkspaceDraftView | null }
+  | { status: "error"; message: string };
 
 const SUGGESTIONS = [
   "What can you do?",
@@ -90,6 +96,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingShare, setPendingShare] = useState<PendingShare | null>(null);
+  const [view, setView] = useState<ChatView>("chat");
+  const [shared, setShared] = useState<SharedState>({ status: "idle" });
   const scrollRef = useRef<HTMLDivElement>(null);
   const busyRef = useRef(false);
 
@@ -108,14 +116,64 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     [isTrade],
   );
 
+  const markChannelRead = useCallback(async (channelId: string, sequence: number) => {
+    if (sequence <= 0) return;
+    try {
+      await fetch("/api/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "mark-read", channelId, sequence }),
+      });
+      setChannels((current) =>
+        current.map((candidate) =>
+          candidate.id === channelId ? { ...candidate, unread_count: 0 } : candidate,
+        ),
+      );
+    } catch {
+      // Read state must never block the conversation.
+    }
+  }, []);
+
   const loadMessages = useCallback(async (nextChannel: WorkspaceChannel) => {
     const response = await fetch(`/api/chat?channel=${encodeURIComponent(nextChannel.id)}`, {
       cache: "no-store",
     });
     if (!response.ok) throw new Error("The conversation could not be loaded.");
     const data = (await response.json()) as { messages?: WorkspaceMessage[] };
-    setMessages(data.messages ?? []);
-  }, []);
+    const latest = data.messages ?? [];
+    setMessages(latest);
+    const last = latest[latest.length - 1];
+    if (last) void markChannelRead(nextChannel.id, last.sequence);
+  }, [markChannelRead]);
+
+  const loadShared = useCallback(async () => {
+    if (!workspace) return;
+    setShared({ status: "loading" });
+    try {
+      const draftsResponse = await fetch(
+        `/api/chat?drafts=${encodeURIComponent(workspace.id)}`,
+        { cache: "no-store" },
+      );
+      if (!draftsResponse.ok) throw new Error("The shared list could not be loaded.");
+      const draftsPayload = (await draftsResponse.json()) as {
+        drafts?: { id: string }[];
+      };
+      const first = draftsPayload.drafts?.[0];
+      if (!first) {
+        setShared({ status: "ready", view: null });
+        return;
+      }
+      const detailResponse = await fetch(
+        `/api/chat?draft=${encodeURIComponent(first.id)}`,
+        { cache: "no-store" },
+      );
+      if (!detailResponse.ok) throw new Error("The shared list could not be loaded.");
+      const detail = (await detailResponse.json()) as { draft?: WorkspaceDraftView };
+      setShared({ status: "ready", view: detail.draft ?? null });
+    } catch (cause) {
+      setShared({ status: "error", message: (cause as Error).message });
+    }
+  }, [workspace]);
 
   const load = useCallback(async () => {
     if (!signedIn) {
@@ -152,6 +210,7 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       }
       if (!chosen) throw new Error("No conversation workspace is available for this account.");
       setWorkspace(chosen);
+      setShared({ status: "idle" });
 
       response = await fetch(`/api/chat?workspace=${encodeURIComponent(chosen.id)}`, {
         cache: "no-store",
@@ -270,6 +329,12 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
     }, 8000);
     return () => window.clearInterval(timer);
   }, [open, channel, state, sending, loadMessages]);
+
+  useEffect(() => {
+    if (open && view === "shared" && workspace && shared.status === "idle") {
+      void loadShared();
+    }
+  }, [open, view, workspace, shared.status, loadShared]);
 
   const selectChannel = async (next: WorkspaceChannel) => {
     if (sending || next.id === channel?.id) return;
@@ -393,7 +458,11 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
           break;
         }
       }
-      if (latest.length > 0) setMessages(latest);
+      if (latest.length > 0) {
+        setMessages(latest);
+        const last = latest[latest.length - 1];
+        if (last) void markChannelRead(channel.id, last.sequence);
+      }
     } catch (cause) {
       setError((cause as Error).message);
       setMessages((current) => current.filter((message) => message.id !== optimistic.id));
@@ -401,6 +470,15 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       setSending(false);
     }
   };
+
+  const unreadTotal = channels.reduce(
+    (total, candidate) => total + (candidate.unread_count ?? 0),
+    0,
+  );
+  const sharedView = shared.status === "ready" ? shared.view : null;
+  const sharedLines = sharedView?.revision?.lines ?? [];
+  const sharedPending =
+    sharedView?.proposals.filter((proposal) => proposal.status === "pending") ?? [];
 
   return (
     <>
@@ -413,6 +491,11 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
       >
         <SparkIcon />
         <span>Ask BazarBee</span>
+        {unreadTotal > 0 ? (
+          <span className="chat-launcher-badge" aria-label={`${unreadTotal} unread messages`}>
+            {unreadTotal > 9 ? "9+" : unreadTotal}
+          </span>
+        ) : null}
       </button>
 
       {open ? (
@@ -452,7 +535,28 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
               </button>
             </header>
 
-            {channels.length > 1 ? (
+            <div className="chat-view-tabs" role="tablist" aria-label="Chat view">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "chat"}
+                className={view === "chat" ? "chat-view-tab active" : "chat-view-tab"}
+                onClick={() => setView("chat")}
+              >
+                Conversation
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === "shared"}
+                className={view === "shared" ? "chat-view-tab active" : "chat-view-tab"}
+                onClick={() => setView("shared")}
+              >
+                Shared list
+              </button>
+            </div>
+
+            {view === "chat" && channels.length > 1 ? (
               <div className="chat-tabs" role="tablist" aria-label="Conversation channel">
                 {channels.map((candidate) => (
                   <button
@@ -467,13 +571,98 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                     disabled={sending}
                   >
                     {channelLabel(candidate)}
+                    {candidate.unread_count ? (
+                      <span className="chat-tab-badge">{candidate.unread_count}</span>
+                    ) : null}
                   </button>
                 ))}
               </div>
             ) : null}
 
             <div className="chat-body" ref={scrollRef}>
-              {authRequired ? (
+              {view === "shared" ? (
+                <div className="chat-shared">
+                  {shared.status === "loading" ? (
+                    <div className="chat-empty">
+                      <p>Loading the shared list…</p>
+                    </div>
+                  ) : shared.status === "error" ? (
+                    <div className="chat-empty">
+                      <h3>Shared list unavailable</h3>
+                      <p>{shared.message}</p>
+                      <button className="button" type="button" onClick={() => void loadShared()}>
+                        Try again
+                      </button>
+                    </div>
+                  ) : !sharedView ? (
+                    <div className="chat-empty">
+                      <h3>No shared list yet</h3>
+                      <p>
+                        Open a product and use Discuss to add it to the conversation. The owner
+                        can turn shared products into a purchase list.
+                      </p>
+                      <button className="button" type="button" onClick={() => void loadShared()}>
+                        Refresh
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="chat-shared-head">
+                        <span className="eyebrow">Shared list</span>
+                        <strong>{sharedView.draft.name}</strong>
+                        <small>
+                          {sharedView.draft.lifecycle_status} · v
+                          {sharedView.draft.current_version} ·{" "}
+                          {sharedView.draft.validation_status}
+                        </small>
+                      </div>
+                      {sharedLines.length === 0 ? (
+                        <p className="muted">
+                          No accepted lines yet. Pending proposals appear below.
+                        </p>
+                      ) : (
+                        <div className="chat-shared-lines">
+                          {sharedLines.map((line) => {
+                            const snapshot = line.commercial_snapshot ?? {};
+                            const unit = snapshot.unit_amount_minor ?? 0;
+                            return (
+                              <div className="chat-shared-line" key={line.line_key}>
+                                <div>
+                                  <strong>{snapshot.product_title ?? "Catalogue product"}</strong>
+                                  <small>
+                                    {snapshot.sku ? `SKU ${snapshot.sku}` : line.line_key}
+                                    {snapshot.seller_name ? ` · ${snapshot.seller_name}` : ""}
+                                  </small>
+                                </div>
+                                <span>
+                                  {line.quantity} ×{" "}
+                                  {formatMoney(unit, snapshot.currency_code ?? "INR")}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {sharedPending.length > 0 ? (
+                        <div className="chat-shared-proposals">
+                          <h3>Pending proposals</h3>
+                          {sharedPending.map((proposal) => (
+                            <div className="chat-shared-proposal" key={proposal.id}>
+                              <span>{proposal.kind.replaceAll("_", " ")}</span>
+                              <small>{proposal.proposed_by}</small>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      <button className="text-button" type="button" onClick={() => void loadShared()}>
+                        Refresh shared list
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {authRequired ? (
                 <div className="chat-empty">
                   <h3>Sign in to chat</h3>
                   <p>
@@ -593,9 +782,12 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                   {error}
                 </p>
               ) : null}
+                </>
+              )}
             </div>
 
-            <footer className="chat-composer">
+            {view === "chat" ? (
+              <footer className="chat-composer">
               <p className="chat-disclaimer">
                 Read-only in staging · your cart and orders are never changed from here.
               </p>
@@ -627,7 +819,8 @@ export function ChatDrawer({ signedIn }: { signedIn: boolean }) {
                   {sending ? "Sending…" : "Send"}
                 </button>
               </form>
-            </footer>
+              </footer>
+            ) : null}
           </aside>
         </>
       ) : null}

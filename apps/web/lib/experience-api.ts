@@ -829,6 +829,92 @@ export async function listWorkspaceChannels(
   return result.channels ?? [];
 }
 
+export interface WorkspaceDraft {
+  id: string;
+  workspace_id: string;
+  channel_id: string;
+  name: string;
+  lifecycle_status: string;
+  validation_status: string;
+  current_version: number;
+  role: string;
+}
+
+export interface WorkspaceDraftLine {
+  line_key: string;
+  product_id: string;
+  variant_id: string;
+  seller_id: string;
+  offer_id: string;
+  quantity: number;
+  commercial_snapshot?: {
+    product_title?: string;
+    seller_name?: string;
+    sku?: string;
+    unit_amount_minor?: number;
+    currency_code?: string;
+    thumbnail?: string;
+  } | null;
+  material_instruction?: string | null;
+}
+
+export interface WorkspaceDraftProposal {
+  id: string;
+  kind: string;
+  status: string;
+  proposed_by: string;
+  expected_version: number;
+  payload: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface WorkspaceDraftRevision {
+  id: string;
+  version: number;
+  commercial_hash: string;
+  lines: WorkspaceDraftLine[];
+}
+
+export interface WorkspaceDraftView {
+  draft: WorkspaceDraft;
+  revision?: WorkspaceDraftRevision | null;
+  approval?: Record<string, unknown> | null;
+  proposals: WorkspaceDraftProposal[];
+}
+
+export async function listWorkspaceDrafts(
+  sessionToken: string,
+  workspaceId: string,
+): Promise<WorkspaceDraft[]> {
+  const result = await call<{ drafts?: WorkspaceDraft[] }>(
+    `/v1/workspaces/${encodeURIComponent(workspaceId)}/purchase-drafts`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+  return result.drafts ?? [];
+}
+
+export async function getWorkspaceDraft(
+  sessionToken: string,
+  draftId: string,
+): Promise<WorkspaceDraftView> {
+  return call<WorkspaceDraftView>(
+    `/v1/purchase-drafts/${encodeURIComponent(draftId)}`,
+    { headers: authenticatedHeaders(sessionToken) },
+  );
+}
+
+export async function markWorkspaceRead(
+  sessionToken: string,
+  channelId: string,
+  sequence: number,
+): Promise<void> {
+  await call<void>(`/v1/channels/${encodeURIComponent(channelId)}/read-cursor`, {
+    method: "POST",
+    headers: authenticatedHeaders(sessionToken),
+    body: JSON.stringify({ last_event_sequence: sequence }),
+  });
+}
+
 export async function listWorkspaceMessages(
   sessionToken: string,
   channelId: string,

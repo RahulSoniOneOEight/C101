@@ -4,9 +4,12 @@ import {
   ExperienceApiError,
   PILOT_SESSION_COOKIE,
   createHouseholdProject,
+  getWorkspaceDraft,
   listWorkspaceChannels,
+  listWorkspaceDrafts,
   listWorkspaceMessages,
   listWorkspaces,
+  markWorkspaceRead,
   sendWorkspaceMessage,
   shareWorkspaceProduct,
 } from "@/lib/experience-api";
@@ -20,7 +23,23 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const channelId = url.searchParams.get("channel");
   const workspaceId = url.searchParams.get("workspace");
+  const draftsWorkspace = url.searchParams.get("drafts");
+  const draftId = url.searchParams.get("draft");
   try {
+    if (draftsWorkspace) {
+      const drafts = await listWorkspaceDrafts(token, draftsWorkspace);
+      return NextResponse.json(
+        { drafts },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
+    if (draftId) {
+      const draft = await getWorkspaceDraft(token, draftId);
+      return NextResponse.json(
+        { draft },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
     if (channelId) {
       const page = await listWorkspaceMessages(
         token,
@@ -69,6 +88,7 @@ export async function POST(request: Request) {
     unitPriceMinor?: unknown;
     currency?: unknown;
     sellerName?: unknown;
+    sequence?: unknown;
   } = {};
   try {
     body = (await request.json()) as typeof body;
@@ -95,6 +115,18 @@ export async function POST(request: Request) {
       }
       const message = await sendWorkspaceMessage(token, channelId, text.slice(0, 4000));
       return NextResponse.json({ message }, { headers: { "cache-control": "no-store" } });
+    }
+    if (body.action === "mark-read") {
+      const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
+      const sequence = Number(body.sequence);
+      if (!channelId || !Number.isInteger(sequence) || sequence < 0) {
+        return NextResponse.json(
+          { error: "A channel and a non-negative sequence are required." },
+          { status: 400 },
+        );
+      }
+      await markWorkspaceRead(token, channelId, sequence);
+      return new NextResponse(null, { status: 204 });
     }
     if (body.action === "share-product") {
       const channelId = typeof body.channelId === "string" ? body.channelId.trim() : "";
