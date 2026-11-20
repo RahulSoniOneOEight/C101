@@ -21,8 +21,19 @@ assert.equal(
   resolvePaymentRuntime({
     BUILDKART_ENVIRONMENT: "production",
     PAYMENT_ADAPTER_MODE: "provider",
+    RAZORPAY_KEY_ID: "rzp_test_example",
+    RAZORPAY_KEY_SECRET: "test-secret",
   }).simulatedProviderEnabled,
   false,
+);
+
+assert.throws(
+  () =>
+    resolvePaymentRuntime({
+      BUILDKART_ENVIRONMENT: "staging",
+      PAYMENT_ADAPTER_MODE: "provider",
+    }),
+  /RAZORPAY_KEY_ID/,
 );
 
 console.log("PASS: Medusa payment configuration fails closed in production.");

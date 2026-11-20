@@ -85,7 +85,7 @@ services:
     depends_on:
       medusa-migrate: {condition: service_completed_successfully}
       cms: {condition: service_healthy}
-    networks: [private]
+    networks: [private, egress]
     volumes:
       # Catalogue images are uploaded through the local file provider. Without a persistent volume they
       # live in the container layer and vanish on the next recreate, which is exactly what happens on
@@ -117,7 +117,7 @@ services:
       medusa-migrate: {condition: service_completed_successfully}
       nats: {condition: service_healthy}
       experience-api: {condition: service_healthy}
-    networks: [private]
+    networks: [private, egress]
     volumes:
       - medusa_uploads:/app/packages/api/static
 
@@ -171,7 +171,7 @@ services:
       nats: {condition: service_healthy}
       medusa-api: {condition: service_healthy}
       workspace: {condition: service_healthy}
-    networks: [private]
+    networks: [private, egress]
     healthcheck:
       test: ["CMD", "bun", "-e", "fetch('http://localhost:9020/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -223,6 +223,8 @@ services:
     build:
       context: ../../apps/web
     restart: unless-stopped
+    env_file:
+      - /etc/buildkart/secrets/web.env
     environment:
       NODE_ENV: production
       PORT: "3000"

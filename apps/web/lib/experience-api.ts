@@ -1436,6 +1436,91 @@ export async function completeCheckout(
   });
 }
 
+export interface RazorpayStartInput {
+  lines: CheckoutLineInput[];
+  email: string;
+  mobile?: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+  promoCode?: string;
+  channel: "b2c" | "b2b";
+}
+
+export interface RazorpayStartResult {
+  cart_id: string;
+  payment_collection_id: string;
+  payment_session_id: string;
+  razorpay_order_id: string;
+  razorpay_key_id: string;
+  amount_minor: number;
+  currency: string;
+  checkout_token: string | null;
+  test_data: boolean;
+  environment?: string;
+}
+
+export async function startRazorpayCheckout(
+  input: RazorpayStartInput,
+  sessionToken?: string,
+): Promise<RazorpayStartResult> {
+  return call<RazorpayStartResult>("/v1/checkouts/razorpay/start", {
+    method: "POST",
+    headers: sessionToken ? authenticatedHeaders(sessionToken) : undefined,
+    body: JSON.stringify(input),
+  });
+}
+
+export async function confirmRazorpayCheckout(
+  input: {
+    cartId: string;
+    paymentCollectionId: string;
+    paymentSessionId: string;
+    razorpayPaymentId: string;
+    razorpayOrderId: string;
+    razorpaySignature: string;
+    checkoutToken?: string | null;
+  },
+  sessionToken?: string,
+): Promise<CompletionResult> {
+  return call<CompletionResult>("/v1/checkouts/razorpay/confirm", {
+    method: "POST",
+    headers: sessionToken ? authenticatedHeaders(sessionToken) : undefined,
+    body: JSON.stringify({
+      cart_id: input.cartId,
+      payment_collection_id: input.paymentCollectionId,
+      payment_session_id: input.paymentSessionId,
+      razorpay_payment_id: input.razorpayPaymentId,
+      razorpay_order_id: input.razorpayOrderId,
+      razorpay_signature: input.razorpaySignature,
+      checkout_token: input.checkoutToken ?? undefined,
+    }),
+  });
+}
+
+export async function getRazorpayCheckoutStatus(
+  input: {
+    cartId: string;
+    paymentCollectionId: string;
+    paymentSessionId: string;
+    checkoutToken?: string | null;
+  },
+  sessionToken?: string,
+): Promise<CompletionResult | { status: "pending" }> {
+  return call<CompletionResult | { status: "pending" }>("/v1/checkouts/razorpay/status", {
+    method: "POST",
+    headers: sessionToken ? authenticatedHeaders(sessionToken) : undefined,
+    body: JSON.stringify({
+      cart_id: input.cartId,
+      payment_collection_id: input.paymentCollectionId,
+      payment_session_id: input.paymentSessionId,
+      checkout_token: input.checkoutToken ?? undefined,
+    }),
+  });
+}
+
 export interface GuestCheckoutInput {
   lines: CheckoutLineInput[];
   email: string;

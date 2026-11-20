@@ -22,6 +22,7 @@
     "predeploy": "medusa db:migrate",
     "seed": "medusa exec ./src/scripts/seed.ts",
     "configure:simulated-payment": "medusa exec ./src/scripts/configure-simulated-payment.ts",
+    "configure:razorpay-payment": "medusa exec ./src/scripts/configure-razorpay-payment.ts",
     "configure:staging-finance": "medusa exec ./src/scripts/configure-staging-finance.ts",
     "test:staging-finance": "bun run ./src/scripts/staging-finance-test.ts",
     "configure:staging-merchandising": "medusa exec ./src/scripts/configure-staging-merchandising.ts",

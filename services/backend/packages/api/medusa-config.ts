@@ -75,6 +75,21 @@ module.exports = withMercur({
           },
         ],
       },
+    }] : paymentRuntime.providerEnabled ? [{
+      resolve: '@medusajs/medusa/payment',
+      options: {
+        providers: [
+          {
+            resolve: './src/modules/razorpay-payment',
+            id: 'razorpay',
+            options: {
+              keyId: process.env.RAZORPAY_KEY_ID,
+              keySecret: process.env.RAZORPAY_KEY_SECRET,
+              webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET,
+            },
+          },
+        ],
+      },
     }] : []),
     {
       resolve: './src/modules/marketplace-settlement',

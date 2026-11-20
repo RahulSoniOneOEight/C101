@@ -39,6 +39,9 @@ export interface Config {
   port: number;
   environment: Environment;
   paymentAdapterMode: PaymentAdapterMode;
+  razorpayKeyId?: string;
+  razorpayKeySecret?: string;
+  razorpayWebhookSecret?: string;
   medusaBaseUrl: string;
   medusaPublishableKey: string;
   medusaRegionId: string;
@@ -150,11 +153,12 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     );
   }
 
-  // Provider mode requires an approved provider adapter that does not exist in this increment.
-  if (paymentAdapterMode === "provider") {
+  const razorpayKeyId = env.RAZORPAY_KEY_ID?.trim() || undefined;
+  const razorpayKeySecret = env.RAZORPAY_KEY_SECRET?.trim() || undefined;
+  const razorpayWebhookSecret = env.RAZORPAY_WEBHOOK_SECRET?.trim() || undefined;
+  if (paymentAdapterMode === "provider" && (!razorpayKeyId || !razorpayKeySecret)) {
     throw new Error(
-      "Provider payment mode is not implemented in this increment (Razorpay is deferred). " +
-        "Set PAYMENT_ADAPTER_MODE=simulated for staging.",
+      "PAYMENT_ADAPTER_MODE=provider requires RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
     );
   }
 
@@ -240,6 +244,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     port: Number.parseInt(env.PORT ?? "9020", 10),
     environment,
     paymentAdapterMode,
+    razorpayKeyId,
+    razorpayKeySecret,
+    razorpayWebhookSecret,
     medusaBaseUrl: env.MEDUSA_BASE_URL ?? "http://localhost:9010",
     medusaPublishableKey: env.MEDUSA_PUBLISHABLE_KEY ?? "",
     medusaRegionId: env.MEDUSA_REGION_ID ?? "",

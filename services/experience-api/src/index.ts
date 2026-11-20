@@ -3,6 +3,7 @@ import type { ServerWebSocket } from "bun";
 import { loadConfig } from "./config.js";
 import {
   MedusaStoreClient,
+  RAZORPAY_PAYMENT_PROVIDER_ID,
   SIMULATED_PAYMENT_PROVIDER_ID,
   type StoreOffer,
   type StoreCart,
@@ -19,6 +20,7 @@ import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
 import {
+  normalizeIndianMobile,
   parseGuestCheckoutBody,
   parseGuestQuoteBody,
 } from "./guest/guest-checkout.js";
@@ -1645,8 +1647,15 @@ async function completeCanonicalCart(input: {
   cid: string;
   ownerUserId?: string;
   guest?: { email: string; mobile: string };
+  payment?: {
+    collectionId: string;
+    sessionId: string;
+    providerId: string;
+    providerPaymentId?: string;
+    providerStatus?: string;
+  };
 }): Promise<Response> {
-  const { cartId, regionId, cid, ownerUserId, guest } = input;
+  const { cartId, regionId, cid, ownerUserId, guest, payment } = input;
   return correlation.withCheckoutLock(cartId, async () => {
     // Mercur 2.3.4's split workflow can create a second group if invoked again after success.
     // Stop retries here and return the first persisted canonical completion snapshot.
@@ -1666,7 +1675,9 @@ async function completeCanonicalCart(input: {
         total_minor: existingAmounts.total ?? null,
         payment: existingCompletion.payment_evidence,
         environment: config.environment,
-        test_data: true,
+        test_data:
+          (existingCompletion.payment_evidence as { test_data?: boolean } | null)?.test_data ===
+          true,
         payment_mode: config.paymentAdapterMode,
         correlation_id: cid,
         idempotent_replay: true,
@@ -1674,39 +1685,81 @@ async function completeCanonicalCart(input: {
     }
 
     const cart = await medusa.getCart(cartId);
+    const paymentMode = input.payment ? "provider" : "simulated";
     if (!cart.completed_at) {
       await medusa.updateCartMetadata(cartId, {
         ...(cart.metadata ?? {}),
-        payment_mode: "simulated",
-        test_data: true,
+        payment_mode: paymentMode,
+        test_data: paymentMode === "simulated",
       });
     }
 
-    // Medusa requires a payment collection and initialized session before completion. Reuse an
-    // amount-matched simulated session on retries so an authorization is never replaced.
-    let paymentCollection = await medusa.createPaymentCollection(cartId);
-    let paymentSession = findValidSimulatedSession(paymentCollection);
-    if (!paymentSession) {
-      paymentCollection = await medusa.createPaymentSession(
-        paymentCollection.id,
-        SIMULATED_PAYMENT_PROVIDER_ID,
-      );
+    // In provider mode the browser has already created a Razorpay session. Reuse that exact
+    // collection/session so completion verifies the payment the buyer actually made.
+    let paymentCollection: StorePaymentCollection | undefined;
+    let paymentSession: StorePaymentSession | undefined;
+    if (input.payment) {
+      // The store API does not expose a payment-collection read. Medusa owns the session and
+      // completeCart resolves it internally; we only need the ids and the verified Razorpay
+      // evidence returned by the caller.
+      paymentCollection = {
+        id: input.payment.collectionId,
+        currency_code: "inr",
+        amount: 0,
+        payment_sessions: [],
+      };
+      paymentSession = {
+        id: input.payment.sessionId,
+        provider_id: input.payment.providerId,
+        status: "pending",
+        amount: 0,
+        data: {
+          payment_mode: "provider",
+          test_data: Boolean(config.razorpayKeyId?.startsWith("rzp_test")),
+          ...(input.payment.providerPaymentId
+            ? { razorpay_payment_id: input.payment.providerPaymentId }
+            : {}),
+          ...(input.payment.providerStatus
+            ? { razorpay_status: input.payment.providerStatus }
+            : {}),
+        },
+      };
+    } else {
+      // Simulated staging/local path: reuse an amount-matched simulated session on retries so an
+      // authorization is never replaced.
+      paymentCollection = await medusa.createPaymentCollection(cartId);
       paymentSession = findValidSimulatedSession(paymentCollection);
+      if (!paymentSession) {
+        paymentCollection = await medusa.createPaymentSession(
+          paymentCollection.id,
+          SIMULATED_PAYMENT_PROVIDER_ID,
+        );
+        paymentSession = findValidSimulatedSession(paymentCollection);
+      }
     }
-    if (!paymentSession) {
-      throw new Error(
-        "Simulated payment session was not initialized with required test-only markers.",
-      );
+    if (!paymentCollection || !paymentSession) {
+      throw new Error("The payment session could not be initialized.");
     }
 
     const result = await medusa.completeCart(cartId);
     if (result.type === "order_group") {
+      const paymentIsTest =
+        paymentMode === "simulated" || paymentSession.data?.test_data === true;
       const paymentEvidence = {
         payment_collection_id: paymentCollection.id,
         payment_session_id: paymentSession.id,
         provider_id: paymentSession.provider_id,
-        payment_mode: "simulated" as const,
-        test_data: true as const,
+        payment_mode: paymentMode,
+        test_data: paymentIsTest,
+        ...(paymentMode === "provider"
+          ? {
+              provider_payment_id: input.payment?.providerPaymentId ?? null,
+              provider_order_id: input.payment?.providerPaymentId
+                ? String(cart.metadata?.razorpay_order_id ?? "")
+                : null,
+              provider_status: input.payment?.providerStatus ?? null,
+            }
+          : {}),
       };
       const productIds = [
         ...new Set(
@@ -1836,8 +1889,8 @@ async function completeCanonicalCart(input: {
         total_minor: orderGroupPayload.amounts.total,
         payment: paymentEvidence,
         environment: config.environment,
-        test_data: true,
-        payment_mode: config.paymentAdapterMode,
+        test_data: paymentIsTest,
+        payment_mode: paymentMode,
         correlation_id: cid,
       });
     }
@@ -1849,11 +1902,11 @@ async function completeCanonicalCart(input: {
         payment_collection_id: paymentCollection.id,
         payment_session_id: paymentSession.id,
         provider_id: paymentSession.provider_id,
-        payment_mode: "simulated",
-        test_data: true,
+        payment_mode: paymentMode,
+        test_data: paymentMode === "simulated" || paymentSession.data?.test_data === true,
       },
       environment: config.environment,
-      test_data: true,
+      test_data: paymentMode === "simulated" || paymentSession.data?.test_data === true,
       correlation_id: cid,
     });
   });
@@ -1983,6 +2036,184 @@ async function applyDeliveryForCart(cartId: string): Promise<StoreCart> {
     [CART_DELIVERY_LINES_KEY]: lines,
     [CART_DELIVERY_PINCODE_KEY]: refreshed.shipping_address?.postal_code ?? null,
   });
+}
+
+type RazorpayCartInput = {
+  lines: Array<{ offerId: string; quantity: number }>;
+  email: string;
+  mobile?: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  city: string;
+  postalCode: string;
+  promoCode?: string;
+  channel: "b2c" | "b2b";
+  regionId: string;
+  customerEmail?: string;
+  businessAccountId?: string;
+};
+
+async function razorpayCapturedPayment(orderId: string): Promise<{
+  id: string;
+  status: string;
+  amount: number;
+  currency: string;
+} | null> {
+  if (!config.razorpayKeyId || !config.razorpayKeySecret) {
+    throw new Error("Razorpay is not configured.");
+  }
+  const auth = Buffer.from(
+    `${config.razorpayKeyId}:${config.razorpayKeySecret}`,
+  ).toString("base64");
+  const response = await fetch(
+    `https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}/payments`,
+    {
+      headers: { authorization: `Basic ${auth}`, accept: "application/json" },
+    },
+  );
+  if (!response.ok) throw new Error(`Razorpay order lookup failed (${response.status}).`);
+  const data = (await response.json()) as {
+    items?: Array<{ id: string; status: string; amount: number; currency: string }>;
+  };
+  const payments = data.items ?? [];
+  return (
+    payments.find((payment) => payment.status === "captured") ??
+    payments.find((payment) => payment.status === "authorized") ??
+    null
+  );
+}
+
+type CheckoutTokenPayload = {
+  cartId: string;
+  collectionId: string;
+  sessionId: string;
+  email: string;
+  mobile: string;
+  exp: number;
+};
+
+function signCheckoutToken(payload: CheckoutTokenPayload): string {
+  const secret = config.razorpayKeySecret;
+  if (!secret) throw new Error("Razorpay is not configured.");
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", secret).update(body).digest("base64url");
+  return `${body}.${signature}`;
+}
+
+function verifyCheckoutToken(token: string): CheckoutTokenPayload | null {
+  const secret = config.razorpayKeySecret;
+  if (!secret) return null;
+  const [body, signature] = token.split(".");
+  if (!body || !signature) return null;
+  const expected = createHmac("sha256", secret).update(body).digest("base64url");
+  if (
+    expected.length !== signature.length ||
+    !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  ) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString()) as CheckoutTokenPayload;
+    if (
+      !payload.cartId ||
+      !payload.collectionId ||
+      !payload.sessionId ||
+      !payload.email ||
+      !payload.mobile ||
+      payload.exp < Date.now()
+    ) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/** Create the cart, delivery and Razorpay order before the browser opens Checkout. */
+async function prepareRazorpayCart(input: RazorpayCartInput): Promise<{
+  cart: StoreCart;
+  collection: StorePaymentCollection;
+  session: StorePaymentSession;
+  orderId: string;
+  keyId: string;
+  amountMinor: number;
+  currency: string;
+}> {
+  const cart = await medusa.createCart(
+    input.regionId,
+    "inr",
+    input.customerEmail ? { customerEmail: input.customerEmail } : {},
+  );
+  await medusa.updateCartMetadata(cart.id, {
+    ...(cart.metadata ?? {}),
+    channel: input.channel,
+    ...(input.channel === "b2b" && input.businessAccountId
+      ? { business_account_id: input.businessAccountId }
+      : {}),
+    ...(input.mobile ? { guest_mobile: input.mobile } : {}),
+  });
+  for (const line of input.lines) {
+    await medusa.addLineItem(cart.id, line.offerId, line.quantity);
+  }
+  const withOffer = await applyAutomaticOffer(cart.id, await medusa.getCart(cart.id));
+  await medusa.updateCartCustomerDetails(cart.id, {
+    email: input.email,
+    shipping_address: {
+      first_name: input.firstName,
+      last_name: input.lastName,
+      address_1: input.address1,
+      city: input.city,
+      postal_code: input.postalCode,
+      country_code: "in",
+      ...(input.mobile ? { phone: input.mobile } : {}),
+    },
+  });
+  if (input.promoCode) {
+    for (const code of appliedPromotionCodes(withOffer)) {
+      try {
+        await medusa.removePromotion(cart.id, code);
+      } catch {
+        // The add below still validates what the engine grants.
+      }
+    }
+    const applied = await medusa.addPromotion(cart.id, input.promoCode);
+    if (!hasPromotionCode(applied, input.promoCode)) {
+      throw Object.assign(new Error("That promo code is not eligible for this order."), {
+        code: "promotion-rejected",
+      });
+    }
+  }
+  const delivered = await applyDeliveryForCart(cart.id);
+  const collection = await medusa.createPaymentCollection(cart.id);
+  const withSession = await medusa.createPaymentSession(
+    collection.id,
+    RAZORPAY_PAYMENT_PROVIDER_ID,
+  );
+  const session = withSession.payment_sessions.find(
+    (candidate) => candidate.provider_id === RAZORPAY_PAYMENT_PROVIDER_ID,
+  );
+  if (!session) throw new Error("Razorpay payment session was not created.");
+  const orderId = String(session.data?.razorpay_order_id ?? "");
+  const keyId = String(session.data?.razorpay_key_id ?? "");
+  if (!orderId || !keyId) {
+    throw new Error("Razorpay order id or public key is missing.");
+  }
+  await medusa.updateCartMetadata(cart.id, {
+    ...(delivered.metadata ?? {}),
+    razorpay_order_id: orderId,
+    razorpay_payment_session_id: session.id,
+  });
+  return {
+    cart: delivered,
+    collection: withSession,
+    session,
+    orderId,
+    keyId,
+    amountMinor: Math.round(Number(session.amount ?? 0) * 100),
+    currency: String(session.data?.razorpay_currency ?? "INR").toUpperCase(),
+  };
 }
 
 async function handle(req: Request, url: URL, cid: string): Promise<Response> {
@@ -4684,6 +4915,318 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       }, 422);
     } catch (error) {
       return problem(502, "upstream-error", (error as Error).message);
+    }
+  }
+
+  // POST /v1/checkouts/razorpay/start — create the cart and Razorpay order.
+  if (url.pathname === "/v1/checkouts/razorpay/start" && req.method === "POST") {
+    if (config.paymentAdapterMode !== "provider" || !config.razorpayKeySecret) {
+      return problem(503, "razorpay-not-configured", "Razorpay is not enabled.");
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON checkout body.");
+    }
+    const requestedChannel = body.channel === "b2b" ? "b2b" : "b2c";
+    const rawLines = Array.isArray(body.lines) ? body.lines : [];
+    const lines = rawLines
+      .map((line) => {
+        if (!line || typeof line !== "object") return null;
+        const entry = line as { offerId?: unknown; quantity?: unknown; channel?: unknown };
+        const offerId = typeof entry.offerId === "string" ? entry.offerId.trim() : "";
+        const quantity = Number(entry.quantity);
+        if (!offerId || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+          return null;
+        }
+        return {
+          offerId,
+          quantity,
+          channel: entry.channel === "b2b" ? "b2b" : "b2c",
+        };
+      })
+      .filter(
+        (line): line is { offerId: string; quantity: number; channel: "b2c" | "b2b" } =>
+          line !== null,
+      );
+    if (lines.length === 0) return problem(400, "empty-cart", "The cart is empty.");
+    if (lines.length > 30) return problem(400, "too-many-lines", "This cart has too many lines.");
+    if (new Set(lines.map((line) => line.channel)).size !== 1 || lines[0].channel !== requestedChannel) {
+      return problem(400, "mixed-cart", "The cart channel does not match its items.");
+    }
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const firstName =
+      typeof body.firstName === "string" ? body.firstName.trim().slice(0, 80) : "";
+    const lastName =
+      typeof body.lastName === "string" ? body.lastName.trim().slice(0, 80) : "";
+    const address1 =
+      typeof body.address1 === "string" ? body.address1.trim().slice(0, 240) : "";
+    const city = typeof body.city === "string" ? body.city.trim().slice(0, 120) : "";
+    const postalCode =
+      typeof body.postalCode === "string"
+        ? body.postalCode.replace(/\D/g, "").slice(0, 6)
+        : "";
+    if (!email || !firstName || !lastName || !address1 || !city || !/^\d{6}$/.test(postalCode)) {
+      return problem(
+        400,
+        "invalid-customer-details",
+        "Email, name, address, city and a six-digit postal code are required.",
+      );
+    }
+    const token = bearerToken(req);
+    let authenticated: Exclude<AuthenticationResult, { response: Response }> | null = null;
+    if (token) {
+      const candidate = await authenticate(req);
+      if ("response" in candidate) return candidate.response;
+      authenticated = candidate;
+      if (!hasAnyRole(authenticated.authorization, [
+        "customer",
+        "b2b_buyer",
+        "b2b_account_admin",
+        "b2b_approver",
+      ])) {
+        return problem(403, "checkout-forbidden", "This account cannot check out.");
+      }
+    }
+    if (!authenticated && requestedChannel !== "b2c") {
+      return problem(403, "sign-in-required", "Sign in to place a trade order.");
+    }
+    if (authenticated && requestedChannel === "b2b" && !isBusinessBuyer(authenticated.authorization)) {
+      return problem(403, "trade-access-required", "A trade-enabled account is required.");
+    }
+    const effectiveEmail = authenticated?.user.email ?? email;
+    if (authenticated && email && email !== effectiveEmail.toLowerCase()) {
+      return problem(403, "identity-mismatch", "Checkout email must match the signed-in account.");
+    }
+    const rawMobile = typeof body.mobile === "string" ? body.mobile : "";
+    const mobile = rawMobile ? normalizeIndianMobile(rawMobile) : null;
+    if (!authenticated && !mobile) {
+      return problem(400, "mobile-required", "A valid Indian mobile number is required.");
+    }
+    try {
+      const prepared = await prepareRazorpayCart({
+        lines: lines.map((line) => ({ offerId: line.offerId, quantity: line.quantity })),
+        email: effectiveEmail,
+        mobile: mobile ?? undefined,
+        firstName,
+        lastName,
+        address1,
+        city,
+        postalCode,
+        promoCode:
+          typeof body.promoCode === "string"
+            ? body.promoCode.trim().slice(0, 40) || undefined
+            : undefined,
+        channel: requestedChannel,
+        regionId: authenticated ? regionFor(authenticated.authorization) : config.medusaRegionId,
+        customerEmail: authenticated?.user.email,
+        businessAccountId: authenticated?.authorization.businessAccountId,
+      });
+      if (authenticated) {
+        await correlation.link(prepared.cart.id, { ownerUserId: authenticated.user.id });
+      }
+      const checkoutToken =
+        authenticated
+          ? null
+          : signCheckoutToken({
+              cartId: prepared.cart.id,
+              collectionId: prepared.collection.id,
+              sessionId: prepared.session.id,
+              email: effectiveEmail,
+              mobile: mobile!,
+              exp: Date.now() + 30 * 60 * 1000,
+            });
+      return json(
+        {
+          cart_id: prepared.cart.id,
+          payment_collection_id: prepared.collection.id,
+          payment_session_id: prepared.session.id,
+          razorpay_order_id: prepared.orderId,
+          razorpay_key_id: prepared.keyId,
+          amount_minor: prepared.amountMinor,
+          currency: prepared.currency,
+          checkout_token: checkoutToken,
+          test_data: prepared.keyId.startsWith("rzp_test"),
+          environment: config.environment,
+          correlation_id: cid,
+        },
+        201,
+      );
+    } catch (error) {
+      if ((error as { code?: string }).code === "promotion-rejected") {
+        return problem(400, "promotion-rejected", "That promo code is not eligible for this cart.");
+      }
+      return problem(502, "razorpay-start-failed", (error as Error).message);
+    }
+  }
+
+  // POST /v1/checkouts/razorpay/confirm — verify the Razorpay signature and complete the order.
+  if (url.pathname === "/v1/checkouts/razorpay/confirm" && req.method === "POST") {
+    if (config.paymentAdapterMode !== "provider" || !config.razorpayKeySecret) {
+      return problem(503, "razorpay-not-configured", "Razorpay is not enabled.");
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON confirmation body.");
+    }
+    const cartId = typeof body.cart_id === "string" ? body.cart_id.trim() : "";
+    const collectionId =
+      typeof body.payment_collection_id === "string"
+        ? body.payment_collection_id.trim()
+        : "";
+    const sessionId =
+      typeof body.payment_session_id === "string" ? body.payment_session_id.trim() : "";
+    const paymentId =
+      typeof body.razorpay_payment_id === "string"
+        ? body.razorpay_payment_id.trim()
+        : "";
+    const orderId =
+      typeof body.razorpay_order_id === "string" ? body.razorpay_order_id.trim() : "";
+    const signature =
+      typeof body.razorpay_signature === "string"
+        ? body.razorpay_signature.trim()
+        : "";
+    if (!cartId || !collectionId || !sessionId || !paymentId || !orderId || !signature) {
+      return problem(
+        400,
+        "invalid-razorpay-confirmation",
+        "Cart, payment session, payment, order and signature are required.",
+      );
+    }
+    const expectedSignature = createHmac("sha256", config.razorpayKeySecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+    if (
+      expectedSignature.length !== signature.length ||
+      !timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature))
+    ) {
+      return problem(400, "invalid-razorpay-signature", "Razorpay signature verification failed.");
+    }
+    const bearer = bearerToken(req);
+    let authenticated: Exclude<AuthenticationResult, { response: Response }> | null = null;
+    if (bearer) {
+      const candidate = await authenticate(req);
+      if ("response" in candidate) return candidate.response;
+      authenticated = candidate;
+    }
+    let guest:
+      | { email: string; mobile: string }
+      | undefined;
+    if (!authenticated) {
+      const checkoutToken =
+        typeof body.checkout_token === "string" ? body.checkout_token.trim() : "";
+      const payload = checkoutToken ? verifyCheckoutToken(checkoutToken) : null;
+      if (
+        !payload ||
+        payload.cartId !== cartId ||
+        payload.collectionId !== collectionId ||
+        payload.sessionId !== sessionId
+      ) {
+        return problem(401, "checkout-token-invalid", "The guest checkout session is invalid.");
+      }
+      guest = { email: payload.email, mobile: payload.mobile };
+    } else {
+      const owner = await authorizeCheckoutOwner(req, cartId);
+      if ("response" in owner) return owner.response;
+    }
+    const cart = await medusa.getCart(cartId);
+    if (String(cart.metadata?.razorpay_order_id ?? "") !== orderId) {
+      return problem(409, "razorpay-order-mismatch", "The Razorpay order does not match this cart.");
+    }
+    return completeCanonicalCart({
+      cartId,
+      regionId: authenticated
+        ? regionFor(authenticated.authorization)
+        : config.medusaRegionId,
+      cid,
+      ownerUserId: authenticated?.user.id,
+      guest,
+      payment: {
+        collectionId,
+        sessionId,
+        providerId: RAZORPAY_PAYMENT_PROVIDER_ID,
+        providerPaymentId: paymentId,
+        providerStatus: "captured",
+      },
+    });
+  }
+
+  // POST /v1/checkouts/razorpay/status — fallback when Razorpay's browser callback is delayed
+  // or blocked. It only completes when Razorpay reports a captured/authorized payment.
+  if (url.pathname === "/v1/checkouts/razorpay/status" && req.method === "POST") {
+    if (config.paymentAdapterMode !== "provider") {
+      return problem(503, "razorpay-not-configured", "Razorpay is not enabled.");
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON status body.");
+    }
+    const cartId = typeof body.cart_id === "string" ? body.cart_id.trim() : "";
+    const collectionId =
+      typeof body.payment_collection_id === "string"
+        ? body.payment_collection_id.trim()
+        : "";
+    const sessionId =
+      typeof body.payment_session_id === "string" ? body.payment_session_id.trim() : "";
+    if (!cartId || !collectionId || !sessionId) {
+      return problem(400, "invalid-razorpay-status", "Cart, payment collection and session are required.");
+    }
+    const bearer = bearerToken(req);
+    let authenticated: Exclude<AuthenticationResult, { response: Response }> | null = null;
+    if (bearer) {
+      const candidate = await authenticate(req);
+      if ("response" in candidate) return candidate.response;
+      authenticated = candidate;
+    }
+    let guest: { email: string; mobile: string } | undefined;
+    if (!authenticated) {
+      const checkoutToken =
+        typeof body.checkout_token === "string" ? body.checkout_token.trim() : "";
+      const payload = checkoutToken ? verifyCheckoutToken(checkoutToken) : null;
+      if (
+        !payload ||
+        payload.cartId !== cartId ||
+        payload.collectionId !== collectionId ||
+        payload.sessionId !== sessionId
+      ) {
+        return problem(401, "checkout-token-invalid", "The guest checkout session is invalid.");
+      }
+      guest = { email: payload.email, mobile: payload.mobile };
+    } else {
+      const owner = await authorizeCheckoutOwner(req, cartId);
+      if ("response" in owner) return owner.response;
+    }
+    const cart = await medusa.getCart(cartId);
+    const orderId = String(cart.metadata?.razorpay_order_id ?? "");
+    if (!orderId) {
+      return problem(409, "razorpay-order-missing", "This cart has no Razorpay order.");
+    }
+    try {
+      const captured = await razorpayCapturedPayment(orderId);
+      if (!captured) return json({ status: "pending" });
+      return completeCanonicalCart({
+        cartId,
+        regionId: authenticated
+          ? regionFor(authenticated.authorization)
+          : config.medusaRegionId,
+        cid,
+        ownerUserId: authenticated?.user.id,
+        guest,
+        payment: {
+          collectionId,
+          sessionId,
+          providerId: RAZORPAY_PAYMENT_PROVIDER_ID,
+          providerPaymentId: captured.id,
+          providerStatus: captured.status,
+        },
+      });
+    } catch (error) {
+      return problem(502, "razorpay-status-failed", (error as Error).message);
     }
   }
 

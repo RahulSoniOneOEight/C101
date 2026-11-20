@@ -15,10 +15,16 @@ export default async function CheckoutPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(PILOT_SESSION_COOKIE)?.value;
   const defaultEmail = token ? cookieStore.get(EMAIL_HINT_COOKIE)?.value ?? "" : "";
+  const paymentMode =
+    process.env.PAYMENT_ADAPTER_MODE === "provider" ? "provider" : "simulated";
 
   return (
     <section className="checkout-page">
-      <CheckoutForm defaultEmail={defaultEmail} signedIn={Boolean(token)} />
+      <CheckoutForm
+        defaultEmail={defaultEmail}
+        signedIn={Boolean(token)}
+        paymentMode={paymentMode}
+      />
     </section>
   );
 }

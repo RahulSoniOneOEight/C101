@@ -49,15 +49,37 @@ function CheckoutSteps({ current }: { current: 1 | 2 | 3 }) {
   );
 }
 
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
+
+function loadRazorpay(): Promise<void> {
+  if (typeof window === "undefined") return Promise.reject(new Error("Browser required."));
+  if (window.Razorpay) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Razorpay Checkout could not be loaded."));
+    document.body.appendChild(script);
+  });
+}
+
 export function CheckoutForm({
   defaultEmail,
   signedIn,
+  paymentMode,
 }: {
   defaultEmail: string;
   signedIn: boolean;
+  paymentMode: "simulated" | "provider";
 }) {
   const { items, ready, subtotalMinor, currency, clear } = useCart();
   const idempotencyKeyRef = useRef("");
+  const razorpayPollRef = useRef<number | null>(null);
   const cartChannels = new Set(items.map((item) => item.channel ?? "b2c"));
   const cartChannel =
     cartChannels.size === 1 ? (Array.from(cartChannels)[0] as "b2c" | "b2b") : null;
@@ -69,6 +91,14 @@ export function CheckoutForm({
   const [appliedPromo, setAppliedPromo] = useState("");
   const [promoError, setPromoError] = useState("");
   const linesKey = items.map((item) => `${item.offerId}:${item.quantity}`).join("|");
+
+  useEffect(() => {
+    return () => {
+      if (razorpayPollRef.current !== null) {
+        window.clearInterval(razorpayPollRef.current);
+      }
+    };
+  }, []);
 
   // The home delivery selector is the source of truth for this browser. It pre-fills the quote
   // postcode and the city field, while the customer still enters the street address.
@@ -181,6 +211,209 @@ export function CheckoutForm({
     setPromoDraft("");
   }
 
+  function finishOrder(data: {
+    error?: string;
+    type?: string;
+    order_group?: { id: string };
+    order_number?: string | null;
+    total_minor?: number | null;
+    payment?: { payment_mode?: string; test_data?: boolean };
+  }) {
+    const provider = data.payment?.payment_mode === "provider";
+    const simulated = data.payment?.payment_mode === "simulated";
+    if (
+      data.type !== "order_group" ||
+      !data.order_group?.id ||
+      (!provider && !simulated) ||
+      (simulated && data.payment?.test_data !== true)
+    ) {
+      setState({
+        status: "error",
+        message: "Server did not return a canonical paid order.",
+      });
+      return;
+    }
+    clear();
+    setState({
+      status: "done",
+      orderGroupId: data.order_group.id,
+      orderNumber: data.order_number ?? null,
+      orderType: data.type,
+      totalMinor: data.total_minor ?? quoted?.total ?? null,
+    });
+  }
+
+  async function startRazorpayPayment(form: FormData) {
+    setState({ status: "busy" });
+    try {
+      const lines = items.map((item) => ({
+        offerId: item.offerId,
+        quantity: item.quantity,
+        channel: item.channel ?? "b2c",
+      }));
+      const startResponse = await fetch("/api/checkout/razorpay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          action: "start",
+          lines,
+          email: form.get("email"),
+          mobile: form.get("mobile"),
+          firstName: form.get("firstName"),
+          lastName: form.get("lastName"),
+          address1: form.get("address1"),
+          city: form.get("city"),
+          postalCode: form.get("postalCode"),
+          promoCode: appliedPromo || undefined,
+          channel: cartChannel,
+        }),
+      });
+      const start = (await startResponse.json()) as {
+        error?: string;
+        cart_id?: string;
+        payment_collection_id?: string;
+        payment_session_id?: string;
+        razorpay_order_id?: string;
+        razorpay_key_id?: string;
+        amount_minor?: number;
+        currency?: string;
+        checkout_token?: string | null;
+      };
+      if (
+        !startResponse.ok ||
+        !start.cart_id ||
+        !start.payment_collection_id ||
+        !start.payment_session_id ||
+        !start.razorpay_order_id ||
+        !start.razorpay_key_id
+      ) {
+        throw new Error(start.error ?? "Razorpay checkout could not be started.");
+      }
+      await loadRazorpay();
+      if (!window.Razorpay) throw new Error("Razorpay Checkout is unavailable.");
+      const first = String(form.get("firstName") ?? "");
+      const last = String(form.get("lastName") ?? "");
+      const mobile = String(form.get("mobile") ?? "");
+      const checkStatus = async (): Promise<boolean> => {
+        const statusResponse = await fetch("/api/checkout/razorpay", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action: "status",
+            cartId: start.cart_id,
+            paymentCollectionId: start.payment_collection_id,
+            paymentSessionId: start.payment_session_id,
+            checkoutToken: start.checkout_token,
+          }),
+        });
+        if (!statusResponse.ok) return false;
+        const status = (await statusResponse.json()) as {
+          type?: string;
+          order_group?: { id: string };
+          order_number?: string | null;
+          total_minor?: number | null;
+          payment?: { payment_mode?: string; test_data?: boolean };
+        };
+        if (status.type !== "order_group") return false;
+        if (razorpayPollRef.current !== null) {
+          window.clearInterval(razorpayPollRef.current);
+          razorpayPollRef.current = null;
+        }
+        finishOrder(status);
+        return true;
+      };
+      const checkout = new window.Razorpay({
+        key: start.razorpay_key_id,
+        amount: start.amount_minor,
+        currency: start.currency ?? "INR",
+        name: "BazarBee",
+        description: "BazarBee order payment",
+        order_id: start.razorpay_order_id,
+        prefill: {
+          name: `${first} ${last}`.trim(),
+          email: String(form.get("email") ?? ""),
+          contact: mobile,
+        },
+        theme: { color: "#5b6ee1" },
+        handler: async (response: {
+          razorpay_payment_id?: string;
+          razorpay_order_id?: string;
+          razorpay_signature?: string;
+        }) => {
+          try {
+            if (
+              !response.razorpay_payment_id ||
+              !response.razorpay_order_id ||
+              !response.razorpay_signature
+            ) {
+              throw new Error("Razorpay did not return a complete payment result.");
+            }
+            const confirmResponse = await fetch("/api/checkout/razorpay", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                action: "confirm",
+                cartId: start.cart_id,
+                paymentCollectionId: start.payment_collection_id,
+                paymentSessionId: start.payment_session_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+                checkoutToken: start.checkout_token,
+              }),
+            });
+            const confirmed = (await confirmResponse.json()) as {
+              error?: string;
+              type?: string;
+              order_group?: { id: string };
+              order_number?: string | null;
+              total_minor?: number | null;
+              payment?: { payment_mode?: string; test_data?: boolean };
+            };
+            if (!confirmResponse.ok) {
+              throw new Error(confirmed.error ?? "Payment could not be confirmed.");
+            }
+            if (razorpayPollRef.current !== null) {
+              window.clearInterval(razorpayPollRef.current);
+              razorpayPollRef.current = null;
+            }
+            finishOrder(confirmed);
+          } catch (error) {
+            setState({ status: "error", message: (error as Error).message });
+          }
+        },
+        modal: {
+          ondismiss: async () => {
+            if (razorpayPollRef.current !== null) {
+              window.clearInterval(razorpayPollRef.current);
+              razorpayPollRef.current = null;
+            }
+            try {
+              if (await checkStatus()) return;
+            } catch {
+              // Fall through to the cancellation message.
+            }
+            setState({ status: "error", message: "Payment was cancelled." });
+          },
+        },
+      });
+      checkout.open();
+      const startedAt = Date.now();
+      razorpayPollRef.current = window.setInterval(() => {
+        if (Date.now() - startedAt > 5 * 60 * 1000) {
+          if (razorpayPollRef.current !== null) {
+            window.clearInterval(razorpayPollRef.current);
+            razorpayPollRef.current = null;
+          }
+          return;
+        }
+        void checkStatus().catch(() => undefined);
+      }, 2500);
+    } catch (error) {
+      setState({ status: "error", message: (error as Error).message });
+    }
+  }
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (items.length === 0) return;
@@ -195,6 +428,10 @@ export function CheckoutForm({
     const form = new FormData(event.currentTarget);
     if (!signedIn && !idempotencyKeyRef.current) {
       idempotencyKeyRef.current = crypto.randomUUID();
+    }
+    if (paymentMode === "provider") {
+      await startRazorpayPayment(form);
+      return;
     }
     setState({ status: "busy" });
     try {
@@ -238,23 +475,8 @@ export function CheckoutForm({
         return;
       }
       // Success is the server's canonical simulated order group — never assumed client-side.
-      if (
-        data.type !== "order_group" ||
-        !data.order_group?.id ||
-        data.payment?.payment_mode !== "simulated" ||
-        data.payment?.test_data !== true
-      ) {
-        setState({ status: "error", message: "Server did not return a canonical simulated order." });
-        return;
-      }
-      clear();
-      setState({
-        status: "done",
-        orderGroupId: data.order_group.id,
-        orderNumber: data.order_number ?? null,
-        orderType: data.type,
-        totalMinor: data.total_minor ?? quoted?.total ?? null,
-      });
+      // Success is the server's canonical paid order — never assumed client-side.
+      finishOrder(data);
     } catch (error) {
       setState({ status: "error", message: (error as Error).message });
     }
@@ -273,8 +495,8 @@ export function CheckoutForm({
             ? `The Experience API returned a canonical ${state.orderType.replaceAll(
                 "_",
                 " ",
-              )} with a simulated payment. Your owner-scoped tracking is available in Orders.`
-            : "Your guest order is confirmed with a simulated payment. No sign-in account or password was created. Keep this reference for support; the mobile you entered is recorded for delivery."}
+              )} with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. Your owner-scoped tracking is available in Orders.`
+            : `Your guest order is confirmed with a ${paymentMode === "provider" ? "Razorpay" : "simulated"} payment. No sign-in account or password was created. Keep this reference for support; the mobile you entered is recorded for delivery.`}
         </p>
         <div className="order-reference">
           <span>Order reference</span>
@@ -289,7 +511,7 @@ export function CheckoutForm({
           ) : null}
           <div>
             <dt>Payment</dt>
-            <dd>Simulated payment · test data</dd>
+            <dd>{paymentMode === "provider" ? "Razorpay" : "Simulated payment · test data"}</dd>
           </div>
           <div>
             <dt>Delivery</dt>
@@ -524,16 +746,23 @@ export function CheckoutForm({
 
         <div className="checkout-block">
           <span className="eyebrow">Payment</span>
-          <h2>Simulated prepaid payment</h2>
+          <h2>
+            {paymentMode === "provider" ? "Pay securely with Razorpay" : "Simulated prepaid payment"}
+          </h2>
           <p className="muted">
-            This staging pilot records a simulated payment only. No card is charged and no money
-            moves.
+            {paymentMode === "provider"
+              ? "You will complete payment on Razorpay. The order is created only after the payment signature is verified and captured."
+              : "This staging pilot records a simulated payment only. No card is charged and no money moves."}
           </p>
           <div className="payment-choice">
             <span className="payment-radio" aria-hidden="true">●</span>
             <div>
-              <strong>Simulated prepaid</strong>
-              <p>Server-verified test payment · no production effect</p>
+              <strong>{paymentMode === "provider" ? "Razorpay prepaid" : "Simulated prepaid"}</strong>
+              <p>
+                {paymentMode === "provider"
+                  ? "UPI, cards, net banking and wallets"
+                  : "Server-verified test payment · no production effect"}
+              </p>
             </div>
             <span className="status-pill">Selected</span>
           </div>
@@ -552,9 +781,13 @@ export function CheckoutForm({
           disabled={state.status === "busy" || !cartChannel}
         >
           {state.status === "busy"
-            ? "Placing your order…"
+            ? paymentMode === "provider"
+              ? "Opening Razorpay…"
+              : "Placing your order…"
             : quoted
-              ? `Place order · ${formatMoney(quoted.total, summaryCurrency)}`
+              ? paymentMode === "provider"
+                ? `Pay ${formatMoney(quoted.total, summaryCurrency)} with Razorpay`
+                : `Place order — ${formatMoney(quoted.total, summaryCurrency)}`
               : "Place order"}
         </button>
         <p className="field-hint checkout-terms">

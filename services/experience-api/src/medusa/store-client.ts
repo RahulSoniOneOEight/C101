@@ -61,6 +61,7 @@ export interface StoreProductCategory {
 }
 
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
+export const RAZORPAY_PAYMENT_PROVIDER_ID = "pp_razorpay_razorpay";
 
 export interface StoreOffer {
   id: string;
@@ -424,6 +425,13 @@ export class MedusaStoreClient {
       { option_id: optionId },
     );
     return data.cart;
+  }
+
+  async getPaymentCollection(paymentCollectionId: string): Promise<StorePaymentCollection> {
+    const data = await this.getJson<{ payment_collection: StorePaymentCollection }>(
+      `/store/payment-collections/${encodeURIComponent(paymentCollectionId)}`,
+    );
+    return data.payment_collection;
   }
 
   async createPaymentSession(

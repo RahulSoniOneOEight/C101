@@ -1,4 +1,5 @@
 export const SIMULATED_PAYMENT_PROVIDER_ID = "pp_simulated_simulated";
+export const RAZORPAY_PAYMENT_PROVIDER_ID = "pp_razorpay_razorpay";
 
 export type PaymentAdapterMode = "simulated" | "provider";
 
@@ -6,6 +7,7 @@ export interface PaymentRuntime {
   environment: string;
   mode: PaymentAdapterMode;
   simulatedProviderEnabled: boolean;
+  providerEnabled: boolean;
 }
 
 /**
@@ -31,9 +33,18 @@ export function resolvePaymentRuntime(
     );
   }
 
+  if (mode === "provider") {
+    if (!env.RAZORPAY_KEY_ID?.trim() || !env.RAZORPAY_KEY_SECRET?.trim()) {
+      throw new Error(
+        "PAYMENT_ADAPTER_MODE=provider requires RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.",
+      );
+    }
+  }
+
   return {
     environment,
     mode,
     simulatedProviderEnabled: mode === "simulated",
+    providerEnabled: mode === "provider",
   };
 }
