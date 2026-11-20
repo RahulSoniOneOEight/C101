@@ -107,12 +107,24 @@ gate.
 
 | Check | Result |
 |---|---|
-| Supplied Cloudflare API token | `401 Invalid API Token` — cannot query accounts, Access apps, groups or IdPs |
+| Supplied API token | Account reads succeed; `/user/tokens/verify` returns 401 but `GET /accounts/{id}` returns 200, so the token is account-scoped rather than a user token |
+| Account | `Gobazarbee@gmail.com's Account` (`a6f468c20d83314a619ce00e7c5a8ddd`) |
+| Zones | **0 zones** in the account |
+| Cloudflare Access | **Not enabled** — `access.api.error.not_enabled`; apps, groups and IdPs cannot be listed |
 | `gobazarbee.com` nameservers | Hostinger parking (`horizon/orbit.dns-parking.com`), not Cloudflare |
-| `pinakaplay.cloud` nameservers | Hostinger parking (`aurora/nebula.dns-parking.com`) |
-| `ops-staging.pinakaplay.cloud` | resolves to `89.116.20.164`, served directly by nginx; no `cf-ray`, no Access redirect |
-| `bazarbee.com` | resolves to `74.220.199.6`; connection times out, not serving the app |
+| `ops-staging.pinakaplay.cloud` | direct nginx on `89.116.20.164`; no `cf-ray`, no Access redirect |
+| `bazarbee.com` | resolves to `74.220.199.6`; connection times out |
 
-Access cannot be enabled until the zone is on Cloudflare nameservers and the ops host is proxied
-through Cloudflare (orange cloud or Tunnel). A valid API token with Access: Apps/Groups/IdP read-write
-is also required.
+### Required order
+
+1. In the Cloudflare dashboard, open **Zero Trust / Access** and click **Enable Access** for the
+   account. Choose the team domain.
+2. Add the zone (`gobazarbee.com`, and the production domain) to this Cloudflare account.
+3. Change the registrar nameservers to the Cloudflare pair.
+4. Proxy the ops hostname through Cloudflare (orange cloud or Tunnel).
+5. Create the IdP (Google Workspace or Entra) and the Access groups.
+6. Create the three Access applications and policies.
+7. Re-issue the API token with Access: Apps/Groups/IdP **Edit** so the configuration can be automated.
+
+Until Access is enabled, the admin/seller/ERP hosts remain protected only by nginx and application
+passwords.
