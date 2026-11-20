@@ -555,7 +555,7 @@ async function optionalAuthorization(req: Request): Promise<PilotAuthorization |
   if (!token) return undefined;
   try {
     const userId = await pilotAuth.resolveSession(token);
-    if (!userId) return undefined;
+    if (!userId || !pilotDirectory.get(userId)) return undefined;
     const override = await pilotAccess.get(userId).catch(() => undefined);
     return override ?? pilotAuthorizations.get(userId);
   } catch {

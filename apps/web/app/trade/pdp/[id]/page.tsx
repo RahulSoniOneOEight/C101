@@ -250,9 +250,14 @@ export default async function TradePdpPage({
               <p className="muted">This item</p>
               <p className="card-title">{product.title}</p>
               {offer ? (
-                <p className="price">
-                  {formatMoney(offer.unit_amount_minor, offer.currency_code)}
-                </p>
+                <>
+                  <p className="price">
+                    {formatMoney(offer.unit_amount_minor, offer.currency_code)}
+                  </p>
+                  <p className="muted">
+                    MOQ {offer.b2b_moq ?? 1} · {offer.seller_name ?? offer.seller_id}
+                  </p>
+                </>
               ) : null}
             </div>
             <p className="pair-plus" aria-hidden="true">

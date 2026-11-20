@@ -19,7 +19,15 @@ VALUES
    'variant_01M637Y1SNGEJ6FXGB9ARZZEV0',
    'b2b', 'active', 1, 'pilot_superadmin01', 'pilot_superadmin01', true)
 ON CONFLICT (id) DO UPDATE
-SET channel = 'b2b', status = 'active', updated_at = now();
+SET product_a_id = EXCLUDED.product_a_id,
+    product_b_id = EXCLUDED.product_b_id,
+    variant_a_id = EXCLUDED.variant_a_id,
+    variant_b_id = EXCLUDED.variant_b_id,
+    channel = EXCLUDED.channel,
+    status = EXCLUDED.status,
+    version = bought_together_pairs.version + 1,
+    updated_by = EXCLUDED.updated_by,
+    updated_at = now();
 
 INSERT INTO bought_together_active_members
   (product_id, variant_id, member_key, channel, pair_id)
