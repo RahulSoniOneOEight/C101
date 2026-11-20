@@ -35,6 +35,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _loadingShipping = false;
   bool _bootstrapped = false;
   bool _orderPlaced = false;
+  bool _codSelected = false;
   String? _shippingError;
   String? _inlineError;
 
@@ -329,6 +330,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       return;
     }
     final address = _resolveAddress(ref.read(addressesProvider))!;
+    final checkoutAddress = address.toCheckoutAddress();
     final cart = ref.read(cartProvider).value;
     setState(() {
       _submitting = true;
@@ -353,6 +355,52 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (delivery.hasUnavailable) {
         throw StateError(
             'Delivery is not available for every seller in this cart.');
+      }
+
+      if (_codSelected) {
+        if (cart.items.any((line) => (line.offerId ?? '').isEmpty)) {
+          throw StateError(
+              'Cash on delivery needs the catalogue offer for every cart line.');
+        }
+        final cod = await client.placeCodOrder(
+          lines: cart.items
+              .map((line) => <String, dynamic>{
+                    'offerId': line.offerId,
+                    'quantity': line.quantity,
+                    'channel': 'b2c',
+                  })
+              .toList(),
+          email: _emailController.text.trim(),
+          firstName: checkoutAddress.firstName,
+          lastName: checkoutAddress.lastName,
+          address1: checkoutAddress.address1,
+          city: checkoutAddress.city,
+          postalCode: checkoutAddress.postalCode,
+          mobile: checkoutAddress.phone,
+          channel: 'b2c',
+        );
+        if (cod['type'] != 'order_group' ||
+            cod['payment']?['payment_mode'] != 'cod') {
+          throw StateError('The server did not return a canonical cash-on-delivery order.');
+        }
+        _orderPlaced = true;
+        if (!mounted) return;
+        await ref.read(cartProvider.notifier).clearAfterOrder();
+        if (!mounted) return;
+        final number = (cod['order_number'] as String?)?.trim();
+        final total = (cod['total_minor'] as num?)?.toInt();
+        context.go(
+          Uri(
+            path: '/order-confirmed',
+            queryParameters: <String, String>{
+              if (number != null && number.isNotEmpty) 'number': number,
+              if (total != null) 'total': '$total',
+              'currency': 'INR',
+              'payment': 'cod',
+            },
+          ).toString(),
+        );
+        return;
       }
 
       final result = await client.completeCart(cart.id);
@@ -507,13 +555,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           const SizedBox(height: AgencySpacing.lg),
           Text('Payment method', style: AgencyText.title),
           const SizedBox(height: AgencySpacing.sm),
-          const Card(
-            child: ListTile(
-              leading: Icon(Icons.verified_user_outlined),
-              title: Text('Simulated prepaid payment'),
-              subtitle: Text(
-                'Bounded staging pilot only · no real charge or payment gateway',
-              ),
+          Card(
+            child: Column(
+              children: <Widget>[
+                RadioListTile<bool>(
+                  value: false,
+                  groupValue: _codSelected,
+                  onChanged: (value) => setState(() => _codSelected = value ?? false),
+                  title: const Text('Prepaid (staging simulated)'),
+                  subtitle: const Text(
+                    'Bounded staging pilot only · no real charge or payment gateway',
+                  ),
+                ),
+                const Divider(height: 1),
+                RadioListTile<bool>(
+                  value: true,
+                  groupValue: _codSelected,
+                  onChanged: (value) => setState(() => _codSelected = value ?? false),
+                  title: const Text('Cash on delivery'),
+                  subtitle: const Text(
+                    'Pay the seller in cash when the order arrives. No online payment is taken.',
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AgencySpacing.md),
@@ -539,7 +603,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ],
           const SizedBox(height: AgencySpacing.md),
           Text(
-            'Simulated prepaid payment · staging only',
+            _codSelected
+                ? 'Cash on delivery · pay the seller when the order arrives'
+                : 'Simulated prepaid payment · staging only',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 11,

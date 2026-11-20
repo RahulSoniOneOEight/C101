@@ -82,6 +82,7 @@ export function CheckoutForm({
   const idempotencyKeyRef = useRef("");
   const razorpayPollRef = useRef<number | null>(null);
   const codSubmittingRef = useRef(false);
+  const codIdempotencyKeyRef = useRef("");
   const cartChannels = new Set(items.map((item) => item.channel ?? "b2c"));
   const cartChannel =
     cartChannels.size === 1 ? (Array.from(cartChannels)[0] as "b2c" | "b2b") : null;
@@ -422,11 +423,15 @@ export function CheckoutForm({
   async function placeCodOrder(form: FormData) {
     if (codSubmittingRef.current) return;
     codSubmittingRef.current = true;
+    if (!codIdempotencyKeyRef.current) codIdempotencyKeyRef.current = crypto.randomUUID();
     setState({ status: "busy" });
     try {
       const res = await fetch("/api/checkout/cod", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "idempotency-key": codIdempotencyKeyRef.current,
+        },
         body: JSON.stringify({
           lines: items.map((item) => ({
             offerId: item.offerId,

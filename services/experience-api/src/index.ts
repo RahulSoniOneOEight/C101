@@ -20,6 +20,7 @@ import { TrytonClient } from "./tryton/client.js";
 import { TrytonErp } from "./tryton/erp.js";
 import { CorrelationStore } from "./store/correlation-store.js";
 import { GuestCheckoutStore } from "./store/guest-checkout-store.js";
+import { CodStore, currentPeriod } from "./store/cod-store.js";
 import {
   normalizeIndianMobile,
   parseGuestCheckoutBody,
@@ -118,6 +119,7 @@ const erp = new TrytonErp(tryton, config.trytonUsername);
 erp.warmup().catch((e) => console.warn("[experience-api] Tryton warmup skipped:", (e as Error).message));
 const correlation = new CorrelationStore(config.experienceDatabaseUrl);
 const guestCheckout = new GuestCheckoutStore(config.experienceDatabaseUrl);
+const codStore = new CodStore(config.experienceDatabaseUrl);
 const events = new EventStore(config.experienceDatabaseUrl);
 const reservations = new ReservationStore(config.experienceDatabaseUrl);
 const inventoryRequests = new InventoryRequestStore(config.experienceDatabaseUrl);
@@ -950,6 +952,9 @@ function privilegedRoles(pathname: string): readonly PilotRole[] | null {
     )
   ) {
     return ["marketplace_operator", "support_operator", "super_admin"];
+  }
+  if (/^\/v1\/admin\/cod(?:\/|$)/.test(pathname)) {
+    return ["marketplace_operator", "finance_operator", "super_admin"];
   }
   if (/^\/v1\/admin\/(events|orders)(?:\/|$)/.test(pathname)) {
     return ["support_operator", "marketplace_operator", "erp_operator", "finance_operator", "super_admin"];
@@ -2242,11 +2247,125 @@ async function prepareRazorpayCart(input: RazorpayCartInput): Promise<{
   };
 }
 
-type CodCartInput = RazorpayCartInput;
+type CodCartInput = RazorpayCartInput & { buyerScope?: string };
 
 /** Order-value caps in paise. Server-side only; the browser cannot raise them. */
 const COD_B2C_CAP_MINOR = Number(process.env.COD_B2C_MAX_MINOR ?? "2000000");
 const COD_B2B_CAP_MINOR = Number(process.env.COD_B2B_MAX_MINOR ?? "5000000");
+const COD_BUYER_DAILY_CAP_MINOR = Number(process.env.COD_BUYER_DAILY_CAP_MINOR ?? "5000000");
+const COD_SELLER_DAILY_CAP_MINOR = Number(process.env.COD_SELLER_DAILY_CAP_MINOR ?? "20000000");
+const COD_TCS_RATE_BPS = 50;
+const BAZARBEE_GST_RATE_BPS = 1800;
+
+/**
+ * Enforce the seller policy and daily caps before a COD session exists. Every rule is evaluated
+ * server-side against the canonical cart; the client cannot opt a seller in or raise a cap.
+ */
+async function assertCodEligible(input: {
+  postalCode: string;
+  buyerScope: string;
+  totalMinor: number;
+  items: NonNullable<StoreCart["items"]>;
+}): Promise<void> {
+  const productIds = [
+    ...new Set(
+      input.items
+        .map((item) => item.product_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  const offers =
+    productIds.length > 0
+      ? await medusa.listOffersByProducts(productIds, config.medusaRegionId)
+      : [];
+  const offerById = new Map(offers.map((offer) => [offer.id, offer]));
+  const sellerOf = (item: NonNullable<StoreCart["items"]>[number]): string | null => {
+    if (typeof item.seller_id === "string" && item.seller_id) return item.seller_id;
+    const offerId = item.metadata?.offer_id;
+    return typeof offerId === "string" ? (offerById.get(offerId)?.seller_id ?? null) : null;
+  };
+  const sellerIds = [
+    ...new Set(
+      input.items
+        .map((item) => sellerOf(item))
+        .filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  if (sellerIds.length === 0) {
+    throw Object.assign(new Error("This cart has no seller eligible for cash on delivery."), {
+      code: "cod-not-eligible",
+    });
+  }
+  const policies = await Promise.all(sellerIds.map((sellerId) => codStore.getPolicy(sellerId)));
+  for (let index = 0; index < sellerIds.length; index += 1) {
+    const policy = policies[index];
+    if (!policy?.enabled) {
+      throw Object.assign(
+        new Error("Cash on delivery is not enabled for a seller in this cart."),
+        { code: "cod-not-eligible" },
+      );
+    }
+    if (policy.pincodes.length > 0 && !policy.pincodes.includes(input.postalCode)) {
+      throw Object.assign(
+        new Error("Cash on delivery is not available for this delivery postcode."),
+        { code: "cod-not-eligible" },
+      );
+    }
+    if (policy.max_order_minor && input.totalMinor > Number(policy.max_order_minor)) {
+      throw Object.assign(
+        new Error("This order is above the seller's cash-on-delivery limit."),
+        { code: "cod-not-eligible" },
+      );
+    }
+    const sellerCap = policy.seller_daily_cap_minor
+      ? Number(policy.seller_daily_cap_minor)
+      : COD_SELLER_DAILY_CAP_MINOR;
+    if (
+      sellerCap > 0 &&
+      (await codStore.sellerDailyTotal(sellerIds[index])) + input.totalMinor > sellerCap
+    ) {
+      throw Object.assign(
+        new Error("This seller has reached today's cash-on-delivery limit."),
+        { code: "cod-not-eligible" },
+      );
+    }
+  }
+
+  const buyerCap =
+    policies
+      .map((policy) => (policy?.buyer_daily_cap_minor ? Number(policy.buyer_daily_cap_minor) : null))
+      .filter((value): value is number => value !== null)
+      .sort((left, right) => left - right)[0] ?? COD_BUYER_DAILY_CAP_MINOR;
+  if (buyerCap > 0 && (await codStore.buyerDailyTotal(input.buyerScope)) + input.totalMinor > buyerCap) {
+    throw Object.assign(new Error("Today's cash-on-delivery limit for this buyer is reached."), {
+      code: "cod-not-eligible",
+    });
+  }
+
+  const categoryCache = new Map<string, string[]>();
+  for (const item of input.items) {
+    const sellerId = sellerOf(item) ?? "";
+    const policy = policies[sellerIds.indexOf(sellerId)];
+    if (!policy || policy.blocked_category_ids.length === 0 || !item.product_id) continue;
+    let categoryIds = categoryCache.get(item.product_id);
+    if (!categoryIds) {
+      try {
+        const product = await medusa.getProduct(item.product_id);
+        categoryIds = (product.categories ?? []).map((category) => category.id);
+      } catch {
+        categoryIds = [];
+      }
+      categoryCache.set(item.product_id, categoryIds);
+    }
+    if (categoryIds.some((id) => policy.blocked_category_ids.includes(id))) {
+      throw Object.assign(
+        new Error("Cash on delivery is not available for a product in this cart."),
+        { code: "cod-not-eligible" },
+      );
+    }
+  }
+}
+
 
 /**
  * Build a COD cart and authorise a cash-due session. The order is completed immediately, but no
@@ -2326,6 +2445,12 @@ async function prepareCodCart(input: CodCartInput): Promise<{
       { code: "cod-not-eligible" },
     );
   }
+  await assertCodEligible({
+    postalCode: input.postalCode,
+    buyerScope: input.buyerScope ?? input.email,
+    totalMinor,
+    items: delivered.items ?? [],
+  });
   const collection = await medusa.createPaymentCollection(cart.id);
   const withSession = await medusa.createPaymentSession(collection.id, COD_PAYMENT_PROVIDER_ID);
   const session = withSession.payment_sessions.find(
@@ -2433,6 +2558,100 @@ function parseCheckoutFields(
     ok: true,
     fields: { channel, lines, email, firstName, lastName, address1, city, postalCode },
   };
+}
+
+async function productGstRate(productId: unknown): Promise<number | null> {
+  if (typeof productId !== "string" || !productId) return null;
+  try {
+    const product = await medusa.getProduct(productId);
+    const raw = product.metadata?.gst_rate;
+    const rate = Number(raw);
+    return Number.isFinite(rate) && rate >= 0 && rate <= 28 ? rate : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Write the seller receivable for a collected COD order: commission, GST on commission, COD fee
+ * and TCS. TCS is only computed when every line carries a product GST rate; otherwise it is recorded
+ * as pending rather than guessed.
+ */
+async function postCodDues(input: {
+  orderGroupId: string;
+  record: { medusa_order_group: Record<string, unknown> | null };
+  sellerId: string;
+  policy: { commission_bps: number; cod_fee_minor: number };
+  status: string;
+}): Promise<void> {
+  if (input.status === "refused") return;
+  const group = input.record.medusa_order_group ?? {};
+  const lines = Array.isArray(group.lines)
+    ? (group.lines as Array<Record<string, unknown>>).filter(
+        (line) => line.seller_id === input.sellerId,
+      )
+    : [];
+  const goodsMinor = lines.reduce(
+    (total, line) =>
+      total + Math.round(Number(line.unit_price ?? 0)) * Number(line.quantity ?? 0),
+    0,
+  );
+  if (goodsMinor <= 0) return;
+  const commission = Math.round((goodsMinor * input.policy.commission_bps) / 10000);
+  const gstOnCommission = Math.round((commission * BAZARBEE_GST_RATE_BPS) / 10000);
+  const entries: Array<{ kind: string; amountMinor: number; note: string }> = [
+    { kind: "commission", amountMinor: commission, note: `${input.policy.commission_bps} bps` },
+    { kind: "gst_on_commission", amountMinor: gstOnCommission, note: "18% GST on commission" },
+  ];
+  if (input.policy.cod_fee_minor > 0) {
+    entries.push({
+      kind: "cod_fee",
+      amountMinor: input.policy.cod_fee_minor,
+      note: "COD collection fee",
+    });
+  }
+  let tcs = 0;
+  let tcsPending = false;
+  for (const line of lines) {
+    const rate = await productGstRate(line.product_id);
+    const lineTotal = Math.round(Number(line.unit_price ?? 0)) * Number(line.quantity ?? 0);
+    if (rate === null) {
+      tcsPending = true;
+      continue;
+    }
+    const taxable = Math.round(lineTotal / (1 + rate / 100));
+    tcs += Math.round((taxable * COD_TCS_RATE_BPS) / 10000);
+  }
+  entries.push({
+    kind: "tcs",
+    amountMinor: tcsPending ? 0 : tcs,
+    note: tcsPending
+      ? "pending: product gst_rate missing"
+      : "0.5% of net taxable value (ex-GST)",
+  });
+  const period = currentPeriod();
+  await codStore.addDues(
+    entries.map((entry) => ({
+      sellerId: input.sellerId,
+      period,
+      kind: entry.kind,
+      amountMinor: entry.amountMinor,
+      sourceRef: `${input.orderGroupId}:${input.sellerId}`,
+      note: entry.note,
+    })),
+  );
+}
+
+function duesTotals(entries: Array<{ amount_minor: number }>): number {
+  return entries.reduce((total, entry) => total + Number(entry.amount_minor ?? 0), 0);
+}
+
+function duesCsv(entries: Array<Record<string, unknown>>): string {
+  const header = ["seller_id", "period", "kind", "amount_minor", "currency", "source_ref", "status", "note"];
+  const rows = entries.map((entry) =>
+    header.map((key) => `"${String(entry[key] ?? "").replaceAll('"', '""')}"`).join(","),
+  );
+  return [header.join(","), ...rows].join("\n");
 }
 
 async function handle(req: Request, url: URL, cid: string): Promise<Response> {
@@ -3443,6 +3662,121 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       correlation_id: cid,
     });
   }
+
+  // Admin COD seller policy: opt-in, pincodes, blocked categories, caps and commission.
+  if (url.pathname === "/v1/admin/cod/policies") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    if (req.method === "GET") {
+      return json({
+        policies: await codStore.listPolicies(),
+        test_data: config.environment !== "production",
+        correlation_id: cid,
+      });
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const sellerId = typeof body.seller_id === "string" ? body.seller_id.trim() : "";
+    if (!sellerId) return problem(400, "seller-required", "seller_id is required.");
+    const stringArray = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string" && item.length > 0)
+        : [];
+    const numberOrNull = (value: unknown): number | null => {
+      if (value === null || value === undefined || value === "") return null;
+      const parsed = Math.round(Number(value));
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+    };
+    const policy = await codStore.upsertPolicy({
+      sellerId,
+      enabled: body.enabled === true,
+      pincodes: stringArray(body.pincodes).map((code) => code.replace(/\D/g, "")).filter(Boolean),
+      blockedCategoryIds: stringArray(body.blocked_category_ids),
+      maxOrderMinor: numberOrNull(body.max_order_minor),
+      buyerDailyCapMinor: numberOrNull(body.buyer_daily_cap_minor),
+      sellerDailyCapMinor: numberOrNull(body.seller_daily_cap_minor),
+      codFeeMinor: numberOrNull(body.cod_fee_minor) ?? 0,
+      commissionBps: numberOrNull(body.commission_bps) ?? 1000,
+      updatedBy: operator.user.id,
+    });
+    return json({
+      policy,
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // Seller dues for one period, with an optional CSV export.
+  if (url.pathname === "/v1/seller/dues" && req.method === "GET") {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const period = (url.searchParams.get("period") ?? currentPeriod()).slice(0, 7);
+    const entries = await codStore.listDues({ sellerId, period, limit: 1000 });
+    if (url.searchParams.get("format") === "csv") {
+      return new Response(duesCsv(entries as unknown as Array<Record<string, unknown>>), {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="bazarbee-dues-${period}.csv"`,
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+    return json({
+      seller_id: sellerId,
+      period,
+      entries,
+      total_due_minor: duesTotals(entries),
+      currency: "INR",
+      tcs_pending: entries.some(
+        (entry) => entry.kind === "tcs" && String(entry.note ?? "").startsWith("pending"),
+      ),
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
+  // Admin monthly COD statement across sellers.
+  if (url.pathname === "/v1/admin/cod/statements" && req.method === "GET") {
+    const operator = await requireOperator(req);
+    if ("response" in operator) return operator.response;
+    const period = (url.searchParams.get("period") ?? currentPeriod()).slice(0, 7);
+    const entries = await codStore.listDues({ period, limit: 5000 });
+    const bySeller = new Map<string, typeof entries>();
+    for (const entry of entries) {
+      const list = bySeller.get(entry.seller_id) ?? [];
+      list.push(entry);
+      bySeller.set(entry.seller_id, list);
+    }
+    if (url.searchParams.get("format") === "csv") {
+      return new Response(duesCsv(entries as unknown as Array<Record<string, unknown>>), {
+        headers: {
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition": `attachment; filename="bazarbee-cod-statement-${period}.csv"`,
+          "access-control-allow-origin": "*",
+        },
+      });
+    }
+    return json({
+      period,
+      statements: [...bySeller.entries()].map(([sellerId, rows]) => ({
+        seller_id: sellerId,
+        total_due_minor: duesTotals(rows),
+        tcs_pending: rows.some(
+          (entry) => entry.kind === "tcs" && String(entry.note ?? "").startsWith("pending"),
+        ),
+        entries: rows,
+      })),
+      currency: "INR",
+      test_data: config.environment !== "production",
+      correlation_id: cid,
+    });
+  }
+
 
   const adminShipment = url.pathname.match(/^\/v1\/admin\/shipments\/([^/]+)$/);
   if (adminShipment && req.method === "GET") {
@@ -5495,6 +5829,53 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!authenticated && !mobile) {
       return problem(400, "mobile-required", "A valid Indian mobile number is required.");
     }
+    const idempotencyKey = (req.headers.get("idempotency-key") ?? "").trim();
+    if (idempotencyKey.length < 8 || idempotencyKey.length > 128) {
+      return problem(
+        400,
+        "idempotency-key-required",
+        "A stable idempotency-key header is required for COD placement.",
+      );
+    }
+    const buyerScope = authenticated?.user.id ?? `guest:${effectiveEmail}`;
+    const promoCode =
+      typeof body.promoCode === "string"
+        ? body.promoCode.trim().slice(0, 40) || undefined
+        : undefined;
+    const requestHash = createHash("sha256")
+      .update(
+        JSON.stringify({
+          lines,
+          email: effectiveEmail,
+          mobile,
+          firstName,
+          lastName,
+          address1,
+          city,
+          postalCode,
+          promoCode: promoCode ?? null,
+          channel: requestedChannel,
+        }),
+      )
+      .digest("hex");
+    const claim = await codStore.beginRequest(buyerScope, idempotencyKey, requestHash);
+    if (claim.state === "replay") {
+      return json({ ...claim.response, idempotent_replay: true }, 200);
+    }
+    if (claim.state === "conflict") {
+      return problem(
+        409,
+        "idempotency-conflict",
+        "This idempotency key was already used with different checkout details.",
+      );
+    }
+    if (claim.state === "in-flight") {
+      return problem(
+        409,
+        "checkout-in-progress",
+        "This checkout is already being placed. Please wait.",
+      );
+    }
     try {
       const prepared = await prepareCodCart({
         lines: lines.map((line) => ({ offerId: line.offerId, quantity: line.quantity })),
@@ -5505,19 +5886,17 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         address1,
         city,
         postalCode,
-        promoCode:
-          typeof body.promoCode === "string"
-            ? body.promoCode.trim().slice(0, 40) || undefined
-            : undefined,
+        promoCode,
         channel: requestedChannel,
         regionId: authenticated ? regionFor(authenticated.authorization) : config.medusaRegionId,
         customerEmail: authenticated?.user.email,
         businessAccountId: authenticated?.authorization.businessAccountId,
+        buyerScope,
       });
       if (authenticated) {
         await correlation.link(prepared.cart.id, { ownerUserId: authenticated.user.id });
       }
-      return await completeCanonicalCart({
+      const completion = await completeCanonicalCart({
         cartId: prepared.cart.id,
         regionId: authenticated
           ? regionFor(authenticated.authorization)
@@ -5535,7 +5914,29 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           expectedMinor: prepared.amountMinor,
         },
       });
+      if (!completion.ok) {
+        await codStore.clearRequest(buyerScope, idempotencyKey);
+        return completion;
+      }
+      const payload = (await completion.clone().json()) as Record<string, unknown>;
+      const orderGroup = payload.order_group as { id?: string } | undefined;
+      if (payload.type === "order_group" && orderGroup?.id) {
+        await codStore.ensureCollection({
+          orderGroupId: orderGroup.id,
+          checkoutRef: prepared.cart.id,
+          buyerScope,
+          expectedMinor: prepared.amountMinor,
+        });
+      }
+      await codStore.completeRequest(
+        buyerScope,
+        idempotencyKey,
+        prepared.cart.id,
+        payload,
+      );
+      return completion;
     } catch (error) {
+      await codStore.clearRequest(buyerScope, idempotencyKey).catch(() => undefined);
       if ((error as { code?: string }).code === "promotion-rejected") {
         return problem(400, "promotion-rejected", "That promo code is not eligible for this cart.");
       }
@@ -5543,6 +5944,176 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         return problem(400, "cod-not-eligible", (error as Error).message);
       }
       return problem(502, "cod-checkout-failed", (error as Error).message);
+    }
+  }
+
+  // Seller COD cash capture. The seller records what was actually collected at delivery.
+  const sellerCod = url.pathname.match(/^\/v1\/seller\/shipments\/([^/]+)\/cod$/);
+  if (sellerCod) {
+    const seller = await requireSeller(req);
+    if ("response" in seller) return seller.response;
+    const sellerId = seller.authorization.sellerId!;
+    const shipment = await logistics.get(sellerCod[1]);
+    if (!shipment || shipment.sellerId !== sellerId) return problem(404, "shipment-not-found");
+    const record = await correlation.getByOrderGroup(shipment.orderGroupId);
+    if (!record || record.payment_evidence?.payment_mode !== "cod") {
+      return problem(409, "not-a-cod-order", "This shipment is not a cash-on-delivery order.");
+    }
+    const expectedMinor = Number(record.payment_evidence?.expected_minor ?? 0);
+    const group = record.medusa_order_group ?? {};
+    const buyerScope =
+      record.owner_user_id ??
+      `guest:${String((group.guest_contact as { email?: string } | undefined)?.email ?? "")}`;
+    const collection = await codStore.ensureCollection({
+      orderGroupId: shipment.orderGroupId,
+      checkoutRef: record.checkout_ref,
+      buyerScope,
+      expectedMinor,
+    });
+    if (req.method === "GET") {
+      return json({
+        collection,
+        events: await codStore.listEvents(shipment.orderGroupId),
+        dues: await codStore.listDues({ sellerId, limit: 50 }),
+        seller_id: sellerId,
+        test_data: config.environment !== "production",
+        correlation_id: cid,
+      });
+    }
+    if (req.method === "POST") {
+      let body: Record<string, unknown>;
+      try {
+        body = (await req.json()) as Record<string, unknown>;
+      } catch {
+        return problem(400, "invalid-request-body", "Expected a JSON body.");
+      }
+      const status = body.status === "short" || body.status === "refused" ? body.status : "collected";
+      const amount = Math.round(Number(body.amount_minor ?? 0));
+      const proof = typeof body.proof_ref === "string" ? body.proof_ref.trim().slice(0, 200) : "";
+      const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+      if (status === "collected" && !proof) {
+        return problem(400, "proof-required", "A proof reference is required for cash collection.");
+      }
+      if (status !== "collected" && !reason) {
+        return problem(400, "reason-required", "A reason is required for a short or refused entry.");
+      }
+      try {
+        const updated = await codStore.recordCollection({
+          orderGroupId: shipment.orderGroupId,
+          status,
+          collectedMinor: amount,
+          collectorKind: "seller",
+          collectorUserId: seller.user.id,
+          proofRef: proof || null,
+          reason: reason || null,
+          actorRoles: seller.authorization.roles,
+          eventType: "cod.seller_recorded",
+          expectedVersion:
+            typeof body.expected_version === "number" ? body.expected_version : undefined,
+        });
+        const policy = await codStore.getPolicy(sellerId);
+        if (policy) {
+          await postCodDues({
+            orderGroupId: shipment.orderGroupId,
+            record,
+            sellerId,
+            policy,
+            status,
+          });
+        }
+        return json({
+          collection: updated,
+          events: await codStore.listEvents(shipment.orderGroupId),
+          dues: await codStore.listDues({ sellerId, limit: 50 }),
+          seller_id: sellerId,
+          test_data: config.environment !== "production",
+          correlation_id: cid,
+        });
+      } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code === "version-conflict") return problem(409, code, (error as Error).message);
+        if (code === "amount-mismatch" || code === "invalid-transition" || code === "not-found") {
+          return problem(400, code, (error as Error).message);
+        }
+        return problem(502, "cod-capture-failed", (error as Error).message);
+      }
+    }
+  }
+
+  // Admin COD correction and readback. Corrections always carry a reason and an audit event.
+  const adminCod = url.pathname.match(/^\/v1\/admin\/orders\/([^/]+)\/cod$/);
+  if (adminCod) {
+    const operator = await requireAnyRole(req, [
+      "super_admin",
+      "marketplace_operator",
+      "finance_operator",
+      "erp_operator",
+    ]);
+    if ("response" in operator) return operator.response;
+    const orderGroupId = adminCod[1];
+    const record = await correlation.getByOrderGroup(orderGroupId);
+    if (!record || record.payment_evidence?.payment_mode !== "cod") {
+      return problem(409, "not-a-cod-order", "This order is not cash on delivery.");
+    }
+    const expectedMinor = Number(record.payment_evidence?.expected_minor ?? 0);
+    const group = record.medusa_order_group ?? {};
+    const buyerScope =
+      record.owner_user_id ??
+      `guest:${String((group.guest_contact as { email?: string } | undefined)?.email ?? "")}`;
+    const collection = await codStore.ensureCollection({
+      orderGroupId,
+      checkoutRef: record.checkout_ref,
+      buyerScope,
+      expectedMinor,
+    });
+    if (req.method === "GET") {
+      return json({
+        collection,
+        events: await codStore.listEvents(orderGroupId),
+        test_data: config.environment !== "production",
+        correlation_id: cid,
+      });
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = (await req.json()) as Record<string, unknown>;
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a JSON body.");
+    }
+    const status = body.status === "short" || body.status === "refused" ? body.status : "collected";
+    const amount = Math.round(Number(body.amount_minor ?? 0));
+    const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+    if (!reason) {
+      return problem(400, "reason-required", "An admin COD correction requires a reason.");
+    }
+    try {
+      const updated = await codStore.recordCollection({
+        orderGroupId,
+        status,
+        collectedMinor: amount,
+        collectorKind: "admin",
+        collectorUserId: operator.user.id,
+        proofRef:
+          typeof body.proof_ref === "string" ? body.proof_ref.trim().slice(0, 200) : null,
+        reason,
+        actorRoles: operator.authorization.roles,
+        eventType: "cod.admin_corrected",
+        expectedVersion:
+          typeof body.expected_version === "number" ? body.expected_version : undefined,
+      });
+      return json({
+        collection: updated,
+        events: await codStore.listEvents(orderGroupId),
+        test_data: config.environment !== "production",
+        correlation_id: cid,
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "version-conflict") return problem(409, code, (error as Error).message);
+      if (code === "amount-mismatch" || code === "invalid-transition" || code === "not-found") {
+        return problem(400, code, (error as Error).message);
+      }
+      return problem(502, "cod-correction-failed", (error as Error).message);
     }
   }
 

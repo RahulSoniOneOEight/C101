@@ -1,7 +1,7 @@
 # COD with seller-collected cash
 
-Status: **operating model confirmed** · web COD order placement built and verified on staging
-(slice 1) · cash capture, dues ledger and TCS pending · production untouched.
+Status: **operating model confirmed** · web COD order placement, cash capture, policies, dues/TCS
+and Flutter UI built and verified on staging · production untouched.
 
 Decision (2026-11-20): the **seller collects cash on delivery**. Bazarbee never receives the COD
 goods money. COD is offered on both B2C and B2B.
@@ -129,9 +129,9 @@ off the fee invoice and appears only on the dues statement and in GSTR-8.
 | Slice | Lane | Content |
 |---|---|---|
 | 1 | C | COD order placement on web, B2C and B2B: eligibility, `payment_method=cod`, `cod_pending`, no gateway call, confirmed order — **built and verified on staging** |
-| 2 | C | Cash capture at delivery in seller portal and admin: amount, collector, proof, short/refused, audit |
-| 3 | C/D | Seller dues ledger, monthly statement, TCS lines, fee invoice series, GSTR-8 export |
-| 4 | B | Buyer-facing COD labels, eligibility messaging, delivery OTP; Flutter parity |
+| 2 | C | Cash capture at delivery in seller portal and admin: amount, collector, proof, short/refused, audit — **built and verified on staging** |
+| 3 | C/D | Seller dues ledger, monthly statement, TCS lines, fee invoice series, GSTR-8 export — **ledger and statement built; TCS pending product GST rates; GSTR-8 export pending** |
+| 4 | B | Buyer-facing COD labels, eligibility messaging, delivery OTP; Flutter parity — **web and Flutter COD choice built; delivery OTP not built** |
 | 5 | E | Production configuration, caps, finance acceptance |
 
 Slices 1–3 change money behaviour and schema, so they run under a governed change contract, not the

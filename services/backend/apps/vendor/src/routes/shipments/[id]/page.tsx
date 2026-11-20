@@ -12,6 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { client } from "../../../lib/client";
+import { CodCapture } from "../../../widgets/cod-capture";
 
 type ShipmentDetail = InferClientOutput<
   typeof client.vendor.buildkart.shipments.$id.query
@@ -342,6 +343,8 @@ export default function VendorShipmentDetailPage() {
             </div>
           </div>
         </Container>
+
+        {id ? <CodCapture shipmentId={id} /> : null}
 
         <Container className="p-0">
           <div className="border-b border-ui-border-base px-6 py-4">

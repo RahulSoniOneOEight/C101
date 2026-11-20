@@ -610,6 +610,41 @@ class ExperienceApi {
     return res.data!;
   }
 
+  /// Places a seller-collected cash-on-delivery order. The order is confirmed with cash due and
+  /// is never treated as paid.
+  Future<Map<String, dynamic>> placeCodOrder({
+    required List<Map<String, dynamic>> lines,
+    required String email,
+    required String firstName,
+    required String lastName,
+    required String address1,
+    required String city,
+    required String postalCode,
+    String? mobile,
+    String channel = 'b2c',
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/v1/checkouts/cod/place',
+      data: <String, dynamic>{
+        'lines': lines,
+        'email': email,
+        'mobile': mobile,
+        'firstName': firstName,
+        'lastName': lastName,
+        'address1': address1,
+        'city': city,
+        'postalCode': postalCode,
+        'channel': channel,
+      },
+      options: Options(
+        headers: <String, dynamic>{
+          'Idempotency-Key': 'cod_${DateTime.now().microsecondsSinceEpoch}',
+        },
+      ),
+    );
+    return res.data!;
+  }
+
   Future<Map<String, dynamic>> checkServiceability(String postcode) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/v1/logistics/serviceability',

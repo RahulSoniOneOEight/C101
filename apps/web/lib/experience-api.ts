@@ -1541,10 +1541,14 @@ export interface CodCheckoutInput {
 export async function placeCodCheckout(
   input: CodCheckoutInput,
   sessionToken?: string,
+  idempotencyKey?: string,
 ): Promise<CompletionResult> {
   return call<CompletionResult>("/v1/checkouts/cod/place", {
     method: "POST",
-    headers: sessionToken ? authenticatedHeaders(sessionToken) : undefined,
+    headers: {
+      ...(sessionToken ? authenticatedHeaders(sessionToken) : {}),
+      ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
+    },
     body: JSON.stringify(input),
   });
 }

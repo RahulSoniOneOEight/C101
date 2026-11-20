@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         channel,
       },
       token,
+      request.headers.get("idempotency-key") ?? undefined,
     );
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
   } catch (error) {

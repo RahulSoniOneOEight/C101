@@ -707,6 +707,7 @@ class CartLineItem {
     this.variantId,
     this.productTitle,
     this.thumbnail,
+    this.offerId,
   });
 
   factory CartLineItem.fromJson(Map<String, dynamic> json) {
@@ -724,6 +725,8 @@ class CartLineItem {
       variantId: json['variant_id'] as String?,
       productTitle: json['product_title'] as String?,
       thumbnail: json['thumbnail'] as String?,
+      offerId: (json['offer_id'] as String?) ??
+          ((json['metadata'] as Map<String, dynamic>?)?['offer_id'] as String?),
     );
   }
 
@@ -736,6 +739,7 @@ class CartLineItem {
   final String? variantId;
   final String? productTitle;
   final String? thumbnail;
+  final String? offerId;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
@@ -748,6 +752,7 @@ class CartLineItem {
         'variant_id': variantId,
         'product_title': productTitle,
         'thumbnail': thumbnail,
+        'offer_id': offerId,
       };
 }
 
