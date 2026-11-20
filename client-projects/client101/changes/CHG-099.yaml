@@ -113,8 +113,17 @@ risks:
 - A COD-only seller has no payout to offset, so the dues process is the only recovery path.
 
 open_decisions:
-- Recovery waterfall (next prepaid payout, then monthly dues statement).
+- Suspension thresholds for unpaid dues (proposed: 14 days disable COD, 30 days block listings).
 - Delivery fee ownership.
 - COD fee and caps.
 - Delivery OTP requirement.
 - Refusal/forfeiture policy legal review.
+
+resolved_decisions:
+- id: D1
+  decision: >-
+    Seller collects cash. Recovery runs next prepaid payout, then a monthly seller dues statement.
+    The dues statement is not a taxable document (confirmed 2026-11-20): no GST on it, no tax-invoice
+    numbering, TCS appears there and in GSTR-8 but never on the fee invoice.
+  decided_at_utc: '2026-11-20'
+  source: human-requester

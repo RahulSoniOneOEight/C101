@@ -109,8 +109,10 @@ For a seller who is COD-only, step 1 never happens, so step 2 is the normal path
 must show commission, GST on commission, TCS, COD fees and adjustments separately — never one net
 figure.
 
-Requires CA confirmation that the dues statement is not a taxable supply document, and that TCS can
-be recovered this way.
+Confirmed on 2026-11-20: the **dues statement is not a taxable document**. It is a demand/statement
+of amounts payable, carries no GST on its own, and must not be numbered or formatted as a tax
+invoice. Bazarbee's taxable supply remains the platform fee, invoiced separately with GST. TCS stays
+off the fee invoice and appears only on the dues statement and in GSTR-8.
 
 ## 6. Refusals, returns and TCS corrections
 
@@ -145,7 +147,8 @@ Touched surfaces:
 
 ## 8. Decisions still open
 
-1. **Recovery mechanism** — accept the §5 waterfall?
+1. **Recovery mechanism** — waterfall accepted; dues statement confirmed non-taxable (2026-11-20).
+   Remaining: confirm the 14/30-day suspension thresholds.
 2. **Delivery fee ownership** — seller-collected or Bazarbee-charged?
 3. **COD fee** — proposed ₹0 at launch, configurable per seller.
 4. **Caps** — accept the §4 defaults, or set different B2C/B2B limits?
@@ -163,3 +166,118 @@ None of these block the design; all of them block slice 1 acceptance criteria.
 - Amounts and eligibility are server-computed; the client cannot set price or eligibility.
 - Prepaid flow is unchanged; Razorpay is never called for a COD order.
 - Zero production change.
+
+## 10. Technical contract (for CHG-099 implementation)
+
+### 10.1 Medusa provider
+
+New provider `cod` under `src/modules/cod-payment`, id `pp_cod_cod`:
+
+- `initiatePayment` creates a session for the cart amount with no external call.
+- `authorizePayment` authorises the session at order placement — Medusa records
+  `authorized`, never `captured`, so the order is not paid.
+- `capturePayment` is called only when the seller records cash collection; the captured amount is
+  the amount actually collected (partial collection captures partially).
+- `refundPayment` is **not** supported: goods refunds on COD are the seller's credit note, not a
+  Bazarbee refund. The provider must throw an explicit error rather than fake one.
+
+Register in the payment module only when `PAYMENT_ADAPTER_MODE=provider`, and enable
+`pp_cod_cod` on the India region in addition to `pp_razorpay_razorpay`. COD must not require
+Razorpay keys, but the region enablement script should be able to run both.
+
+### 10.2 Schema (Experience API)
+
+```sql
+CREATE TABLE IF NOT EXISTS cod_collection (
+  id                text PRIMARY KEY,
+  order_group_id    text NOT NULL UNIQUE,
+  checkout_ref      text,
+  seller_id         text NOT NULL,
+  shipment_id       text,
+  status            text NOT NULL CHECK (status IN ('pending','collected','short','refused')),
+  expected_minor    bigint NOT NULL,
+  collected_minor   bigint NOT NULL DEFAULT 0,
+  currency          text NOT NULL DEFAULT 'INR',
+  collector_kind    text CHECK (collector_kind IN ('seller','admin','delivery_agent')),
+  collector_user_id text,
+  collected_at      timestamptz,
+  proof_ref         text,
+  reason            text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS cod_collection_event (
+  id             text PRIMARY KEY,
+  collection_id  text NOT NULL REFERENCES cod_collection(id) ON DELETE CASCADE,
+  event_type     text NOT NULL,
+  actor_user_id  text NOT NULL,
+  actor_roles    jsonb NOT NULL,
+  payload        jsonb NOT NULL,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS seller_dues_ledger (
+  id            text PRIMARY KEY,
+  seller_id     text NOT NULL,
+  period        text NOT NULL,              -- YYYY-MM
+  kind          text NOT NULL CHECK (kind IN
+                  ('commission','gst_on_commission','tcs','cod_fee','adjustment','payment','waiver')),
+  amount_minor  bigint NOT NULL,            -- signed: positive = seller owes
+  currency      text NOT NULL DEFAULT 'INR',
+  source_ref    text,                       -- order group / statement id
+  status        text NOT NULL DEFAULT 'open' CHECK (status IN ('open','settled','waived')),
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (seller_id, period, kind, source_ref)
+);
+
+CREATE INDEX IF NOT EXISTS seller_dues_open_idx ON seller_dues_ledger (seller_id, status);
+```
+
+Idempotent `CREATE ... IF NOT EXISTS` under the existing advisory-lock pattern; no destructive
+migration.
+
+### 10.3 Endpoints
+
+```text
+GET  /v1/checkouts/cod/eligibility?cart_id=…     server-computed eligibility + reason
+POST /v1/checkouts/cod/place                     create/complete cart as COD, return order group
+POST /v1/seller/orders/:group/cod-collection     record collected/short/refused + proof
+POST /v1/admin/orders/:group/cod-collection      admin correction, reason required
+GET  /v1/seller/dues?period=YYYY-MM              statement lines + totals
+```
+
+Rules:
+
+- `place` re-checks eligibility and totals server-side; a stale or tampered client value is rejected.
+- `place` is idempotent on a client request key, like the prepaid guest flow.
+- collection transitions: `pending → collected | short | refused`; `short → collected` only when the
+  balance is recorded; `refused` is terminal.
+- every transition writes `cod_collection_event`; admin corrections always do.
+- the seller portal and admin read the same collection record; no local copies.
+
+### 10.4 Settlement statement output
+
+One row per seller per period, columns in this order:
+
+```text
+order ref · invoice ref · goods value · GST in goods · commission · GST on commission
+TCS · COD fee · adjustments · amount due / (payable) · carry-forward
+```
+
+No net-only figure. TCS lines carry the GSTR-8 period; fee invoice and credit-note numbers are
+referenced, not recomputed.
+
+### 10.5 Test matrix
+
+| Case | Expected |
+|---|---|
+| COD order B2C under cap | confirmed, `payment_status=cod_pending`, no Razorpay call |
+| COD order B2B under cap | same, with business account context |
+| over cap / blocked pincode / seller not opted in | rejected server-side, no order |
+| seller records exact collection | `cod_collected`, capture equals collected, dues ledger written |
+| seller records short collection | `cod_short`, shortfall visible, no auto-waiver |
+| refused delivery | `cod_refused`, credit note required, no Bazarbee refund |
+| admin correction without reason | rejected |
+| prepaid Razorpay order | unchanged, no COD rows |
+
