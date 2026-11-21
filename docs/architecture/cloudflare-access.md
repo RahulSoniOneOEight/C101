@@ -1,9 +1,9 @@
 # Cloudflare Access for ops, seller and ERP
 
 Status: **live on staging** at `ops-staging.pinakaplay.cloud` · whole host behind one Access
-application · WAF, rate limiting and an origin lock are active · Google Workspace/Entra is not
-required under the 2026-11-21 identity decision · production `ops.gobazarbee.com` is still a separate
-environment.
+application · WAF, rate limiting, origin lock and the **BazarBee TOTP gate** are active · Google
+Workspace/Entra is not required under the 2026-11-21 identity decision · production
+`ops.gobazarbee.com` is still a separate environment.
 
 The customer host stays on the application's own email OTP/magic-link auth. Cloudflare Access is the
 outer gate for the operator host only.
@@ -60,7 +60,7 @@ Only the Staff address can receive a PIN today; the `buildkart.test` addresses a
 | Rate limit | 120 requests / 10 s per IP per colo on ops entry paths; 10 s block (free-plan limits) |
 | Origin lock | Cloudflare adds `X-Bazarbee-Edge`; nginx returns `403` on the ops host without it |
 | Group sync | `ops_staff` -> `BazarBee Staff` / `BazarBee ERP`; reconcile every 5 minutes |
-| TOTP gate | nginx `auth_request` on `/dashboard`, `/admin`, `/erp/`, `/v1/admin`, `/v1/ops`, `/metrics`; sellers, `/auth`, `/static`, `/uploads` excluded |
+| TOTP gate | nginx `auth_request` on `/dashboard`, `/admin`, `/erp/`, `/v1/admin`, `/v1/ops`, `/metrics`; sellers, `/auth`, `/static`, `/uploads` excluded; **enforced on staging** |
 | Tunnel | `bazarbee-ops` -> `http://buildkart-hosted-pilot-proxy-1:8080` |
 
 The rate limit covers `/dashboard`, `/seller`, `/erp`, `/admin`, `/auth`, `/v1/ops`, `/v1/admin` and
@@ -106,6 +106,9 @@ limit (`c602bc4b...`) and transform rule (`09aea3be...`) belong to the retired s
 | Enforce: `/dashboard`, `/erp/`, `/v1/admin`, `/metrics` | `302` to `/ops/login` |
 | Enforce: `/seller`, `/static`, `/ops/login`, `/health` | unaffected |
 | Live group sync | invite -> Staff, finance role -> ERP, disable -> removed, reconcile -> re-added |
+| Superadmin enrolment | `gobazarbee@gmail.com` active, TOTP confirmed, 10 recovery codes |
+| TOTP login | `last_login_at` set; dashboard assets `200`; no shadow denials |
+| Enforce on staging | unauthenticated `/dashboard`, `/erp/`, `/v1/admin`, `/metrics` -> `302 /ops/login` |
 
 The end-to-end test used a one-hour service token; it was deleted together with its policy. No
 standing service token remains.

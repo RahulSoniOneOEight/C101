@@ -1,7 +1,8 @@
 # Ops identity: superadmin staff directory + TOTP
 
-Status: **accepted for production** · selected by the human requester on 2026-11-21 · slices 1–3
-implemented · gate running in `shadow` on staging · staff UI and nginx wiring pending.
+Status: **accepted for production** · selected by the human requester on 2026-11-21 · slices 1–5 and
+the second-approver workflow implemented · gate **enforced** on staging · manual UAT items and
+production provisioning pending.
 
 This decision replaces a real IdP with a BazarBee-owned staff directory and a second factor at the
 application. Cloudflare Access remains the outer gate. It is a compensating control, not an
@@ -229,7 +230,7 @@ tables are additive.
 | 3. Login/enrolment pages | done | CSRF issue/verify/expiry/tamper, escaped pages, `/ops/login` and `/ops/enroll` return `401 Access required` without an Access JWT; forms fail closed; first superadmin seeded |
 | 4. `/ops/staff` superadmin UI | done (API + page) | list, invite, roles, disable/enable, TOTP reset, audit page, CSV; guards prevent self-disable and last-superadmin removal; **second-approver workflow** for superadmin create/role/status/TOTP reset; staging DB test passed; endpoints fail closed |
 | 5. Cloudflare group sync + nginx | done, shadow | live add/move/remove/reconcile against the real Staff and ERP groups; admin/ERP paths return `302 /ops/login` in enforce while seller/static/health pass; restored to shadow |
-| 6. Staging UAT shadow → enforce | pending | — |
+| 6. Staging UAT shadow → enforce | **enforce live** | enrolment confirmed and TOTP login verified (`last_login_at`, dashboard assets 200, no shadow denials); unauthenticated admin/ERP paths redirect to `/ops/login`; wrong-code lockout, disable/role UAT and a second-superadmin approval still need manual or test-user coverage |
 
 ### Slice 5 evidence
 

@@ -48,10 +48,11 @@ are recorded in `docs/architecture/cloudflare-access.md`.
 `ops.gobazarbee.com` and the apex staging web were retired on 2026-11-21; the `gobazarbee.com` zone
 is now reserved for the production environment.
 
-The ops TOTP gate is wired in nginx (`auth_request /__ops_gate`) but staging runs
-`OPS_TOTP_GATE=shadow`, so it evaluates and logs would-be denials while still proxying. The staff
-directory syncs to the Access `BazarBee Staff` / `BazarBee ERP` groups and reconciles every 5
-minutes. Enforcement was tested and restored to shadow.
+The ops TOTP gate is wired in nginx (`auth_request /__ops_gate`) and staging runs
+`OPS_TOTP_GATE=enforce`. The superadmin `gobazarbee@gmail.com` enrolled on 2026-11-21 and signed in
+through TOTP; `/dashboard` and `/ops/staff` require the ops session. Sellers, `/auth`, `/static`,
+`/uploads` and `/health` remain outside the TOTP gate. The staff directory syncs to the Access
+`BazarBee Staff` / `BazarBee ERP` groups and reconciles every 5 minutes.
 
 ## Host and services
 
