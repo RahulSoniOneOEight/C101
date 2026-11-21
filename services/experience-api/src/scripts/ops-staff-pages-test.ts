@@ -105,6 +105,19 @@ assert.ok(page.includes('value="rejected"'));
 assert.ok(page.includes("add ERP access"));
 console.log("PASS staff page renders people, roles, approval requests, forms and escapes names");
 
+const invitedPage = opsStaffPage({
+  actorEmail: "owner@example.com",
+  staff,
+  requests: [],
+  csrf: "csrf-token",
+  inviteEmail: "new@example.com",
+  inviteUrl: "https://ops-staging.pinakaplay.cloud/dashboard/invite?token=abc123",
+});
+assert.ok(invitedPage.includes("Mercur invite for new@example.com"));
+assert.ok(invitedPage.includes("dashboard/invite?token=abc123"));
+assert.ok(invitedPage.includes("Copy link"));
+console.log("PASS staff page renders the Mercur set-password link");
+
 const audit = opsStaffAuditPage({
   actorEmail: "owner@example.com",
   targetEmail: "finance@example.com",

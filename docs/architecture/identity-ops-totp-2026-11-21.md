@@ -102,6 +102,15 @@ user opens ops host → Cloudflare PIN → gate sees invited
   → user enters a code → status = active, recovery codes shown once
 ```
 
+### Mercur admin invite
+
+The staff invite also creates a Medusa/Mercur admin invite for the same email. The page shows a
+one-time `https://<ops-host>/dashboard/invite?token=...` link, so the superadmin can send it when
+Medusa email delivery is unavailable (staging). The invitee sets their Mercur password, then uses it
+after Access + TOTP.
+
+Production should use a dedicated Medusa service admin for this call, not the shared bootstrap admin.
+
 ### Login
 
 ```text
@@ -317,6 +326,16 @@ gobazarbee@gmail.com   super_admin   status invited   TOTP not enrolled
 
 The next action is browser UAT: sign in through Access, open `/ops/enroll`, add the secret to an
 authenticator, confirm a code, save the recovery codes, then sign in at `/ops/login`.
+
+### Mercur invite automation
+
+- `/ops/staff` invite creates the Medusa admin invite for the same email and shows the one-time
+  `dashboard/invite?token=...` link.
+- Live staging check: created and revoked a real invite; the URL uses the public ops base.
+- Staging has no Medusa email provider, so the link is the delivery path. Production can also use
+  Medusa's sender.
+- The API uses `MEDUSA_ADMIN_EMAIL` / `MEDUSA_ADMIN_PASSWORD`; production must use a dedicated
+  service admin with a minimum role, not the shared bootstrap admin.
 
 ## 13. Production decisions — 2026-11-21
 

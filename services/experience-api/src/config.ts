@@ -81,6 +81,12 @@ export interface Config {
   cloudflareAccessStaffGroupId?: string;
   cloudflareAccessErpGroupId?: string;
   cloudflareAccessSyncEnabled: boolean;
+  /** Medusa/Mercur admin service account used to create staff invites. */
+  medusaAdminEmail?: string;
+  medusaAdminPassword?: string;
+  /** Public operator base used to build the Mercur invite link. */
+  publicOpsBaseUrl: string;
+  medusaInviteAutomationEnabled: boolean;
   pilotOtpCode: string;
   pilotChallengeTtlSeconds: number;
   pilotSessionTtlSeconds: number;
@@ -255,6 +261,13 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     );
   }
 
+  const medusaAdminEmail = env.MEDUSA_ADMIN_EMAIL?.trim() || undefined;
+  const medusaAdminPassword = env.MEDUSA_ADMIN_PASSWORD?.trim() || undefined;
+  const publicOpsBaseUrl = (
+    env.PUBLIC_OPS_BASE_URL?.trim() || "https://ops-staging.pinakaplay.cloud"
+  ).replace(/\/+$/, "");
+  const medusaInviteAutomationEnabled = Boolean(medusaAdminEmail && medusaAdminPassword);
+
   const expectedPilotUsers = env.PILOT_EXPECTED_USER_COUNT
     ? positiveInteger(env.PILOT_EXPECTED_USER_COUNT, 20, "PILOT_EXPECTED_USER_COUNT")
     : undefined;
@@ -373,6 +386,10 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
     cloudflareAccessStaffGroupId,
     cloudflareAccessErpGroupId,
     cloudflareAccessSyncEnabled,
+    medusaAdminEmail,
+    medusaAdminPassword,
+    publicOpsBaseUrl,
+    medusaInviteAutomationEnabled,
     pilotOtpCode,
     pilotChallengeTtlSeconds: positiveInteger(
       env.PILOT_CHALLENGE_TTL_SECONDS,

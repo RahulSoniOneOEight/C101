@@ -320,6 +320,9 @@ export function opsStaffPage(options: {
   csrf: string;
   message?: string;
   error?: string;
+  inviteUrl?: string;
+  inviteEmail?: string;
+  inviteWarning?: string;
 }): string {
   const rows = options.staff.map((person) => staffRow(person, options.csrf)).join("");
   const approvals = options.requests
@@ -332,6 +335,22 @@ export function opsStaffPage(options: {
         reach the operator surfaces after TOTP enrolment.</p>
      ${options.message ? `<div class="banner ok">${escapeHtml(options.message)}</div>` : ""}
      ${options.error ? `<div class="banner err">${escapeHtml(options.error)}</div>` : ""}
+     ${
+       options.inviteWarning
+         ? `<div class="banner err">${escapeHtml(options.inviteWarning)}</div>`
+         : ""
+     }
+     ${
+       options.inviteUrl
+         ? `<div class="banner ok">
+              <strong>Mercur invite for ${escapeHtml(options.inviteEmail ?? "")}</strong>
+              <p style="margin:.4rem 0">Send this one-time link to set their Mercur password:</p>
+              <input type="text" readonly value="${escapeHtml(options.inviteUrl)}"
+                     onclick="this.select()" style="width:100%" />
+              <button type="button" onclick="navigator.clipboard.writeText(this.previousElementSibling.value)">Copy link</button>
+            </div>`
+         : ""
+     }
      <div class="invite">
        <strong>Pending second approval</strong>
        <p class="muted">Superadmin create, role, disable and TOTP reset requests need a different

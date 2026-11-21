@@ -28,6 +28,7 @@ import { AccessJwtVerifier } from "./auth/ops-access-jwt.js";
 import { OpsGate, OPS_SESSION_COOKIE, readCookie } from "./auth/ops-gate.js";
 import { OpsSessionStore } from "./auth/ops-session.js";
 import { CloudflareAccessGroupSync } from "./auth/ops-cloudflare-sync.js";
+import { MedusaAdminInvites } from "./auth/medusa-invites.js";
 import { decodeOpsEncryptionKey, OpsStaffStore, type OpsStaff, type OpsStaffRole } from "./auth/ops-staff.js";
 import {
   issueFormToken,
@@ -217,7 +218,16 @@ const opsContext = (() => {
         erpGroupId: config.cloudflareAccessErpGroupId as string,
       })
     : null;
-  return { staff, sessions, verifier, gate, formKey, groupSync };
+  const medusaInvites = config.medusaInviteAutomationEnabled
+    ? new MedusaAdminInvites({
+        baseUrl: config.medusaBaseUrl,
+        email: config.medusaAdminEmail as string,
+        password: config.medusaAdminPassword as string,
+        adminBaseUrl: config.publicOpsBaseUrl,
+      })
+    : null;
+  if (medusaInvites) console.info("[ops-invite] Mercur invite automation enabled");
+  return { staff, sessions, verifier, gate, formKey, groupSync, medusaInvites };
 })();
 
 if (opsContext?.groupSync) {
@@ -675,6 +685,46 @@ async function syncOpsStaff(person: OpsStaff): Promise<string | null> {
     return "Cloudflare Access group sync failed; the app gate still applies and reconciliation will retry.";
   }
   return null;
+}
+
+type MercurInviteResult =
+  | { status: "created"; id: string; url: string }
+  | { status: "unavailable" }
+  | { status: "failed"; error: string };
+
+async function createMercurInvite(email: string): Promise<MercurInviteResult> {
+  if (!opsContext?.medusaInvites) return { status: "unavailable" };
+  try {
+    const invite = await opsContext.medusaInvites.createInvite(email);
+    return { status: "created", id: invite.id, url: invite.url };
+  } catch (error) {
+    console.error("[ops-invite] Mercur invite failed:", email, (error as Error).message);
+    return { status: "failed", error: (error as Error).message };
+  }
+}
+
+async function renderStaffPage(
+  actor: OpsActor,
+  options: {
+    message?: string;
+    error?: string;
+    inviteUrl?: string;
+    inviteEmail?: string;
+    inviteWarning?: string;
+  } = {},
+): Promise<Response> {
+  if (!opsContext) return opsActorHtmlError("not-configured");
+  const staff = await opsContext.staff.list();
+  const requests = await opsContext.staff.listPendingRequests();
+  return opsHtml(
+    opsStaffPage({
+      actorEmail: actor.email,
+      staff,
+      requests,
+      csrf: issueFormToken(actor.email, opsContext.formKey),
+      ...options,
+    }),
+  );
 }
 
 function requestedRoles(payload: Record<string, unknown>): OpsStaffRole[] {
@@ -3598,18 +3648,10 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     if (!opsContext) return opsActorHtmlError("not-configured");
     const auth = await resolveOpsActor(req);
     if ("error" in auth) return opsActorHtmlError(auth.error);
-    const staff = await opsContext.staff.list();
-    const requests = await opsContext.staff.listPendingRequests();
-    return opsHtml(
-      opsStaffPage({
-        actorEmail: auth.actor.email,
-        staff,
-        requests,
-        csrf: issueFormToken(auth.actor.email, opsContext.formKey),
-        message: url.searchParams.get("message") ?? undefined,
-        error: url.searchParams.get("error") ?? undefined,
-      }),
-    );
+    return renderStaffPage(auth.actor, {
+      message: url.searchParams.get("message") ?? undefined,
+      error: url.searchParams.get("error") ?? undefined,
+    });
   }
 
   // POST /ops/staff - staff actions from the page.
@@ -3673,12 +3715,27 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
           actorEmail: auth.actor.email,
           reason,
         });
-        const warning = await syncOpsStaff(created);
-        if (warning) return back("error", warning);
-        return back(
-          "message",
-          `Invited ${created.email} and synced the Access group. They can now enrol.`,
-        );
+        const syncWarning = await syncOpsStaff(created);
+        if (syncWarning) return renderStaffPage(auth.actor, { error: syncWarning });
+        const mercur = await createMercurInvite(created.email);
+        if (mercur.status === "created") {
+          return renderStaffPage(auth.actor, {
+            message: `Invited ${created.email} and synced the Access group.`,
+            inviteEmail: created.email,
+            inviteUrl: mercur.url,
+          });
+        }
+        if (mercur.status === "failed") {
+          return renderStaffPage(auth.actor, {
+            message: `Invited ${created.email} and synced the Access group.`,
+            inviteWarning: `Mercur invite failed: ${mercur.error}. Create the user in Mercur manually.`,
+          });
+        }
+        return renderStaffPage(auth.actor, {
+          message: `Invited ${created.email} and synced the Access group.`,
+          inviteWarning:
+            "Mercur invite automation is not configured; create the user in Mercur manually.",
+        });
       }
       if (action === "roles") {
         const target = await opsContext.staff.get(email);
@@ -3826,7 +3883,21 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         });
         const warning = await syncOpsStaff(created);
         if (warning) return back("error", warning);
-        return back("message", `Approved: ${created.email} created and synced.`);
+        const mercur = await createMercurInvite(created.email);
+        if (mercur.status === "created") {
+          return renderStaffPage(auth.actor, {
+            message: `Approved: ${created.email} created and synced.`,
+            inviteEmail: created.email,
+            inviteUrl: mercur.url,
+          });
+        }
+        return renderStaffPage(auth.actor, {
+          message: `Approved: ${created.email} created and synced.`,
+          inviteWarning:
+            mercur.status === "failed"
+              ? `Mercur invite failed: ${mercur.error}. Create the user in Mercur manually.`
+              : "Mercur invite automation is not configured; create the user in Mercur manually.",
+        });
       }
       if (request.action === "roles") {
         const roles = requestedRoles(request.payload);
@@ -3980,7 +4051,8 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         reason,
       });
       const warning = await syncOpsStaff(created);
-      return json({ staff: created, sync_warning: warning }, 201);
+      const mercur = await createMercurInvite(created.email);
+      return json({ staff: created, sync_warning: warning, mercur_invite: mercur }, 201);
     } catch (error) {
       return problem(400, "staff-create-failed", (error as Error).message);
     }

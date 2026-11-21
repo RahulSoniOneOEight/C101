@@ -26,6 +26,8 @@
     "test:ops-staff-pages": "bun run src/scripts/ops-staff-pages-test.ts",
     "test:ops-cloudflare-sync": "bun run src/scripts/ops-cloudflare-sync-test.ts",
     "test:ops-sync-live": "bun run src/scripts/ops-sync-live-test.ts",
+    "test:medusa-invites": "bun run src/scripts/medusa-invites-test.ts",
+    "test:medusa-invite-live": "bun run src/scripts/medusa-invite-live-test.ts",
     "ops:staff:bootstrap": "bun run src/scripts/ops-staff-bootstrap.ts",
     "test:rbac": "bun run src/scripts/rbac-test.ts",
     "test:rbac-http": "bun run src/scripts/rbac-http-test.ts",
