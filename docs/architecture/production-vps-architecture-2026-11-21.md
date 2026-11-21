@@ -4,6 +4,10 @@ Date: 2026-11-21
 Scope: current staging VPS `89.116.20.164` and the recommended production structure.
 Status: review and recommendation. Production remains untouched until `D-020-12`.
 
+> Single-VPS constraint: if the project must run on one host and staging is promoted in place, use
+> `single-vps-production-2026-11-21.md`. It keeps the same safety requirements but accepts the
+> single point of failure and defines the promotion runbook.
+
 ## 1. Executive summary
 
 The current VPS is a capable **staging** host, not a production host. It runs the full BazarBee
