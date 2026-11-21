@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { OPS_STAFF_ROLES, type OpsStaff } from "./ops-staff.js";
+import { OPS_STAFF_ROLES, type OpsStaff, type OpsStaffRequest } from "./ops-staff.js";
 
 /**
  * Server-rendered ops identity pages.
@@ -119,6 +119,12 @@ function layout(title: string, body: string, options: { wide?: boolean } = {}): 
   .banner { border-radius: 8px; padding: .6rem .75rem; font-size: .85rem; margin: 1rem 0 0; }
   .banner.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
   .banner.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .approval { border: 1px solid #e5e7eb; border-radius: 8px; padding: .65rem .75rem; margin: .6rem 0;
+              background: #fff; }
+  .approval .meta { font-size: .72rem; color: #6b7280; margin-top: .2rem; }
+  .approval form { display: inline-flex; gap: .4rem; align-items: center; margin: .45rem .5rem 0 0; }
+  .approval input[type=text] { width: 15rem; }
+  .approval button { width: auto; margin-top: 0; padding: .38rem .65rem; font-size: .75rem; }
 </style>
 </head>
 <body>
@@ -271,14 +277,54 @@ function staffRow(person: OpsStaff, csrf: string): string {
   </tr>`;
 }
 
+function approvalRow(request: OpsStaffRequest, actorEmail: string, csrf: string): string {
+  const when = request.requestedAt
+    ? new Date(request.requestedAt).toISOString().replace("T", " ").slice(0, 16)
+    : "";
+  const detail =
+    request.action === "roles" && Array.isArray(request.payload.roles)
+      ? ` -> ${request.payload.roles.join(", ")}`
+      : request.action === "status" && typeof request.payload.status === "string"
+        ? ` -> ${request.payload.status}`
+        : "";
+  const own = request.requestedBy === actorEmail;
+  return `<div class="approval">
+    <div><strong>${escapeHtml(request.action)}</strong> ${escapeHtml(request.targetEmail)}${escapeHtml(detail)}</div>
+    <div>${escapeHtml(request.reason)}</div>
+    <div class="meta">requested by ${escapeHtml(request.requestedBy)} - ${escapeHtml(when)}</div>
+    ${
+      own
+        ? '<div class="meta">Awaiting another active superadmin.</div>'
+        : `<form method="post" action="/ops/staff/approvals">
+             <input type="hidden" name="request_id" value="${escapeHtml(request.id)}" />
+             <input type="hidden" name="decision" value="approved" />
+             <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
+             <input type="text" name="reason" placeholder="Decision reason" required />
+             <button type="submit">Approve</button>
+           </form>
+           <form method="post" action="/ops/staff/approvals">
+             <input type="hidden" name="request_id" value="${escapeHtml(request.id)}" />
+             <input type="hidden" name="decision" value="rejected" />
+             <input type="hidden" name="csrf" value="${escapeHtml(csrf)}" />
+             <input type="text" name="reason" placeholder="Decision reason" required />
+             <button type="submit">Reject</button>
+           </form>`
+    }
+  </div>`;
+}
+
 export function opsStaffPage(options: {
   actorEmail: string;
   staff: OpsStaff[];
+  requests: OpsStaffRequest[];
   csrf: string;
   message?: string;
   error?: string;
 }): string {
   const rows = options.staff.map((person) => staffRow(person, options.csrf)).join("");
+  const approvals = options.requests
+    .map((request) => approvalRow(request, options.actorEmail, options.csrf))
+    .join("");
   return layout(
     "Staff",
     `<h1>Staff directory</h1>
@@ -286,6 +332,13 @@ export function opsStaffPage(options: {
         reach the operator surfaces after TOTP enrolment.</p>
      ${options.message ? `<div class="banner ok">${escapeHtml(options.message)}</div>` : ""}
      ${options.error ? `<div class="banner err">${escapeHtml(options.error)}</div>` : ""}
+     <div class="invite">
+       <strong>Pending second approval</strong>
+       <p class="muted">Superadmin create, role, disable and TOTP reset requests need a different
+          active superadmin. If only one superadmin exists, seed a second with
+          <code>ops:staff:bootstrap</code> before relying on this workflow.</p>
+       ${approvals || '<p class="muted">No pending requests.</p>'}
+     </div>
      <div class="invite">
        <strong>Invite staff</strong>
        <form method="post" action="/ops/staff">

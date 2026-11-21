@@ -227,7 +227,7 @@ tables are additive.
 | 1. Staff store + TOTP | done | RFC 6238 vectors, single-use TOTP and recovery codes, lockout, audit; staging DB test passed; rows cleaned up |
 | 2. Access JWT + session + gate | done, shadow | JWT failure modes, gate decision matrix, Redis issue/resolve/revoke; `/v1/ops/gate` returns `204` + `x-ops-shadow-status: 401` |
 | 3. Login/enrolment pages | done | CSRF issue/verify/expiry/tamper, escaped pages, `/ops/login` and `/ops/enroll` return `401 Access required` without an Access JWT; forms fail closed; first superadmin seeded |
-| 4. `/ops/staff` superadmin UI | done (API + page) | list, invite, roles, disable/enable, TOTP reset, audit page, CSV; guards prevent self-disable and last-superadmin removal; staging DB test passed; endpoints fail closed with `401 An ops session is required.` |
+| 4. `/ops/staff` superadmin UI | done (API + page) | list, invite, roles, disable/enable, TOTP reset, audit page, CSV; guards prevent self-disable and last-superadmin removal; **second-approver workflow** for superadmin create/role/status/TOTP reset; staging DB test passed; endpoints fail closed |
 | 5. Cloudflare group sync + nginx | done, shadow | live add/move/remove/reconcile against the real Staff and ERP groups; admin/ERP paths return `302 /ops/login` in enforce while seller/static/health pass; restored to shadow |
 | 6. Staging UAT shadow → enforce | pending | — |
 
@@ -264,8 +264,20 @@ cleanup                    -> no test email remains
 Staging is back on `OPS_TOTP_GATE=shadow`. The production token must be scoped to Access Groups
 edit only; the staging token is stored in `experience-api.env` on the host and is not committed.
 
-Second-approver workflow for superadmin changes is still pending; the page states this and production
-acceptance requires it before the first production superadmin is added.
+### Second-approver workflow
+
+- Sensitive actions create a pending `ops_staff_request` instead of applying: creating a superadmin,
+  changing roles on or to `super_admin`, disabling/enabling a superadmin, and resetting a superadmin's
+  TOTP.
+- A **different** active superadmin approves or rejects with a reason. The requester can never approve
+  their own request. Requests expire after 24 hours.
+- An approved action is applied by the approver, audited with the approver as actor plus the request id
+  and original reason, then synced to Cloudflare.
+- The page shows pending approvals and marks the requester's own request as awaiting another
+  superadmin.
+- Bootstrap: seed two superadmins with `ops:staff:bootstrap`. The workflow cannot bootstrap itself
+  because self-approval is blocked.
+- Tested on staging: pending list, self-approval block, approval, rejection, request cleanup.
 
 Staging configuration:
 

@@ -22,6 +22,48 @@ export type OpsStaffRole = typeof OPS_STAFF_ROLES[number];
 export const OPS_STAFF_STATUSES = ["invited", "active", "disabled"] as const;
 export type OpsStaffStatus = typeof OPS_STAFF_STATUSES[number];
 
+export const OPS_REQUEST_ACTIONS = ["create", "roles", "status", "reset_totp"] as const;
+export type OpsStaffRequestAction = typeof OPS_REQUEST_ACTIONS[number];
+export type OpsStaffRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+  | "failed"
+  | "expired";
+
+export interface OpsStaffRequest {
+  id: string;
+  action: OpsStaffRequestAction;
+  targetEmail: string;
+  payload: Record<string, unknown>;
+  reason: string;
+  requestedBy: string;
+  requestedAt: string;
+  expiresAt: string;
+  status: OpsStaffRequestStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionReason: string | null;
+  error: string | null;
+}
+
+interface OpsStaffRequestRow {
+  id: string;
+  action: OpsStaffRequestAction;
+  target_email: string;
+  payload: Record<string, unknown> | null;
+  reason: string;
+  requested_by: string;
+  requested_at: Date | string;
+  expires_at: Date | string;
+  status: OpsStaffRequestStatus;
+  decided_by: string | null;
+  decided_at: Date | string | null;
+  decision_reason: string | null;
+  error: string | null;
+}
+
 const roleSet = new Set<string>(OPS_STAFF_ROLES);
 const statusSet = new Set<string>(OPS_STAFF_STATUSES);
 
@@ -110,6 +152,24 @@ function toStaff(row: OpsStaffRow): OpsStaff {
   };
 }
 
+function toRequest(row: OpsStaffRequestRow): OpsStaffRequest {
+  return {
+    id: row.id,
+    action: row.action,
+    targetEmail: row.target_email,
+    payload: row.payload ?? {},
+    reason: row.reason,
+    requestedBy: row.requested_by,
+    requestedAt: iso(row.requested_at) as string,
+    expiresAt: iso(row.expires_at) as string,
+    status: row.status,
+    decidedBy: row.decided_by,
+    decidedAt: iso(row.decided_at),
+    decisionReason: row.decision_reason,
+    error: row.error,
+  };
+}
+
 export function decodeOpsEncryptionKey(raw: string): Buffer {
   const key = Buffer.from(raw.trim(), "base64");
   if (key.length !== 32) {
@@ -189,6 +249,25 @@ export class OpsStaffStore {
       );
       CREATE INDEX IF NOT EXISTS ops_staff_audit_staff_idx
         ON ops_staff_audit (staff_id, at DESC);
+      CREATE TABLE IF NOT EXISTS ops_staff_request (
+        id              text PRIMARY KEY,
+        action          text NOT NULL
+                          CHECK (action IN ('create','roles','status','reset_totp')),
+        target_email    text NOT NULL,
+        payload         jsonb NOT NULL,
+        reason          text NOT NULL,
+        requested_by    text NOT NULL,
+        requested_at    timestamptz NOT NULL DEFAULT now(),
+        expires_at      timestamptz NOT NULL DEFAULT now() + interval '24 hours',
+        status          text NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','approved','rejected','cancelled','failed','expired')),
+        decided_by      text,
+        decided_at      timestamptz,
+        decision_reason text,
+        error           text
+      );
+      CREATE INDEX IF NOT EXISTS ops_staff_request_pending_idx
+        ON ops_staff_request (status, requested_at);
     `);
   }
 
@@ -569,6 +648,77 @@ export class OpsStaffStore {
       [staff.id, limit],
     );
     return result.rows as Array<Record<string, unknown>>;
+  }
+
+  async createRequest(input: {
+    action: OpsStaffRequestAction;
+    targetEmail: string;
+    payload: Record<string, unknown>;
+    reason: string;
+    requestedBy: string;
+  }): Promise<OpsStaffRequest> {
+    await this.ready;
+    if (!input.reason.trim()) throw new Error("A reason is required.");
+    const result = await this.pool.query(
+      `INSERT INTO ops_staff_request (id, action, target_email, payload, reason, requested_by)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       RETURNING *`,
+      [
+        `opreq_${randomUUID()}`,
+        input.action,
+        normalizeEmail(input.targetEmail),
+        JSON.stringify(input.payload),
+        input.reason.trim(),
+        input.requestedBy.trim().toLowerCase(),
+      ],
+    );
+    return toRequest(result.rows[0] as OpsStaffRequestRow);
+  }
+
+  async listPendingRequests(): Promise<OpsStaffRequest[]> {
+    await this.ready;
+    const result = await this.pool.query(
+      `SELECT * FROM ops_staff_request
+        WHERE status = 'pending' AND expires_at > now()
+        ORDER BY requested_at ASC`,
+    );
+    return (result.rows as OpsStaffRequestRow[]).map(toRequest);
+  }
+
+  /**
+   * Approve or reject a pending request. A superadmin can never decide their own request, and an
+   * expired request cannot be decided.
+   */
+  async decideRequest(
+    id: string,
+    decision: "approved" | "rejected",
+    actorEmail: string,
+    reason: string,
+  ): Promise<OpsStaffRequest | null> {
+    await this.ready;
+    const result = await this.pool.query(
+      `UPDATE ops_staff_request
+          SET status = $2,
+              decided_by = $3,
+              decided_at = now(),
+              decision_reason = $4
+        WHERE id = $1
+          AND status = 'pending'
+          AND expires_at > now()
+          AND lower(requested_by) <> lower($3)
+        RETURNING *`,
+      [id, decision, actorEmail.trim().toLowerCase(), reason.trim() || null],
+    );
+    const row = result.rows[0] as OpsStaffRequestRow | undefined;
+    return row ? toRequest(row) : null;
+  }
+
+  async markRequestFailed(id: string, error: string): Promise<void> {
+    await this.ready;
+    await this.pool.query(
+      "UPDATE ops_staff_request SET status = 'failed', error = $2 WHERE id = $1",
+      [id, error.slice(0, 1000)],
+    );
   }
 
   async close(): Promise<void> {

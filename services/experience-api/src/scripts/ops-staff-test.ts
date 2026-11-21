@@ -86,6 +86,7 @@ const store = new OpsStaffStore(databaseUrl, randomBytes(32));
 const cleanup = new pg.Pool({ connectionString: databaseUrl, max: 1 });
 const email = `ops-test-${randomUUID()}@buildkart.test`;
 const actor = "ops-test-superadmin@buildkart.test";
+const requestPrefix = `ops-req-${randomUUID().slice(0, 8)}`;
 
 try {
   const created = await store.create({
@@ -169,13 +170,73 @@ try {
   const audit = await store.auditTrail(email);
   assert.ok(audit.length >= 6, `expected audit rows, got ${audit.length}`);
   console.log("PASS role change, disable and audit trail");
+
+  const requesterEmail = `${requestPrefix}-requester@buildkart.test`;
+  const approverEmail = `${requestPrefix}-approver@buildkart.test`;
+  const targetEmail = `${requestPrefix}-target@buildkart.test`;
+  await store.create({
+    email: requesterEmail,
+    name: "Requester",
+    roles: ["super_admin"],
+    actorEmail: actor,
+    reason: "request test",
+  });
+  await store.create({
+    email: approverEmail,
+    name: "Approver",
+    roles: ["super_admin"],
+    actorEmail: actor,
+    reason: "request test",
+  });
+  const request = await store.createRequest({
+    action: "create",
+    targetEmail,
+    payload: { email: targetEmail, roles: ["super_admin"] },
+    reason: "second approval test",
+    requestedBy: requesterEmail,
+  });
+  const pending = await store.listPendingRequests();
+  assert.ok(pending.some((entry) => entry.id === request.id));
+  const selfApproval = await store.decideRequest(
+    request.id,
+    "approved",
+    requesterEmail,
+    "self approval",
+  );
+  assert.equal(selfApproval, null, "requester cannot approve their own request");
+  const approved = await store.decideRequest(request.id, "approved", approverEmail, "approved");
+  assert.equal(approved?.status, "approved");
+  assert.equal(approved?.decidedBy, approverEmail);
+  assert.equal((await store.listPendingRequests()).some((entry) => entry.id === request.id), false);
+  const rejectedRequest = await store.createRequest({
+    action: "reset_totp",
+    targetEmail,
+    payload: { email: targetEmail },
+    reason: "reject test",
+    requestedBy: requesterEmail,
+  });
+  const rejected = await store.decideRequest(
+    rejectedRequest.id,
+    "rejected",
+    approverEmail,
+    "not needed",
+  );
+  assert.equal(rejected?.status, "rejected");
+  console.log("PASS second-approval request lifecycle, self-approval block and rejection");
 } finally {
   try {
     await cleanup.query(
-      "DELETE FROM ops_staff_audit WHERE staff_id IN (SELECT id FROM ops_staff WHERE lower(email) = lower($1))",
-      [email],
+      "DELETE FROM ops_staff_request WHERE target_email LIKE $1 OR requested_by LIKE $1",
+      [`${requestPrefix}%`],
     );
-    await cleanup.query("DELETE FROM ops_staff WHERE lower(email) = lower($1)", [email]);
+    await cleanup.query(
+      "DELETE FROM ops_staff_audit WHERE staff_id IN (SELECT id FROM ops_staff WHERE lower(email) = lower($1) OR email LIKE $2)",
+      [email, `${requestPrefix}%`],
+    );
+    await cleanup.query(
+      "DELETE FROM ops_staff WHERE lower(email) = lower($1) OR email LIKE $2",
+      [email, `${requestPrefix}%`],
+    );
   } finally {
     await cleanup.end();
     await store.close();

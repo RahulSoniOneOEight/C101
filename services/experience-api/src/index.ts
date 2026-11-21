@@ -677,6 +677,26 @@ async function syncOpsStaff(person: OpsStaff): Promise<string | null> {
   return null;
 }
 
+function requestedRoles(payload: Record<string, unknown>): OpsStaffRole[] {
+  return Array.isArray(payload.roles) ? (payload.roles.map(String) as OpsStaffRole[]) : [];
+}
+
+/**
+ * Superadmin create, role changes, disable/enable and TOTP reset need a different active
+ * superadmin. Promoting a non-superadmin to superadmin is also sensitive.
+ */
+function needsSecondApproval(
+  action: "create" | "roles" | "status" | "reset_totp",
+  target: OpsStaff | null,
+  roles: readonly string[] = [],
+): boolean {
+  if (action === "create") return roles.includes("super_admin");
+  if (!target) return false;
+  if (target.roles.includes("super_admin")) return true;
+  if (action === "roles") return roles.includes("super_admin");
+  return false;
+}
+
 /**
  * Staging-only service identity for the Mercur admin console proxy. The shared secret is never
  * accepted unless configured, and the resulting actor is always an operator, never a customer.
@@ -3579,10 +3599,12 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const auth = await resolveOpsActor(req);
     if ("error" in auth) return opsActorHtmlError(auth.error);
     const staff = await opsContext.staff.list();
+    const requests = await opsContext.staff.listPendingRequests();
     return opsHtml(
       opsStaffPage({
         actorEmail: auth.actor.email,
         staff,
+        requests,
         csrf: issueFormToken(auth.actor.email, opsContext.formKey),
         message: url.searchParams.get("message") ?? undefined,
         error: url.searchParams.get("error") ?? undefined,
@@ -3633,10 +3655,21 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       opsRedirect(`/ops/staff?${kind}=${encodeURIComponent(text)}`);
     try {
       if (action === "invite") {
+        const nextRoles = roles as OpsStaffRole[];
+        if (needsSecondApproval("create", null, nextRoles)) {
+          const request = await opsContext.staff.createRequest({
+            action: "create",
+            targetEmail: email,
+            payload: { email, name, roles: nextRoles },
+            reason,
+            requestedBy: auth.actor.email,
+          });
+          return back("message", `Second approval required: request ${request.id} is pending.`);
+        }
         const created = await opsContext.staff.create({
           email,
           name,
-          roles: roles as OpsStaffRole[],
+          roles: nextRoles,
           actorEmail: auth.actor.email,
           reason,
         });
@@ -3648,11 +3681,24 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         );
       }
       if (action === "roles") {
+        const target = await opsContext.staff.get(email);
+        if (!target) return back("error", "Staff user not found.");
+        const nextRoles = roles as OpsStaffRole[];
+        if (needsSecondApproval("roles", target, nextRoles)) {
+          const request = await opsContext.staff.createRequest({
+            action: "roles",
+            targetEmail: email,
+            payload: { email, roles: nextRoles },
+            reason,
+            requestedBy: auth.actor.email,
+          });
+          return back("message", `Second approval required: request ${request.id} is pending.`);
+        }
         const guard = await superadminChangeGuard("roles", auth.actor.email, email, roles);
         if (guard) return back("error", guard);
         const updated = await opsContext.staff.setRoles(
           email,
-          roles as OpsStaffRole[],
+          nextRoles,
           auth.actor.email,
           reason,
         );
@@ -3665,6 +3711,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         const nextStatus =
           status === "active" ? "active" : status === "disabled" ? "disabled" : null;
         if (!nextStatus) return back("error", "Invalid status.");
+        const target = await opsContext.staff.get(email);
+        if (!target) return back("error", "Staff user not found.");
+        if (needsSecondApproval("status", target)) {
+          const request = await opsContext.staff.createRequest({
+            action: "status",
+            targetEmail: email,
+            payload: { email, status: nextStatus },
+            reason,
+            requestedBy: auth.actor.email,
+          });
+          return back("message", `Second approval required: request ${request.id} is pending.`);
+        }
         const guard = await superadminChangeGuard(
           "status",
           auth.actor.email,
@@ -3685,6 +3743,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
         return back("message", `${updated.email} is now ${updated.status} and synced.`);
       }
       if (action === "reset-totp") {
+        const target = await opsContext.staff.get(email);
+        if (!target) return back("error", "Staff user not found.");
+        if (needsSecondApproval("reset_totp", target)) {
+          const request = await opsContext.staff.createRequest({
+            action: "reset_totp",
+            targetEmail: email,
+            payload: { email },
+            reason,
+            requestedBy: auth.actor.email,
+          });
+          return back("message", `Second approval required: request ${request.id} is pending.`);
+        }
         const updated = await opsContext.staff.resetEnrollment(email, auth.actor.email, reason);
         if (!updated) return back("error", "Staff user not found.");
         return back("message", `TOTP reset for ${updated.email}; they must enrol again.`);
@@ -3692,6 +3762,152 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
       return problem(400, "unknown-action", "Unknown staff action.");
     } catch (error) {
       return back("error", (error as Error).message);
+    }
+  }
+
+  // POST /ops/staff/approvals - second-superadmin decision on a pending request.
+  if (url.pathname === "/ops/staff/approvals" && req.method === "POST") {
+    if (!opsContext) return opsActorHtmlError("not-configured");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorHtmlError(auth.error);
+    if (!sameOriginPost(req)) {
+      return problem(403, "cross-origin", "Cross-origin form submission.");
+    }
+    let requestId = "";
+    let decision = "";
+    let reason = "";
+    let csrfToken = "";
+    try {
+      const form = await req.formData();
+      requestId = String(form.get("request_id") ?? "").trim();
+      decision = String(form.get("decision") ?? "").trim();
+      reason = String(form.get("reason") ?? "").trim();
+      csrfToken = String(form.get("csrf") ?? "");
+    } catch {
+      return problem(400, "invalid-request-body", "Expected a form body.");
+    }
+    if (!verifyFormToken(csrfToken, auth.actor.email, opsContext.formKey)) {
+      return opsHtml(
+        opsNoticePage({ title: "Expired form", message: "Reload the staff page and try again." }),
+        403,
+      );
+    }
+    if (decision !== "approved" && decision !== "rejected") {
+      return problem(400, "invalid-decision", "Decision must be approved or rejected.");
+    }
+    if (!reason) {
+      return opsRedirect(`/ops/staff?error=${encodeURIComponent("A decision reason is required.")}`);
+    }
+    const request = await opsContext.staff.decideRequest(
+      requestId,
+      decision,
+      auth.actor.email,
+      reason,
+    );
+    if (!request) {
+      return opsRedirect(
+        `/ops/staff?error=${encodeURIComponent("Request not found, already decided, expired, or your own.")}`,
+      );
+    }
+    const back = (kind: "message" | "error", text: string) =>
+      opsRedirect(`/ops/staff?${kind}=${encodeURIComponent(text)}`);
+    if (decision === "rejected") {
+      return back("message", `Request ${request.id} rejected.`);
+    }
+    const baseReason = `approved request ${request.id}: ${request.reason}`;
+    try {
+      if (request.action === "create") {
+        const created = await opsContext.staff.create({
+          email: request.targetEmail,
+          name: String(request.payload.name ?? ""),
+          roles: requestedRoles(request.payload),
+          actorEmail: auth.actor.email,
+          reason: baseReason,
+        });
+        const warning = await syncOpsStaff(created);
+        if (warning) return back("error", warning);
+        return back("message", `Approved: ${created.email} created and synced.`);
+      }
+      if (request.action === "roles") {
+        const roles = requestedRoles(request.payload);
+        const guard = await superadminChangeGuard(
+          "roles",
+          auth.actor.email,
+          request.targetEmail,
+          roles,
+        );
+        if (guard) {
+          await opsContext.staff.markRequestFailed(request.id, guard);
+          return back("error", guard);
+        }
+        const updated = await opsContext.staff.setRoles(
+          request.targetEmail,
+          roles,
+          auth.actor.email,
+          baseReason,
+        );
+        if (!updated) {
+          await opsContext.staff.markRequestFailed(request.id, "Staff user not found.");
+          return back("error", "Staff user not found.");
+        }
+        const warning = await syncOpsStaff(updated);
+        if (warning) return back("error", warning);
+        return back("message", `Approved: roles updated for ${updated.email}.`);
+      }
+      if (request.action === "status") {
+        const nextStatus =
+          request.payload.status === "active"
+            ? "active"
+            : request.payload.status === "disabled"
+              ? "disabled"
+              : null;
+        if (!nextStatus) {
+          await opsContext.staff.markRequestFailed(request.id, "Invalid status in request.");
+          return back("error", "Invalid status in request.");
+        }
+        const guard = await superadminChangeGuard(
+          "status",
+          auth.actor.email,
+          request.targetEmail,
+          undefined,
+          nextStatus,
+        );
+        if (guard) {
+          await opsContext.staff.markRequestFailed(request.id, guard);
+          return back("error", guard);
+        }
+        const updated = await opsContext.staff.setStatus(
+          request.targetEmail,
+          nextStatus,
+          auth.actor.email,
+          baseReason,
+        );
+        if (!updated) {
+          await opsContext.staff.markRequestFailed(request.id, "Staff user not found.");
+          return back("error", "Staff user not found.");
+        }
+        const warning = await syncOpsStaff(updated);
+        if (warning) return back("error", warning);
+        return back("message", `Approved: ${updated.email} is now ${updated.status}.`);
+      }
+      if (request.action === "reset_totp") {
+        const updated = await opsContext.staff.resetEnrollment(
+          request.targetEmail,
+          auth.actor.email,
+          baseReason,
+        );
+        if (!updated) {
+          await opsContext.staff.markRequestFailed(request.id, "Staff user not found.");
+          return back("error", "Staff user not found.");
+        }
+        return back("message", `Approved: TOTP reset for ${updated.email}.`);
+      }
+      await opsContext.staff.markRequestFailed(request.id, "Unknown request action.");
+      return back("error", "Unknown request action.");
+    } catch (error) {
+      const message = (error as Error).message;
+      await opsContext.staff.markRequestFailed(request.id, message);
+      return back("error", message);
     }
   }
 
@@ -3720,6 +3936,14 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     return json({ items: await opsContext.staff.list() });
   }
 
+  // GET /v1/ops/staff/requests - pending second-approval requests.
+  if (url.pathname === "/v1/ops/staff/requests" && req.method === "GET") {
+    if (!opsContext) return problem(404, "not-found");
+    const auth = await resolveOpsActor(req);
+    if ("error" in auth) return opsActorJsonError(auth.error);
+    return json({ items: await opsContext.staff.listPendingRequests() });
+  }
+
   // POST /v1/ops/staff - JSON invite.
   if (url.pathname === "/v1/ops/staff" && req.method === "POST") {
     if (!opsContext) return problem(404, "not-found");
@@ -3737,6 +3961,16 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const roles = Array.isArray(body.roles) ? body.roles.map(String) : [];
     const reason = String(body.reason ?? "").trim();
     if (!reason) return problem(400, "reason-required", "A reason is required.");
+    if (needsSecondApproval("create", null, roles)) {
+      const request = await opsContext.staff.createRequest({
+        action: "create",
+        targetEmail: email,
+        payload: { email, name, roles },
+        reason,
+        requestedBy: auth.actor.email,
+      });
+      return json({ request }, 202);
+    }
     try {
       const created = await opsContext.staff.create({
         email,
@@ -3768,6 +4002,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const roles = Array.isArray(body.roles) ? body.roles.map(String) : [];
     const reason = String(body.reason ?? "").trim();
     if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const target = await opsContext.staff.get(email);
+    if (!target) return problem(404, "not-found");
+    if (needsSecondApproval("roles", target, roles)) {
+      const request = await opsContext.staff.createRequest({
+        action: "roles",
+        targetEmail: email,
+        payload: { email, roles },
+        reason,
+        requestedBy: auth.actor.email,
+      });
+      return json({ request }, 202);
+    }
     const guard = await superadminChangeGuard("roles", auth.actor.email, email, roles);
     if (guard) return problem(409, "superadmin-guard", guard);
     try {
@@ -3802,6 +4048,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const reason = String(body.reason ?? "").trim();
     if (!status) return problem(400, "invalid-status", "Status must be active or disabled.");
     if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const target = await opsContext.staff.get(email);
+    if (!target) return problem(404, "not-found");
+    if (needsSecondApproval("status", target)) {
+      const request = await opsContext.staff.createRequest({
+        action: "status",
+        targetEmail: email,
+        payload: { email, status },
+        reason,
+        requestedBy: auth.actor.email,
+      });
+      return json({ request }, 202);
+    }
     const guard = await superadminChangeGuard("status", auth.actor.email, email, undefined, status);
     if (guard) return problem(409, "superadmin-guard", guard);
     const updated = await opsContext.staff.setStatus(email, status, auth.actor.email, reason);
@@ -3825,6 +4083,18 @@ async function handle(req: Request, url: URL, cid: string): Promise<Response> {
     const email = String(body.email ?? "").trim();
     const reason = String(body.reason ?? "").trim();
     if (!reason) return problem(400, "reason-required", "A reason is required.");
+    const target = await opsContext.staff.get(email);
+    if (!target) return problem(404, "not-found");
+    if (needsSecondApproval("reset_totp", target)) {
+      const request = await opsContext.staff.createRequest({
+        action: "reset_totp",
+        targetEmail: email,
+        payload: { email },
+        reason,
+        requestedBy: auth.actor.email,
+      });
+      return json({ request }, 202);
+    }
     const updated = await opsContext.staff.resetEnrollment(email, auth.actor.email, reason);
     if (!updated) return problem(404, "not-found");
     return json({ staff: updated });

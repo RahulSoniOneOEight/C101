@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { OpsStaff } from "../auth/ops-staff.js";
+import type { OpsStaff, OpsStaffRequest } from "../auth/ops-staff.js";
 import { opsStaffAuditPage, opsStaffPage } from "../auth/ops-pages.js";
 
 const now = "2026-11-21T00:00:00.000Z";
@@ -41,9 +41,43 @@ const staff: OpsStaff[] = [
   },
 ];
 
+const requests: OpsStaffRequest[] = [
+  {
+    id: "req_own",
+    action: "create",
+    targetEmail: "newlead@example.com",
+    payload: { roles: ["super_admin"] },
+    reason: "new ops lead",
+    requestedBy: "owner@example.com",
+    requestedAt: now,
+    expiresAt: now,
+    status: "pending",
+    decidedBy: null,
+    decidedAt: null,
+    decisionReason: null,
+    error: null,
+  },
+  {
+    id: "req_other",
+    action: "roles",
+    targetEmail: "finance@example.com",
+    payload: { roles: ["finance_operator", "erp_operator"] },
+    reason: "add ERP access",
+    requestedBy: "other-superadmin@example.com",
+    requestedAt: now,
+    expiresAt: now,
+    status: "pending",
+    decidedBy: null,
+    decidedAt: null,
+    decisionReason: null,
+    error: null,
+  },
+];
+
 const page = opsStaffPage({
   actorEmail: "owner@example.com",
   staff,
+  requests,
   csrf: "csrf-token",
   message: "Invited finance@example.com",
 });
@@ -62,7 +96,14 @@ assert.ok(page.includes("&lt;script&gt;"));
 assert.ok(page.includes("enrolled"));
 assert.ok(page.includes("not enrolled"));
 assert.ok(page.includes("Invited finance@example.com"));
-console.log("PASS staff page renders people, roles, forms, export and escapes names");
+assert.ok(page.includes("Pending second approval"));
+assert.ok(page.includes("newlead@example.com"));
+assert.ok(page.includes("Awaiting another active superadmin."));
+assert.ok(page.includes('action="/ops/staff/approvals"'));
+assert.ok(page.includes('value="approved"'));
+assert.ok(page.includes('value="rejected"'));
+assert.ok(page.includes("add ERP access"));
+console.log("PASS staff page renders people, roles, approval requests, forms and escapes names");
 
 const audit = opsStaffAuditPage({
   actorEmail: "owner@example.com",
